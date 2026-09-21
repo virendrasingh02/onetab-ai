@@ -16,6 +16,12 @@ export interface SlashCommand {
   allowedSurfaces?: ComposerSurfaceKind[];
   /** Whether this command requires channel/workspace management permissions. */
   requiresManage?: boolean;
+  /**
+   * Prompt-scaffold commands (AI Studio's `/summarize`, `/explain`, …) expand to
+   * this text at the caret instead of becoming a `/name` chip — picking one is
+   * "start typing from here", not "tag this message with a command".
+   */
+  expandsTo?: string;
 }
 
 export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [

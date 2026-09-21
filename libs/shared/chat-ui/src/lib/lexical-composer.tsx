@@ -5,6 +5,7 @@ import {
   CodeNode,
 } from '@lexical/code';
 import { HashtagNode } from '@lexical/hashtag';
+import { $generateNodesFromDOM } from '@lexical/html';
 import {
   $isLinkNode,
   AutoLinkNode,
@@ -76,6 +77,7 @@ import {
   IS_APPLE,
   KEY_DOWN_COMMAND,
   KEY_ENTER_COMMAND,
+  PASTE_COMMAND,
   SELECTION_CHANGE_COMMAND,
 } from 'lexical';
 import {
@@ -279,6 +281,8 @@ export interface LexicalComposerInputProps {
   hasPendingAttachments?: boolean;
   /** Candidates for the in-editor `@` menu. With none, the menu stays closed. */
   members?: MentionCandidate[];
+  /** Candidates for the in-editor `#` menu. With none, the menu stays closed. */
+  channelMentions?: MentionCandidate[];
   /** Commands for the in-editor `/` menu, offered at the start of a message. */
   slashCommands?: SlashCommand[];
   onRegisterRef?: (ref: LexicalEditorRef) => void;
@@ -458,6 +462,10 @@ function EditorApiPlugin({
               undefined,
               true,
             );
+            // Any programmatic content load — draft restore or an edit being
+            // opened — should leave the caret ready to keep typing, not at
+            // the top of the document.
+            $getRoot().selectEnd();
           },
           { tag: SILENT_UPDATE_TAG },
         );
@@ -737,6 +745,156 @@ function FormattingShortcutsPlugin() {
         }
       },
       COMMAND_PRIORITY_NORMAL,
+    );
+  }, [editor]);
+
+  return null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Paste normalization                                                        */
+/* -------------------------------------------------------------------------- */
+
+/** Tags the sanitizer keeps. Anything else is unwrapped — its text survives,
+ *  the wrapper doesn't — which is what flattens layout `<div>`s, `<span>`s,
+ *  `<font>` tags and table markup (`table/tr/td/…` aren't here) alike. */
+const PASTE_ALLOWED_TAGS = new Set([
+  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
+  'a', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'br',
+]);
+
+/** Never kept, never unwrapped — dropped along with their contents. */
+const PASTE_DROPPED_TAGS = new Set([
+  'script', 'style', 'meta', 'link', 'head', 'title',
+  'iframe', 'object', 'embed', 'noscript', 'img', 'svg', 'video', 'audio',
+]);
+
+/** Only http(s)/mailto survive on a pasted `<a href>` — anything else
+ *  (`javascript:`, `data:`, …) is a script-injection vector, not a link. */
+function isSafePasteHref(href: string): boolean {
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(href)) return true; // relative URL
+  return /^(https?|mailto):/i.test(href);
+}
+
+/**
+ * Google Docs, Word and Notion encode bold/italic/underline/strikethrough as
+ * inline `style` (`font-weight:700`, not `<b>`) rather than semantic tags —
+ * so before attributes get stripped below, real emphasis is promoted into a
+ * `<strong>/<em>/<u>/<s>` wrapper that survives. Everything else in `style`
+ * (color, font-family, font-size, margins, line-height, background) is purely
+ * decorative and is simply dropped with the rest of the attributes.
+ */
+function wrapPasteSemanticStyle(doc: Document, element: HTMLElement): void {
+  const style = element.style;
+  const weight = style.fontWeight;
+  const isBold =
+    weight === 'bold' ||
+    weight === 'bolder' ||
+    (/^\d+$/.test(weight) && Number(weight) >= 600);
+  const isItalic = style.fontStyle === 'italic';
+  const decoration = `${style.textDecorationLine || ''} ${style.textDecoration || ''}`;
+  const isUnderline = decoration.includes('underline');
+  const isStrike = decoration.includes('line-through');
+
+  const tag = element.tagName.toLowerCase();
+  let target = element;
+  const wrap = (wrapperTag: string) => {
+    const wrapper = doc.createElement(wrapperTag);
+    while (target.firstChild) wrapper.appendChild(target.firstChild);
+    target.appendChild(wrapper);
+    target = wrapper;
+  };
+
+  if (isBold && tag !== 'strong' && tag !== 'b') wrap('strong');
+  if (isItalic && tag !== 'em' && tag !== 'i') wrap('em');
+  if (isUnderline && tag !== 'u') wrap('u');
+  if (isStrike && tag !== 's' && tag !== 'strike' && tag !== 'del') wrap('s');
+}
+
+/**
+ * Recursively strips pasted HTML down to what the composer actually
+ * understands: promotes real inline-style emphasis into semantic tags (see
+ * above), strips every attribute except `href` on links (and only a safe
+ * one), and unwraps — keeping the text, dropping the wrapper — anything
+ * outside {@link PASTE_ALLOWED_TAGS}. What's left maps directly onto nodes
+ * already registered in {@link EDITOR_NODES}; nothing new to register.
+ */
+function sanitizePasteDom(doc: Document, node: Node): void {
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType === Node.COMMENT_NODE) {
+      node.removeChild(child);
+      continue;
+    }
+    if (!(child instanceof HTMLElement)) continue;
+
+    const tag = child.tagName.toLowerCase();
+    if (PASTE_DROPPED_TAGS.has(tag)) {
+      node.removeChild(child);
+      continue;
+    }
+
+    wrapPasteSemanticStyle(doc, child);
+    // Recurse first so nested disallowed content is already cleaned up
+    // whether this element ends up kept or unwrapped.
+    sanitizePasteDom(doc, child);
+
+    if (!PASTE_ALLOWED_TAGS.has(tag)) {
+      while (child.firstChild) node.insertBefore(child.firstChild, child);
+      node.removeChild(child);
+      continue;
+    }
+
+    const href = tag === 'a' ? child.getAttribute('href') : null;
+    for (const attr of Array.from(child.attributes)) child.removeAttribute(attr.name);
+    if (href && isSafePasteHref(href)) child.setAttribute('href', href);
+  }
+}
+
+/**
+ * Rich HTML paste from a website, Google Docs, Word or Notion must not carry
+ * that source's typography into the message — but plain-looking formatting
+ * (bold, lists, links, headings) should survive. Plain-text paste and our own
+ * composer-to-composer copy/paste (`application/x-lexical-editor`, which
+ * Lexical's own default handler already reconstructs with full node fidelity,
+ * chips included) are left alone entirely — this only intercepts genuine
+ * external `text/html`.
+ */
+function HtmlPastePlugin() {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    return editor.registerCommand(
+      PASTE_COMMAND,
+      (event) => {
+        if (!(event instanceof ClipboardEvent) || !event.clipboardData) {
+          return false;
+        }
+        const clipboardData = event.clipboardData;
+        if (clipboardData.getData('application/x-lexical-editor')) return false;
+
+        const html = clipboardData.getData('text/html');
+        if (!html || !html.trim()) return false;
+
+        const dom = new DOMParser().parseFromString(html, 'text/html');
+        sanitizePasteDom(dom, dom.body);
+        if (dom.body.childNodes.length === 0) return false;
+
+        event.preventDefault();
+        editor.update(() => {
+          const nodes = $generateNodesFromDOM(editor, dom);
+          if (nodes.length === 0) return;
+
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            selection.insertNodes(nodes);
+          } else {
+            $insertNodes(nodes);
+          }
+        });
+        return true;
+      },
+      COMMAND_PRIORITY_HIGH,
     );
   }, [editor]);
 
@@ -1166,6 +1324,128 @@ function MentionsPlugin({
   );
 }
 
+class ChannelMenuOption extends MenuOption {
+  constructor(readonly candidate: MentionCandidate) {
+    super(`channel-${candidate.id}`);
+  }
+}
+
+/**
+ * `#channel` search-and-insert. Deliberately not a `MentionNode`: it inserts
+ * plain `#slug` text, which the already-mounted `<HashtagPlugin />` picks up
+ * and styles on its own — exactly as if the user had typed it by hand. That
+ * keeps channel references on the same wire format (and read-side rendering)
+ * hand-typed hashtags already have, with search replacing guesswork.
+ */
+function ChannelMentionsPlugin({
+  candidates,
+  onOpenChange,
+}: {
+  candidates: MentionCandidate[];
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [editor] = useLexicalComposerContext();
+  const [query, setQuery] = useState<string | null>(null);
+
+  const triggerFn = useBasicTypeaheadTriggerMatch('#', {
+    minLength: 0,
+    maxLength: 32,
+  });
+
+  const options = useMemo(() => {
+    const needle = (query ?? '').toLowerCase().trim();
+    return candidates
+      .filter(
+        (candidate) =>
+          !needle ||
+          candidate.name.toLowerCase().includes(needle) ||
+          candidate.subtitle?.toLowerCase().includes(needle),
+      )
+      .slice(0, 12)
+      .map((candidate) => new ChannelMenuOption(candidate));
+  }, [candidates, query]);
+
+  const onSelectOption = useCallback(
+    (
+      option: ChannelMenuOption,
+      nodeToReplace: ReturnType<typeof $createTextNode> | null,
+      closeMenu: () => void,
+    ) => {
+      editor.update(() => {
+        const chip = $createTextNode(`#${option.candidate.name}`);
+        if (nodeToReplace) {
+          nodeToReplace.replace(chip);
+        } else {
+          $insertNodes([chip]);
+        }
+        const spacer = $createTextNode(' ');
+        chip.insertAfter(spacer);
+        spacer.select();
+        closeMenu();
+      });
+    },
+    [editor],
+  );
+
+  return (
+    <LexicalTypeaheadMenuPlugin<ChannelMenuOption>
+      options={options}
+      triggerFn={triggerFn}
+      commandPriority={COMMAND_PRIORITY_CRITICAL}
+      onQueryChange={setQuery}
+      onOpen={() => onOpenChange(true)}
+      onClose={() => onOpenChange(false)}
+      onSelectOption={onSelectOption}
+      menuRenderFn={(
+        anchorRef,
+        { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
+      ) => {
+        if (!anchorRef.current) return null;
+
+        return createPortal(
+          <MenuShell
+            label="Channel"
+            hint="↑↓ to browse · ↵ or Tab to insert"
+            icon={<Hash className="size-3.5" />}
+          >
+            {options.length === 0 ? (
+              <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+                No matching channels found
+              </li>
+            ) : (
+              options.map((option, index) => (
+                <MenuItem
+                  key={option.key}
+                  id={`channel-option-${index}`}
+                  option={option}
+                  isSelected={selectedIndex === index}
+                  onHighlight={() => setHighlightedIndex(index)}
+                  onSelect={() => selectOptionAndCleanUp(option)}
+                >
+                  <span className="size-6 flex shrink-0 items-center justify-center rounded-full bg-info/15 text-info-text">
+                    <Hash className="size-3.5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="font-semibold block truncate text-foreground">
+                      #{option.candidate.name}
+                    </span>
+                    {option.candidate.subtitle ? (
+                      <span className="block truncate text-[10px] text-muted-foreground">
+                        {option.candidate.subtitle}
+                      </span>
+                    ) : null}
+                  </span>
+                </MenuItem>
+              ))
+            )}
+          </MenuShell>,
+          anchorRef.current,
+        );
+      }}
+    />
+  );
+}
+
 class CommandMenuOption extends MenuOption {
   constructor(readonly command: SlashCommand) {
     super(`command-${command.name}`);
@@ -1217,6 +1497,21 @@ function SlashCommandsPlugin({
       closeMenu: () => void,
     ) => {
       editor.update(() => {
+        // A prompt-scaffold command (AI Studio's `/summarize`, …) drops its
+        // text at the caret for the user to keep typing from — it's a
+        // starting point, not a tagged action, so it isn't a chip.
+        if (option.command.expandsTo) {
+          const text = $createTextNode(option.command.expandsTo);
+          if (nodeToReplace) {
+            nodeToReplace.replace(text);
+          } else {
+            $insertNodes([text]);
+          }
+          text.selectEnd();
+          closeMenu();
+          return;
+        }
+
         const chip = $createCommandNode(option.command.name);
         if (nodeToReplace) {
           nodeToReplace.replace(chip);
@@ -1797,6 +2092,7 @@ export function LexicalComposerInput({
   showToolbar = true,
   hasPendingAttachments = false,
   members = [],
+  channelMentions = [],
   slashCommands = [],
   onRegisterRef,
   onMentionTrigger,
@@ -1832,8 +2128,9 @@ export function LexicalComposerInput({
   );
 
   const [mentionOpen, setMentionOpen] = useState(false);
+  const [channelMenuOpen, setChannelMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
-  const isMenuOpen = mentionOpen || commandOpen;
+  const isMenuOpen = mentionOpen || channelMenuOpen || commandOpen;
 
   const handleMentionOpenChange = useCallback(
     (open: boolean) => {
@@ -1894,6 +2191,7 @@ export function LexicalComposerInput({
         />
         <EditablePlugin disabled={disabled} />
         <FormattingShortcutsPlugin />
+        <HtmlPastePlugin />
         <EditorApiPlugin
           onSend={onSend}
           onTyping={onTyping}
@@ -1907,6 +2205,12 @@ export function LexicalComposerInput({
             candidates={members}
             onOpenChange={handleMentionOpenChange}
             onQuery={onMentionTrigger}
+          />
+        ) : null}
+        {channelMentions.length > 0 ? (
+          <ChannelMentionsPlugin
+            candidates={channelMentions}
+            onOpenChange={setChannelMenuOpen}
           />
         ) : null}
         {slashCommands.length > 0 ? (

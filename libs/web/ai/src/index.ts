@@ -4,8 +4,6 @@ export { PromptLibraryView } from './lib/PromptLibraryView.js';
 export { AIImageGeneratorView } from './lib/AIImageGeneratorView.js';
 export { AIStudioView } from './lib/studio/AIStudioView.js';
 
-export { AIComposer, type AIComposerProps } from './lib/ai-composer.js';
-
 /*
  * The transcript rows live in `@org/chat-ui` — the agent conversation renders
  * them too, and it must not depend on this library to do it. Re-exported here
@@ -20,19 +18,8 @@ export {
   type AIMessageProps,
 } from '@org/chat-ui';
 
-export {
-  AI_COMMANDS,
-  AI_MENTIONS,
-  applySuggestion,
-  filterCommands,
-  filterMentions,
-  readSuggestionTrigger,
-  stripMentions,
-  type AICommand,
-  type AIMention,
-  type SuggestionKind,
-  type SuggestionTrigger,
-} from './lib/ai-suggestions.js';
+export { AIModelPicker, type AIModelPickerProps } from './lib/ai-model-picker.js';
+export { AI_STUDIO_SLASH_COMMANDS } from './lib/ai-composer-commands.js';
 
 export {
   useAIConversation,

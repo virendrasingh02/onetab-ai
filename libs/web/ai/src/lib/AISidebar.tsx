@@ -7,8 +7,9 @@ import {
 } from '@org/ui';
 import { Sparkles } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { AIComposer } from './ai-composer.js';
-import { AIErrorRow, AIMessage, AIThinkingRow } from '@org/chat-ui';
+import { AIErrorRow, AIMessage, AIThinkingRow, Composer } from '@org/chat-ui';
+import { AI_STUDIO_SLASH_COMMANDS } from './ai-composer-commands.js';
+import { AIModelPicker } from './ai-model-picker.js';
 import { useAIConversation } from './use-ai-conversation.js';
 
 export interface AISidebarProps {
@@ -92,15 +93,17 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
           change it mid-sentence.
         */}
         <div className="p-3 shrink-0 border-t border-border">
-          <AIComposer
-            value={chat.input}
-            onValueChange={chat.setInput}
-            onSubmit={chat.send}
-            model={chat.model}
-            onModelChange={chat.setModel}
-            isBusy={chat.isThinking}
-            variant="docked"
-            placeholder="Ask AI anything — @ model, / command…"
+          <Composer
+            key={`ai-sidebar-${chat.resetToken}`}
+            conversationId="ai-sidebar"
+            surfaceKind="ai-chat"
+            onSend={(body) => chat.send(body)}
+            disabled={chat.isThinking}
+            slashCommands={AI_STUDIO_SLASH_COMMANDS}
+            toolbarSlot={
+              <AIModelPicker model={chat.model} onModelChange={chat.setModel} />
+            }
+            placeholder="Ask AI anything…"
           />
         </div>
       </SheetContent>

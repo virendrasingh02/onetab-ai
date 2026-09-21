@@ -43,6 +43,7 @@ export interface ComposerControlResult {
   agentMentions?: MentionCandidate[];
   coworkerMentions?: MentionCandidate[];
   appMentions?: MentionCandidate[];
+  channelMentions?: MentionCandidate[];
   slashCommands: SlashCommand[];
 }
 
@@ -265,6 +266,15 @@ export function useComposerControl(
     staleTime: 60_000,
   });
 
+  // Same query key `useChannels` uses, so the `#` mention menu shares its
+  // cache with the sidebar's channel list rather than fetching it twice.
+  const workspaceChannelsQuery = useQuery({
+    queryKey: queryKeys.channels.list(workspaceId ?? '', false),
+    queryFn: () => channelApi.list(workspaceId as string, false),
+    enabled: hasWorkspace,
+    staleTime: 30_000,
+  });
+
   // ── Derived guest / group-mention flags ───────────────────────────────────
   const isGuest =
     (currentWorkspace.role as WorkspaceRole) === WorkspaceRole.GUEST;
@@ -326,6 +336,19 @@ export function useComposerControl(
     [workspaceIntegrationsQuery.data],
   );
 
+  // The `#` menu inserts the URL-safe slug (a single "word", so the stock
+  // HashtagPlugin actually recognises it) and shows the display name — which
+  // often differ — as the subtitle.
+  const channelMentions = useMemo<MentionCandidate[]>(
+    () =>
+      (workspaceChannelsQuery.data ?? []).map((channel) => ({
+        id: channel.id,
+        name: channel.slug,
+        subtitle: channel.name !== channel.slug ? channel.name : undefined,
+      })),
+    [workspaceChannelsQuery.data],
+  );
+
   // ── Contextual slash commands ──────────────────────────────────────────────
   const slashCommands = useMemo<SlashCommand[]>(
     () =>
@@ -348,6 +371,7 @@ export function useComposerControl(
     agentMentions,
     coworkerMentions,
     appMentions,
+    channelMentions,
     slashCommands,
   };
 }

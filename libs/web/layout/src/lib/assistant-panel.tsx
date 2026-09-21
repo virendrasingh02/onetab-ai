@@ -1,9 +1,11 @@
+import { Composer } from '@org/chat-ui';
 import { Button, Hint } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  AIComposer,
+  AI_STUDIO_SLASH_COMMANDS,
   AIErrorRow,
   AIMessage,
+  AIModelPicker,
   AIThinkingRow,
   useAIConversation,
 } from '@org/web-ai';
@@ -30,7 +32,6 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
   const chat = useAIConversation({ greeting: true });
 
   const endRef = useRef<HTMLDivElement>(null);
-  const composerRef = useRef<HTMLTextAreaElement>(null);
 
   /*
    * `block: 'nearest'` keeps the scroll inside the message list. The previous
@@ -40,11 +41,6 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'nearest' });
   }, [chat.messages, chat.isThinking]);
-
-  const reset = () => {
-    chat.reset();
-    composerRef.current?.focus();
-  };
 
   return (
     /* Surface comes from the host — the rail `aside` on desktop, the sheet on
@@ -62,7 +58,7 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={reset}
+              onClick={chat.reset}
               aria-label="New chat"
             >
               <RotateCcw className="size-4" />
@@ -119,16 +115,17 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
       </div>
 
       <div className="p-3 shrink-0 border-t border-border">
-        <AIComposer
-          ref={composerRef}
-          value={chat.input}
-          onValueChange={chat.setInput}
-          onSubmit={chat.send}
-          model={chat.model}
-          onModelChange={chat.setModel}
-          isBusy={chat.isThinking}
-          variant="docked"
-          placeholder="Ask AI anything — @ model, / command…"
+        <Composer
+          key={`ai-assistant-panel-${chat.resetToken}`}
+          conversationId="ai-assistant-panel"
+          surfaceKind="ai-chat"
+          onSend={(body) => chat.send(body)}
+          disabled={chat.isThinking}
+          slashCommands={AI_STUDIO_SLASH_COMMANDS}
+          toolbarSlot={
+            <AIModelPicker model={chat.model} onModelChange={chat.setModel} />
+          }
+          placeholder="Ask AI anything…"
         />
       </div>
     </div>

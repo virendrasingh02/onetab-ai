@@ -1321,6 +1321,7 @@ export function ChatSurface({
                       workspaceMembers={threadControl.workspaceMembers}
                       agentMentions={threadControl.agentMentions}
                       coworkerMentions={threadControl.coworkerMentions}
+                      channelMentions={threadControl.channelMentions}
                       contextSlot={
                         threadControl.warning ? (
                           <ComposerWarning
@@ -1456,11 +1457,15 @@ export function ChatSurface({
             workspaceMembers={mainControl.workspaceMembers}
             agentMentions={mainControl.agentMentions}
             coworkerMentions={mainControl.coworkerMentions}
+            channelMentions={mainControl.channelMentions}
+            edit={
+              editing ? { messageId: editing.id, initialMarkdown: editing.body } : null
+            }
             contextSlot={
               editing ? (
                 <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">
-                  <span className="flex-1 truncate">
-                    Editing: {editing.body}
+                  <span className="flex-1 truncate font-medium">
+                    Editing message
                   </span>
                   <Button
                     variant="ghost"

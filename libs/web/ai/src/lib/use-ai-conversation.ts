@@ -2,7 +2,6 @@ import type { AITranscriptMessage } from '@org/chat-ui';
 import type { AIChatMessage } from '@org/types';
 import { useState } from 'react';
 import { modelLabelFor, type AIModelValue } from './ai-models.js';
-import { stripMentions } from './ai-suggestions.js';
 import { useAIChat } from './use-ai.js';
 
 /** The shape the shared transcript rows render. */
@@ -33,14 +32,17 @@ function welcomeMessage(): AIConversationMessage {
 }
 
 /**
- * One AI conversation: transcript, composer text, model, and the turn in
- * flight.
+ * One AI conversation: transcript, model, and the turn in flight.
  *
  * Both the full-page view and the docked assistant run on this, so the two
  * surfaces cannot drift apart in behaviour the way they had — one swallowed
  * errors into the transcript as fake assistant replies while the other offered
  * a retry, and each rebuilt the outgoing transcript with slightly different
  * rules.
+ *
+ * The composer text itself is not state here — it lives inside the shared
+ * `Composer` (Lexical + its own per-surface draft), which only hands this hook
+ * the final body on send.
  */
 export function useAIConversation({
   greeting = false,
@@ -48,19 +50,17 @@ export function useAIConversation({
   const [messages, setMessages] = useState<AIConversationMessage[]>(() =>
     greeting ? [welcomeMessage()] : [],
   );
-  const [input, setInput] = useState('');
   const [model, setModel] = useState<AIModelValue>('auto');
+  /** Bumped on `reset()` so the host can force-remount the composer (`key=`),
+   *  clearing its box the same way a fresh conversation should. */
+  const [resetToken, setResetToken] = useState(0);
 
   const chat = useAIChat();
 
   const modelLabel = modelLabelFor(model);
 
-  /*
-   * The API holds no conversation state, so the transcript goes up in full on
-   * every turn. The local greeting is dropped — the model never said it — and
-   * `@model` tokens are stripped, since those steered the request rather than
-   * forming part of the question.
-   */
+  // The API holds no conversation state, so the transcript goes up in full on
+  // every turn. The local greeting is dropped — the model never said it.
   const submit = (
     history: AIConversationMessage[],
     userMessage: AIConversationMessage,
@@ -69,7 +69,7 @@ export function useAIConversation({
       .filter((message) => !message.id.startsWith(WELCOME_PREFIX))
       .map((message) => ({
         role: message.role,
-        content: stripMentions(message.content),
+        content: message.content,
       }));
 
     setMessages([...history, userMessage]);
@@ -92,15 +92,14 @@ export function useAIConversation({
     );
   };
 
-  const send = () => {
-    const text = input.trim();
-    if (!text || chat.isPending) return;
+  const send = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || chat.isPending) return;
 
-    setInput('');
     submit(messages, {
       id: `u-${Date.now()}`,
       role: 'user',
-      content: text,
+      content: trimmed,
       at: new Date().toISOString(),
     });
   };
@@ -122,17 +121,16 @@ export function useAIConversation({
 
   const reset = () => {
     setMessages(greeting ? [welcomeMessage()] : []);
-    setInput('');
+    setResetToken((token) => token + 1);
     chat.reset();
   };
 
   return {
     messages,
-    input,
-    setInput,
     model,
     setModel,
     modelLabel,
+    resetToken,
     isThinking: chat.isPending,
     isError: chat.isError,
     error: chat.error,

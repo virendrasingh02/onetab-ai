@@ -1,6 +1,7 @@
 import { Button } from '@org/ui';
 import { cn } from '@org/utils';
 import { Sparkles, TriangleAlert, User } from 'lucide-react';
+import { MarkdownMessage } from './markdown-message.js';
 
 /**
  * One turn in an assistant transcript.
@@ -66,7 +67,10 @@ export function AIMessage({
           {timeLabel(message.at)}
         </time>
       </div>
-      <p className="whitespace-pre-wrap">{message.content}</p>
+      <MarkdownMessage
+        text={message.content}
+        className={cn(isUser && 'text-primary-foreground [&_a]:text-primary-foreground')}
+      />
     </div>
   );
 }

@@ -23,8 +23,9 @@ import {
   Sunset,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { AIComposer } from './ai-composer.js';
-import { AIErrorRow, AIMessage, AIThinkingRow } from '@org/chat-ui';
+import { AIErrorRow, AIMessage, AIThinkingRow, Composer } from '@org/chat-ui';
+import { AI_STUDIO_SLASH_COMMANDS } from './ai-composer-commands.js';
+import { AIModelPicker } from './ai-model-picker.js';
 import { useAIConversation } from './use-ai-conversation.js';
 
 /**
@@ -103,18 +104,18 @@ export function AIChatView() {
   };
 
   const composer = (
-    <AIComposer
-      value={chat.input}
-      onValueChange={chat.setInput}
-      onSubmit={chat.send}
-      model={chat.model}
-      onModelChange={chat.setModel}
-      isBusy={chat.isThinking}
-      variant={chat.isEmpty ? 'hero' : 'docked'}
+    <Composer
+      key={`ai-studio-${chat.resetToken}`}
+      conversationId="ai-studio"
+      surfaceKind="ai-chat"
+      onSend={(body) => chat.send(body)}
+      disabled={chat.isThinking}
+      slashCommands={AI_STUDIO_SLASH_COMMANDS}
+      toolbarSlot={
+        <AIModelPicker model={chat.model} onModelChange={chat.setModel} />
+      }
       placeholder={
-        chat.isEmpty
-          ? 'Ask anything — @ for a model, / for a command…'
-          : 'Ask a follow-up…'
+        chat.isEmpty ? 'Ask anything…' : 'Ask a follow-up…'
       }
     />
   );

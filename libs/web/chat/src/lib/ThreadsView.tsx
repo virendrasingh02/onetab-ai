@@ -299,11 +299,14 @@ function ThreadDetail({
           placeholder={editing ? 'Edit your message…' : `Reply in ${roomLabel}…`}
           showFormatting={false}
           onMentionsChange={composerControl.onMentionsChange}
+          edit={
+            editing ? { messageId: editing.id, initialMarkdown: editing.body } : null
+          }
           contextSlot={
             editing ? (
               <div className="mb-2 flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
-                <span className="flex-1 truncate">
-                  Editing: {editing.body}
+                <span className="flex-1 truncate font-medium">
+                  Editing message
                 </span>
                 <Button
                   variant="ghost"

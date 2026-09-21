@@ -25,6 +25,7 @@ import { cn, formatBytes } from '@org/utils';
 import {
   AtSign,
   CalendarClock,
+  Check,
   File as FileIcon,
   Film,
   Lock,
@@ -310,6 +311,7 @@ export interface ComposerProps {
   agentMentions?: MentionCandidate[];
   coworkerMentions?: MentionCandidate[];
   appMentions?: MentionCandidate[];
+  channelMentions?: MentionCandidate[];
   placeholder?: string;
   surfaceKind?: ComposerSurfaceKind;
   canMentionGroups?: boolean;
@@ -334,6 +336,13 @@ export interface ComposerProps {
     onSendAnonymously: (text: string) => void | Promise<void>;
   };
   contextSlot?: ReactNode;
+  /**
+   * Set while an existing message is being edited in place, instead of a new
+   * one being composed. Swaps in the message's own content (cursor at the
+   * end), suppresses draft persistence and slash-command reinterpretation for
+   * the duration, and turns Send into Save.
+   */
+  edit?: { messageId: string; initialMarkdown: string } | null;
   enterToSend?: boolean;
   onMentionsChange?: (mentions: DetectedMention[]) => void;
   /** Off in the thread panel, where the reply box stays out of the way. */
@@ -353,6 +362,9 @@ export interface ComposerProps {
   ) => void | Promise<void>;
   /** When false, disables automatic link preview generation for this composer. Defaults to true. */
   linkPreviewsEnabled?: boolean;
+  /** Extra controls appended to the formatting toolbar's right-hand side —
+   *  e.g. the AI chat surfaces' model picker. */
+  toolbarSlot?: ReactNode;
   className?: string;
 }
 
@@ -378,6 +390,7 @@ export function Composer({
   agentMentions,
   coworkerMentions,
   appMentions,
+  channelMentions,
   placeholder,
   targetName,
   surfaceKind = 'channel',
@@ -389,6 +402,7 @@ export function Composer({
   readOnlyMessage,
   anonymousPosting,
   contextSlot,
+  edit = null,
   enterToSend = true,
   onMentionsChange,
   showFormatting = true,
@@ -397,6 +411,7 @@ export function Composer({
   onStartHuddle,
   onSendVoice,
   linkPreviewsEnabled = true,
+  toolbarSlot,
   className,
 }: ComposerProps) {
   const [pickerState, setPickerState] = useState<{
@@ -475,6 +490,28 @@ export function Composer({
     }
   }, [conversationId, getDraft, setDraft, linkPreviewsEnabled, fetchPreview]);
 
+  /*
+   * Opening (or switching) an edit swaps the box to the message's own
+   * content instead of the conversation's draft; closing it (saved or
+   * cancelled) swaps back. Mirrors the conversation-switch effect above.
+   */
+  const prevEditMessageId = useRef<string | null>(edit?.messageId ?? null);
+  useEffect(() => {
+    const nextId = edit?.messageId ?? null;
+    if (prevEditMessageId.current === nextId) return;
+    prevEditMessageId.current = nextId;
+
+    if (edit) {
+      lexicalRef.current?.setMarkdown(edit.initialMarkdown);
+      lexicalRef.current?.focus();
+      setHasContent(edit.initialMarkdown.trim().length > 0);
+    } else {
+      const draft = conversationId ? getDraft(conversationId) : '';
+      lexicalRef.current?.setMarkdown(draft);
+      setHasContent(draft.trim().length > 0);
+    }
+  }, [edit, conversationId, getDraft]);
+
   // Object URLs are only good for as long as the tab is open — revoke each
   // one when its chip goes away, and sweep whatever's left on unmount so a
   // conversation switch mid-upload doesn't leak them.
@@ -533,7 +570,9 @@ export function Composer({
      times a second at most, and once more the moment the box is emptied. */
   const handleDraftChange = useCallback(
     (markdown: string) => {
-      if (conversationId) setDraft(conversationId, markdown);
+      // The box is holding a message being edited, not the conversation's
+      // draft — persisting it here would clobber the real draft underneath.
+      if (conversationId && !edit) setDraft(conversationId, markdown);
       if (linkPreviewsEnabled) {
         const links = detectLinks(markdown);
         setDetectedUrls(links.map((l) => l.url));
@@ -545,7 +584,7 @@ export function Composer({
         }
       }
     },
-    [conversationId, setDraft, linkPreviewsEnabled, dismissedUrls, fetchPreview],
+    [conversationId, setDraft, linkPreviewsEnabled, dismissedUrls, fetchPreview, edit],
   );
 
   const handleDismissPreview = useCallback((url: string) => {
@@ -650,10 +689,25 @@ export function Composer({
       flushAttachments();
       setDismissedUrls(new Set());
       setDetectedUrls([]);
-      if (conversationId) {
+      // Editing holds the conversation's real draft aside (see the edit
+      // effect above) — clearing it here on save would lose that draft.
+      if (conversationId && !edit) {
         clearDraft(conversationId);
       }
       if (!body) return;
+
+      // Saving an edited message is never a fresh slash command — even one
+      // that happened to start with `/help` originally gets saved verbatim.
+      if (edit) {
+        return onSend(body, {
+          mentions: currentMentionsRef.current,
+          targetType: surfaceKind,
+          targetId: conversationId ?? undefined,
+          workspaceId,
+          channelId:
+            surfaceKind === 'channel' ? conversationId ?? undefined : undefined,
+        });
+      }
 
       let finalBody = body;
       let detectedCommand: string | undefined;
@@ -724,6 +778,7 @@ export function Composer({
       onStartHuddle,
       surfaceKind,
       workspaceId,
+      edit,
     ],
   );
 
@@ -795,9 +850,9 @@ export function Composer({
     return getComposerPlaceholder({
       surfaceKind,
       targetName,
-      isEditing: false,
+      isEditing: Boolean(edit),
     });
-  }, [placeholder, surfaceKind, targetName]);
+  }, [placeholder, surfaceKind, targetName, edit]);
 
   const effectiveSlashCommands = useMemo(() => {
     return getContextualSlashCommands({
@@ -965,6 +1020,7 @@ export function Composer({
 
           hasPendingAttachments={attachments.length > 0}
           members={mentionCandidates}
+          channelMentions={channelMentions}
           slashCommands={effectiveSlashCommands}
           onRegisterRef={(ref) => {
             lexicalRef.current = ref;
@@ -1015,26 +1071,34 @@ export function Composer({
             horizontally as a backstop rather than wrapping or clipping. */}
         <div className="px-2.5 py-1.5 flex items-center justify-between rounded-b-xl border-t border-border bg-surface-raised">
           <div className="gap-1 flex min-w-0 flex-1 items-center overflow-x-auto no-scrollbar">
-            <Hint label="Attach file or media">
-              <button
-                type="button"
-                aria-label="Attach file or media"
-                onClick={() => document.getElementById(fileInputId)?.click()}
-                className="size-7 shrink-0 touch-target flex items-center justify-center rounded-full bg-accent text-foreground transition-colors hover:bg-selected"
-              >
-                <Plus className="size-4" aria-hidden="true" />
-              </button>
-            </Hint>
-            <input
-              id={fileInputId}
-              type="file"
-              multiple
-              className="sr-only"
-              onChange={(event) => {
-                stageFiles(event.target.files);
-                event.target.value = '';
-              }}
-            />
+            {/* Same "no prop, no control" convention as the huddle and mic
+                buttons below — a surface with nowhere to send an upload (AI
+                chat) shouldn't offer to stage one that then silently vanishes
+                on send. */}
+            {onAttach ? (
+              <>
+                <Hint label="Attach file or media">
+                  <button
+                    type="button"
+                    aria-label="Attach file or media"
+                    onClick={() => document.getElementById(fileInputId)?.click()}
+                    className="size-7 shrink-0 touch-target flex items-center justify-center rounded-full bg-accent text-foreground transition-colors hover:bg-selected"
+                  >
+                    <Plus className="size-4" aria-hidden="true" />
+                  </button>
+                </Hint>
+                <input
+                  id={fileInputId}
+                  type="file"
+                  multiple
+                  className="sr-only"
+                  onChange={(event) => {
+                    stageFiles(event.target.files);
+                    event.target.value = '';
+                  }}
+                />
+              </>
+            ) : null}
 
             {showFormatting ? (
               <Hint label={toolbarOpen ? 'Hide formatting' : 'Formatting'}>
@@ -1168,6 +1232,11 @@ export function Composer({
                 </button>
               </Hint>
             ) : null}
+
+            {/* Unlike the formatting bar's `toolbarSlot`, this one is always
+                visible — a control like the AI surfaces' model picker isn't
+                something to tuck behind a collapsed "Aa" toggle. */}
+            {toolbarSlot}
           </div>
 
           <div className="gap-1 flex shrink-0 items-center">
@@ -1343,12 +1412,12 @@ export function Composer({
             </Popover>
             ) : null}
 
-            <Hint label="Send message">
+            <Hint label={edit ? 'Save changes' : 'Send message'}>
               <button
                 type="button"
                 onClick={() => lexicalRef.current?.send()}
                 disabled={disabled || !canSend}
-                aria-label="Send message"
+                aria-label={edit ? 'Save changes' : 'Send message'}
                 className={cn(
                   'size-7 shrink-0 touch-target flex items-center justify-center rounded-full transition-colors',
                   canSend && !disabled
@@ -1356,7 +1425,11 @@ export function Composer({
                     : 'bg-transparent text-muted-foreground/40',
                 )}
               >
-                <Send className="size-3.5" />
+                {edit ? (
+                  <Check className="size-3.5" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
               </button>
             </Hint>
           </div>

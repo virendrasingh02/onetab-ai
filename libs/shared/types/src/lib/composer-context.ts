@@ -5,7 +5,9 @@ export type ComposerSurfaceKind =
   | 'agent'
   | 'coworker'
   | 'app'
-  | 'thread';
+  | 'thread'
+  /** The raw-model chat surfaces (AI Studio home, docked assistant) — no room, no roster. */
+  | 'ai-chat';
 
 export interface ComposerContext {
   surfaceKind: ComposerSurfaceKind;
@@ -82,6 +84,8 @@ export function getComposerPlaceholder(params: {
       return `Message ${rawName}`;
     case 'group-dm':
       return `Message ${rawName}`;
+    case 'ai-chat':
+      return 'Ask anything…';
     default:
       return `Message ${rawName}`;
   }
