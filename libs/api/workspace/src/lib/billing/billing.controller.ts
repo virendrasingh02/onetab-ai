@@ -16,19 +16,28 @@ import {
 
 import {
   WorkspacePermission,
+  type CheckoutPlanInput,
   type DowngradePlanInput,
   type EnterpriseInquiryInput,
   type PlanTier,
   type SaveCustomLLMInput,
   type TestCustomLLMInput,
+  type TopUpCreditsInput,
   type UpgradePlanInput,
+  type ValidatePromotionInput,
 } from '@org/types';
 import { BillingService } from './billing.service.js';
+import { CreditService } from './credit.service.js';
+import { PromotionService } from './promotion.service.js';
 
 @Controller({ path: 'workspaces/:workspaceId/billing', version: '1' })
 @UseGuards(WorkspaceRoleGuard)
 export class BillingController {
-  constructor(private readonly billingService: BillingService) {}
+  constructor(
+    private readonly billingService: BillingService,
+    private readonly creditService: CreditService,
+    private readonly promotionService: PromotionService,
+  ) {}
 
   @Get()
   getBillingSummary(
@@ -36,6 +45,16 @@ export class BillingController {
     @WorkspaceMemberRole() role?: any,
   ) {
     return this.billingService.getBillingSummary(workspaceId, role);
+  }
+
+  @Post('checkout')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_BILLING)
+  checkout(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Body() input: CheckoutPlanInput,
+  ) {
+    return this.billingService.checkout(workspaceId, userId, input);
   }
 
   @Post('upgrade')
@@ -46,6 +65,44 @@ export class BillingController {
     @Body() input: UpgradePlanInput,
   ) {
     return this.billingService.upgradePlan(workspaceId, userId, input);
+  }
+
+  @Post('cancel')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_BILLING)
+  cancelSubscription(@WorkspaceId() workspaceId: string) {
+    return this.billingService.cancelSubscription(workspaceId);
+  }
+
+  @Post('promotion/validate')
+  validatePromotion(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Body() input: ValidatePromotionInput,
+  ) {
+    return this.promotionService.validatePromotion(
+      input.code,
+      input.planTier,
+      workspaceId,
+      userId,
+    );
+  }
+
+  @Get('credits')
+  getCredits(@WorkspaceId() workspaceId: string) {
+    return this.creditService.getOrCreateAccount(workspaceId);
+  }
+
+  @Post('credits/top-up')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_BILLING)
+  topUpCredits(
+    @WorkspaceId() workspaceId: string,
+    @Body() input: TopUpCreditsInput,
+  ) {
+    return this.creditService.topUpCredits(
+      workspaceId,
+      input.amount,
+      input.paymentMethodId,
+    );
   }
 
   @Get('downgrade-impact')

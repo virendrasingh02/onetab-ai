@@ -28,6 +28,16 @@ export { WorkspaceMembersSettings } from './lib/components/workspace-members-set
 export { WorkspacePermissionsSettings } from './lib/components/workspace-permissions-settings.js';
 export { WorkspaceAuditSettings } from './lib/components/workspace-audit-settings.js';
 export { WorkspaceBillingSettings } from './lib/components/workspace-billing-settings.js';
+export {
+  PricingCard,
+  PricingCardSkeleton,
+  PlanComparisonTable,
+  CheckoutModal,
+  DowngradeConfirmModal,
+  EnterpriseContactModal,
+  CreditTopupModal,
+  PricingPage,
+} from './lib/components/pricing/index.js';
 export { WorkspaceCompanyAnalytics } from './lib/components/workspace-company-analytics.js';
 export { EnterpriseCustomLLMSettings } from './lib/components/enterprise-custom-llm-settings.js';
 export { FeatureGateDialog } from './lib/components/feature-gate-dialog.js';

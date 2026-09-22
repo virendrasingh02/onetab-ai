@@ -10,6 +10,61 @@ export type SubscriptionStatus =
   | 'CANCELLED'
   | 'UNPAID';
 
+export interface PromotionDto {
+  id: string;
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  applicablePlans: PlanTier[];
+  validFrom: string;
+  validUntil?: string | null;
+  maxRedemptions?: number | null;
+  redemptionsCount: number;
+  perUserLimit: number;
+  active: boolean;
+}
+
+export interface ValidatePromotionInput {
+  code: string;
+  planTier: PlanTier;
+}
+
+export interface ValidatePromotionResponse {
+  valid: boolean;
+  code: string;
+  discountPercent: number;
+  discountAmountCents?: number;
+  finalMonthlyPrice: number;
+  finalAnnualPrice: number;
+  message?: string;
+  promotion?: PromotionDto;
+}
+
+export interface CreditTransactionDto {
+  id: string;
+  accountId: string;
+  amount: number; // positive for grant/top-up, negative for deduction
+  balanceAfter: number;
+  description: string;
+  referenceType?: 'AGENT' | 'WORKFLOW' | 'TOP_UP' | 'PLAN_GRANT' | string;
+  referenceId?: string;
+  createdAt: string;
+}
+
+export interface CreditAccountDto {
+  id: string;
+  workspaceId: string;
+  balance: number;
+  currency: string;
+  updatedAt: string;
+  transactions?: CreditTransactionDto[];
+}
+
+export interface TopUpCreditsInput {
+  amount: number; // USD amount
+  paymentMethodId?: string;
+}
+
 export interface WorkspaceSubscriptionDto {
   id: string;
   workspaceId: string;
@@ -22,6 +77,13 @@ export interface WorkspaceSubscriptionDto {
   currentPeriodStart?: string;
   currentPeriodEnd?: string;
   renewAt?: string;
+  trialStart?: string | null;
+  trialEnd?: string | null;
+  trialStatus?: 'ACTIVE' | 'EXPIRED' | 'CONVERTED' | 'NOT_STARTED' | null;
+  trialUsed: boolean;
+  convertedAt?: string | null;
+  appliedPromotionCode?: string | null;
+  discountPercent?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,6 +105,7 @@ export interface WorkspaceBillingSummary {
   plan: PlanTier;
   planConfig: PlanDefinition;
   subscription: WorkspaceSubscriptionDto | null;
+  creditAccount: CreditAccountDto;
   usage: {
     members: ResourceUsageMetric;
     projects: ResourceUsageMetric;
@@ -50,9 +113,23 @@ export interface WorkspaceBillingSummary {
     aiRequests: ResourceUsageMetric;
     automations: ResourceUsageMetric;
     integrations: ResourceUsageMetric;
+    microAgents: ResourceUsageMetric;
+    concurrentExecutions: ResourceUsageMetric;
+    networkTransfer: ResourceUsageMetric;
+    aiCredits: ResourceUsageMetric;
   };
   entitlements: Record<PlanFeature, boolean>;
   canManageBilling: boolean;
+  activePromotion?: ValidatePromotionResponse | null;
+}
+
+export interface CheckoutPlanInput {
+  targetPlan: PlanTier;
+  billingInterval?: PlanBillingInterval;
+  promotionCode?: string;
+  startTrial?: boolean;
+  paymentMethodId?: string;
+  seats?: number;
 }
 
 export interface UpgradePlanInput {

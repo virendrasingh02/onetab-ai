@@ -266,3 +266,21 @@ export interface GeneratedReport {
   rows: Array<Array<string | number>>;
   summary: Record<string, string | number>;
 }
+
+export type PricingAnalyticsEventType =
+  | 'pricing_viewed'
+  | 'pricing_plan_selected'
+  | 'pricing_toggle_monthly'
+  | 'pricing_toggle_yearly'
+  | 'promotion_applied'
+  | 'promotion_failed'
+  | 'checkout_started'
+  | 'checkout_completed'
+  | 'checkout_failed'
+  | 'plan_upgraded'
+  | 'plan_downgraded'
+  | 'subscription_cancelled'
+  | 'enterprise_contact_started'
+  | 'enterprise_contact_submitted'
+  | 'upgrade_prompt_viewed'
+  | 'plan_limit_reached';

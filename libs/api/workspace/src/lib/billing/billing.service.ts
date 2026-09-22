@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import {
+  ACTIVE_PROMOTION_CODE,
   PLANS_CONFIG,
   PLAN_TIERS,
   WorkspacePermission,
@@ -17,6 +18,7 @@ import {
   isNearLimit,
   normalizePlanTier,
   roleHasPermission,
+  type CheckoutPlanInput,
   type CustomLLMConfigDto,
   type DowngradeImpactSummary,
   type DowngradePlanInput,
@@ -31,10 +33,16 @@ import {
   type UpgradePlanInput,
   type WorkspaceBillingSummary,
 } from '@org/types';
+import { CreditService } from './credit.service.js';
+import { PromotionService } from './promotion.service.js';
 
 @Injectable()
 export class BillingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly creditService: CreditService,
+    private readonly promotionService: PromotionService,
+  ) {}
 
   /**
    * Retrieves full billing status, live resource usage, limits, and entitlements.
@@ -57,6 +65,10 @@ export class BillingService {
     const planTier = normalizePlanTier(workspace.subscription?.planTier ?? 'starter');
     const planConfig = PLANS_CONFIG[planTier];
 
+    const currentMonthStart = new Date();
+    currentMonthStart.setDate(1);
+    currentMonthStart.setHours(0, 0, 0, 0);
+
     // Query live resource counts in parallel
     const [
       memberCount,
@@ -65,6 +77,10 @@ export class BillingService {
       aiSessionCount,
       automationCount,
       integrationCount,
+      microAgentsCount,
+      concurrentRunning,
+      monthlyRequests,
+      creditAccount,
     ] = await Promise.all([
       this.prisma.workspaceMember.count({
         where: { workspaceId, status: 'ACTIVE' },
@@ -85,10 +101,19 @@ export class BillingService {
       this.prisma.externalIntegration.count({
         where: { workspaceId, status: 'CONNECTED' },
       }),
+      this.prisma.aIAgent.count({
+        where: { workspaceId, type: 'agent' },
+      }),
+      this.prisma.workflowExecution.count({
+        where: { workflow: { workspaceId }, status: 'RUNNING' },
+      }),
+      this.prisma.workflowExecution.count({
+        where: { workflow: { workspaceId }, startedAt: { gte: currentMonthStart } },
+      }),
+      this.creditService.getOrCreateAccount(workspaceId),
     ]);
 
     const totalStorageBytes = Number(storageResult._sum?.size ?? 0);
-
 
     // Build metric helpers
     const buildMetric = (
@@ -114,9 +139,18 @@ export class BillingService {
       members: buildMetric('max_members', 'Team Members', memberCount),
       projects: buildMetric('max_projects', 'Active Projects', projectCount),
       storage: buildMetric('storage_bytes', 'Storage Used', totalStorageBytes, 'bytes'),
-      aiRequests: buildMetric('monthly_ai_requests', 'AI Requests', aiSessionCount),
+      aiRequests: buildMetric('monthly_ai_requests', 'AI Requests', aiSessionCount + monthlyRequests),
       automations: buildMetric('max_active_automations', 'Automations', automationCount),
       integrations: buildMetric('max_active_integrations', 'Integrations', integrationCount),
+      microAgents: buildMetric('micro_agents', 'Micro Agents', microAgentsCount),
+      concurrentExecutions: buildMetric('concurrent_executions', 'Concurrent Executions', concurrentRunning),
+      networkTransfer: buildMetric(
+        'network_transfer_gb',
+        'Network Transfer',
+        Math.round((totalStorageBytes / (1024 * 1024 * 1024)) * 10) / 10,
+        'GB',
+      ),
+      aiCredits: buildMetric('ai_credits_usd', 'AI Credits Remaining', creditAccount.balance, 'USD'),
     };
 
     // Calculate entitlements matrix
@@ -140,10 +174,17 @@ export class BillingService {
       'custom_prompt_templates',
       'agent_marketplace',
       'agent_builder',
+      'agent_upgrades',
+      'per_agent_config',
+      'transparent_ai_billing',
+      'unlimited_testing_staging',
+      'extended_execution_hours',
+      'custom_agent',
       'custom_llm',
       'enterprise_ai_governance',
       'basic_automations',
       'advanced_automations',
+      'unlimited_workflows',
       'standard_integrations',
       'advanced_integrations',
       'custom_integrations',
@@ -161,6 +202,8 @@ export class BillingService {
       'custom_data_retention',
       'priority_support',
       'dedicated_support',
+      'enterprise_support',
+      'custom_deployment',
     ];
 
     for (const f of allFeatures) {
@@ -186,10 +229,31 @@ export class BillingService {
           currentPeriodStart: workspace.subscription.currentPeriodStart.toISOString(),
           currentPeriodEnd: workspace.subscription.currentPeriodEnd.toISOString(),
           renewAt: workspace.subscription.renewAt.toISOString(),
+          trialStart: workspace.subscription.trialStart?.toISOString() ?? null,
+          trialEnd: workspace.subscription.trialEnd?.toISOString() ?? null,
+          trialStatus: (workspace.subscription.trialStatus as any) ?? null,
+          trialUsed: workspace.subscription.trialUsed ?? false,
+          convertedAt: workspace.subscription.convertedAt?.toISOString() ?? null,
+          appliedPromotionCode: workspace.subscription.appliedPromotionCode ?? null,
+          discountPercent: workspace.subscription.discountPercent ?? null,
           createdAt: workspace.subscription.createdAt.toISOString(),
           updatedAt: workspace.subscription.updatedAt.toISOString(),
         }
       : null;
+
+    let activePromotion: any = null;
+    try {
+      const promoRes = await this.promotionService.validatePromotion(
+        ACTIVE_PROMOTION_CODE,
+        planTier,
+        workspaceId,
+      );
+      if (promoRes.valid) {
+        activePromotion = promoRes;
+      }
+    } catch {
+      // ignore
+    }
 
     return {
       workspaceId: workspace.id,
@@ -197,9 +261,11 @@ export class BillingService {
       plan: planTier,
       planConfig,
       subscription: subscriptionDto,
+      creditAccount,
       usage,
       entitlements,
       canManageBilling,
+      activePromotion,
     };
   }
 
@@ -211,18 +277,71 @@ export class BillingService {
     userId: string,
     input: UpgradePlanInput,
   ): Promise<WorkspaceBillingSummary> {
+    return this.checkout(workspaceId, userId, {
+      targetPlan: input.targetPlan,
+      billingInterval: input.billingInterval,
+      seats: input.seats,
+      paymentMethodId: input.paymentMethodId,
+    });
+  }
+
+  /**
+   * Complete checkout and subscription provisioning with server-side promotion and trial validation.
+   */
+  async checkout(
+    workspaceId: string,
+    userId: string,
+    input: CheckoutPlanInput,
+  ): Promise<WorkspaceBillingSummary> {
     const targetPlan = normalizePlanTier(input.targetPlan);
     if (!PLAN_TIERS.includes(targetPlan)) {
       throw new BadRequestException(`Invalid plan tier: ${input.targetPlan}`);
     }
 
+    const targetConfig = PLANS_CONFIG[targetPlan];
+    const isAnnual = input.billingInterval === 'annual';
+
+    const existingSub = await this.prisma.workspaceSubscription.findUnique({
+      where: { workspaceId },
+    });
+
+    let discountPercent = 0;
+    let validatedPromoCode: string | null = null;
+    if (input.promotionCode) {
+      const promoResult = await this.promotionService.validatePromotion(
+        input.promotionCode,
+        targetPlan,
+        workspaceId,
+        userId,
+      );
+      if (!promoResult.valid) {
+        throw new BadRequestException(promoResult.message || 'Invalid promotional code');
+      }
+      discountPercent = promoResult.discountPercent;
+      validatedPromoCode = promoResult.code;
+    }
+
     const now = new Date();
     const periodEnd = new Date(now);
-    const billingInterval = input.billingInterval === 'annual' ? 'ANNUAL' : 'MONTHLY';
-    if (billingInterval === 'ANNUAL') {
+    if (isAnnual) {
       periodEnd.setFullYear(periodEnd.getFullYear() + 1);
     } else {
       periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
+
+    let trialStart: Date | null = null;
+    let trialEnd: Date | null = null;
+    let trialStatus: string | null = null;
+    let trialUsed = existingSub?.trialUsed ?? false;
+
+    if (input.startTrial && targetConfig.trialDays && targetConfig.trialDays > 0) {
+      if (existingSub?.trialUsed) {
+        throw new BadRequestException('A free trial has already been used for this workspace.');
+      }
+      trialStart = now;
+      trialEnd = new Date(now.getTime() + targetConfig.trialDays * 24 * 3600 * 1000);
+      trialStatus = 'ACTIVE';
+      trialUsed = true;
     }
 
     const defaultSeats =
@@ -234,25 +353,52 @@ export class BillingService {
       create: {
         workspaceId,
         planTier: targetPlan.toUpperCase(),
-        billingInterval,
-        status: 'ACTIVE',
+        billingInterval: isAnnual ? 'ANNUAL' : 'MONTHLY',
+        status: trialStatus === 'ACTIVE' ? 'TRIALING' : 'ACTIVE',
         seatsTotal: defaultSeats,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
         renewAt: periodEnd,
+        trialStart,
+        trialEnd,
+        trialStatus,
+        trialUsed,
+        appliedPromotionCode: validatedPromoCode,
+        discountPercent: discountPercent > 0 ? discountPercent : null,
       },
       update: {
         planTier: targetPlan.toUpperCase(),
-        billingInterval,
-        status: 'ACTIVE',
+        billingInterval: isAnnual ? 'ANNUAL' : 'MONTHLY',
+        status: trialStatus === 'ACTIVE' ? 'TRIALING' : 'ACTIVE',
         seatsTotal: defaultSeats,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
         renewAt: periodEnd,
         cancelAtPeriodEnd: false,
+        ...(trialStatus ? { trialStart, trialEnd, trialStatus, trialUsed } : {}),
+        appliedPromotionCode: validatedPromoCode,
+        discountPercent: discountPercent > 0 ? discountPercent : null,
       },
     });
 
+    if (validatedPromoCode) {
+      await this.promotionService.recordRedemption(validatedPromoCode, workspaceId, userId);
+    }
+
+    // Ensure shared credit account exists with initial plan grant ($5)
+    await this.creditService.getOrCreateAccount(workspaceId);
+
+    return this.getBillingSummary(workspaceId, WorkspaceRole.OWNER);
+  }
+
+  /**
+   * Schedules subscription cancellation at end of current billing period.
+   */
+  async cancelSubscription(workspaceId: string): Promise<WorkspaceBillingSummary> {
+    await this.prisma.workspaceSubscription.update({
+      where: { workspaceId },
+      data: { cancelAtPeriodEnd: true },
+    });
     return this.getBillingSummary(workspaceId, WorkspaceRole.OWNER);
   }
 
@@ -307,6 +453,34 @@ export class BillingService {
         currentUsage: summary.usage.automations.used,
         targetLimit: targetConfig.limits.max_active_automations,
         impactDescription: `You have ${summary.usage.automations.used} workflows. ${targetConfig.name} allows ${targetConfig.limits.max_active_automations}.`,
+        requiresReduction: false,
+      });
+    }
+
+    // Check Micro Agents
+    if (
+      targetConfig.machineLimits.microAgents !== -1 &&
+      summary.usage.microAgents.used > targetConfig.machineLimits.microAgents
+    ) {
+      warnings.push({
+        resource: 'Micro Agents',
+        currentUsage: summary.usage.microAgents.used,
+        targetLimit: targetConfig.machineLimits.microAgents,
+        impactDescription: `You have ${summary.usage.microAgents.used} Micro Agents. ${targetConfig.name} allows ${targetConfig.machineLimits.microAgents}. Existing agents are preserved, but creating new agents will be blocked until active count is reduced.`,
+        requiresReduction: false,
+      });
+    }
+
+    // Check Agent Upgrades
+    if (
+      PLANS_CONFIG[summary.plan].machineLimits.agentUpgrades &&
+      !targetConfig.machineLimits.agentUpgrades
+    ) {
+      warnings.push({
+        resource: 'Agent Upgrades',
+        currentUsage: 1,
+        targetLimit: 0,
+        impactDescription: 'Agent upgrades and custom performance configurations are not included on the Starter plan and will be disabled.',
         requiresReduction: false,
       });
     }

@@ -53,14 +53,33 @@ export function usePlanEntitlements(workspaceIdOverride?: string) {
     return (billingSummary.usage as any)[resource]?.isLimitReached ?? false;
   };
 
+  const isTrialing =
+    billingSummary?.subscription?.status === 'TRIALING' ||
+    billingSummary?.subscription?.trialStatus === 'ACTIVE';
+
+  let trialDaysRemaining: number | null = null;
+  if (billingSummary?.subscription?.trialEnd) {
+    const end = new Date(billingSummary.subscription.trialEnd).getTime();
+    const diff = end - Date.now();
+    trialDaysRemaining = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }
+
   return {
     workspaceId,
     plan,
     planConfig,
     subscription: billingSummary?.subscription ?? null,
+    creditAccount: billingSummary?.creditAccount ?? null,
     usage: billingSummary?.usage,
     entitlements: billingSummary?.entitlements,
     canManageBilling: isOwner || (billingSummary?.canManageBilling ?? false),
+    activePromotion: billingSummary?.activePromotion ?? null,
+    canUpgradeAgent: planConfig.machineLimits.agentUpgrades,
+    microAgentLimit: planConfig.machineLimits.microAgents,
+    microAgentsUsed: billingSummary?.usage?.microAgents?.used ?? 0,
+    creditBalance: billingSummary?.creditAccount?.balance ?? 0,
+    isTrialing,
+    trialDaysRemaining,
     hasFeature,
     getLimit,
     isNearLimit,

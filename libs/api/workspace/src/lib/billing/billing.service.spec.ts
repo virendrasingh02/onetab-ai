@@ -12,33 +12,64 @@ describe('BillingService', () => {
         findUnique: vi.fn(),
       },
       workspaceMember: {
-        count: vi.fn(),
+        count: vi.fn().mockResolvedValue(1),
       },
       project: {
-        count: vi.fn(),
+        count: vi.fn().mockResolvedValue(1),
       },
       upload: {
-        aggregate: vi.fn(),
+        aggregate: vi.fn().mockResolvedValue({ _sum: { size: 0 } }),
       },
       aIChatSession: {
-        count: vi.fn(),
+        count: vi.fn().mockResolvedValue(0),
       },
       automationWorkflow: {
-        count: vi.fn(),
+        count: vi.fn().mockResolvedValue(0),
       },
       externalIntegration: {
-        count: vi.fn(),
+        count: vi.fn().mockResolvedValue(0),
+      },
+      aIAgent: {
+        count: vi.fn().mockResolvedValue(1),
+      },
+      workflowExecution: {
+        count: vi.fn().mockResolvedValue(0),
       },
       workspaceSubscription: {
         findUnique: vi.fn(),
         upsert: vi.fn(),
+        update: vi.fn(),
       },
       enterpriseSalesInquiry: {
         create: vi.fn(),
       },
     };
 
-    service = new BillingService(mockPrisma);
+    const mockCreditService: any = {
+      getOrCreateAccount: vi.fn().mockResolvedValue({
+        id: 'c_1',
+        workspaceId: 'ws_1',
+        balance: 5.0,
+        currency: 'USD',
+        updatedAt: new Date().toISOString(),
+        transactions: [],
+      }),
+      deductCredits: vi.fn(),
+      topUpCredits: vi.fn(),
+    };
+
+    const mockPromotionService: any = {
+      validatePromotion: vi.fn().mockResolvedValue({
+        valid: true,
+        code: 's1nu00780',
+        discountPercent: 100,
+        finalMonthlyPrice: 0,
+        finalAnnualPrice: 0,
+      }),
+      recordRedemption: vi.fn(),
+    };
+
+    service = new BillingService(mockPrisma, mockCreditService, mockPromotionService);
   });
 
   describe('getBillingSummary', () => {
@@ -216,6 +247,75 @@ describe('BillingService', () => {
 
       expect(res.success).toBe(true);
       expect(res.inquiryId).toBe('inq_123');
+    });
+  });
+
+  describe('Checkout & Promotions', () => {
+    it('applies 100% promotion code and activates trial when requested', async () => {
+      mockPrisma.workspaceSubscription.upsert.mockResolvedValue({
+        id: 'sub_1',
+        workspaceId: 'ws_1',
+        planTier: 'PRO',
+      });
+
+      mockPrisma.workspace.findUnique.mockResolvedValue({
+        id: 'ws_1',
+        name: 'Acme Corp',
+        subscription: {
+          id: 'sub_1',
+          workspaceId: 'ws_1',
+          planTier: 'PRO',
+          billingInterval: 'MONTHLY',
+          status: 'TRIALING',
+          seatsTotal: 25,
+          trialUsed: true,
+          appliedPromotionCode: 's1nu00780',
+          discountPercent: 100,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(),
+          renewAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      const summary = await service.checkout('ws_1', 'user_1', {
+        targetPlan: 'pro',
+        billingInterval: 'monthly',
+        promotionCode: 's1nu00780',
+        startTrial: true,
+      });
+
+      expect(mockPrisma.workspaceSubscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            planTier: 'PRO',
+            appliedPromotionCode: 's1nu00780',
+            discountPercent: 100,
+            trialStatus: 'ACTIVE',
+          }),
+        }),
+      );
+      expect(summary.plan).toBe('pro');
+    });
+
+    it('cancels subscription at period end', async () => {
+      mockPrisma.workspaceSubscription.update.mockResolvedValue({
+        id: 'sub_1',
+        cancelAtPeriodEnd: true,
+      });
+
+      mockPrisma.workspace.findUnique.mockResolvedValue({
+        id: 'ws_1',
+        name: 'Acme Corp',
+        subscription: null,
+      });
+
+      await service.cancelSubscription('ws_1');
+      expect(mockPrisma.workspaceSubscription.update).toHaveBeenCalledWith({
+        where: { workspaceId: 'ws_1' },
+        data: { cancelAtPeriodEnd: true },
+      });
     });
   });
 });

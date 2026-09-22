@@ -83,6 +83,11 @@ const WorkspaceSettingsPage = lazy(() =>
     default: m.WorkspaceSettingsPage,
   })),
 );
+const PricingPage = lazy(() =>
+  import('@org/web-workspace').then((m) => ({
+    default: m.PricingPage,
+  })),
+);
 const SlackNotionImportView = lazy(() =>
   import('@org/web-integrations').then((m) => ({
     default: m.SlackNotionImportView,
@@ -292,6 +297,7 @@ export function App() {
         <Route path="/auth/device" element={<MobileDeviceConfirmPage />} />
         <Route path="/auth/pair" element={<MobileDevicePairPage />} />
         <Route path="/invite/:token" element={<AcceptInvitationPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -360,6 +366,10 @@ export function App() {
           <Route
             path="/w/:workspaceSlug/plans"
             element={<LegacySettingsRedirect section="billing" />}
+          />
+          <Route
+            path="/w/:workspaceSlug/pricing"
+            element={<PricingPage />}
           />
           <Route
             path="/w/:workspaceSlug/analytics"

@@ -1,4 +1,3 @@
-import { cn } from '@org/utils';
 import type { AvatarProps } from './avatar.js';
 import { UserAvatar } from './avatar.js';
 import type { AvatarGroupUser } from './avatar-group.js';
@@ -31,7 +30,6 @@ export function GroupAvatar({
   avatarUrl,
   members = [],
   size = 'sm',
-  shape = 'rounded',
   className,
   max,
 }: GroupAvatarProps) {
@@ -41,7 +39,6 @@ export function GroupAvatar({
         name={name}
         src={avatarUrl}
         size={size}
-        shape={shape}
         className={className}
         indicator={false}
       />
@@ -62,7 +59,6 @@ export function GroupAvatar({
       <UserAvatar
         name={name}
         size={size}
-        shape={shape}
         className={className}
         indicator={false}
       />

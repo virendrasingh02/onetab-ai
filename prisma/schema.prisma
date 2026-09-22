@@ -328,6 +328,7 @@ model Workspace {
   themePreferences          WorkspaceThemePreference[]
   memberPreferences         WorkspaceMemberPreference[]
   subscription              WorkspaceSubscription?
+  creditAccount             CreditAccount?
   enterpriseInquiries       EnterpriseSalesInquiry[]
   meetings                  Meeting[]
   crossObjectLinks          CrossObjectLink[]
@@ -2045,25 +2046,93 @@ model OrganizationSubscription {
 }
 
 model WorkspaceSubscription {
-  id                 String    @id @default(cuid())
-  workspaceId        String    @unique
-  planTier           String    @default("STARTER")
-  billingInterval    String    @default("MONTHLY")
-  status             String    @default("ACTIVE")
-  seatsTotal         Int       @default(5)
-  seatsUsed          Int       @default(1)
-  customLlmConfig    String?
-  cancelAtPeriodEnd  Boolean   @default(false)
-  currentPeriodStart DateTime  @default(now())
-  currentPeriodEnd   DateTime  @default(now())
-  renewAt            DateTime  @default(now())
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(cuid())
+  workspaceId          String    @unique
+  planTier             String    @default("STARTER")
+  billingInterval      String    @default("MONTHLY")
+  status               String    @default("ACTIVE")
+  seatsTotal           Int       @default(5)
+  seatsUsed            Int       @default(1)
+  customLlmConfig      String?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  currentPeriodStart   DateTime  @default(now())
+  currentPeriodEnd     DateTime  @default(now())
+  renewAt              DateTime  @default(now())
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  trialStatus          String?
+  trialUsed            Boolean   @default(false)
+  convertedAt          DateTime?
+  appliedPromotionCode String?
+  discountPercent      Float?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([planTier, status])
   @@map("workspace_subscriptions")
+}
+
+model Promotion {
+  id               String                @id @default(cuid())
+  code             String                @unique
+  discountType     String                @default("PERCENTAGE")
+  discountValue    Float                 @default(100.0)
+  applicablePlans  String[]              @default(["starter", "pro", "business"])
+  validFrom        DateTime              @default(now())
+  validUntil       DateTime?
+  maxRedemptions   Int?
+  redemptionsCount Int                   @default(0)
+  perUserLimit     Int                   @default(1)
+  active           Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  redemptions      PromotionRedemption[]
+
+  @@map("promotions")
+}
+
+model PromotionRedemption {
+  id          String    @id @default(cuid())
+  promotionId String
+  workspaceId String
+  userId      String
+  redeemedAt  DateTime  @default(now())
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId, workspaceId])
+  @@index([promotionId, userId])
+  @@map("promotion_redemptions")
+}
+
+model CreditAccount {
+  id           String              @id @default(cuid())
+  workspaceId  String              @unique
+  balance      Float               @default(5.0)
+  currency     String              @default("USD")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  workspace    Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  transactions CreditTransaction[]
+
+  @@map("credit_accounts")
+}
+
+model CreditTransaction {
+  id            String        @id @default(cuid())
+  accountId     String
+  amount        Float
+  balanceAfter  Float
+  description   String
+  referenceType String?
+  referenceId   String?
+  metadata      Json          @default("{}")
+  createdAt     DateTime      @default(now())
+  account       CreditAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+  @@map("credit_transactions")
 }
 
 model EnterpriseSalesInquiry {

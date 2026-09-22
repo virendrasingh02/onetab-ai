@@ -58,19 +58,44 @@ describe('Plan Entitlements & Configuration', () => {
     });
   });
 
-  describe('getPlanLimit', () => {
+  describe('getPlanLimit & machineLimits', () => {
     it('returns member and storage limits per plan', () => {
       expect(getPlanLimit('starter', 'max_members')).toBe(5);
       expect(getPlanLimit('pro', 'max_members')).toBe(25);
-      expect(getPlanLimit('business', 'max_members')).toBe(250);
+      expect(getPlanLimit('business', 'max_members')).toBe(100);
       expect(getPlanLimit('enterprise', 'max_members')).toBe(-1); // Unlimited
     });
 
-    it('returns AI request limits per plan', () => {
-      expect(getPlanLimit('starter', 'monthly_ai_requests')).toBe(100);
-      expect(getPlanLimit('pro', 'monthly_ai_requests')).toBe(10_000);
-      expect(getPlanLimit('business', 'monthly_ai_requests')).toBe(50_000);
-      expect(getPlanLimit('enterprise', 'monthly_ai_requests')).toBe(-1);
+    it('returns micro agents limits per plan', () => {
+      expect(getPlanLimit('starter', 'micro_agents')).toBe(3);
+      expect(getPlanLimit('pro', 'micro_agents')).toBe(10);
+      expect(getPlanLimit('business', 'micro_agents')).toBe(25);
+      expect(getPlanLimit('enterprise', 'micro_agents')).toBe(-1);
+    });
+
+    it('returns request and execution limits per plan', () => {
+      expect(getPlanLimit('starter', 'requests_per_month')).toBe(5000);
+      expect(getPlanLimit('pro', 'requests_per_month')).toBe(5000);
+      expect(getPlanLimit('business', 'requests_per_month')).toBe(5000);
+      expect(getPlanLimit('enterprise', 'requests_per_month')).toBe(-1);
+      expect(getPlanLimit('starter', 'concurrent_executions')).toBe(20);
+      expect(getPlanLimit('starter', 'max_execution_time_ms')).toBe(400);
+    });
+
+    it('validates agent upgrades capability per plan', () => {
+      expect(PLANS_CONFIG.starter.machineLimits.agentUpgrades).toBe(false);
+      expect(PLANS_CONFIG.pro.machineLimits.agentUpgrades).toBe(true);
+      expect(PLANS_CONFIG.business.machineLimits.agentUpgrades).toBe(true);
+      expect(PLANS_CONFIG.enterprise.machineLimits.agentUpgrades).toBe(true);
+    });
+
+    it('validates pricing and active promotional code', () => {
+      expect(PLANS_CONFIG.starter.pricing.monthly).toBe(15);
+      expect(PLANS_CONFIG.pro.pricing.monthly).toBe(30);
+      expect(PLANS_CONFIG.business.pricing.monthly).toBe(45);
+      expect(PLANS_CONFIG.enterprise.isCustomQuote).toBe(true);
+      expect(PLANS_CONFIG.starter.promotionalDisplay?.code).toBe('s1nu00780');
+      expect(PLANS_CONFIG.starter.promotionalDisplay?.discountPercent).toBe(100);
     });
   });
 

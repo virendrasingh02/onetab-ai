@@ -208,6 +208,10 @@ import type {
   IntakeRequest,
   Module,
   CustomLLMConfigDto,
+  CheckoutPlanInput,
+  CreditAccountDto,
+  TopUpCreditsInput,
+  ValidatePromotionResponse,
   DowngradeImpactSummary,
   DowngradePlanInput,
   EnterpriseInquiryInput,
@@ -637,9 +641,41 @@ export const billingApi = {
       http.get(`/workspaces/${workspaceId}/billing`),
     ),
 
+  checkout: (workspaceId: string, input: CheckoutPlanInput) =>
+    request<WorkspaceBillingSummary>(
+      http.post(`/workspaces/${workspaceId}/billing/checkout`, input),
+    ),
+
   upgrade: (workspaceId: string, input: UpgradePlanInput) =>
     request<WorkspaceBillingSummary>(
       http.post(`/workspaces/${workspaceId}/billing/upgrade`, input),
+    ),
+
+  cancel: (workspaceId: string) =>
+    request<WorkspaceBillingSummary>(
+      http.post(`/workspaces/${workspaceId}/billing/cancel`),
+    ),
+
+  validatePromotion: (
+    workspaceId: string,
+    code: string,
+    planTier: PlanTier,
+  ) =>
+    request<ValidatePromotionResponse>(
+      http.post(`/workspaces/${workspaceId}/billing/promotion/validate`, {
+        code,
+        planTier,
+      }),
+    ),
+
+  getCredits: (workspaceId: string) =>
+    request<CreditAccountDto>(
+      http.get(`/workspaces/${workspaceId}/billing/credits`),
+    ),
+
+  topUpCredits: (workspaceId: string, input: TopUpCreditsInput) =>
+    request<CreditAccountDto>(
+      http.post(`/workspaces/${workspaceId}/billing/credits/top-up`, input),
     ),
 
   downgradeImpact: (workspaceId: string, targetPlan: PlanTier) =>

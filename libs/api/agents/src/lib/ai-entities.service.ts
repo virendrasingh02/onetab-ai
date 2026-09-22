@@ -5,12 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
-import type {
-  AIEntityType,
-  CoworkerPermissions,
-  CoworkerStatus,
+import {
+  PLANS_CONFIG,
+  canUpgradeAgent,
+  isAIEntityType,
+  normalizePlanTier,
+  type AIEntityType,
+  type CoworkerPermissions,
+  type CoworkerStatus,
 } from '@org/types';
-import { isAIEntityType } from '@org/types';
 
 function parsePermissions(value: unknown): CoworkerPermissions {
   if (value && typeof value === 'object') return value as CoworkerPermissions;
@@ -186,6 +189,38 @@ export class AIEntitiesService {
       );
     }
 
+    if (dto.type === 'agent') {
+      const sub = await this.prisma.workspaceSubscription.findUnique({
+        where: { workspaceId },
+        select: { planTier: true, status: true, trialStatus: true, trialEnd: true },
+      });
+
+      if (sub?.trialStatus === 'ACTIVE' && sub.trialEnd && sub.trialEnd < new Date()) {
+        throw new BadRequestException({
+          code: 'TRIAL_EXPIRED',
+          message:
+            'Your 7-day free trial has expired. Please upgrade your plan to continue creating agents.',
+        });
+      }
+
+      const planTier = normalizePlanTier(sub?.planTier ?? 'starter');
+      const planConfig = PLANS_CONFIG[planTier];
+      const maxAgents = planConfig.machineLimits.microAgents;
+
+      if (maxAgents !== -1) {
+        const currentAgentsCount = await this.prisma.aIAgent.count({
+          where: { workspaceId, type: 'agent' },
+        });
+
+        if (currentAgentsCount >= maxAgents) {
+          throw new BadRequestException({
+            code: 'PLAN_LIMIT_REACHED',
+            message: `You've reached your Micro Agent limit (${maxAgents}) for ${planConfig.name}. Please upgrade to create more agents.`,
+          });
+        }
+      }
+    }
+
     const defaultTools =
       dto.type === 'coworker'
         ? ['search_docs', 'list_projects', 'list_tasks', 'list_channels']
@@ -254,6 +289,25 @@ export class AIEntitiesService {
     dto: UpdateEntityDto,
   ) {
     await this.assertEntity(workspaceId, entityId);
+
+    if (
+      dto.provider !== undefined ||
+      dto.model !== undefined ||
+      dto.configuration !== undefined
+    ) {
+      const sub = await this.prisma.workspaceSubscription.findUnique({
+        where: { workspaceId },
+        select: { planTier: true },
+      });
+      const planTier = normalizePlanTier(sub?.planTier ?? 'starter');
+      if (!canUpgradeAgent(planTier)) {
+        throw new BadRequestException({
+          code: 'FEATURE_NOT_AVAILABLE',
+          message:
+            'Agent upgrades and custom model performance configurations are not included in the Starter plan. Please upgrade to Pro or Business.',
+        });
+      }
+    }
 
     const updated = await this.prisma.aIAgent.update({
       where: { id: entityId },

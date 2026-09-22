@@ -47,6 +47,9 @@ export const queryKeys = {
       ['billing', workspaceId, 'downgrade-impact', targetPlan] as const,
     customLLM: (workspaceId: string) => ['billing', workspaceId, 'custom-llm'] as const,
     invoices: (workspaceId: string) => ['billing', workspaceId, 'invoices'] as const,
+    credits: (workspaceId: string) => ['billing', workspaceId, 'credits'] as const,
+    promotion: (code: string, planTier: string) =>
+      ['billing', 'promotion', code, planTier] as const,
   },
 
   channels: {

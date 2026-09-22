@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import { AIInfrastructureService, KnowledgeService } from '@org/api-ai';
+import { PLANS_CONFIG, normalizePlanTier } from '@org/types';
 import { isBlockedRequestUrl } from './url-guard.js';
 
 export interface WorkflowStepResult {
@@ -88,6 +89,72 @@ export class WorkflowEngineService {
     this.logger.log(
       `Executing automation workflow '${workflow.name}' (${workflow.id})`,
     );
+
+    // Enforce Plan, Trial, Concurrency & AI Credit limits
+    const sub = await this.prisma.workspaceSubscription.findUnique({
+      where: { workspaceId: workflow.workspaceId },
+      select: { planTier: true, status: true, trialStatus: true, trialEnd: true },
+    });
+
+    if (sub?.trialStatus === 'ACTIVE' && sub.trialEnd && sub.trialEnd < new Date()) {
+      throw new BadRequestException({
+        code: 'TRIAL_EXPIRED',
+        message:
+          'Your 7-day free trial has expired. Please upgrade your plan to execute workflows.',
+      });
+    }
+
+    const planTier = normalizePlanTier(sub?.planTier ?? 'starter');
+    const planConfig = PLANS_CONFIG[planTier];
+
+    // Check shared credit balance
+    const creditAccount = await this.prisma.creditAccount.findUnique({
+      where: { workspaceId: workflow.workspaceId },
+    });
+    if (creditAccount && creditAccount.balance <= 0) {
+      throw new BadRequestException({
+        code: 'CREDIT_LIMIT_REACHED',
+        message:
+          'Your shared AI credit balance is depleted. Please top up your credits to continue running workflows.',
+      });
+    }
+
+    // Check concurrent executions limit
+    const maxConcurrent = planConfig.machineLimits.concurrentExecutions;
+    if (maxConcurrent !== -1) {
+      const runningCount = await this.prisma.workflowExecution.count({
+        where: {
+          workflow: { workspaceId: workflow.workspaceId },
+          status: 'RUNNING',
+        },
+      });
+      if (runningCount >= maxConcurrent) {
+        throw new BadRequestException({
+          code: 'EXECUTION_LIMIT_REACHED',
+          message: `Concurrent execution limit reached (${maxConcurrent}). Please wait for active runs to complete or upgrade your plan.`,
+        });
+      }
+    }
+
+    // Check monthly requests quota
+    const maxMonthly = planConfig.machineLimits.requestsPerMonth;
+    if (maxMonthly !== -1) {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const monthlyCount = await this.prisma.workflowExecution.count({
+        where: {
+          workflow: { workspaceId: workflow.workspaceId },
+          startedAt: { gte: monthStart },
+        },
+      });
+      if (monthlyCount >= maxMonthly) {
+        throw new BadRequestException({
+          code: 'PLAN_LIMIT_REACHED',
+          message: `Monthly execution quota reached (${maxMonthly} requests). Please upgrade your plan to continue.`,
+        });
+      }
+    }
 
     const nodes = this.parse<WorkflowNode[]>(workflow.nodesJson, []);
     const edges = this.parse<WorkflowEdge[]>(workflow.edgesJson, []);

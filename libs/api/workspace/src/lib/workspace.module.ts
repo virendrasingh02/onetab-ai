@@ -3,6 +3,8 @@ import { AuthModule } from '@org/api-auth';
 import { StorageModule } from '@org/api-storage';
 import { BillingController } from './billing/billing.controller.js';
 import { BillingService } from './billing/billing.service.js';
+import { CreditService } from './billing/credit.service.js';
+import { PromotionService } from './billing/promotion.service.js';
 import { WorkspaceController } from './workspace.controller.js';
 import { WorkspaceService } from './workspace.service.js';
 import { WorkspaceSettingsController } from './workspace-settings.controller.js';
@@ -25,12 +27,16 @@ import { WorkspaceAuditService } from './workspace-audit.service.js';
     WorkspaceSettingsService,
     WorkspaceAuditService,
     BillingService,
+    CreditService,
+    PromotionService,
   ],
   exports: [
     WorkspaceService,
     WorkspaceSettingsService,
     WorkspaceAuditService,
     BillingService,
+    CreditService,
+    PromotionService,
   ],
 })
 export class WorkspaceModule {}
