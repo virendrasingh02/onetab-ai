@@ -49,6 +49,7 @@ import {
   Button,
   DropdownMenuItem,
   Hint,
+  toast,
   useRightPanelStore,
 } from '@org/ui';
 import { Hash, Headphones, Lock, Pin, Search, Users } from 'lucide-react';
@@ -264,6 +265,7 @@ export interface ChatSurfaceProps {
   onRetry?: (messageId: string) => void | Promise<void>;
   onTogglePin?: (eventId: string) => void;
   onToggleSave?: (eventId: string) => void;
+  onForward?: (message: Message) => void;
   onAssignToMe?: (message: Message) => void;
   onCreateTask?: (message: Message) => void;
   onCreateDoc?: (message: Message) => void;
@@ -369,6 +371,7 @@ export function ChatSurface({
   onRetry,
   onTogglePin,
   onToggleSave,
+  onForward,
   onAssignToMe,
   onCreateTask,
   onCreateDoc,
@@ -859,6 +862,16 @@ export function ChatSurface({
           onTogglePin={onTogglePin ? () => onTogglePin(message.id) : undefined}
           onToggleSave={
             onToggleSave ? () => onToggleSave(message.id) : undefined
+          }
+          onForward={
+            onForward
+              ? () => onForward(message)
+              : () => {
+                  void navigator.clipboard?.writeText(
+                    `${window.location.origin}${window.location.pathname}#${message.id}`,
+                  );
+                  toast.success('Link copied to forward');
+                }
           }
           onAssignToMe={onAssignToMe ? () => onAssignToMe(message) : undefined}
           onCreateTask={onCreateTask ? () => onCreateTask(message) : undefined}

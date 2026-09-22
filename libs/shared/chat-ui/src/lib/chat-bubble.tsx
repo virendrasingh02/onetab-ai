@@ -32,6 +32,7 @@ import {
   Link2,
   Link2Off,
   Lock,
+  MessageSquare,
   MoreHorizontal,
   Pencil,
   Pin,
@@ -906,29 +907,12 @@ export function ChatBubble({
         role="toolbar"
         aria-label="Message actions"
         className={cn(
-          '-top-3.5 right-4 p-0.5 absolute z-20 items-center rounded-lg border border-border bg-surface-raised shadow-lg',
+          '-top-4.5 right-4 p-1 gap-1 absolute z-20 items-center rounded-xl border border-border/80 bg-surface-raised/95 backdrop-blur-sm shadow-md transition-all duration-200 ease-out hover:shadow-lg animate-in fade-in-0 zoom-in-95',
           isMenuOpen || isReactionOpen || actionsPinned
             ? 'flex'
             : 'hidden group-focus-within/message:flex group-hover/message:flex',
         )}
       >
-        {onReact
-          ? QUICK_REACTIONS.map((emoji) => (
-              <Hint key={emoji} label={`React with ${emoji}`}>
-                <button
-                  onClick={() => {
-                    onReact(emoji);
-                    setActionsPinned(false);
-                  }}
-                  aria-label={`React with ${emoji}`}
-                  className="max-sm:hidden size-7 text-sm flex items-center justify-center rounded-md transition-colors hover:bg-accent"
-                >
-                  <span aria-hidden>{emoji}</span>
-                </button>
-              </Hint>
-            ))
-          : null}
-
         {onReact ? (
           <ReactionPicker
             onSelect={onReact}
@@ -940,25 +924,57 @@ export function ChatBubble({
           >
             <button
               aria-label="Add a reaction"
-              className="size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95"
             >
-              <Smile className="size-4" />
+              <Smile className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:rotate-12" />
             </button>
           </ReactionPicker>
         ) : null}
 
-        <Hint label="Reply in thread">
-          <button
-            aria-label="Reply in thread"
-            onClick={() => {
-              (onOpenThread ?? onReply)?.();
-              setActionsPinned(false);
-            }}
-            className="size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <Reply className="size-4" />
-          </button>
-        </Hint>
+        {onOpenThread ? (
+          <Hint label="Reply in thread">
+            <button
+              aria-label="Reply in thread"
+              onClick={() => {
+                onOpenThread();
+                setActionsPinned(false);
+              }}
+              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95"
+            >
+              <MessageSquare className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-rotate-6" />
+            </button>
+          </Hint>
+        ) : null}
+
+        {onReply || onOpenThread ? (
+          <Hint label="Reply">
+            <button
+              aria-label="Reply"
+              onClick={() => {
+                (onReply ?? onOpenThread)?.();
+                setActionsPinned(false);
+              }}
+              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95"
+            >
+              <Reply className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-translate-x-0.5" />
+            </button>
+          </Hint>
+        ) : null}
+
+        {onForward || onCopyLink ? (
+          <Hint label="Forward message">
+            <button
+              aria-label="Forward message"
+              onClick={() => {
+                (onForward ?? onCopyLink)?.();
+                setActionsPinned(false);
+              }}
+              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95"
+            >
+              <Forward className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:translate-x-0.5" />
+            </button>
+          </Hint>
+        ) : null}
 
         {onToggleSave ? (
           <Hint label={isSaved ? 'Remove from saved' : 'Save for later'}>
@@ -967,11 +983,11 @@ export function ChatBubble({
               aria-pressed={isSaved}
               onClick={onToggleSave}
               className={cn(
-                'size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95',
                 isSaved && 'text-primary-text',
               )}
             >
-              <Bookmark className={cn('size-4', isSaved && 'fill-current')} />
+              <Bookmark className={cn('size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110', isSaved && 'fill-current')} />
             </button>
           </Hint>
         ) : null}
@@ -987,11 +1003,11 @@ export function ChatBubble({
             <button
               aria-label="More actions"
               className={cn(
-                'size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95',
                 isMenuOpen && 'bg-accent text-foreground',
               )}
             >
-              <MoreHorizontal className="size-4" />
+              <MoreHorizontal className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -1001,21 +1017,35 @@ export function ChatBubble({
             collisionPadding={8}
             className="w-56 z-50 border-border bg-popover text-popover-foreground shadow-overlay"
           >
-            <DropdownMenuItem
-              onSelect={() => {
-                setIsMenuOpen(false);
-                onOpenThread?.();
-              }}
-              className="hover:bg-accent"
-            >
-              <Reply className="mr-2 size-4" />
-              Reply in thread
-            </DropdownMenuItem>
-            {onForward ? (
+            {onOpenThread ? (
               <DropdownMenuItem
                 onSelect={() => {
                   setIsMenuOpen(false);
-                  onForward();
+                  onOpenThread();
+                }}
+                className="hover:bg-accent"
+              >
+                <MessageSquare className="mr-2 size-4" />
+                Reply in thread
+              </DropdownMenuItem>
+            ) : null}
+            {onReply ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onReply();
+                }}
+                className="hover:bg-accent"
+              >
+                <Reply className="mr-2 size-4" />
+                Reply
+              </DropdownMenuItem>
+            ) : null}
+            {onForward || onCopyLink ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  (onForward ?? onCopyLink)?.();
                 }}
                 className="hover:bg-accent"
               >

@@ -284,4 +284,42 @@ describe('MessageRenderer', () => {
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('src', 'https://example.com/party.svg');
   });
+
+  it('renders Thread, Reply, and Forward buttons without quick emojis in action toolbar', async () => {
+    const user = userEvent.setup();
+    const onOpenThread = vi.fn();
+    const onReply = vi.fn();
+    const onForward = vi.fn();
+    const msg = createMockMessage({ body: 'Message with actions' });
+
+    renderWithProviders(
+      <MessageRenderer
+        message={msg}
+        isOwn={false}
+        onOpenThread={onOpenThread}
+        onReply={onReply}
+        onForward={onForward}
+      />,
+    );
+
+    // Quick emoji buttons should be removed
+    expect(screen.queryByRole('button', { name: /React with 👍/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /React with ❤️/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /React with 🔥/i })).not.toBeInTheDocument();
+
+    const threadBtn = screen.getByRole('button', { name: 'Reply in thread' });
+    expect(threadBtn).toBeInTheDocument();
+    await user.click(threadBtn);
+    expect(onOpenThread).toHaveBeenCalledTimes(1);
+
+    const replyBtn = screen.getByRole('button', { name: 'Reply' });
+    expect(replyBtn).toBeInTheDocument();
+    await user.click(replyBtn);
+    expect(onReply).toHaveBeenCalledTimes(1);
+
+    const forwardBtn = screen.getByRole('button', { name: 'Forward message' });
+    expect(forwardBtn).toBeInTheDocument();
+    await user.click(forwardBtn);
+    expect(onForward).toHaveBeenCalledTimes(1);
+  });
 });
