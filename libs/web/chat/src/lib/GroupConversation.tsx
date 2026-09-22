@@ -2,6 +2,7 @@ import { useCurrentUser } from '@org/auth';
 import type {
   ComposerContext,
   PublicUser,
+  RoomMember,
   SystemActivityEventContent,
   SystemEventEntity,
   SystemEventType,
@@ -24,11 +25,12 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   ErrorState,
+  GroupAvatar,
   Hint,
   toast,
-  UserAvatarGroup,
   usePromptDialog,
 } from '@org/ui';
+import { useUserPresenceMap } from '@org/realtime';
 import { cn } from '@org/utils';
 import { useMembers } from '@org/web-members';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -36,19 +38,23 @@ import { matrixApi } from '@org/api-client';
 import {
   Bell,
   BellOff,
+  Camera,
   Copy,
   LogOut,
   MessagesSquare,
   MoreHorizontal,
   Pencil,
   Star,
+  Trash2,
   UserPlus,
+  Users,
   X,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
 import { ConversationTabsShell } from './conversation-files-panel.js';
+import { GroupMembersPanel } from './group-members-panel.js';
 import { useMatrix } from './matrix-provider.js';
 import { useRoomSummary } from './use-chat.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
@@ -66,10 +72,7 @@ function toSystemEventEntity(user: PublicUser): SystemEventEntity {
 /**
  * Group DMs are managed entirely client-side (no backend row to hang an
  * `AppEvent` off), so a membership-change system event is posted here,
- * directly by the current user's own Matrix session — the same
- * `mie.system_event` shape `SystemEventPublisherService` posts server-side
- * for channels, just without that service's bot identity or dedupe store
- * (there is nothing to retry client-side that would double-post).
+ * directly by the current user's own Matrix session.
  */
 function buildGroupDmMemberEvent(
   eventType: Extract<SystemEventType, 'member_added' | 'member_left'>,
@@ -92,11 +95,35 @@ function buildGroupDmMemberEvent(
   };
 }
 
+function buildGroupDmRenamedEvent(
+  roomId: string,
+  workspaceId: string | undefined,
+  actor: PublicUser,
+  newName: string,
+): SystemActivityEventContent {
+  return {
+    type: 'mie.system_event',
+    eventType: 'channel_renamed',
+    conversationType: 'group_dm',
+    conversationId: roomId,
+    workspaceId,
+    actor: toSystemEventEntity(actor),
+    secondaryTarget: {
+      kind: 'channel',
+      id: roomId,
+      name: newName,
+    },
+    occurredAt: Date.now(),
+    idempotencyKey: `group-dm-rename:${roomId}:${Date.now()}`,
+    capabilities: getSystemEventCapabilities('channel_renamed'),
+  };
+}
+
 /** Comma-joined member names, minus the reader — the fallback title for an unnamed group. */
 function membersTitle(names: string[]): string {
   if (names.length === 0) return 'Group message';
   if (names.length <= 3) return names.join(', ');
-  return `${names.slice(0, 3).join(', ')} +${names.length - 3}`;
+  return `${names.slice(0, 2).join(', ')} + ${names.length - 2} others`;
 }
 
 export interface GroupConversationProps {
@@ -107,23 +134,22 @@ export interface GroupConversationProps {
 /**
  * A group direct message — many people, one private room, kept distinct from a
  * channel. Reuses the same `ChatPanel` a channel and a 1:1 use; what it adds is
- * a header with the roster, a name, and membership controls.
+ * a header with the roster, avatar management, a name, and membership controls.
  */
 export function GroupConversation({
   roomId,
   extraPeers,
 }: GroupConversationProps) {
   const { enabled, configStatus, client } = useMatrix();
-  const { workspaceId } = useCurrentWorkspace();
+  const { workspaceId, slug } = useCurrentWorkspace();
   const membersQuery = useMembers(workspaceId);
   const { room, members } = useRoomSummary(roomId);
 
   const [chatActionsSlot, setChatActionsSlot] = useState<HTMLDivElement | null>(
     null,
   );
-  // Owned here rather than in `GroupHeader` so the welcome block at the top of
-  // the timeline can open the same "Add people" dialog the header menu does.
   const [addPeopleOpen, setAddPeopleOpen] = useState(false);
+  const [membersPanelOpen, setMembersPanelOpen] = useState(false);
 
   const myUserId = client?.getSession()?.userId;
   const otherNames = useMemo(
@@ -141,11 +167,6 @@ export function GroupConversation({
     [membersQuery.data, extraPeers],
   );
 
-  // The picked people may already share a channel — reused, not duplicated
-  // (see `getOrCreateGroupDirectMessage`). It renders here as a conversation,
-  // just without the group-DM-only membership controls. Computed above the
-  // early returns below (Rules of Hooks: `useMemo` cannot follow a
-  // conditional `return` in the same render).
   const isChannel = room?.kind === 'channel';
 
   const composerContext = useMemo<ComposerContext>(
@@ -163,11 +184,14 @@ export function GroupConversation({
         <GroupHeader
           title="Group message"
           members={members}
+          roomAvatarUrl={room?.avatarUrl}
           roomId={roomId}
           workspacePeople={allWorkspacePeople}
           chatActionsRef={setChatActionsSlot}
           addPeopleOpen={addPeopleOpen}
           onAddPeopleOpenChange={setAddPeopleOpen}
+          membersPanelOpen={membersPanelOpen}
+          onToggleMembersPanel={() => setMembersPanelOpen((open) => !open)}
         />
         <EmptyState
           size="lg"
@@ -180,18 +204,19 @@ export function GroupConversation({
   }
 
   if (client && room === null && members.length === 0) {
-    // The client is connected but this room is not in its store — a stale link,
-    // or the reader has left the group.
     return (
       <div className="min-h-0 flex flex-1 flex-col">
         <GroupHeader
           title="Group message"
           members={members}
+          roomAvatarUrl={room?.avatarUrl}
           roomId={roomId}
           workspacePeople={allWorkspacePeople}
           chatActionsRef={setChatActionsSlot}
           addPeopleOpen={addPeopleOpen}
           onAddPeopleOpenChange={setAddPeopleOpen}
+          membersPanelOpen={membersPanelOpen}
+          onToggleMembersPanel={() => setMembersPanelOpen((open) => !open)}
         />
         <ErrorState
           title="This conversation is unavailable"
@@ -206,98 +231,116 @@ export function GroupConversation({
       <GroupHeader
         title={title}
         members={members}
+        roomAvatarUrl={room?.avatarUrl}
         roomId={roomId}
         isChannel={isChannel}
         workspacePeople={allWorkspacePeople}
         chatActionsRef={setChatActionsSlot}
         addPeopleOpen={addPeopleOpen}
         onAddPeopleOpenChange={setAddPeopleOpen}
+        membersPanelOpen={membersPanelOpen}
+        onToggleMembersPanel={() => setMembersPanelOpen((open) => !open)}
       />
-      <ConversationTabsShell
-        filesContext={{ type: 'DIRECT', id: roomId }}
-        roomId={roomId}
-        workspaceId={workspaceId}
-        enabled={enabled}
-        currentUserId={myUserId ?? undefined}
-      >
-        <ChatPanel
-          roomId={roomId}
-          title={title}
-          subtitle={
-            isChannel
-              ? 'Shared channel'
-              : `${members.length} ${members.length === 1 ? 'member' : 'members'}`
-          }
-          workspaceId={workspaceId}
-          headerActionsSlot={chatActionsSlot}
-          showMembers
-          showEncryptedBadge={false}
-          composerContext={composerContext}
-          welcome={
-            isChannel
-              ? undefined
-              : {
-                  kind: 'group',
-                  description: room?.topic,
-                  onAddPeople: () => setAddPeopleOpen(true),
-                }
-          }
-        />
-      </ConversationTabsShell>
-    </div>
-  );
-}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0">
+          <ConversationTabsShell
+            filesContext={{ type: 'DIRECT', id: roomId }}
+            roomId={roomId}
+            workspaceId={workspaceId}
+            enabled={enabled}
+            currentUserId={myUserId ?? undefined}
+          >
+            <ChatPanel
+              roomId={roomId}
+              title={title}
+              subtitle={
+                isChannel
+                  ? 'Shared channel'
+                  : `${members.length} ${members.length === 1 ? 'member' : 'members'}`
+              }
+              workspaceId={workspaceId}
+              headerActionsSlot={chatActionsSlot}
+              showMembers={false}
+              showEncryptedBadge={false}
+              composerContext={composerContext}
+              welcome={
+                isChannel
+                  ? undefined
+                  : {
+                      kind: 'group',
+                      description: room?.topic,
+                      members,
+                      onAddPeople: () => setAddPeopleOpen(true),
+                    }
+              }
+            />
+          </ConversationTabsShell>
+        </div>
 
-/** Adapts the group's member rows to the shared {@link UserAvatarGroup}. */
-function AvatarStack({
-  members,
-}: {
-  members: { userId: string; displayName: string; avatarUrl?: string }[];
-}) {
-  return (
-    <UserAvatarGroup
-      size="sm"
-      users={members.map((m) => ({
-        id: m.userId,
-        name: m.displayName || m.userId,
-        avatarUrl: m.avatarUrl,
-      }))}
-    />
+        {membersPanelOpen ? (
+          <div className="w-80 shrink-0 h-full">
+            <GroupMembersPanel
+              roomId={roomId}
+              members={members}
+              workspaceSlug={slug || 'default'}
+              onAddPeople={() => setAddPeopleOpen(true)}
+              onClose={() => setMembersPanelOpen(false)}
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 function GroupHeader({
   title,
   members,
+  roomAvatarUrl,
   roomId,
   isChannel = false,
   workspacePeople,
   chatActionsRef,
   addPeopleOpen,
   onAddPeopleOpenChange,
+  membersPanelOpen,
+  onToggleMembersPanel,
 }: {
   title: string;
-  members: { userId: string; displayName: string; avatarUrl?: string }[];
+  members: RoomMember[];
+  roomAvatarUrl?: string | null;
   roomId: string;
-  /** True when this "group" resolved to a channel these people already share. */
   isChannel?: boolean;
   workspacePeople: WorkspaceMember[];
   chatActionsRef: (element: HTMLDivElement | null) => void;
-  /** The "Add people" dialog is owned by {@link GroupConversation}. */
   addPeopleOpen: boolean;
   onAddPeopleOpenChange: (open: boolean) => void;
+  membersPanelOpen: boolean;
+  onToggleMembersPanel: () => void;
 }) {
   const { client } = useMatrix();
   const { workspaceId, slug } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const preferences = useDirectMessagePreferences(workspaceId);
   const prompts = usePromptDialog();
+  const presenceMap = useUserPresenceMap();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const isFavorite = preferences.isFavorite(roomId);
   const isMuted = preferences.isMuted(roomId);
   const workspaceSlug = slug || 'default';
+
+  const myUserId = client?.getSession()?.userId;
+  const myMember = members.find((m) => m.userId === myUserId);
+  const canManage = (myMember?.powerLevel ?? 0) >= 50;
+
+  const onlineCount = useMemo(
+    () =>
+      members.filter((m) => presenceMap[m.userId]?.status === 'online').length,
+    [members, presenceMap],
+  );
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(
@@ -321,11 +364,51 @@ function GroupHeader({
     if (name == null) return;
     try {
       await client.setRoomName(roomId, name);
+      if (currentUser && name.trim()) {
+        await client
+          .sendStructuredMessage(
+            roomId,
+            buildGroupDmRenamedEvent(
+              roomId,
+              workspaceId,
+              currentUser,
+              name.trim(),
+            ),
+          )
+          .catch(() => undefined);
+      }
       toast.success(name.trim() ? 'Group renamed' : 'Group name cleared');
     } catch {
       toast.error('Could not rename the group');
     }
-  }, [client, prompts, roomId]);
+  }, [client, prompts, roomId, currentUser, workspaceId]);
+
+  const handleAvatarFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file || !client) return;
+    try {
+      await client.setRoomAvatar(roomId, file);
+      toast.success('Group avatar updated');
+    } catch {
+      toast.error('Could not update group avatar');
+    } finally {
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleClearAvatar = async () => {
+    if (!client) return;
+    try {
+      await client.clearRoomAvatar(roomId);
+      toast.success('Group avatar removed');
+    } catch {
+      toast.error('Could not remove group avatar');
+    }
+  };
 
   const handleLeave = useCallback(async () => {
     if (!client) return;
@@ -338,8 +421,6 @@ function GroupHeader({
     });
     if (!confirmed) return;
     try {
-      // Posted before leaving — once the room membership is gone, this
-      // session can no longer send into it.
       if (currentUser) {
         await client
           .sendStructuredMessage(
@@ -352,9 +433,7 @@ function GroupHeader({
               currentUser,
             ),
           )
-          .catch(() => {
-            // Best-effort — a missing activity line never blocks leaving.
-          });
+          .catch(() => undefined);
       }
       await client.leaveRoom(roomId);
       toast.success('You left the group');
@@ -362,24 +441,87 @@ function GroupHeader({
     } catch {
       toast.error('Could not leave the group');
     }
-  }, [client, prompts, roomId, title, navigate, workspaceSlug, currentUser, workspaceId]);
+  }, [
+    client,
+    prompts,
+    roomId,
+    title,
+    navigate,
+    workspaceSlug,
+    currentUser,
+    workspaceId,
+  ]);
 
   return (
     <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
       <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2.5 flex items-center">
-          <AvatarStack members={members} />
+          {/* Group Avatar with optional upload trigger */}
+          <div className="relative group/avatar shrink-0">
+            <GroupAvatar
+              name={title}
+              avatarUrl={roomAvatarUrl}
+              members={members}
+              size="sm"
+              className="size-8"
+            />
+            {canManage && !isChannel ? (
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                title="Change group avatar"
+                aria-label="Change group avatar"
+                className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer"
+              >
+                <Camera className="size-3.5" />
+              </button>
+            ) : null}
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarFileChange}
+            />
+          </div>
+
           <div className="min-w-0">
             <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
               {title}
             </h2>
-            <p className="text-[11px] text-muted-foreground">
-              {members.length} {members.length === 1 ? 'member' : 'members'}
+            <button
+              type="button"
+              onClick={onToggleMembersPanel}
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              {onlineCount > 0 ? (
+                <span className="inline-flex items-center gap-1 text-success font-medium">
+                  <span className="size-1.5 rounded-full bg-success inline-block" />
+                  {onlineCount} online
+                </span>
+              ) : null}
+              {onlineCount > 0 ? <span>·</span> : null}
+              <span>
+                {members.length} {members.length === 1 ? 'member' : 'members'}
+              </span>
               {isMuted ? ' · muted' : ''}
-            </p>
+            </button>
           </div>
 
           <div className="gap-0.5 flex items-center">
+            <Hint label={membersPanelOpen ? 'Hide members' : 'View members'}>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-pressed={membersPanelOpen}
+                aria-label="View members"
+                onClick={onToggleMembersPanel}
+                className={cn(membersPanelOpen && 'bg-accent text-accent-foreground')}
+              >
+                <Users className="size-4" />
+              </Button>
+            </Hint>
+
             <Hint
               label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
@@ -413,6 +555,14 @@ function GroupHeader({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="bottom" className="w-60">
+                <DropdownMenuItem
+                  onClick={onToggleMembersPanel}
+                  className="gap-2.5"
+                >
+                  <Users className="size-4" />
+                  <span>{membersPanelOpen ? 'Hide members' : 'View members'}</span>
+                </DropdownMenuItem>
+
                 {!isChannel ? (
                   <>
                     <DropdownMenuItem
@@ -430,6 +580,26 @@ function GroupHeader({
                       <Pencil className="size-4" />
                       <span>Rename group</span>
                     </DropdownMenuItem>
+
+                    {canManage ? (
+                      <DropdownMenuItem
+                        onClick={() => avatarInputRef.current?.click()}
+                        className="gap-2.5"
+                      >
+                        <Camera className="size-4" />
+                        <span>Change group avatar</span>
+                      </DropdownMenuItem>
+                    ) : null}
+
+                    {canManage && roomAvatarUrl ? (
+                      <DropdownMenuItem
+                        onClick={handleClearAvatar}
+                        className="gap-2.5 text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="size-4" />
+                        <span>Remove group avatar</span>
+                      </DropdownMenuItem>
+                    ) : null}
                   </>
                 ) : null}
 
@@ -586,9 +756,7 @@ function AddPeopleDialog({
                     target,
                   ),
                 )
-                .catch(() => {
-                  // Best-effort — the invite itself already succeeded.
-                });
+                .catch(() => undefined);
             }),
           );
         }
@@ -645,4 +813,3 @@ function AddPeopleDialog({
     </Dialog>
   );
 }
-

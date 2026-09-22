@@ -58,6 +58,10 @@ export {
   type GroupConversationProps,
 } from './lib/GroupConversation.js';
 export {
+  GroupMembersPanel,
+  type GroupMembersPanelProps,
+} from './lib/group-members-panel.js';
+export {
   useAllThreads,
   type CrossRoomThread,
   type ThreadParticipant,

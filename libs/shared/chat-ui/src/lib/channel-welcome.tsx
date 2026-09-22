@@ -217,11 +217,23 @@ export function ChannelWelcome({
       return 'This is your space. Draft messages, keep notes, and save links where only you can find them.';
     }
     if (kind === 'group') {
+      const memberNames = members.map((m) => m.displayName || m.userId);
+      const othersFormatted =
+        memberNames.length === 0
+          ? null
+          : memberNames.length <= 3
+            ? memberNames.join(', ')
+            : `${memberNames.slice(0, 3).join(', ')} and ${memberNames.length - 3} ${
+                memberNames.length - 3 === 1 ? 'other' : 'others'
+              }`;
+
       return (
         <>
-          This is the very beginning of the{' '}
-          <span className="font-semibold text-foreground">{channelName}</span>{' '}
-          group conversation.
+          This is the beginning of your conversation with{' '}
+          <span className="font-semibold text-foreground">
+            {othersFormatted || channelName}
+          </span>
+          . Start a conversation below.
         </>
       );
     }

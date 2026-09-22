@@ -779,6 +779,29 @@ export class OneTabMatrixClient {
     await withRetry(() => sdk.setRoomName(roomId, name.trim()));
   }
 
+  /** Sets or updates a room avatar image. */
+  async setRoomAvatar(roomId: RoomId, file: File): Promise<string> {
+    const sdk = this.require();
+    const upload = await withRetry(() =>
+      sdk.uploadContent(file, {
+        name: file.name,
+        type: file.type,
+      }),
+    );
+    await withRetry(() =>
+      sdk.sendStateEvent(roomId, 'm.room.avatar' as any, { url: upload.content_uri }, ''),
+    );
+    return upload.content_uri;
+  }
+
+  /** Clears a room avatar. */
+  async clearRoomAvatar(roomId: RoomId): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() =>
+      sdk.sendStateEvent(roomId, 'm.room.avatar' as any, {}, ''),
+    );
+  }
+
   /**
    * Invites people to an existing group DM and tags the room in their
    * `m.direct` map, so it groups as a DM for them too.

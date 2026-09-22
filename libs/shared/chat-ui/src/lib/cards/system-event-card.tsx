@@ -33,6 +33,7 @@ import {
   UserPlus,
   UserRoundCheck,
   UserRoundX,
+  Users,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { ReactionPicker, formatFullTimestamp, formatShortTimestamp } from '../chat-bubble.js';
@@ -78,6 +79,7 @@ const EVENT_TYPE_ICONS: Partial<Record<SystemActivityEventContent['eventType'], 
   coworker_removed: Bot,
   coworker_enabled: Bot,
   coworker_disabled: Bot,
+  conversation_created: Users,
   channel_renamed: Pencil,
   channel_archived: Archive,
   channel_unarchived: ArchiveRestore,
@@ -263,6 +265,13 @@ function getSentenceParts(event: SystemActivityEventContent): SentenceParts {
       return { lead: `was disabled in ${inConversation}`, withActor: true };
     case 'channel_renamed':
       return { lead: 'renamed this channel', withActor: true };
+    case 'conversation_created':
+      return {
+        lead: event.secondaryTarget?.name
+          ? `created this group conversation with ${event.secondaryTarget.name}`
+          : 'created this group conversation',
+        withActor: true,
+      };
     case 'channel_archived':
       return { lead: `archived ${inConversation}`, withActor: true };
     case 'channel_unarchived':

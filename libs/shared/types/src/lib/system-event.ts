@@ -233,6 +233,10 @@ export function formatSystemEventFallbackText(
       return `${actorName} disabled ${targetName} in ${inConversation}`;
     case 'channel_created':
       return `${actorName} created ${inConversation}`;
+    case 'conversation_created':
+      return secondaryName
+        ? `${actorName} created this group conversation with ${secondaryName}`
+        : `${actorName} created this group conversation`;
     case 'channel_renamed':
       return `${actorName} renamed this channel to #${targetName}`;
     case 'channel_archived':

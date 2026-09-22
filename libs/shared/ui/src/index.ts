@@ -64,6 +64,12 @@ export {
 } from './lib/components/avatar-group.js';
 
 export {
+  GroupAvatar,
+  type GroupAvatarMember,
+  type GroupAvatarProps,
+} from './lib/components/group-avatar.js';
+
+export {
   UserIdentity,
   type UserIdentityProps,
 } from './lib/components/user-identity.js';

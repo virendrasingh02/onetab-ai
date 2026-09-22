@@ -30,6 +30,7 @@ import {
   SidebarActivityIndicator,
   toPresenceStatus,
   UserAvatar,
+  GroupAvatar,
   DirectMessagesNavSkeleton,
   type PresenceStatus,
 } from '@org/ui';
@@ -390,21 +391,13 @@ function GroupDmRow({
           })
         }
       >
-        <span className="-space-x-1.5 flex shrink-0">
-          {(group.avatarMembers.length
-            ? group.avatarMembers.slice(0, 2)
-            : [{ userId: group.roomId, displayName: group.name }]
-          ).map((member) => (
-            <UserAvatar
-              key={member.userId}
-              name={member.displayName}
-              src={'avatarUrl' in member ? member.avatarUrl : undefined}
-              seed={member.userId}
-              indicator={false}
-              className="size-4 text-[8px] ring-1 ring-background"
-            />
-          ))}
-        </span>
+        <GroupAvatar
+          name={group.name}
+          avatarUrl={group.avatarUrl}
+          members={group.avatarMembers}
+          size="xs"
+          className="size-4 shrink-0"
+        />
 
         <span className="flex-1 truncate">{group.name}</span>
 

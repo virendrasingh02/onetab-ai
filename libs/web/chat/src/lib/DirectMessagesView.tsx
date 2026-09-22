@@ -1,11 +1,12 @@
 import { useCurrentUser } from '@org/auth';
 import { AddBookmarkDialog, BookmarkFavicon, Composer } from '@org/chat-ui';
 import { useUserPresenceMap } from '@org/realtime';
-import type {
-  ChannelSummary,
-  ComposerContext,
-  RoomMember,
-  WorkspaceMember,
+import {
+  type ChannelSummary,
+  type ComposerContext,
+  getSystemEventCapabilities,
+  type RoomMember,
+  type WorkspaceMember,
 } from '@org/types';
 import {
   Badge,
@@ -1108,6 +1109,42 @@ function NewDirectMessage({
       peerIds: selectedPeople,
       name: isGroup ? groupName : undefined,
     });
+
+    if (result.kind === 'group' && currentUser && client) {
+      const others = selectedMembers.filter((m) => m.user.id !== currentUser.id);
+      const names = others.map((m) => m.user.displayName ?? m.user.name);
+      const formattedNames =
+        names.length <= 3
+          ? names.join(', ')
+          : `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`;
+
+      void client
+        .sendStructuredMessage(result.roomId, {
+          type: 'mie.system_event',
+          eventType: 'conversation_created',
+          conversationType: 'group_dm',
+          conversationId: result.roomId,
+          workspaceId,
+          actor: {
+            kind: 'user',
+            id: currentUser.id,
+            name: currentUser.displayName ?? currentUser.name,
+            avatarUrl: currentUser.avatarUrl ?? undefined,
+          },
+          secondaryTarget: {
+            kind: 'channel',
+            id: result.roomId,
+            name: formattedNames,
+          },
+          occurredAt: Date.now(),
+          idempotencyKey: `group-dm-created:${result.roomId}:${Date.now()}`,
+          capabilities: getSystemEventCapabilities('conversation_created'),
+        })
+        .catch(() => {
+          // best effort
+        });
+    }
+
     return {
       roomId: result.roomId,
       href:
@@ -1123,6 +1160,10 @@ function NewDirectMessage({
     selectedPeople,
     isGroup,
     groupName,
+    currentUser,
+    client,
+    selectedMembers,
+    workspaceId,
   ]);
 
   const handleSend = useCallback(

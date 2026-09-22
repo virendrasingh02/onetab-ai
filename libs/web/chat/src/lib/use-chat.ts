@@ -341,6 +341,7 @@ export interface GroupDirectMessageSummary {
   roomId: string;
   /** The room's name, or its members' names when it has none. */
   name: string;
+  avatarUrl?: string;
   memberCount: number;
   unreadCount: number;
   mentionCount: number;
@@ -358,11 +359,17 @@ function summariseGroup(
   others: RoomMember[],
 ): GroupDirectMessageSummary {
   const names = others.map((member) => member.displayName || member.userId);
+  const fallbackName =
+    names.length === 0
+      ? 'Group message'
+      : names.length <= 3
+        ? names.join(', ')
+        : `${names.slice(0, 2).join(', ')} + ${names.length - 2} others`;
+
   return {
     roomId: room.id,
-    name:
-      room.name?.trim() ||
-      (names.length ? names.slice(0, 3).join(', ') : 'Group message'),
+    name: room.name?.trim() || fallbackName,
+    avatarUrl: room.avatarUrl,
     memberCount: room.memberCount,
     unreadCount: room.unreadCount,
     mentionCount: room.highlightCount,

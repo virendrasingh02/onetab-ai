@@ -420,12 +420,19 @@ export function toRoomKind(room: SdkRoom, client: SdkClient): RoomKind {
   // A DM is recorded in m.direct account data, not on the room itself — and it
   // stays there whatever the headcount, so a group DM is simply a DM with more
   // than two people in it. Only a room not in the map is classified as a channel.
+  const directMap = readDirectMap(client);
   const directRoomIds = new Set<string>(
-    Object.values(readDirectMap(client)).flat(),
+    Object.values(directMap).flat(),
   );
 
   if (directRoomIds.has(room.roomId)) {
-    return room.getJoinedMemberCount() > 2 ? 'group' : 'direct';
+    const peersInMap = Object.entries(directMap).filter(([_, roomIds]) =>
+      roomIds.includes(room.roomId),
+    ).length;
+    const activeHeadcount = room
+      .getMembers()
+      .filter((member) => OPEN_MEMBERSHIPS.has(member.membership ?? '')).length;
+    return peersInMap > 1 || activeHeadcount > 2 ? 'group' : 'direct';
   }
   return 'channel';
 }
