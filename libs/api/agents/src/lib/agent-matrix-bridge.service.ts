@@ -213,7 +213,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
         entity.workspaceId,
         entity.id,
         promptText,
-        { channelId, channelName },
+        { channelId, channelName, roomId, threadRootId },
         postToolUpdate,
       );
 

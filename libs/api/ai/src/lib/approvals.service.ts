@@ -1,4 +1,6 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent, type AgentApprovalEntityType } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type { ApprovalDecisionInput } from '@org/types';
 
@@ -6,7 +8,36 @@ import type { ApprovalDecisionInput } from '@org/types';
 export class ApprovalsService {
   private readonly logger = new Logger(ApprovalsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly events: EventEmitter2,
+  ) {}
+
+  /**
+   * Raises an approval checkpoint for a gated AI Agent/Coworker tool call
+   * (`AIRuntimeService`'s tool-calling loop — distinct from a workflow's
+   * `HUMAN_APPROVAL` node, which creates its own row directly).
+   */
+  async createForEntityAction(params: {
+    workspaceId: string;
+    entityType: AgentApprovalEntityType;
+    entityId: string;
+    requesterId: string | null;
+    actionType: string;
+    proposedPayload: Record<string, unknown>;
+  }) {
+    return this.prisma.approvalRequest.create({
+      data: {
+        workspaceId: params.workspaceId,
+        entityType: params.entityType,
+        entityId: params.entityId,
+        requesterId: params.requesterId,
+        actionType: params.actionType,
+        proposedPayload: params.proposedPayload as any,
+        state: 'PENDING',
+      },
+    });
+  }
 
   async listApprovals(workspaceId: string, state?: string) {
     return this.prisma.approvalRequest.findMany({
@@ -90,6 +121,19 @@ export class ApprovalsService {
     this.logger.log(
       `Approval request ${id} ${data.decision.toLowerCase()} by user ${approverId}`,
     );
+
+    if (updated.entityType === 'agent' || updated.entityType === 'coworker') {
+      this.events.emit(AppEvent.AgentApprovalDecided, {
+        workspaceId,
+        approvalId: updated.id,
+        entityType: updated.entityType,
+        entityId: updated.entityId,
+        decision: data.decision,
+        approverId: approverId ?? null,
+        actionType: updated.actionType,
+        proposedPayload: (updated.proposedPayload ?? {}) as Record<string, unknown>,
+      });
+    }
 
     return updated;
   }

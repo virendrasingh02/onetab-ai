@@ -6,7 +6,6 @@ import { AuthModule } from '@org/api-auth';
 import { MatrixModule } from '@org/api-matrix';
 import { RealtimeModule } from '@org/api-realtime';
 import { PrismaModule } from '@org/database';
-import { CoworkerMatrixBridgeService } from './coworker-matrix-bridge.service.js';
 import { CoworkerRuntimeService } from './coworker-runtime.service.js';
 import {
   ChannelCoworkersController,
@@ -38,7 +37,7 @@ import { CoworkersService } from './coworkers.service.js';
     ChannelCoworkersController,
     ProjectCoworkersController,
   ],
-  providers: [CoworkersService, CoworkerRuntimeService, CoworkerMatrixBridgeService],
+  providers: [CoworkersService, CoworkerRuntimeService],
   exports: [CoworkersService, CoworkerRuntimeService],
 })
 export class CoworkersModule {}

@@ -112,6 +112,16 @@ export const AppEvent = {
    * covers every settings surface rather than one per category.
    */
   SettingsUpdated: 'settings.updated',
+  /**
+   * A human approved or rejected an `ApprovalRequest` raised by an AI Agent
+   * or Coworker's tool-calling loop (not a workflow's `HUMAN_APPROVAL` node,
+   * which resolves separately). `ApprovalsService` (`@org/api-ai`) emits this
+   * after persisting the decision; `AIRuntimeService`/a listener in
+   * `@org/api-agents` consumes it to actually run (or skip) the gated
+   * action — kept event-based rather than a direct call because `api-ai` must
+   * not depend on `api-agents`, which already depends on it.
+   */
+  AgentApprovalDecided: 'agent.approval.decided',
 } as const;
 
 export type AppEventName = (typeof AppEvent)[keyof typeof AppEvent];
@@ -387,6 +397,20 @@ export interface SettingsUpdatedEvent {
   data?: Record<string, unknown>;
 }
 
+export type AgentApprovalEntityType = 'agent' | 'coworker';
+
+export interface AgentApprovalDecidedEvent {
+  workspaceId: string;
+  approvalId: string;
+  entityType: AgentApprovalEntityType;
+  entityId: string;
+  decision: 'APPROVED' | 'REJECTED';
+  approverId: string | null;
+  /** The gated action, as `AIRuntimeService` proposed it. */
+  actionType: string;
+  proposedPayload: Record<string, unknown>;
+}
+
 export interface AppEventPayloads {
   [AppEvent.TaskCreated]: TaskCreatedEvent;
   [AppEvent.TaskAssigned]: TaskAssignedEvent;
@@ -420,4 +444,5 @@ export interface AppEventPayloads {
   [AppEvent.IntegrationConnected]: IntegrationConnectedEvent;
   [AppEvent.IntegrationDisconnected]: IntegrationDisconnectedEvent;
   [AppEvent.SettingsUpdated]: SettingsUpdatedEvent;
+  [AppEvent.AgentApprovalDecided]: AgentApprovalDecidedEvent;
 }

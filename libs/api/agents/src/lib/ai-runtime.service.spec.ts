@@ -7,6 +7,10 @@ describe('AIRuntimeService', () => {
   let aiService: any;
   let credentialService: any;
   let mcpRegistry: any;
+  let integrationTools: any;
+  let integrationsService: any;
+  let approvals: any;
+  let creditService: any;
   let realtime: any;
 
   beforeEach(() => {
@@ -27,6 +31,12 @@ describe('AIRuntimeService', () => {
       projectCoworker: {
         findFirst: vi.fn(),
       },
+      creditAccount: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
+      aIMemory: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
     };
     aiService = {
       chat: vi.fn().mockResolvedValue({
@@ -40,7 +50,20 @@ describe('AIRuntimeService', () => {
     mcpRegistry = {
       getToolSchemas: vi.fn().mockReturnValue([]),
       getToolSchemasFor: vi.fn().mockReturnValue([]),
+      getToolDefinitions: vi.fn().mockReturnValue([]),
       executeTool: vi.fn(),
+    };
+    integrationTools = {
+      getToolsForEntity: vi.fn().mockResolvedValue([]),
+    };
+    integrationsService = {
+      executeAction: vi.fn(),
+    };
+    approvals = {
+      createForEntityAction: vi.fn().mockResolvedValue({ id: 'approval_1' }),
+    };
+    creditService = {
+      deductCredits: vi.fn().mockResolvedValue(undefined),
     };
     realtime = {
       broadcastToWorkspace: vi.fn().mockResolvedValue(undefined),
@@ -51,6 +74,10 @@ describe('AIRuntimeService', () => {
       aiService,
       credentialService,
       mcpRegistry,
+      integrationTools,
+      integrationsService,
+      approvals,
+      creditService,
       realtime,
     );
   });
@@ -195,5 +222,131 @@ describe('AIRuntimeService', () => {
         request: 'Review code',
       }),
     ).rejects.toThrow(/not authorized to delegate/);
+  });
+
+  it('blocks a run when the shared credit balance is depleted', async () => {
+    prisma.creditAccount.findUnique.mockResolvedValue({ balance: 0 });
+    prisma.aIAgent.findFirst.mockResolvedValue({
+      id: 'agent_1',
+      name: 'Code Reviewer Agent',
+      type: 'agent',
+      isActive: true,
+      workspace: { name: 'Test WS' },
+    });
+
+    await expect(
+      service.executeTurn('ws_1', 'agent_1', 'Review this PR'),
+    ).rejects.toThrow(/credit/i);
+    expect(aiService.chat).not.toHaveBeenCalled();
+  });
+
+  it('deducts credits from the estimated token cost after a successful run', async () => {
+    prisma.aIAgent.findFirst.mockResolvedValue({
+      id: 'agent_1',
+      name: 'Code Reviewer Agent',
+      type: 'agent',
+      systemPrompt: 'Review code.',
+      provider: 'nvidia',
+      isActive: true,
+      workspace: { name: 'Test WS' },
+    });
+
+    await service.executeTurn('ws_1', 'agent_1', 'Review this PR');
+
+    expect(creditService.deductCredits).toHaveBeenCalledWith(
+      'ws_1',
+      expect.any(Number),
+      'AGENT',
+      'agent_1',
+      expect.any(String),
+    );
+  });
+
+  it('raises an approval request instead of executing a destructive integration action', async () => {
+    prisma.aIAgent.findFirst.mockResolvedValue({
+      id: 'agent_1',
+      name: 'Ops Agent',
+      type: 'agent',
+      creatorId: 'user_1',
+      systemPrompt: 'You manage infra.',
+      provider: 'nvidia',
+      isActive: true,
+      workspace: { name: 'Test WS' },
+    });
+    integrationTools.getToolsForEntity.mockResolvedValue([
+      {
+        name: 'github_delete_repo',
+        integrationId: 'integration_1',
+        actionId: 'delete_repo',
+        definition: {
+          id: 'delete_repo',
+          label: 'Delete repository',
+          description: 'Permanently deletes a GitHub repository.',
+          inputSchema: { type: 'object', properties: {} },
+          permissionLevel: 'destructive',
+          requiresConfirmation: true,
+        },
+        schema: {
+          type: 'function',
+          function: { name: 'github_delete_repo', description: 'Delete repository', parameters: {} },
+        },
+      },
+    ]);
+    aiService.chat
+      .mockResolvedValueOnce({
+        message: {
+          content: '',
+          toolCalls: [
+            {
+              id: 'call_1',
+              function: { name: 'github_delete_repo', arguments: '{}' },
+            },
+          ],
+        },
+        usage: { totalTokens: 10 },
+      })
+      .mockResolvedValueOnce({
+        message: { content: 'I have requested approval to delete the repo.', toolCalls: [] },
+        usage: { totalTokens: 5 },
+      });
+
+    const result = await service.executeTurn('ws_1', 'agent_1', 'Delete the old repo');
+
+    expect(approvals.createForEntityAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: 'ws_1',
+        entityType: 'agent',
+        entityId: 'agent_1',
+        actionType: 'github_delete_repo',
+      }),
+    );
+    expect(integrationsService.executeAction).not.toHaveBeenCalled();
+    expect(result.tools[0]?.output).toEqual(
+      expect.objectContaining({ pendingApproval: true, approvalId: 'approval_1' }),
+    );
+  });
+
+  it('rejects delegation beyond the maximum depth', async () => {
+    prisma.aIAgent.findFirst.mockResolvedValue({
+      id: 'agent_rev',
+      name: 'Code Reviewer Agent',
+      type: 'agent',
+      isActive: true,
+    });
+    prisma.coworkerAgent.findFirst.mockResolvedValue({
+      id: 'link_1',
+      coworkerId: 'codey_1',
+      agentId: 'agent_rev',
+    });
+
+    await expect(
+      service.invokeAIEntity({
+        entityId: 'agent_rev',
+        callerId: 'codey_1',
+        workspaceId: 'ws_1',
+        request: 'Check this function',
+        delegationDepth: 3,
+      }),
+    ).rejects.toThrow(/Delegation depth limit/);
   });
 });

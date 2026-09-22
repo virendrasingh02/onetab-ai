@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PrismaService } from "@org/database";
+import { AIInfrastructureService } from "./ai-infrastructure.service.js";
 import { KnowledgeService } from "./knowledge.service.js";
 import { QdrantVectorService } from "./qdrant-vector.service.js";
 
@@ -7,6 +8,7 @@ describe("KnowledgeService", () => {
   let service: KnowledgeService;
   let mockPrisma: any;
   let mockVector: any;
+  let mockAi: any;
 
   beforeEach(() => {
     mockPrisma = {
@@ -16,7 +18,12 @@ describe("KnowledgeService", () => {
         ]),
         findFirst: vi.fn().mockImplementation(({ where }) => {
           if (where.id === "kb-1") {
-            return Promise.resolve({ id: "kb-1", name: "Engineering Wiki", workspaceId: "ws-1" });
+            return Promise.resolve({
+              id: "kb-1",
+              name: "Engineering Wiki",
+              workspaceId: "ws-1",
+              vectorCollection: "kb_ws-1",
+            });
           }
           return Promise.resolve(null);
         }),
@@ -50,14 +57,30 @@ describe("KnowledgeService", () => {
     mockVector = {
       isConfigured: vi.fn().mockReturnValue(true),
       search: vi.fn().mockResolvedValue([
-        { id: "chunk-1", score: 0.92, payload: { chunkId: "chunk-1" } },
+        {
+          id: "chunk-1",
+          score: 0.92,
+          payload: {
+            documentId: "doc-1",
+            documentName: "Architecture Guide",
+            chunkIndex: 0,
+            content: "Microservices architecture overview.",
+          },
+        },
       ]),
-      upsertDocuments: vi.fn().mockResolvedValue(undefined),
+      upsert: vi.fn().mockResolvedValue(undefined),
+      deleteByDocument: vi.fn().mockResolvedValue(undefined),
+    };
+
+    mockAi = {
+      generateEmbedding: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+      generateEmbeddings: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
     };
 
     service = new KnowledgeService(
       mockPrisma as unknown as PrismaService,
-      mockVector as unknown as QdrantVectorService
+      mockVector as unknown as QdrantVectorService,
+      mockAi as unknown as AIInfrastructureService
     );
   });
 

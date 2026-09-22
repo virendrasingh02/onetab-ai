@@ -29,6 +29,8 @@ import { AIFeedbackService } from './ai-feedback.service.js';
 import { AIFeedbackController } from './ai-feedback.controller.js';
 import { AIExecutionsService } from './ai-executions.service.js';
 import { AIExecutionsController } from './ai-executions.controller.js';
+import { AIMemoryService } from './ai-memory.service.js';
+import { AIMemoryController } from './ai-memory.controller.js';
 
 @Module({
   imports: [ConfigModule, AuthModule, PrismaModule],
@@ -43,6 +45,7 @@ import { AIExecutionsController } from './ai-executions.controller.js';
     MCPController,
     AIFeedbackController,
     AIExecutionsController,
+    AIMemoryController,
   ],
   providers: [
     AIEncryptionService,
@@ -62,6 +65,7 @@ import { AIExecutionsController } from './ai-executions.controller.js';
     MCPService,
     AIFeedbackService,
     AIExecutionsService,
+    AIMemoryService,
   ],
   exports: [
     AIEncryptionService,
@@ -80,6 +84,7 @@ import { AIExecutionsController } from './ai-executions.controller.js';
     MCPService,
     AIFeedbackService,
     AIExecutionsService,
+    AIMemoryService,
   ],
 })
 export class AIInfrastructureModule {}

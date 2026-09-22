@@ -7,4 +7,5 @@ export { WorkspaceAuditService } from './lib/workspace-audit.service.js';
 export { WorkspaceAuditController } from './lib/workspace-audit.controller.js';
 export { BillingService } from './lib/billing/billing.service.js';
 export { BillingController } from './lib/billing/billing.controller.js';
+export { CreditService } from './lib/billing/credit.service.js';
 

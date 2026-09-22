@@ -38,6 +38,9 @@ export {
   type ChannelAppEnabledChangedEvent,
   type IntegrationConnectedEvent,
   type IntegrationDisconnectedEvent,
+  type SettingsUpdatedEvent,
+  type AgentApprovalEntityType,
+  type AgentApprovalDecidedEvent,
 } from './lib/events.js';
 
 export {

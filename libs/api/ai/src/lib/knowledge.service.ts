@@ -6,6 +6,7 @@ import type {
   KnowledgeRetrievalQuery,
   KnowledgeRetrievalResult,
 } from '@org/types';
+import { AIInfrastructureService } from './ai-infrastructure.service.js';
 import { QdrantVectorService } from './qdrant-vector.service.js';
 
 interface TextChunk {
@@ -21,6 +22,7 @@ export class KnowledgeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly vectorService: QdrantVectorService,
+    private readonly aiService: AIInfrastructureService,
   ) {}
 
   async listKnowledgeBases(workspaceId: string) {
@@ -138,8 +140,34 @@ export class KnowledgeService {
       });
     }
 
-    if (this.vectorService.isConfigured()) {
-      this.logger.debug(`Vector indexing enabled for KB '${kb.name}'`);
+    // Embed and index into this KB's own Qdrant collection so `retrieve()`
+    // can do real semantic search instead of only Postgres keyword `contains`.
+    // Best-effort: an embedding-provider hiccup must not fail the ingest —
+    // the document is already saved and searchable by keyword either way.
+    if (this.vectorService.isConfigured() && chunks.length > 0) {
+      try {
+        const vectors = await this.aiService.generateEmbeddings(
+          chunks.map((c) => c.content),
+        );
+        await this.vectorService.upsert(
+          kb.vectorCollection,
+          chunks.map((chunk, index) => ({
+            key: `${doc.id}:chunk:${chunk.chunkIndex}`,
+            vector: vectors[index]!,
+            payload: {
+              workspaceId,
+              documentId: doc.id,
+              documentName: doc.name,
+              chunkIndex: chunk.chunkIndex,
+              content: chunk.content,
+            },
+          })),
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Vector indexing failed for document '${doc.name}' (${doc.id}) — it remains keyword-searchable: ${String(error)}`,
+        );
+      }
     }
 
     this.logger.log(
@@ -154,10 +182,19 @@ export class KnowledgeService {
     knowledgeBaseId: string,
     documentId: string,
   ) {
-    await this.getKnowledgeBase(workspaceId, knowledgeBaseId);
+    const kb = await this.getKnowledgeBase(workspaceId, knowledgeBaseId);
     await this.prisma.knowledgeDocument.delete({
       where: { id: documentId, knowledgeBaseId },
     });
+    if (this.vectorService.isConfigured()) {
+      await this.vectorService
+        .deleteByDocument(kb.vectorCollection, documentId)
+        .catch((error) =>
+          this.logger.warn(
+            `Failed to remove vectors for deleted document ${documentId}: ${String(error)}`,
+          ),
+        );
+    }
   }
 
   // --- Chunks ---
@@ -201,13 +238,59 @@ export class KnowledgeService {
   ): Promise<KnowledgeRetrievalResult[]> {
     const kb = await this.getKnowledgeBase(workspaceId, knowledgeBaseId);
     const topK = query.topK ?? 5;
-    const terms = query.query.toLowerCase().split(/\s+/).filter(Boolean);
+
+    if (this.vectorService.isConfigured()) {
+      const vectorResults = await this.retrieveByVector(kb, workspaceId, query.query, topK);
+      // A real semantic hit set wins outright. Falling through to keyword
+      // search only when vector search found nothing — e.g. documents
+      // ingested before indexing existed, or before the store came online.
+      if (vectorResults.length > 0) return vectorResults;
+    }
+
+    return this.retrieveByKeyword(kb.id, query.query, topK);
+  }
+
+  private async retrieveByVector(
+    kb: { id: string; vectorCollection: string },
+    workspaceId: string,
+    queryText: string,
+    topK: number,
+  ): Promise<KnowledgeRetrievalResult[]> {
+    try {
+      const vector = await this.aiService.generateEmbedding(queryText);
+      const hits = await this.vectorService.search(kb.vectorCollection, vector, workspaceId, topK);
+      return hits.map((hit) => {
+        const payload = hit.payload ?? {};
+        return {
+          chunkId: hit.id,
+          documentId: String(payload['documentId'] ?? ''),
+          documentName: String(payload['documentName'] ?? 'Untitled'),
+          content: String(payload['content'] ?? ''),
+          score: Number(hit.score.toFixed(3)),
+          metadata: payload,
+          citation: `[Source: ${String(payload['documentName'] ?? 'document')}, chunk ${Number(payload['chunkIndex'] ?? 0) + 1}]`,
+        };
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Vector search failed for KB ${kb.id} — falling back to keyword search: ${String(error)}`,
+      );
+      return [];
+    }
+  }
+
+  private async retrieveByKeyword(
+    knowledgeBaseId: string,
+    queryText: string,
+    topK: number,
+  ): Promise<KnowledgeRetrievalResult[]> {
+    const terms = queryText.toLowerCase().split(/\s+/).filter(Boolean);
 
     // Keyword search against chunks in database
     const matchingChunks = await this.prisma.knowledgeChunk.findMany({
       where: {
         document: {
-          knowledgeBaseId: kb.id,
+          knowledgeBaseId,
         },
         OR: terms.map((term) => ({
           content: { contains: term, mode: 'insensitive' as const },

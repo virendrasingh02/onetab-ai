@@ -240,6 +240,7 @@ import type {
   AIExecutionFilter,
   AISecret,
   CreateAISecretInput,
+  AIMemoryEntry,
   MCPConnection,
   CreateMCPConnectionInput,
   AIStudioOverview,
@@ -4073,6 +4074,14 @@ export const aiSecretsApi = {
 
   delete: (workspaceId: string, key: string) =>
     request<void>(http.delete(`/workspaces/${workspaceId}/ai-secrets/${key}`)),
+};
+
+export const aiMemoryApi = {
+  list: (workspaceId: string) =>
+    request<AIMemoryEntry[]>(http.get(`/workspaces/${workspaceId}/ai/memory`)),
+
+  delete: (workspaceId: string, key: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/ai/memory/${encodeURIComponent(key)}`)),
 };
 
 export const mcpApi = {

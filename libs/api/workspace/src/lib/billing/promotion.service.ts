@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import {
   ACTIVE_PROMOTION_CODE,
@@ -11,8 +11,6 @@ import {
 
 @Injectable()
 export class PromotionService {
-  private readonly logger = new Logger(PromotionService.name);
-
   constructor(private readonly prisma: PrismaService) {}
 
   /**

@@ -354,6 +354,18 @@ export interface CreateAISecretInput {
   description?: string;
 }
 
+/** A fact an Agent/Coworker saved via the `save_memory` tool — workspace
+ *  scoped, shared across every entity in it (there is no per-agent tier). */
+export interface AIMemoryEntry {
+  id: string;
+  workspaceId: string;
+  key: string;
+  value: string;
+  source: string;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+}
+
 export type MCPTransport = 'HTTP' | 'SSE' | 'STDIO';
 export type MCPConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
 

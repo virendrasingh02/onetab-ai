@@ -126,4 +126,36 @@ export class AIEntitiesController {
   ) {
     return this.entitiesService.getEntityLogs(workspaceId, entityId);
   }
+
+  @Post(':id/schedules')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  createSchedule(
+    @WorkspaceId() workspaceId: string,
+    @Param('id') entityId: string,
+    @Body() body: { cronExpression: string; description?: string },
+  ) {
+    return this.entitiesService.createSchedule(workspaceId, entityId, body);
+  }
+
+  @Patch(':id/schedules/:scheduleId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  updateSchedule(
+    @WorkspaceId() workspaceId: string,
+    @Param('id') entityId: string,
+    @Param('scheduleId') scheduleId: string,
+    @Body() body: { cronExpression?: string; description?: string; isActive?: boolean },
+  ) {
+    return this.entitiesService.updateSchedule(workspaceId, entityId, scheduleId, body);
+  }
+
+  @Delete(':id/schedules/:scheduleId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteSchedule(
+    @WorkspaceId() workspaceId: string,
+    @Param('id') entityId: string,
+    @Param('scheduleId') scheduleId: string,
+  ): Promise<void> {
+    return this.entitiesService.deleteSchedule(workspaceId, entityId, scheduleId);
+  }
 }

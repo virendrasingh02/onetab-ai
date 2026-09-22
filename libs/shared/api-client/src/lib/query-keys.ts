@@ -155,6 +155,7 @@ export const queryKeys = {
       ['agents', workspaceId, agentId, 'logs'] as const,
     workspaceLogs: (workspaceId: string) =>
       ['agents', workspaceId, 'logs'] as const,
+    memory: (workspaceId: string) => ['agents', workspaceId, 'memory'] as const,
   },
   coworkers: {
     all: (workspaceId: string) => ['coworkers', workspaceId] as const,

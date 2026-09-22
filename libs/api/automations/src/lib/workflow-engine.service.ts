@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import { AIInfrastructureService, KnowledgeService } from '@org/api-ai';
+import { AIRuntimeService, MCPToolRegistryService } from '@org/api-agents';
+import { IntegrationsService } from '@org/api-integrations';
 import { PLANS_CONFIG, normalizePlanTier } from '@org/types';
 import { isBlockedRequestUrl } from './url-guard.js';
 
@@ -73,6 +75,9 @@ export class WorkflowEngineService {
     private readonly prisma: PrismaService,
     private readonly aiService: AIInfrastructureService,
     private readonly knowledgeService: KnowledgeService,
+    private readonly aiRuntime: AIRuntimeService,
+    private readonly mcpRegistry: MCPToolRegistryService,
+    private readonly integrations: IntegrationsService,
   ) {}
 
   /**
@@ -217,7 +222,13 @@ export class WorkflowEngineService {
         }
 
         const stepStart = Date.now();
-        const step = await this.runNode(node, executionContext, workflow.workspaceId, aiExecution.id);
+        const step = await this.runNode(
+          node,
+          executionContext,
+          workflow.workspaceId,
+          aiExecution.id,
+          workflow.creatorId,
+        );
         const stepLatency = Date.now() - stepStart;
         results.push(step);
 
@@ -311,6 +322,7 @@ export class WorkflowEngineService {
     context: Record<string, unknown>,
     workspaceId: string,
     executionId: string,
+    creatorId: string | null,
   ): Promise<WorkflowStepResult> {
     const cfg = node.config ?? {};
     const retries = Math.min(num(cfg['retries'], 0), 5);
@@ -320,7 +332,7 @@ export class WorkflowEngineService {
     for (let attempt = 1; attempt <= retries + 1; attempt++) {
       try {
         const result = await this.withTimeout(
-          this.executeNodeStep(node, context, workspaceId, executionId),
+          this.executeNodeStep(node, context, workspaceId, executionId, creatorId),
           timeoutMs,
           node.id,
         );
@@ -353,6 +365,7 @@ export class WorkflowEngineService {
     context: Record<string, unknown>,
     workspaceId: string,
     executionId: string,
+    creatorId: string | null,
   ): Promise<WorkflowStepResult> {
     const cfg = node.config ?? {};
     const type = node.type.toUpperCase();
@@ -394,7 +407,7 @@ export class WorkflowEngineService {
           stepId: node.id,
           type: node.type,
           status: 'SUCCESS',
-          output: { aiOutput: aiRes.message.content, tokensUsed: 120 },
+          output: { aiOutput: aiRes.message.content, tokensUsed: aiRes.usage?.totalTokens ?? 0 },
         };
       }
 
@@ -410,15 +423,22 @@ export class WorkflowEngineService {
       }
 
       case 'AGENT':
-      case 'AI_COWORKER': {
-        const entityId = String(cfg['entityId'] || '');
-        return {
-          stepId: node.id,
-          type: node.type,
-          status: 'SUCCESS',
-          output: { entityResponse: `Autonomous response from ${node.label || 'Agent'} (${entityId})` },
-        };
-      }
+        return this.runEntityNode(
+          node,
+          context,
+          workspaceId,
+          String(cfg['agentId'] || cfg['entityId'] || ''),
+          String(cfg['goal'] || cfg['prompt'] || ''),
+        );
+
+      case 'AI_COWORKER':
+        return this.runEntityNode(
+          node,
+          context,
+          workspaceId,
+          String(cfg['coworkerId'] || cfg['entityId'] || ''),
+          String(cfg['task'] || cfg['prompt'] || ''),
+        );
 
       case 'KNOWLEDGE_RETRIEVAL': {
         const kbId = String(cfg['knowledgeBaseId'] || '');
@@ -597,14 +617,9 @@ export class WorkflowEngineService {
       }
 
       case 'TOOL':
-      case 'APP':
       case 'MCP':
-        return {
-          stepId: node.id,
-          type: node.type,
-          status: 'SUCCESS',
-          output: { toolResult: `Invoked tool ${node.label || 'Tool'}` },
-        };
+      case 'APP':
+        return this.runToolNode(node, context, workspaceId, creatorId, cfg);
 
       case 'DATABASE': {
         return {
@@ -665,6 +680,126 @@ export class WorkflowEngineService {
           output: { executed: true },
         };
     }
+  }
+
+  /**
+   * Runs an `AGENT`/`AI_COWORKER` node through the real unified runtime
+   * (`AIRuntimeService.executeTurn`) rather than fabricating a response — the
+   * node's configured entity gets a real turn, with its own tools, memory,
+   * and (if it calls a destructive integration action) its own approval
+   * checkpoint, exactly as it would from a chat `@mention`.
+   */
+  private async runEntityNode(
+    node: WorkflowNode,
+    context: Record<string, unknown>,
+    workspaceId: string,
+    entityId: string,
+    rawPrompt: string,
+  ): Promise<WorkflowStepResult> {
+    if (!entityId) {
+      return {
+        stepId: node.id,
+        type: node.type,
+        status: 'FAILED',
+        output: { error: `No agent/coworker selected for node '${node.label || node.id}'.` },
+      };
+    }
+    const promptText = interpolateVariables(
+      rawPrompt || 'Execute your configured task using the current workflow context.',
+      context,
+    );
+    const run = await this.aiRuntime.executeTurn(workspaceId, entityId, promptText, {});
+    return {
+      stepId: node.id,
+      type: node.type,
+      status: 'SUCCESS',
+      output: { entityResponse: run.result, toolCalls: run.tools },
+    };
+  }
+
+  /**
+   * Runs a `TOOL`/`MCP`/`APP` node. Resolves `toolName` first against the
+   * built-in MCP registry (`search_docs`, `create_task`, …), then — for the
+   * canvas's `provider.actionId` convention (e.g. `slack.postMessage`) —
+   * against that provider's connected integration actions. Fails openly
+   * rather than fabricating a result when neither resolves, so a
+   * misconfigured node is visible instead of silently "succeeding".
+   */
+  private async runToolNode(
+    node: WorkflowNode,
+    context: Record<string, unknown>,
+    workspaceId: string,
+    creatorId: string | null,
+    cfg: Record<string, unknown>,
+  ): Promise<WorkflowStepResult> {
+    const toolName = String(cfg['toolName'] || cfg['tool'] || '').trim();
+    if (!toolName) {
+      return {
+        stepId: node.id,
+        type: node.type,
+        status: 'FAILED',
+        output: { error: `No tool configured for node '${node.label || node.id}'.` },
+      };
+    }
+
+    const rawInput = (cfg['input'] as Record<string, unknown>) ?? {};
+    const input: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(rawInput)) {
+      input[key] = typeof value === 'string' ? interpolateVariables(value, context) : value;
+    }
+
+    if (this.mcpRegistry.getToolDefinitions().some((t) => t.name === toolName)) {
+      const output = await this.mcpRegistry.executeTool(toolName, input, {
+        workspaceId,
+        actingUserId: creatorId,
+      });
+      return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { toolResult: output } };
+    }
+
+    const dotIndex = toolName.indexOf('.');
+    if (dotIndex > 0) {
+      const providerKey = toolName.slice(0, dotIndex).toUpperCase();
+      const actionKey = toolName
+        .slice(dotIndex + 1)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+
+      const integration = await this.prisma.externalIntegration.findFirst({
+        where: { provider: providerKey, status: 'CONNECTED', OR: [{ workspaceId }, { workspaceId: null }] },
+        select: { id: true },
+      });
+
+      if (integration && creatorId) {
+        const actions = await this.integrations.getActions(integration.id, creatorId, workspaceId);
+        const match = actions.find(
+          (a) => a.id.toLowerCase().replace(/[^a-z0-9]/g, '') === actionKey,
+        );
+        if (match) {
+          // Workflows gate sensitive steps with an explicit `HUMAN_APPROVAL`
+          // node placed before this one in the graph, not an implicit check
+          // per tool node — so a `requiresConfirmation` action here is
+          // confirmed automatically rather than silently rejected.
+          const result = await this.integrations.executeAction(
+            integration.id,
+            match.id,
+            input,
+            match.requiresConfirmation ? true : undefined,
+            creatorId,
+            workspaceId,
+          );
+          return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { toolResult: result } };
+        }
+      }
+    }
+
+    return {
+      stepId: node.id,
+      type: node.type,
+      status: 'FAILED',
+      output: {
+        error: `Tool '${toolName}' is not a registered built-in tool or a connected integration action.`,
+      },
+    };
   }
 
   private evaluateCondition(

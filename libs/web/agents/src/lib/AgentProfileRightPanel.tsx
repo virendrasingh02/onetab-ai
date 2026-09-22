@@ -32,7 +32,13 @@ import {
   Zap,
 } from 'lucide-react';
 import { AgentAvatar } from './AgentMarketplaceView.js';
-import { useAgentLogs, useAgentMutations, useAgents } from './use-agents.js';
+import {
+  useAgentLogs,
+  useAgentMutations,
+  useAgents,
+  useAiMemory,
+  useDeleteAiMemory,
+} from './use-agents.js';
 import type { AgentModelItem } from './AgentChatView.js';
 
 export interface AgentProfileRightPanelProps {
@@ -58,6 +64,8 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
     agentsQuery.data?.find((a: any) => a.id === agentId);
 
   const { data: logs, isLoading: logsLoading } = useAgentLogs(workspaceId, agentId);
+  const { data: memory, isLoading: memoryLoading } = useAiMemory(workspaceId);
+  const deleteMemory = useDeleteAiMemory(workspaceId);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -270,6 +278,54 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
                   </Badge>
                 ))}
               </div>
+            </div>
+
+            {/* Box: Workspace Memory */}
+            <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Brain className="size-3.5 text-primary" />
+                  <span>Workspace Memory</span>
+                </h3>
+                {memory && memory.length > 0 && (
+                  <Badge variant="neutral" className="text-[10px]">
+                    {memory.length} facts
+                  </Badge>
+                )}
+              </div>
+
+              {memoryLoading ? (
+                <div className="p-4 text-center">
+                  <Spinner className="size-4 mx-auto" />
+                </div>
+              ) : memory && memory.length > 0 ? (
+                <div className="space-y-1.5">
+                  {memory.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface p-2.5 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{entry.key}</p>
+                        <p className="text-[11px] text-muted-foreground line-clamp-2">{entry.value}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteMemory.mutate(entry.key)}
+                        title="Forget this"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic text-center py-2">
+                  Agent memory will appear here as agents save useful facts with save_memory.
+                </p>
+              )}
             </div>
 
             {/* Box 4: Recent Execution Activity */}

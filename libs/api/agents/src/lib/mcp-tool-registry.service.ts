@@ -263,6 +263,45 @@ export class MCPToolRegistryService {
         return { delivered: true, channel: channel.name, eventId };
       },
     });
+
+    // 8. Save Memory
+    this.tools.set('save_memory', {
+      name: 'save_memory',
+      description:
+        'Remember a useful fact for this workspace so future conversations (with any agent or coworker) can recall it — e.g. a preference, a decision, a recurring detail. Overwrites any existing memory with the same key.',
+      parameters: {
+        key: { type: 'string' },
+        value: { type: 'string' },
+      },
+      handler: async (params: { key?: string; value?: string }, { workspaceId }) => {
+        const key = params.key?.trim();
+        const value = params.value?.trim();
+        if (!key || !value) {
+          throw new Error('key and value are both required.');
+        }
+        await this.prisma.aIMemory.upsert({
+          where: { workspaceId_key: { workspaceId, key } },
+          create: { workspaceId, key, value, source: 'agent' },
+          update: { value, source: 'agent' },
+        });
+        return { saved: true, key };
+      },
+    });
+
+    // 9. List Memory
+    this.tools.set('list_memory', {
+      name: 'list_memory',
+      description: 'List facts previously saved to workspace memory via save_memory.',
+      parameters: {},
+      handler: async (_params: unknown, { workspaceId }) => {
+        return this.prisma.aIMemory.findMany({
+          where: { workspaceId },
+          select: { key: true, value: true, updatedAt: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 50,
+        });
+      },
+    });
   }
 
   getToolDefinitions(): Array<{ name: string; description: string }> {

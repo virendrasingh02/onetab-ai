@@ -56,6 +56,7 @@ export {
   approvalsApi,
   aiExecutionsApi,
   aiSecretsApi,
+  aiMemoryApi,
   mcpApi,
   aiFeedbackApi,
   type AuthResponse,

@@ -1,5 +1,9 @@
+import type { AgentToolExecution } from '@org/types';
 import {
+  AIExecutionTimeline,
+  type AIExecutionStep,
   Badge,
+  Card,
   EmptyState,
   ErrorState,
   Page,
@@ -15,8 +19,28 @@ import {
 } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { formatDistanceToNow } from 'date-fns';
-import { Activity, AlertCircle, CheckCircle, Wrench } from 'lucide-react';
-import { useWorkspaceAgentLogs } from './use-agents.js';
+import { Activity, AlertCircle, CheckCircle, Radio, Wrench } from 'lucide-react';
+import { useAgentRunProgress, useAgents, useWorkspaceAgentLogs } from './use-agents.js';
+
+const TOOL_STATUS_TO_STEP_STATUS: Record<AgentToolExecution['status'], AIExecutionStep['status']> = {
+  queued: 'pending',
+  running: 'running',
+  success: 'completed',
+  failed: 'failed',
+};
+
+function toExecutionSteps(tools: AgentToolExecution[]): AIExecutionStep[] {
+  return tools.map((tool, index) => ({
+    id: tool.id ?? `${tool.name}-${index}`,
+    name: tool.name,
+    type: 'tool_call',
+    status: TOOL_STATUS_TO_STEP_STATUS[tool.status],
+    toolName: tool.name,
+    durationMs: tool.durationMs,
+    outputPayload: tool.output,
+    error: tool.error,
+  }));
+}
 
 /**
  * `toolCalls` is stored as a JSON string of tool definitions. The table shows
@@ -38,6 +62,9 @@ function firstToolName(toolCalls: string): string | null {
 export function AgentMonitoringView() {
   const { workspaceId } = useCurrentWorkspace();
   const logs = useWorkspaceAgentLogs(workspaceId);
+  const agents = useAgents(workspaceId);
+  const liveRuns = useAgentRunProgress(workspaceId);
+  const liveRunList = Object.values(liveRuns).sort((a, b) => b.updatedAt - a.updatedAt);
 
   return (
     <Page>
@@ -47,6 +74,42 @@ export function AgentMonitoringView() {
         icon={<Activity />}
         accent="green"
       />
+
+      {liveRunList.length > 0 && (
+        <div className="mb-4 flex flex-col gap-3">
+          {liveRunList.map((run) => {
+            const agentName =
+              agents.data?.find((a) => a.id === run.entityId)?.name ??
+              (run.entityType === 'coworker' ? 'AI Coworker' : 'AI Agent');
+            return (
+              <Card key={run.entityId} className="p-4">
+                <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                  {run.status === 'running' ? (
+                    <Radio className="size-3.5 animate-pulse text-accent-green" aria-hidden />
+                  ) : run.status === 'failed' ? (
+                    <AlertCircle className="size-3.5 text-destructive" aria-hidden />
+                  ) : (
+                    <CheckCircle className="size-3.5 text-accent-green" aria-hidden />
+                  )}
+                  {agentName}
+                  <Badge
+                    variant={
+                      run.status === 'failed'
+                        ? 'destructive'
+                        : run.status === 'completed'
+                          ? 'success'
+                          : 'primary'
+                    }
+                  >
+                    {run.status}
+                  </Badge>
+                </div>
+                <AIExecutionTimeline steps={toExecutionSteps(run.tools)} />
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <Panel flush>
         {logs.isLoading ? (

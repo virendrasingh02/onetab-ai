@@ -399,6 +399,45 @@ export class AIEntitiesService {
     });
   }
 
+  async createSchedule(
+    workspaceId: string,
+    entityId: string,
+    data: { cronExpression: string; description?: string },
+  ) {
+    await this.assertEntity(workspaceId, entityId);
+    return this.prisma.agentSchedule.create({
+      data: {
+        agentId: entityId,
+        cronExpression: data.cronExpression,
+        description: data.description,
+      },
+    });
+  }
+
+  async updateSchedule(
+    workspaceId: string,
+    entityId: string,
+    scheduleId: string,
+    data: { cronExpression?: string; description?: string; isActive?: boolean },
+  ) {
+    await this.assertEntity(workspaceId, entityId);
+    const existing = await this.prisma.agentSchedule.findFirst({
+      where: { id: scheduleId, agentId: entityId },
+    });
+    if (!existing) throw new NotFoundException('Schedule not found.');
+    return this.prisma.agentSchedule.update({
+      where: { id: scheduleId },
+      data,
+    });
+  }
+
+  async deleteSchedule(workspaceId: string, entityId: string, scheduleId: string): Promise<void> {
+    await this.assertEntity(workspaceId, entityId);
+    await this.prisma.agentSchedule.deleteMany({
+      where: { id: scheduleId, agentId: entityId },
+    });
+  }
+
   async getEntityLogs(workspaceId: string, entityId: string) {
     await this.assertEntity(workspaceId, entityId);
     return this.prisma.agentExecutionLog.findMany({

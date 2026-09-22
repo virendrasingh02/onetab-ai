@@ -202,8 +202,9 @@ export class CoworkersController {
 
 /**
  * Which coworkers a channel has added. Mirrors `ChannelAgentsController`
- * exactly — `CoworkerMatrixBridgeService` reads these rows to decide who may
- * answer in a channel's Matrix room.
+ * exactly — `AgentMatrixBridgeService` (`@org/api-agents`, unified across
+ * both entity types) reads these rows to decide who may answer in a
+ * channel's Matrix room.
  */
 @Controller({
   path: 'workspaces/:workspaceId/channels/:channelId/coworkers',

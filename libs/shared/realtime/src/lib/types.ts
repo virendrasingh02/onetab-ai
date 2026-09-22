@@ -1,4 +1,4 @@
-import type { IsoDateString, PublicUser } from '@org/types';
+import type { AgentToolExecution, IsoDateString, PublicUser } from '@org/types';
 
 export const RealtimeEventType = {
   // Presence & User
@@ -46,9 +46,10 @@ export const RealtimeEventType = {
   Heartbeat: 'heartbeat',
 
   // AI Coworkers — a persistent teammate's identity/config changes, or one
-  // turn of it running (`CoworkerRuntimeService`/`CoworkerMatrixBridgeService`
-  // in `@org/api-coworkers`). Never faked: these fire only around a real
-  // model call, so "Working" in the sidebar/profile reflects an actual turn.
+  // turn of it running (`CoworkerRuntimeService` in `@org/api-coworkers`,
+  // delegating to the unified `AIRuntimeService`/`AgentMatrixBridgeService`
+  // in `@org/api-agents`). Never faked: these fire only around a real model
+  // call, so "Working" in the sidebar/profile reflects an actual turn.
   CoworkerCreated: 'coworker.created',
   CoworkerUpdated: 'coworker.updated',
   CoworkerDeleted: 'coworker.deleted',
@@ -56,6 +57,12 @@ export const RealtimeEventType = {
   CoworkerExecutionStarted: 'coworker.execution_started',
   CoworkerExecutionCompleted: 'coworker.execution_completed',
   CoworkerExecutionFailed: 'coworker.execution_failed',
+
+  /** Step-by-step status for one Agent or Coworker turn (queued → running →
+   *  completed/failed), including the live tool-call trace — emitted by
+   *  `AIRuntimeService` on every tool start/finish, not just at the end, so
+   *  the Agent Run UI can render live steps instead of polling. */
+  AgentRunProgress: 'agent.run_progress',
 } as const;
 
 export type RealtimeEventType =
@@ -310,4 +317,12 @@ export interface CoworkerExecutionPayload {
   workspaceId: string;
   logId?: string;
   error?: string;
+}
+
+export interface AgentRunProgressPayload {
+  entityId: string;
+  entityType: 'agent' | 'coworker';
+  workspaceId: string;
+  status: 'running' | 'completed' | 'failed';
+  tools: AgentToolExecution[];
 }
