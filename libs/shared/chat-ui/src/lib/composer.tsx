@@ -23,7 +23,6 @@ import {
 } from '@org/hooks';
 import { cn, formatBytes } from '@org/utils';
 import {
-  AtSign,
   CalendarClock,
   Check,
   File as FileIcon,
@@ -32,7 +31,6 @@ import {
   Mic,
   Plus,
   Send,
-  Slash,
   Smile,
   Speech,
   VenetianMask,
@@ -405,7 +403,6 @@ export function Composer({
   edit = null,
   enterToSend = true,
   onMentionsChange,
-  showFormatting = true,
   slashCommands = DEFAULT_SLASH_COMMANDS,
 
   onStartHuddle,
@@ -418,9 +415,6 @@ export function Composer({
     open: boolean;
     tab: 'emoji' | 'gif';
   }>({ open: false, tab: 'emoji' });
-  /* Collapsed by default, Slack-style — the formatting bar is for people who
-     go looking for it, not a permanent fixture above every message. */
-  const [toolbarOpen, setToolbarOpen] = useState(false);
   /* Drives the send button's active state. Fed by the editor's cheap
      empty ⇄ non-empty signal (`onEmptyChange`), not a markdown pass per key. */
   const [hasContent, setHasContent] = useState(false);
@@ -584,7 +578,14 @@ export function Composer({
         }
       }
     },
-    [conversationId, setDraft, linkPreviewsEnabled, dismissedUrls, fetchPreview, edit],
+    [
+      conversationId,
+      setDraft,
+      linkPreviewsEnabled,
+      dismissedUrls,
+      fetchPreview,
+      edit,
+    ],
   );
 
   const handleDismissPreview = useCallback((url: string) => {
@@ -630,7 +631,7 @@ export function Composer({
 
     const nextMonday = new Date(now);
     const day = nextMonday.getDay();
-    const daysUntilMon = ((1 + 7 - day) % 7) || 7;
+    const daysUntilMon = (1 + 7 - day) % 7 || 7;
     nextMonday.setDate(nextMonday.getDate() + daysUntilMon);
     nextMonday.setHours(9, 0, 0, 0);
 
@@ -705,7 +706,9 @@ export function Composer({
           targetId: conversationId ?? undefined,
           workspaceId,
           channelId:
-            surfaceKind === 'channel' ? conversationId ?? undefined : undefined,
+            surfaceKind === 'channel'
+              ? (conversationId ?? undefined)
+              : undefined,
         });
       }
 
@@ -730,7 +733,9 @@ export function Composer({
         detectedCommand = 'huddle';
         finalBody = '';
       } else if (finalBody.startsWith('/help')) {
-        toast.info('Commands: /remind, /poll, /shrug, /away, /huddle, /topic, /invite');
+        toast.info(
+          'Commands: /remind, /poll, /shrug, /away, /huddle, /topic, /invite',
+        );
         detectedCommand = 'help';
         finalBody = '';
       } else if (finalBody.startsWith('/')) {
@@ -750,7 +755,8 @@ export function Composer({
         targetType: surfaceKind,
         targetId: conversationId ?? undefined,
         workspaceId,
-        channelId: surfaceKind === 'channel' ? conversationId ?? undefined : undefined,
+        channelId:
+          surfaceKind === 'channel' ? (conversationId ?? undefined) : undefined,
       };
 
       if (
@@ -844,14 +850,18 @@ export function Composer({
     : 'max(1rem, env(safe-area-inset-bottom))';
 
   const effectivePlaceholder = useMemo(() => {
-    if (placeholder && placeholder !== 'Message channel…') {
-      return placeholder;
+    let base = placeholder;
+    if (!base || base === 'Message channel…') {
+      base = getComposerPlaceholder({
+        surfaceKind,
+        targetName,
+        isEditing: Boolean(edit),
+      });
     }
-    return getComposerPlaceholder({
-      surfaceKind,
-      targetName,
-      isEditing: Boolean(edit),
-    });
+    if (edit) return base;
+    if (base.includes('@') || base.includes('/')) return base;
+    const trimmed = base.replace(/[.…]+$/, '');
+    return `${trimmed}... Type @ to mention, / for commands`;
   }, [placeholder, surfaceKind, targetName, edit]);
 
   const effectiveSlashCommands = useMemo(() => {
@@ -896,7 +906,9 @@ export function Composer({
         isSelf: !!currentUserId && wm.userId === currentUserId,
       }));
 
-    people.sort((a, b) => Number(b.isSelf ?? false) - Number(a.isSelf ?? false));
+    people.sort(
+      (a, b) => Number(b.isSelf ?? false) - Number(a.isSelf ?? false),
+    );
 
     return [
       ...groups,
@@ -933,7 +945,7 @@ export function Composer({
         style={{ paddingBottom: composerPadBottom }}
       >
         {contextSlot}
-        <div className="gap-2.5 px-4 py-3 flex items-center rounded-xl border border-border bg-surface-muted text-xs text-muted-foreground">
+        <div className="gap-2.5 px-4 py-3 text-xs flex items-center rounded-xl border border-border bg-surface text-muted-foreground">
           <Lock className="size-4 shrink-0" aria-hidden />
           <span>{readOnlyMessage}</span>
         </div>
@@ -944,7 +956,7 @@ export function Composer({
   return (
     <div
       className={cn(
-        'bottom-0 px-3 pt-3 sm:px-4 sm:pt-4 sticky z-20 shrink-0 bg-background',
+        'bottom-0 px-3 pt-3 sticky z-20 w-full shrink-0 bg-background',
         className,
       )}
       style={{ paddingBottom: composerPadBottom }}
@@ -952,7 +964,7 @@ export function Composer({
       {contextSlot}
 
       {anon && anonAllowed ? (
-        <div className="gap-1.5 mb-1.5 px-2.5 py-1 text-[11px] flex items-center rounded-md bg-primary/10 text-primary-text">
+        <div className="gap-1.5 mb-1.5 px-2.5 py-1 flex items-center rounded-md bg-primary/10 text-[11px] text-primary-text">
           <VenetianMask className="size-3" />
           This message will be posted as “Anonymous Participant”.
         </div>
@@ -965,476 +977,443 @@ export function Composer({
           onSend={onSendVoice}
         />
       ) : (
-      <div
-        className={cn(
-          'relative flex flex-col rounded-xl border border-border bg-surface transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
-          isDraggingOver && 'border-primary ring-2 ring-primary/40',
-          disabled && 'pointer-events-none opacity-60',
-        )}
-        onDragOver={(event) => {
-          if (!event.dataTransfer.types.includes('Files')) return;
-          event.preventDefault();
-          setIsDraggingOver(true);
-        }}
-        onDragLeave={() => setIsDraggingOver(false)}
-        onDrop={(event) => {
-          setIsDraggingOver(false);
-          if (!event.dataTransfer.files.length) return;
-          event.preventDefault();
-          stageFiles(event.dataTransfer.files);
-        }}
-        onPaste={(event) => {
-          const files = Array.from(event.clipboardData?.files ?? []);
-          if (files.length > 0) stageFiles(files);
-        }}
-      >
-        {isDraggingOver ? (
-          <div className="inset-0 text-xs font-semibold pointer-events-none absolute z-10 flex items-center justify-center rounded-xl bg-primary/5 text-primary-text">
-            Drop to attach
-          </div>
-        ) : null}
-
-        {attachments.length > 0 ? (
-          <div className="gap-2 px-3 py-2.5 flex scrollbar-none items-start overflow-x-auto border-b border-border">
-            {attachments.map((attachment) => (
-              <StagedAttachmentChip
-                key={attachment.id}
-                attachment={attachment}
-                onRemove={() => removeAttachment(attachment.id)}
-              />
-            ))}
-          </div>
-        ) : null}
-
-        <LexicalComposerInput
-          placeholder={effectivePlaceholder}
-          initialMarkdown={initialDraft}
-          onSend={handleComposerSend}
-          enterToSend={enterToSend}
-          onTyping={onTyping}
-          onEmptyChange={handleEmptyChange}
-          onDraftChange={handleDraftChange}
-          onMentionsChange={handleMentionsChange}
-          disabled={disabled}
-          showToolbar={showFormatting && toolbarOpen}
-
-          hasPendingAttachments={attachments.length > 0}
-          members={mentionCandidates}
-          channelMentions={channelMentions}
-          slashCommands={effectiveSlashCommands}
-          onRegisterRef={(ref) => {
-            lexicalRef.current = ref;
+        <div
+          className={cn(
+            'relative flex flex-col rounded-xl border border-border bg-surface transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
+            isDraggingOver && 'border-primary ring-2 ring-primary/40',
+            disabled && 'pointer-events-none opacity-60',
+          )}
+          onDragOver={(event) => {
+            if (!event.dataTransfer.types.includes('Files')) return;
+            event.preventDefault();
+            setIsDraggingOver(true);
           }}
-        />
+          onDragLeave={() => setIsDraggingOver(false)}
+          onDrop={(event) => {
+            setIsDraggingOver(false);
+            if (!event.dataTransfer.files.length) return;
+            event.preventDefault();
+            stageFiles(event.dataTransfer.files);
+          }}
+          onPaste={(event) => {
+            const files = Array.from(event.clipboardData?.files ?? []);
+            if (files.length > 0) stageFiles(files);
+          }}
+        >
+          {isDraggingOver ? (
+            <div className="inset-0 text-xs font-semibold pointer-events-none absolute z-10 flex items-center justify-center rounded-xl bg-primary/5 text-primary-text">
+              Drop to attach
+            </div>
+          ) : null}
 
-        {/* Staged Link Previews */}
-        {stagedUrls.length > 0 ? (
-          <div className="px-3 pb-2 pt-0.5 space-y-2">
-            {stagedUrls.map((url) => {
-              const norm = normalizeUrl(url);
-              const preview = previews[norm];
-              const isLoading = loadingUrls[norm];
-              if (isLoading && !preview) {
-                return (
-                  <div key={url} className="relative">
-                    <LinkPreviewSkeleton compact />
-                    <button
-                      type="button"
-                      onClick={() => handleDismissPreview(url)}
-                      className="absolute right-1.5 top-1.5 size-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                      aria-label="Remove link preview"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </div>
-                );
-              }
-              if (!preview || preview.status === 'error') {
-                return null;
-              }
-              return (
-                <LinkPreviewCard
-                  key={url}
-                  preview={preview}
-                  compact
-                  onRemove={() => handleDismissPreview(url)}
+          {attachments.length > 0 ? (
+            <div className="gap-2 px-3 py-2.5 flex scrollbar-none items-start overflow-x-auto border-b border-border">
+              {attachments.map((attachment) => (
+                <StagedAttachmentChip
+                  key={attachment.id}
+                  attachment={attachment}
+                  onRemove={() => removeAttachment(attachment.id)}
                 />
-              );
-            })}
-          </div>
-        ) : null}
+              ))}
+            </div>
+          ) : null}
 
-        {/* Action bar. On phones the secondary buttons (formatting, @, /, GIF,
+          <LexicalComposerInput
+            placeholder={effectivePlaceholder}
+            initialMarkdown={initialDraft}
+            onSend={handleComposerSend}
+            enterToSend={enterToSend}
+            onTyping={onTyping}
+            onEmptyChange={handleEmptyChange}
+            onDraftChange={handleDraftChange}
+            onMentionsChange={handleMentionsChange}
+            disabled={disabled}
+            showToolbar={false}
+
+            hasPendingAttachments={attachments.length > 0}
+            members={mentionCandidates}
+            channelMentions={channelMentions}
+            slashCommands={effectiveSlashCommands}
+            onRegisterRef={(ref) => {
+              lexicalRef.current = ref;
+            }}
+          />
+
+          {/* Staged Link Previews */}
+          {stagedUrls.length > 0 ? (
+            <div className="px-3 pb-2 pt-0.5 space-y-2">
+              {stagedUrls.map((url) => {
+                const norm = normalizeUrl(url);
+                const preview = previews[norm];
+                const isLoading = loadingUrls[norm];
+                if (isLoading && !preview) {
+                  return (
+                    <div key={url} className="relative">
+                      <LinkPreviewSkeleton compact />
+                      <button
+                        type="button"
+                        onClick={() => handleDismissPreview(url)}
+                        className="right-1.5 top-1.5 size-6 absolute flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        aria-label="Remove link preview"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  );
+                }
+                if (!preview || preview.status === 'error') {
+                  return null;
+                }
+                return (
+                  <LinkPreviewCard
+                    key={url}
+                    preview={preview}
+                    compact
+                    onRemove={() => handleDismissPreview(url)}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
+
+          {/* Action bar. On phones the secondary buttons (formatting, @, /, GIF,
             huddle) are hidden — `@` and `/` still open their menus when typed,
             GIF lives in the emoji picker's second tab — leaving a row of full
             44px targets that fits a 320px screen. The left cluster scrolls
             horizontally as a backstop rather than wrapping or clipping. */}
-        <div className="px-2.5 py-1.5 flex items-center justify-between rounded-b-xl border-t border-border bg-surface-raised">
-          <div className="gap-1 flex min-w-0 flex-1 items-center overflow-x-auto no-scrollbar">
-            {/* Same "no prop, no control" convention as the huddle and mic
+          <div className="px-2.5 py-1.5 flex items-center justify-between rounded-b-xl bg-surface">
+            <div className="gap-1 min-w-0 no-scrollbar flex flex-1 items-center overflow-x-auto">
+              {/* Same "no prop, no control" convention as the huddle and mic
                 buttons below — a surface with nowhere to send an upload (AI
                 chat) shouldn't offer to stage one that then silently vanishes
                 on send. */}
-            {onAttach ? (
-              <>
-                <Hint label="Attach file or media">
-                  <button
-                    type="button"
-                    aria-label="Attach file or media"
-                    onClick={() => document.getElementById(fileInputId)?.click()}
-                    className="size-7 shrink-0 touch-target flex items-center justify-center rounded-full bg-accent text-foreground transition-colors hover:bg-selected"
-                  >
-                    <Plus className="size-4" aria-hidden="true" />
-                  </button>
-                </Hint>
-                <input
-                  id={fileInputId}
-                  type="file"
-                  multiple
-                  className="sr-only"
-                  onChange={(event) => {
-                    stageFiles(event.target.files);
-                    event.target.value = '';
-                  }}
-                />
-              </>
-            ) : null}
-
-            {showFormatting ? (
-              <Hint label={toolbarOpen ? 'Hide formatting' : 'Formatting'}>
-                <button
-                  type="button"
-                  aria-pressed={toolbarOpen}
-                  aria-label="Toggle formatting bar"
-                  onClick={() => setToolbarOpen((open) => !open)}
-                  className={cn(
-                    'max-sm:hidden h-7 min-w-7 px-1.5 text-xs font-bold flex items-center justify-center rounded-md transition-colors',
-                    toolbarOpen
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  Aa
-                </button>
-              </Hint>
-            ) : null}
-
-            <span className="max-sm:hidden mx-1 h-4 w-px bg-accent/50" />
-
-            {/* Typing the trigger is what opens the menu, so these buttons do
-                exactly that rather than duplicating the menu themselves. Hidden
-                on phones — typing `@` / `/` still opens the menu. */}
-            <Hint label="Mention someone (@)">
-              <button
-                type="button"
-                aria-label="Mention someone (@)"
-                onClick={() => {
-                  lexicalRef.current?.focus();
-                  lexicalRef.current?.insertText('@');
-                }}
-                className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <AtSign className="size-4" aria-hidden="true" />
-              </button>
-            </Hint>
-
-            <EmojiGifPickerPopover
-              open={pickerState.open}
-              onOpenChange={(open) =>
-                setPickerState((current) => ({ ...current, open }))
-              }
-              tab={pickerState.tab}
-              onTabChange={(tab) =>
-                setPickerState((current) => ({ ...current, tab }))
-              }
-              side="top"
-              align="start"
-              onEmojiSelect={(emoji) => lexicalRef.current?.insertText(emoji.emoji)}
-              onGifSelect={handleSelectGif}
-            >
-              <button
-                type="button"
-                title="Emoji & GIFs"
-                aria-label="Insert emoji or GIF"
-                className={cn(
-                  'size-7 shrink-0 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                  pickerState.open && 'bg-primary text-primary-foreground',
-                )}
-              >
-                <Smile className="size-4" aria-hidden="true" />
-              </button>
-            </EmojiGifPickerPopover>
-
-            {/* Mic and dictate stay visible at every breakpoint (unlike the
-                secondary buttons above/below) — the brief calls for the mic
-                to stay reachable on phones specifically. */}
-            {voiceSupported && onSendVoice ? (
-              <Hint label="Record a voice message">
-                <button
-                  type="button"
-                  onClick={startRecording}
-                  disabled={!canStartVoiceAction}
-                  aria-label="Record voice message"
-                  className="size-7 shrink-0 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-                >
-                  <Mic className="size-4" aria-hidden="true" />
-                </button>
-              </Hint>
-            ) : null}
-
-            <Hint label="Open GIF picker">
-              <button
-                type="button"
-                aria-label="Open GIF picker"
-                onClick={() =>
-                  setPickerState((current) => ({
-                    open: !current.open || current.tab !== 'gif',
-                    tab: 'gif',
-                  }))
-                }
-                className={cn(
-                  'max-sm:hidden gap-1 px-1.5 py-1 text-xs font-bold flex items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                  pickerState.open &&
-                    pickerState.tab === 'gif' &&
-                    'bg-primary text-primary-foreground',
-                )}
-              >
-                <Film className="size-3.5" aria-hidden="true" />
-                <span className="tracking-wider text-[10px] uppercase">
-                  GIF
-                </span>
-              </button>
-            </Hint>
-
-            <Hint label="Slash commands (/)">
-              <button
-                type="button"
-                aria-label="Slash commands (/)"
-                onClick={() => {
-                  lexicalRef.current?.focus();
-                  lexicalRef.current?.insertText('/');
-                }}
-                className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <Slash className="size-3.5" aria-hidden="true" />
-              </button>
-            </Hint>
-
-            {onStartHuddle ? (
-              <Hint label="Start voice huddle">
-                <button
-                  type="button"
-                  aria-label="Start voice huddle"
-                  onClick={onStartHuddle}
-                  className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <Video className="size-4" aria-hidden="true" />
-                </button>
-              </Hint>
-            ) : null}
-
-            {/* Unlike the formatting bar's `toolbarSlot`, this one is always
-                visible — a control like the AI surfaces' model picker isn't
-                something to tuck behind a collapsed "Aa" toggle. */}
-            {toolbarSlot}
-          </div>
-
-          <div className="gap-1 flex shrink-0 items-center">
-            {anonAllowed ? (
-              <Hint
-                label={
-                  anon
-                    ? 'Posting anonymously — click to post as yourself'
-                    : 'Post anonymously'
-                }
-              >
-                <button
-                  type="button"
-                  aria-pressed={anon}
-                  aria-label="Toggle anonymous posting"
-                  onClick={() => setAnon((v) => !v)}
-                  className={cn(
-                    'size-7 touch-target flex items-center justify-center rounded-md transition-colors',
-                    anon
-                      ? 'bg-primary/15 text-primary'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  <VenetianMask className="size-3.5" />
-                </button>
-              </Hint>
-            ) : null}
-
-            {/* Dictate moved to right side */}
-            {speech.supported ? (
-              <Hint
-                label={speech.listening ? 'Stop dictating' : 'Dictate (speech to text)'}
-              >
-                <button
-                  type="button"
-                  onClick={toggleDictate}
-                  disabled={!speech.listening && !canStartVoiceAction}
-                  aria-label={speech.listening ? 'Stop dictating' : 'Dictate speech to text'}
-                  aria-pressed={speech.listening}
-                  className={cn(
-                    'size-7 shrink-0 touch-target flex items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
-                    speech.listening
-                      ? 'bg-primary text-primary-foreground motion-safe:animate-pulse'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  <Speech className="size-4" />
-                </button>
-              </Hint>
-            ) : null}
-
-            {/* Schedule message button & popover — same "no prop, no control"
-                convention as onStartHuddle/onSendVoice below. */}
-            {onSchedule ? (
-            <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
-              <PopoverTrigger asChild>
-                <div>
-                  <Hint label="Schedule message">
+              {onAttach ? (
+                <>
+                  <Hint label="Attach file or media">
                     <button
                       type="button"
-                      aria-label="Schedule message"
-                      disabled={disabled}
-                      className={cn(
-                        'size-7 shrink-0 touch-target flex items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
-                        scheduleOpen
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                      )}
+                      aria-label="Attach file or media"
+                      onClick={() =>
+                        document.getElementById(fileInputId)?.click()
+                      }
+                      className="size-7 flex touch-target shrink-0 items-center justify-center rounded-full bg-accent text-foreground transition-colors hover:bg-selected"
                     >
-                      <CalendarClock className="size-4" />
+                      <Plus className="size-4" aria-hidden="true" />
                     </button>
                   </Hint>
-                </div>
-              </PopoverTrigger>
-              <PopoverContent
-                side="top"
-                align="end"
-                className="w-72 p-3 space-y-3 bg-popover text-popover-foreground border border-border shadow-md rounded-lg z-50"
-              >
-                <div className="font-semibold text-xs text-foreground flex items-center gap-1.5 pb-1 border-b border-border">
-                  <CalendarClock className="size-3.5 text-primary" />
-                  <span>Schedule message</span>
-                </div>
-
-                {pendingScheduled.length > 0 ? (
-                  <div className="space-y-1 pb-2 border-b border-border">
-                    <div className="text-[11px] font-medium text-muted-foreground mb-1">
-                      Pending in this conversation
-                    </div>
-                    {pendingScheduled.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-start justify-between gap-2 px-2 py-1.5 rounded bg-accent/40 text-xs"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-foreground">{item.body}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {new Date(item.scheduledFor).toLocaleString(undefined, {
-                              dateStyle: 'medium',
-                              timeStyle: 'short',
-                            })}
-                          </p>
-                        </div>
-                        {onCancelScheduled ? (
-                          <button
-                            type="button"
-                            onClick={() => onCancelScheduled(item.id)}
-                            className="shrink-0 text-muted-foreground hover:text-destructive"
-                            aria-label="Cancel scheduled message"
-                          >
-                            <X className="size-3.5" />
-                          </button>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                <div className="space-y-1">
-                  <div className="text-[11px] font-medium text-muted-foreground mb-1">
-                    Quick options
-                  </div>
-                  {schedulePresets.map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => void handleSchedule(preset.time.toISOString())}
-                      className="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-xs flex justify-between items-center text-foreground transition-colors"
-                    >
-                      <span>{preset.label}</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {preset.time.toLocaleTimeString([], {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="space-y-2 pt-2 border-t border-border">
-                  <label className="text-[11px] font-medium text-muted-foreground block">
-                    Custom date & time
-                  </label>
                   <input
-                    type="datetime-local"
-                    value={customDatetime}
-                    min={new Date().toISOString().slice(0, 16)}
-                    onChange={(e) => setCustomDatetime(e.target.value)}
-                    className="w-full px-2 py-1 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    id={fileInputId}
+                    type="file"
+                    multiple
+                    className="sr-only"
+                    onChange={(event) => {
+                      stageFiles(event.target.files);
+                      event.target.value = '';
+                    }}
                   />
+                </>
+              ) : null}
+
+              <EmojiGifPickerPopover
+                open={pickerState.open}
+                onOpenChange={(open) =>
+                  setPickerState((current) => ({ ...current, open }))
+                }
+                tab={pickerState.tab}
+                onTabChange={(tab) =>
+                  setPickerState((current) => ({ ...current, tab }))
+                }
+                side="top"
+                align="start"
+                onEmojiSelect={(emoji) =>
+                  lexicalRef.current?.insertText(emoji.emoji)
+                }
+                onGifSelect={handleSelectGif}
+              >
+                <button
+                  type="button"
+                  title="Emoji & GIFs"
+                  aria-label="Insert emoji or GIF"
+                  className={cn(
+                    'size-7 flex touch-target shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                    pickerState.open && 'bg-primary text-primary-foreground',
+                  )}
+                >
+                  <Smile className="size-4" aria-hidden="true" />
+                </button>
+              </EmojiGifPickerPopover>
+
+              {/* Mic and dictate stay visible at every breakpoint (unlike the
+                secondary buttons above/below) — the brief calls for the mic
+                to stay reachable on phones specifically. */}
+              {voiceSupported && onSendVoice ? (
+                <Hint label="Record a voice message">
                   <button
                     type="button"
-                    disabled={!customDatetime}
-                    onClick={() => {
-                      if (!customDatetime) return;
-                      const targetDate = new Date(customDatetime);
-                      if (
-                        isNaN(targetDate.getTime()) ||
-                        targetDate.getTime() <= Date.now()
-                      ) {
-                        toast.error('Please select a future date and time');
-                        return;
-                      }
-                      void handleSchedule(targetDate.toISOString());
-                    }}
-                    className="w-full py-1.5 px-3 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium rounded transition-colors"
+                    onClick={startRecording}
+                    disabled={!canStartVoiceAction}
+                    aria-label="Record voice message"
+                    className="size-7 flex touch-target shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
                   >
-                    Schedule Send
+                    <Mic className="size-4" aria-hidden="true" />
                   </button>
-                </div>
-              </PopoverContent>
-            </Popover>
-            ) : null}
+                </Hint>
+              ) : null}
 
-            <Hint label={edit ? 'Save changes' : 'Send message'}>
-              <button
-                type="button"
-                onClick={() => lexicalRef.current?.send()}
-                disabled={disabled || !canSend}
-                aria-label={edit ? 'Save changes' : 'Send message'}
-                className={cn(
-                  'size-7 shrink-0 touch-target flex items-center justify-center rounded-full transition-colors',
-                  canSend && !disabled
-                    ? 'bg-primary text-primary-foreground hover:bg-primary-hover active:scale-95'
-                    : 'bg-transparent text-muted-foreground/40',
-                )}
-              >
-                {edit ? (
-                  <Check className="size-3.5" />
-                ) : (
-                  <Send className="size-3.5" />
-                )}
-              </button>
-            </Hint>
+              <Hint label="Open GIF picker">
+                <button
+                  type="button"
+                  aria-label="Open GIF picker"
+                  onClick={() =>
+                    setPickerState((current) => ({
+                      open: !current.open || current.tab !== 'gif',
+                      tab: 'gif',
+                    }))
+                  }
+                  className={cn(
+                    'max-sm:hidden gap-1 px-1.5 py-1 text-xs font-bold flex items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                    pickerState.open &&
+                      pickerState.tab === 'gif' &&
+                      'bg-primary text-primary-foreground',
+                  )}
+                >
+                  <Film className="size-3.5" aria-hidden="true" />
+                  <span className="tracking-wider text-[10px] uppercase">
+                    GIF
+                  </span>
+                </button>
+              </Hint>
+
+              {onStartHuddle ? (
+                <Hint label="Start voice huddle">
+                  <button
+                    type="button"
+                    aria-label="Start voice huddle"
+                    onClick={onStartHuddle}
+                    className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <Video className="size-4" aria-hidden="true" />
+                  </button>
+                </Hint>
+              ) : null}
+
+              {/* Unlike the formatting bar's `toolbarSlot`, this one is always
+                visible — a control like the AI surfaces' model picker isn't
+                something to tuck behind a collapsed "Aa" toggle. */}
+              {toolbarSlot}
+            </div>
+
+            <div className="gap-1 flex shrink-0 items-center">
+              {anonAllowed ? (
+                <Hint
+                  label={
+                    anon
+                      ? 'Posting anonymously — click to post as yourself'
+                      : 'Post anonymously'
+                  }
+                >
+                  <button
+                    type="button"
+                    aria-pressed={anon}
+                    aria-label="Toggle anonymous posting"
+                    onClick={() => setAnon((v) => !v)}
+                    className={cn(
+                      'size-7 flex touch-target items-center justify-center rounded-md transition-colors',
+                      anon
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                    )}
+                  >
+                    <VenetianMask className="size-3.5" />
+                  </button>
+                </Hint>
+              ) : null}
+
+              {/* Dictate moved to right side */}
+              {speech.supported ? (
+                <Hint
+                  label={
+                    speech.listening
+                      ? 'Stop dictating'
+                      : 'Dictate (speech to text)'
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={toggleDictate}
+                    disabled={!speech.listening && !canStartVoiceAction}
+                    aria-label={
+                      speech.listening
+                        ? 'Stop dictating'
+                        : 'Dictate speech to text'
+                    }
+                    aria-pressed={speech.listening}
+                    className={cn(
+                      'size-7 flex touch-target shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
+                      speech.listening
+                        ? 'motion-safe:animate-pulse bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                    )}
+                  >
+                    <Speech className="size-4" />
+                  </button>
+                </Hint>
+              ) : null}
+
+              {/* Schedule message button & popover — same "no prop, no control"
+                convention as onStartHuddle/onSendVoice below. */}
+              {onSchedule ? (
+                <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
+                  <PopoverTrigger asChild>
+                    <div>
+                      <Hint label="Schedule message">
+                        <button
+                          type="button"
+                          aria-label="Schedule message"
+                          disabled={disabled}
+                          className={cn(
+                            'size-7 flex touch-target shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
+                            scheduleOpen
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                          )}
+                        >
+                          <CalendarClock className="size-4" />
+                        </button>
+                      </Hint>
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="top"
+                    align="end"
+                    className="w-72 p-3 space-y-3 z-50 rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
+                  >
+                    <div className="font-semibold text-xs gap-1.5 pb-1 flex items-center border-b border-border text-foreground">
+                      <CalendarClock className="size-3.5 text-primary" />
+                      <span>Schedule message</span>
+                    </div>
+
+                    {pendingScheduled.length > 0 ? (
+                      <div className="space-y-1 pb-2 border-b border-border">
+                        <div className="font-medium mb-1 text-[11px] text-muted-foreground">
+                          Pending in this conversation
+                        </div>
+                        {pendingScheduled.map((item) => (
+                          <div
+                            key={item.id}
+                            className="gap-2 px-2 py-1.5 rounded text-xs flex items-start justify-between bg-accent/40"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-foreground">
+                                {item.body}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {new Date(item.scheduledFor).toLocaleString(
+                                  undefined,
+                                  {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                  },
+                                )}
+                              </p>
+                            </div>
+                            {onCancelScheduled ? (
+                              <button
+                                type="button"
+                                onClick={() => onCancelScheduled(item.id)}
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
+                                aria-label="Cancel scheduled message"
+                              >
+                                <X className="size-3.5" />
+                              </button>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-1">
+                      <div className="font-medium mb-1 text-[11px] text-muted-foreground">
+                        Quick options
+                      </div>
+                      {schedulePresets.map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() =>
+                            void handleSchedule(preset.time.toISOString())
+                          }
+                          className="px-2 py-1.5 rounded text-xs flex w-full items-center justify-between text-left text-foreground transition-colors hover:bg-accent"
+                        >
+                          <span>{preset.label}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {preset.time.toLocaleTimeString([], {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <label className="font-medium block text-[11px] text-muted-foreground">
+                        Custom date & time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={customDatetime}
+                        min={new Date().toISOString().slice(0, 16)}
+                        onChange={(e) => setCustomDatetime(e.target.value)}
+                        className="px-2 py-1 text-xs rounded w-full border border-border bg-background text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        disabled={!customDatetime}
+                        onClick={() => {
+                          if (!customDatetime) return;
+                          const targetDate = new Date(customDatetime);
+                          if (
+                            isNaN(targetDate.getTime()) ||
+                            targetDate.getTime() <= Date.now()
+                          ) {
+                            toast.error('Please select a future date and time');
+                            return;
+                          }
+                          void handleSchedule(targetDate.toISOString());
+                        }}
+                        className="py-1.5 px-3 text-xs font-medium rounded w-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
+                      >
+                        Schedule Send
+                      </button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              ) : null}
+
+              <Hint label={edit ? 'Save changes' : 'Send message'}>
+                <button
+                  type="button"
+                  onClick={() => lexicalRef.current?.send()}
+                  disabled={disabled || !canSend}
+                  aria-label={edit ? 'Save changes' : 'Send message'}
+                  className={cn(
+                    'size-7 flex touch-target shrink-0 items-center justify-center rounded-full transition-colors',
+                    canSend && !disabled
+                      ? 'bg-primary text-primary-foreground hover:bg-primary-hover active:scale-95'
+                      : 'bg-transparent text-muted-foreground/40',
+                  )}
+                >
+                  {edit ? (
+                    <Check className="size-3.5" />
+                  ) : (
+                    <Send className="size-3.5" />
+                  )}
+                </button>
+              </Hint>
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* <div className="mt-1 px-1 flex items-center justify-between text-[11px] text-muted-foreground">

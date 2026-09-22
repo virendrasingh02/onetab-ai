@@ -48,6 +48,8 @@ export {
 export {
   LexicalComposerInput,
   LexicalToolbar,
+  FloatingSelectionToolbar,
+  ToolbarContent,
   type LexicalComposerInputProps,
   type LexicalEditorRef,
   type MentionCandidate,

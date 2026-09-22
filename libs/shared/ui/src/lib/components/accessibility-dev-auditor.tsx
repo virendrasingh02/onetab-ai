@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import type { Result } from 'axe-core';
-import { runAccessibilityAudit } from '../test-utils/axe-test-utils.js';
 import { CheckCircle2, ShieldAlert, X, RefreshCw, Eye } from 'lucide-react';
 import { cn } from '@org/utils';
 
@@ -14,6 +13,7 @@ export function AccessibilityDevAuditor() {
   const handleRunAudit = useCallback(async () => {
     setIsRunning(true);
     try {
+      const { runAccessibilityAudit } = await import('../test-utils/axe-test-utils.js');
       const results = await runAccessibilityAudit(document.body);
       setViolations(results.violations);
       setLastAuditedAt(new Date());

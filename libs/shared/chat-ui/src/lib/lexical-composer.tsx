@@ -50,12 +50,9 @@ import {
   useBasicTypeaheadTriggerMatch,
 } from '@lexical/react/LexicalTypeaheadMenuPlugin';
 import {
-  $createHeadingNode,
   $createQuoteNode,
-  $isHeadingNode,
   $isQuoteNode,
   HeadingNode,
-  type HeadingTagType,
   QuoteNode,
 } from '@lexical/rich-text';
 import { $setBlocksType } from '@lexical/selection';
@@ -84,7 +81,6 @@ import {
   AtSign,
   BarChart2,
   Blocks,
-  Bold,
   Bot,
   Check,
   CheckSquare,
@@ -94,7 +90,6 @@ import {
   GitPullRequest,
   Hash,
   HelpCircle,
-  Italic,
   Link2,
   Link2Off,
   List,
@@ -114,7 +109,9 @@ import {
   UserPlus,
   Users,
   Video,
+  X,
 } from 'lucide-react';
+import { cn } from '@org/utils';
 import { Badge, UserAvatar } from '@org/ui';
 import {
   useCallback,
@@ -1693,46 +1690,6 @@ function EmojiPickerPlugin({
 type BlockType =
   'paragraph' | 'h1' | 'h2' | 'h3' | 'quote' | 'code' | 'ul' | 'ol' | 'check';
 
-const TOOL_BUTTON =
-  'flex size-7 shrink-0 items-center justify-center rounded transition-colors';
-
-function ToolButton({
-  label,
-  isActive = false,
-  disabled = false,
-  onClick,
-  children,
-}: {
-  label: string;
-  isActive?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      aria-pressed={isActive}
-      disabled={disabled}
-      // Formatting must not steal the caret, or there is nothing to format.
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={onClick}
-      className={`${TOOL_BUTTON} ${
-        isActive
-          ? 'bg-primary/20 text-primary-text'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-      } disabled:pointer-events-none disabled:opacity-40`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Divider() {
-  return <span className="mx-1 h-3.5 w-px shrink-0 bg-border" />;
-}
 
 /**
  * The formatting bar.
@@ -1744,7 +1701,13 @@ function Divider() {
  * Underline is deliberately absent. The composer serialises to markdown, which
  * has no underline, so offering it would quietly drop the formatting on send.
  */
-export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
+export function ToolbarContent({
+  toolbarSlot,
+  onInteractionChange,
+}: {
+  toolbarSlot?: ReactNode;
+  onInteractionChange?: (interacting: boolean) => void;
+}) {
   const [editor] = useLexicalComposerContext();
   const [formats, setFormats] = useState({
     bold: false,
@@ -1757,13 +1720,16 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
   const [isLink, setIsLink] = useState(false);
   const [linkDraft, setLinkDraft] = useState<string | null>(null);
   const linkInputRef = useRef<HTMLInputElement>(null);
+  const linkContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onInteractionChange?.(linkDraft !== null);
+  }, [linkDraft, onInteractionChange]);
 
   const syncToolbar = useCallback(() => {
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) return;
 
-    // Runs on every update while the bar is open — keep the same object when
-    // nothing changed so the toolbar doesn't re-render on each keystroke.
     setFormats((prev) => {
       const next = {
         bold: selection.hasFormat('bold'),
@@ -1790,11 +1756,6 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
       const listType = element.getListType();
       setBlockType(
         listType === 'number' ? 'ol' : listType === 'check' ? 'check' : 'ul',
-      );
-    } else if ($isHeadingNode(element)) {
-      const tag = element.getTag();
-      setBlockType(
-        tag === 'h1' || tag === 'h2' || tag === 'h3' ? tag : 'paragraph',
       );
     } else if ($isQuoteNode(element)) {
       setBlockType('quote');
@@ -1825,10 +1786,39 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
     if (linkDraft !== null) linkInputRef.current?.focus();
   }, [linkDraft]);
 
+  useEffect(() => {
+    if (linkDraft === null) return;
+
+    const handlePointerDown = (event: PointerEvent | MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        linkDraft !== null &&
+        linkContainerRef.current &&
+        !linkContainerRef.current.contains(target)
+      ) {
+        setLinkDraft(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (linkDraft !== null) {
+          setLinkDraft(null);
+          editor.focus();
+        }
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [linkDraft, editor]);
+
   const setBlock = useCallback(
     (next: BlockType) => {
-      // Clicking the active block type returns to plain text, so every button
-      // is a toggle rather than a one-way trip.
       const target = next === blockType ? 'paragraph' : next;
 
       if (target === 'ul' || target === 'ol' || target === 'check') {
@@ -1857,9 +1847,7 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
             ? $createQuoteNode()
             : target === 'code'
               ? $createCodeNode()
-              : target === 'paragraph'
-                ? $createParagraphNode()
-                : $createHeadingNode(target as HeadingTagType),
+              : $createParagraphNode(),
         );
       });
     },
@@ -1877,45 +1865,19 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
   }, [editor, linkDraft]);
 
   return (
-    <div className="bg-surface-removed">
-      <div
-        role="toolbar"
-        aria-label="Formatting tools"
-        className="gap-0.5 px-2 py-1 flex scrollbar-none items-center overflow-x-auto rounded-[inherit]"
-      >
-        <ToolButton
-          label="Bold (Ctrl+B)"
-          isActive={formats.bold}
-          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
-        >
-          <Bold className="size-3.5" />
-        </ToolButton>
-        <ToolButton
-          label="Italic (Ctrl+I)"
-          isActive={formats.italic}
-          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
-        >
-          <Italic className="size-3.5" />
-        </ToolButton>
-        <ToolButton
-          label="Strikethrough (Ctrl+Shift+X)"
-          isActive={formats.strikethrough}
-          onClick={() =>
-            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')
-          }
-        >
-          <Strikethrough className="size-3.5" />
-        </ToolButton>
-        <ToolButton
-          label="Inline code (Ctrl+Shift+C)"
-          isActive={formats.code}
-          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
-        >
-          <Code className="size-3.5" />
-        </ToolButton>
-        <ToolButton
-          label={isLink ? 'Remove link' : 'Add link ([text](url))'}
-          isActive={isLink}
+    <div
+      role="toolbar"
+      aria-label="Formatting tools"
+      className="inline-flex items-center gap-0.5 rounded-2xl bg-[#2a2a2c] text-neutral-200 p-1 shadow-xl shadow-black/30 border border-white/10 select-none whitespace-nowrap"
+    >
+      {/* Link Button & Popover */}
+      <div ref={linkContainerRef} className="relative">
+        <button
+          type="button"
+          title={isLink ? 'Remove link' : 'Add link'}
+          aria-label={isLink ? 'Remove link' : 'Add link'}
+          aria-pressed={isLink}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
             if (isLink) {
               editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
@@ -1923,145 +1885,350 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
             }
             setLinkDraft((current) => (current === null ? '' : null));
           }}
+          className={cn(
+            'size-7 flex items-center justify-center rounded-xl transition-colors',
+            isLink || linkDraft !== null
+              ? 'bg-white/20 text-white'
+              : 'text-neutral-300 hover:bg-white/10 hover:text-white',
+          )}
         >
           {isLink ? (
-            <Link2Off className="size-3.5" />
+            <Link2Off className="size-4" />
           ) : (
-            <Link2 className="size-3.5" />
+            <Link2 className="size-4" />
           )}
-        </ToolButton>
+        </button>
 
-        {/* <Divider />
-
-        <ToolButton
-          label="Heading 1 (# )"
-          isActive={blockType === 'h1'}
-          onClick={() => setBlock('h1')}
-        >
-          <Heading1 className="size-3.5" />
-        </ToolButton>
-        <ToolButton
-          label="Heading 2 (## )"
-          isActive={blockType === 'h2'}
-          onClick={() => setBlock('h2')}
-        >
-          <Heading2 className="size-3.5" />
-        </ToolButton>
-        <ToolButton
-          label="Heading 3 (### )"
-          isActive={blockType === 'h3'}
-          onClick={() => setBlock('h3')}
-        >
-          <Heading3 className="size-3.5" />
-        </ToolButton> */}
-
-        <Divider />
-
-        <ToolButton
-          label="Bulleted list (Ctrl+Shift+8)"
-          isActive={blockType === 'ul'}
-          onClick={() => setBlock('ul')}
-        >
-          <List className="size-3.5" />
-        </ToolButton>
-        <ToolButton
-          label="Numbered list (Ctrl+Shift+7)"
-          isActive={blockType === 'ol'}
-          onClick={() => setBlock('ol')}
-        >
-          <ListOrdered className="size-3.5" />
-        </ToolButton>
-        {/* <ToolButton
-          label="Task list (- [ ] )"
-          isActive={blockType === 'check'}
-          onClick={() => setBlock('check')}
-        >
-          <ListTodo className="size-3.5" />
-        </ToolButton> */}
-
-        <Divider />
-
-        <ToolButton
-          label="Blockquote (Ctrl+Shift+9)"
-          isActive={blockType === 'quote'}
-          onClick={() => setBlock('quote')}
-        >
-          <Quote className="size-3.5" />
-        </ToolButton>
-        <ToolButton
-          label="Code block (```)"
-          isActive={blockType === 'code'}
-          onClick={() => setBlock('code')}
-        >
-          <SquareCode className="size-3.5" />
-        </ToolButton>
-        {/* <ToolButton
-          label="Divider (---)"
-          onClick={() =>
-            editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)
-          }
-        >
-          <Minus className="size-3.5" />
-        </ToolButton> */}
-
-        {/* <Divider />
-
-        <ToolButton
-          label="Undo (Ctrl+Z)"
-          disabled={!canUndo}
-          onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
-        >
-          <Undo2 className="size-3.5" />
-        </ToolButton>
-        <ToolButton
-          label="Redo (Ctrl+Shift+Z)"
-          disabled={!canRedo}
-          onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
-        >
-          <Redo2 className="size-3.5" />
-        </ToolButton> */}
-
-        {toolbarSlot ? (
-          <>
-            <Divider />
-            {toolbarSlot}
-          </>
+        {linkDraft !== null ? (
+          <div className="left-0 mt-1.5 absolute top-full z-50 flex items-center gap-1.5 rounded-xl bg-[#242426] p-1.5 shadow-2xl border border-white/10">
+            <Link2 className="size-3.5 shrink-0 text-neutral-400 ml-1" />
+            <input
+              ref={linkInputRef}
+              type="url"
+              aria-label="Link URL"
+              placeholder="Paste or type URL…"
+              value={linkDraft}
+              onChange={(event) => setLinkDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  applyLink();
+                } else if (event.key === 'Escape') {
+                  event.preventDefault();
+                  setLinkDraft(null);
+                  editor.focus();
+                }
+              }}
+              className="w-48 text-xs bg-neutral-800/90 text-white placeholder:text-neutral-500 rounded-lg px-2.5 py-1 outline-none border border-neutral-700/60 focus:border-primary transition-colors"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={applyLink}
+              className="size-6 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              aria-label="Apply link"
+            >
+              <Check className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setLinkDraft(null);
+                editor.focus();
+              }}
+              className="size-6 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Cancel link"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
         ) : null}
       </div>
 
-      {linkDraft !== null ? (
-        <div className="gap-1.5 px-2 py-1.5 flex items-center border-t border-border bg-surface-raised">
-          <Link2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <input
-            ref={linkInputRef}
-            aria-label="Link URL"
-            placeholder="Paste or type URL…"
-            value={linkDraft}
-            onChange={(event) => setLinkDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                applyLink();
-              } else if (event.key === 'Escape') {
-                event.preventDefault();
-                setLinkDraft(null);
-                editor.focus();
-              }
-            }}
-            className="min-w-0 text-xs flex-1 bg-transparent text-foreground outline-none placeholder:text-subtle"
-          />
-          <button
-            type="button"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={applyLink}
-            className={`${TOOL_BUTTON} text-primary-text hover:bg-accent`}
-            aria-label="Apply link"
-          >
-            <Check className="size-3.5" />
-          </button>
-        </div>
+      {/* Bold Button */}
+      <button
+        type="button"
+        title="Bold (Ctrl+B)"
+        aria-label="Bold"
+        aria-pressed={formats.bold}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
+        className={cn(
+          'size-7 flex items-center justify-center rounded-xl transition-colors',
+          formats.bold
+            ? 'bg-white/20 text-white'
+            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
+        )}
+      >
+        <span className="font-bold text-sm leading-none">B</span>
+      </button>
+
+      {/* Italic Button */}
+      <button
+        type="button"
+        title="Italic (Ctrl+I)"
+        aria-label="Italic"
+        aria-pressed={formats.italic}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
+        className={cn(
+          'size-7 flex items-center justify-center rounded-xl transition-colors',
+          formats.italic
+            ? 'bg-white/20 text-white'
+            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
+        )}
+      >
+        <span className="font-serif italic font-semibold text-sm leading-none">I</span>
+      </button>
+
+      {/* Strikethrough Button */}
+      <button
+        type="button"
+        title="Strikethrough (Ctrl+Shift+X)"
+        aria-label="Strikethrough"
+        aria-pressed={formats.strikethrough}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() =>
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')
+        }
+        className={cn(
+          'size-7 flex items-center justify-center rounded-xl transition-colors',
+          formats.strikethrough
+            ? 'bg-white/20 text-white'
+            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
+        )}
+      >
+        <Strikethrough className="size-3.5" />
+      </button>
+
+      {/* Inline Code Button */}
+      <button
+        type="button"
+        title="Inline code (Ctrl+Shift+C)"
+        aria-label="Inline code"
+        aria-pressed={formats.code}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
+        className={cn(
+          'size-7 flex items-center justify-center rounded-xl transition-colors',
+          formats.code
+            ? 'bg-white/20 text-white'
+            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
+        )}
+      >
+        <Code className="size-3.5" />
+      </button>
+
+      <span className="mx-0.5 h-3.5 w-px bg-white/10 shrink-0" />
+
+      {/* Bulleted List Button */}
+      <button
+        type="button"
+        title="Bulleted list (Ctrl+Shift+8)"
+        aria-label="Bulleted list"
+        aria-pressed={blockType === 'ul'}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setBlock('ul')}
+        className={cn(
+          'size-7 flex items-center justify-center rounded-xl transition-colors',
+          blockType === 'ul'
+            ? 'bg-white/20 text-white'
+            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
+        )}
+      >
+        <List className="size-3.5" />
+      </button>
+
+      {/* Numbered List Button */}
+      <button
+        type="button"
+        title="Numbered list (Ctrl+Shift+7)"
+        aria-label="Numbered list"
+        aria-pressed={blockType === 'ol'}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setBlock('ol')}
+        className={cn(
+          'size-7 flex items-center justify-center rounded-xl transition-colors',
+          blockType === 'ol'
+            ? 'bg-white/20 text-white'
+            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
+        )}
+      >
+        <ListOrdered className="size-3.5" />
+      </button>
+
+      <span className="mx-0.5 h-3.5 w-px bg-white/10 shrink-0" />
+
+      {/* Quote Button */}
+      <button
+        type="button"
+        title="Quote (Ctrl+Shift+9)"
+        aria-label="Quote"
+        aria-pressed={blockType === 'quote'}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setBlock('quote')}
+        className={cn(
+          'size-7 flex items-center justify-center rounded-xl transition-colors',
+          blockType === 'quote'
+            ? 'bg-white/20 text-white'
+            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
+        )}
+      >
+        <Quote className="size-3.5" />
+      </button>
+
+      {/* Code Block Button */}
+      <button
+        type="button"
+        title="Code block (```)"
+        aria-label="Code block"
+        aria-pressed={blockType === 'code'}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setBlock('code')}
+        className={cn(
+          'size-7 flex items-center justify-center rounded-xl transition-colors',
+          blockType === 'code'
+            ? 'bg-white/20 text-white'
+            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
+        )}
+      >
+        <SquareCode className="size-3.5" />
+      </button>
+
+      {toolbarSlot ? (
+        <>
+          <span className="mx-0.5 h-3.5 w-px bg-white/10 shrink-0" />
+          {toolbarSlot}
+        </>
       ) : null}
     </div>
+  );
+}
+
+export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
+  return (
+    <div className="relative px-3 pt-2 pb-1 flex items-center">
+      <ToolbarContent toolbarSlot={toolbarSlot} />
+    </div>
+  );
+}
+
+export function FloatingSelectionToolbar() {
+  const [editor] = useLexicalComposerContext();
+  const [isVisible, setIsVisible] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const isInteractingRef = useRef(false);
+
+  const updatePosition = useCallback(() => {
+    const domSelection = window.getSelection();
+    const rootElement = editor.getRootElement();
+
+    if (
+      !domSelection ||
+      domSelection.isCollapsed ||
+      domSelection.rangeCount === 0 ||
+      !rootElement
+    ) {
+      if (!isInteractingRef.current) {
+        setIsVisible(false);
+      }
+      return;
+    }
+
+    const range = domSelection.getRangeAt(0);
+    if (!rootElement.contains(range.commonAncestorContainer)) {
+      if (!isInteractingRef.current) {
+        setIsVisible(false);
+      }
+      return;
+    }
+
+    const text = domSelection.toString().trim();
+    if (!text) {
+      if (!isInteractingRef.current) {
+        setIsVisible(false);
+      }
+      return;
+    }
+
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      if (!isInteractingRef.current) {
+        setIsVisible(false);
+      }
+      return;
+    }
+
+    const toolbarHeight = 42;
+    let top = rect.top - toolbarHeight - 8;
+    if (top < 10) {
+      top = rect.bottom + 8;
+    }
+
+    const left = Math.max(
+      130,
+      Math.min(window.innerWidth - 130, rect.left + rect.width / 2),
+    );
+    setCoords({ top, left });
+    setIsVisible(true);
+  }, [editor]);
+
+  useEffect(() => {
+    return mergeRegister(
+      editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => {
+          updatePosition();
+        });
+      }),
+      editor.registerCommand(
+        SELECTION_CHANGE_COMMAND,
+        () => {
+          updatePosition();
+          return false;
+        },
+        COMMAND_PRIORITY_CRITICAL,
+      ),
+    );
+  }, [editor, updatePosition]);
+
+  useEffect(() => {
+    const handleScrollOrResize = () => {
+      if (isVisible) {
+        updatePosition();
+      }
+    };
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isVisible, updatePosition]);
+
+  if (!isVisible || !coords) return null;
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
+        transform: 'translateX(-50%)',
+        zIndex: 9999,
+      }}
+      className="pointer-events-auto select-none animate-in fade-in-0 zoom-in-95 duration-100"
+    >
+      <ToolbarContent
+        onInteractionChange={(interacting) => {
+          isInteractingRef.current = interacting;
+          if (!interacting) {
+            updatePosition();
+          }
+        }}
+      />
+    </div>,
+    document.body,
   );
 }
 
@@ -2148,6 +2315,7 @@ export function LexicalComposerInput({
     <LexicalComposer initialConfig={initialConfig}>
       <div className="relative flex flex-1 flex-col">
         {showToolbar ? <LexicalToolbar toolbarSlot={toolbarSlot} /> : null}
+        <FloatingSelectionToolbar />
 
         <div className="px-3.5 py-2.5 relative flex-1">
           <RichTextPlugin

@@ -1,4 +1,11 @@
-import axe, { type AxeResults, type Result, type RunOptions } from 'axe-core';
+import * as axeCoreModule from 'axe-core';
+import type { AxeResults, Result, RunOptions } from 'axe-core';
+
+// Support ESM default import, CJS module.exports, and window.axe fallback
+const axe =
+  (axeCoreModule as any).default ||
+  (typeof window !== 'undefined' && (window as any).axe) ||
+  axeCoreModule;
 
 export const DEFAULT_AXE_OPTIONS: RunOptions = {
   runOnly: {
