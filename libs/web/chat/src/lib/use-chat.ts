@@ -193,6 +193,27 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
           }));
           break;
 
+        case 'receipt':
+          if (event.roomId !== roomId) return;
+          setState((current) => {
+            // Update readers for messages in this room
+            let changed = false;
+            const updated = current.messages.map((message) => {
+              const freshReaders = client.getMessageReaders(roomId, message.id);
+              if (
+                freshReaders.length !== (message.readers?.length ?? 0) ||
+                (freshReaders.length > 0 &&
+                  freshReaders[0].userId !== message.readers?.[0]?.userId)
+              ) {
+                changed = true;
+                return { ...message, readers: freshReaders };
+              }
+              return message;
+            });
+            return changed ? { ...current, messages: updated } : current;
+          });
+          break;
+
         default:
           break;
       }

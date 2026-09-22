@@ -1,5 +1,6 @@
 import type {
   Message,
+  RoomKind,
   RoomMember,
   StructuredMessageAction,
   SystemEventEntity,
@@ -64,6 +65,7 @@ export interface MessageRendererProps {
   onViewSystemEventEntity?: (entity: SystemEventEntity) => void;
   linkPreviewsEnabled?: boolean;
   workspacePolicy?: WorkspacePolicy;
+  roomKind?: RoomKind;
 }
 
 export const MessageRenderer = memo(function MessageRenderer(

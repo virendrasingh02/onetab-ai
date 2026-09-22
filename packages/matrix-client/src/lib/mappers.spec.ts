@@ -9,6 +9,7 @@ import {
   toMessage,
   toMessageKind,
   toPresence,
+  toReaders,
   toRoomKind,
 } from './mappers.js';
 
@@ -777,3 +778,58 @@ describe('resolveGroupDirectMessageRoom', () => {
     expect(resolveGroupDirectMessageRoom(fakeDmClient({}), [alice])).toBeNull();
   });
 });
+
+describe('toReaders', () => {
+  const me = '@me:example.org';
+  const alice = '@alice:example.org';
+  const bob = '@bob:example.org';
+
+  it('maps receipts for an event to MessageReader list', () => {
+    const client = fakeClient();
+    const room = {
+      roomId: '!room:example.org',
+      getReceiptsForEvent: () => [
+        { userId: alice, data: { ts: 1000 } },
+        { userId: bob, data: { ts: 2000 } },
+        { userId: me, data: { ts: 3000 } }, // should be ignored (own receipt)
+      ],
+      getMember: (id: string) => ({
+        name: id === alice ? 'Alice' : 'Bob',
+        getMxcAvatarUrl: () => `mxc://example.org/${id}`,
+      }),
+    } as unknown as SdkRoom;
+
+    const readers = toReaders(client, room, '$evt-1');
+    expect(readers).toHaveLength(2);
+    expect(readers[0]).toMatchObject({
+      userId: bob,
+      displayName: 'Bob',
+      seenAt: 2000,
+    });
+    expect(readers[1]).toMatchObject({
+      userId: alice,
+      displayName: 'Alice',
+      seenAt: 1000,
+    });
+  });
+
+  it('falls back to hasUserReadEvent when getReceiptsForEvent yields no receipts', () => {
+    const client = fakeClient();
+    const room = {
+      roomId: '!room:example.org',
+      getReceiptsForEvent: () => [],
+      getMembers: () => [
+        { userId: alice, name: 'Alice', membership: 'join', getMxcAvatarUrl: () => null },
+        { userId: bob, name: 'Bob', membership: 'join', getMxcAvatarUrl: () => null },
+        { userId: me, name: 'Me', membership: 'join', getMxcAvatarUrl: () => null },
+      ],
+      hasUserReadEvent: (userId: string, _eventId: string) => userId === alice,
+    } as unknown as SdkRoom;
+
+    const readers = toReaders(client, room, '$evt-1');
+    expect(readers).toHaveLength(1);
+    expect(readers[0].userId).toBe(alice);
+    expect(readers[0].displayName).toBe('Alice');
+  });
+});
+

@@ -187,6 +187,15 @@ export interface Message {
   isMention?: boolean;
   /** Rich link previews for URLs detected in the message. */
   linkPreviews?: LinkPreview[];
+  /** Users who have seen/read this message, ordered newest receipt first. */
+  readers?: MessageReader[];
+}
+
+export interface MessageReader {
+  userId: MatrixUserId;
+  displayName: string;
+  avatarUrl?: string;
+  seenAt: Timestamp;
 }
 
 // --- structured chat events (AI Agents, Apps, Approvals, Forms, Workflows) ---

@@ -636,6 +636,19 @@ export function ChatPanel({
     if (last) void client.markRead(roomId, last.id);
   }, [client, roomId, room.messages]);
 
+  const handleVisibleMessageRead = useCallback(
+    (eventId: string) => {
+      if (!client || !roomId) return;
+      void client.markRead(roomId, eventId, { private: !readReceiptsEnabled });
+    },
+    [client, roomId, readReceiptsEnabled],
+  );
+
+  const roomKind = useMemo(() => {
+    if (!client || !roomId) return undefined;
+    return client.getRoom(roomId)?.kind;
+  }, [client, roomId]);
+
   if (configStatus === 'disabled') {
     return (
       <EmptyState
@@ -724,6 +737,8 @@ export function ChatPanel({
       }}
       onMentionReached={handleMentionReached}
       onFollowingChange={setFollowing}
+      roomKind={roomKind}
+      onVisibleMessageRead={handleVisibleMessageRead}
       onThreadRead={handleThreadRead}
       onMarkRead={handleMarkRead}
       onSend={actions.send}

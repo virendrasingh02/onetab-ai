@@ -29,6 +29,7 @@ import type {
   ConnectionState,
   Message,
   PresenceState,
+  RoomKind,
   RoomMember,
   StructuredMessageAction,
   SystemEventEntity,
@@ -233,6 +234,10 @@ export interface ChatSurfaceProps {
    * gates read-receipt sending on it.
    */
   onFollowingChange?: (following: boolean) => void;
+  /** Kind of the current room (channel, direct, group) to style read receipts accordingly. */
+  roomKind?: RoomKind;
+  /** Called when a message scrolls into view and has been read. */
+  onVisibleMessageRead?: (messageId: string) => void;
 
   /** Offered by the channel welcome block; there is no bookmarks bar. */
   onAddBookmark?: () => void;
@@ -349,6 +354,8 @@ export function ChatSurface({
   threadUnreadMentions = NO_MENTIONS,
   onMentionReached,
   onFollowingChange,
+  roomKind,
+  onVisibleMessageRead,
   onAddBookmark,
   onSend,
   onEdit,
@@ -806,6 +813,7 @@ export function ChatSurface({
       return (
         <MessageRenderer
           message={message}
+          roomKind={roomKind}
           isOwn={message.senderId === myUserId}
           isGrouped={grouped}
           density={messageDensity}
@@ -980,6 +988,7 @@ export function ChatSurface({
       handleViewSystemEventEntity,
       onViewContext,
       chat?.linkPreviewsEnabled,
+      roomKind,
     ],
   );
 
@@ -1384,6 +1393,7 @@ export function ChatSurface({
             onMarkRead={onMarkRead}
             onLoadOlder={onLoadOlder}
             onFollowingChange={onFollowingChange}
+            onVisibleMessageRead={onVisibleMessageRead}
             unreadMentionCount={unreadMentions.count}
             mentionDirection={mainMentionNav.direction}
             mentionsRemaining={mainMentionNav.remaining}

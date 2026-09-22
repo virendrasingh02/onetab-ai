@@ -12,6 +12,7 @@ import {
   type LinkPreview,
   type Message,
   type MessageKind,
+  type MessageReader,
   type Presence,
   type PresenceState,
   type Reaction,
@@ -176,6 +177,60 @@ export function toReactions(
   }));
 }
 
+export function toReaders(
+  client: SdkClient,
+  room: SdkRoom | null,
+  eventId: string,
+): MessageReader[] {
+  if (!room) return [];
+
+  const readers: MessageReader[] = [];
+  const myUserId = client.getUserId();
+
+  // Query receipts for this event if supported by the SDK Room instance
+  const roomAny = room as any;
+  if (typeof roomAny.getReceiptsForEvent === 'function') {
+    const rawReceipts: Array<{ userId: string; data?: { ts?: number } }> =
+      roomAny.getReceiptsForEvent({ getId: () => eventId }) ?? [];
+    for (const r of rawReceipts) {
+      if (!r.userId || r.userId === myUserId) continue;
+      const member = room.getMember(r.userId);
+      readers.push({
+        userId: r.userId,
+        displayName: member?.name ?? r.userId,
+        avatarUrl:
+          resolveMediaUrl(client, member?.getMxcAvatarUrl() ?? undefined, {
+            width: 64,
+            height: 64,
+          }) ?? undefined,
+        seenAt: r.data?.ts ?? Date.now(),
+      });
+    }
+  }
+
+  // If getReceiptsForEvent did not produce readers or is not present, fall back
+  // to checking members who have read up to or past this event
+  if (readers.length === 0 && typeof room.getMembers === 'function') {
+    for (const member of room.getMembers()) {
+      if (member.userId === myUserId || member.membership !== 'join') continue;
+      if (typeof room.hasUserReadEvent === 'function' && room.hasUserReadEvent(member.userId, eventId)) {
+        readers.push({
+          userId: member.userId,
+          displayName: member.name ?? member.userId,
+          avatarUrl:
+            resolveMediaUrl(client, member.getMxcAvatarUrl() ?? undefined, {
+              width: 64,
+              height: 64,
+            }) ?? undefined,
+          seenAt: Date.now(),
+        });
+      }
+    }
+  }
+
+  return readers.sort((a, b) => b.seenAt - a.seenAt);
+}
+
 export function extractStructuredEvent(
   event: MatrixEvent,
   content: MessageContentShape,
@@ -321,6 +376,7 @@ export function toMessage(
     structuredEvent: extractStructuredEvent(event, content),
     isMention,
     linkPreviews: content.link_previews ?? content.linkPreviews ?? undefined,
+    readers: toReaders(client, room, id),
   };
 }
 

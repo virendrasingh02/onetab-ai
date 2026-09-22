@@ -16,6 +16,13 @@ export {
 } from './lib/chat-bubble.js';
 
 export {
+  SeenBy,
+  SeenByPopoverContent,
+  formatReaderTime,
+  type SeenByProps,
+} from './lib/seen-by.js';
+
+export {
   UserProfileCard,
   UserProfileRightPanel,
   type UserProfileCardProps,

@@ -1,4 +1,5 @@
-import type { Message, RoomMember, WorkspacePolicy } from '@org/types';
+import type { Message, RoomKind, RoomMember, WorkspacePolicy } from '@org/types';
+import { SeenBy } from './seen-by.js';
 import {
   Badge,
   DropdownMenu,
@@ -112,6 +113,7 @@ export interface ChatBubbleProps {
   onRetry?: () => void;
   linkPreviewsEnabled?: boolean;
   workspacePolicy?: WorkspacePolicy;
+  roomKind?: RoomKind;
 }
 
 export function formatShortTimestamp(timestamp: number): string {
@@ -306,6 +308,7 @@ export function ChatBubble({
   onRetry,
   linkPreviewsEnabled = true,
   workspacePolicy,
+  roomKind,
 }: ChatBubbleProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReactionOpen, setIsReactionOpen] = useState(false);
@@ -877,6 +880,17 @@ export function ChatBubble({
               </Hint>
             ) : null}
           </button>
+        ) : null}
+
+        {/* Seen By / Read Receipts */}
+        {!isAgent && message.readers && message.readers.length > 0 ? (
+          <div className="mt-1 flex items-center">
+            <SeenBy
+              readers={message.readers}
+              roomKind={roomKind}
+              isOwn={isOwn}
+            />
+          </div>
         ) : null}
 
         {message.sendState === 'failed' ? (

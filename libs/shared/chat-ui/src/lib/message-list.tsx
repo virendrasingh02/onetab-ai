@@ -173,6 +173,11 @@ export interface MessageListProps {
    */
   onFollowingChange?: (following: boolean) => void;
   /**
+   * Fires with the highest visible message id when the user views messages in
+   * the viewport, debounced to advance read cursors naturally.
+   */
+  onVisibleMessageRead?: (messageId: string) => void;
+  /**
    * Imperative handle (React 19 `ref` prop) exposing {@link MessageListHandle}
    * — `scrollToMessage(id)` for the mentions pill, `?msg=` deep links, search
    * and pinned.
@@ -246,6 +251,7 @@ export function MessageList({
   onJumpToMention,
   mentionsRemaining,
   onFollowingChange,
+  onVisibleMessageRead,
   ref: handleRef,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -309,6 +315,7 @@ export function MessageList({
   const adjusting = useRef(false);
   const settleRaf = useRef<number | null>(null);
   const scrollRaf = useRef<number | null>(null);
+  const readTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Last `following` value handed to the host — only report the transitions. */
   const reportedFollowing = useRef<boolean | null>(null);
 
@@ -677,6 +684,26 @@ export function MessageList({
         if (anchor.key) pendingAnchor.current = { ...anchor, frames: 16 };
         onLoadOlder?.();
       }
+
+      // Viewport-based read detection: find the highest visible message row
+      if (onVisibleMessageRead && typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        if (readTimeoutRef.current != null) clearTimeout(readTimeoutRef.current);
+        readTimeoutRef.current = setTimeout(() => {
+          readTimeoutRef.current = null;
+          if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+          const vItems = virtualizer.getVirtualItems();
+          if (!vItems.length) return;
+          const currentRows = rowsRef.current;
+          // Find the last visible row that is a message
+          for (let i = vItems.length - 1; i >= 0; i--) {
+            const row = currentRows[vItems[i].index];
+            if (row && row.kind === 'message') {
+              onVisibleMessageRead(row.message.id);
+              break;
+            }
+          }
+        }, 500);
+      }
     }
 
     updateFloatingDay();
@@ -690,6 +717,7 @@ export function MessageList({
     updateFloatingDay,
     reportFollowing,
     virtualizer,
+    onVisibleMessageRead,
   ]);
 
   /** Coalesce the scroll handler to one run per frame. */
@@ -898,6 +926,7 @@ export function MessageList({
     () => () => {
       if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
       if (scrollRaf.current != null) cancelAnimationFrame(scrollRaf.current);
+      if (readTimeoutRef.current != null) clearTimeout(readTimeoutRef.current);
     },
     [],
   );

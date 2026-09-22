@@ -25,6 +25,7 @@ import {
   resolveMediaUrl,
   toMessage,
   toPresence,
+  toReaders,
   toRoom,
   toRoomKind,
   toRoomMember,
@@ -51,6 +52,7 @@ import {
   type MatrixEventListener,
   type MatrixSession,
   type Message,
+  type MessageReader,
   type MessageSearchResult,
   type NotificationCounts,
   type UnreadMention,
@@ -1401,6 +1403,21 @@ export class OneTabMatrixClient {
       return sdk.getRoom(roomId)?.getEventReadUpTo(myUserId, false) ?? null;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Returns all users who have read up to or past `eventId` in `roomId`,
+   * excluding the current logged-in user, ordered by most recent read timestamp.
+   */
+  getMessageReaders(roomId: RoomId, eventId: EventId): MessageReader[] {
+    const sdk = this.sdk;
+    if (!sdk) return [];
+    try {
+      const room = sdk.getRoom(roomId);
+      return toReaders(sdk, room, eventId);
+    } catch {
+      return [];
     }
   }
 
