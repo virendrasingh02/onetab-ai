@@ -1,19 +1,8 @@
 import type { ComponentProps, ReactNode } from 'react';
-import { Popover, PopoverContent, PopoverTrigger } from '../popover.js';
-import { EmojiGifPicker, type EmojiGifPickerProps } from './emoji-gif-picker.js';
-
-/**
- * `<EmojiGifPicker>` in a Radix popover — the drop-in for any trigger button.
- *
- * ```tsx
- * <EmojiGifPickerPopover
- *   onEmojiSelect={(e) => insert(e.emoji)}
- *   onGifSelect={(g) => sendGif(g)}
- * >
- *   <button aria-label="Emoji"><Smile /></button>
- * </EmojiGifPickerPopover>
- * ```
- */
+import type { PopoverContent } from '../popover.js';
+import type { EmojiGifPickerProps } from './emoji-gif-picker.js';
+import { UnifiedEmojiPickerPopover } from './unified-emoji-picker-popover.js';
+import type { UnifiedPickerTab } from './unified-emoji-picker.js';
 
 export interface EmojiGifPickerPopoverProps extends EmojiGifPickerProps {
   children: ReactNode;
@@ -27,44 +16,28 @@ export interface EmojiGifPickerPopoverProps extends EmojiGifPickerProps {
   contentClassName?: string;
 }
 
+function normalizeTab(t?: EmojiGifPickerProps['tab']): UnifiedPickerTab | undefined {
+  if (!t) return undefined;
+  if (t === 'gif' || t === 'gifs') return 'gifs';
+  if (t === 'stickers') return 'stickers';
+  return 'emoji';
+}
+
+/**
+ * Backward-compatible wrapper around `<UnifiedEmojiPickerPopover>`.
+ */
 export function EmojiGifPickerPopover({
-  children,
-  open,
-  onOpenChange,
-  side = 'top',
-  align = 'start',
-  sideOffset = 8,
-  closeOnEmojiSelect = false,
-  contentClassName,
-  onEmojiSelect,
-  onGifSelect,
-  ...pickerProps
+  defaultTab = 'emoji',
+  tab,
+  onTabChange,
+  ...props
 }: EmojiGifPickerPopoverProps) {
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent
-        side={side}
-        align={align}
-        sideOffset={sideOffset}
-        className={contentClassName ?? 'w-auto overflow-hidden p-0'}
-      >
-        <EmojiGifPicker
-          {...pickerProps}
-          onEmojiSelect={(emoji) => {
-            onEmojiSelect(emoji);
-            if (closeOnEmojiSelect) onOpenChange?.(false);
-          }}
-          onGifSelect={
-            onGifSelect
-              ? (gif) => {
-                  onGifSelect(gif);
-                  onOpenChange?.(false);
-                }
-              : undefined
-          }
-        />
-      </PopoverContent>
-    </Popover>
+    <UnifiedEmojiPickerPopover
+      {...props}
+      defaultTab={normalizeTab(defaultTab) ?? 'emoji'}
+      tab={normalizeTab(tab)}
+      onTabChange={onTabChange ? (t) => onTabChange(t) : undefined}
+    />
   );
 }

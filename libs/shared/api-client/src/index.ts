@@ -29,6 +29,7 @@ export {
   coworkersApi,
   enterpriseApi,
   gifsApi,
+  stickersApi,
   huddleApi,
   integrationsApi,
   invitationApi,

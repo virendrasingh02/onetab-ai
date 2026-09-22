@@ -291,6 +291,11 @@ export const queryKeys = {
     search: (q: string, pos?: string) => ['gifs', 'search', q, pos ?? ''] as const,
     categories: () => ['gifs', 'categories'] as const,
   },
+  stickers: {
+    all: () => ['stickers'] as const,
+    packs: () => ['stickers', 'packs'] as const,
+    search: (q: string) => ['stickers', 'search', q] as const,
+  },
   notifications: {
     all: (workspaceId: string) => ['notifications', workspaceId] as const,
     preferences: (workspaceId: string) =>

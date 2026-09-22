@@ -90,7 +90,7 @@ describe('GifPicker', () => {
       </GifSourceProvider>,
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Search GIPHY…'), {
+    fireEvent.change(screen.getByPlaceholderText('Search GIFs…'), {
       target: { value: 'cat' },
     });
 
@@ -115,11 +115,11 @@ describe('usePickerRecents', () => {
     expect(usePickerRecents.getState().emojis).toEqual(['😀', '🎉']);
   });
 
-  it('caps GIF recents at 12', () => {
+  it('caps GIF recents at 20', () => {
     const { pushGif } = usePickerRecents.getState();
-    for (let i = 0; i < 20; i++) pushGif(gif(`g${i}`, `g${i}`));
-    expect(usePickerRecents.getState().gifs).toHaveLength(12);
-    expect(usePickerRecents.getState().gifs[0]?.id).toBe('g19');
+    for (let i = 0; i < 25; i++) pushGif(gif(`g${i}`, `g${i}`));
+    expect(usePickerRecents.getState().gifs).toHaveLength(20);
+    expect(usePickerRecents.getState().gifs[0]?.id).toBe('g24');
   });
 });
 

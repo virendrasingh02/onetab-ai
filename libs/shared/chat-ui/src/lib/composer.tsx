@@ -9,12 +9,13 @@ import {
 } from '@org/types';
 
 import {
-  EmojiGifPickerPopover,
   Hint,
   Popover,
   PopoverContent,
   PopoverTrigger,
+  UnifiedEmojiPickerPopover,
   toast,
+  type UnifiedPickerTab,
 } from '@org/ui';
 import {
   isVoiceRecordingSupported,
@@ -26,7 +27,6 @@ import {
   CalendarClock,
   Check,
   File as FileIcon,
-  Film,
   Lock,
   Mic,
   Plus,
@@ -413,7 +413,7 @@ export function Composer({
 }: ComposerProps) {
   const [pickerState, setPickerState] = useState<{
     open: boolean;
-    tab: 'emoji' | 'gif';
+    tab: UnifiedPickerTab;
   }>({ open: false, tab: 'emoji' });
   /* Drives the send button's active state. Fed by the editor's cheap
      empty ⇄ non-empty signal (`onEmptyChange`), not a markdown pass per key. */
@@ -932,7 +932,12 @@ export function Composer({
 
   const handleSelectGif = (gif: { url: string; title: string }) => {
     void onSend(`![${gif.title || 'GIF'}](${gif.url})`);
-    setPickerState({ open: false, tab: 'emoji' });
+    setPickerState((current) => ({ ...current, open: false }));
+  };
+
+  const handleSelectSticker = (sticker: { url: string; alt: string; name?: string }) => {
+    void onSend(`![sticker:${sticker.alt || sticker.name || 'sticker'}](${sticker.url})`);
+    setPickerState((current) => ({ ...current, open: false }));
   };
 
   if (readOnlyMessage) {
@@ -1114,7 +1119,7 @@ export function Composer({
                 </>
               ) : null}
 
-              <EmojiGifPickerPopover
+              <UnifiedEmojiPickerPopover
                 open={pickerState.open}
                 onOpenChange={(open) =>
                   setPickerState((current) => ({ ...current, open }))
@@ -1129,11 +1134,12 @@ export function Composer({
                   lexicalRef.current?.insertText(emoji.emoji)
                 }
                 onGifSelect={handleSelectGif}
+                onStickerSelect={handleSelectSticker}
               >
                 <button
                   type="button"
-                  title="Emoji & GIFs"
-                  aria-label="Insert emoji or GIF"
+                  title="Emoji, GIFs & Stickers"
+                  aria-label="Insert emoji, GIF, or sticker"
                   className={cn(
                     'size-7 flex touch-target shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                     pickerState.open && 'bg-primary text-primary-foreground',
@@ -1141,7 +1147,7 @@ export function Composer({
                 >
                   <Smile className="size-4" aria-hidden="true" />
                 </button>
-              </EmojiGifPickerPopover>
+              </UnifiedEmojiPickerPopover>
 
               {/* Mic and dictate stay visible at every breakpoint (unlike the
                 secondary buttons above/below) — the brief calls for the mic
@@ -1159,30 +1165,6 @@ export function Composer({
                   </button>
                 </Hint>
               ) : null}
-
-              <Hint label="Open GIF picker">
-                <button
-                  type="button"
-                  aria-label="Open GIF picker"
-                  onClick={() =>
-                    setPickerState((current) => ({
-                      open: !current.open || current.tab !== 'gif',
-                      tab: 'gif',
-                    }))
-                  }
-                  className={cn(
-                    'max-sm:hidden gap-1 px-1.5 py-1 text-xs font-bold flex items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                    pickerState.open &&
-                      pickerState.tab === 'gif' &&
-                      'bg-primary text-primary-foreground',
-                  )}
-                >
-                  <Film className="size-3.5" aria-hidden="true" />
-                  <span className="tracking-wider text-[10px] uppercase">
-                    GIF
-                  </span>
-                </button>
-              </Hint>
 
               {onStartHuddle ? (
                 <Hint label="Start voice huddle">

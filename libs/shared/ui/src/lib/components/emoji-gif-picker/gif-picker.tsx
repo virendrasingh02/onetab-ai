@@ -1,11 +1,14 @@
 import { cn } from '@org/utils';
-import { Loader2, Search, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CURATED_GIFS,
   useGifSource,
   type GifItem,
 } from './gif-source-context.js';
+import { PickerEmptyState, PickerErrorState } from './picker-empty-state.js';
+import { PickerSearch } from './picker-search.js';
+import { PickerSkeleton } from './picker-skeleton.js';
 import { usePickerRecents } from './use-picker-recents.js';
 
 /**
@@ -49,6 +52,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
   const [items, setItems] = useState<GifItem[]>([]);
   const [next, setNext] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const debouncedQuery = useDebouncedValue(query);
   const effectiveQuery = (debouncedQuery.trim() || category || '').trim();
@@ -72,15 +76,16 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
     };
   }, [source]);
 
-  // First page whenever the effective query changes.
-  useEffect(() => {
+  const loadData = useCallback(() => {
     const id = ++requestId.current;
     if (!source) {
       setItems(curatedPage(effectiveQuery));
       setNext('');
+      setError(null);
       return;
     }
     setLoading(true);
+    setError(null);
     const load = effectiveQuery
       ? source.search(effectiveQuery)
       : source.trending();
@@ -90,8 +95,10 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
         setItems(page.items);
         setNext(page.next);
       })
-      .catch(() => {
+      .catch((err) => {
         if (requestId.current !== id) return;
+        console.warn('GIF search error:', err);
+        setError('Unable to load GIFs. Showing offline collection.');
         setItems(curatedPage(effectiveQuery));
         setNext('');
       })
@@ -99,6 +106,11 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
         if (requestId.current === id) setLoading(false);
       });
   }, [source, effectiveQuery]);
+
+  // First page whenever the effective query changes.
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const loadMore = useCallback(() => {
     if (!source || !next || loading) return;
@@ -147,30 +159,19 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
       )}
     >
       <div className="flex flex-col gap-2 border-b border-border p-3">
-        <div className="relative flex items-center">
-          <Search className="absolute left-2.5 size-3.5 text-muted-foreground" />
-          <input
-            type="text"
-            autoFocus={autoFocus}
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setCategory(null);
-            }}
-            placeholder="Search GIPHY…"
-            className="h-8 w-full rounded-input border border-border/60 bg-surface-inset pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-subtle focus:border-primary"
-          />
-          {query ? (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setQuery('')}
-              className="absolute right-2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          ) : null}
-        </div>
+        <PickerSearch
+          tab="gifs"
+          value={query}
+          onChange={(val) => {
+            setQuery(val);
+            setCategory(null);
+          }}
+          autoFocus={autoFocus}
+          onClear={() => {
+            setQuery('');
+            setCategory(null);
+          }}
+        />
 
         {categories.length > 0 && !query ? (
           <div className="flex flex-wrap gap-1">
@@ -200,10 +201,19 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
           </p>
         ) : null}
 
-        {displayItems.length === 0 && !loading ? (
-          <p className="grid h-full place-items-center text-xs text-muted-foreground">
-            {effectiveQuery ? `No GIFs for “${effectiveQuery}”` : 'No GIFs'}
-          </p>
+        {error ? (
+          <div className="mb-2">
+            <PickerErrorState message={error} onRetry={loadData} />
+          </div>
+        ) : null}
+
+        {loading && displayItems.length === 0 ? (
+          <PickerSkeleton count={6} />
+        ) : displayItems.length === 0 && !loading ? (
+          <PickerEmptyState
+            title={effectiveQuery ? `No GIFs for “${effectiveQuery}”` : 'No GIFs'}
+            description={effectiveQuery ? 'Try another search term or browse trending tags.' : undefined}
+          />
         ) : (
           <div className="columns-2 gap-2 [column-fill:_balance]">
             {displayItems.map((gif) => (
@@ -212,7 +222,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
                 type="button"
                 onClick={() => handleSelect(gif)}
                 title={gif.title}
-                className="group relative mb-2 block w-full overflow-hidden rounded-lg border border-border bg-surface-inset transition-transform hover:z-10 hover:scale-[1.02] hover:border-primary"
+                className="group relative mb-2 block w-full overflow-hidden rounded-lg border border-border bg-surface-inset transition-transform hover:z-10 hover:scale-[1.02] hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <img
                   src={gif.previewUrl}
@@ -229,7 +239,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
           </div>
         )}
 
-        {loading ? (
+        {loading && displayItems.length > 0 ? (
           <div className="flex items-center justify-center py-3 text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
           </div>
@@ -238,11 +248,10 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
         {next ? <div ref={sentinelRef} className="h-px w-full" /> : null}
       </div>
 
-      {source ? (
-        <div className="flex h-8 shrink-0 items-center justify-end border-t border-border bg-surface-inset/50 px-3 text-[10px] text-subtle">
-          Powered by GIPHY
-        </div>
-      ) : null}
+      <div className="flex h-8 shrink-0 items-center justify-between border-t border-border bg-surface-inset/50 px-3 text-[10px] text-muted-foreground">
+        <span>{displayItems.length} GIFs</span>
+        <span className="text-subtle">{source ? 'Powered by GIPHY' : 'Curated collection'}</span>
+      </div>
     </div>
   );
 }

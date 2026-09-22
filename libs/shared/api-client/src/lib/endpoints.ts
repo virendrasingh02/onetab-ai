@@ -112,6 +112,8 @@ import type {
   SendMessageInput,
   GeneratedReport,
   GifPage,
+  StickerItem,
+  StickerPack,
   HealthStatus,
   Invitation,
   InvitationPublicPreview,
@@ -3199,6 +3201,16 @@ export const gifsApi = {
     ),
 
   categories: () => request<string[]>(http.get('/gifs/categories')),
+};
+
+export const stickersApi = {
+  packs: () => request<StickerPack[]>(http.get('/stickers/packs')),
+  search: (q: string) =>
+    request<StickerItem[]>(
+      http.get('/stickers/search', {
+        params: q ? { q } : {},
+      }),
+    ),
 };
 
 export const notificationApi = {

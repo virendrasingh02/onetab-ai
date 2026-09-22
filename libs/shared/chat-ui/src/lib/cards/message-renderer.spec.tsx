@@ -257,4 +257,31 @@ describe('MessageRenderer', () => {
     expect(screen.getByText('Database connection retry')).toBeInTheDocument();
     expect(screen.getByText('Failover in progress')).toBeInTheDocument();
   });
+
+  it('renders dedicated GIF message with accessible label', () => {
+    const msg = createMockMessage({
+      body: '![Thumbs up](https://example.com/thumbs.gif)',
+    });
+
+    renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
+
+    expect(
+      screen.getByRole('button', { name: /GIF: Thumbs up/i }),
+    ).toBeInTheDocument();
+    const img = screen.getByAltText('Thumbs up');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('src', 'https://example.com/thumbs.gif');
+  });
+
+  it('renders dedicated transparent Sticker message with accessible label', () => {
+    const msg = createMockMessage({
+      body: '![sticker:Party Popper](https://example.com/party.svg)',
+    });
+
+    renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
+
+    const img = screen.getByAltText('Party Popper');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('src', 'https://example.com/party.svg');
+  });
 });

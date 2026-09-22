@@ -1,4 +1,4 @@
-import { ApiError, gifsApi, queryKeys } from '@org/api-client';
+import { ApiError, gifsApi, stickersApi, queryKeys } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
 import { store, useNotificationDisplayPreferences } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
@@ -8,10 +8,12 @@ import {
   ConfirmRoot,
   ErrorBoundary,
   GifSourceProvider,
+  StickerSourceProvider,
   Toaster,
   TooltipProvider,
   toast,
   type GifSource,
+  type StickerSource,
 } from '@org/ui';
 import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
 import {
@@ -173,6 +175,33 @@ function GifSourceBridge({ children }: { children: ReactNode }) {
 }
 
 /**
+ * Feeds the Sticker picker a source backed by the `/stickers` endpoints.
+ */
+function StickerSourceBridge({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  const source = useMemo<StickerSource>(
+    () => ({
+      getPacks: () =>
+        queryClient.fetchQuery({
+          queryKey: queryKeys.stickers.packs(),
+          queryFn: () => stickersApi.packs(),
+          staleTime: 60 * 60_000,
+        }),
+      search: (query) =>
+        queryClient.fetchQuery({
+          queryKey: queryKeys.stickers.search(query),
+          queryFn: () => stickersApi.search(query),
+          staleTime: 5 * 60_000,
+        }),
+    }),
+    [queryClient],
+  );
+  return (
+    <StickerSourceProvider value={source}>{children}</StickerSourceProvider>
+  );
+}
+
+/**
  * Application-wide providers.
  *
  * The QueryClient is created inside state rather than at module scope so each
@@ -244,7 +273,9 @@ export function Providers({ children }: { children: ReactNode }) {
                     <TooltipProvider>
                       <MediaPreviewProvider>
                         <GifSourceBridge>
-                          <DesktopChrome>{children}</DesktopChrome>
+                          <StickerSourceBridge>
+                            <DesktopChrome>{children}</DesktopChrome>
+                          </StickerSourceBridge>
                         </GifSourceBridge>
                       </MediaPreviewProvider>
                       <AppToaster />

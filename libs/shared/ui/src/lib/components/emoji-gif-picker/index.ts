@@ -8,6 +8,45 @@ export {
 export { GifPicker, type GifPickerProps } from './gif-picker.js';
 
 export {
+  StickerPicker,
+  type StickerPickerProps,
+} from './sticker-picker.js';
+
+export {
+  UnifiedEmojiPicker,
+  type UnifiedEmojiPickerProps,
+  type UnifiedPickerTab,
+} from './unified-emoji-picker.js';
+
+export {
+  UnifiedEmojiPickerPopover,
+  type UnifiedEmojiPickerPopoverProps,
+} from './unified-emoji-picker-popover.js';
+
+export {
+  PickerTabs,
+  type PickerTabsProps,
+} from './picker-tabs.js';
+
+export {
+  PickerSearch,
+  type PickerSearchProps,
+} from './picker-search.js';
+
+export {
+  PickerSkeleton,
+  StickerSkeletonGrid,
+  type PickerSkeletonProps,
+} from './picker-skeleton.js';
+
+export {
+  PickerEmptyState,
+  PickerErrorState,
+  type PickerEmptyStateProps,
+  type PickerErrorStateProps,
+} from './picker-empty-state.js';
+
+export {
   EmojiGifPicker,
   type EmojiGifPickerProps,
   type EmojiGifTab,
@@ -28,7 +67,18 @@ export {
 } from './gif-source-context.js';
 
 export {
+  StickerSourceProvider,
+  useStickerSource,
+  CURATED_STICKER_PACKS,
+  type StickerSource,
+  type StickerItem,
+  type StickerPack,
+} from './sticker-source-context.js';
+
+export {
   usePickerRecents,
+  type PickerRecentsState,
+  type PickerRecentsShape,
 } from './use-picker-recents.js';
 
 export {

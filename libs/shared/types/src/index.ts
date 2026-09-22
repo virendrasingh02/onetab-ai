@@ -379,6 +379,7 @@ export type {
 export * from './lib/chat.js';
 export * from './lib/system-event.js';
 export * from './lib/gifs.js';
+export * from './lib/stickers.js';
 export * from './lib/card-schema.js';
 export * from './lib/structured-event-validator.js';
 export * from './lib/analytics.js';

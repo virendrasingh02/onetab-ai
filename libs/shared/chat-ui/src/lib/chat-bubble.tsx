@@ -61,6 +61,7 @@ import { useLongPress } from '@org/hooks';
 import { detectLinks, normalizeUrl } from './link-detector.js';
 import { LinkPreviewCard } from './link-preview-card.js';
 import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
+import { useMediaPreview } from '@org/media-preview';
 import { MarkdownMessage } from './markdown-message.js';
 import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
 import { UserProfileCard } from './user-profile-card.js';
@@ -153,6 +154,119 @@ export function formatFullTimestamp(timestamp: number): string {
     second: '2-digit',
     hour12: true,
   });
+}
+
+function GifMessage({ url, title }: { url: string; title: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  const { openPreview } = useMediaPreview();
+
+  const handleExpand = () => {
+    openPreview([
+      {
+        id: url,
+        url,
+        name: title || 'GIF',
+        mimeType: 'image/gif',
+        category: 'image',
+      },
+    ]);
+  };
+
+  if (error) {
+    return (
+      <div className="mt-1.5 flex max-w-sm items-center gap-2 rounded-xl border border-border bg-surface-inset p-3 text-xs text-muted-foreground">
+        <AlertTriangle className="size-4 text-destructive shrink-0" />
+        <span className="truncate">Failed to load GIF ({title || 'media'})</span>
+        <button
+          type="button"
+          onClick={() => setError(false)}
+          className="ml-auto shrink-0 font-semibold underline hover:text-foreground"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={handleExpand}
+      className="group/gif relative mt-1.5 max-w-sm cursor-pointer overflow-hidden rounded-xl border border-border bg-surface-inset shadow-md transition-transform hover:scale-[1.01]"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleExpand();
+        }
+      }}
+      aria-label={`GIF: ${title || 'animated image'}. Click to expand.`}
+    >
+      {!loaded && (
+        <div className="h-48 w-72 max-w-full animate-pulse bg-muted/60" />
+      )}
+      <img
+        src={url}
+        alt={title || 'GIF'}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        className={cn(
+          'max-h-72 w-full object-cover transition-opacity duration-200',
+          !loaded ? 'hidden' : 'block',
+        )}
+      />
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover/gif:opacity-100">
+        <span className="truncate text-xs font-medium text-white">{title || 'GIF'}</span>
+        <span className="text-[10px] text-white/80 uppercase tracking-wider font-semibold">Click to expand</span>
+      </div>
+    </div>
+  );
+}
+
+function StickerMessage({ url, alt }: { url: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (error) {
+    return (
+      <div className="mt-1.5 flex max-w-xs items-center gap-2 rounded-lg border border-border/60 bg-surface/50 p-2 text-xs text-muted-foreground">
+        <AlertTriangle className="size-3.5 text-warning-text shrink-0" />
+        <span className="truncate">Failed to load sticker</span>
+        <button
+          type="button"
+          onClick={() => setError(false)}
+          className="ml-auto shrink-0 font-semibold underline hover:text-foreground"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="group/sticker relative mt-1 inline-block select-none"
+      title={alt}
+      aria-label={`Sticker: ${alt}`}
+    >
+      {!loaded && (
+        <div className="size-32 rounded-xl animate-pulse bg-muted/40" />
+      )}
+      <img
+        src={url}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        className={cn(
+          'max-h-40 max-w-40 object-contain drop-shadow-sm transition-transform hover:scale-105',
+          !loaded ? 'hidden' : 'block',
+        )}
+      />
+    </div>
+  );
 }
 
 export function ChatBubble({
@@ -296,9 +410,17 @@ export function ChatBubble({
 
   const isCompact = density === 'compact';
 
-  const gifMatch = message.body
+  const mediaMatch = message.body
     ? /^!\[(.*?)\]\((https?:\/\/.*?)\)$/.exec(message.body.trim())
     : null;
+  const isSticker = mediaMatch
+    ? mediaMatch[1].startsWith('sticker:') ||
+      mediaMatch[2].includes('twemoji') ||
+      mediaMatch[1].toLowerCase().includes('sticker')
+    : false;
+  const stickerAlt = isSticker && mediaMatch
+    ? mediaMatch[1].replace(/^sticker:/i, '').trim()
+    : '';
   const isMentioned = message.body
     ? /@(here|channel|everyone|\w+)/.test(message.body)
     : false;
@@ -516,15 +638,12 @@ export function ChatBubble({
           </p>
         ) : (
           <>
-            {gifMatch ? (
-              <div className="mt-1.5 max-w-sm overflow-hidden rounded-xl border border-border bg-surface-inset shadow-md">
-                <img
-                  src={gifMatch[2]}
-                  alt={gifMatch[1] || 'GIF'}
-                  className="max-h-72 w-full object-cover"
-                  loading="lazy"
-                />
-              </div>
+            {mediaMatch ? (
+              isSticker ? (
+                <StickerMessage url={mediaMatch[2]} alt={stickerAlt || 'Sticker'} />
+              ) : (
+                <GifMessage url={mediaMatch[2]} title={mediaMatch[1] || 'GIF'} />
+              )
             ) : message.body ? (
               <MarkdownMessage
                 text={message.body}
