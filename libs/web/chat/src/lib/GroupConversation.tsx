@@ -108,7 +108,7 @@ function buildGroupDmRenamedEvent(
     conversationId: roomId,
     workspaceId,
     actor: toSystemEventEntity(actor),
-    secondaryTarget: {
+    target: {
       kind: 'channel',
       id: roomId,
       name: newName,
@@ -203,13 +203,13 @@ export function GroupConversation({
     );
   }
 
-  if (client && room === null && members.length === 0) {
+  if (client && !room && members.length === 0) {
     return (
       <div className="min-h-0 flex flex-1 flex-col">
         <GroupHeader
           title="Group message"
           members={members}
-          roomAvatarUrl={room?.avatarUrl}
+          roomAvatarUrl={undefined}
           roomId={roomId}
           workspacePeople={allWorkspacePeople}
           chatActionsRef={setChatActionsSlot}
@@ -269,7 +269,6 @@ export function GroupConversation({
                   : {
                       kind: 'group',
                       description: room?.topic,
-                      members,
                       onAddPeople: () => setAddPeopleOpen(true),
                     }
               }

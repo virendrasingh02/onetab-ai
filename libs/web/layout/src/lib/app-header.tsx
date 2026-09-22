@@ -141,7 +141,7 @@ export function AppHeader({
           {currentWorkspace && workspaces ? (
             <div
               style={NO_DRAG}
-              className="max-w-52 sm:max-w-64 min-w-0 flex items-center"
+              className="max-w-64 sm:max-w-80 min-w-0 flex items-center"
             >
               <WorkspaceMenu
                 workspaces={workspaces}
@@ -153,7 +153,7 @@ export function AppHeader({
           ) : (
             <div
               style={NO_DRAG}
-              className="max-w-52 sm:max-w-64 min-w-0 flex items-center"
+              className="max-w-64 sm:max-w-80 min-w-0 flex items-center"
             >
               <WorkspaceMenuSkeleton />
             </div>

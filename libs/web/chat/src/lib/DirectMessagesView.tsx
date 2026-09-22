@@ -1131,6 +1131,7 @@ function NewDirectMessage({
             name: currentUser.displayName ?? currentUser.name,
             avatarUrl: currentUser.avatarUrl ?? undefined,
           },
+          target: null,
           secondaryTarget: {
             kind: 'channel',
             id: result.roomId,

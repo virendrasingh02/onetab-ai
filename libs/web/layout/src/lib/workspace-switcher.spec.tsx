@@ -96,6 +96,7 @@ describe('WorkspaceMenu / Switcher', () => {
     });
     expect(trigger).toBeInTheDocument();
     expect(screen.getByText('Mie Team')).toBeInTheDocument();
+    expect(screen.getAllByText(/Starter|Pro|Business|Enterprise/i).length).toBeGreaterThan(0);
   });
 
   it('opens the switcher, lists the account and its workspaces, and filters by search', async () => {
@@ -120,6 +121,7 @@ describe('WorkspaceMenu / Switcher', () => {
     expect(screen.getByText('virendra@gmail.com')).toBeInTheDocument();
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
     expect(screen.getByText('Personal Space')).toBeInTheDocument();
+    expect(screen.getByText('Plans & Billing')).toBeInTheDocument();
 
     // Test search filter
     const searchInput = screen.getByPlaceholderText(
