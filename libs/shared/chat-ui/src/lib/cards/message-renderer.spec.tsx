@@ -322,4 +322,46 @@ describe('MessageRenderer', () => {
     await user.click(forwardBtn);
     expect(onForward).toHaveBeenCalledTimes(1);
   });
+
+  it('renders updated more actions dropdown according to reference image without duplicated outside actions', async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    const onCopyLink = vi.fn();
+    const onTogglePin = vi.fn();
+    const onCreateTask = vi.fn();
+    const msg = createMockMessage({ body: 'Message for dropdown test', timestamp: Date.now() });
+
+    renderWithProviders(
+      <MessageRenderer
+        message={msg}
+        isOwn={true}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onCopyLink={onCopyLink}
+        onTogglePin={onTogglePin}
+        onCreateTask={onCreateTask}
+      />,
+    );
+
+    const moreBtn = screen.getByRole('button', { name: 'More actions' });
+    expect(moreBtn).toBeInTheDocument();
+    await user.click(moreBtn);
+
+    // Duplicated outside actions must NOT be in the dropdown
+    expect(screen.queryByRole('menuitem', { name: /Reply in thread/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /^Reply$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Forward message/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Save for later/i })).not.toBeInTheDocument();
+
+    // Ref image items should be present
+    expect(screen.getByRole('menuitem', { name: /Edit message/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Mark unread/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Remind me/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Turn off notifications for replies/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Copy link/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Organize/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Connect to apps/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Delete message\.\.\./i })).toBeInTheDocument();
+  });
 });

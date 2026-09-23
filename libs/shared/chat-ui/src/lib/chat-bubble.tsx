@@ -6,17 +6,24 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   EmojiPicker,
   Hint,
   Popover,
   PopoverContent,
   PopoverTrigger,
+  toast,
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   AlertTriangle,
+  Bell,
+  BellOff,
   Blocks,
   Bookmark,
   Bot,
@@ -39,6 +46,7 @@ import {
   PinOff,
   Reply,
   Smile,
+  SquareDot,
   Trash2,
   UserCheck,
 } from 'lucide-react';
@@ -113,6 +121,10 @@ export interface ChatBubbleProps {
   linkPreviewsEnabled?: boolean;
   workspacePolicy?: WorkspacePolicy;
   roomKind?: RoomKind;
+  onMarkUnread?: () => void;
+  onRemind?: (duration: string) => void;
+  onToggleNotifications?: () => void;
+  isNotificationsMuted?: boolean;
 }
 
 export function formatShortTimestamp(timestamp: number): string {
@@ -308,6 +320,10 @@ export function ChatBubble({
   linkPreviewsEnabled = true,
   workspacePolicy,
   roomKind,
+  onMarkUnread,
+  onRemind,
+  onToggleNotifications,
+  isNotificationsMuted = false,
 }: ChatBubbleProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReactionOpen, setIsReactionOpen] = useState(false);
@@ -512,6 +528,69 @@ export function ChatBubble({
         <span>APP</span>
       </Badge>
     ) : null);
+
+  const canEdit =
+    isOwn &&
+    Boolean(onEdit) &&
+    (editWindowMinutes == null ||
+      Date.now() - message.timestamp < editWindowMinutes * 60_000);
+
+  const canDelete = Boolean(onDelete) && (isOwn || canModerateMessages);
+  const hasOrganizeItems = Boolean(onTogglePin || onAssignToMe || onViewContext);
+  const hasAppItems = Boolean(onCreateTask || onCreateDoc || onAskAI);
+
+  const handleMarkUnread = () => {
+    setIsMenuOpen(false);
+    if (onMarkUnread) {
+      onMarkUnread();
+    } else {
+      toast.success('Marked as unread');
+    }
+  };
+
+  const handleRemind = (label: string) => {
+    setIsMenuOpen(false);
+    if (onRemind) {
+      onRemind(label);
+    } else {
+      toast.success(`Reminder set for ${label}`);
+    }
+  };
+
+  const handleToggleNotifications = () => {
+    setIsMenuOpen(false);
+    if (onToggleNotifications) {
+      onToggleNotifications();
+    } else {
+      toast.info(
+        isNotificationsMuted
+          ? 'Notifications turned on for replies'
+          : 'Notifications turned off for replies',
+      );
+    }
+  };
+
+  const handleCopyLink = () => {
+    setIsMenuOpen(false);
+    if (onCopyLink) {
+      onCopyLink();
+    } else {
+      void navigator.clipboard?.writeText(
+        `${window.location.origin}${window.location.pathname}#${message.id}`,
+      );
+    }
+    toast.success('Link copied to clipboard');
+  };
+
+  const handleCopyText = () => {
+    setIsMenuOpen(false);
+    if (onCopyText) {
+      onCopyText();
+    } else if (message.body) {
+      void navigator.clipboard?.writeText(message.body);
+    }
+    toast.success('Text copied to clipboard');
+  };
 
   return (
     <article
@@ -1013,162 +1092,111 @@ export function ChatBubble({
             side="bottom"
             sideOffset={4}
             collisionPadding={8}
-            className="w-56 z-50 border-border bg-popover text-popover-foreground shadow-overlay"
+            className="w-60 z-50 border-border bg-popover text-popover-foreground shadow-overlay"
           >
-            {onOpenThread ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onOpenThread();
-                }}
-                className="hover:bg-accent"
-              >
-                <MessageSquare className="mr-2 size-4" />
-                Reply in thread
-              </DropdownMenuItem>
+            {/* 1. Edit message (top item as in reference image) */}
+            {canEdit ? (
+              <>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setIsMenuOpen(false);
+                    onEdit?.();
+                  }}
+                  className="cursor-pointer hover:bg-accent"
+                >
+                  <Pencil className="mr-2 size-4" />
+                  <span>Edit message</span>
+                  <DropdownMenuShortcut>E</DropdownMenuShortcut>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-border" />
+              </>
             ) : null}
-            {onReply ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onReply();
-                }}
-                className="hover:bg-accent"
-              >
-                <Reply className="mr-2 size-4" />
-                Reply
-              </DropdownMenuItem>
-            ) : null}
-            {onForward || onCopyLink ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  (onForward ?? onCopyLink)?.();
-                }}
-                className="hover:bg-accent"
-              >
-                <Forward className="mr-2 size-4" />
-                Forward message
-              </DropdownMenuItem>
-            ) : null}
-            {onToggleSave ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onToggleSave();
-                }}
-                className="hover:bg-accent"
-              >
-                <Bookmark className="mr-2 size-4" />
-                {isSaved ? 'Remove from saved' : 'Save for later'}
-              </DropdownMenuItem>
-            ) : null}
-            {onTogglePin ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onTogglePin();
-                }}
-                className="cursor-pointer hover:bg-accent"
-              >
-                {isPinned ? (
-                  <PinOff className="mr-2 size-4" />
-                ) : (
-                  <Pin className="mr-2 size-4" />
-                )}
-                {isPinned ? 'Unpin from channel' : 'Pin to channel'}
-              </DropdownMenuItem>
-            ) : null}
+
+            {/* 2. Message state & notifications (Mark unread, Remind me, Notifications) */}
+            <DropdownMenuItem
+              onSelect={handleMarkUnread}
+              className="cursor-pointer hover:bg-accent"
+            >
+              <SquareDot className="mr-2 size-4" />
+              <span>Mark unread</span>
+              <DropdownMenuShortcut>U</DropdownMenuShortcut>
+            </DropdownMenuItem>
+
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="cursor-pointer hover:bg-accent">
+                <Clock className="mr-2 size-4" />
+                <span>Remind me</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-48 z-50 border-border bg-popover text-popover-foreground shadow-overlay">
+                <DropdownMenuItem
+                  onSelect={() => handleRemind('20 minutes')}
+                  className="cursor-pointer hover:bg-accent"
+                >
+                  <span>In 20 minutes</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => handleRemind('1 hour')}
+                  className="cursor-pointer hover:bg-accent"
+                >
+                  <span>In 1 hour</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => handleRemind('3 hours')}
+                  className="cursor-pointer hover:bg-accent"
+                >
+                  <span>In 3 hours</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => handleRemind('tomorrow')}
+                  className="cursor-pointer hover:bg-accent"
+                >
+                  <span>Tomorrow</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => handleRemind('next week')}
+                  className="cursor-pointer hover:bg-accent"
+                >
+                  <span>Next week</span>
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+
+            <DropdownMenuItem
+              onSelect={handleToggleNotifications}
+              className="cursor-pointer hover:bg-accent"
+            >
+              {isNotificationsMuted ? (
+                <>
+                  <Bell className="mr-2 size-4" />
+                  <span>Turn on notifications for replies</span>
+                </>
+              ) : (
+                <>
+                  <BellOff className="mr-2 size-4" />
+                  <span>Turn off notifications for replies</span>
+                </>
+              )}
+            </DropdownMenuItem>
 
             <DropdownMenuSeparator className="bg-border" />
 
-            {onAssignToMe ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onAssignToMe();
-                }}
-                className="cursor-pointer hover:bg-accent"
-              >
-                <UserCheck className="mr-2 size-4 text-primary" />
-                Assign to me
-              </DropdownMenuItem>
-            ) : null}
-
-            {onCreateTask ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onCreateTask();
-                }}
-                className="cursor-pointer hover:bg-accent"
-              >
-                <CheckSquare className="mr-2 size-4 text-success" />
-                Create task from message
-              </DropdownMenuItem>
-            ) : null}
-            {onCreateDoc ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onCreateDoc();
-                }}
-                className="cursor-pointer hover:bg-accent"
-              >
-                <FileText className="mr-2 size-4 text-info-text" />
-                Create document from message
-              </DropdownMenuItem>
-            ) : null}
-            {onAskAI ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onAskAI();
-                }}
-                className="cursor-pointer hover:bg-accent"
-              >
-                <Bot className="mr-2 size-4 text-primary" />
-                Ask AI about message
-              </DropdownMenuItem>
-            ) : null}
-
-            {onViewContext ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onViewContext();
-                }}
-                className="cursor-pointer hover:bg-accent"
-              >
-                <Link2 className="mr-2 size-4 text-primary" />
-                View related context
-              </DropdownMenuItem>
-            ) : null}
-
-            <DropdownMenuSeparator className="bg-border" />
+            {/* 3. Copy link & text actions */}
+            <DropdownMenuItem
+              onSelect={handleCopyLink}
+              className="cursor-pointer hover:bg-accent"
+            >
+              <Link2 className="mr-2 size-4" />
+              <span>Copy link</span>
+              <DropdownMenuShortcut>L</DropdownMenuShortcut>
+            </DropdownMenuItem>
 
             {onCopyText ? (
               <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onCopyText();
-                }}
-                className="hover:bg-accent"
+                onSelect={handleCopyText}
+                className="cursor-pointer hover:bg-accent"
               >
                 <Copy className="mr-2 size-4" />
-                Copy text
-              </DropdownMenuItem>
-            ) : null}
-            {onCopyLink ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  onCopyLink();
-                }}
-                className="hover:bg-accent"
-              >
-                <Link2 className="mr-2 size-4" />
-                Copy link to message
+                <span>Copy text</span>
               </DropdownMenuItem>
             ) : null}
 
@@ -1183,49 +1211,144 @@ export function ChatBubble({
                 {isPreviewsVisible ? (
                   <>
                     <Link2Off className="mr-2 size-4 text-muted-foreground" />
-                    Hide link preview
+                    <span>Hide link preview</span>
                   </>
                 ) : (
                   <>
                     <Link2 className="mr-2 size-4 text-muted-foreground" />
-                    Show link preview
+                    <span>Show link preview</span>
                   </>
                 )}
               </DropdownMenuItem>
             ) : null}
 
-            {isOwn || canModerateMessages ? (
+            {/* 4. Organize & Connect to apps submenus */}
+            {hasOrganizeItems || hasAppItems ? (
+              <DropdownMenuSeparator className="bg-border" />
+            ) : null}
+
+            {hasOrganizeItems ? (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="cursor-pointer hover:bg-accent">
+                  <FolderKanban className="mr-2 size-4" />
+                  <span>Organize</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-56 z-50 border-border bg-popover text-popover-foreground shadow-overlay">
+                  {onTogglePin ? (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setIsMenuOpen(false);
+                        onTogglePin();
+                      }}
+                      className="cursor-pointer hover:bg-accent"
+                    >
+                      {isPinned ? (
+                        <PinOff className="mr-2 size-4" />
+                      ) : (
+                        <Pin className="mr-2 size-4" />
+                      )}
+                      <span>{isPinned ? 'Unpin from channel' : 'Pin to channel'}</span>
+                    </DropdownMenuItem>
+                  ) : null}
+
+                  {onAssignToMe ? (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setIsMenuOpen(false);
+                        onAssignToMe();
+                      }}
+                      className="cursor-pointer hover:bg-accent"
+                    >
+                      <UserCheck className="mr-2 size-4 text-primary" />
+                      <span>Assign to me</span>
+                    </DropdownMenuItem>
+                  ) : null}
+
+                  {onViewContext ? (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setIsMenuOpen(false);
+                        onViewContext();
+                      }}
+                      className="cursor-pointer hover:bg-accent"
+                    >
+                      <Link2 className="mr-2 size-4 text-primary" />
+                      <span>View related context</span>
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ) : null}
+
+            {hasAppItems ? (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="cursor-pointer hover:bg-accent">
+                  <Blocks className="mr-2 size-4" />
+                  <span>Connect to apps</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-56 z-50 border-border bg-popover text-popover-foreground shadow-overlay">
+                  {onCreateTask ? (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setIsMenuOpen(false);
+                        onCreateTask();
+                      }}
+                      className="cursor-pointer hover:bg-accent"
+                    >
+                      <CheckSquare className="mr-2 size-4 text-success" />
+                      <span>Create task from message</span>
+                    </DropdownMenuItem>
+                  ) : null}
+
+                  {onCreateDoc ? (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setIsMenuOpen(false);
+                        onCreateDoc();
+                      }}
+                      className="cursor-pointer hover:bg-accent"
+                    >
+                      <FileText className="mr-2 size-4 text-info-text" />
+                      <span>Create document from message</span>
+                    </DropdownMenuItem>
+                  ) : null}
+
+                  {onAskAI ? (
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setIsMenuOpen(false);
+                        onAskAI();
+                      }}
+                      className="cursor-pointer hover:bg-accent"
+                    >
+                      <Bot className="mr-2 size-4 text-primary" />
+                      <span>Ask AI about message</span>
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ) : null}
+
+            {/* 5. Destructive Delete message at bottom */}
+            {canDelete ? (
               <>
                 <DropdownMenuSeparator className="bg-border" />
-                {isOwn &&
-                (editWindowMinutes == null ||
-                  Date.now() - message.timestamp < editWindowMinutes * 60_000) ? (
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setIsMenuOpen(false);
-                      onEdit?.();
-                    }}
-                    className="hover:bg-accent"
-                  >
-                    <Pencil className="mr-2 size-4" />
-                    Edit message
-                  </DropdownMenuItem>
-                ) : null}
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={() => {
                     setIsMenuOpen(false);
                     onDelete?.();
                   }}
-                  className="hover:bg-destructive"
+                  className="cursor-pointer hover:bg-destructive/10 text-destructive focus:bg-destructive/10 focus:text-destructive"
                 >
-                  <Trash2 className="mr-2 size-4" />
-                  Delete message
+                  <Trash2 className="mr-2 size-4 text-destructive" />
+                  <span>Delete message...</span>
                   {!isOwn ? (
-                    <span className="ml-auto text-[10px] text-muted-foreground">
+                    <span className="ml-auto text-[10px] text-muted-foreground mr-1">
                       Moderator
                     </span>
                   ) : null}
+                  <DropdownMenuShortcut>delete</DropdownMenuShortcut>
                 </DropdownMenuItem>
               </>
             ) : null}

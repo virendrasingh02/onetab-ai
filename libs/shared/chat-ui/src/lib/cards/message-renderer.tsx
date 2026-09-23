@@ -66,6 +66,10 @@ export interface MessageRendererProps {
   linkPreviewsEnabled?: boolean;
   workspacePolicy?: WorkspacePolicy;
   roomKind?: RoomKind;
+  onMarkUnread?: () => void;
+  onRemind?: (duration: string) => void;
+  onToggleNotifications?: () => void;
+  isNotificationsMuted?: boolean;
 }
 
 export const MessageRenderer = memo(function MessageRenderer(
