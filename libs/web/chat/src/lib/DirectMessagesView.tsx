@@ -64,7 +64,7 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
 import { ConversationFilesPanel } from './conversation-files-panel.js';
@@ -580,7 +580,9 @@ function DirectMessageHeader({
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { state: callState, startCall } = useCall();
+  const autoCallTriggered = useRef(false);
 
   const canCall =
     !isSelf &&
@@ -613,6 +615,29 @@ function DirectMessageHeader({
       toast.error('Could not start video call', { description: message });
     }
   }, [roomId, startCall]);
+
+  // Handle deep-link call trigger (?call=voice or ?call=video or ?call=true)
+  useEffect(() => {
+    const callParam = searchParams.get('call');
+    if (!callParam || autoCallTriggered.current || !roomId || !canCall) return;
+    autoCallTriggered.current = true;
+
+    // Clean up url param
+    setSearchParams(
+      (curr) => {
+        const next = new URLSearchParams(curr);
+        next.delete('call');
+        return next;
+      },
+      { replace: true },
+    );
+
+    if (callParam === 'video') {
+      void handleStartVideoCall();
+    } else {
+      void handleStartVoiceCall();
+    }
+  }, [searchParams, roomId, canCall, setSearchParams, handleStartVideoCall, handleStartVoiceCall]);
 
   // Live presence, exactly as the sidebar's DM row reads it — the avatar's
   // status dot was bound to `member.user.presence`, a snapshot from the members

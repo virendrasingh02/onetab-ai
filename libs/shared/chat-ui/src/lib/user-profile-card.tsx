@@ -14,10 +14,11 @@ import {
 } from '@org/ui';
 import {
   Calendar,
-  Headphones,
   Mail,
   MessageSquare,
+  Phone,
   Shield,
+  Video,
   Zap,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -278,6 +279,7 @@ export function UserProfileRightPanel({
   statusText,
   onSendDirectMessage,
   onStartCall,
+  onStartVideoCall,
 }: {
   userId: string;
   name: string;
@@ -294,9 +296,11 @@ export function UserProfileRightPanel({
   statusText?: string | null;
   onSendDirectMessage?: (userId: string) => void;
   onStartCall?: (userId: string) => void;
+  onStartVideoCall?: (userId: string) => void;
 }) {
   const userColor = getUserColor(userId);
   const handle = `@${userId.replace(/^@/, '').split(':')[0]}`;
+  const isBotOrAgent = userId.startsWith('agent-') || userId.startsWith('app-');
 
   return (
     <div className="flex h-full flex-col bg-surface text-foreground">
@@ -328,32 +332,58 @@ export function UserProfileRightPanel({
           />
         </div>
 
-        {/* Action Buttons: Message & Call/Huddle */}
-        <div className="gap-2 pt-1 flex items-center">
+        {/* Action Buttons: Message, Audio Call, Video Call */}
+        <div className="gap-2 pt-1 flex items-center flex-wrap">
           <Button
             size="sm"
             onClick={() => onSendDirectMessage?.(userId)}
-            className="text-xs font-bold px-3 py-2 gap-1.5 flex-1 rounded-xl bg-primary text-primary-foreground shadow-md hover:bg-primary-hover"
+            className="text-xs font-bold px-3 py-2 gap-1.5 flex-1 min-w-[100px] rounded-xl bg-primary text-primary-foreground shadow-md hover:bg-primary-hover"
           >
             <MessageSquare className="size-3.5" />
             <span>Message</span>
           </Button>
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (onStartCall) {
-                onStartCall(userId);
-              } else {
-                onSendDirectMessage?.(userId);
-              }
-            }}
-            className="text-xs font-semibold px-3 py-2 gap-1.5 flex-1 rounded-xl border-border bg-surface shadow-xs hover:bg-accent"
-          >
-            <Headphones className="size-3.5" />
-            <span>Huddle / Call</span>
-          </Button>
+          {!isBotOrAgent && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (onStartCall) {
+                    onStartCall(userId);
+                  } else {
+                    onSendDirectMessage?.(userId);
+                  }
+                }}
+                className="text-xs font-semibold px-2.5 py-2 gap-1 rounded-xl border-border bg-surface shadow-xs hover:bg-accent"
+                title="Start Voice Call"
+                aria-label="Start Voice Call"
+              >
+                <Phone className="size-3.5" />
+                <span>Call</span>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (onStartVideoCall) {
+                    onStartVideoCall(userId);
+                  } else if (onStartCall) {
+                    onStartCall(userId);
+                  } else {
+                    onSendDirectMessage?.(userId);
+                  }
+                }}
+                className="text-xs font-semibold px-2.5 py-2 gap-1 rounded-xl border-border bg-surface shadow-xs hover:bg-accent"
+                title="Start Video Call"
+                aria-label="Start Video Call"
+              >
+                <Video className="size-3.5" />
+                <span>Video</span>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Name, Title, Handle & Status */}

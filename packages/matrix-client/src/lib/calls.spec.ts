@@ -155,4 +155,33 @@ describe('CallManager', () => {
     expect(screenOk).toBe(true);
     expect(manager.isScreensharing()).toBe(true);
   });
+
+  it('rejects incoming call with busy behavior if call is already in progress', () => {
+    const call1: any = {
+      callId: 'call_1',
+      roomId: '!room123:homeserver',
+      type: 'voice',
+      on: vi.fn(),
+      getOpponentMember: vi.fn(() => ({ userId: '@alice:homeserver' })),
+    };
+    manager.handleIncomingCall(call1);
+
+    const call2: any = {
+      callId: 'call_2',
+      roomId: '!room123:homeserver',
+      type: 'video',
+      on: vi.fn(),
+      reject: vi.fn(),
+      getOpponentMember: vi.fn(() => ({ userId: '@bob:homeserver' })),
+    };
+
+    manager.handleIncomingCall(call2);
+    expect(call2.reject).toHaveBeenCalled();
+    expect(manager.getActiveCall()?.id).toBe('call_1');
+  });
+
+  it('returns empty list or enumerated devices', async () => {
+    const devices = await manager.getDevices();
+    expect(Array.isArray(devices)).toBe(true);
+  });
 });

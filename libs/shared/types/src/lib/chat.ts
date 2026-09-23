@@ -610,7 +610,30 @@ export interface VerificationRequestSummary {
 
 export type CallKind = 'voice' | 'video';
 export type CallState =
-  'ringing' | 'connecting' | 'connected' | 'ended' | 'rejected' | 'failed';
+  | 'idle'
+  | 'initiating'
+  | 'ringing'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'busy'
+  | 'timeout'
+  | 'ended'
+  | 'rejected'
+  | 'failed';
+
+export type CallQuality = 'excellent' | 'good' | 'poor' | 'reconnecting';
+
+export type CallErrorCode =
+  | 'CALL_PERMISSION_DENIED'
+  | 'CALL_DEVICE_UNAVAILABLE'
+  | 'CALL_CONNECTION_FAILED'
+  | 'CALL_TIMEOUT'
+  | 'CALL_BUSY'
+  | 'CALL_NOT_SUPPORTED'
+  | 'CALL_MEDIA_FAILED'
+  | 'CALL_ENDED'
+  | 'UNKNOWN';
 
 export interface Call {
   id: string;
@@ -620,6 +643,9 @@ export interface Call {
   isIncoming: boolean;
   remoteUserId?: MatrixUserId;
   startedAt?: Timestamp;
+  endedAt?: Timestamp;
+  errorCode?: CallErrorCode;
+  errorMessage?: string;
 }
 
 // --- notifications ---------------------------------------------------------

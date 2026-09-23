@@ -17,8 +17,10 @@ export {
 export {
   CallManager,
   createCallManager,
+  type CallDeviceInfo,
   type CallListener,
   type CallMediaConstraints,
+  type CallQualityListener,
 } from './lib/calls.js';
 
 export {
@@ -40,7 +42,9 @@ export { MatrixError } from './lib/types.js';
 export type {
   Attachment,
   Call,
+  CallErrorCode,
   CallKind,
+  CallQuality,
   CallState,
   ConnectionState,
   ConnectionStatus,

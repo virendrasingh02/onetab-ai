@@ -189,8 +189,11 @@ export function RightPanel({
           statusEmoji={person?.statusEmoji ?? currentUser.statusEmoji}
           statusText={person?.statusText ?? currentUser.statusText}
           onSendDirectMessage={openDirectMessage}
-          onStartCall={(targetUserId) => {
-            navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=true`);
+          onStartCall={(targetUserId: string) => {
+            navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=voice`);
+          }}
+          onStartVideoCall={(targetUserId: string) => {
+            navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=video`);
           }}
         />
       </PanelFrame>
