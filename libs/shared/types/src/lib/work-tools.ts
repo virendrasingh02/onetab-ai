@@ -340,6 +340,169 @@ export interface MeetingDetail extends Meeting {
   decisions: MeetingDecision[];
   /** Action items are real tasks linked back through `Task.meetingId`. */
   actionItems: Task[];
+  /** Linked call sessions and summaries if this meeting was conducted as a call. */
+  calls?: CallView[];
+}
+
+export type CallSessionKind = 'AUDIO' | 'VIDEO';
+export type CallSessionStatus = 'ACTIVE' | 'ENDED';
+export type CallSummaryStatus =
+  | 'PROCESSING'
+  | 'READY'
+  | 'FAILED'
+  | 'EDITED'
+  | 'APPROVED';
+
+export interface CallParticipantView {
+  id: string;
+  callId: string;
+  userId: string;
+  joinedAt: IsoDateString;
+  leftAt: IsoDateString | null;
+  user: PublicUser;
+}
+
+export interface CallNoteView {
+  id: string;
+  callId: string;
+  workspaceId: string;
+  authorId: string;
+  content: string;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+  author: PublicUser;
+}
+
+export interface CallActionItemView {
+  id: string;
+  callId: string;
+  summaryId: string | null;
+  workspaceId: string;
+  title: string;
+  description: string | null;
+  assigneeId: string | null;
+  dueDate: IsoDateString | null;
+  status: string;
+  priority: TaskPriority;
+  sourceTimestamp: number | null;
+  taskId: string | null;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+  assignee: PublicUser | null;
+  task?: Task | null;
+}
+
+export interface CallDecisionView {
+  id: string;
+  callId: string;
+  summaryId: string | null;
+  workspaceId: string;
+  content: string;
+  sourceTimestamp: number | null;
+  madeById: string | null;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+  madeBy: PublicUser | null;
+}
+
+export interface CallTranscriptItemView {
+  id: string;
+  callId: string;
+  speakerId: string | null;
+  speakerName: string;
+  text: string;
+  timestamp: number;
+  createdAt: IsoDateString;
+}
+
+export interface CallSummaryFeedbackView {
+  id: string;
+  summaryId: string;
+  userId: string;
+  rating: string;
+  feedback: string | null;
+  createdAt: IsoDateString;
+  user?: PublicUser;
+}
+
+export interface CallSummaryView {
+  id: string;
+  callId: string;
+  workspaceId: string;
+  status: CallSummaryStatus;
+  overview: string | null;
+  keyPoints: string[];
+  openQuestions: string[];
+  followUps: string[];
+  importantLinks: Array<{ title: string; url: string }>;
+  rawContent: string | null;
+  version: number;
+  failureReason: string | null;
+  generatedById: string | null;
+  generatedAt: IsoDateString;
+  updatedAt: IsoDateString;
+  feedbacks?: CallSummaryFeedbackView[];
+}
+
+export interface CallView {
+  id: string;
+  workspaceId: string;
+  conversationId: string;
+  channelId: string | null;
+  meetingId: string | null;
+  title: string;
+  kind: CallSessionKind;
+  status: CallSessionStatus;
+  startedById: string;
+  startedAt: IsoDateString;
+  endedAt: IsoDateString | null;
+  recordingUrl: string | null;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+  startedBy: PublicUser;
+  participants: CallParticipantView[];
+  summary?: CallSummaryView | null;
+  _count?: {
+    notes: number;
+    actionItems: number;
+    decisions: number;
+    transcripts: number;
+  };
+}
+
+export interface CallDetailView extends CallView {
+  notes: CallNoteView[];
+  summary: CallSummaryView | null;
+  actionItems: CallActionItemView[];
+  decisions: CallDecisionView[];
+  transcripts: CallTranscriptItemView[];
+}
+
+export interface CallNotesAssistRequest {
+  action:
+    | 'summarize'
+    | 'cleanup'
+    | 'extract_actions'
+    | 'extract_decisions'
+    | 'generate_followup'
+    | 'format';
+  notes: string;
+}
+
+export interface CallNotesAssistResponse {
+  result: string;
+  actionItems?: Array<{ title: string; assigneeName?: string }>;
+  decisions?: string[];
+}
+
+export interface AskCallQuestionRequest {
+  question: string;
+}
+
+export interface AskCallQuestionResponse {
+  answer: string;
+  groundedTimestamps?: number[];
+  citations?: string[];
 }
 
 /** A child entry in the docs tree — enough to draw the sidebar row. */

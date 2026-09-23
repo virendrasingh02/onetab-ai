@@ -491,7 +491,22 @@ export type StructuredChatMessage =
   | WorkflowMessageContent
   | SystemMessageContent
   | SystemActivityEventContent
-  | CardMessageContent;
+  | CardMessageContent
+  | CallSummaryMessageContent;
+
+/** Posted to a room when a backend call session ends and a summary is available. */
+export interface CallSummaryMessageContent {
+  type: 'mie.call_summary';
+  version?: string;
+  /** The backend call session id (used to load notes, summary, actions etc.). */
+  callId: string;
+  /** Friendly title — e.g. "Call with Alice". */
+  title?: string;
+  /** Total call duration in seconds. */
+  durationSeconds?: number;
+  /** Number of participants in the call. */
+  participantsCount?: number;
+}
 
 export interface Thread {
   rootId: EventId;

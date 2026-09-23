@@ -17,13 +17,10 @@
       "path": "../workspace/tsconfig.lib.json"
     },
     {
-      "path": "../chat/tsconfig.lib.json"
+      "path": "../integrations/tsconfig.lib.json"
     },
     {
       "path": "../agents/tsconfig.lib.json"
-    },
-    {
-      "path": "../integrations/tsconfig.lib.json"
     },
     {
       "path": "../../shared/utils/tsconfig.lib.json"
@@ -35,6 +32,9 @@
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/realtime/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/hooks/tsconfig.lib.json"
     },
     {
@@ -42,9 +42,6 @@
     },
     {
       "path": "../../shared/chat-ui/tsconfig.lib.json"
-    },
-    {
-      "path": "../../shared/realtime/tsconfig.lib.json"
     },
     {
       "path": "../auth/tsconfig.lib.json"

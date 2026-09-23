@@ -101,16 +101,16 @@
       "path": "../../libs/web/auth/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/shared/realtime/tsconfig.lib.json"
+      "path": "../../libs/web/coworkers/tsconfig.lib.json"
     },
     {
       "path": "../../libs/shared/sync/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/shared/i18n/tsconfig.lib.json"
+      "path": "../../libs/shared/realtime/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/web/coworkers/tsconfig.lib.json"
+      "path": "../../libs/shared/i18n/tsconfig.lib.json"
     }
   ]
 }

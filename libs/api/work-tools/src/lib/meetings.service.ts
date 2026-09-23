@@ -19,6 +19,7 @@ import type {
   CreateMeetingNoteInput,
   UpdateMeetingInput,
 } from '@org/validation';
+import { CallsService } from './calls.service.js';
 import { WorkToolsService } from './work-tools.service.js';
 
 /** ISO string from a DTO → `Date` for Prisma. */
@@ -108,6 +109,7 @@ export class MeetingsService {
     private readonly prisma: PrismaService,
     private readonly events: EventEmitter2,
     private readonly workTools: WorkToolsService,
+    private readonly calls: CallsService,
   ) {}
 
   async list(workspaceId: string, filters: MeetingListFilters = {}) {
@@ -144,10 +146,14 @@ export class MeetingsService {
 
   async get(workspaceId: string, meetingId: string) {
     await this.assertMeeting(workspaceId, meetingId);
-    return this.prisma.meeting.findUniqueOrThrow({
-      where: { id: meetingId },
-      include: MEETING_DETAIL_INCLUDE,
-    });
+    const [meeting, calls] = await Promise.all([
+      this.prisma.meeting.findUniqueOrThrow({
+        where: { id: meetingId },
+        include: MEETING_DETAIL_INCLUDE,
+      }),
+      this.calls.listCalls(workspaceId, { meetingId }),
+    ]);
+    return { ...meeting, calls };
   }
 
   async create(

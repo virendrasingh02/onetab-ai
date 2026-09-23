@@ -32,16 +32,7 @@
   ],
   "references": [
     {
-      "path": "../integrations/tsconfig.lib.json"
-    },
-    {
       "path": "../automations/tsconfig.lib.json"
-    },
-    {
-      "path": "../coworkers/tsconfig.lib.json"
-    },
-    {
-      "path": "../agents/tsconfig.lib.json"
     },
     {
       "path": "../invitations/tsconfig.lib.json"
@@ -83,13 +74,19 @@
       "path": "../members/tsconfig.lib.json"
     },
     {
+      "path": "../integrations/tsconfig.lib.json"
+    },
+    {
       "path": "../desktop/tsconfig.lib.json"
     },
     {
-      "path": "../chat/tsconfig.lib.json"
+      "path": "../coworkers/tsconfig.lib.json"
     },
     {
       "path": "../ai/tsconfig.lib.json"
+    },
+    {
+      "path": "../agents/tsconfig.lib.json"
     },
     {
       "path": "../../shared/sync/tsconfig.lib.json"

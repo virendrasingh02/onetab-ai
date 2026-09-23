@@ -106,6 +106,12 @@ model User {
   aiSecrets                 AISecret[]
   mcpConnections            MCPConnection[]
   scheduledMessages         ScheduledMessage[]
+  startedCalls              Call[]                      @relation("CallStarter")
+  callParticipations        CallParticipant[]           @relation("CallParticipantUser")
+  callNotes                 CallNote[]                  @relation("CallNoteAuthor")
+  callActionItems           CallActionItem[]            @relation("CallActionItemAssignee")
+  callDecisions             CallDecision[]              @relation("CallDecisionMaker")
+  callSummaryFeedbacks      CallSummaryFeedback[]       @relation("CallSummaryFeedbackUser")
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -343,6 +349,11 @@ model Workspace {
   mcpConnections            MCPConnection[]
   aiFeedbacks               AIFeedback[]
   scheduledMessages         ScheduledMessage[]
+  calls                     Call[]
+  callNotes                 CallNote[]
+  callSummaries             CallSummary[]
+  callActionItems           CallActionItem[]
+  callDecisions             CallDecision[]
   owner                     User                       @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
@@ -491,6 +502,7 @@ model Channel {
   emailAddress          ChannelEmailAddress?
   emailMessages         EmailMessage[]
   huddles               Huddle[]
+  calls                 Call[]
   createdBy             User                     @relation("ChannelCreator", fields: [createdById], references: [id])
   workspace             Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   recentActivities      RecentActivity[]
@@ -1296,6 +1308,7 @@ model Task {
   parent          Task?                    @relation("TaskSubItems", fields: [parentId], references: [id])
   subItems        Task[]                   @relation("TaskSubItems")
   meeting         Meeting?                 @relation("MeetingActionItems", fields: [meetingId], references: [id])
+  callActionItems CallActionItem[]
   sourceRelations WorkItemRelation[]       @relation("RelationSource")
   targetRelations WorkItemRelation[]       @relation("RelationTarget")
   activities      WorkItemActivity[]
@@ -1582,6 +1595,7 @@ model Meeting {
   notes           MeetingNote[]
   decisions       MeetingDecision[]
   actionItems     Task[]               @relation("MeetingActionItems")
+  calls           Call[]
 
   @@index([workspaceId, startAt])
   @@index([workspaceId, status])
@@ -1633,6 +1647,179 @@ model MeetingDecision {
 
   @@index([meetingId, createdAt])
   @@map("meeting_decisions")
+}
+
+model Call {
+  id             String             @id @default(cuid())
+  workspaceId    String
+  conversationId String
+  channelId      String?
+  meetingId      String?
+  title          String
+  kind           CallKind           @default(AUDIO)
+  status         CallSessionStatus  @default(ACTIVE)
+  startedById    String
+  startedAt      DateTime           @default(now())
+  endedAt        DateTime?
+  recordingUrl   String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  workspace      Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  startedBy      User               @relation("CallStarter", fields: [startedById], references: [id], onDelete: Cascade)
+  channel        Channel?           @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  meeting        Meeting?           @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  participants   CallParticipant[]
+  notes          CallNote[]
+  summary        CallSummary?
+  actionItems    CallActionItem[]
+  decisions      CallDecision[]
+  transcripts    CallTranscriptItem[]
+
+  @@index([workspaceId, status])
+  @@index([conversationId, status])
+  @@index([meetingId])
+  @@map("calls")
+}
+
+model CallParticipant {
+  id        String    @id @default(cuid())
+  callId    String
+  userId    String
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime?
+
+  call      Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user      User      @relation("CallParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@index([userId])
+  @@map("call_participants")
+}
+
+model CallNote {
+  id          String    @id @default(cuid())
+  callId      String
+  workspaceId String
+  authorId    String
+  content     String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  call        Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author      User      @relation("CallNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([callId, createdAt])
+  @@index([workspaceId])
+  @@map("call_notes")
+}
+
+model CallSummary {
+  id             String            @id @default(cuid())
+  callId         String            @unique
+  workspaceId    String
+  status         CallSummaryStatus @default(PROCESSING)
+  overview       String?
+  keyPoints      Json?             @default("[]")
+  openQuestions  Json?             @default("[]")
+  followUps      Json?             @default("[]")
+  importantLinks Json?             @default("[]")
+  rawContent     String?
+  version        Int               @default(1)
+  failureReason  String?
+  generatedById  String?
+  generatedAt    DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  call           Call              @relation(fields: [callId], references: [id], onDelete: Cascade)
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  feedbacks      CallSummaryFeedback[]
+  actionItems    CallActionItem[]
+  decisions      CallDecision[]
+
+  @@index([workspaceId, status])
+  @@map("call_summaries")
+}
+
+model CallActionItem {
+  id              String       @id @default(cuid())
+  callId          String
+  summaryId       String?
+  workspaceId     String
+  title           String
+  description     String?
+  assigneeId      String?
+  dueDate         DateTime?
+  status          String       @default("TODO")
+  priority        TaskPriority @default(MEDIUM)
+  sourceTimestamp Int?
+  taskId          String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  call            Call         @relation(fields: [callId], references: [id], onDelete: Cascade)
+  summary         CallSummary? @relation(fields: [summaryId], references: [id], onDelete: SetNull)
+  workspace       Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignee        User?        @relation("CallActionItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  task            Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([callId])
+  @@index([workspaceId])
+  @@index([taskId])
+  @@map("call_action_items")
+}
+
+model CallDecision {
+  id              String       @id @default(cuid())
+  callId          String
+  summaryId       String?
+  workspaceId     String
+  content         String
+  sourceTimestamp Int?
+  madeById        String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  call            Call         @relation(fields: [callId], references: [id], onDelete: Cascade)
+  summary         CallSummary? @relation(fields: [summaryId], references: [id], onDelete: SetNull)
+  workspace       Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  madeBy          User?        @relation("CallDecisionMaker", fields: [madeById], references: [id], onDelete: SetNull)
+
+  @@index([callId])
+  @@index([workspaceId])
+  @@map("call_decisions")
+}
+
+model CallTranscriptItem {
+  id          String   @id @default(cuid())
+  callId      String
+  speakerId   String?
+  speakerName String
+  text        String
+  timestamp   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  call        Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId, timestamp])
+  @@map("call_transcript_items")
+}
+
+model CallSummaryFeedback {
+  id        String      @id @default(cuid())
+  summaryId String
+  userId    String
+  rating    String
+  feedback  String?
+  createdAt DateTime    @default(now())
+
+  summary   CallSummary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  user      User        @relation("CallSummaryFeedbackUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([summaryId])
+  @@map("call_summary_feedbacks")
 }
 
 model WorkDocument {
@@ -2486,7 +2673,27 @@ enum NotificationKind {
   MEETING_CANCELLED
   MEETING_UPDATED
   CHANNEL_ACCESS_EXPIRED
+  CALL_SUMMARY_READY
+  CALL_ACTION_ITEM_ASSIGNED
   SYSTEM
+}
+
+enum CallKind {
+  AUDIO
+  VIDEO
+}
+
+enum CallSessionStatus {
+  ACTIVE
+  ENDED
+}
+
+enum CallSummaryStatus {
+  PROCESSING
+  READY
+  FAILED
+  EDITED
+  APPROVED
 }
 
 enum TaskStatus {

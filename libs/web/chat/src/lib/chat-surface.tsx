@@ -69,6 +69,8 @@ import { useHuddleSession } from './use-huddle.js';
 import { useMentionNavigation } from './use-mention-navigation.js';
 import { useMessageScrollTarget } from './use-message-scroll-target.js';
 import { useMatrix } from './matrix-provider.js';
+import { CallSummaryMessageCard } from './call-summary-message-card.js';
+
 
 /**
  * Everything the welcome block at the top of the timeline needs that the
@@ -813,6 +815,23 @@ export function ChatSurface({
       const replies = repliesByRoot.get(message.id) ?? [];
       const burst = attachmentBursts.membersByHead.get(message.id);
 
+      // Render call-summary cards in-line — they have their own layout, no
+      // need for the full ChatBubble chrome.
+      if (message.structuredEvent?.type === 'mie.call_summary' && workspaceId) {
+        const ev = message.structuredEvent;
+        return (
+          <div className="px-4 py-1">
+            <CallSummaryMessageCard
+              workspaceId={workspaceId}
+              callId={ev.callId}
+              title={ev.title}
+              durationSeconds={ev.durationSeconds}
+              participantsCount={ev.participantsCount}
+            />
+          </div>
+        );
+      }
+
       return (
         <MessageRenderer
           message={message}
@@ -1002,6 +1021,7 @@ export function ChatSurface({
       onViewContext,
       chat?.linkPreviewsEnabled,
       roomKind,
+      workspaceId,
     ],
   );
 

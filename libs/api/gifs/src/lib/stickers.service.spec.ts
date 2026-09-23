@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { StickersService } from './stickers.service.js';
 
 describe('StickersService', () => {
-  const service = new StickersService({ get: () => undefined } as never);
+  const service = new StickersService();
 
   it('returns curated sticker packs', async () => {
     const packs = await service.getPacks();

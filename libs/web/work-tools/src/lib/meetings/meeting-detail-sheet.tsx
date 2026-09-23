@@ -38,11 +38,13 @@ import {
   Pencil,
   Plus,
   ScrollText,
+  Sparkles,
   Trash2,
   TriangleAlert,
   UserPlus,
   X,
 } from 'lucide-react';
+import { CallSummaryView } from '@org/web-chat';
 import { useMemo, useState } from 'react';
 import { StatusIcon } from '../kanban/kanban-icons.js';
 import {
@@ -102,8 +104,10 @@ export function MeetingDetailSheet({
   const [decisionDraft, setDecisionDraft] = useState('');
   const [actionTitle, setActionTitle] = useState('');
   const [actionAssignee, setActionAssignee] = useState<string>('none');
+  const [activeSheetTab, setActiveSheetTab] = useState<'details' | 'summary'>('details');
 
   const meeting = query.data;
+  const latestCall = meeting?.calls?.[0] ?? null;
 
   const memberOptions: UserSelectorMember[] = useMemo(
     () =>
@@ -304,14 +308,53 @@ export function MeetingDetailSheet({
                   </a>
                 </Button>
               ) : null}
+
+              {/* Toggle tabs for Details vs AI Call Summary */}
+              <div className="flex border-t border-border pt-2 gap-2">
+                <Button
+                  variant={activeSheetTab === 'details' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex-1 text-xs h-8"
+                  onClick={() => setActiveSheetTab('details')}
+                >
+                  <ScrollText className="size-3.5 mr-1.5" /> Details
+                </Button>
+                <Button
+                  variant={activeSheetTab === 'summary' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex-1 text-xs h-8"
+                  onClick={() => setActiveSheetTab('summary')}
+                >
+                  <Sparkles className="size-3.5 mr-1.5 text-primary" /> AI Call Summary
+                </Button>
+              </div>
             </SheetHeader>
 
-            <div className="min-h-0 p-5 space-y-6 flex-1 overflow-y-auto">
-              {meeting.description ? (
-                <p className="text-sm whitespace-pre-wrap text-muted-foreground">
-                  {meeting.description}
-                </p>
-              ) : null}
+            {activeSheetTab === 'summary' ? (
+              <div className="min-h-0 flex-1 overflow-hidden">
+                {latestCall ? (
+                  <CallSummaryView
+                    workspaceId={workspaceId ?? ''}
+                    callId={latestCall.id}
+                    className="border-l-0"
+                  />
+                ) : (
+                  <div className="p-6">
+                    <EmptyState
+                      icon={<Sparkles className="size-8 text-primary" />}
+                      title="No call session yet"
+                      description="Start a call for this meeting to get AI-generated notes, decisions, and a structured summary here."
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="min-h-0 p-5 space-y-6 flex-1 overflow-y-auto">
+                {meeting.description ? (
+                  <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                    {meeting.description}
+                  </p>
+                ) : null}
 
               {meeting.agenda ? (
                 <section className="space-y-2">
@@ -648,6 +691,7 @@ export function MeetingDetailSheet({
                 </div>
               </section>
             </div>
+            )}
           </>
         )}
       </SheetContent>

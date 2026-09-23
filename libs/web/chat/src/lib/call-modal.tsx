@@ -1,6 +1,7 @@
-import { Avatar, Badge, Button } from '@org/ui';
+import { Avatar, Badge, Button, Dialog, DialogContent } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  FileText,
   Mic,
   MicOff,
   MonitorUp,
@@ -12,9 +13,14 @@ import {
   VideoOff,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { callsApi } from '@org/api-client';
+import { useCurrentWorkspace } from '@org/web-workspace';
+import { CallSummaryView } from './call-summary-view.js';
 import { useCall } from './use-call.js';
+import { useMatrix } from './matrix-provider.js';
 
 export function CallModal() {
+  const { workspaceId } = useCurrentWorkspace();
   const {
     call,
     localStream,
@@ -35,6 +41,39 @@ export function CallModal() {
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const [duration, setDuration] = useState(0);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [dbCallId, setDbCallId] = useState<string | null>(null);
+  const [postCallData, setPostCallData] = useState<{
+    workspaceId: string;
+    callId: string;
+    title: string;
+    duration: number;
+  } | null>(null);
+
+  // Sync call session with backend when connected
+  useEffect(() => {
+    let isMounted = true;
+    if (state === 'connected' && workspaceId && call && !dbCallId) {
+      callsApi
+        .startCall(workspaceId, {
+          conversationId: call.roomId,
+          title: call.remoteUserId ? `Call with ${call.remoteUserId}` : 'Team Call',
+          kind: call.kind === 'video' ? 'VIDEO' : 'AUDIO',
+        })
+        .then((res) => {
+          if (isMounted) {
+            setDbCallId(res.id);
+          }
+        })
+        .catch((err) => {
+          console.warn('[CallModal] Failed to sync call session with backend:', err);
+        });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [state, workspaceId, call, dbCallId]);
 
   // Bind local stream
   useEffect(() => {
@@ -64,7 +103,61 @@ export function CallModal() {
     return () => clearInterval(interval);
   }, [state]);
 
+  const { client } = useMatrix();
+
+  const handleHangUp = () => {
+    if (dbCallId && workspaceId) {
+      const endedCallId = dbCallId;
+      const callDuration = duration;
+      const callTitle = call?.remoteUserId ? `Call with ${call.remoteUserId}` : 'Team Call';
+      callsApi.endCall(workspaceId, endedCallId).catch((e) => console.warn(e));
+      setPostCallData({
+        workspaceId,
+        callId: endedCallId,
+        title: callTitle,
+        duration: callDuration,
+      });
+      // Post a call-summary card into the Matrix room so participants can
+      // access the notes & AI summary without leaving the channel.
+      if (client && call?.roomId) {
+        client
+          .sendStructuredMessage(call.roomId, {
+            type: 'mie.call_summary',
+            callId: endedCallId,
+            title: callTitle,
+            durationSeconds: callDuration,
+          })
+          .catch((e) => console.warn('[CallModal] Failed to post call summary card:', e));
+      }
+    }
+    hangUp();
+  };
+
+  useEffect(() => {
+    if (state === 'ended' && dbCallId && workspaceId && !postCallData) {
+      setPostCallData({
+        workspaceId,
+        callId: dbCallId,
+        title: call?.remoteUserId ? `Call with ${call.remoteUserId}` : 'Team Call',
+        duration,
+      });
+    }
+  }, [state, dbCallId, workspaceId, postCallData, call, duration]);
+
   if (!call || state === 'ended' || state === 'rejected' || state === 'failed') {
+    if (postCallData) {
+      return (
+        <Dialog open={true} onOpenChange={(open) => !open && setPostCallData(null)}>
+          <DialogContent className="max-w-4xl h-[85vh] p-0 overflow-hidden flex flex-col rounded-3xl border-border shadow-2xl">
+            <CallSummaryView
+              workspaceId={postCallData.workspaceId}
+              callId={postCallData.callId}
+              onClose={() => setPostCallData(null)}
+            />
+          </DialogContent>
+        </Dialog>
+      );
+    }
     return null;
   }
 
@@ -160,118 +253,152 @@ export function CallModal() {
   return (
     <div
       className={cn(
-        'fixed z-50 shadow-2xl rounded-3xl overflow-hidden border border-border bg-black/95 transition-all duration-300',
-        isVideo
-          ? 'bottom-6 right-6 w-96 sm:w-[480px] h-[340px] flex flex-col'
-          : 'bottom-6 right-6 w-80 p-4 flex flex-col gap-3',
+        'fixed z-50 shadow-2xl rounded-3xl overflow-hidden border border-border bg-black/95 transition-all duration-300 flex',
+        isNotesOpen
+          ? isVideo
+            ? 'bottom-6 right-6 w-[940px] max-w-[96vw] h-[520px] flex-row'
+            : 'bottom-6 right-6 w-[480px] max-w-[96vw] h-[540px] flex-col'
+          : isVideo
+          ? 'bottom-6 right-6 w-96 sm:w-[480px] h-[340px] flex-col'
+          : 'bottom-6 right-6 w-80 p-4 flex-col gap-3',
       )}
     >
-      {isVideo ? (
-        <div className="relative flex-1 w-full bg-black/90 flex items-center justify-center overflow-hidden">
-          {/* Remote Video */}
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="size-full object-cover"
-          />
-
-          {/* Fallback avatar if remote video is empty/off */}
-          {!remoteStream && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/20">
-              <Avatar className="size-16 border-2 border-border shadow-md" />
-              <span className="text-xs text-muted-foreground font-medium">
-                {call.remoteUserId || 'Connected'}
-              </span>
-            </div>
-          )}
-
-          {/* Local Video Pip */}
-          <div className="absolute top-3 right-3 w-28 h-20 rounded-xl overflow-hidden border border-border/80 bg-black/80 shadow-lg">
+      {/* Video or Voice Core Area */}
+      <div className={cn('flex flex-col', isNotesOpen && isVideo ? 'w-1/2 h-full' : 'w-full flex-1 min-h-0')}>
+        {isVideo ? (
+          <div className="relative flex-1 w-full bg-black/90 flex items-center justify-center overflow-hidden">
+            {/* Remote Video */}
             <video
-              ref={localVideoRef}
+              ref={remoteVideoRef}
               autoPlay
               playsInline
-              muted
-              className={cn('size-full object-cover', !isVideoEnabled && 'hidden')}
+              className="size-full object-cover"
             />
-            {!isVideoEnabled && (
-              <div className="size-full flex items-center justify-center bg-muted/40 text-muted-foreground">
-                <VideoOff className="size-5" />
+
+            {/* Fallback avatar if remote video is empty/off */}
+            {!remoteStream && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/20">
+                <Avatar className="size-16 border-2 border-border shadow-md" />
+                <span className="text-xs text-muted-foreground font-medium">
+                  {call.remoteUserId || 'Connected'}
+                </span>
               </div>
             )}
-          </div>
 
-          {/* Call Header badge */}
-          <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded-full border border-white/10 text-white text-xs">
-            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-mono text-[11px]">{formatDuration(duration)}</span>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Avatar className="size-10 border border-border" />
-            <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="text-xs font-semibold text-foreground truncate">
-              {call.remoteUserId || 'Voice Call'}
-            </h4>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
-              <span className="size-1.5 rounded-full bg-emerald-500" />
-              <span>{formatDuration(duration)}</span>
+            {/* Local Video Pip */}
+            <div className="absolute top-3 right-3 w-28 h-20 rounded-xl overflow-hidden border border-border/80 bg-black/80 shadow-lg">
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className={cn('size-full object-cover', !isVideoEnabled && 'hidden')}
+              />
+              {!isVideoEnabled && (
+                <div className="size-full flex items-center justify-center bg-muted/40 text-muted-foreground">
+                  <VideoOff className="size-5" />
+                </div>
+              )}
+            </div>
+
+            {/* Call Header badge */}
+            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded-full border border-white/10 text-white text-xs">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-mono text-[11px]">{formatDuration(duration)}</span>
             </div>
           </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Avatar className="size-10 border border-border" />
+              <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-semibold text-foreground truncate">
+                {call.remoteUserId || 'Voice Call'}
+              </h4>
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                <span>{formatDuration(duration)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Controls Bar */}
+        <div className={cn('flex items-center justify-center gap-2 bg-card/90 backdrop-blur-md p-3 border-t border-border', !isVideo && !isNotesOpen && 'border-none p-0 bg-transparent')}>
+          <Button
+            variant={isMuted ? 'destructive' : 'outline'}
+            size="sm"
+            className="size-9 rounded-full p-0"
+            onClick={() => void setMuted(!isMuted)}
+            title={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {isMuted ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+          </Button>
+
+          {isVideo && (
+            <Button
+              variant={!isVideoEnabled ? 'destructive' : 'outline'}
+              size="sm"
+              className="size-9 rounded-full p-0"
+              onClick={() => void setVideoEnabled(!isVideoEnabled)}
+              title={isVideoEnabled ? 'Turn camera off' : 'Turn camera on'}
+            >
+              {isVideoEnabled ? <Video className="size-4" /> : <VideoOff className="size-4" />}
+            </Button>
+          )}
+
+          {isVideo && (
+            <Button
+              variant={isScreensharing ? 'default' : 'outline'}
+              size="sm"
+              className="size-9 rounded-full p-0"
+              onClick={() => void setScreensharingEnabled(!isScreensharing)}
+              title={isScreensharing ? 'Stop sharing screen' : 'Share screen'}
+            >
+              <MonitorUp className="size-4" />
+            </Button>
+          )}
+
+          {/* Call Notes & Summary Dock Toggle */}
+          <Button
+            variant={isNotesOpen ? 'default' : 'outline'}
+            size="sm"
+            className={cn(
+              'size-9 rounded-full p-0 transition-colors',
+              isNotesOpen && 'bg-primary text-primary-foreground',
+            )}
+            onClick={() => setIsNotesOpen(!isNotesOpen)}
+            title={isNotesOpen ? 'Hide Notes & AI Summary' : 'Call Notes & AI Summary'}
+          >
+            <FileText className="size-4" />
+          </Button>
+
+          <Button
+            variant="destructive"
+            size="sm"
+            className="size-9 rounded-full p-0 bg-red-600 hover:bg-red-500"
+            onClick={handleHangUp}
+            title="End Call"
+          >
+            <PhoneOff className="size-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Live Docked Notes & Summary Panel */}
+      {isNotesOpen && workspaceId && dbCallId && (
+        <div className={cn('h-full bg-background', isVideo ? 'flex-1 border-l border-border' : 'flex-1 border-t border-border min-h-0')}>
+          <CallSummaryView
+            workspaceId={workspaceId}
+            callId={dbCallId}
+            isLive={true}
+            onClose={() => setIsNotesOpen(false)}
+          />
         </div>
       )}
-
-      {/* Action Controls Bar */}
-      <div className={cn('flex items-center justify-center gap-2 bg-card/90 backdrop-blur-md p-3 border-t border-border', !isVideo && 'border-none p-0 bg-transparent')}>
-        <Button
-          variant={isMuted ? 'destructive' : 'outline'}
-          size="sm"
-          className="size-9 rounded-full p-0"
-          onClick={() => void setMuted(!isMuted)}
-          title={isMuted ? 'Unmute' : 'Mute'}
-        >
-          {isMuted ? <MicOff className="size-4" /> : <Mic className="size-4" />}
-        </Button>
-
-        {isVideo && (
-          <Button
-            variant={!isVideoEnabled ? 'destructive' : 'outline'}
-            size="sm"
-            className="size-9 rounded-full p-0"
-            onClick={() => void setVideoEnabled(!isVideoEnabled)}
-            title={isVideoEnabled ? 'Turn camera off' : 'Turn camera on'}
-          >
-            {isVideoEnabled ? <Video className="size-4" /> : <VideoOff className="size-4" />}
-          </Button>
-        )}
-
-        {isVideo && (
-          <Button
-            variant={isScreensharing ? 'default' : 'outline'}
-            size="sm"
-            className="size-9 rounded-full p-0"
-            onClick={() => void setScreensharingEnabled(!isScreensharing)}
-            title={isScreensharing ? 'Stop sharing screen' : 'Share screen'}
-          >
-            <MonitorUp className="size-4" />
-          </Button>
-        )}
-
-        <Button
-          variant="destructive"
-          size="sm"
-          className="size-9 rounded-full p-0 bg-red-600 hover:bg-red-500"
-          onClick={hangUp}
-          title="End Call"
-        >
-          <PhoneOff className="size-4" />
-        </Button>
-      </div>
     </div>
   );
 }
+

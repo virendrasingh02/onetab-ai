@@ -64,6 +64,13 @@ export const AppEvent = {
   UserStatusChanged: 'user.status.changed',
   /** A huddle started / a participant joined or left / it ended (brief §6). */
   HuddleUpdated: 'huddle.updated',
+  CallStarted: 'call.started',
+  CallEnded: 'call.ended',
+  CallNoteUpdated: 'call.note.updated',
+  CallSummaryUpdated: 'call.summary.updated',
+  CallActionItemUpdated: 'call.action_item.updated',
+  CallDecisionUpdated: 'call.decision.updated',
+  CallSummaryShared: 'call.summary.shared',
   /**
    * Someone was @named in free text — a channel message (via the Matrix
    * bridge), a task comment, a document. Carries only resolved user ids and a
@@ -324,6 +331,59 @@ export type MeetingCancelledEvent = MeetingEventBase;
 export interface MeetingEndedEvent extends MeetingEventBase {
   /** Action items (tasks) created from the meeting by the time it ended. */
   actionItemCount: number;
+}
+
+export interface CallStartedEvent extends BaseEvent {
+  callId: string;
+  conversationId: string;
+  channelId: string | null;
+  meetingId: string | null;
+  title: string;
+  kind: string;
+}
+
+export interface CallEndedEvent extends BaseEvent {
+  callId: string;
+  conversationId: string;
+  durationSeconds: number;
+}
+
+export interface CallNoteUpdatedEvent extends BaseEvent {
+  callId: string;
+  noteId: string;
+  action: 'created' | 'updated' | 'deleted';
+}
+
+export interface CallSummaryUpdatedEvent extends BaseEvent {
+  callId: string;
+  summaryId: string;
+  status: string;
+  /** Call title — carried so notification copy doesn't need a second lookup. */
+  title?: string;
+  /** Who was on the call — who gets notified once the summary is READY. */
+  participantIds?: string[];
+}
+
+export interface CallActionItemUpdatedEvent extends BaseEvent {
+  callId: string;
+  actionItemId: string;
+  action: 'created' | 'updated' | 'deleted' | 'completed';
+  title?: string;
+  /** Present only when this update actually assigned someone. */
+  assigneeId?: string | null;
+}
+
+export interface CallDecisionUpdatedEvent extends BaseEvent {
+  callId: string;
+  decisionId: string;
+  action: 'created' | 'updated' | 'deleted';
+}
+
+export interface CallSummarySharedEvent extends BaseEvent {
+  callId: string;
+  title: string;
+  target: string;
+  recipientIds: string[];
 }
 
 export interface ChannelArchiveChangedEvent extends BaseEvent {

@@ -1,5 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
 import {
   CURATED_STICKER_PACKS,
   type StickerItem,
@@ -14,10 +13,7 @@ import {
  */
 @Injectable()
 export class StickersService {
-  private readonly logger = new Logger(StickersService.name);
   private packsCache: StickerPack[] = CURATED_STICKER_PACKS;
-
-  constructor(private readonly config: ConfigService) {}
 
   async getPacks(): Promise<StickerPack[]> {
     return this.packsCache;

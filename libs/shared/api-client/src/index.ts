@@ -60,6 +60,7 @@ export {
   aiMemoryApi,
   mcpApi,
   aiFeedbackApi,
+  callsApi,
   type AuthResponse,
   type UpdateUploadParams,
   type UploadContextParams,

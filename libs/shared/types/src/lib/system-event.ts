@@ -247,8 +247,6 @@ export function formatSystemEventFallbackText(
       return `${actorName} updated the channel description`;
     case 'permissions_changed':
       return `${actorName} changed permissions for ${targetName}`;
-    case 'conversation_created':
-      return `${actorName} started this conversation`;
     case 'conversation_archived':
       return `${actorName} archived this conversation`;
     case 'conversation_restored':

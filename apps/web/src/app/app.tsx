@@ -159,6 +159,9 @@ const ScheduleView = lazy(() =>
 const MeetingsView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.MeetingsView })),
 );
+const CallDetailPage = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.CallDetailPage })),
+);
 const WhiteboardCanvas = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.WhiteboardCanvas })),
 );
@@ -436,6 +439,7 @@ export function App() {
             <Route path="timeline" element={<ActivityTimelineView />} />
             <Route path="activity" element={<ActivityTimelineView />} />
             <Route path="meetings" element={<MeetingsView />} />
+            <Route path="calls" element={<CallDetailPage />} />
             <Route path="dms" element={<DirectMessagesPage />} />
             <Route path="dms/:peerId" element={<DirectMessagesPage />} />
             <Route path="threads" element={<ThreadsView />} />

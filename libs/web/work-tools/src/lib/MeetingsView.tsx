@@ -29,6 +29,7 @@ import {
   CalendarClock,
   Check,
   ExternalLink,
+  FileText,
   Link2,
   MoreHorizontal,
   Pencil,
@@ -377,11 +378,18 @@ function MeetingCard({
           {meeting.project ? (
             <Badge variant="outline">{meeting.project.name}</Badge>
           ) : null}
+          {meeting._count.notes > 0 ? (
+            <Badge variant="neutral" className="gap-1 text-[10px]">
+              <FileText className="size-3" />
+              {meeting._count.notes} note{meeting._count.notes === 1 ? '' : 's'}
+            </Badge>
+          ) : null}
           {attendees.length > 0 ? (
             <UserAvatarGroup users={attendees} size="xs" max={5} />
           ) : null}
           {meeting._count.actionItems > 0 ? (
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <span className="size-1 rounded-full bg-primary" />
               {meeting._count.actionItems} action item
               {meeting._count.actionItems === 1 ? '' : 's'}
             </span>
@@ -412,10 +420,16 @@ function MeetingCard({
 /** Scheduled and live meetings for the workspace, with connected meeting apps. */
 export function MeetingsView() {
   const { workspaceId } = useCurrentWorkspace();
-  const meetingsQuery = useMeetings(workspaceId, {
-    from: isoOffsetDays(-HORIZON_DAYS),
-    to: isoOffsetDays(HORIZON_DAYS),
-  });
+  // Computed once per mount — a fresh `{from, to}` object on every render
+  // would change the query key each time and refetch in a tight loop.
+  const meetingsWindow = useMemo(
+    () => ({
+      from: isoOffsetDays(-HORIZON_DAYS),
+      to: isoOffsetDays(HORIZON_DAYS),
+    }),
+    [],
+  );
+  const meetingsQuery = useMeetings(workspaceId, meetingsWindow);
   const { cancel, remove } = useMeetingMutations(workspaceId);
   const integrations = useIntegrations(workspaceId);
   const { connect, disconnect } = useIntegrationMutations(workspaceId);

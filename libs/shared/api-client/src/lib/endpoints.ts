@@ -152,6 +152,18 @@ import type {
   MeetingDecision,
   MeetingDetail,
   MeetingNote,
+  CallView,
+  CallDetailView,
+  CallNoteView,
+  CallSummaryView,
+  CallActionItemView,
+  CallDecisionView,
+  CallTranscriptItemView,
+  CallSummaryFeedbackView,
+  CallNotesAssistRequest,
+  CallNotesAssistResponse,
+  AskCallQuestionRequest,
+  AskCallQuestionResponse,
   NotificationPreference,
   PerformanceMetrics,
   PluginCredentials,
@@ -274,6 +286,20 @@ import type {
   CreateMeetingDecisionInput,
   CreateMeetingInput,
   CreateMeetingNoteInput,
+  StartCallInput,
+  UpdateCallInput,
+  CreateCallNoteInput,
+  UpdateCallNoteInput,
+  GenerateCallSummaryInput,
+  RegenerateCallSummarySectionInput,
+  UpdateCallSummaryInput,
+  CallSummaryFeedbackInput,
+  ShareCallSummaryInput,
+  CreateCallActionItemInput,
+  UpdateCallActionItemInput,
+  CreateCallDecisionInput,
+  UpdateCallDecisionInput,
+  AppendCallTranscriptInput,
   CreateModuleInput,
   CreatePinInput,
   CreateProjectInput,
@@ -3184,6 +3210,334 @@ export const huddleApi = {
   end: (workspaceId: string, id: string) =>
     request<void>(http.post(`/workspaces/${workspaceId}/huddles/${id}/end`)),
 };
+
+/** Call Sessions, Notes & AI Summaries */
+export const callsApi = {
+  list: (
+    workspaceId: string,
+    params?: {
+      conversationId?: string;
+      meetingId?: string;
+      status?: string;
+    },
+  ) =>
+    request<CallView[]>(
+      http.get(`/workspaces/${workspaceId}/calls`, { params }),
+    ),
+
+  start: (workspaceId: string, input: StartCallInput) =>
+    request<CallView>(http.post(`/workspaces/${workspaceId}/calls`, input)),
+
+  get: (workspaceId: string, callId: string) =>
+    request<CallDetailView>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}`),
+    ),
+
+  update: (workspaceId: string, callId: string, input: UpdateCallInput) =>
+    request<CallView>(
+      http.patch(`/workspaces/${workspaceId}/calls/${callId}`, input),
+    ),
+
+  end: (workspaceId: string, callId: string) =>
+    request<CallView>(
+      http.post(`/workspaces/${workspaceId}/calls/${callId}/end`),
+    ),
+
+  // Notes
+  getNotes: (workspaceId: string, callId: string) =>
+    request<CallNoteView[]>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}/notes`),
+    ),
+
+  addNote: (workspaceId: string, callId: string, input: CreateCallNoteInput) =>
+    request<CallNoteView>(
+      http.post(`/workspaces/${workspaceId}/calls/${callId}/notes`, input),
+    ),
+
+  updateNote: (
+    workspaceId: string,
+    callId: string,
+    noteId: string,
+    input: UpdateCallNoteInput,
+  ) =>
+    request<CallNoteView>(
+      http.patch(
+        `/workspaces/${workspaceId}/calls/${callId}/notes/${noteId}`,
+        input,
+      ),
+    ),
+
+  deleteNote: (workspaceId: string, callId: string, noteId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/calls/${callId}/notes/${noteId}`),
+    ),
+
+  // Summary
+  getSummary: (workspaceId: string, callId: string) =>
+    request<CallSummaryView | null>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}/summary`),
+    ),
+
+  generateSummary: (
+    workspaceId: string,
+    callId: string,
+    input?: GenerateCallSummaryInput,
+  ) =>
+    request<CallSummaryView>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/summary/generate`,
+        input || {},
+      ),
+    ),
+
+  regenerateSummary: (
+    workspaceId: string,
+    callId: string,
+    input: RegenerateCallSummarySectionInput,
+  ) =>
+    request<CallSummaryView>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/summary/regenerate`,
+        input,
+      ),
+    ),
+
+  updateSummary: (
+    workspaceId: string,
+    callId: string,
+    input: UpdateCallSummaryInput,
+  ) =>
+    request<CallSummaryView>(
+      http.patch(`/workspaces/${workspaceId}/calls/${callId}/summary`, input),
+    ),
+
+  askQuestion: (
+    workspaceId: string,
+    callId: string,
+    input: AskCallQuestionRequest,
+  ) =>
+    request<AskCallQuestionResponse>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/summary/ask`,
+        input,
+      ),
+    ),
+
+  assistNotes: (
+    workspaceId: string,
+    callId: string,
+    input: CallNotesAssistRequest,
+  ) =>
+    request<CallNotesAssistResponse>(
+      http.post(`/workspaces/${workspaceId}/calls/${callId}/ai/assist`, input),
+    ),
+
+  submitFeedback: (
+    workspaceId: string,
+    callId: string,
+    input: CallSummaryFeedbackInput,
+  ) =>
+    request<CallSummaryFeedbackView>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/summary/feedback`,
+        input,
+      ),
+    ),
+
+  shareSummary: (
+    workspaceId: string,
+    callId: string,
+    input: ShareCallSummaryInput,
+  ) =>
+    request<{ success: boolean; shareUrl: string }>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/summary/share`,
+        input,
+      ),
+    ),
+
+  // Action Items
+  listActionItems: (workspaceId: string, callId: string) =>
+    request<CallActionItemView[]>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}/action-items`),
+    ),
+
+  addActionItem: (
+    workspaceId: string,
+    callId: string,
+    input: CreateCallActionItemInput,
+  ) =>
+    request<CallActionItemView>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/action-items`,
+        input,
+      ),
+    ),
+
+  updateActionItem: (
+    workspaceId: string,
+    callId: string,
+    id: string,
+    input: UpdateCallActionItemInput,
+  ) =>
+    request<CallActionItemView>(
+      http.patch(
+        `/workspaces/${workspaceId}/calls/${callId}/action-items/${id}`,
+        input,
+      ),
+    ),
+
+  deleteActionItem: (workspaceId: string, callId: string, id: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/calls/${callId}/action-items/${id}`,
+      ),
+    ),
+
+  convertActionItemToTask: (
+    workspaceId: string,
+    callId: string,
+    id: string,
+    projectId?: string,
+  ) =>
+    request<CallActionItemView>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/action-items/${id}/convert-to-task`,
+        undefined,
+        { params: projectId ? { projectId } : undefined },
+      ),
+    ),
+
+  // Decisions
+  listDecisions: (workspaceId: string, callId: string) =>
+    request<CallDecisionView[]>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}/decisions`),
+    ),
+
+  addDecision: (
+    workspaceId: string,
+    callId: string,
+    input: CreateCallDecisionInput,
+  ) =>
+    request<CallDecisionView>(
+      http.post(`/workspaces/${workspaceId}/calls/${callId}/decisions`, input),
+    ),
+
+  updateDecision: (
+    workspaceId: string,
+    callId: string,
+    id: string,
+    input: UpdateCallDecisionInput,
+  ) =>
+    request<CallDecisionView>(
+      http.patch(
+        `/workspaces/${workspaceId}/calls/${callId}/decisions/${id}`,
+        input,
+      ),
+    ),
+
+  deleteDecision: (workspaceId: string, callId: string, id: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/calls/${callId}/decisions/${id}`,
+      ),
+    ),
+
+  // Transcript
+  getTranscript: (workspaceId: string, callId: string) =>
+    request<CallTranscriptItemView[]>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}/transcript`),
+    ),
+
+  appendTranscript: (
+    workspaceId: string,
+    callId: string,
+    input: AppendCallTranscriptInput,
+  ) =>
+    request<CallTranscriptItemView[]>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/transcript`,
+        input,
+      ),
+    ),
+
+  // Aliases for developer convenience
+  listCalls: (
+    workspaceId: string,
+    params?: {
+      conversationId?: string;
+      meetingId?: string;
+      status?: string;
+    },
+  ) =>
+    request<CallView[]>(
+      http.get(`/workspaces/${workspaceId}/calls`, { params }),
+    ),
+  getCall: (workspaceId: string, callId: string) =>
+    request<CallDetailView>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}`),
+    ),
+  startCall: (workspaceId: string, input: StartCallInput) =>
+    request<CallView>(http.post(`/workspaces/${workspaceId}/calls`, input)),
+  endCall: (workspaceId: string, callId: string) =>
+    request<CallView>(
+      http.post(`/workspaces/${workspaceId}/calls/${callId}/end`),
+    ),
+  getActionItems: (workspaceId: string, callId: string) =>
+    request<CallActionItemView[]>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}/action-items`),
+    ),
+  createActionItem: (
+    workspaceId: string,
+    callId: string,
+    input: CreateCallActionItemInput,
+  ) =>
+    request<CallActionItemView>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/action-items`,
+        input,
+      ),
+    ),
+  getDecisions: (workspaceId: string, callId: string) =>
+    request<CallDecisionView[]>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}/decisions`),
+    ),
+  createDecision: (
+    workspaceId: string,
+    callId: string,
+    input: CreateCallDecisionInput,
+  ) =>
+    request<CallDecisionView>(
+      http.post(`/workspaces/${workspaceId}/calls/${callId}/decisions`, input),
+    ),
+  getTranscripts: (workspaceId: string, callId: string) =>
+    request<CallTranscriptItemView[]>(
+      http.get(`/workspaces/${workspaceId}/calls/${callId}/transcript`),
+    ),
+  regenerateSummarySection: (
+    workspaceId: string,
+    callId: string,
+    input: RegenerateCallSummarySectionInput,
+  ) =>
+    request<CallSummaryView>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/summary/regenerate`,
+        input,
+      ),
+    ),
+  submitSummaryFeedback: (
+    workspaceId: string,
+    callId: string,
+    input: CallSummaryFeedbackInput,
+  ) =>
+    request<CallSummaryFeedbackView>(
+      http.post(
+        `/workspaces/${workspaceId}/calls/${callId}/summary/feedback`,
+        input,
+      ),
+    ),
+};
+
 
 export const gifsApi = {
   trending: (limit?: number, pos?: string) =>

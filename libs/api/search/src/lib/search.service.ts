@@ -10,7 +10,8 @@ export type SearchCategory =
   | 'people'
   | 'agents'
   | 'coworkers'
-  | 'canvases';
+  | 'canvases'
+  | 'calls';
 
 export interface SearchResultItem {
   id: string;
@@ -45,6 +46,7 @@ const CATEGORIES: SearchCategory[] = [
   'agents',
   'coworkers',
   'canvases',
+  'calls',
 ];
 
 /** Keeps one loud category from crowding out the rest in an "all" search. */
@@ -427,6 +429,77 @@ export class SearchService {
           href: `whiteboards?board=${row.id}`,
           timestamp: row.updatedAt.toISOString(),
         }));
+      }
+
+      case 'calls': {
+        const contains = { contains: query, mode: 'insensitive' as const };
+        const rows = await this.prisma.call.findMany({
+          where: {
+            workspaceId,
+            OR: [
+              { title: contains },
+              { notes: { some: { content: contains } } },
+              {
+                summary: {
+                  is: {
+                    OR: [{ overview: contains }, { rawContent: contains }],
+                  },
+                },
+              },
+              { decisions: { some: { content: contains } } },
+              {
+                actionItems: {
+                  some: {
+                    OR: [{ title: contains }, { description: contains }],
+                  },
+                },
+              },
+              { transcripts: { some: { text: contains } } },
+            ],
+          },
+          include: {
+            summary: { select: { overview: true, rawContent: true } },
+            notes: { select: { content: true }, take: 1 },
+            decisions: { select: { content: true }, take: 1 },
+            actionItems: { select: { title: true }, take: 1 },
+            transcripts: { select: { text: true }, take: 1 },
+          },
+          orderBy: { updatedAt: 'desc' },
+          take,
+        });
+
+        return rows.map((row) => {
+          // Extract a descriptive snippet
+          let snippetText = row.summary?.overview ?? row.summary?.rawContent;
+          if (!snippetText && row.notes.length > 0) {
+            snippetText = row.notes[0]?.content;
+          }
+          if (!snippetText && row.decisions.length > 0) {
+            snippetText = `Decision: ${row.decisions[0]?.content}`;
+          }
+          if (!snippetText && row.actionItems.length > 0) {
+            snippetText = `Action item: ${row.actionItems[0]?.title}`;
+          }
+          if (!snippetText && row.transcripts.length > 0) {
+            snippetText = row.transcripts[0]?.text;
+          }
+
+          return {
+            id: row.id,
+            category,
+            title: row.title,
+            snippet: snippetText ? snippet(snippetText, query) : undefined,
+            href: row.meetingId
+              ? `meetings?meetingId=${row.meetingId}`
+              : `calls?callId=${row.id}`,
+            timestamp: row.updatedAt.toISOString(),
+            metadata: {
+              status: row.status,
+              kind: row.kind,
+              meetingId: row.meetingId,
+            },
+          };
+        });
       }
     }
   }

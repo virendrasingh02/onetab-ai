@@ -457,6 +457,23 @@ export const queryKeys = {
     all: (workspaceId: string) => ['mcp', workspaceId] as const,
     connections: (workspaceId: string) => ['mcp', workspaceId, 'connections'] as const,
   },
+  calls: {
+    all: (workspaceId: string) => ['calls', workspaceId] as const,
+    list: (workspaceId: string, filters?: Record<string, unknown>) =>
+      ['calls', workspaceId, 'list', filters ?? {}] as const,
+    detail: (workspaceId: string, callId: string) =>
+      ['calls', workspaceId, 'detail', callId] as const,
+    notes: (workspaceId: string, callId: string) =>
+      ['calls', workspaceId, 'notes', callId] as const,
+    summary: (workspaceId: string, callId: string) =>
+      ['calls', workspaceId, 'summary', callId] as const,
+    actionItems: (workspaceId: string, callId: string) =>
+      ['calls', workspaceId, 'action-items', callId] as const,
+    decisions: (workspaceId: string, callId: string) =>
+      ['calls', workspaceId, 'decisions', callId] as const,
+    transcripts: (workspaceId: string, callId: string) =>
+      ['calls', workspaceId, 'transcripts', callId] as const,
+  },
 } as const;
 
 

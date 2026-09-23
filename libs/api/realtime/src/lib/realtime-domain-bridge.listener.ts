@@ -62,6 +62,97 @@ export class RealtimeDomainBridgeListener {
     });
   }
 
+  @OnEvent(AppEvent.CallStarted)
+  async onCallStarted(e: {
+    workspaceId: string;
+    actorId: string | null;
+    callId: string;
+    conversationId: string;
+    title: string;
+    kind: string;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'call.started',
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
+  @OnEvent(AppEvent.CallEnded)
+  async onCallEnded(e: {
+    workspaceId: string;
+    actorId: string | null;
+    callId: string;
+    conversationId: string;
+    durationSeconds: number;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'call.ended',
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
+  @OnEvent(AppEvent.CallNoteUpdated)
+  async onCallNoteUpdated(e: {
+    workspaceId: string;
+    actorId: string | null;
+    callId: string;
+    noteId: string;
+    action: string;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: `note.${e.action}`,
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
+  @OnEvent(AppEvent.CallSummaryUpdated)
+  async onCallSummaryUpdated(e: {
+    workspaceId: string;
+    actorId: string | null;
+    callId: string;
+    summaryId: string;
+    status: string;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: `summary.${e.status.toLowerCase()}`,
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
+  @OnEvent(AppEvent.CallActionItemUpdated)
+  async onCallActionItemUpdated(e: {
+    workspaceId: string;
+    actorId: string | null;
+    callId: string;
+    actionItemId: string;
+    action: string;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: `action_item.${e.action}`,
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
+  @OnEvent(AppEvent.CallDecisionUpdated)
+  async onCallDecisionUpdated(e: {
+    workspaceId: string;
+    actorId: string | null;
+    callId: string;
+    decisionId: string;
+    action: string;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: `decision.${e.action}`,
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
   @OnEvent(AppEvent.TaskCreated)
   async onTaskCreated(e: {
     workspaceId: string;

@@ -41,6 +41,13 @@ export {
   type SettingsUpdatedEvent,
   type AgentApprovalEntityType,
   type AgentApprovalDecidedEvent,
+  type CallStartedEvent,
+  type CallEndedEvent,
+  type CallNoteUpdatedEvent,
+  type CallSummaryUpdatedEvent,
+  type CallActionItemUpdatedEvent,
+  type CallDecisionUpdatedEvent,
+  type CallSummarySharedEvent,
 } from './lib/events.js';
 
 export {

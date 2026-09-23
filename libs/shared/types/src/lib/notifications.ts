@@ -247,7 +247,8 @@ export type SearchCategory =
   | 'people'
   | 'agents'
   | 'coworkers'
-  | 'canvases';
+  | 'canvases'
+  | 'calls';
 
 export interface SearchResultItem {
   id: string;

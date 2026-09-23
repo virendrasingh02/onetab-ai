@@ -167,4 +167,5 @@ export {
   useContextOverview,
   useContextLinkMutations,
 } from './lib/use-context-links.js';
+export { CallDetailPage } from './lib/CallDetailPage.js';
 

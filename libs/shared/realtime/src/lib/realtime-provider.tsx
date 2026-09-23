@@ -471,6 +471,8 @@ export function useRealtimeSubscription<T = any>(
   }, [bus, eventType, ...deps]);
 }
 
+export const useRealtimeListener = useRealtimeSubscription;
+
 /**
  * Access live user presence state.
  * If userId is passed, returns that user's specific presence details.

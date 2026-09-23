@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   AppEvent,
+  type CallActionItemUpdatedEvent,
+  type CallSummarySharedEvent,
+  type CallSummaryUpdatedEvent,
   type ChannelAccessExpiredEvent,
   type ChannelCreatedEvent,
   type DocumentCreatedEvent,
@@ -421,6 +424,64 @@ export class DomainEventsListener {
         ? `uploaded a new version of ${e.filename}`
         : `shared ${e.filename}`,
     });
+  }
+
+  @OnEvent(AppEvent.CallSummaryUpdated)
+  async onCallSummaryUpdated(e: CallSummaryUpdatedEvent): Promise<void> {
+    if (e.status !== 'READY' || !e.participantIds?.length) return;
+
+    for (const recipientId of new Set(e.participantIds)) {
+      if (recipientId === e.actorId) continue;
+      await this.safeNotify(() =>
+        this.notifications.create({
+          workspaceId: e.workspaceId,
+          recipientId,
+          actorId: e.actorId,
+          kind: NotificationKind.CALL_SUMMARY_READY,
+          title: `AI summary ready for "${e.title ?? 'your call'}"`,
+          deepLink: `calls?callId=${e.callId}`,
+          resourceType: 'call',
+          resourceId: e.callId,
+        }),
+      );
+    }
+  }
+
+  @OnEvent(AppEvent.CallActionItemUpdated)
+  async onCallActionItemUpdated(e: CallActionItemUpdatedEvent): Promise<void> {
+    if (!e.assigneeId || e.assigneeId === e.actorId) return;
+
+    await this.safeNotify(() =>
+      this.notifications.create({
+        workspaceId: e.workspaceId,
+        recipientId: e.assigneeId as string,
+        actorId: e.actorId,
+        kind: NotificationKind.CALL_ACTION_ITEM_ASSIGNED,
+        title: `You were assigned "${e.title ?? 'an action item'}" from a call`,
+        deepLink: `calls?callId=${e.callId}`,
+        resourceType: 'call',
+        resourceId: e.callId,
+      }),
+    );
+  }
+
+  @OnEvent(AppEvent.CallSummaryShared)
+  async onCallSummaryShared(e: CallSummarySharedEvent): Promise<void> {
+    for (const recipientId of new Set(e.recipientIds)) {
+      if (recipientId === e.actorId) continue;
+      await this.safeNotify(() =>
+        this.notifications.create({
+          workspaceId: e.workspaceId,
+          recipientId,
+          actorId: e.actorId,
+          kind: NotificationKind.CALL_SUMMARY_READY,
+          title: `A call summary was shared with you: "${e.title}"`,
+          deepLink: `calls?callId=${e.callId}`,
+          resourceType: 'call',
+          resourceId: e.callId,
+        }),
+      );
+    }
   }
 
   private async safeNotify(fn: () => Promise<unknown>): Promise<void> {

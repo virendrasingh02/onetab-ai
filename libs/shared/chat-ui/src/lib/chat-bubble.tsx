@@ -68,8 +68,6 @@ import { MarkdownMessage } from './markdown-message.js';
 import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
 import { UserProfileCard } from './user-profile-card.js';
 
-const QUICK_REACTIONS = ['👍', '❤️', '🔥'];
-
 export interface ChatBubbleProps {
   message: Message;
   isOwn: boolean;
