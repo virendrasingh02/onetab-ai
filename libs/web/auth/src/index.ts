@@ -19,6 +19,7 @@ export {
 export {
   useAccounts,
   useAddAccount,
+  useAddAccountWithMagicLink,
   useSignUpAccount,
   useSwitchAccount,
   useRemoveAccount,

@@ -20,8 +20,8 @@ CREATE INDEX IF NOT EXISTS "magic_link_tokens_userId_idx" ON "magic_link_tokens"
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "magic_link_tokens_expiresAt_idx" ON "magic_link_tokens"("expiresAt");
 
--- AddForeignKey
+-- AddForeignKey (the User model is mapped to the "users" table)
 DO $$ BEGIN
-  ALTER TABLE "magic_link_tokens" ADD CONSTRAINT "magic_link_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  ALTER TABLE "magic_link_tokens" ADD CONSTRAINT "magic_link_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;

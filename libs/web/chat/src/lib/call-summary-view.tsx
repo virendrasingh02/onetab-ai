@@ -1,9 +1,19 @@
+import { useCurrentUser } from '@org/auth';
+import type {
+  CallActionItemView,
+  CallDecisionView,
+  CallNotesAssistRequest,
+  CallSummaryStatus,
+  CallTranscriptItemView,
+} from '@org/types';
 import {
   Badge,
   Button,
+  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
   Input,
@@ -12,17 +22,21 @@ import {
   TabsList,
   TabsTrigger,
   Textarea,
+  UserAvatar,
   toast,
   useConfirm,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   AlertCircle,
   Bot,
   Check,
   CheckCircle2,
   Clock,
+  ExternalLink,
   HelpCircle,
+  Link2,
   ListTodo,
   Loader2,
   Plus,
@@ -36,16 +50,11 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import React, { useState } from 'react';
-import type {
-  CallActionItemView,
-  CallDecisionView,
-  CallTranscriptItemView,
-} from '@org/types';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
-  useCall,
   useCallActionItems,
   useCallDecisions,
+  useCallDetail,
   useCallMutations,
   useCallNotes,
   useCallNotesAutosave,
@@ -59,9 +68,63 @@ export interface CallSummaryViewProps {
   callId: string;
   onClose?: () => void;
   className?: string;
+  /** Docked beside a live call rather than opened afterwards. */
   isLive?: boolean;
 }
 
+type Tab = 'summary' | 'notes' | 'actions' | 'decisions' | 'transcript';
+type Section = 'overview' | 'keyPoints' | 'openQuestions' | 'followUps';
+
+const STATUS_BADGE: Record<
+  CallSummaryStatus,
+  { label: string; variant: 'success' | 'destructive' | 'neutral' | 'primary' }
+> = {
+  PROCESSING: { label: 'Generating', variant: 'neutral' },
+  READY: { label: 'AI summary', variant: 'primary' },
+  EDITED: { label: 'Edited', variant: 'neutral' },
+  APPROVED: { label: 'Approved', variant: 'success' },
+  FAILED: { label: 'Failed', variant: 'destructive' },
+};
+
+const ASSIST_LABEL: Record<CallNotesAssistRequest['action'], string> = {
+  cleanup: 'Notes cleaned up',
+  format: 'Notes formatted',
+  summarize: 'Notes summarized',
+  generate_followup: 'Follow-up drafted',
+  extract_actions: 'Action items extracted',
+  extract_decisions: 'Decisions extracted',
+};
+
+const clock = (secs: number) =>
+  `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, '0')}`;
+
+const errorMessage = (err: unknown, fallback: string) =>
+  err instanceof Error && err.message ? err.message : fallback;
+
+function SectionHeading({
+  icon,
+  children,
+  actions,
+}: {
+  icon?: ReactNode;
+  children: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+        {icon}
+        {children}
+      </h4>
+      {actions ? <div className="flex items-center gap-1">{actions}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * Notes, AI summary, decisions, action items and transcript for one call —
+ * docked beside the live call, in the post-call dialog, and on `/calls`.
+ */
 export function CallSummaryView({
   workspaceId,
   callId,
@@ -71,13 +134,16 @@ export function CallSummaryView({
 }: CallSummaryViewProps) {
   useCallRealtimeSync(workspaceId, callId);
 
-  const { data: call } = useCall(workspaceId, callId);
-  const { data: notes } = useCallNotes(workspaceId, callId);
+  const currentUser = useCurrentUser();
+  const { slug } = useCurrentWorkspace();
+  const { data: call } = useCallDetail(workspaceId, callId);
+  const notesQuery = useCallNotes(workspaceId, callId);
   const { data: summary, isLoading: isSummaryLoading } = useCallSummary(workspaceId, callId);
   const { data: actionItems = [] } = useCallActionItems(workspaceId, callId);
   const { data: decisions = [] } = useCallDecisions(workspaceId, callId);
   const { data: transcripts = [] } = useCallTranscripts(workspaceId, callId);
 
+  const mutations = useCallMutations(workspaceId);
   const {
     generateSummary,
     regenerateSummarySection,
@@ -92,220 +158,275 @@ export function CallSummaryView({
     convertActionItemToTask,
     createDecision,
     deleteDecision,
-  } = useCallMutations(workspaceId);
+  } = mutations;
 
   const confirm = useConfirm();
+  const [activeTab, setActiveTab] = useState<Tab>('summary');
 
-  // Active tab
-  const [activeTab, setActiveTab] = useState<'summary' | 'notes' | 'actions' | 'decisions' | 'transcript'>('summary');
-
-  // Notes autosave
-  const activeNote = notes?.[0];
-  const {
-    content: noteContent,
-    updateContent: updateNoteContent,
-    status: noteStatus,
-    retry: retryNoteSave,
-  } = useCallNotesAutosave({
+  // Each person edits their own running note; everyone else's is read-only.
+  const myNote = notesQuery.data?.find((note) => note.authorId === currentUser?.id);
+  const otherNotes = (notesQuery.data ?? []).filter(
+    (note) => note.authorId !== currentUser?.id && note.content.trim(),
+  );
+  const notes = useCallNotesAutosave({
     workspaceId,
     callId,
-    initialContent: activeNote?.content ?? '',
+    savedContent: myNote?.content,
+    isLoaded: notesQuery.isSuccess,
   });
 
-  // Notes AI assistant prompt state
-  const [isAssistLoading, setIsAssistLoading] = useState(false);
-
-  // Ask about this call Q&A state
-  const [askDrawerOpen, setAskDrawerOpen] = useState(false);
-  const [questionInput, setQuestionInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<Array<{ q: string; a: string }>>([]);
-
-  // Transcript search filter
+  const [askOpen, setAskOpen] = useState(false);
+  const [question, setQuestion] = useState('');
+  const [answers, setAnswers] = useState<Array<{ q: string; a: string }>>([]);
   const [transcriptQuery, setTranscriptQuery] = useState('');
-
-  // New action item state
   const [newActionTitle, setNewActionTitle] = useState('');
-
-  // New decision state
   const [newDecisionText, setNewDecisionText] = useState('');
-
-  // Feedback state
-  const [feedbackSent, setFeedbackSent] = useState<'helpful' | 'unhelpful' | null>(null);
-
-  // Edit overview inline
-  const [isEditingOverview, setIsEditingOverview] = useState(false);
+  const [feedback, setFeedback] = useState<'HELPFUL' | 'NOT_HELPFUL' | null>(null);
+  const [editingOverview, setEditingOverview] = useState(false);
   const [overviewDraft, setOverviewDraft] = useState('');
 
-  const handleSaveOverview = async (newOverview: string) => {
-    try {
-      await updateSummary.mutateAsync({
-        callId,
-        input: { overview: newOverview },
+  const humanEdited = summary?.status === 'EDITED' || summary?.status === 'APPROVED';
+
+  const handleRegenerate = async (section: 'all' | Section) => {
+    // Only a person's edits are worth a confirmation — replacing the model's
+    // own previous answer loses nothing.
+    if (humanEdited) {
+      const ok = await confirm({
+        title: section === 'all' ? 'Regenerate the summary?' : 'Regenerate this section?',
+        description:
+          'This summary was edited by hand. Regenerating replaces those edits with a fresh AI version.',
+        confirmLabel: 'Regenerate',
       });
-      setIsEditingOverview(false);
-      toast.success('Overview updated.');
-    } catch {
-      toast.error('Failed to update overview.');
+      if (!ok) return;
     }
-  };
-
-  const handleNotesAssist = async (
-    action: 'summarize' | 'cleanup' | 'extract_actions' | 'extract_decisions' | 'generate_followup' | 'format',
-  ) => {
-    if (!noteContent.trim()) {
-      toast.error('Write some notes first before running AI actions.');
-      return;
-    }
-    setIsAssistLoading(true);
-    try {
-      const resp = await assistNotes.mutateAsync({
-        callId,
-        input: { notes: noteContent, action },
-      });
-      updateNoteContent(resp.result);
-      toast.success(`Notes improved with ${action.replace('_', ' ')}!`);
-    } catch {
-      toast.error('Failed to run AI assistance on notes.');
-    } finally {
-      setIsAssistLoading(false);
-    }
-  };
-
-  const handleAskQuestion = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!questionInput.trim() || askQuestion.isPending) return;
-
-    const currentQ = questionInput.trim();
-    setQuestionInput('');
-    try {
-      const resp = await askQuestion.mutateAsync({
-        callId,
-        input: { question: currentQ },
-      });
-      setChatHistory((prev) => [...prev, { q: currentQ, a: resp.answer }]);
-    } catch {
-      toast.error('Failed to get an answer.');
-    }
-  };
-
-  const handleRegenerateSection = async (
-    section:
-      | 'all'
-      | 'overview'
-      | 'keyPoints'
-      | 'decisions'
-      | 'actionItems'
-      | 'openQuestions'
-      | 'followUps',
-  ) => {
-    const ok = await confirm({
-      title: `Regenerate ${section}?`,
-      description: `This will query the AI to recreate the "${section}" section. Any manual changes in this section will be replaced.`,
-      confirmLabel: 'Regenerate',
-    });
-    if (!ok) return;
-
     try {
       await regenerateSummarySection.mutateAsync({
         callId,
-        input: { section, confirmOverwrite: true },
+        input: { section, confirmOverwrite: humanEdited },
       });
-      toast.success(`Regenerated ${section}!`);
-    } catch {
-      toast.error('Regeneration failed.');
+      toast.success(section === 'all' ? 'Summary regenerated' : 'Section regenerated');
+    } catch (err) {
+      toast.error(errorMessage(err, 'Regeneration failed.'));
+    }
+  };
+
+  const handleSaveOverview = async () => {
+    try {
+      await updateSummary.mutateAsync({ callId, input: { overview: overviewDraft } });
+      setEditingOverview(false);
+      toast.success('Overview updated');
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not update the overview.'));
+    }
+  };
+
+  const handleApprove = async () => {
+    try {
+      await updateSummary.mutateAsync({ callId, input: { status: 'APPROVED' } });
+      toast.success('Summary approved');
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not approve the summary.'));
+    }
+  };
+
+  const handleNotesAssist = async (action: CallNotesAssistRequest['action']) => {
+    const before = notes.content;
+    if (!before.trim()) {
+      toast.error('Write some notes first.');
+      return;
+    }
+    try {
+      const response = await assistNotes.mutateAsync({
+        callId,
+        input: { notes: before, action },
+      });
+
+      // Extraction turns lines into real items; it never overwrites the notes.
+      if (action === 'extract_actions') {
+        const items = response.actionItems ?? [];
+        for (const item of items) {
+          await createActionItem.mutateAsync({
+            callId,
+            input: { title: item.title, priority: 'MEDIUM' },
+          });
+        }
+        toast.success(
+          items.length
+            ? `Added ${items.length} action ${items.length === 1 ? 'item' : 'items'}`
+            : 'No action items found in your notes',
+        );
+        if (items.length) setActiveTab('actions');
+        return;
+      }
+      if (action === 'extract_decisions') {
+        const found = response.decisions ?? [];
+        for (const content of found) {
+          await createDecision.mutateAsync({ callId, input: { content } });
+        }
+        toast.success(
+          found.length
+            ? `Recorded ${found.length} ${found.length === 1 ? 'decision' : 'decisions'}`
+            : 'No decisions found in your notes',
+        );
+        if (found.length) setActiveTab('decisions');
+        return;
+      }
+
+      notes.updateContent(response.result);
+      toast.success(ASSIST_LABEL[action], {
+        action: { label: 'Undo', onClick: () => notes.updateContent(before) },
+      });
+    } catch (err) {
+      toast.error(errorMessage(err, 'The AI assistant is unavailable right now.'));
+    }
+  };
+
+  const handleAsk = async (event?: FormEvent) => {
+    event?.preventDefault();
+    const q = question.trim();
+    if (!q || askQuestion.isPending) return;
+    setQuestion('');
+    try {
+      const response = await askQuestion.mutateAsync({ callId, input: { question: q } });
+      setAnswers((prev) => [...prev, { q, a: response.answer }]);
+    } catch (err) {
+      setQuestion(q);
+      toast.error(errorMessage(err, 'Could not get an answer.'));
     }
   };
 
   const handleCreateAction = async () => {
-    if (!newActionTitle.trim()) return;
+    const title = newActionTitle.trim();
+    if (!title) return;
     try {
-      await createActionItem.mutateAsync({
-        callId,
-        input: {
-          title: newActionTitle.trim(),
-          priority: 'MEDIUM',
-        },
-      });
+      await createActionItem.mutateAsync({ callId, input: { title, priority: 'MEDIUM' } });
       setNewActionTitle('');
-      toast.success('Action item added.');
-    } catch {
-      toast.error('Failed to add action item.');
-    }
-  };
-
-  const handleShare = async (target: 'participants' | 'workspace') => {
-    try {
-      await shareSummary.mutateAsync({
-        callId,
-        input: { target, postMessageToChat: false },
-      });
-      toast.success(
-        target === 'workspace'
-          ? 'Notified the workspace about this call summary.'
-          : 'Notified the call participants.',
-      );
-    } catch {
-      toast.error('Failed to share this summary.');
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not add the action item.'));
     }
   };
 
   const handleCreateDecision = async () => {
-    if (!newDecisionText.trim()) return;
+    const content = newDecisionText.trim();
+    if (!content) return;
     try {
-      await createDecision.mutateAsync({
-        callId,
-        input: { content: newDecisionText.trim() },
-      });
+      await createDecision.mutateAsync({ callId, input: { content } });
       setNewDecisionText('');
-      toast.success('Decision recorded.');
-    } catch {
-      toast.error('Failed to record decision.');
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not record the decision.'));
     }
   };
 
-  const filteredTranscripts = transcripts.filter(
-    (t) =>
-      !transcriptQuery.trim() ||
-      t.text.toLowerCase().includes(transcriptQuery.toLowerCase()) ||
-      t.speakerName?.toLowerCase().includes(transcriptQuery.toLowerCase()),
-  );
+  const handleConvert = async (item: CallActionItemView) => {
+    try {
+      await convertActionItemToTask.mutateAsync({ callId, itemId: item.id });
+      toast.success('Added to tasks', { description: item.title });
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not create the task.'));
+    }
+  };
+
+  const handleDeleteAction = async (item: CallActionItemView) => {
+    const ok = await confirm({
+      title: 'Delete this action item?',
+      description: item.taskId
+        ? `"${item.title}" will be removed from this call. The task it created stays on the board.`
+        : `"${item.title}" will be removed from this call.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+    deleteActionItem.mutate({ callId, itemId: item.id });
+  };
+
+  const handleDeleteDecision = async (decision: CallDecisionView) => {
+    const ok = await confirm({
+      title: 'Delete this decision?',
+      description: `"${decision.content}" will be removed from this call.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+    deleteDecision.mutate({ callId, decisionId: decision.id });
+  };
+
+  const handleShare = async (target: 'participants' | 'workspace') => {
+    try {
+      const result = await shareSummary.mutateAsync({
+        callId,
+        input: { target, postMessageToChat: false },
+      });
+      toast.success(
+        result.recipientCount > 0
+          ? `Shared with ${result.recipientCount} ${result.recipientCount === 1 ? 'person' : 'people'}`
+          : target === 'workspace'
+            ? 'Shared with the workspace'
+            : 'Everyone on the call can already see it',
+      );
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not share the summary.'));
+    }
+  };
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/w/${slug}/calls?callId=${callId}`;
+    void navigator.clipboard
+      ?.writeText(url)
+      .then(() => toast.success('Link copied'))
+      .catch(() => toast.error('Could not copy the link.'));
+  };
+
+  const handleFeedback = (rating: 'HELPFUL' | 'NOT_HELPFUL') => {
+    setFeedback(rating);
+    submitSummaryFeedback.mutate(
+      { callId, input: { rating } },
+      {
+        onSuccess: () => toast.success('Thanks for the feedback'),
+        onError: () => setFeedback(null),
+      },
+    );
+  };
+
+  const filteredTranscripts = useMemo(() => {
+    const q = transcriptQuery.trim().toLowerCase();
+    return q
+      ? transcripts.filter(
+          (t) => t.text.toLowerCase().includes(q) || t.speakerName.toLowerCase().includes(q),
+        )
+      : transcripts;
+  }, [transcripts, transcriptQuery]);
+
+  const assistBusy = assistNotes.isPending || createActionItem.isPending || createDecision.isPending;
+  const statusBadge = summary ? STATUS_BADGE[summary.status] : null;
 
   return (
-    <div className={cn('flex flex-col h-full bg-background border-l border-border select-text', className)}>
+    <div className={cn('flex flex-col h-full min-h-0 bg-background select-text', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/60 backdrop-blur-xs">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-surface">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-text shrink-0">
             <Sparkles className="size-4" />
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-foreground truncate">
-              {call?.title || 'Call Notes & Summary'}
+              {call?.title || 'Call notes & summary'}
             </h3>
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               {isLive ? (
-                <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Meeting
+                <span className="flex items-center gap-1.5 font-medium text-success-text">
+                  <span className="size-1.5 rounded-full bg-success animate-pulse" />
+                  Live call
                 </span>
-              ) : (
-                <span>Recorded Call Session</span>
-              )}
-              {summary?.status && (
-                <Badge
-                  variant={
-                    summary.status === 'READY' ||
-                    summary.status === 'EDITED' ||
-                    summary.status === 'APPROVED'
-                      ? 'success'
-                      : summary.status === 'FAILED'
-                      ? 'destructive'
-                      : 'neutral'
-                  }
-                  className="text-[10px] py-0"
-                >
-                  {summary.status}
-                </Badge>
+              ) : call?.endedAt ? (
+                <span>
+                  {new Date(call.startedAt).toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                </span>
+              ) : null}
+              {statusBadge && (
+                <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
               )}
             </div>
           </div>
@@ -319,188 +440,232 @@ export function CallSummaryView({
                 size="sm"
                 className="text-xs gap-1.5 h-8"
                 disabled={shareSummary.isPending}
-                title="Share this call summary"
               >
                 <Share2 className="size-3.5" />
                 <span className="hidden sm:inline">Share</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem onSelect={() => void handleShare('participants')}>
-                Notify call participants
+                Notify people on the call
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => void handleShare('workspace')}>
-                Notify the whole workspace
+                Share with the workspace
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={handleCopyLink}>
+                <Link2 className="mr-2 size-4" />
+                Copy link
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Button
-            variant="outline"
+            variant={askOpen ? 'secondary' : 'outline'}
             size="sm"
-            onClick={() => setAskDrawerOpen(!askDrawerOpen)}
+            onClick={() => setAskOpen((open) => !open)}
             className="text-xs gap-1.5 h-8"
-            title="Ask anything grounded in this call"
+            aria-pressed={askOpen}
           >
-            <Bot className="size-3.5 text-primary" />
+            <Bot className="size-3.5" />
             <span className="hidden sm:inline">Ask AI</span>
           </Button>
 
           {onClose && (
-            <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close notes">
+            <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close">
               <X className="size-4" />
             </Button>
           )}
         </div>
       </div>
 
-      {/* Main Tabs Header */}
-      <div className="px-4 pt-2 border-b border-border bg-card/20">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList className="grid grid-cols-5 h-8 bg-muted/40 p-0.5 rounded-lg text-xs">
-            <TabsTrigger value="summary" className="py-1">
-              Summary
-            </TabsTrigger>
-            <TabsTrigger value="notes" className="py-1">
+      {/* Tabs */}
+      <div className="px-4 pt-2 border-b border-border">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Tab)}>
+          <TabsList className="grid grid-cols-5 h-8 text-xs">
+            <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsTrigger value="notes" className="gap-1">
               Notes
-              {noteStatus === 'saving' && <Loader2 className="size-2.5 animate-spin ml-1 text-primary" />}
+              {notes.status === 'saving' && <Loader2 className="size-2.5 animate-spin" />}
             </TabsTrigger>
-            <TabsTrigger value="actions" className="py-1">
+            <TabsTrigger value="actions" className="gap-1">
               Actions
-              {actionItems.length > 0 && <span className="ml-1 text-[10px] opacity-70">({actionItems.length})</span>}
+              {actionItems.length > 0 && (
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {actionItems.length}
+                </span>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="decisions" className="py-1">
+            <TabsTrigger value="decisions" className="gap-1">
               Decisions
-              {decisions.length > 0 && <span className="ml-1 text-[10px] opacity-70">({decisions.length})</span>}
+              {decisions.length > 0 && (
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {decisions.length}
+                </span>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="transcript" className="py-1">
-              Transcript
-            </TabsTrigger>
+            <TabsTrigger value="transcript">Transcript</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
-      {/* Main Tab Contents */}
       <div className="flex-1 overflow-y-auto min-h-0 relative">
-        {/* TAB 1: SUMMARY */}
+        {/* SUMMARY */}
         {activeTab === 'summary' && (
           <div className="p-4 space-y-6">
             {!summary && isSummaryLoading ? (
-              <div className="flex flex-col items-center justify-center p-12 space-y-3">
+              <div className="flex flex-col items-center justify-center p-12 gap-3">
                 <Spinner />
-                <p className="text-xs text-muted-foreground">Loading AI summary...</p>
+                <p className="text-xs text-muted-foreground">Loading summary…</p>
               </div>
             ) : !summary ? (
               <EmptyState
-                icon={<Sparkles className="size-8 text-primary" />}
-                title="No summary generated yet"
-                description="Generate an AI-powered structured summary with decisions, action items, and key takeaways."
+                icon={<Sparkles className="size-8 text-primary-text" />}
+                title={isLive ? 'The summary is written when the call ends' : 'No summary yet'}
+                description="Decisions, action items and key points are extracted from the call's notes and transcript."
                 action={
-                  <Button
-                    onClick={() => generateSummary.mutate(callId)}
-                    disabled={generateSummary.isPending}
-                    className="gap-1.5 text-xs"
-                  >
-                    {generateSummary.isPending ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
+                  isLive ? undefined : (
+                    <Button
+                      onClick={() => generateSummary.mutate(callId)}
+                      loading={generateSummary.isPending}
+                      className="gap-1.5 text-xs"
+                    >
                       <Sparkles className="size-4" />
-                    )}
-                    Generate AI Summary
-                  </Button>
+                      Generate summary
+                    </Button>
+                  )
                 }
               />
             ) : summary.status === 'PROCESSING' ? (
-              <div className="p-8 flex flex-col items-center justify-center space-y-4 border border-border/80 rounded-2xl bg-card/40">
-                <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary animate-pulse">
-                  <Sparkles className="size-5" />
-                </div>
+              <div className="p-8 flex flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-surface">
+                <Spinner />
                 <div className="text-center space-y-1">
-                  <h4 className="text-sm font-semibold">Generating AI Call Summary...</h4>
+                  <h4 className="text-sm font-semibold">Writing the summary…</h4>
                   <p className="text-xs text-muted-foreground max-w-sm">
-                    Analyzing transcript, agenda, and participant notes to extract structured insights and action items.
+                    Reading the notes and transcript for decisions, action items and key points.
+                    This usually takes a few seconds.
                   </p>
                 </div>
-                <Spinner />
+              </div>
+            ) : summary.status === 'FAILED' ? (
+              <div className="p-6 flex flex-col items-center gap-3 rounded-2xl border border-destructive/25 bg-destructive/5 text-center">
+                <AlertCircle className="size-6 text-destructive-text" />
+                <div className="space-y-1">
+                  <h4 className="text-sm font-semibold">The summary could not be generated</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {summary.failureReason || 'Something went wrong while writing it.'}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => generateSummary.mutate(callId)}
+                  loading={generateSummary.isPending}
+                  className="gap-1.5 text-xs"
+                >
+                  <RefreshCw className="size-3.5" />
+                  Try again
+                </Button>
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Section: Overview */}
-                <div className="p-4 rounded-xl border border-border bg-card/30 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Sparkles className="size-3.5 text-primary" /> Overview
-                    </h4>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => {
-                          setOverviewDraft(summary.overview || '');
-                          setIsEditingOverview(!isEditingOverview);
-                        }}
-                        className="text-[11px] h-6 px-2 text-muted-foreground hover:text-foreground"
-                      >
-                        {isEditingOverview ? 'Cancel' : 'Edit'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => handleRegenerateSection('overview')}
-                        disabled={regenerateSummarySection.isPending}
-                        className="text-[11px] h-6 px-2 text-primary"
-                        title="Regenerate Overview"
-                      >
-                        <RefreshCw className={cn('size-3', regenerateSummarySection.isPending && 'animate-spin')} />
-                      </Button>
-                    </div>
+                {summary.failureReason ? (
+                  <div className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning-text">
+                    <AlertCircle className="size-4 shrink-0 mt-px" />
+                    <span className="flex-1">{summary.failureReason}</span>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      className="h-6 px-2 text-warning-text hover:text-warning-text"
+                      onClick={() => void handleRegenerate('all')}
+                      loading={regenerateSummarySection.isPending}
+                    >
+                      Regenerate
+                    </Button>
                   </div>
+                ) : null}
 
-                  {isEditingOverview ? (
+                {/* Overview */}
+                <div className="p-4 rounded-xl border border-border bg-surface space-y-2">
+                  <SectionHeading
+                    icon={<Sparkles className="size-3.5 text-primary-text" />}
+                    actions={
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => {
+                            setOverviewDraft(summary.overview ?? '');
+                            setEditingOverview((editing) => !editing);
+                          }}
+                          className="h-6 px-2 text-[11px] text-muted-foreground"
+                        >
+                          {editingOverview ? 'Cancel' : 'Edit'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => void handleRegenerate('overview')}
+                          disabled={regenerateSummarySection.isPending}
+                          className="h-6 px-2 text-muted-foreground"
+                          aria-label="Regenerate overview"
+                        >
+                          <RefreshCw
+                            className={cn(
+                              'size-3',
+                              regenerateSummarySection.isPending && 'animate-spin',
+                            )}
+                          />
+                        </Button>
+                      </>
+                    }
+                  >
+                    Overview
+                  </SectionHeading>
+
+                  {editingOverview ? (
                     <div className="space-y-2 pt-1">
                       <Textarea
                         value={overviewDraft}
                         onChange={(e) => setOverviewDraft(e.target.value)}
                         className="text-xs min-h-[80px]"
+                        autoFocus
                       />
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end">
                         <Button
                           size="xs"
-                          onClick={() => handleSaveOverview(overviewDraft)}
-                          className="text-xs"
+                          onClick={() => void handleSaveOverview()}
+                          loading={updateSummary.isPending}
                         >
-                          Save Overview
+                          Save
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-foreground/90 leading-relaxed">
-                      {summary.overview}
-                    </p>
+                    <p className="text-xs text-foreground leading-relaxed">{summary.overview}</p>
                   )}
                 </div>
 
-                {/* Section: Key Points */}
-                {summary.keyPoints && summary.keyPoints.length > 0 && (
+                {summary.keyPoints.length > 0 && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Key Discussion Points
-                      </h4>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => handleRegenerateSection('keyPoints')}
-                        disabled={regenerateSummarySection.isPending}
-                        className="text-[11px] h-6 px-2 text-primary"
-                        title="Regenerate Key Points"
-                      >
-                        <RefreshCw className={cn('size-3', regenerateSummarySection.isPending && 'animate-spin')} />
-                      </Button>
-                    </div>
-                    <ul className="space-y-1.5 pl-1">
-                      {summary.keyPoints.map((point: string, idx: number) => (
-                        <li key={idx} className="flex items-start gap-2 text-xs text-foreground/90">
+                    <SectionHeading
+                      actions={
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => void handleRegenerate('keyPoints')}
+                          disabled={regenerateSummarySection.isPending}
+                          className="h-6 px-2 text-muted-foreground"
+                          aria-label="Regenerate key points"
+                        >
+                          <RefreshCw className="size-3" />
+                        </Button>
+                      }
+                    >
+                      Key points
+                    </SectionHeading>
+                    <ul className="space-y-1.5">
+                      {summary.keyPoints.map((point, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-xs text-foreground">
                           <span className="size-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                           <span className="leading-relaxed">{point}</span>
                         </li>
@@ -509,125 +674,173 @@ export function CallSummaryView({
                   </div>
                 )}
 
-                {/* Section: Decisions */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <CheckCircle2 className="size-3.5 text-emerald-500" /> Decisions ({decisions.length})
-                    </h4>
-                    <Button variant="ghost" size="xs" onClick={() => setActiveTab('decisions')} className="text-xs text-primary">
-                      Manage
-                    </Button>
-                  </div>
+                  <SectionHeading
+                    icon={<CheckCircle2 className="size-3.5 text-success-text" />}
+                    actions={
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setActiveTab('decisions')}
+                        className="h-6 px-2 text-xs"
+                      >
+                        Manage
+                      </Button>
+                    }
+                  >
+                    Decisions ({decisions.length})
+                  </SectionHeading>
                   {decisions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">No decisions captured yet.</p>
+                    <p className="text-xs text-muted-foreground">No decisions captured.</p>
                   ) : (
-                    <div className="space-y-2">
-                      {decisions.map((d: CallDecisionView) => (
-                        <div key={d.id} className="p-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-foreground flex items-start justify-between">
-                          <span>{d.content}</span>
-                        </div>
+                    <ul className="space-y-2">
+                      {decisions.map((d) => (
+                        <li
+                          key={d.id}
+                          className="p-2.5 rounded-lg border border-success/25 bg-success/10 text-xs text-foreground"
+                        >
+                          {d.content}
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   )}
                 </div>
 
-                {/* Section: Action Items */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <ListTodo className="size-3.5 text-primary" /> Action Items ({actionItems.length})
-                    </h4>
-                    <Button variant="ghost" size="xs" onClick={() => setActiveTab('actions')} className="text-xs text-primary">
-                      Manage
-                    </Button>
-                  </div>
+                  <SectionHeading
+                    icon={<ListTodo className="size-3.5 text-primary-text" />}
+                    actions={
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setActiveTab('actions')}
+                        className="h-6 px-2 text-xs"
+                      >
+                        Manage
+                      </Button>
+                    }
+                  >
+                    Action items ({actionItems.length})
+                  </SectionHeading>
                   {actionItems.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">No action items yet.</p>
+                    <p className="text-xs text-muted-foreground">No action items.</p>
                   ) : (
                     <div className="space-y-2">
-                      {actionItems.map((item: CallActionItemView) => (
-                        <div key={item.id} className="p-2.5 rounded-lg border border-border bg-card/40 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={item.status === 'DONE'}
-                              onChange={(e) =>
-                                updateActionItem.mutate({
-                                  callId,
-                                  itemId: item.id,
-                                  input: { status: e.target.checked ? 'DONE' : 'TODO' },
-                                })
-                              }
-                              className="rounded border-border text-primary focus:ring-primary size-3.5"
-                            />
-                            <span className={cn('truncate', item.status === 'DONE' && 'line-through text-muted-foreground')}>
-                              {item.title}
-                            </span>
-                          </div>
-                          {item.taskId ? (
-                            <Badge variant="outline" className="text-[10px] text-emerald-600">
-                              Task Linked
-                            </Badge>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              onClick={() => convertActionItemToTask.mutate({ callId, itemId: item.id })}
-                              className="text-[10px] h-6 px-1.5 text-primary"
-                              title="Convert to Workspace Task"
-                            >
-                              Convert to Task
-                            </Button>
-                          )}
-                        </div>
+                      {actionItems.map((item) => (
+                        <ActionItemRow
+                          key={item.id}
+                          item={item}
+                          compact
+                          onToggle={(done) =>
+                            updateActionItem.mutate({
+                              callId,
+                              itemId: item.id,
+                              input: { status: done ? 'DONE' : 'TODO' },
+                            })
+                          }
+                          onConvert={() => void handleConvert(item)}
+                          converting={
+                            convertActionItemToTask.isPending &&
+                            convertActionItemToTask.variables?.itemId === item.id
+                          }
+                        />
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Section: Open Questions & Follow-ups */}
-                {Array.isArray(summary.openQuestions) && summary.openQuestions.length > 0 && (
+                {summary.openQuestions.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <HelpCircle className="size-3.5 text-amber-500" /> Open Questions
-                    </h4>
+                    <SectionHeading icon={<HelpCircle className="size-3.5 text-warning-text" />}>
+                      Open questions
+                    </SectionHeading>
                     <ul className="space-y-1 pl-4 list-disc text-xs text-foreground">
-                      {summary.openQuestions.map((q: string, idx: number) => (
+                      {summary.openQuestions.map((q, idx) => (
                         <li key={idx}>{q}</li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                {/* Summary Feedback Footer */}
-                <div className="pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Was this AI summary helpful?</span>
+                {summary.followUps.length > 0 && (
+                  <div className="space-y-2">
+                    <SectionHeading>Follow-ups</SectionHeading>
+                    <ul className="space-y-1 pl-4 list-disc text-xs text-foreground">
+                      {summary.followUps.map((f, idx) => (
+                        <li key={idx}>{f}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {summary.importantLinks.length > 0 && (
+                  <div className="space-y-2">
+                    <SectionHeading>Links</SectionHeading>
+                    <ul className="space-y-1 text-xs">
+                      {summary.importantLinks
+                        .filter((link) => /^https?:\/\//i.test(link.url))
+                        .map((link) => (
+                          <li key={link.url}>
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-primary-text hover:underline"
+                            >
+                              {link.title}
+                              <ExternalLink className="size-3" />
+                            </a>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
+                    <span className="mr-1">Was this summary helpful?</span>
                     <Button
-                      variant={feedbackSent === 'helpful' ? 'default' : 'ghost'}
+                      variant={feedback === 'HELPFUL' ? 'secondary' : 'ghost'}
                       size="icon-sm"
-                      onClick={() => {
-                        submitSummaryFeedback.mutate({ callId, input: { rating: 'HELPFUL' } });
-                        setFeedbackSent('helpful');
-                        toast.success('Thanks for your feedback!');
-                      }}
-                      title="Helpful"
+                      onClick={() => handleFeedback('HELPFUL')}
+                      aria-label="Helpful"
+                      aria-pressed={feedback === 'HELPFUL'}
                     >
                       <ThumbsUp className="size-3.5" />
                     </Button>
                     <Button
-                      variant={feedbackSent === 'unhelpful' ? 'destructive' : 'ghost'}
+                      variant={feedback === 'NOT_HELPFUL' ? 'secondary' : 'ghost'}
                       size="icon-sm"
-                      onClick={() => {
-                        submitSummaryFeedback.mutate({ callId, input: { rating: 'NOT_HELPFUL' } });
-                        setFeedbackSent('unhelpful');
-                        toast.info('Thanks, we will improve future summaries.');
-                      }}
-                      title="Not helpful"
+                      onClick={() => handleFeedback('NOT_HELPFUL')}
+                      aria-label="Not helpful"
+                      aria-pressed={feedback === 'NOT_HELPFUL'}
                     >
                       <ThumbsDown className="size-3.5" />
                     </Button>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => void handleRegenerate('all')}
+                      disabled={regenerateSummarySection.isPending}
+                      className="gap-1 text-xs"
+                    >
+                      <RefreshCw className="size-3" />
+                      Regenerate
+                    </Button>
+                    {summary.status !== 'APPROVED' ? (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => void handleApprove()}
+                        loading={updateSummary.isPending}
+                        className="gap-1 text-xs"
+                      >
+                        <Check className="size-3" />
+                        Approve
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -635,262 +848,228 @@ export function CallSummaryView({
           </div>
         )}
 
-        {/* TAB 2: NOTES */}
+        {/* NOTES */}
         {activeTab === 'notes' && (
-          <div className="p-4 flex flex-col h-full space-y-3">
-            {/* AI Action Pills Bar */}
+          <div className="p-4 flex flex-col h-full gap-3">
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => handleNotesAssist('cleanup')}
-                disabled={isAssistLoading}
-                className="text-[11px] gap-1 h-7 whitespace-nowrap"
-              >
-                <Sparkles className="size-3 text-primary" /> Clean up
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => handleNotesAssist('extract_actions')}
-                disabled={isAssistLoading}
-                className="text-[11px] gap-1 h-7 whitespace-nowrap"
-              >
-                <ListTodo className="size-3 text-emerald-500" /> Extract actions
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => handleNotesAssist('extract_decisions')}
-                disabled={isAssistLoading}
-                className="text-[11px] gap-1 h-7 whitespace-nowrap"
-              >
-                <CheckCircle2 className="size-3 text-blue-500" /> Extract decisions
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => handleNotesAssist('format')}
-                disabled={isAssistLoading}
-                className="text-[11px] gap-1 h-7 whitespace-nowrap"
-              >
-                Format notes
-              </Button>
+              {(
+                [
+                  ['cleanup', 'Clean up'],
+                  ['format', 'Format'],
+                  ['extract_actions', 'Extract actions'],
+                  ['extract_decisions', 'Extract decisions'],
+                ] as const
+              ).map(([action, label]) => (
+                <Button
+                  key={action}
+                  variant="outline"
+                  size="xs"
+                  onClick={() => void handleNotesAssist(action)}
+                  disabled={assistBusy}
+                  className="text-[11px] gap-1 h-7 whitespace-nowrap"
+                >
+                  <Sparkles className="size-3 text-primary-text" />
+                  {label}
+                </Button>
+              ))}
+              {assistBusy ? <Loader2 className="size-3.5 animate-spin text-muted-foreground" /> : null}
             </div>
 
-            {/* Editor Area */}
-            <div className="flex-1 flex flex-col min-h-[300px] border border-border rounded-xl bg-card/40 overflow-hidden focus-within:ring-1 focus-within:ring-primary">
+            <div className="flex-1 flex flex-col min-h-[260px] rounded-xl border border-border bg-surface overflow-hidden focus-within:ring-1 focus-within:ring-ring">
               <Textarea
-                value={noteContent}
-                onChange={(e) => updateNoteContent(e.target.value)}
-                placeholder="Take running call notes here... Auto-saved in real-time."
-                className="flex-1 resize-none border-none p-4 text-sm font-sans focus-visible:ring-0 rounded-none bg-transparent"
+                value={notes.content}
+                onChange={(e) => notes.updateContent(e.target.value)}
+                placeholder={
+                  notesQuery.isSuccess ? 'Your notes — saved as you type.' : 'Loading your notes…'
+                }
+                disabled={!notesQuery.isSuccess}
+                aria-label="Your call notes"
+                className="flex-1 resize-none border-none p-4 text-sm focus-visible:ring-0 rounded-none bg-transparent"
               />
-              <div className="px-3 py-1.5 bg-muted/20 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  {noteStatus === 'saving' && (
-                    <span className="flex items-center gap-1 text-primary">
-                      <Loader2 className="size-3 animate-spin" /> Saving draft...
-                    </span>
+              <div className="px-3 py-1.5 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
+                <span aria-live="polite" className="flex items-center gap-1">
+                  {notes.status === 'saving' && (
+                    <>
+                      <Loader2 className="size-3 animate-spin" /> Saving…
+                    </>
                   )}
-                  {noteStatus === 'saved' && (
-                    <span className="flex items-center gap-1 text-emerald-600">
-                      <Check className="size-3" /> Saved
-                    </span>
+                  {notes.status === 'saved' && (
+                    <>
+                      <Check className="size-3 text-success-text" /> Saved
+                    </>
                   )}
-                  {noteStatus === 'failed' && (
-                    <button type="button" onClick={retryNoteSave} className="flex items-center gap-1 text-destructive hover:underline">
-                      <AlertCircle className="size-3" /> Save failed (click to retry)
+                  {notes.status === 'failed' && (
+                    <button
+                      type="button"
+                      onClick={notes.retry}
+                      className="flex items-center gap-1 text-destructive-text hover:underline"
+                    >
+                      <AlertCircle className="size-3" /> Not saved — retry
                     </button>
                   )}
-                  {noteStatus === 'offline' && (
-                    <span className="flex items-center gap-1 text-amber-500">
-                      <Clock className="size-3" /> Offline (backed up locally)
+                  {notes.status === 'offline' && (
+                    <span className="flex items-center gap-1 text-warning-text">
+                      <Clock className="size-3" /> Offline — kept on this device
                     </span>
                   )}
-                </div>
-                <span>{noteContent.trim().split(/\s+/).filter(Boolean).length} words</span>
+                </span>
+                <span className="tabular-nums">
+                  {notes.content.trim().split(/\s+/).filter(Boolean).length} words
+                </span>
               </div>
             </div>
+
+            {otherNotes.length > 0 ? (
+              <div className="space-y-2">
+                <SectionHeading>Notes from others</SectionHeading>
+                {otherNotes.map((note) => (
+                  <div key={note.id} className="rounded-xl border border-border bg-surface p-3 space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs">
+                      <UserAvatar
+                        name={note.author.displayName || note.author.name}
+                        src={note.author.avatarUrl}
+                        seed={note.author.id}
+                        size="xs"
+                      />
+                      <span className="font-medium text-foreground">
+                        {note.author.displayName || note.author.name}
+                      </span>
+                    </div>
+                    <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">
+                      {note.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
 
-        {/* TAB 3: ACTION ITEMS */}
+        {/* ACTION ITEMS */}
         {activeTab === 'actions' && (
           <div className="p-4 space-y-4">
-            <div className="flex gap-2">
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleCreateAction();
+              }}
+            >
               <Input
                 value={newActionTitle}
                 onChange={(e) => setNewActionTitle(e.target.value)}
-                placeholder="Add action item..."
+                placeholder="Add an action item…"
                 className="text-xs flex-1"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleCreateAction();
-                }}
+                aria-label="New action item"
               />
               <Button
+                type="submit"
                 size="sm"
-                onClick={handleCreateAction}
-                disabled={!newActionTitle.trim() || createActionItem.isPending}
+                disabled={!newActionTitle.trim()}
+                loading={createActionItem.isPending}
                 className="gap-1 text-xs"
               >
                 <Plus className="size-3.5" /> Add
               </Button>
-            </div>
+            </form>
 
-            <div className="space-y-2">
-              {actionItems.length === 0 ? (
-                <EmptyState
-                  icon={<ListTodo className="size-6 text-muted-foreground" />}
-                  title="No action items yet"
-                  description="Capture next steps or extract them directly from your notes."
-                />
-              ) : (
-                actionItems.map((item: CallActionItemView) => (
-                  <div
+            {actionItems.length === 0 ? (
+              <EmptyState
+                icon={<ListTodo className="size-6 text-muted-foreground" />}
+                title="No action items yet"
+                description="Add next steps here, or extract them from your notes."
+              />
+            ) : (
+              <div className="space-y-2">
+                {actionItems.map((item) => (
+                  <ActionItemRow
                     key={item.id}
-                    className="p-3 rounded-xl border border-border bg-card/30 flex items-center justify-between gap-3 group hover:border-border/80 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={item.status === 'DONE'}
-                        onChange={(e) =>
-                          updateActionItem.mutate({
-                            callId,
-                            itemId: item.id,
-                            input: { status: e.target.checked ? 'DONE' : 'TODO' },
-                          })
-                        }
-                        className="rounded border-border text-primary focus:ring-primary size-4"
-                      />
-                      <span className={cn('text-xs font-medium text-foreground truncate', item.status === 'DONE' && 'line-through text-muted-foreground')}>
-                        {item.title}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {item.taskId ? (
-                        <Badge variant="outline" className="text-[10px] text-emerald-600">
-                          Workspace Task Linked
-                        </Badge>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          onClick={() => convertActionItemToTask.mutate({ callId, itemId: item.id })}
-                          className="text-[11px] h-7"
-                        >
-                          Convert to Task
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => deleteActionItem.mutate({ callId, itemId: item.id })}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Delete action item"
-                      >
-                        <Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                    item={item}
+                    onToggle={(done) =>
+                      updateActionItem.mutate({
+                        callId,
+                        itemId: item.id,
+                        input: { status: done ? 'DONE' : 'TODO' },
+                      })
+                    }
+                    onConvert={() => void handleConvert(item)}
+                    converting={
+                      convertActionItemToTask.isPending &&
+                      convertActionItemToTask.variables?.itemId === item.id
+                    }
+                    onDelete={() => void handleDeleteAction(item)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* TAB 4: DECISIONS */}
+        {/* DECISIONS */}
         {activeTab === 'decisions' && (
           <div className="p-4 space-y-4">
-            <div className="flex gap-2">
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleCreateDecision();
+              }}
+            >
               <Input
                 value={newDecisionText}
                 onChange={(e) => setNewDecisionText(e.target.value)}
-                placeholder="Record a key decision made..."
+                placeholder="Record a decision…"
                 className="text-xs flex-1"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleCreateDecision();
-                }}
+                aria-label="New decision"
               />
               <Button
+                type="submit"
                 size="sm"
-                onClick={handleCreateDecision}
-                disabled={!newDecisionText.trim() || createDecision.isPending}
+                disabled={!newDecisionText.trim()}
+                loading={createDecision.isPending}
                 className="gap-1 text-xs"
               >
                 <Plus className="size-3.5" /> Record
               </Button>
-            </div>
+            </form>
 
-            <div className="space-y-2">
-              {decisions.length === 0 ? (
-                <EmptyState
-                  icon={<CheckCircle2 className="size-6 text-emerald-500" />}
-                  title="No decisions recorded"
-                  description="Decisions keep the team aligned on agreed outcomes."
-                />
-              ) : (
-                decisions.map((decision: CallDecisionView) => (
+            {decisions.length === 0 ? (
+              <EmptyState
+                icon={<CheckCircle2 className="size-6 text-muted-foreground" />}
+                title="No decisions recorded"
+                description="Decisions keep everyone aligned on what was agreed."
+              />
+            ) : (
+              <div className="space-y-2">
+                {decisions.map((decision) => (
                   <div
                     key={decision.id}
-                    className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 flex items-center justify-between gap-3 group"
+                    className="group p-3 rounded-xl border border-success/25 bg-success/10 flex items-start justify-between gap-3"
                   >
                     <div className="flex items-start gap-2.5 min-w-0">
-                      <CheckCircle2 className="size-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <span className="text-xs text-foreground leading-relaxed">{decision.content}</span>
+                      <CheckCircle2 className="size-4 text-success-text shrink-0 mt-0.5" />
+                      <div className="min-w-0 space-y-0.5">
+                        <p className="text-xs text-foreground leading-relaxed">{decision.content}</p>
+                        {decision.madeBy || decision.sourceTimestamp != null ? (
+                          <p className="text-[11px] text-muted-foreground">
+                            {decision.madeBy
+                              ? decision.madeBy.displayName || decision.madeBy.name
+                              : null}
+                            {decision.madeBy && decision.sourceTimestamp != null ? ' · ' : null}
+                            {decision.sourceTimestamp != null ? clock(decision.sourceTimestamp) : null}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={() => deleteDecision.mutate({ callId, decisionId: decision.id })}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Delete decision"
+                      onClick={() => void handleDeleteDecision(decision)}
+                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                      aria-label="Delete decision"
                     >
-                      <Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" />
+                      <Trash2 className="size-3.5" />
                     </Button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: TRANSCRIPT */}
-        {activeTab === 'transcript' && (
-          <div className="p-4 space-y-3">
-            <div className="relative">
-              <Search className="size-3.5 absolute left-3 top-2.5 text-muted-foreground" />
-              <Input
-                value={transcriptQuery}
-                onChange={(e) => setTranscriptQuery(e.target.value)}
-                placeholder="Search transcript by keyword or speaker..."
-                className="pl-8 text-xs h-8"
-              />
-            </div>
-
-            {filteredTranscripts.length === 0 ? (
-              <EmptyState
-                icon={<Clock className="size-6 text-muted-foreground" />}
-                title={transcriptQuery ? 'No matching transcript lines' : 'No transcript recorded yet'}
-                description={
-                  transcriptQuery
-                    ? 'Try another search keyword.'
-                    : 'Transcripts appear automatically when audio transcription is active.'
-                }
-              />
-            ) : (
-              <div className="space-y-3 pt-2">
-                {filteredTranscripts.map((t: CallTranscriptItemView) => (
-                  <div key={t.id} className="text-xs space-y-1 p-2 rounded-lg hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <span className="font-semibold text-foreground">{t.speakerName || 'Speaker'}</span>
-                      <span className="font-mono text-[10px]">
-                        {Math.floor(t.timestamp / 60)}:{(t.timestamp % 60).toString().padStart(2, '0')}
-                      </span>
-                    </div>
-                    <p className="text-foreground leading-relaxed pl-2 border-l-2 border-primary/40">{t.text}</p>
                   </div>
                 ))}
               </div>
@@ -898,73 +1077,197 @@ export function CallSummaryView({
           </div>
         )}
 
-        {/* Grounded "Ask about this call" Drawer */}
-        {askDrawerOpen && (
-          <div className="absolute inset-x-0 bottom-0 top-1/4 bg-card/95 backdrop-blur-md border-t border-border z-30 flex flex-col shadow-2xl animate-in slide-in-from-bottom-5">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/40">
-              <div className="flex items-center gap-2 text-xs font-semibold">
-                <Bot className="size-4 text-primary" />
-                <span>Ask about this call (Grounded AI)</span>
+        {/* TRANSCRIPT */}
+        {activeTab === 'transcript' && (
+          <div className="p-4 space-y-3">
+            <Input
+              value={transcriptQuery}
+              onChange={(e) => setTranscriptQuery(e.target.value)}
+              placeholder="Search by keyword or speaker…"
+              className="text-xs h-8"
+              leadingIcon={<Search />}
+              aria-label="Search transcript"
+            />
+
+            {filteredTranscripts.length === 0 ? (
+              <EmptyState
+                icon={<Clock className="size-6 text-muted-foreground" />}
+                title={transcriptQuery ? 'No matching lines' : 'No transcript for this call'}
+                description={
+                  transcriptQuery
+                    ? 'Try another keyword.'
+                    : 'Lines appear here when transcription is on during the call.'
+                }
+              />
+            ) : (
+              <div className="space-y-3 pt-2">
+                {filteredTranscripts.map((t: CallTranscriptItemView) => (
+                  <div key={t.id} className="text-xs space-y-1 p-2 rounded-lg hover:bg-accent transition-colors">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <span className="font-semibold text-foreground">{t.speakerName}</span>
+                      <span className="font-mono text-[10px] tabular-nums">{clock(t.timestamp)}</span>
+                    </div>
+                    <p className="text-foreground leading-relaxed pl-2 border-l-2 border-primary/40">
+                      {t.text}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <Button variant="ghost" size="icon-sm" onClick={() => setAskDrawerOpen(false)}>
+            )}
+          </div>
+        )}
+
+        {/* Ask about this call */}
+        {askOpen && (
+          <div className="absolute inset-x-0 bottom-0 top-1/4 z-30 flex flex-col border-t border-border bg-surface shadow-overlay animate-in slide-in-from-bottom-5">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+              <div className="flex items-center gap-2 text-xs font-semibold">
+                <Bot className="size-4 text-primary-text" />
+                Ask about this call
+              </div>
+              <Button variant="ghost" size="icon-sm" onClick={() => setAskOpen(false)} aria-label="Close">
                 <X className="size-3.5" />
               </Button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
-              {chatHistory.length === 0 && (
-                <div className="text-center p-6 space-y-2">
-                  <p className="text-muted-foreground">Ask questions strictly grounded in this call's transcript & notes.</p>
+              {answers.length === 0 && (
+                <div className="text-center p-4 space-y-2">
+                  <p className="text-muted-foreground">
+                    Answers come only from this call&apos;s notes, summary and transcript.
+                  </p>
                   <div className="flex flex-wrap gap-1.5 justify-center">
-                    {['What were the main decisions?', 'Who is responsible for the database migration?', 'Did anyone disagree?'].map(
-                      (q) => (
-                        <button
-                          key={q}
-                          type="button"
-                          onClick={() => {
-                            setQuestionInput(q);
-                          }}
-                          className="px-2.5 py-1 rounded-full border border-border text-[11px] bg-card hover:bg-muted/40 transition-colors"
-                        >
-                          {q}
-                        </button>
-                      ),
-                    )}
+                    {['What was decided?', 'Who owns the next steps?', 'What is still open?'].map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => setQuestion(q)}
+                        className="px-2.5 py-1 rounded-full border border-border text-[11px] bg-background hover:bg-accent transition-colors"
+                      >
+                        {q}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {chatHistory.map((item, idx) => (
+              {answers.map((item, idx) => (
                 <div key={idx} className="space-y-1.5">
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary font-medium w-fit max-w-[85%] self-end ml-auto">
+                  <div className="ml-auto w-fit max-w-[85%] rounded-xl bg-primary/10 p-2.5 font-medium text-primary-text">
                     {item.q}
                   </div>
-                  <div className="p-3 rounded-xl bg-card border border-border text-foreground leading-relaxed whitespace-pre-wrap">
+                  <div className="rounded-xl border border-border bg-background p-3 text-foreground leading-relaxed whitespace-pre-wrap">
                     {item.a}
                   </div>
                 </div>
               ))}
 
               {askQuestion.isPending && (
-                <div className="flex items-center gap-2 text-muted-foreground italic">
-                  <Loader2 className="size-3 animate-spin text-primary" /> Thinking...
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" /> Thinking…
                 </div>
               )}
             </div>
 
-            <form onSubmit={handleAskQuestion} className="p-3 border-t border-border flex gap-2">
+            <form onSubmit={handleAsk} className="p-3 border-t border-border flex gap-2">
               <Input
-                value={questionInput}
-                onChange={(e) => setQuestionInput(e.target.value)}
-                placeholder="Ask about something discussed in this call..."
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Ask about something discussed…"
                 className="text-xs flex-1"
+                aria-label="Question about this call"
               />
-              <Button size="sm" type="submit" disabled={!questionInput.trim() || askQuestion.isPending} className="px-3">
+              <Button
+                size="sm"
+                type="submit"
+                disabled={!question.trim() || askQuestion.isPending}
+                aria-label="Ask"
+              >
                 <Send className="size-3.5" />
               </Button>
             </form>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function ActionItemRow({
+  item,
+  compact = false,
+  onToggle,
+  onConvert,
+  converting,
+  onDelete,
+}: {
+  item: CallActionItemView;
+  compact?: boolean;
+  onToggle: (done: boolean) => void;
+  onConvert: () => void;
+  converting: boolean;
+  onDelete?: () => void;
+}) {
+  const done = item.status === 'DONE';
+  const assigneeName = item.assignee?.displayName || item.assignee?.name;
+  return (
+    <div
+      className={cn(
+        'group flex items-center justify-between gap-3 rounded-xl border border-border bg-surface',
+        compact ? 'p-2.5' : 'p-3',
+      )}
+    >
+      <label className="flex items-center gap-2.5 min-w-0 cursor-pointer">
+        <Checkbox
+          checked={done}
+          onCheckedChange={(checked) => onToggle(checked === true)}
+          aria-label={done ? `Mark "${item.title}" not done` : `Mark "${item.title}" done`}
+        />
+        <span
+          className={cn(
+            'text-xs text-foreground truncate',
+            !compact && 'font-medium',
+            done && 'line-through text-muted-foreground',
+          )}
+        >
+          {item.title}
+        </span>
+      </label>
+
+      <div className="flex items-center gap-2 shrink-0">
+        {item.assignee && assigneeName ? (
+          <UserAvatar
+            name={assigneeName}
+            src={item.assignee.avatarUrl}
+            seed={item.assignee.id}
+            size="xs"
+            title={`Assigned to ${assigneeName}`}
+          />
+        ) : null}
+        {item.taskId ? (
+          <Badge variant="success">In tasks</Badge>
+        ) : (
+          <Button
+            variant={compact ? 'ghost' : 'outline'}
+            size="xs"
+            onClick={onConvert}
+            loading={converting}
+            className="text-[11px] h-6 px-2"
+          >
+            Add to tasks
+          </Button>
+        )}
+        {onDelete ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDelete}
+            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+            aria-label="Delete action item"
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        ) : null}
       </div>
     </div>
   );

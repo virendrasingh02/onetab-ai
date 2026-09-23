@@ -16,7 +16,6 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-  toast,
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -66,13 +65,21 @@ import {
   subMonths,
   subYears,
 } from 'date-fns';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { useLongPress } from '@org/hooks';
 import { detectLinks, normalizeUrl } from './link-detector.js';
 import { LinkPreviewCard } from './link-preview-card.js';
 import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
 import { useMediaPreview } from '@org/media-preview';
 import { MarkdownMessage } from './markdown-message.js';
+import { reminderPresets } from './reminder-presets.js';
 import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
 import { UserProfileCard } from './user-profile-card.js';
 
@@ -121,10 +128,14 @@ export interface ChatBubbleProps {
   linkPreviewsEnabled?: boolean;
   workspacePolicy?: WorkspacePolicy;
   roomKind?: RoomKind;
+  /** "Mark unread" from this message. Hidden when absent. */
   onMarkUnread?: () => void;
-  onRemind?: (duration: string) => void;
-  onToggleNotifications?: () => void;
-  isNotificationsMuted?: boolean;
+  /** "Remind me about this" — called with the chosen time. Hidden when absent. */
+  onRemind?: (remindAt: Date) => void;
+  /** Turns reply notifications for this message's thread off / on. */
+  onToggleReplyNotifications?: () => void;
+  /** Reply notifications for this message's thread are currently off. */
+  replyNotificationsMuted?: boolean;
 }
 
 export function formatShortTimestamp(timestamp: number): string {
@@ -322,8 +333,8 @@ export function ChatBubble({
   roomKind,
   onMarkUnread,
   onRemind,
-  onToggleNotifications,
-  isNotificationsMuted = false,
+  onToggleReplyNotifications,
+  replyNotificationsMuted = false,
 }: ChatBubbleProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReactionOpen, setIsReactionOpen] = useState(false);
@@ -539,58 +550,39 @@ export function ChatBubble({
   const hasOrganizeItems = Boolean(onTogglePin || onAssignToMe || onViewContext);
   const hasAppItems = Boolean(onCreateTask || onCreateDoc || onAskAI);
 
-  const handleMarkUnread = () => {
+  /** Closes the menu, then runs the action — every menu entry goes through this. */
+  const runAction = (action: (() => void) | undefined) => {
     setIsMenuOpen(false);
-    if (onMarkUnread) {
-      onMarkUnread();
-    } else {
-      toast.success('Marked as unread');
-    }
+    action?.();
   };
 
-  const handleRemind = (label: string) => {
-    setIsMenuOpen(false);
-    if (onRemind) {
-      onRemind(label);
-    } else {
-      toast.success(`Reminder set for ${label}`);
-    }
+  /*
+   * The letters shown beside menu items are real: with the menu open, E edits,
+   * U marks unread, L copies the link and Delete deletes. Handled before Radix's
+   * type-ahead (preventDefault stops it), so "e" never just moves the focus.
+   */
+  const handleMenuShortcut = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const key = event.key.toLowerCase();
+    const action =
+      key === 'e' && canEdit
+        ? onEdit
+        : key === 'u'
+          ? onMarkUnread
+          : key === 'l'
+            ? onCopyLink
+            : (event.key === 'Delete' || event.key === 'Backspace') && canDelete
+              ? onDelete
+              : undefined;
+    if (!action) return;
+    event.preventDefault();
+    runAction(action);
   };
 
-  const handleToggleNotifications = () => {
-    setIsMenuOpen(false);
-    if (onToggleNotifications) {
-      onToggleNotifications();
-    } else {
-      toast.info(
-        isNotificationsMuted
-          ? 'Notifications turned on for replies'
-          : 'Notifications turned off for replies',
-      );
-    }
-  };
-
-  const handleCopyLink = () => {
-    setIsMenuOpen(false);
-    if (onCopyLink) {
-      onCopyLink();
-    } else {
-      void navigator.clipboard?.writeText(
-        `${window.location.origin}${window.location.pathname}#${message.id}`,
-      );
-    }
-    toast.success('Link copied to clipboard');
-  };
-
-  const handleCopyText = () => {
-    setIsMenuOpen(false);
-    if (onCopyText) {
-      onCopyText();
-    } else if (message.body) {
-      void navigator.clipboard?.writeText(message.body);
-    }
-    toast.success('Text copied to clipboard');
-  };
+  // Resolved when the menu opens, so "in 1 hour" is an hour from the click.
+  const presets = isMenuOpen && onRemind ? reminderPresets() : [];
+  const hasStateItems = Boolean(onMarkUnread || onRemind || onToggleReplyNotifications);
+  const hasCopyItems = Boolean(onCopyLink || onCopyText || hasLinkPreviews);
 
   return (
     <article
@@ -1092,187 +1084,116 @@ export function ChatBubble({
             side="bottom"
             sideOffset={4}
             collisionPadding={8}
-            className="w-60 z-50 border-border bg-popover text-popover-foreground shadow-overlay"
+            className="w-64"
+            onKeyDown={handleMenuShortcut}
           >
-            {/* 1. Edit message (top item as in reference image) */}
             {canEdit ? (
+              <DropdownMenuItem onSelect={() => runAction(onEdit)}>
+                <Pencil />
+                <span>Edit message</span>
+                <DropdownMenuShortcut>E</DropdownMenuShortcut>
+              </DropdownMenuItem>
+            ) : null}
+
+            {hasStateItems ? (
               <>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setIsMenuOpen(false);
-                    onEdit?.();
-                  }}
-                  className="cursor-pointer hover:bg-accent"
-                >
-                  <Pencil className="mr-2 size-4" />
-                  <span>Edit message</span>
-                  <DropdownMenuShortcut>E</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-border" />
+                {canEdit ? <DropdownMenuSeparator /> : null}
+                {onToggleReplyNotifications ? (
+                  <DropdownMenuItem onSelect={() => runAction(onToggleReplyNotifications)}>
+                    {replyNotificationsMuted ? <Bell /> : <BellOff />}
+                    <span>
+                      {replyNotificationsMuted
+                        ? 'Turn on notifications for replies'
+                        : 'Turn off notifications for replies'}
+                    </span>
+                  </DropdownMenuItem>
+                ) : null}
+                {onMarkUnread ? (
+                  <DropdownMenuItem onSelect={() => runAction(onMarkUnread)}>
+                    <SquareDot />
+                    <span>Mark unread</span>
+                    <DropdownMenuShortcut>U</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                ) : null}
+                {onRemind ? (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Clock />
+                      <span>Remind me about this</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-56">
+                      {presets.map((preset) => (
+                        <DropdownMenuItem
+                          key={preset.id}
+                          onSelect={() => runAction(() => onRemind(preset.at))}
+                        >
+                          <span>{preset.label}</span>
+                          <span className="ml-auto pl-3 text-[11px] font-normal text-muted-foreground tabular-nums">
+                            {preset.hint}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                ) : null}
               </>
             ) : null}
 
-            {/* 2. Message state & notifications (Mark unread, Remind me, Notifications) */}
-            <DropdownMenuItem
-              onSelect={handleMarkUnread}
-              className="cursor-pointer hover:bg-accent"
-            >
-              <SquareDot className="mr-2 size-4" />
-              <span>Mark unread</span>
-              <DropdownMenuShortcut>U</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="cursor-pointer hover:bg-accent">
-                <Clock className="mr-2 size-4" />
-                <span>Remind me</span>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-48 z-50 border-border bg-popover text-popover-foreground shadow-overlay">
-                <DropdownMenuItem
-                  onSelect={() => handleRemind('20 minutes')}
-                  className="cursor-pointer hover:bg-accent"
-                >
-                  <span>In 20 minutes</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => handleRemind('1 hour')}
-                  className="cursor-pointer hover:bg-accent"
-                >
-                  <span>In 1 hour</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => handleRemind('3 hours')}
-                  className="cursor-pointer hover:bg-accent"
-                >
-                  <span>In 3 hours</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => handleRemind('tomorrow')}
-                  className="cursor-pointer hover:bg-accent"
-                >
-                  <span>Tomorrow</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => handleRemind('next week')}
-                  className="cursor-pointer hover:bg-accent"
-                >
-                  <span>Next week</span>
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-
-            <DropdownMenuItem
-              onSelect={handleToggleNotifications}
-              className="cursor-pointer hover:bg-accent"
-            >
-              {isNotificationsMuted ? (
-                <>
-                  <Bell className="mr-2 size-4" />
-                  <span>Turn on notifications for replies</span>
-                </>
-              ) : (
-                <>
-                  <BellOff className="mr-2 size-4" />
-                  <span>Turn off notifications for replies</span>
-                </>
-              )}
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator className="bg-border" />
-
-            {/* 3. Copy link & text actions */}
-            <DropdownMenuItem
-              onSelect={handleCopyLink}
-              className="cursor-pointer hover:bg-accent"
-            >
-              <Link2 className="mr-2 size-4" />
-              <span>Copy link</span>
-              <DropdownMenuShortcut>L</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            {onCopyText ? (
-              <DropdownMenuItem
-                onSelect={handleCopyText}
-                className="cursor-pointer hover:bg-accent"
-              >
-                <Copy className="mr-2 size-4" />
-                <span>Copy text</span>
-              </DropdownMenuItem>
+            {hasCopyItems ? (
+              <>
+                {canEdit || hasStateItems ? <DropdownMenuSeparator /> : null}
+                {onCopyLink ? (
+                  <DropdownMenuItem onSelect={() => runAction(onCopyLink)}>
+                    <Link2 />
+                    <span>Copy link</span>
+                    <DropdownMenuShortcut>L</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                ) : null}
+                {onCopyText ? (
+                  <DropdownMenuItem onSelect={() => runAction(onCopyText)}>
+                    <Copy />
+                    <span>Copy text</span>
+                  </DropdownMenuItem>
+                ) : null}
+                {hasLinkPreviews ? (
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      runAction(
+                        () => void toggleMessageOverride(message.id, isPreviewsVisible),
+                      )
+                    }
+                  >
+                    {isPreviewsVisible ? <Link2Off /> : <Link2 />}
+                    <span>{isPreviewsVisible ? 'Hide link preview' : 'Show link preview'}</span>
+                  </DropdownMenuItem>
+                ) : null}
+              </>
             ) : null}
 
-            {hasLinkPreviews ? (
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  void toggleMessageOverride(message.id, isPreviewsVisible);
-                }}
-                className="cursor-pointer hover:bg-accent"
-              >
-                {isPreviewsVisible ? (
-                  <>
-                    <Link2Off className="mr-2 size-4 text-muted-foreground" />
-                    <span>Hide link preview</span>
-                  </>
-                ) : (
-                  <>
-                    <Link2 className="mr-2 size-4 text-muted-foreground" />
-                    <span>Show link preview</span>
-                  </>
-                )}
-              </DropdownMenuItem>
-            ) : null}
-
-            {/* 4. Organize & Connect to apps submenus */}
-            {hasOrganizeItems || hasAppItems ? (
-              <DropdownMenuSeparator className="bg-border" />
-            ) : null}
+            {hasOrganizeItems || hasAppItems ? <DropdownMenuSeparator /> : null}
 
             {hasOrganizeItems ? (
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="cursor-pointer hover:bg-accent">
-                  <FolderKanban className="mr-2 size-4" />
+                <DropdownMenuSubTrigger>
+                  <FolderKanban />
                   <span>Organize</span>
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-56 z-50 border-border bg-popover text-popover-foreground shadow-overlay">
+                <DropdownMenuSubContent className="w-56">
                   {onTogglePin ? (
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        setIsMenuOpen(false);
-                        onTogglePin();
-                      }}
-                      className="cursor-pointer hover:bg-accent"
-                    >
-                      {isPinned ? (
-                        <PinOff className="mr-2 size-4" />
-                      ) : (
-                        <Pin className="mr-2 size-4" />
-                      )}
+                    <DropdownMenuItem onSelect={() => runAction(onTogglePin)}>
+                      {isPinned ? <PinOff /> : <Pin />}
                       <span>{isPinned ? 'Unpin from channel' : 'Pin to channel'}</span>
                     </DropdownMenuItem>
                   ) : null}
-
                   {onAssignToMe ? (
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        setIsMenuOpen(false);
-                        onAssignToMe();
-                      }}
-                      className="cursor-pointer hover:bg-accent"
-                    >
-                      <UserCheck className="mr-2 size-4 text-primary" />
+                    <DropdownMenuItem onSelect={() => runAction(onAssignToMe)}>
+                      <UserCheck />
                       <span>Assign to me</span>
                     </DropdownMenuItem>
                   ) : null}
-
                   {onViewContext ? (
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        setIsMenuOpen(false);
-                        onViewContext();
-                      }}
-                      className="cursor-pointer hover:bg-accent"
-                    >
-                      <Link2 className="mr-2 size-4 text-primary" />
+                    <DropdownMenuItem onSelect={() => runAction(onViewContext)}>
+                      <Link2 />
                       <span>View related context</span>
                     </DropdownMenuItem>
                   ) : null}
@@ -1282,46 +1203,26 @@ export function ChatBubble({
 
             {hasAppItems ? (
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="cursor-pointer hover:bg-accent">
-                  <Blocks className="mr-2 size-4" />
+                <DropdownMenuSubTrigger>
+                  <Blocks />
                   <span>Connect to apps</span>
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-56 z-50 border-border bg-popover text-popover-foreground shadow-overlay">
+                <DropdownMenuSubContent className="w-60">
                   {onCreateTask ? (
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        setIsMenuOpen(false);
-                        onCreateTask();
-                      }}
-                      className="cursor-pointer hover:bg-accent"
-                    >
-                      <CheckSquare className="mr-2 size-4 text-success" />
+                    <DropdownMenuItem onSelect={() => runAction(onCreateTask)}>
+                      <CheckSquare />
                       <span>Create task from message</span>
                     </DropdownMenuItem>
                   ) : null}
-
                   {onCreateDoc ? (
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        setIsMenuOpen(false);
-                        onCreateDoc();
-                      }}
-                      className="cursor-pointer hover:bg-accent"
-                    >
-                      <FileText className="mr-2 size-4 text-info-text" />
+                    <DropdownMenuItem onSelect={() => runAction(onCreateDoc)}>
+                      <FileText />
                       <span>Create document from message</span>
                     </DropdownMenuItem>
                   ) : null}
-
                   {onAskAI ? (
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        setIsMenuOpen(false);
-                        onAskAI();
-                      }}
-                      className="cursor-pointer hover:bg-accent"
-                    >
-                      <Bot className="mr-2 size-4 text-primary" />
+                    <DropdownMenuItem onSelect={() => runAction(onAskAI)}>
+                      <Bot />
                       <span>Ask AI about message</span>
                     </DropdownMenuItem>
                   ) : null}
@@ -1329,26 +1230,20 @@ export function ChatBubble({
               </DropdownMenuSub>
             ) : null}
 
-            {/* 5. Destructive Delete message at bottom */}
             {canDelete ? (
               <>
-                <DropdownMenuSeparator className="bg-border" />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => {
-                    setIsMenuOpen(false);
-                    onDelete?.();
-                  }}
-                  className="cursor-pointer hover:bg-destructive/10 text-destructive focus:bg-destructive/10 focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 size-4 text-destructive" />
-                  <span>Delete message...</span>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onSelect={() => runAction(onDelete)}>
+                  <Trash2 />
+                  <span>Delete message…</span>
                   {!isOwn ? (
-                    <span className="ml-auto text-[10px] text-muted-foreground mr-1">
+                    <span className="ml-auto text-[10px] font-normal text-muted-foreground">
                       Moderator
                     </span>
                   ) : null}
-                  <DropdownMenuShortcut>delete</DropdownMenuShortcut>
+                  <DropdownMenuShortcut className={!isOwn ? 'ml-0 pl-2' : undefined}>
+                    Del
+                  </DropdownMenuShortcut>
                 </DropdownMenuItem>
               </>
             ) : null}

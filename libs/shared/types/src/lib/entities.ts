@@ -238,7 +238,8 @@ export interface SecurityOverviewDto {
   };
   magicLink?: {
     isEnabled: boolean;
-    lastRequestedAt?: IsoDateString | null;
+    /** When the user last completed a sign-in through an emailed link. */
+    lastUsedAt?: IsoDateString | null;
   };
   passkeysCount: number;
   activeSessionsCount: number;

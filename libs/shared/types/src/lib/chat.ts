@@ -67,6 +67,15 @@ export interface Room {
   memberCount: number;
   /** Set for `direct` rooms only. */
   directUserId?: MatrixUserId;
+  /**
+   * "Mark unread" (Matrix `m.marked_unread` room account data): the room shows
+   * as unread until it is next read, whatever the receipts say.
+   */
+  markedUnread?: boolean;
+  /** The message the reader marked unread from — the "new messages" line. */
+  markedUnreadFromId?: EventId;
+  /** Thread roots whose replies this user turned notifications off for. */
+  mutedThreadRootIds?: EventId[];
 }
 
 export interface RoomMember {

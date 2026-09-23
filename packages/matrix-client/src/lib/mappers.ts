@@ -611,6 +611,35 @@ export function resolveGroupDirectMessageRoom(
   return null;
 }
 
+/** Room account data carrying "Mark unread" — the spec'd event type. */
+export const MARKED_UNREAD_EVENT = 'm.marked_unread';
+/** Its pre-stable name, still written by some clients. */
+const MARKED_UNREAD_LEGACY_EVENT = 'com.famedly.marked_unread';
+/** Our own key inside that content: where the reader marked unread from. */
+export const MARKED_UNREAD_FROM_KEY = 'mie.from_event_id';
+/** Room account data listing the thread roots whose replies are muted. */
+export const THREAD_NOTIFICATIONS_EVENT = 'mie.thread_notifications';
+
+function readMarkedUnread(room: SdkRoom): { unread: boolean; fromId?: string } {
+  const content = (
+    room.getAccountData(MARKED_UNREAD_EVENT as never) ??
+    room.getAccountData(MARKED_UNREAD_LEGACY_EVENT as never)
+  )?.getContent() as Record<string, unknown> | undefined;
+  if (content?.['unread'] !== true) return { unread: false };
+  const fromId = content[MARKED_UNREAD_FROM_KEY];
+  return { unread: true, fromId: typeof fromId === 'string' ? fromId : undefined };
+}
+
+export function readMutedThreadRootIds(room: SdkRoom): string[] {
+  const content = room
+    .getAccountData(THREAD_NOTIFICATIONS_EVENT as never)
+    ?.getContent() as { muted?: unknown } | undefined;
+  const muted = content?.muted;
+  return Array.isArray(muted)
+    ? muted.filter((id): id is string => typeof id === 'string')
+    : [];
+}
+
 export function toRoom(client: SdkClient, room: SdkRoom): Room {
   const kind = toRoomKind(room, client);
   const myUserId = client.getUserId();
@@ -620,6 +649,7 @@ export function toRoom(client: SdkClient, room: SdkRoom): Room {
       ? room.getJoinedMembers().find((member) => member.userId !== myUserId)
           ?.userId
       : undefined;
+  const markedUnread = readMarkedUnread(room);
 
   return {
     id: room.roomId,
@@ -640,6 +670,9 @@ export function toRoom(client: SdkClient, room: SdkRoom): Room {
     lastActivityAt: room.getLastActiveTimestamp(),
     memberCount: room.getJoinedMemberCount(),
     directUserId,
+    markedUnread: markedUnread.unread,
+    markedUnreadFromId: markedUnread.fromId,
+    mutedThreadRootIds: readMutedThreadRootIds(room),
   };
 }
 

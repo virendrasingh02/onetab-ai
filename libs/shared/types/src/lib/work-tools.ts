@@ -462,12 +462,37 @@ export interface CallView {
   startedBy: PublicUser;
   participants: CallParticipantView[];
   summary?: CallSummaryView | null;
+  /** Explicit shares on top of the default audience (participants + channel). */
+  sharedWithWorkspace: boolean;
+  sharedWithUserIds: string[];
   _count?: {
     notes: number;
     actionItems: number;
     decisions: number;
     transcripts: number;
   };
+}
+
+/**
+ * `POST /calls/:id/end`. Both sides of a call report the hang-up; `endedNow`
+ * is true only for the request that actually closed the session, so exactly
+ * one client posts the summary card into the conversation.
+ */
+export interface EndCallResponse extends CallView {
+  endedNow: boolean;
+}
+
+/**
+ * The one realtime event for changes inside a call (`call.updated`). It carries
+ * ids only — whoever may see the call refetches it through the access-checked
+ * API, so the broadcast itself reveals nothing about a private call.
+ */
+export interface CallUpdatedRealtimePayload {
+  callId: string;
+  entity: 'call' | 'note' | 'summary' | 'action_item' | 'decision' | 'transcript';
+  action: string;
+  /** Summary status when `entity === 'summary'`. */
+  status?: CallSummaryStatus;
 }
 
 export interface CallDetailView extends CallView {

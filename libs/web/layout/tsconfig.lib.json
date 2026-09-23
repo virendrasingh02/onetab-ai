@@ -83,6 +83,9 @@
       "path": "../coworkers/tsconfig.lib.json"
     },
     {
+      "path": "../chat/tsconfig.lib.json"
+    },
+    {
       "path": "../ai/tsconfig.lib.json"
     },
     {

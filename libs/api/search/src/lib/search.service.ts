@@ -436,6 +436,22 @@ export class SearchService {
         const rows = await this.prisma.call.findMany({
           where: {
             workspaceId,
+            // Only calls this user may open — the same rule as
+            // `CallAccessService.visibleWhere` in @org/api-work-tools: a DM or
+            // private-channel call is not searchable by the whole workspace.
+            AND: [
+              {
+                OR: [
+                  { startedById: userId },
+                  { participants: { some: { userId } } },
+                  { sharedWithWorkspace: true },
+                  { sharedWithUserIds: { has: userId } },
+                  { meetingId: { not: null } },
+                  { channel: { is: { visibility: 'PUBLIC' } } },
+                  { channel: { is: { members: { some: { userId } } } } },
+                ],
+              },
+            ],
             OR: [
               { title: contains },
               { notes: { some: { content: contains } } },

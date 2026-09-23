@@ -1,6 +1,12 @@
-import { contextLinksApi, integrationsApi, workToolsApi } from '@org/api-client';
+import {
+  contextLinksApi,
+  integrationsApi,
+  remindersApi,
+  workToolsApi,
+} from '@org/api-client';
 import {
   ConnectionBanner,
+  describeReminderTime,
   executeStructuredAction,
   type ActionExecutionContext,
   type ActionExecutionResult,
@@ -28,8 +34,20 @@ import {
 } from '@org/ui';
 import { useCurrentWorkspace, useWorkspacePolicies } from '@org/web-workspace';
 import { MessageSquareOff } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
 import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
 import { useMatrix } from './matrix-provider.js';
@@ -38,8 +56,24 @@ import {
   usePresence,
   useRoom,
   useRoomActions,
+  useRoomSummary,
   useRoomThreads,
 } from './use-chat.js';
+
+const NO_IDS: readonly string[] = [];
+
+/**
+ * The workspace-relative path that reopens a message — the current
+ * conversation route plus `?msg=` (and `?thread=` for a reply). This is the
+ * shape notification deep links use (`c/general?msg=…`).
+ */
+function messageDeepLink(pathname: string, message: Message): string {
+  const conversationPath = /^\/w\/[^/]+\/(.+)$/.exec(pathname)?.[1] ?? '';
+  const params = new URLSearchParams();
+  if (message.threadRootId) params.set('thread', message.threadRootId);
+  params.set('msg', message.id);
+  return `${conversationPath}?${params.toString()}`;
+}
 
 const toggle = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id];
@@ -180,6 +214,19 @@ export function ChatPanel({
   const room = useRoom(roomId ?? undefined, { trackRead: following });
   const actions = useRoomActions(roomId ?? undefined);
   const threads = useRoomThreads(roomId ?? undefined);
+  const { room: roomSummary } = useRoomSummary(roomId ?? undefined);
+  const mutedThreadRootIds = roomSummary?.mutedThreadRootIds ?? NO_IDS;
+  const location = useLocation();
+
+  /*
+   * "Mark unread" holds automatic read receipts for the room while the reader
+   * is still in it; leaving (or switching rooms) lets them resume, so the next
+   * visit reads it normally.
+   */
+  useEffect(() => {
+    if (!client || !roomId) return;
+    return () => client.releaseReadHold(roomId);
+  }, [client, roomId]);
 
   /* Deleting a message is a redaction everyone sees and cannot be undone, so
      it always goes through a confirm — the menu item used to fire straight
@@ -253,18 +300,26 @@ export function ChatPanel({
     !room.isLoading &&
     room.messages.length > 0
   ) {
+    const markedFrom = roomSummary?.markedUnread
+      ? roomSummary.markedUnreadFromId
+      : undefined;
     const readUpTo = client.getReadUpToId(roomId);
     const myUserId = client.getSession()?.userId;
     const startIndex = readUpTo
       ? room.messages.findIndex((message) => message.id === readUpTo)
       : -1;
-    if (readUpTo && startIndex >= 0) {
+    if (markedFrom && room.messages.some((message) => message.id === markedFrom)) {
+      // Marked unread from a message: the line goes exactly there.
+      firstUnread.current.id = markedFrom;
+    } else if (readUpTo && startIndex >= 0) {
       const firstAfter = room.messages
         .slice(startIndex + 1)
         .find((message) => message.senderId !== myUserId);
       firstUnread.current.id = firstAfter?.id ?? null;
     }
   }
+  // Bumped when the reader marks a message unread in place, so the line moves.
+  const [, setUnreadAnchorVersion] = useState(0);
   const firstUnreadId = firstUnread.current.id;
 
   const handleThreadChange = useCallback(
@@ -289,9 +344,76 @@ export function ChatPanel({
     [client, roomId],
   );
 
+  // A thread the reader turned reply notifications off for stops nagging.
   const unreadThreadRootIds = useMemo(
-    () => threads.filter((thread) => thread.hasUnread).map((thread) => thread.rootId),
-    [threads],
+    () =>
+      threads
+        .filter((thread) => thread.hasUnread && !mutedThreadRootIds.includes(thread.rootId))
+        .map((thread) => thread.rootId),
+    [threads, mutedThreadRootIds],
+  );
+
+  const handleMarkUnread = useCallback(
+    async (message: Message) => {
+      if (!client || !roomId) return;
+      try {
+        await client.markUnread(roomId, message.id);
+        firstUnread.current = { roomId, id: message.id };
+        setUnreadAnchorVersion((version) => version + 1);
+        toast.success('Marked unread', {
+          description: 'It stays unread until you come back to it.',
+        });
+      } catch {
+        toast.error('Could not mark the message unread.');
+      }
+    },
+    [client, roomId],
+  );
+
+  const handleRemind = useCallback(
+    async (message: Message, remindAt: Date) => {
+      if (!workspaceId || !roomId) return;
+      try {
+        const reminder = await remindersApi.create(workspaceId, {
+          roomId,
+          eventId: message.id,
+          remindAt: remindAt.toISOString(),
+          deepLink: messageDeepLink(location.pathname, message),
+          snippet: (message.body || message.attachment?.name || '').slice(0, 140),
+        });
+        toast.success(`I'll remind you ${describeReminderTime(remindAt)}`, {
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              void remindersApi
+                .cancel(workspaceId, reminder.id)
+                .then(() => toast.success('Reminder cancelled'))
+                .catch(() => toast.error('Could not cancel the reminder.'));
+            },
+          },
+        });
+      } catch {
+        toast.error('Could not set the reminder.');
+      }
+    },
+    [workspaceId, roomId, location.pathname],
+  );
+
+  const handleToggleReplyNotifications = useCallback(
+    async (threadRootId: string, mute: boolean) => {
+      if (!client || !roomId) return;
+      try {
+        await client.setThreadNotificationsMuted(roomId, threadRootId, mute);
+        toast.success(
+          mute
+            ? "You won't be notified about replies — @mentions still reach you."
+            : "You'll be notified about new replies.",
+        );
+      } catch {
+        toast.error('Could not update reply notifications.');
+      }
+    },
+    [client, roomId],
   );
 
   // Pins have no Matrix account-data binding yet, so they live here for the
@@ -633,7 +755,7 @@ export function ChatPanel({
   const handleMarkRead = useCallback(() => {
     if (!client || !roomId) return;
     const last = room.messages.at(-1);
-    if (last) void client.markRead(roomId, last.id);
+    if (last) void client.markRead(roomId, last.id, { force: true });
   }, [client, roomId, room.messages]);
 
   const handleVisibleMessageRead = useCallback(
@@ -753,6 +875,10 @@ export function ChatPanel({
       onRetry={actions.retry}
       onTogglePin={togglePin}
       onToggleSave={toggleSave}
+      onMarkUnread={handleMarkUnread}
+      onRemind={workspaceId ? handleRemind : undefined}
+      mutedThreadRootIds={mutedThreadRootIds}
+      onToggleReplyNotifications={handleToggleReplyNotifications}
       onAssignToMe={handleAssignToMe}
       onCreateTask={handleCreateTask}
       onCreateDoc={handleCreateDoc}

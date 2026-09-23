@@ -37,10 +37,13 @@ export class TokenCleanupService {
             ],
           },
         }),
+        // A used link expires minutes after it is spent, so the expiry clause
+        // must skip it — otherwise the retention window (and the "last signed
+        // in with a link" line on the security page) never applies.
         this.prisma.magicLinkToken.deleteMany({
           where: {
             OR: [
-              { expiresAt: { lt: now } },
+              { usedAt: null, expiresAt: { lt: now } },
               { usedAt: { not: null, lt: spentBefore } },
             ],
           },

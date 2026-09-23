@@ -16,13 +16,27 @@
     "tags": [
       "type:feature",
       "scope:api"
-    ]
+    ],
+    "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "outputs": [
+          "{projectRoot}/test-output/vitest/coverage"
+        ],
+        "options": {
+          "command": "node scripts/run-vitest.mjs libs/api/work-tools",
+          "cwd": "{workspaceRoot}"
+        }
+      }
+    }
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
     "@nestjs/event-emitter": "^3.1.0",
+    "@nestjs/throttler": "^6.5.0",
     "@org/api-ai": "*",
     "@org/api-common": "*",
     "@org/database": "*"

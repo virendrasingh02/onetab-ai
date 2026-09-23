@@ -100,6 +100,8 @@ describe('email templates', () => {
       role: 'MEMBER',
       acceptUrl: 'https://app.test/invite/tok',
     });
+    expect(out.subject).toContain('Ada');
+    expect(out.subject).toContain('Acme');
     expect(out.text).toContain('https://app.test/invite/tok');
     expect(out.text).toContain('MEMBER');
   });

@@ -17,6 +17,8 @@ export {
 export {
   CallManager,
   createCallManager,
+  classifyCallQuality,
+  isCallLive,
   type CallDeviceInfo,
   type CallListener,
   type CallMediaConstraints,

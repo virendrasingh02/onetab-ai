@@ -71,7 +71,8 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
           annual ? 'pricing_toggle_yearly' : 'pricing_toggle_monthly',
           { currentPlan },
         )
-        .catch(() => {});
+        // Analytics is best-effort; a failed ping must never block the toggle.
+        .catch(() => undefined);
     }
   };
 
@@ -83,7 +84,8 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
           currentPlan,
           isAnnual,
         })
-        .catch(() => {});
+        // Analytics is best-effort; a failed ping must never block plan selection.
+        .catch(() => undefined);
     }
 
     if (tier === 'enterprise') {

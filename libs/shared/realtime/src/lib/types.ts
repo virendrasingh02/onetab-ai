@@ -8,6 +8,10 @@ export const RealtimeEventType = {
   UserStatusChanged: 'user.status.changed',
   /** A huddle started / a participant joined or left / it ended (brief §6). */
   HuddleUpdated: 'huddle.updated',
+  /** Call sessions — payloads carry ids only (see `CallUpdatedRealtimePayload`). */
+  CallStarted: 'call.started',
+  CallEnded: 'call.ended',
+  CallUpdated: 'call.updated',
 
   // Notifications
   NotificationCreated: 'notification.created',

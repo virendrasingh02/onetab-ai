@@ -14,6 +14,11 @@ export {
   formatFullTimestamp,
   type ChatBubbleProps,
 } from './lib/chat-bubble.js';
+export {
+  describeReminderTime,
+  reminderPresets,
+  type ReminderPreset,
+} from './lib/reminder-presets.js';
 
 export {
   SeenBy,

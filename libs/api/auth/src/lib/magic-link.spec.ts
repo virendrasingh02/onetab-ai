@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { UnauthorizedException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { hashToken } from '@org/api-common';
 import type { PrismaService } from '@org/database';
 import type { ConfigService } from '@nestjs/config';
@@ -13,6 +13,7 @@ describe('AuthService - Magic Link', () => {
   let mockTokens: any;
   let mockConfig: any;
   let mockMail: any;
+  let nodeEnv: string;
 
   const mockUser = {
     id: 'user_ml_1',
@@ -34,23 +35,34 @@ describe('AuthService - Magic Link', () => {
     updatedAt: new Date(),
   };
 
+  const liveRecord = (overrides: Record<string, unknown> = {}) => ({
+    id: 'ml_1',
+    userId: mockUser.id,
+    usedAt: null,
+    expiresAt: new Date(Date.now() + 900_000),
+    user: { emailVerifiedAt: mockUser.emailVerifiedAt },
+    ...overrides,
+  });
+
   beforeEach(() => {
+    nodeEnv = 'development';
     mockPrisma = {
       user: {
         findFirst: vi.fn(),
-        findUnique: vi.fn(),
-        update: vi.fn().mockImplementation(({ where, data }) => ({
+        update: vi.fn().mockImplementation(({ data }) => ({
           ...mockUser,
           ...data,
         })),
       },
       magicLinkToken: {
         create: vi.fn().mockResolvedValue({ id: 'ml_token_1' }),
+        findFirst: vi.fn().mockResolvedValue(null),
         findUnique: vi.fn(),
-        update: vi.fn().mockResolvedValue({ id: 'ml_token_1', usedAt: new Date() }),
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
-      $transaction: vi.fn().mockImplementation((promises) => Promise.all(promises)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((operations) => Promise.all(operations)),
     };
 
     mockTokens = {
@@ -67,7 +79,7 @@ describe('AuthService - Magic Link', () => {
 
     mockConfig = {
       get: vi.fn((key: string) => {
-        if (key === 'NODE_ENV') return 'development';
+        if (key === 'NODE_ENV') return nodeEnv;
         if (key === 'APP_URL') return 'http://localhost:4200';
         if (key === 'MAGIC_LINK_TTL') return '15m';
         return undefined;
@@ -87,17 +99,30 @@ describe('AuthService - Magic Link', () => {
   });
 
   describe('requestMagicLink', () => {
-    it('returns a generic message when email does not exist without leaking existence', async () => {
+    it('answers generically for an unknown address and sends nothing', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(null);
 
       const res = await service.requestMagicLink({ email: 'unknown@example.com' });
 
       expect(res.message).toContain('If an account exists');
+      expect(res.expiresInMinutes).toBe(15);
+      expect(res.devToken).toBeUndefined();
       expect(mockPrisma.magicLinkToken.create).not.toHaveBeenCalled();
       expect(mockMail.send).not.toHaveBeenCalled();
     });
 
-    it('creates a hashed token, invalidates prior tokens, and sends email when user exists', async () => {
+    it('matches the address exactly — never a prefix of another account', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+
+      await service.requestMagicLink({ email: 'alex@example.com' });
+
+      expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
+        where: { email: { equals: 'alex@example.com', mode: 'insensitive' } },
+        select: { id: true, email: true },
+      });
+    });
+
+    it('stores only the hash, supersedes older links, and emails the new one', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser);
 
       const res = await service.requestMagicLink({ email: 'alex@example.com' });
@@ -105,22 +130,24 @@ describe('AuthService - Magic Link', () => {
       expect(res.message).toContain('If an account exists');
       expect(res.devToken).toBeDefined();
 
-      // Check that existing tokens are invalidated
+      // Older live links are expired (not marked used) so they read "expired".
       expect(mockPrisma.magicLinkToken.updateMany).toHaveBeenCalledWith({
-        where: { userId: mockUser.id, usedAt: null },
-        data: { usedAt: expect.any(Date) },
+        where: {
+          userId: mockUser.id,
+          usedAt: null,
+          expiresAt: { gt: expect.any(Date) },
+        },
+        data: { expiresAt: expect.any(Date) },
       });
 
-      // Check token storage (hashed, never raw)
       expect(mockPrisma.magicLinkToken.create).toHaveBeenCalledWith({
         data: {
           userId: mockUser.id,
-          tokenHash: hashToken(res.devToken!),
+          tokenHash: hashToken(res.devToken as string),
           expiresAt: expect.any(Date),
         },
       });
 
-      // Check email delivery
       expect(mockMail.send).toHaveBeenCalledWith(
         expect.objectContaining({
           to: mockUser.email,
@@ -128,10 +155,32 @@ describe('AuthService - Magic Link', () => {
         }),
       );
     });
+
+    it('sends nothing inside the per-account cooldown but answers the same', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+      mockPrisma.magicLinkToken.findFirst.mockResolvedValue({ id: 'recent' });
+
+      const res = await service.requestMagicLink({ email: 'alex@example.com' });
+
+      expect(res.message).toContain('If an account exists');
+      expect(res.expiresInMinutes).toBe(15);
+      expect(mockPrisma.magicLinkToken.create).not.toHaveBeenCalled();
+      expect(mockMail.send).not.toHaveBeenCalled();
+    });
+
+    it('never returns the raw token in production', async () => {
+      nodeEnv = 'production';
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+
+      const res = await service.requestMagicLink({ email: 'alex@example.com' });
+
+      expect(res.devToken).toBeUndefined();
+      expect(mockMail.send).toHaveBeenCalled();
+    });
   });
 
   describe('verifyMagicLink', () => {
-    it('throws UnauthorizedException if token does not exist', async () => {
+    it('rejects an unknown token', async () => {
       mockPrisma.magicLinkToken.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -139,54 +188,68 @@ describe('AuthService - Magic Link', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('throws UnauthorizedException if token was already used', async () => {
-      mockPrisma.magicLinkToken.findUnique.mockResolvedValue({
-        id: 'ml_1',
-        userId: mockUser.id,
-        user: mockUser,
-        usedAt: new Date(Date.now() - 60000),
-        expiresAt: new Date(Date.now() + 600000),
-      });
+    it('rejects a token that was already used with a conflict', async () => {
+      mockPrisma.magicLinkToken.findUnique.mockResolvedValue(
+        liveRecord({ usedAt: new Date(Date.now() - 60_000) }),
+      );
 
       await expect(
         service.verifyMagicLink({ token: 'already-used-token' }),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(ConflictException);
+      expect(mockTokens.issueSession).not.toHaveBeenCalled();
     });
 
-    it('throws UnauthorizedException if token has expired', async () => {
-      mockPrisma.magicLinkToken.findUnique.mockResolvedValue({
-        id: 'ml_1',
-        userId: mockUser.id,
-        user: mockUser,
-        usedAt: null,
-        expiresAt: new Date(Date.now() - 1000),
-      });
+    it('rejects an expired token', async () => {
+      mockPrisma.magicLinkToken.findUnique.mockResolvedValue(
+        liveRecord({ expiresAt: new Date(Date.now() - 1000) }),
+      );
 
       await expect(
         service.verifyMagicLink({ token: 'expired-token' }),
       ).rejects.toThrow(UnauthorizedException);
+      expect(mockTokens.issueSession).not.toHaveBeenCalled();
     });
 
-    it('authenticates user, invalidates token, and issues session on valid token', async () => {
-      mockPrisma.magicLinkToken.findUnique.mockResolvedValue({
-        id: 'ml_1',
-        userId: mockUser.id,
-        user: mockUser,
-        usedAt: null,
-        expiresAt: new Date(Date.now() + 900000),
-      });
+    it('issues no session when a concurrent request claimed the token first', async () => {
+      mockPrisma.magicLinkToken.findUnique.mockResolvedValue(liveRecord());
+      mockPrisma.magicLinkToken.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.verifyMagicLink({ token: 'raced-token' }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockTokens.issueSession).not.toHaveBeenCalled();
+    });
+
+    it('claims the token atomically and issues a session', async () => {
+      mockPrisma.magicLinkToken.findUnique.mockResolvedValue(liveRecord());
 
       const result = await service.verifyMagicLink(
         { token: 'valid-token' },
         { ipAddress: '127.0.0.1', userAgent: 'Vitest' },
       );
 
+      expect(mockPrisma.magicLinkToken.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { tokenHash: hashToken('valid-token') } }),
+      );
+      expect(mockPrisma.magicLinkToken.updateMany).toHaveBeenCalledWith({
+        where: { id: 'ml_1', usedAt: null, expiresAt: { gt: expect.any(Date) } },
+        data: { usedAt: expect.any(Date) },
+      });
       expect(result.user.id).toBe(mockUser.id);
       expect(result.session.tokens.accessToken).toBe('mock_ml_access_token');
       expect(mockTokens.issueSession).toHaveBeenCalled();
-      expect(mockPrisma.magicLinkToken.update).toHaveBeenCalledWith({
-        where: { id: 'ml_1' },
-        data: { usedAt: expect.any(Date) },
+    });
+
+    it('marks an unverified email as verified — the link proves the inbox', async () => {
+      mockPrisma.magicLinkToken.findUnique.mockResolvedValue(
+        liveRecord({ user: { emailVerifiedAt: null } }),
+      );
+
+      await service.verifyMagicLink({ token: 'valid-token' });
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: mockUser.id },
+        data: expect.objectContaining({ emailVerifiedAt: expect.any(Date) }),
       });
     });
   });

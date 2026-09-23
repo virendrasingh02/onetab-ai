@@ -186,8 +186,27 @@ export type NotificationKind =
   | 'WORKSPACE_INVITE'
   | 'PROJECT_CREATED'
   | 'DOCUMENT_SHARED'
+  | 'MEETING_INVITE'
+  | 'MEETING_CANCELLED'
+  | 'MEETING_UPDATED'
   | 'CHANNEL_ACCESS_EXPIRED'
+  | 'CALL_SUMMARY_READY'
+  | 'CALL_ACTION_ITEM_ASSIGNED'
+  | 'MESSAGE_REMINDER'
   | 'SYSTEM';
+
+/** "Remind me about this" on a chat message — pending until `firedAt`. */
+export interface MessageReminder {
+  id: string;
+  roomId: string;
+  eventId: string;
+  /** Workspace-relative path that opens the message. */
+  deepLink: string;
+  snippet: string;
+  remindAt: IsoDateString;
+  firedAt: IsoDateString | null;
+  createdAt: IsoDateString;
+}
 
 export interface NotificationWorkspaceInfo {
   id: string;

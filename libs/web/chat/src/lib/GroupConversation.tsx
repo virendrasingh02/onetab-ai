@@ -44,12 +44,11 @@ import {
   MessagesSquare,
   MoreHorizontal,
   Pencil,
-  Phone,
+  Headphones,
   Star,
   Trash2,
   UserPlus,
   Users,
-  Video,
   X,
 } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -61,7 +60,6 @@ import { useMatrix } from './matrix-provider.js';
 import { useRoomSummary } from './use-chat.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
 import { PeoplePicker } from './people-picker.js';
-import { useCall } from './use-call.js';
 
 function toSystemEventEntity(user: PublicUser): SystemEventEntity {
   return {
@@ -153,6 +151,8 @@ export function GroupConversation({
   );
   const [addPeopleOpen, setAddPeopleOpen] = useState(false);
   const [membersPanelOpen, setMembersPanelOpen] = useState(false);
+  /* Bumped by the header menu; the chat surface owns the huddle and starts it. */
+  const [huddleRequest, setHuddleRequest] = useState(0);
 
   const myUserId = client?.getSession()?.userId;
   const otherNames = useMemo(
@@ -243,6 +243,7 @@ export function GroupConversation({
         onAddPeopleOpenChange={setAddPeopleOpen}
         membersPanelOpen={membersPanelOpen}
         onToggleMembersPanel={() => setMembersPanelOpen((open) => !open)}
+        onStartHuddle={() => setHuddleRequest((count) => count + 1)}
       />
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0">
@@ -263,6 +264,7 @@ export function GroupConversation({
               }
               workspaceId={workspaceId}
               headerActionsSlot={chatActionsSlot}
+              huddleRequest={huddleRequest}
               showMembers={false}
               showEncryptedBadge={false}
               composerContext={composerContext}
@@ -307,6 +309,7 @@ function GroupHeader({
   onAddPeopleOpenChange,
   membersPanelOpen,
   onToggleMembersPanel,
+  onStartHuddle,
 }: {
   title: string;
   members: RoomMember[];
@@ -319,6 +322,12 @@ function GroupHeader({
   onAddPeopleOpenChange: (open: boolean) => void;
   membersPanelOpen: boolean;
   onToggleMembersPanel: () => void;
+  /**
+   * A group call is a huddle — the 1:1 WebRTC call would ring every member and
+   * connect only whoever answers first, privately. Absent while chat is not
+   * available, where there is no huddle to start.
+   */
+  onStartHuddle?: () => void;
 }) {
   const { client } = useMatrix();
   const { workspaceId, slug } = useCurrentWorkspace();
@@ -343,28 +352,6 @@ function GroupHeader({
       members.filter((m) => presenceMap[m.userId]?.status === 'online').length,
     [members, presenceMap],
   );
-
-  const { state: callState, startCall } = useCall();
-
-  const handleStartVoiceCall = useCallback(async () => {
-    if (!roomId) return;
-    try {
-      await startCall(roomId, 'voice');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      toast.error('Could not start group voice call', { description: message });
-    }
-  }, [roomId, startCall]);
-
-  const handleStartVideoCall = useCallback(async () => {
-    if (!roomId) return;
-    try {
-      await startCall(roomId, 'video');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      toast.error('Could not start group video call', { description: message });
-    }
-  }, [roomId, startCall]);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(
@@ -673,25 +660,15 @@ function GroupHeader({
                   </>
                 ) : null}
 
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                  onClick={handleStartVoiceCall}
-                  disabled={callState !== null && callState !== 'ended'}
-                  className="gap-2.5"
-                >
-                  <Phone className="size-4" />
-                  <span>Start voice call</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={handleStartVideoCall}
-                  disabled={callState !== null && callState !== 'ended'}
-                  className="gap-2.5"
-                >
-                  <Video className="size-4" />
-                  <span>Start video call</span>
-                </DropdownMenuItem>
+                {onStartHuddle ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onStartHuddle} className="gap-2.5">
+                      <Headphones className="size-4" />
+                      <span>Start a huddle</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
 
                 <DropdownMenuItem
                   onClick={() => navigate(`/w/${workspaceSlug}/dms`)}
@@ -705,35 +682,11 @@ function GroupHeader({
           </div>
         </div>
 
-        <div className="gap-1 flex items-center">
-          <Hint label="Start voice call">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Start voice call"
-              onClick={handleStartVoiceCall}
-              disabled={callState !== null && callState !== 'ended'}
-            >
-              <Phone className="size-4" />
-            </Button>
-          </Hint>
-          <Hint label="Start video call">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Start video call"
-              onClick={handleStartVideoCall}
-              disabled={callState !== null && callState !== 'ended'}
-            >
-              <Video className="size-4" />
-            </Button>
-          </Hint>
-
-          <div
-            ref={chatActionsRef}
-            className="gap-0.5 flex items-center empty:hidden"
-          />
-        </div>
+        {/* The chat surface portals its actions here — incl. "Start a huddle". */}
+        <div
+          ref={chatActionsRef}
+          className="gap-0.5 flex items-center empty:hidden"
+        />
       </div>
 
       <AddPeopleDialog

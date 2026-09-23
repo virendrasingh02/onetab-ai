@@ -3413,7 +3413,8 @@ export function WorkspaceSettingsPage({
             <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               Sign-In Security
             </h2>
-            <div className="md:grid-cols-3 gap-4 grid grid-cols-1">
+            {/* Four sign-in methods: 2×2, so no card is left alone on a row. */}
+            <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
               {/* Password Card */}
               <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
                 <div className="space-y-2">
@@ -3422,8 +3423,8 @@ export function WorkspaceSettingsPage({
                       <Lock className="h-4 w-4" />
                     </div>
                     <Badge
-                      variant="outline"
-                      className="font-semibold text-emerald-600 bg-emerald-500/10 border-emerald-500/20 text-[10px] uppercase"
+                      variant="success"
+                      className="font-semibold text-[10px] uppercase"
                     >
                       Strong
                     </Badge>
@@ -3456,49 +3457,48 @@ export function WorkspaceSettingsPage({
               <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 bg-primary/10 text-primary flex items-center justify-center rounded-lg">
+                    <div className="h-8 w-8 bg-info/10 text-info-text flex items-center justify-center rounded-lg">
                       <Sparkles className="h-4 w-4" />
                     </div>
                     <Badge
-                      variant="outline"
-                      className="font-semibold text-emerald-600 bg-emerald-500/10 border-emerald-500/20 text-[10px] uppercase"
+                      variant="success"
+                      className="font-semibold text-[10px] uppercase"
                     >
-                      Active
+                      Available
                     </Badge>
                   </div>
                   <div>
                     <h4 className="text-xs font-semibold text-foreground">
-                      Magic Link
+                      Magic link
                     </h4>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {securityOverviewQuery.data?.magicLink?.lastRequestedAt
-                        ? `Last used on ${new Date(
-                            securityOverviewQuery.data.magicLink.lastRequestedAt,
+                      {securityOverviewQuery.data?.magicLink?.lastUsedAt
+                        ? `Last signed in with a link on ${new Date(
+                            securityOverviewQuery.data.magicLink.lastUsedAt,
                           ).toLocaleDateString()}`
-                        : 'Secure passwordless login via email link'}
+                        : 'Passwordless sign-in with a single-use email link'}
                     </p>
                   </div>
                 </div>
-                <div className="text-[11px] text-muted-foreground bg-surface rounded-lg px-3 py-2 border border-border">
-                  Available for all registered accounts
-                </div>
+                <p className="text-[11px] text-muted-foreground bg-surface rounded-lg px-3 py-2 border border-border">
+                  On the sign-in page, choose “Email me a sign-in link”.
+                </p>
               </div>
 
               {/* Single Sign-On (SSO) Card */}
               <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 bg-indigo-500/10 text-indigo-500 flex items-center justify-center rounded-lg">
+                    <div className="h-8 w-8 bg-accent-violet-soft text-accent-violet flex items-center justify-center rounded-lg">
                       <Globe className="h-4 w-4" />
                     </div>
                     <Badge
-                      variant="outline"
-                      className={cn(
-                        'font-semibold text-[10px] uppercase',
+                      variant={
                         securityOverviewQuery.data?.sso.isConnected
-                          ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
-                          : 'border-border bg-muted/40 text-muted-foreground',
-                      )}
+                          ? 'success'
+                          : 'neutral'
+                      }
+                      className="font-semibold text-[10px] uppercase"
                     >
                       {securityOverviewQuery.data?.sso.isConnected
                         ? 'Connected'
@@ -3530,17 +3530,16 @@ export function WorkspaceSettingsPage({
               <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 bg-amber-500/10 text-amber-500 flex items-center justify-center rounded-lg">
+                    <div className="h-8 w-8 bg-warning/12 text-warning-text flex items-center justify-center rounded-lg">
                       <Shield className="h-4 w-4" />
                     </div>
                     <Badge
-                      variant="outline"
-                      className={cn(
-                        'font-semibold text-[10px] uppercase',
+                      variant={
                         securityOverviewQuery.data?.twoFactor.isEnabled
-                          ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
-                          : 'text-amber-600 bg-amber-500/10 border-amber-500/20',
-                      )}
+                          ? 'success'
+                          : 'warning'
+                      }
+                      className="font-semibold text-[10px] uppercase"
                     >
                       {securityOverviewQuery.data?.twoFactor.isEnabled
                         ? 'Enabled'

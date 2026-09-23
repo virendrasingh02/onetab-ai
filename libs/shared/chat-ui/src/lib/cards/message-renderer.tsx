@@ -66,10 +66,13 @@ export interface MessageRendererProps {
   linkPreviewsEnabled?: boolean;
   workspacePolicy?: WorkspacePolicy;
   roomKind?: RoomKind;
+  /** "Mark unread" from this message — see `ChatBubble`. */
   onMarkUnread?: () => void;
-  onRemind?: (duration: string) => void;
-  onToggleNotifications?: () => void;
-  isNotificationsMuted?: boolean;
+  /** "Remind me about this" with the chosen time — see `ChatBubble`. */
+  onRemind?: (remindAt: Date) => void;
+  /** Turns reply notifications for this message's thread off / on. */
+  onToggleReplyNotifications?: () => void;
+  replyNotificationsMuted?: boolean;
 }
 
 export const MessageRenderer = memo(function MessageRenderer(

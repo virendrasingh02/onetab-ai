@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AIInfrastructureModule } from '@org/api-ai';
 import { AuthModule } from '@org/api-auth';
 import { PrismaModule } from '@org/database';
+import { CallAccessService } from './call-access.service.js';
 import { CallSummaryService } from './call-summary.service.js';
 import { CallsController } from './calls.controller.js';
 import { CallsService } from './calls.service.js';
@@ -19,6 +20,7 @@ import { WorkToolsService } from './work-tools.service.js';
     WorkToolsService,
     MeetingsService,
     ContextLinksService,
+    CallAccessService,
     CallsService,
     CallSummaryService,
   ],
@@ -26,9 +28,9 @@ import { WorkToolsService } from './work-tools.service.js';
     WorkToolsService,
     MeetingsService,
     ContextLinksService,
+    CallAccessService,
     CallsService,
     CallSummaryService,
   ],
 })
 export class WorkToolsModule {}
-

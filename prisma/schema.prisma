@@ -107,6 +107,7 @@ model User {
   aiSecrets                 AISecret[]
   mcpConnections            MCPConnection[]
   scheduledMessages         ScheduledMessage[]
+  messageReminders          MessageReminder[]
   startedCalls              Call[]                      @relation("CallStarter")
   callParticipations        CallParticipant[]           @relation("CallParticipantUser")
   callNotes                 CallNote[]                  @relation("CallNoteAuthor")
@@ -261,6 +262,30 @@ model ScheduledMessage {
   @@map("scheduled_messages")
 }
 
+/// "Remind me about this" on a chat message. The per-minute sweep turns a due
+/// row into a MESSAGE_REMINDER notification that deep-links back to the message.
+model MessageReminder {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  /// The Matrix room and event the reminder points at.
+  roomId      String
+  eventId     String
+  /// Workspace-relative path that opens the message, e.g. c/general?msg=$id.
+  deepLink    String
+  /// A short preview of the message, captured when the reminder was set.
+  snippet     String    @default("")
+  remindAt    DateTime
+  firedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([firedAt, remindAt])
+  @@index([userId, workspaceId])
+  @@map("message_reminders")
+}
+
 model Workspace {
   id                        String                     @id @default(cuid())
   name                      String
@@ -350,6 +375,7 @@ model Workspace {
   mcpConnections            MCPConnection[]
   aiFeedbacks               AIFeedback[]
   scheduledMessages         ScheduledMessage[]
+  messageReminders          MessageReminder[]
   calls                     Call[]
   callNotes                 CallNote[]
   callSummaries             CallSummary[]
@@ -1677,6 +1703,16 @@ model Call {
   startedAt      DateTime           @default(now())
   endedAt        DateTime?
   recordingUrl   String?
+  /// The Matrix VoIP call id this session tracks. Both ends report the same id,
+  /// so they converge on one session; a *different* id arriving while this one
+  /// is still ACTIVE means it was orphaned (tab closed mid-call) and is closed.
+  matrixCallId   String?
+  /// Who else may open the call's notes / summary / transcript. By default a
+  /// call is visible to its participants, to everyone who can see its channel
+  /// (public channel, or a member of a private one), and — when linked to a
+  /// meeting — to the workspace. "Share" widens it explicitly.
+  sharedWithWorkspace Boolean       @default(false)
+  sharedWithUserIds   String[]      @default([])
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
@@ -1694,6 +1730,7 @@ model Call {
 
   @@index([workspaceId, status])
   @@index([conversationId, status])
+  @@index([matrixCallId])
   @@index([meetingId])
   @@map("calls")
 }
@@ -2690,6 +2727,7 @@ enum NotificationKind {
   CHANNEL_ACCESS_EXPIRED
   CALL_SUMMARY_READY
   CALL_ACTION_ITEM_ASSIGNED
+  MESSAGE_REMINDER
   SYSTEM
 }
 

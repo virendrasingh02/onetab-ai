@@ -20,6 +20,9 @@
       "path": "../workspace/tsconfig.lib.json"
     },
     {
+      "path": "../chat/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/utils/tsconfig.lib.json"
     },
     {

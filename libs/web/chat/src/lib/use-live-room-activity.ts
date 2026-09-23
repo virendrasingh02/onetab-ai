@@ -58,7 +58,8 @@ export function useLiveRoomActivity(): LiveRoomActivity {
         for (const room of client.getRooms()) {
           const typingUsers = typingByRoom.current.get(room.id) ?? [];
           const entry: RoomActivityEntry = {
-            unreadCount: room.unreadCount,
+            // "Mark unread" keeps the dot on even when every receipt is caught up.
+            unreadCount: Math.max(room.unreadCount, room.markedUnread ? 1 : 0),
             mentionCount: room.highlightCount,
             typingUserIds: typingUsers,
           };

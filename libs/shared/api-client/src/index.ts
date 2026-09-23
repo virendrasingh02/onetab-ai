@@ -37,6 +37,7 @@ export {
   matrixApi,
   memberApi,
   notificationApi,
+  remindersApi,
   promptTemplateApi,
   searchApi,
   syncApi,
@@ -62,6 +63,7 @@ export {
   aiFeedbackApi,
   callsApi,
   type AuthResponse,
+  type MagicLinkRequestResponse,
   type UpdateUploadParams,
   type UploadContextParams,
 } from './lib/endpoints.js';

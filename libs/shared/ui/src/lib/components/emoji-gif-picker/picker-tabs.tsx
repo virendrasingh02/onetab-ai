@@ -12,7 +12,8 @@ export interface PickerTabsProps {
 }
 
 export function PickerTabs({
-  activeTab,
+  // The Radix `Tabs` root owns the selection; kept on the props for callers.
+  activeTab: _activeTab,
   className,
   hasGifs = true,
   hasStickers = true,

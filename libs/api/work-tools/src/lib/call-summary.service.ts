@@ -3,43 +3,52 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AIInfrastructureService } from '@org/api-ai';
 import { AppEvent, PUBLIC_USER_SELECT } from '@org/api-common';
-import { PrismaService } from '@org/database';
-import {
-  type AskCallQuestionRequest,
-  type AskCallQuestionResponse,
-  type CallNotesAssistRequest,
-  type CallNotesAssistResponse,
-  type CallSummaryStatus,
-  type CallSummaryView,
-  type TaskPriority,
+import { PrismaService, type Prisma } from '@org/database';
+import type {
+  AskCallQuestionRequest,
+  AskCallQuestionResponse,
+  CallNotesAssistRequest,
+  CallNotesAssistResponse,
+  CallSummaryView,
+  TaskPriority,
 } from '@org/types';
-import {
-  type CallSummaryFeedbackInput,
-  type RegenerateCallSummarySectionInput,
-  type ShareCallSummaryInput,
-  type UpdateCallSummaryInput,
+import type {
+  CallSummaryFeedbackInput,
+  RegenerateCallSummarySectionInput,
+  ShareCallSummaryInput,
+  UpdateCallSummaryInput,
 } from '@org/validation';
+import { CallAccessService } from './call-access.service.js';
+import { toCallSummaryView } from './call-mappers.js';
+
+/**
+ * A summary stuck in PROCESSING longer than this is treated as abandoned (the
+ * API restarted mid-generation) and may be generated again without `force`.
+ */
+const PROCESSING_STALE_MS = 2 * 60_000;
+
+const PRIORITIES: readonly TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
 interface ExtractedDecision {
   text: string;
-  speaker?: string;
-  timestamp?: number;
+  speaker?: string | undefined;
+  timestamp?: number | undefined;
 }
 
 interface ExtractedActionItem {
   title: string;
-  description?: string;
-  assignee?: string;
-  dueDate?: string;
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  timestamp?: number;
+  description?: string | undefined;
+  assignee?: string | undefined;
+  priority: TaskPriority;
+  timestamp?: number | undefined;
 }
 
-interface StructuredAISummaryOutput {
+interface StructuredSummary {
   overview: string;
   keyPoints: string[];
   decisions: ExtractedDecision[];
@@ -49,6 +58,82 @@ interface StructuredAISummaryOutput {
   importantLinks: Array<{ title: string; url: string }>;
 }
 
+const str = (value: unknown, max = 2000): string | undefined =>
+  typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : undefined;
+
+const strings = (value: unknown, limit = 30): string[] =>
+  Array.isArray(value)
+    ? value.map((v) => str(v, 1000)).filter((v): v is string => !!v).slice(0, limit)
+    : [];
+
+const seconds = (value: unknown): number | undefined => {
+  const n = typeof value === 'string' ? Number(value) : value;
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined;
+};
+
+/**
+ * Model output is untrusted input: shapes drift, enums come back lower-cased,
+ * timestamps arrive as "03:12". Everything is coerced here so a sloppy answer
+ * degrades to a thinner summary instead of a Prisma error and a FAILED status.
+ */
+export function sanitizeSummary(raw: unknown): StructuredSummary {
+  const data = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const list = (value: unknown) => (Array.isArray(value) ? value : []);
+
+  return {
+    overview: str(data.overview, 4000) ?? '',
+    keyPoints: strings(data.keyPoints),
+    openQuestions: strings(data.openQuestions),
+    followUps: strings(data.followUps),
+    importantLinks: list(data.importantLinks)
+      .map((link) => {
+        const l = (link ?? {}) as Record<string, unknown>;
+        const url = str(l.url, 2000);
+        return url && /^https?:\/\//i.test(url)
+          ? { title: str(l.title, 200) ?? url, url }
+          : null;
+      })
+      .filter((l): l is { title: string; url: string } => l !== null)
+      .slice(0, 20),
+    decisions: list(data.decisions)
+      .map((d): ExtractedDecision | null => {
+        const rec = (d ?? {}) as Record<string, unknown>;
+        const text = str(rec.text ?? d, 500);
+        return text
+          ? { text, speaker: str(rec.speaker, 200), timestamp: seconds(rec.timestamp) }
+          : null;
+      })
+      .filter((d): d is ExtractedDecision => d !== null)
+      .slice(0, 30),
+    actionItems: list(data.actionItems)
+      .map((a): ExtractedActionItem | null => {
+        const rec = (a ?? {}) as Record<string, unknown>;
+        const title = str(rec.title ?? a, 300);
+        if (!title) return null;
+        const priority = str(rec.priority)?.toUpperCase() as TaskPriority | undefined;
+        return {
+          title,
+          description: str(rec.description, 5000),
+          assignee: str(rec.assignee, 200),
+          priority: priority && PRIORITIES.includes(priority) ? priority : 'MEDIUM',
+          timestamp: seconds(rec.timestamp),
+        };
+      })
+      .filter((a): a is ExtractedActionItem => a !== null)
+      .slice(0, 30),
+  };
+}
+
+/** Pulls the first JSON object out of a reply that may be fenced or chatty. */
+function parseJsonObject(reply: string): unknown {
+  const match = reply.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('The AI reply contained no JSON object.');
+  return JSON.parse(match[0]);
+}
+
+const clock = (secs: number) =>
+  `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, '0')}`;
+
 @Injectable()
 export class CallSummaryService {
   private readonly logger = new Logger(CallSummaryService.name);
@@ -57,395 +142,247 @@ export class CallSummaryService {
     private readonly prisma: PrismaService,
     private readonly aiService: AIInfrastructureService,
     private readonly events: EventEmitter2,
+    private readonly access: CallAccessService,
   ) {}
 
-  /**
-   * Helper to format a CallSummary into the wire view DTO.
-   */
-  private toSummaryView(
-    summary: {
-      id: string;
-      callId: string;
-      workspaceId: string;
-      status: string;
-      overview: string | null;
-      keyPoints: unknown;
-      openQuestions: unknown;
-      followUps: unknown;
-      importantLinks: unknown;
-      rawContent: string | null;
-      version: number;
-      failureReason: string | null;
-      generatedById: string | null;
-      generatedAt: Date;
-      updatedAt: Date;
-      feedbacks?: Array<{
-        id: string;
-        summaryId: string;
-        userId: string;
-        rating: string;
-        feedback: string | null;
-        createdAt: Date;
-        user?: unknown;
-      }>;
-    },
-  ): CallSummaryView {
-    return {
-      id: summary.id,
-      callId: summary.callId,
-      workspaceId: summary.workspaceId,
-      status: summary.status as CallSummaryStatus,
-      overview: summary.overview,
-      keyPoints: Array.isArray(summary.keyPoints)
-        ? (summary.keyPoints as string[])
-        : [],
-      openQuestions: Array.isArray(summary.openQuestions)
-        ? (summary.openQuestions as string[])
-        : [],
-      followUps: Array.isArray(summary.followUps)
-        ? (summary.followUps as string[])
-        : [],
-      importantLinks: Array.isArray(summary.importantLinks)
-        ? (summary.importantLinks as Array<{ title: string; url: string }>)
-        : [],
-      rawContent: summary.rawContent,
-      version: summary.version,
-      failureReason: summary.failureReason,
-      generatedById: summary.generatedById,
-      generatedAt: summary.generatedAt.toISOString(),
-      updatedAt: summary.updatedAt.toISOString(),
-      feedbacks: summary.feedbacks?.map((f) => ({
-        id: f.id,
-        summaryId: f.summaryId,
-        userId: f.userId,
-        rating: f.rating,
-        feedback: f.feedback,
-        createdAt: f.createdAt.toISOString(),
-      })),
-    };
-  }
-
-  /**
-   * Retrieve the summary for a call.
-   */
   async getSummary(
     workspaceId: string,
+    userId: string,
     callId: string,
   ): Promise<CallSummaryView | null> {
-    const summary = await this.prisma.callSummary.findUnique({
-      where: { callId },
-      include: {
-        feedbacks: {
-          include: {
-            user: { select: PUBLIC_USER_SELECT },
-          },
-        },
-      },
-    });
-
-    if (!summary || summary.workspaceId !== workspaceId) {
-      return null;
-    }
-
-    return this.toSummaryView(summary);
+    await this.access.assertCanView(workspaceId, userId, callId);
+    const summary = await this.prisma.callSummary.findUnique({ where: { callId } });
+    return summary ? toCallSummaryView(summary) : null;
   }
 
   /**
-   * Generate an AI Call Summary using notes, transcript, and call context.
+   * Builds the structured summary from the call's notes and transcript.
+   *
+   * Regenerating replaces what the previous run extracted — decisions and the
+   * action items nobody has touched (still open, not turned into a task) — so
+   * a second run never doubles the lists. Items people added by hand are kept.
    */
   async generateSummary(
     workspaceId: string,
     userId: string,
     callId: string,
-    options?: { force?: boolean },
+    options: { force?: boolean } = {},
   ): Promise<CallSummaryView> {
-    const call = await this.prisma.call.findUnique({
+    await this.access.assertCanView(workspaceId, userId, callId);
+
+    const call = await this.prisma.call.findUniqueOrThrow({
       where: { id: callId },
       include: {
         notes: {
           include: { author: { select: PUBLIC_USER_SELECT } },
           orderBy: { createdAt: 'asc' },
         },
-        transcripts: {
-          orderBy: { timestamp: 'asc' },
-        },
-        participants: {
-          include: { user: { select: PUBLIC_USER_SELECT } },
-        },
+        transcripts: { orderBy: { timestamp: 'asc' } },
+        participants: { include: { user: { select: PUBLIC_USER_SELECT } } },
         summary: true,
       },
     });
 
-    if (!call || call.workspaceId !== workspaceId) {
-      throw new NotFoundException('Call session not found.');
+    const existing = call.summary;
+    if (existing && !options.force) {
+      if (existing.status !== 'PROCESSING' && existing.status !== 'FAILED') {
+        return toCallSummaryView(existing);
+      }
+      // Another request (the hang-up hook, the other participant) is already
+      // generating it — hand back the in-flight row instead of racing it.
+      if (
+        existing.status === 'PROCESSING' &&
+        Date.now() - existing.updatedAt.getTime() < PROCESSING_STALE_MS
+      ) {
+        return toCallSummaryView(existing);
+      }
     }
 
-    // Check if summary already exists and is ready
-    if (call.summary && call.summary.status === 'READY' && !options?.force) {
-      return this.toSummaryView(call.summary);
-    }
-
-    // Set or upsert summary to PROCESSING state
     const summaryRecord = await this.prisma.callSummary.upsert({
       where: { callId },
-      create: {
-        callId,
-        workspaceId,
-        status: 'PROCESSING',
-        generatedById: userId,
-      },
-      update: {
-        status: 'PROCESSING',
-        failureReason: null,
-      },
+      create: { callId, workspaceId, status: 'PROCESSING', generatedById: userId },
+      update: { status: 'PROCESSING', failureReason: null, generatedById: userId },
     });
-
-    this.events.emit(AppEvent.CallSummaryUpdated, {
-      workspaceId,
-      actorId: userId,
-      callId,
-      summaryId: summaryRecord.id,
-      status: 'PROCESSING',
-    });
+    this.emitSummary(workspaceId, userId, callId, summaryRecord.id, 'PROCESSING');
 
     const participantIds = call.participants.map((p) => p.userId);
+    const nameOf = (u: { name: string; displayName: string | null }) =>
+      u.displayName || u.name;
 
     try {
-      // Assemble conversation context
-      const participantNames = call.participants
-        .map((p) => p.user.displayName || p.user.name)
-        .join(', ');
-
       const notesText = call.notes
-        .map((n) => `[${n.author.displayName || n.author.name}]: ${n.content}`)
+        .filter((n) => n.content.trim())
+        .map((n) => `[${nameOf(n.author)}]: ${n.content}`)
         .join('\n');
-
       const transcriptText = call.transcripts
-        .map((t) => {
-          const mins = Math.floor(t.timestamp / 60);
-          const secs = (t.timestamp % 60).toString().padStart(2, '0');
-          return `[${mins}:${secs}] ${t.speakerName}: ${t.text}`;
-        })
+        .map((t) => `[${clock(t.timestamp)}] ${t.speakerName}: ${t.text}`)
         .join('\n');
+      const participantNames = call.participants.map((p) => nameOf(p.user)).join(', ');
 
-      if (!notesText.trim() && !transcriptText.trim()) {
-        // Lightweight fallback when call had no notes and no transcript recorded
-        const emptyOutput: StructuredAISummaryOutput = {
-          overview: `Call "${call.title}" concluded with participants: ${participantNames || 'Team members'}. No notes or transcript were recorded during this session.`,
-          keyPoints: ['Call completed without manual notes or transcript.'],
-          decisions: [],
-          actionItems: [],
-          openQuestions: [],
-          followUps: [],
-          importantLinks: [],
-        };
+      let structured: StructuredSummary;
+      let failureReason: string | null = null;
 
-        const updated = await this.prisma.callSummary.update({
+      if (!notesText && !transcriptText) {
+        structured = sanitizeSummary({
+          overview: `"${call.title}" ended with ${participantNames || 'the team'}. No notes or transcript were captured, so there is nothing to summarize yet — add notes and regenerate.`,
+        });
+      } else {
+        try {
+          const reply = await this.aiService.chat({
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You summarize work calls. Reply with one JSON object only — no markdown fences, no commentary. Use only facts present in the notes and transcript.',
+              },
+              {
+                role: 'user',
+                content: `Return JSON with exactly these keys:
+{
+  "overview": "one short paragraph: what was discussed and decided",
+  "keyPoints": ["..."],
+  "decisions": [{ "text": "...", "speaker": "name if known", "timestamp": seconds_or_null }],
+  "actionItems": [{ "title": "...", "description": "...", "assignee": "participant name if stated", "priority": "LOW|MEDIUM|HIGH|URGENT", "timestamp": seconds_or_null }],
+  "openQuestions": ["..."],
+  "followUps": ["..."],
+  "importantLinks": [{ "title": "...", "url": "https://..." }]
+}
+
+Call title: ${call.title}
+Participants: ${participantNames}
+
+--- NOTES ---
+${notesText || '(none)'}
+
+--- TRANSCRIPT ---
+${transcriptText || '(none)'}`,
+              },
+            ],
+            temperature: 0.2,
+            maxTokens: 2500,
+          });
+          structured = sanitizeSummary(parseJsonObject(reply.message?.content ?? ''));
+          if (!structured.overview) throw new Error('The AI reply had no overview.');
+        } catch (aiErr) {
+          this.logger.warn(`AI summary failed for call ${callId}: ${String(aiErr)}`);
+          // Notes are never lost to a model outage: fall back to them verbatim
+          // and say so, so the reader knows this is not an AI summary.
+          failureReason =
+            'The AI summary could not be generated, so this was built from the notes. Try regenerating later.';
+          structured = sanitizeSummary({
+            overview: `Notes captured during "${call.title}".`,
+            keyPoints: call.notes.map((n) => n.content.slice(0, 300)),
+          });
+        }
+      }
+
+      const participantByName = new Map<string, string>();
+      for (const p of call.participants) {
+        participantByName.set(p.user.name.toLowerCase(), p.userId);
+        if (p.user.displayName) participantByName.set(p.user.displayName.toLowerCase(), p.userId);
+      }
+      const resolve = (name?: string) =>
+        name ? (participantByName.get(name.toLowerCase()) ?? null) : null;
+
+      const hadContent = Boolean(summaryRecord.overview);
+      const { saved, createdItems } = await this.prisma.$transaction(async (tx) => {
+        const saved = await tx.callSummary.update({
           where: { id: summaryRecord.id },
           data: {
             status: 'READY',
-            overview: emptyOutput.overview,
-            keyPoints: emptyOutput.keyPoints,
-            openQuestions: emptyOutput.openQuestions,
-            followUps: emptyOutput.followUps,
-            importantLinks: emptyOutput.importantLinks,
-            rawContent: emptyOutput.overview,
-            updatedAt: new Date(),
+            overview: structured.overview || 'Call concluded.',
+            keyPoints: structured.keyPoints,
+            openQuestions: structured.openQuestions,
+            followUps: structured.followUps,
+            importantLinks: structured.importantLinks,
+            rawContent: [
+              structured.overview,
+              ...structured.keyPoints.map((k) => `• ${k}`),
+            ].join('\n'),
+            failureReason,
+            generatedAt: new Date(),
+            // The first successful run is version 1; each regeneration bumps it.
+            version: hadContent ? summaryRecord.version + 1 : summaryRecord.version,
           },
         });
+        await tx.callDecision.deleteMany({
+          where: { callId, summaryId: summaryRecord.id },
+        });
+        await tx.callActionItem.deleteMany({
+          where: { callId, summaryId: summaryRecord.id, taskId: null, status: 'TODO' },
+        });
+        if (structured.decisions.length > 0) {
+          await tx.callDecision.createMany({
+            data: structured.decisions.map((d) => ({
+              callId,
+              summaryId: summaryRecord.id,
+              workspaceId,
+              content: d.text,
+              sourceTimestamp: d.timestamp ?? null,
+              // Attributed to whoever said it when we can tell — never to the
+              // person who happened to press "end call".
+              madeById: resolve(d.speaker),
+            })),
+          });
+        }
+        const createdItems =
+          structured.actionItems.length > 0
+            ? await tx.callActionItem.createManyAndReturn({
+                data: structured.actionItems.map((a) => ({
+                  callId,
+                  summaryId: summaryRecord.id,
+                  workspaceId,
+                  title: a.title,
+                  description: a.description ?? null,
+                  assigneeId: resolve(a.assignee),
+                  priority: a.priority,
+                  sourceTimestamp: a.timestamp ?? null,
+                  status: 'TODO',
+                })),
+                select: { id: true, title: true, assigneeId: true },
+              })
+            : [];
+        return { saved, createdItems };
+      });
 
-        this.events.emit(AppEvent.CallSummaryUpdated, {
+      this.events.emit(AppEvent.CallSummaryUpdated, {
+        workspaceId,
+        actorId: userId,
+        callId,
+        summaryId: saved.id,
+        status: 'READY',
+        title: call.title,
+        // "Summary ready" is news once; a regeneration refreshes open views only.
+        participantIds: hadContent ? undefined : participantIds,
+      });
+      for (const item of createdItems) {
+        if (!item.assigneeId) continue;
+        this.events.emit(AppEvent.CallActionItemUpdated, {
           workspaceId,
           actorId: userId,
           callId,
-          summaryId: updated.id,
-          status: 'READY',
-          title: call.title,
-          participantIds,
+          actionItemId: item.id,
+          action: 'created',
+          title: item.title,
+          assigneeId: item.assigneeId,
         });
-
-        return this.toSummaryView(updated);
       }
 
-      const prompt = `You are an expert AI meeting assistant. Analyze the following call information and generate a comprehensive, structured summary.
-Strictly return only valid JSON matching this schema:
-{
-  "overview": "A concise executive summary paragraph of what was discussed and achieved.",
-  "keyPoints": ["Key discussion topic 1", "Key discussion topic 2"],
-  "decisions": [
-    { "text": "Decision statement", "speaker": "Name if known", "timestamp": 0 }
-  ],
-  "actionItems": [
-    { "title": "Specific action item", "description": "Details", "assignee": "Name if mentioned", "dueDate": "ISO or string if mentioned", "priority": "LOW|MEDIUM|HIGH|URGENT", "timestamp": 0 }
-  ],
-  "openQuestions": ["Unresolved question or open issue"],
-  "followUps": ["Recommended follow-up topic grounded strictly in call content"],
-  "importantLinks": [
-    { "title": "Reference name", "url": "https://..." }
-  ]
-}
-
-Call Title: ${call.title}
-Participants: ${participantNames}
-
---- USER NOTES ---
-${notesText || '(None)'}
-
---- TRANSCRIPT ---
-${transcriptText || '(None)'}
-`;
-
-      let parsedOutput: StructuredAISummaryOutput;
-
-      try {
-        const aiResponse = await this.aiService.chat({
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You are an executive assistant extracting meeting notes. Return pure JSON only without markdown code blocks.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.2,
-          maxTokens: 2500,
-        });
-
-        const raw = (aiResponse.message?.content || '').trim();
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('AI output did not contain valid JSON.');
-        }
-
-        parsedOutput = JSON.parse(jsonMatch[0]) as StructuredAISummaryOutput;
-      } catch (aiErr) {
-        this.logger.warn(
-          `AI generation failed or output invalid for call ${callId}: ${String(aiErr)}`,
-        );
-
-        // Deterministic fallback from notes so manual notes are never lost
-        parsedOutput = {
-          overview: `Summary of call "${call.title}" based on notes captured during the session.`,
-          keyPoints: call.notes.map((n) => n.content.slice(0, 150)).filter(Boolean),
-          decisions: [],
-          actionItems: [],
-          openQuestions: [],
-          followUps: [],
-          importantLinks: [],
-        };
-      }
-
-      // Persist structured summary
-      const savedSummary = await this.prisma.callSummary.update({
-        where: { id: summaryRecord.id },
-        data: {
-          status: 'READY',
-          overview: parsedOutput.overview || 'Call concluded.',
-          keyPoints: parsedOutput.keyPoints || [],
-          openQuestions: parsedOutput.openQuestions || [],
-          followUps: parsedOutput.followUps || [],
-          importantLinks: parsedOutput.importantLinks || [],
-          rawContent: `${parsedOutput.overview}\n\nKey Points:\n${(parsedOutput.keyPoints || []).map((k) => `• ${k}`).join('\n')}`,
-          version: summaryRecord.version + 1,
-          updatedAt: new Date(),
-        },
-      });
-
-      // Insert extracted decisions if none exist yet for this call
-      if (parsedOutput.decisions && parsedOutput.decisions.length > 0) {
-        for (const dec of parsedOutput.decisions) {
-          if (dec.text?.trim()) {
-            await this.prisma.callDecision.create({
-              data: {
-                callId,
-                summaryId: savedSummary.id,
-                workspaceId,
-                content: dec.text.trim(),
-                sourceTimestamp: dec.timestamp ?? null,
-                madeById: userId,
-              },
-            });
-          }
-        }
-      }
-
-      // Insert extracted action items if none exist yet
-      if (parsedOutput.actionItems && parsedOutput.actionItems.length > 0) {
-        // Resolve member IDs if possible
-        const memberMap = new Map<string, string>();
-        for (const part of call.participants) {
-          memberMap.set(part.user.name.toLowerCase(), part.user.id);
-          if (part.user.displayName) {
-            memberMap.set(part.user.displayName.toLowerCase(), part.user.id);
-          }
-        }
-
-        for (const item of parsedOutput.actionItems) {
-          if (item.title?.trim()) {
-            const assigneeId = item.assignee
-              ? memberMap.get(item.assignee.toLowerCase()) ?? null
-              : null;
-
-            await this.prisma.callActionItem.create({
-              data: {
-                callId,
-                summaryId: savedSummary.id,
-                workspaceId,
-                title: item.title.trim(),
-                description: item.description ?? null,
-                assigneeId,
-                priority: (item.priority as TaskPriority) ?? 'MEDIUM',
-                sourceTimestamp: item.timestamp ?? null,
-                status: 'TODO',
-              },
-            });
-          }
-        }
-      }
-
-      this.events.emit(AppEvent.CallSummaryUpdated, {
-        workspaceId,
-        actorId: userId,
-        callId,
-        summaryId: savedSummary.id,
-        status: 'READY',
-        title: call.title,
-        participantIds,
-      });
-
-      return this.toSummaryView(savedSummary);
+      return toCallSummaryView(saved);
     } catch (err) {
       this.logger.error(`Failed to generate summary for call ${callId}`, err);
-
-      const failedSummary = await this.prisma.callSummary.update({
+      const failed = await this.prisma.callSummary.update({
         where: { id: summaryRecord.id },
-        data: {
-          status: 'FAILED',
-          failureReason:
-            err instanceof Error
-              ? err.message
-              : "We couldn't generate the summary.",
-          updatedAt: new Date(),
-        },
+        data: { status: 'FAILED', failureReason: "We couldn't generate the summary." },
       });
-
-      this.events.emit(AppEvent.CallSummaryUpdated, {
-        workspaceId,
-        actorId: userId,
-        callId,
-        summaryId: failedSummary.id,
-        status: 'FAILED',
-      });
-
-      return this.toSummaryView(failedSummary);
+      this.emitSummary(workspaceId, userId, callId, failed.id, 'FAILED');
+      return toCallSummaryView(failed);
     }
   }
 
   /**
-   * Regenerate specific section or entire summary with confirmation guard.
+   * Regenerates the whole summary or one field of it. A summary a person has
+   * edited or approved is only overwritten with explicit confirmation.
    */
   async regenerate(
     workspaceId: string,
@@ -453,213 +390,230 @@ ${transcriptText || '(None)'}
     callId: string,
     input: RegenerateCallSummarySectionInput,
   ): Promise<CallSummaryView> {
-    const existing = await this.prisma.callSummary.findUnique({
-      where: { callId },
-    });
+    await this.access.assertCanView(workspaceId, userId, callId);
+    const existing = await this.prisma.callSummary.findUnique({ where: { callId } });
 
-    if (!existing || existing.workspaceId !== workspaceId) {
-      throw new NotFoundException('Summary not found.');
-    }
-
-    if (existing.status === 'EDITED' && !input.confirmOverwrite) {
+    if (existing && (existing.status === 'EDITED' || existing.status === 'APPROVED') && !input.confirmOverwrite) {
       throw new ConflictException(
-        'This summary was manually edited. Confirm overwrite to regenerate.',
+        'This summary was edited by a person. Confirm to overwrite it.',
       );
     }
-
-    if (input.section === 'all') {
+    if (input.section === 'all' || !existing) {
       return this.generateSummary(workspaceId, userId, callId, { force: true });
     }
 
-    // Section-level regeneration
-    const call = await this.prisma.call.findUnique({
+    const call = await this.prisma.call.findUniqueOrThrow({
       where: { id: callId },
       include: {
-        notes: true,
-        transcripts: true,
+        notes: { orderBy: { createdAt: 'asc' } },
+        transcripts: { orderBy: { timestamp: 'asc' } },
       },
     });
 
-    if (!call) throw new NotFoundException('Call not found.');
-
-    const context = `Call Notes: ${call.notes.map((n) => n.content).join(' ')}\nTranscript: ${call.transcripts.map((t) => t.text).join(' ')}`;
-
-    const prompt = `Regenerate only the "${input.section}" section of the call summary based on this content:
-${context}
-Return JSON: { "${input.section}": ... }`;
-
+    const section = input.section;
+    let reply: string;
     try {
-      const resp = await this.aiService.chat({
-        messages: [{ role: 'user', content: prompt }],
+      const response = await this.aiService.chat({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You rewrite one section of a work-call summary. Reply with one JSON object only. Use only facts from the call.',
+          },
+          {
+            role: 'user',
+            content: `Regenerate the "${section}" section. ${
+              section === 'overview'
+                ? 'Return { "overview": "one short paragraph" }.'
+                : `Return { "${section}": ["...", "..."] }.`
+            }
+
+--- NOTES ---
+${call.notes.map((n) => n.content).join('\n') || '(none)'}
+
+--- TRANSCRIPT ---
+${call.transcripts.map((t) => `[${clock(t.timestamp)}] ${t.speakerName}: ${t.text}`).join('\n') || '(none)'}`,
+          },
+        ],
         temperature: 0.3,
+        maxTokens: 1200,
       });
-
-      const raw = (resp.message?.content || '').trim();
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (match) {
-        const parsed = JSON.parse(match[0]);
-        const dataToUpdate: Record<string, unknown> = {
-          updatedAt: new Date(),
-        };
-
-        if (input.section in parsed) {
-          dataToUpdate[input.section] = parsed[input.section];
-        }
-
-        const updated = await this.prisma.callSummary.update({
-          where: { id: existing.id },
-          data: dataToUpdate as any,
-        });
-
-        return this.toSummaryView(updated);
-      }
+      reply = response.message?.content ?? '';
     } catch (err) {
-      this.logger.error(`Failed to regenerate section ${input.section}`, err);
+      this.logger.warn(`Section regeneration failed for call ${callId}: ${String(err)}`);
+      throw new ServiceUnavailableException(
+        'The AI service is unavailable right now. Try again in a moment.',
+      );
     }
 
-    return this.toSummaryView(existing);
+    let data: Prisma.CallSummaryUpdateInput;
+    try {
+      const parsed = sanitizeSummary(parseJsonObject(reply));
+      if (section === 'overview') {
+        if (!parsed.overview) throw new Error('empty overview');
+        data = { overview: parsed.overview };
+      } else {
+        if (parsed[section].length === 0) throw new Error(`empty ${section}`);
+        data = { [section]: parsed[section] };
+      }
+    } catch {
+      throw new ServiceUnavailableException(
+        'The AI returned an unusable answer. Try regenerating again.',
+      );
+    }
+
+    const updated = await this.prisma.callSummary.update({
+      where: { id: existing.id },
+      data: { ...data, status: 'READY', version: { increment: 1 } },
+    });
+    this.emitSummary(workspaceId, userId, callId, updated.id, 'READY');
+    return toCallSummaryView(updated);
   }
 
-  /**
-   * Update summary manually. Marks status as EDITED.
-   */
+  /** A person's edit. Marks the summary EDITED (or APPROVED when they approve it). */
   async updateSummary(
     workspaceId: string,
     userId: string,
     callId: string,
     input: UpdateCallSummaryInput,
   ): Promise<CallSummaryView> {
-    const existing = await this.prisma.callSummary.findUnique({
-      where: { callId },
-    });
-
-    if (!existing || existing.workspaceId !== workspaceId) {
-      throw new NotFoundException('Summary not found.');
-    }
+    await this.access.assertCanView(workspaceId, userId, callId);
+    const existing = await this.prisma.callSummary.findUnique({ where: { callId } });
+    if (!existing) throw new NotFoundException('Summary not found.');
 
     const updated = await this.prisma.callSummary.update({
       where: { id: existing.id },
       data: {
-        overview: input.overview !== undefined ? input.overview : existing.overview,
-        keyPoints: input.keyPoints !== undefined ? (input.keyPoints as any) : (existing.keyPoints as any),
-        openQuestions: input.openQuestions !== undefined ? (input.openQuestions as any) : (existing.openQuestions as any),
-        followUps: input.followUps !== undefined ? (input.followUps as any) : (existing.followUps as any),
-        importantLinks: input.importantLinks !== undefined ? (input.importantLinks as any) : (existing.importantLinks as any),
-        rawContent: input.rawContent !== undefined ? input.rawContent : existing.rawContent,
-        status: (input.status as CallSummaryStatus) ?? 'EDITED',
-        version: existing.version + 1,
-        updatedAt: new Date(),
+        ...(input.overview !== undefined ? { overview: input.overview } : {}),
+        ...(input.keyPoints !== undefined ? { keyPoints: input.keyPoints } : {}),
+        ...(input.openQuestions !== undefined ? { openQuestions: input.openQuestions } : {}),
+        ...(input.followUps !== undefined ? { followUps: input.followUps } : {}),
+        ...(input.importantLinks !== undefined
+          ? { importantLinks: input.importantLinks }
+          : {}),
+        ...(input.rawContent !== undefined ? { rawContent: input.rawContent } : {}),
+        status: input.status ?? 'EDITED',
+        version: { increment: 1 },
       },
     });
 
-    this.events.emit(AppEvent.CallSummaryUpdated, {
-      workspaceId,
-      actorId: userId,
-      callId,
-      summaryId: updated.id,
-      status: updated.status,
-    });
-
-    return this.toSummaryView(updated);
+    this.emitSummary(workspaceId, userId, callId, updated.id, updated.status);
+    return toCallSummaryView(updated);
   }
 
-  /**
-   * "Ask about this call" grounded interactive Q&A.
-   */
+  /** "Ask about this call" — answered strictly from the call's own record. */
   async askQuestion(
     workspaceId: string,
-    _userId: string,
+    userId: string,
     callId: string,
     input: AskCallQuestionRequest,
   ): Promise<AskCallQuestionResponse> {
-    const call = await this.prisma.call.findUnique({
+    await this.access.assertCanView(workspaceId, userId, callId);
+    const call = await this.prisma.call.findUniqueOrThrow({
       where: { id: callId },
       include: {
-        notes: true,
+        notes: { include: { author: { select: PUBLIC_USER_SELECT } } },
         summary: true,
         actionItems: true,
         decisions: true,
-        transcripts: {
-          orderBy: { timestamp: 'asc' },
-        },
+        transcripts: { orderBy: { timestamp: 'asc' } },
       },
     });
 
-    if (!call || call.workspaceId !== workspaceId) {
-      throw new NotFoundException('Call not found.');
-    }
-
     const summaryContext = call.summary
-      ? `Summary Overview: ${call.summary.overview || ''}
-Key Points: ${JSON.stringify(call.summary.keyPoints || [])}
-Decisions: ${call.decisions.map((d) => d.content).join('; ')}
-Action Items: ${call.actionItems.map((a) => a.title).join('; ')}`
-      : 'No structured summary available.';
+      ? [
+          `Overview: ${call.summary.overview ?? ''}`,
+          `Key points: ${JSON.stringify(call.summary.keyPoints ?? [])}`,
+        ].join('\n')
+      : 'No summary yet.';
 
-    const transcriptContext = call.transcripts
-      .map(
-        (t) =>
-          `[${Math.floor(t.timestamp / 60)}:${(t.timestamp % 60).toString().padStart(2, '0')}] ${t.speakerName || 'Speaker'}: ${t.text}`,
-      )
-      .join('\n');
-
-    const prompt = `You are an AI assistant answering questions grounded specifically in the following call record.
-Only use the facts provided below. If you do not know the answer, politely state that it was not discussed.
-
---- CALL SUMMARY & METADATA ---
-Title: ${call.title}
+    try {
+      const response = await this.aiService.chat({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Answer questions about one work call using only the record provided. If the record does not answer it, say it was not discussed. Cite timestamps (m:ss) when relevant. Be concise.',
+          },
+          {
+            role: 'user',
+            content: `Title: ${call.title}
 ${summaryContext}
+Decisions: ${call.decisions.map((d) => d.content).join('; ') || '(none)'}
+Action items: ${call.actionItems.map((a) => a.title).join('; ') || '(none)'}
 
---- TRANSCRIPT & NOTES ---
-${transcriptContext}
+--- NOTES ---
+${call.notes.map((n) => `[${n.author.displayName || n.author.name}]: ${n.content}`).join('\n') || '(none)'}
 
---- USER QUESTION ---
-${input.question}
+--- TRANSCRIPT ---
+${call.transcripts.map((t) => `[${clock(t.timestamp)}] ${t.speakerName}: ${t.text}`).join('\n') || '(none)'}
 
-Answer concisely and reference any relevant timestamp (in minutes:seconds) if applicable.`;
-
-    const response = await this.aiService.chat({
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2,
-      maxTokens: 800,
-    });
-
-    return {
-      answer: response.message?.content || 'I could not find an answer in this call.',
-    };
+Question: ${input.question}`,
+          },
+        ],
+        temperature: 0.2,
+        maxTokens: 800,
+      });
+      return {
+        answer:
+          response.message?.content?.trim() || 'I could not find an answer in this call.',
+      };
+    } catch (err) {
+      this.logger.warn(`Ask-about-call failed for ${callId}: ${String(err)}`);
+      throw new ServiceUnavailableException(
+        'The AI service is unavailable right now. Try again in a moment.',
+      );
+    }
   }
 
-  /**
-   * Notes AI assistance (summarize, cleanup, extract_actions, extract_decisions, generate_followup, format).
-   */
+  /** AI helpers for the live notes editor (clean up, extract, format…). */
   async assistNotes(
     workspaceId: string,
+    userId: string,
+    callId: string,
     input: CallNotesAssistRequest,
   ): Promise<CallNotesAssistResponse> {
-    const prompt = `Perform the following action on these meeting notes:
-Action: ${input.action}
-Notes:
-${input.notes}
+    await this.access.assertCanView(workspaceId, userId, callId);
 
-Return the improved or extracted text clearly. If extracting action items, prefix each with "- [ ] ". If extracting decisions, prefix each with "Decision: ".`;
+    const instruction: Record<CallNotesAssistRequest['action'], string> = {
+      summarize: 'Summarize these notes in a few tight bullet points.',
+      cleanup: 'Fix typos, grammar and structure. Keep every fact; add nothing.',
+      format: 'Format these notes as clean markdown with headings and bullets. Keep every fact.',
+      generate_followup: 'Draft a short follow-up message to the attendees based on these notes.',
+      extract_actions:
+        'List every action item as a line starting with "- [ ] ". Output only those lines.',
+      extract_decisions:
+        'List every decision as a line starting with "Decision: ". Output only those lines.',
+    };
 
-    const response = await this.aiService.chat({
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
-      maxTokens: 1000,
-    });
-
-    const result = response.message?.content || input.notes;
+    let result: string;
+    try {
+      const response = await this.aiService.chat({
+        messages: [
+          { role: 'system', content: 'You help people tidy up their call notes.' },
+          { role: 'user', content: `${instruction[input.action]}\n\nNotes:\n${input.notes}` },
+        ],
+        temperature: 0.3,
+        maxTokens: 1000,
+      });
+      result = response.message?.content?.trim() || input.notes;
+    } catch (err) {
+      this.logger.warn(`Notes assist failed for call ${callId}: ${String(err)}`);
+      throw new ServiceUnavailableException(
+        'The AI service is unavailable right now. Your notes are unchanged.',
+      );
+    }
 
     const actionItems: Array<{ title: string }> = [];
     const decisions: string[] = [];
-
     for (const line of result.split('\n')) {
       const trimmed = line.trim();
-      if (trimmed.startsWith('- [ ]')) {
-        actionItems.push({ title: trimmed.replace(/^- \[[ x]\]\s*/, '') });
-      } else if (trimmed.startsWith('Decision:')) {
-        decisions.push(trimmed.replace(/^Decision:\s*/, ''));
+      if (/^- \[[ x]\]/i.test(trimmed)) {
+        const title = trimmed.replace(/^- \[[ x]\]\s*/i, '').trim();
+        if (title) actionItems.push({ title: title.slice(0, 300) });
+      } else if (/^decision:/i.test(trimmed)) {
+        const text = trimmed.replace(/^decision:\s*/i, '').trim();
+        if (text) decisions.push(text.slice(0, 500));
       }
     }
 
@@ -670,75 +624,84 @@ Return the improved or extracted text clearly. If extracting action items, prefi
     };
   }
 
-  /**
-   * Submit feedback on AI summary (Helpful / Not helpful).
-   */
+  /** One rating per person — a second click replaces the first. */
   async submitFeedback(
     workspaceId: string,
     userId: string,
     callId: string,
     input: CallSummaryFeedbackInput,
   ): Promise<void> {
+    await this.access.assertCanView(workspaceId, userId, callId);
     const summary = await this.prisma.callSummary.findUnique({
       where: { callId },
+      select: { id: true },
     });
+    if (!summary) throw new NotFoundException('Summary not found.');
 
-    if (!summary || summary.workspaceId !== workspaceId) {
-      throw new NotFoundException('Summary not found.');
-    }
-
-    await this.prisma.callSummaryFeedback.create({
-      data: {
-        summaryId: summary.id,
-        userId,
-        rating: input.rating,
-        feedback: input.feedback ?? null,
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.callSummaryFeedback.deleteMany({
+        where: { summaryId: summary.id, userId },
+      }),
+      this.prisma.callSummaryFeedback.create({
+        data: {
+          summaryId: summary.id,
+          userId,
+          rating: input.rating,
+          feedback: input.feedback ?? null,
+        },
+      }),
+    ]);
   }
 
   /**
-   * Share call summary with participants, the whole workspace, or specific
-   * users — resolves the recipient list per `target` and fans out an in-app
-   * notification for each (via {@link AppEvent.CallSummaryShared}, handled by
-   * `DomainEventsListener`). `target: 'conversation'` and `postMessageToChat`
-   * are posted by the caller directly through the Matrix client it already
-   * holds (same as the call-summary card `CallModal` posts on hang-up) — the
-   * API has no live Matrix session to piggyback on here.
+   * Shares the call: widens who may open it (workspace / named people) and
+   * notifies the recipients. `participants` only notifies — they can already
+   * see it. `conversation` / `link` are handled by the client, which holds the
+   * Matrix session that posts into the room.
    */
   async shareSummary(
     workspaceId: string,
     userId: string,
     callId: string,
     input: ShareCallSummaryInput,
-  ): Promise<{ success: boolean; shareUrl: string }> {
-    const call = await this.prisma.call.findUnique({
+  ): Promise<{ success: boolean; shareUrl: string; recipientCount: number }> {
+    await this.access.assertCanView(workspaceId, userId, callId);
+    const call = await this.prisma.call.findUniqueOrThrow({
       where: { id: callId },
-      include: {
+      select: {
+        title: true,
+        sharedWithUserIds: true,
         participants: { select: { userId: true } },
       },
     });
-
-    if (!call || call.workspaceId !== workspaceId) {
-      throw new NotFoundException('Call not found.');
-    }
-
-    const shareUrl = `/workspaces/${workspaceId}/calls/${callId}`;
 
     let recipientIds: string[] = [];
     if (input.target === 'participants') {
       recipientIds = call.participants.map((p) => p.userId);
     } else if (input.target === 'specific_users') {
-      recipientIds = input.userIds ?? [];
+      recipientIds = await this.access.filterWorkspaceMembers(
+        workspaceId,
+        input.userIds ?? [],
+      );
+      await this.prisma.call.update({
+        where: { id: callId },
+        data: {
+          sharedWithUserIds: [...new Set([...call.sharedWithUserIds, ...recipientIds])],
+        },
+      });
     } else if (input.target === 'workspace') {
+      await this.prisma.call.update({
+        where: { id: callId },
+        data: { sharedWithWorkspace: true },
+      });
       const members = await this.prisma.workspaceMember.findMany({
         where: { workspaceId, status: 'ACTIVE' },
         select: { userId: true },
       });
       recipientIds = members.map((m) => m.userId);
     }
-    // 'conversation' and 'link' carry no in-app recipients of their own.
 
+    recipientIds = recipientIds.filter((id) => id !== userId);
     if (recipientIds.length > 0) {
       this.events.emit(AppEvent.CallSummaryShared, {
         workspaceId,
@@ -752,7 +715,25 @@ Return the improved or extracted text clearly. If extracting action items, prefi
 
     return {
       success: true,
-      shareUrl,
+      // Workspace-relative, like every notification deep link.
+      shareUrl: `calls?callId=${callId}`,
+      recipientCount: recipientIds.length,
     };
+  }
+
+  private emitSummary(
+    workspaceId: string,
+    actorId: string,
+    callId: string,
+    summaryId: string,
+    status: string,
+  ): void {
+    this.events.emit(AppEvent.CallSummaryUpdated, {
+      workspaceId,
+      actorId,
+      callId,
+      summaryId,
+      status,
+    });
   }
 }

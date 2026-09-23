@@ -267,6 +267,14 @@ export interface ChatSurfaceProps {
   onRetry?: (messageId: string) => void | Promise<void>;
   onTogglePin?: (eventId: string) => void;
   onToggleSave?: (eventId: string) => void;
+  /** "Mark unread" from a message. */
+  onMarkUnread?: (message: Message) => void;
+  /** "Remind me about this" at the chosen time. */
+  onRemind?: (message: Message, remindAt: Date) => void;
+  /** Thread roots whose reply notifications are off. */
+  mutedThreadRootIds?: readonly string[];
+  /** Turns reply notifications for a thread off (`mute`) or back on. */
+  onToggleReplyNotifications?: (threadRootId: string, mute: boolean) => void;
   onForward?: (message: Message) => void;
   onAssignToMe?: (message: Message) => void;
   onCreateTask?: (message: Message) => void;
@@ -373,6 +381,10 @@ export function ChatSurface({
   onRetry,
   onTogglePin,
   onToggleSave,
+  onMarkUnread,
+  onRemind,
+  mutedThreadRootIds,
+  onToggleReplyNotifications,
   onForward,
   onAssignToMe,
   onCreateTask,
@@ -807,6 +819,22 @@ export function ChatSurface({
     [handleOpenUserProfile, onViewSystemEventEntity],
   );
 
+  /*
+   * A link to a message is the conversation's own URL with `?msg=` (and
+   * `?thread=` for a reply) — the form ChatPanel scrolls to and highlights.
+   */
+  const copyMessageLink = useCallback((message: Message, confirmation: string) => {
+    const url = new URL(window.location.href);
+    url.hash = '';
+    url.search = '';
+    if (message.threadRootId) url.searchParams.set('thread', message.threadRootId);
+    url.searchParams.set('msg', message.id);
+    void navigator.clipboard
+      ?.writeText(url.toString())
+      .then(() => toast.success(confirmation))
+      .catch(() => toast.error('Could not copy the link.'));
+  }, []);
+
   const renderMessage = useCallback(
     (message: Message, grouped: boolean) => {
       // Folded into its burst's head bubble as a grid tile — see below.
@@ -885,12 +913,25 @@ export function ChatSurface({
           onForward={
             onForward
               ? () => onForward(message)
-              : () => {
-                  void navigator.clipboard?.writeText(
-                    `${window.location.origin}${window.location.pathname}#${message.id}`,
+              : () => copyMessageLink(message, 'Link copied — paste it to forward')
+          }
+          onMarkUnread={onMarkUnread ? () => onMarkUnread(message) : undefined}
+          onRemind={
+            onRemind ? (remindAt: Date) => onRemind(message, remindAt) : undefined
+          }
+          replyNotificationsMuted={mutedThreadRootIds?.includes(
+            message.threadRootId ?? message.id,
+          )}
+          onToggleReplyNotifications={
+            onToggleReplyNotifications
+              ? () => {
+                  const rootId = message.threadRootId ?? message.id;
+                  onToggleReplyNotifications(
+                    rootId,
+                    !mutedThreadRootIds?.includes(rootId),
                   );
-                  toast.success('Link copied to forward');
                 }
+              : undefined
           }
           onAssignToMe={onAssignToMe ? () => onAssignToMe(message) : undefined}
           onCreateTask={onCreateTask ? () => onCreateTask(message) : undefined}
@@ -916,12 +957,13 @@ export function ChatSurface({
                 ? () => void onRetry(message.id)
                 : undefined
           }
-          onCopyText={() => void navigator.clipboard?.writeText(message.body)}
-          onCopyLink={() =>
-            void navigator.clipboard?.writeText(
-              `${window.location.origin}${window.location.pathname}#${message.id}`,
-            )
-          }
+          onCopyText={() => {
+            void navigator.clipboard
+              ?.writeText(message.body)
+              .then(() => toast.success('Text copied'))
+              .catch(() => toast.error('Could not copy the text.'));
+          }}
+          onCopyLink={() => copyMessageLink(message, 'Link copied')}
           attachmentSlot={(() => {
             const uploaderContext = {
               senderId: message.senderId,
@@ -1005,6 +1047,11 @@ export function ChatSurface({
       editWindowMinutes,
       onTogglePin,
       onToggleSave,
+      onMarkUnread,
+      onRemind,
+      mutedThreadRootIds,
+      onToggleReplyNotifications,
+      onForward,
       onAssignToMe,
       onCreateTask,
       onCreateDoc,
@@ -1022,6 +1069,7 @@ export function ChatSurface({
       chat?.linkPreviewsEnabled,
       roomKind,
       workspaceId,
+      copyMessageLink,
     ],
   );
 

@@ -48,6 +48,7 @@ export {
   type CallActionItemUpdatedEvent,
   type CallDecisionUpdatedEvent,
   type CallSummarySharedEvent,
+  type CallUpdatedEvent,
 } from './lib/events.js';
 
 export {

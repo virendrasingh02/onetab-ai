@@ -159,12 +159,13 @@ import type {
   CallActionItemView,
   CallDecisionView,
   CallTranscriptItemView,
-  CallSummaryFeedbackView,
+  EndCallResponse,
   CallNotesAssistRequest,
   CallNotesAssistResponse,
   AskCallQuestionRequest,
   AskCallQuestionResponse,
   NotificationPreference,
+  MessageReminder,
   PerformanceMetrics,
   PluginCredentials,
   PluginManifest,
@@ -290,6 +291,8 @@ import type {
   UpdateCallInput,
   CreateCallNoteInput,
   UpdateCallNoteInput,
+  UpsertMyCallNoteInput,
+  CreateMessageReminderInput,
   GenerateCallSummaryInput,
   RegenerateCallSummarySectionInput,
   UpdateCallSummaryInput,
@@ -364,6 +367,16 @@ export interface AuthResponse extends AuthTokens {
   user: CurrentUser;
 }
 
+/**
+ * `POST /auth/magic-link/{request,resend}` — the same answer whether or not the
+ * address is registered. `devToken` only outside production (no mail transport).
+ */
+export interface MagicLinkRequestResponse {
+  message: string;
+  expiresInMinutes: number;
+  devToken?: string;
+}
+
 export const authApi = {
   register: (input: RegisterInput) =>
     request<AuthResponse>(http.post('/auth/register', input)),
@@ -402,17 +415,15 @@ export const authApi = {
     request<void>(http.post('/auth/reset-password', input)),
 
   requestMagicLink: (input: MagicLinkRequestInput) =>
-    request<{ message: string; devToken?: string }>(
+    request<MagicLinkRequestResponse>(
       http.post('/auth/magic-link/request', input),
     ),
 
   verifyMagicLink: (input: MagicLinkVerifyInput) =>
-    request<AuthResponse & { refreshToken: string }>(
-      http.post('/auth/magic-link/verify', input),
-    ),
+    request<AuthResponse>(http.post('/auth/magic-link/verify', input)),
 
   resendMagicLink: (input: MagicLinkRequestInput) =>
-    request<{ message: string; devToken?: string }>(
+    request<MagicLinkRequestResponse>(
       http.post('/auth/magic-link/resend', input),
     ),
 
@@ -3230,7 +3241,8 @@ export const huddleApi = {
 
 /** Call Sessions, Notes & AI Summaries */
 export const callsApi = {
-  list: (
+  // Sessions
+  listCalls: (
     workspaceId: string,
     params?: {
       conversationId?: string;
@@ -3242,21 +3254,22 @@ export const callsApi = {
       http.get(`/workspaces/${workspaceId}/calls`, { params }),
     ),
 
-  start: (workspaceId: string, input: StartCallInput) =>
+  startCall: (workspaceId: string, input: StartCallInput) =>
     request<CallView>(http.post(`/workspaces/${workspaceId}/calls`, input)),
 
-  get: (workspaceId: string, callId: string) =>
+  getCall: (workspaceId: string, callId: string) =>
     request<CallDetailView>(
       http.get(`/workspaces/${workspaceId}/calls/${callId}`),
     ),
 
-  update: (workspaceId: string, callId: string, input: UpdateCallInput) =>
+  updateCall: (workspaceId: string, callId: string, input: UpdateCallInput) =>
     request<CallView>(
       http.patch(`/workspaces/${workspaceId}/calls/${callId}`, input),
     ),
 
-  end: (workspaceId: string, callId: string) =>
-    request<CallView>(
+  /** Idempotent: `endedNow` is true only for the request that closed it. */
+  endCall: (workspaceId: string, callId: string) =>
+    request<EndCallResponse>(
       http.post(`/workspaces/${workspaceId}/calls/${callId}/end`),
     ),
 
@@ -3264,6 +3277,16 @@ export const callsApi = {
   getNotes: (workspaceId: string, callId: string) =>
     request<CallNoteView[]>(
       http.get(`/workspaces/${workspaceId}/calls/${callId}/notes`),
+    ),
+
+  /** The caller's one running note — what the live editor autosaves into. */
+  upsertMyNote: (
+    workspaceId: string,
+    callId: string,
+    input: UpsertMyCallNoteInput,
+  ) =>
+    request<CallNoteView>(
+      http.put(`/workspaces/${workspaceId}/calls/${callId}/notes/mine`, input),
     ),
 
   addNote: (workspaceId: string, callId: string, input: CreateCallNoteInput) =>
@@ -3307,7 +3330,7 @@ export const callsApi = {
       ),
     ),
 
-  regenerateSummary: (
+  regenerateSummarySection: (
     workspaceId: string,
     callId: string,
     input: RegenerateCallSummarySectionInput,
@@ -3349,12 +3372,12 @@ export const callsApi = {
       http.post(`/workspaces/${workspaceId}/calls/${callId}/ai/assist`, input),
     ),
 
-  submitFeedback: (
+  submitSummaryFeedback: (
     workspaceId: string,
     callId: string,
     input: CallSummaryFeedbackInput,
   ) =>
-    request<CallSummaryFeedbackView>(
+    request<void>(
       http.post(
         `/workspaces/${workspaceId}/calls/${callId}/summary/feedback`,
         input,
@@ -3366,20 +3389,20 @@ export const callsApi = {
     callId: string,
     input: ShareCallSummaryInput,
   ) =>
-    request<{ success: boolean; shareUrl: string }>(
+    request<{ success: boolean; shareUrl: string; recipientCount: number }>(
       http.post(
         `/workspaces/${workspaceId}/calls/${callId}/summary/share`,
         input,
       ),
     ),
 
-  // Action Items
-  listActionItems: (workspaceId: string, callId: string) =>
+  // Action items
+  getActionItems: (workspaceId: string, callId: string) =>
     request<CallActionItemView[]>(
       http.get(`/workspaces/${workspaceId}/calls/${callId}/action-items`),
     ),
 
-  addActionItem: (
+  createActionItem: (
     workspaceId: string,
     callId: string,
     input: CreateCallActionItemInput,
@@ -3426,12 +3449,12 @@ export const callsApi = {
     ),
 
   // Decisions
-  listDecisions: (workspaceId: string, callId: string) =>
+  getDecisions: (workspaceId: string, callId: string) =>
     request<CallDecisionView[]>(
       http.get(`/workspaces/${workspaceId}/calls/${callId}/decisions`),
     ),
 
-  addDecision: (
+  createDecision: (
     workspaceId: string,
     callId: string,
     input: CreateCallDecisionInput,
@@ -3461,7 +3484,7 @@ export const callsApi = {
     ),
 
   // Transcript
-  getTranscript: (workspaceId: string, callId: string) =>
+  getTranscripts: (workspaceId: string, callId: string) =>
     request<CallTranscriptItemView[]>(
       http.get(`/workspaces/${workspaceId}/calls/${callId}/transcript`),
     ),
@@ -3474,82 +3497,6 @@ export const callsApi = {
     request<CallTranscriptItemView[]>(
       http.post(
         `/workspaces/${workspaceId}/calls/${callId}/transcript`,
-        input,
-      ),
-    ),
-
-  // Aliases for developer convenience
-  listCalls: (
-    workspaceId: string,
-    params?: {
-      conversationId?: string;
-      meetingId?: string;
-      status?: string;
-    },
-  ) =>
-    request<CallView[]>(
-      http.get(`/workspaces/${workspaceId}/calls`, { params }),
-    ),
-  getCall: (workspaceId: string, callId: string) =>
-    request<CallDetailView>(
-      http.get(`/workspaces/${workspaceId}/calls/${callId}`),
-    ),
-  startCall: (workspaceId: string, input: StartCallInput) =>
-    request<CallView>(http.post(`/workspaces/${workspaceId}/calls`, input)),
-  endCall: (workspaceId: string, callId: string) =>
-    request<CallView>(
-      http.post(`/workspaces/${workspaceId}/calls/${callId}/end`),
-    ),
-  getActionItems: (workspaceId: string, callId: string) =>
-    request<CallActionItemView[]>(
-      http.get(`/workspaces/${workspaceId}/calls/${callId}/action-items`),
-    ),
-  createActionItem: (
-    workspaceId: string,
-    callId: string,
-    input: CreateCallActionItemInput,
-  ) =>
-    request<CallActionItemView>(
-      http.post(
-        `/workspaces/${workspaceId}/calls/${callId}/action-items`,
-        input,
-      ),
-    ),
-  getDecisions: (workspaceId: string, callId: string) =>
-    request<CallDecisionView[]>(
-      http.get(`/workspaces/${workspaceId}/calls/${callId}/decisions`),
-    ),
-  createDecision: (
-    workspaceId: string,
-    callId: string,
-    input: CreateCallDecisionInput,
-  ) =>
-    request<CallDecisionView>(
-      http.post(`/workspaces/${workspaceId}/calls/${callId}/decisions`, input),
-    ),
-  getTranscripts: (workspaceId: string, callId: string) =>
-    request<CallTranscriptItemView[]>(
-      http.get(`/workspaces/${workspaceId}/calls/${callId}/transcript`),
-    ),
-  regenerateSummarySection: (
-    workspaceId: string,
-    callId: string,
-    input: RegenerateCallSummarySectionInput,
-  ) =>
-    request<CallSummaryView>(
-      http.post(
-        `/workspaces/${workspaceId}/calls/${callId}/summary/regenerate`,
-        input,
-      ),
-    ),
-  submitSummaryFeedback: (
-    workspaceId: string,
-    callId: string,
-    input: CallSummaryFeedbackInput,
-  ) =>
-    request<CallSummaryFeedbackView>(
-      http.post(
-        `/workspaces/${workspaceId}/calls/${callId}/summary/feedback`,
         input,
       ),
     ),
@@ -3581,6 +3528,23 @@ export const stickersApi = {
       http.get('/stickers/search', {
         params: q ? { q } : {},
       }),
+    ),
+};
+
+/** "Remind me about this" on chat messages — the caller's own reminders. */
+export const remindersApi = {
+  list: (workspaceId: string) =>
+    request<MessageReminder[]>(http.get(`/workspaces/${workspaceId}/reminders`)),
+
+  /** Setting one on a message that already has a pending reminder reschedules it. */
+  create: (workspaceId: string, input: CreateMessageReminderInput) =>
+    request<MessageReminder>(
+      http.post(`/workspaces/${workspaceId}/reminders`, input),
+    ),
+
+  cancel: (workspaceId: string, reminderId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/reminders/${reminderId}`),
     ),
 };
 

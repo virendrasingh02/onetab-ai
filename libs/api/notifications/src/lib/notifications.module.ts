@@ -13,6 +13,8 @@ import {
   PushDeviceController,
 } from './notifications.controller.js';
 import { NotificationsService } from './notifications.service.js';
+import { RemindersController } from './reminders.controller.js';
+import { RemindersService } from './reminders.service.js';
 
 @Module({
   imports: [ConfigModule, PrismaModule, AuthModule],
@@ -20,6 +22,7 @@ import { NotificationsService } from './notifications.service.js';
     NotificationsController,
     PushDeviceController,
     IntelligenceController,
+    RemindersController,
   ],
   providers: [
     NotificationsService,
@@ -27,6 +30,7 @@ import { NotificationsService } from './notifications.service.js';
     ActivityWriterService,
     AttentionService,
     CatchUpService,
+    RemindersService,
     // Bridges the app event bus onto notification + activity rows. Registered
     // as a provider so NestJS instantiates it and its @OnEvent handlers bind.
     DomainEventsListener,

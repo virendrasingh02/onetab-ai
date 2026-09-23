@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CURATED_STICKER_PACKS, StickerSourceProvider, type StickerSource } from './sticker-source-context.js';
+import { StickerSourceProvider, type StickerSource } from './sticker-source-context.js';
 import { GifSourceProvider, type GifSource } from './gif-source-context.js';
 import { UnifiedEmojiPicker } from './unified-emoji-picker.js';
 import { UnifiedEmojiPickerPopover } from './unified-emoji-picker-popover.js';

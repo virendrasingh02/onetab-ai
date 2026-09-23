@@ -1,7 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { AppEvent } from '@org/api-common';
-import type { UserPresence } from '@org/types';
+import {
+  AppEvent,
+  type CallActionItemUpdatedEvent,
+  type CallDecisionUpdatedEvent,
+  type CallEndedEvent,
+  type CallNoteUpdatedEvent,
+  type CallStartedEvent,
+  type CallSummaryUpdatedEvent,
+  type CallUpdatedEvent,
+} from '@org/api-common';
+import type { CallUpdatedRealtimePayload, UserPresence } from '@org/types';
 import { RealtimeGatewayService } from './realtime-gateway.service.js';
 
 @Injectable()
@@ -62,94 +71,84 @@ export class RealtimeDomainBridgeListener {
     });
   }
 
+  /*
+   * Call events carry ids only. The workspace-wide broadcast tells open views
+   * to refetch; the refetch goes through the call's own access check, so a
+   * private DM call reveals nothing beyond "something changed".
+   */
   @OnEvent(AppEvent.CallStarted)
-  async onCallStarted(e: {
-    workspaceId: string;
-    actorId: string | null;
-    callId: string;
-    conversationId: string;
-    title: string;
-    kind: string;
-  }): Promise<void> {
+  async onCallStarted(e: CallStartedEvent): Promise<void> {
     await this.gateway.broadcastToWorkspace(e.workspaceId, {
       type: 'call.started',
       actorId: e.actorId,
-      payload: e,
+      payload: { callId: e.callId },
     });
   }
 
   @OnEvent(AppEvent.CallEnded)
-  async onCallEnded(e: {
-    workspaceId: string;
-    actorId: string | null;
-    callId: string;
-    conversationId: string;
-    durationSeconds: number;
-  }): Promise<void> {
+  async onCallEnded(e: CallEndedEvent): Promise<void> {
     await this.gateway.broadcastToWorkspace(e.workspaceId, {
       type: 'call.ended',
       actorId: e.actorId,
-      payload: e,
+      payload: { callId: e.callId },
     });
   }
 
   @OnEvent(AppEvent.CallNoteUpdated)
-  async onCallNoteUpdated(e: {
-    workspaceId: string;
-    actorId: string | null;
-    callId: string;
-    noteId: string;
-    action: string;
-  }): Promise<void> {
-    await this.gateway.broadcastToWorkspace(e.workspaceId, {
-      type: `note.${e.action}`,
-      actorId: e.actorId,
-      payload: e,
+  async onCallNoteUpdated(e: CallNoteUpdatedEvent): Promise<void> {
+    await this.broadcastCallUpdate(e.workspaceId, e.actorId, {
+      callId: e.callId,
+      entity: 'note',
+      action: e.action,
     });
   }
 
   @OnEvent(AppEvent.CallSummaryUpdated)
-  async onCallSummaryUpdated(e: {
-    workspaceId: string;
-    actorId: string | null;
-    callId: string;
-    summaryId: string;
-    status: string;
-  }): Promise<void> {
-    await this.gateway.broadcastToWorkspace(e.workspaceId, {
-      type: `summary.${e.status.toLowerCase()}`,
-      actorId: e.actorId,
-      payload: e,
+  async onCallSummaryUpdated(e: CallSummaryUpdatedEvent): Promise<void> {
+    await this.broadcastCallUpdate(e.workspaceId, e.actorId, {
+      callId: e.callId,
+      entity: 'summary',
+      action: 'updated',
+      status: e.status as CallUpdatedRealtimePayload['status'],
     });
   }
 
   @OnEvent(AppEvent.CallActionItemUpdated)
-  async onCallActionItemUpdated(e: {
-    workspaceId: string;
-    actorId: string | null;
-    callId: string;
-    actionItemId: string;
-    action: string;
-  }): Promise<void> {
-    await this.gateway.broadcastToWorkspace(e.workspaceId, {
-      type: `action_item.${e.action}`,
-      actorId: e.actorId,
-      payload: e,
+  async onCallActionItemUpdated(e: CallActionItemUpdatedEvent): Promise<void> {
+    await this.broadcastCallUpdate(e.workspaceId, e.actorId, {
+      callId: e.callId,
+      entity: 'action_item',
+      action: e.action,
     });
   }
 
   @OnEvent(AppEvent.CallDecisionUpdated)
-  async onCallDecisionUpdated(e: {
-    workspaceId: string;
-    actorId: string | null;
-    callId: string;
-    decisionId: string;
-    action: string;
-  }): Promise<void> {
-    await this.gateway.broadcastToWorkspace(e.workspaceId, {
-      type: `decision.${e.action}`,
-      actorId: e.actorId,
-      payload: e,
+  async onCallDecisionUpdated(e: CallDecisionUpdatedEvent): Promise<void> {
+    await this.broadcastCallUpdate(e.workspaceId, e.actorId, {
+      callId: e.callId,
+      entity: 'decision',
+      action: e.action,
+    });
+  }
+
+  @OnEvent(AppEvent.CallUpdated)
+  async onCallUpdated(e: CallUpdatedEvent): Promise<void> {
+    await this.broadcastCallUpdate(e.workspaceId, e.actorId, {
+      callId: e.callId,
+      entity: e.entity,
+      action: e.action,
+    });
+  }
+
+  private broadcastCallUpdate(
+    workspaceId: string,
+    actorId: string | null,
+    payload: CallUpdatedRealtimePayload,
+  ): Promise<void> {
+    return this.gateway.broadcastToWorkspace(workspaceId, {
+      type: 'call.updated',
+      actorId,
+      payload,
     });
   }
 

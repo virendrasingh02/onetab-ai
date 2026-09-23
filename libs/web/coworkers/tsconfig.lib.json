@@ -20,6 +20,9 @@
       "path": "../integrations/tsconfig.lib.json"
     },
     {
+      "path": "../chat/tsconfig.lib.json"
+    },
+    {
       "path": "../agents/tsconfig.lib.json"
     },
     {

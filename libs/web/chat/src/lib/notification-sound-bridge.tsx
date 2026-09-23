@@ -90,6 +90,16 @@ export function NotificationSoundBridge({
 
         if (isSuppressed) return;
 
+        // Replies in a thread the reader turned notifications off for — only an
+        // @mention still gets through (via the server mention path below).
+        if (
+          message.threadRootId &&
+          !message.isMention &&
+          client.isThreadMuted(message.roomId, message.threadRootId)
+        ) {
+          return;
+        }
+
         const room = client.getRoom(message.roomId);
         const roomName = room?.name?.toLowerCase().trim() ?? '';
         const isDirect = room?.kind === 'direct';

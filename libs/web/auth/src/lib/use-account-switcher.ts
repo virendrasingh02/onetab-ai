@@ -306,6 +306,26 @@ export function useSignUpAccount() {
 }
 
 /**
+ * Signs in with an emailed magic link while another account is already signed
+ * in — the link's identity is added alongside the current one and switched to,
+ * exactly like {@link useAddAccount}, instead of signing everyone else out.
+ */
+export function useAddAccountWithMagicLink() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: async (token: string): Promise<AuthResponse> => {
+      await protectCurrentSession();
+      const data = await authApi.verifyMagicLink({ token });
+      registerAuthedAccount(data);
+      return data;
+    },
+    onSuccess: (data) => activateAccount(data.user.id, queryClient, navigate),
+  });
+}
+
+/**
  * Switches to an already-linked account. Pass a bare id to land on that
  * account's default workspace, or `{ accountId, to }` to open a specific route
  * (used when a workspace is picked straight from the switcher).

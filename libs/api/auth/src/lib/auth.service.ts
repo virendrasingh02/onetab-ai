@@ -40,6 +40,25 @@ import {
 
 const BCRYPT_ROUNDS = 12;
 const PASSWORD_RESET_TTL = '1h';
+const MAGIC_LINK_DEFAULT_TTL = '15m';
+
+/**
+ * Minimum gap between two sign-in emails to the same account. A request inside
+ * the window gets the same generic answer but sends nothing, so the endpoint
+ * cannot be scripted into mail-bombing someone's inbox.
+ */
+const MAGIC_LINK_COOLDOWN_MS = 30_000;
+
+const MAGIC_LINK_SENT_MESSAGE =
+  'If an account exists for that email, a sign-in link is on its way.';
+
+export interface MagicLinkRequestResult {
+  message: string;
+  /** How long the emailed link stays valid — identical for every address. */
+  expiresInMinutes: number;
+  /** Outside production only, mirroring `forgotPassword`: no mail transport. */
+  devToken?: string;
+}
 
 /**
  * A well-formed bcrypt digest of a random string, compared against when the
@@ -286,172 +305,166 @@ export class AuthService {
     ]);
   }
 
+  /**
+   * Emails a single-use, short-lived sign-in link.
+   *
+   * Like `forgotPassword`, always answers the same way whether or not the
+   * address is registered, and whether or not an email actually went out — the
+   * response is never an account-existence oracle. Only the SHA-256 hash of the
+   * token is stored; the raw token lives only in the email.
+   */
   async requestMagicLink(
     input: MagicLinkRequestInput,
     context: SessionContext = {},
-  ): Promise<{ message: string; devToken?: string }> {
-    const identifier = input.email.trim();
+  ): Promise<MagicLinkRequestResult> {
+    const ttl = this.config.get<string>('MAGIC_LINK_TTL') || MAGIC_LINK_DEFAULT_TTL;
+    const answer: MagicLinkRequestResult = {
+      message: MAGIC_LINK_SENT_MESSAGE,
+      expiresInMinutes: Math.max(1, Math.round(parseDuration(ttl) / 60_000)),
+    };
+
+    // The schema has already trimmed + lower-cased this to a real address.
     const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: { equals: identifier, mode: 'insensitive' } },
-          { email: { startsWith: `${identifier}@`, mode: 'insensitive' } },
-        ],
-      },
+      where: { email: { equals: input.email, mode: 'insensitive' } },
       select: { id: true, email: true },
     });
 
+    // No address in the log line: the account id identifies the user when there
+    // is one, and a miss must not leave a trail of who-probed-what.
     this.logger.log({
       event: 'magic_link_requested',
-      email: identifier,
-      ip: context.ipAddress,
-      userAgent: context.userAgent,
       accountExists: Boolean(user),
-      timestamp: new Date().toISOString(),
+      ip: context.ipAddress,
     });
 
-    if (!user) {
-      return {
-        message:
-          'If an account exists for that email, a sign-in link is on its way.',
-      };
+    if (!user) return answer;
+
+    const now = Date.now();
+    const recent = await this.prisma.magicLinkToken.findFirst({
+      where: {
+        userId: user.id,
+        createdAt: { gt: new Date(now - MAGIC_LINK_COOLDOWN_MS) },
+      },
+      select: { id: true },
+    });
+    if (recent) {
+      this.logger.log({ event: 'magic_link_cooldown', userId: user.id });
+      return answer;
     }
 
-    // Invalidate previous unused magic link tokens for this user
-    await this.prisma.magicLinkToken.updateMany({
-      where: { userId: user.id, usedAt: null },
-      data: { usedAt: new Date() },
-    });
-
     const token = generateToken(32);
-    const ttl = this.config.get<string>('MAGIC_LINK_TTL') ?? '15m';
-    const expires = expiresAt(ttl);
-
-    await this.prisma.magicLinkToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: hashToken(token),
-        expiresAt: expires,
-      },
-    });
+    await this.prisma.$transaction([
+      // Only the newest link works. Earlier ones are expired rather than marked
+      // used, so clicking an old email reads "expired", which is what happened.
+      this.prisma.magicLinkToken.updateMany({
+        where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date(now) } },
+        data: { expiresAt: new Date(now) },
+      }),
+      this.prisma.magicLinkToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashToken(token),
+          expiresAt: expiresAt(ttl),
+        },
+      }),
+    ]);
 
     const appUrl = (
       this.config.get<string>('APP_URL') ?? 'http://localhost:4200'
     ).replace(/\/+$/, '');
     const verifyUrl = `${appUrl}/auth/magic-link/verify?token=${encodeURIComponent(token)}`;
-    const expiresInMinutes = Math.round(parseDuration(ttl) / 60_000);
-    const email = magicLinkEmail({ verifyUrl, expiresInMinutes });
+    const email = magicLinkEmail({
+      verifyUrl,
+      expiresInMinutes: answer.expiresInMinutes,
+    });
 
+    // Best-effort — a mail failure must not reveal whether the address exists.
     void this.mail
       .send({ to: user.email, ...email })
       .catch((err) =>
         this.logger.error('Failed to send magic-link email', err),
       );
 
-    this.logger.log({
-      event: 'magic_link_sent',
-      userId: user.id,
-      timestamp: new Date().toISOString(),
-    });
+    this.logger.log({ event: 'magic_link_sent', userId: user.id });
+    this.events?.emit('auth.magic_link_sent', { userId: user.id });
 
-    this.events?.emit('auth.magic_link_sent', {
-      userId: user.id,
-      email: user.email,
-      timestamp: new Date().toISOString(),
-    });
-
-    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
-    return {
-      message:
-        'If an account exists for that email, a sign-in link is on its way.',
-      ...(isProduction ? {} : { devToken: token }),
-    };
+    return this.config.get('NODE_ENV') === 'production'
+      ? answer
+      : { ...answer, devToken: token };
   }
 
   async verifyMagicLink(
     input: MagicLinkVerifyInput,
     context: SessionContext = {},
   ): Promise<{ user: CurrentUser; session: IssuedSession }> {
-    const tokenHash = hashToken(input.token);
     const record = await this.prisma.magicLinkToken.findUnique({
-      where: { tokenHash },
-      include: { user: true },
+      where: { tokenHash: hashToken(input.token) },
+      select: {
+        id: true,
+        userId: true,
+        usedAt: true,
+        expiresAt: true,
+        user: { select: { emailVerifiedAt: true } },
+      },
     });
 
     if (!record) {
-      this.logger.warn({
-        event: 'magic_link_invalid',
-        ip: context.ipAddress,
-        userAgent: context.userAgent,
-        timestamp: new Date().toISOString(),
-      });
+      this.logger.warn({ event: 'magic_link_invalid', ip: context.ipAddress });
       throw new UnauthorizedException({
         code: ApiErrorCode.INVALID_CREDENTIALS,
-        message: 'This sign-in link is invalid. Request a new Magic Link.',
+        message: 'This sign-in link is invalid. Request a new one.',
       });
     }
+
+    const usedError = () =>
+      new ConflictException({
+        code: ApiErrorCode.CONFLICT,
+        message: 'This sign-in link has already been used. Request a new one.',
+      });
 
     if (record.usedAt) {
       this.logger.warn({
         event: 'magic_link_reused',
         userId: record.userId,
         ip: context.ipAddress,
-        userAgent: context.userAgent,
-        timestamp: new Date().toISOString(),
       });
+      throw usedError();
+    }
+
+    const now = new Date();
+    if (record.expiresAt.getTime() <= now.getTime()) {
+      this.logger.warn({ event: 'magic_link_expired', userId: record.userId });
       throw new UnauthorizedException({
         code: ApiErrorCode.TOKEN_EXPIRED,
-        message:
-          'This sign-in link has already been used. Request a new Magic Link.',
+        message: 'This sign-in link has expired. Request a new one.',
       });
     }
 
-    if (record.expiresAt.getTime() <= Date.now()) {
-      this.logger.warn({
-        event: 'magic_link_expired',
-        userId: record.userId,
-        ip: context.ipAddress,
-        userAgent: context.userAgent,
-        timestamp: new Date().toISOString(),
-      });
-      throw new UnauthorizedException({
-        code: ApiErrorCode.TOKEN_EXPIRED,
-        message: 'This sign-in link has expired. Request a new Magic Link.',
-      });
-    }
+    // Claim the token atomically: the conditional update succeeds for exactly
+    // one caller, so two tabs (or a mail scanner racing the user) can never
+    // both turn one link into a session.
+    const claimed = await this.prisma.magicLinkToken.updateMany({
+      where: { id: record.id, usedAt: null, expiresAt: { gt: now } },
+      data: { usedAt: now },
+    });
+    if (claimed.count !== 1) throw usedError();
 
-    const [_, signedIn] = await this.prisma.$transaction([
-      this.prisma.magicLinkToken.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
-      }),
-      this.prisma.user.update({
-        where: { id: record.userId },
-        data: { lastSeenAt: new Date(), presence: 'ONLINE' },
-      }),
-    ]);
+    const signedIn = await this.prisma.user.update({
+      where: { id: record.userId },
+      data: {
+        lastSeenAt: now,
+        presence: 'ONLINE',
+        // Opening the link proves control of the inbox.
+        ...(record.user.emailVerifiedAt ? {} : { emailVerifiedAt: now }),
+      },
+    });
 
     const session = await this.tokens.issueSession(signedIn, context);
 
-    this.logger.log({
-      event: 'magic_link_verified',
-      userId: signedIn.id,
-      timestamp: new Date().toISOString(),
-    });
-
-    this.events?.emit('auth.magic_link_verified', {
-      userId: signedIn.id,
-      timestamp: new Date().toISOString(),
-    });
+    this.logger.log({ event: 'magic_link_verified', userId: signedIn.id });
+    this.events?.emit('auth.magic_link_verified', { userId: signedIn.id });
 
     return { user: toCurrentUser(signedIn), session };
-  }
-
-  async resendMagicLink(
-    input: MagicLinkRequestInput,
-    context: SessionContext = {},
-  ): Promise<{ message: string; devToken?: string }> {
-    return this.requestMagicLink(input, context);
   }
 
   async changePassword(
@@ -513,7 +526,7 @@ export class AuthService {
       passkeysCount,
       activeSessionsCount,
       ssoConfig,
-      latestMagicLink,
+      lastMagicLinkSignIn,
     ] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
@@ -531,9 +544,11 @@ export class AuthService {
       this.prisma.sSOConfig.findFirst({
         where: { isActive: true },
       }),
+      // A *used* token is a completed sign-in; merely requesting one is not.
       this.prisma.magicLinkToken.findFirst({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
+        where: { userId, usedAt: { not: null } },
+        orderBy: { usedAt: 'desc' },
+        select: { usedAt: true },
       }),
     ]);
 
@@ -563,7 +578,7 @@ export class AuthService {
       },
       magicLink: {
         isEnabled: true,
-        lastRequestedAt: latestMagicLink?.createdAt.toISOString() ?? null,
+        lastUsedAt: lastMagicLinkSignIn?.usedAt?.toISOString() ?? null,
       },
       passkeysCount,
       activeSessionsCount,

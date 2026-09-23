@@ -8,9 +8,11 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   CurrentUser,
@@ -20,7 +22,6 @@ import {
 } from '@org/api-common';
 import {
   WorkspacePermission,
-  type CallSessionStatus,
   type CurrentUser as CurrentUserType,
 } from '@org/types';
 import {
@@ -40,6 +41,7 @@ import {
   updateCallNoteSchema,
   updateCallSchema,
   updateCallSummarySchema,
+  upsertMyCallNoteSchema,
   type AppendCallTranscriptInput,
   type AskCallQuestionInput,
   type CallNotesAssistInput,
@@ -56,10 +58,16 @@ import {
   type UpdateCallInput,
   type UpdateCallNoteInput,
   type UpdateCallSummaryInput,
+  type UpsertMyCallNoteInput,
 } from '@org/validation';
 import { CallSummaryService } from './call-summary.service.js';
 import { CallsService } from './calls.service.js';
 
+/**
+ * Call sessions and their notes / AI summary / decisions / action items /
+ * transcript. Every handler passes the caller through: who may see a call is
+ * decided per call by `CallAccessService`, not by workspace membership alone.
+ */
 @Controller({
   path: 'workspaces/:workspaceId/calls',
   version: '1',
@@ -74,11 +82,12 @@ export class CallsController {
   @Get()
   list(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Query('conversationId') conversationId?: string,
     @Query('meetingId') meetingId?: string,
-    @Query('status') status?: CallSessionStatus,
+    @Query('status') status?: string,
   ) {
-    return this.calls.listCalls(workspaceId, {
+    return this.calls.listCalls(workspaceId, user.id, {
       conversationId,
       meetingId,
       status,
@@ -98,22 +107,26 @@ export class CallsController {
   @Get(':callId')
   get(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Param('callId') callId: string,
   ) {
-    return this.calls.getCall(workspaceId, callId);
+    return this.calls.getCall(workspaceId, user.id, callId);
   }
 
   @Patch(':callId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   update(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Param('callId') callId: string,
     @Body(zodBody(updateCallSchema)) body: UpdateCallInput,
   ) {
-    return this.calls.updateCall(workspaceId, callId, body);
+    return this.calls.updateCall(workspaceId, user.id, callId, body);
   }
 
+  /** Idempotent — both ends of a call report the hang-up. */
   @Post(':callId/end')
+  @HttpCode(HttpStatus.OK)
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   end(
     @WorkspaceId() workspaceId: string,
@@ -128,9 +141,22 @@ export class CallsController {
   @Get(':callId/notes')
   getNotes(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Param('callId') callId: string,
   ) {
-    return this.calls.getNotes(workspaceId, callId);
+    return this.calls.getNotes(workspaceId, user.id, callId);
+  }
+
+  /** The live editor's autosave target — the caller's one running note. */
+  @Put(':callId/notes/mine')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  upsertMyNote(
+    @WorkspaceId() workspaceId: string,
+    @Param('callId') callId: string,
+    @CurrentUser() user: CurrentUserType,
+    @Body(zodBody(upsertMyCallNoteSchema)) body: UpsertMyCallNoteInput,
+  ) {
+    return this.calls.upsertMyNote(workspaceId, callId, user.id, body);
   }
 
   @Post(':callId/notes')
@@ -173,12 +199,15 @@ export class CallsController {
   @Get(':callId/summary')
   getSummary(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Param('callId') callId: string,
   ) {
-    return this.summary.getSummary(workspaceId, callId);
+    return this.summary.getSummary(workspaceId, user.id, callId);
   }
 
   @Post(':callId/summary/generate')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   generateSummary(
     @WorkspaceId() workspaceId: string,
@@ -192,6 +221,8 @@ export class CallsController {
   }
 
   @Post(':callId/summary/regenerate')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   regenerateSummary(
     @WorkspaceId() workspaceId: string,
@@ -215,6 +246,8 @@ export class CallsController {
   }
 
   @Post(':callId/summary/ask')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   askQuestion(
     @WorkspaceId() workspaceId: string,
     @Param('callId') callId: string,
@@ -225,11 +258,15 @@ export class CallsController {
   }
 
   @Post(':callId/ai/assist')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   assistNotes(
     @WorkspaceId() workspaceId: string,
+    @Param('callId') callId: string,
+    @CurrentUser() user: CurrentUserType,
     @Body(zodBody(callNotesAssistSchema)) body: CallNotesAssistInput,
   ) {
-    return this.summary.assistNotes(workspaceId, body);
+    return this.summary.assistNotes(workspaceId, user.id, callId, body);
   }
 
   @Post(':callId/summary/feedback')
@@ -244,6 +281,7 @@ export class CallsController {
   }
 
   @Post(':callId/summary/share')
+  @HttpCode(HttpStatus.OK)
   share(
     @WorkspaceId() workspaceId: string,
     @Param('callId') callId: string,
@@ -258,9 +296,10 @@ export class CallsController {
   @Get(':callId/action-items')
   listActionItems(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Param('callId') callId: string,
   ) {
-    return this.calls.listActionItems(workspaceId, callId);
+    return this.calls.listActionItems(workspaceId, user.id, callId);
   }
 
   @Post(':callId/action-items')
@@ -299,6 +338,7 @@ export class CallsController {
   }
 
   @Post(':callId/action-items/:id/convert-to-task')
+  @HttpCode(HttpStatus.OK)
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   convertActionItemToTask(
     @WorkspaceId() workspaceId: string,
@@ -321,9 +361,10 @@ export class CallsController {
   @Get(':callId/decisions')
   listDecisions(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Param('callId') callId: string,
   ) {
-    return this.calls.listDecisions(workspaceId, callId);
+    return this.calls.listDecisions(workspaceId, user.id, callId);
   }
 
   @Post(':callId/decisions')
@@ -366,18 +407,20 @@ export class CallsController {
   @Get(':callId/transcript')
   getTranscript(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Param('callId') callId: string,
   ) {
-    return this.calls.getTranscript(workspaceId, callId);
+    return this.calls.getTranscript(workspaceId, user.id, callId);
   }
 
   @Post(':callId/transcript')
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   appendTranscript(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Param('callId') callId: string,
     @Body(zodBody(appendCallTranscriptSchema)) body: AppendCallTranscriptInput,
   ) {
-    return this.calls.appendTranscript(workspaceId, callId, body);
+    return this.calls.appendTranscript(workspaceId, user.id, callId, body);
   }
 }

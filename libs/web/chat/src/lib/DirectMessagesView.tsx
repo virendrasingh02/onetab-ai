@@ -1,5 +1,6 @@
 import { useCurrentUser } from '@org/auth';
 import { AddBookmarkDialog, BookmarkFavicon, Composer } from '@org/chat-ui';
+import { isCallLive } from '@org/matrix-client';
 import { useUserPresenceMap } from '@org/realtime';
 import {
   type ChannelSummary,
@@ -914,7 +915,7 @@ function DirectMessageHeader({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleStartVoiceCall}
-                      disabled={callState !== null && callState !== 'ended'}
+                      disabled={isCallLive(callState)}
                       className="gap-2.5"
                     >
                       <Phone className="size-4" />
@@ -922,7 +923,7 @@ function DirectMessageHeader({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={handleStartVideoCall}
-                      disabled={callState !== null && callState !== 'ended'}
+                      disabled={isCallLive(callState)}
                       className="gap-2.5"
                     >
                       <Video className="size-4" />
@@ -958,7 +959,7 @@ function DirectMessageHeader({
                   size="icon-sm"
                   aria-label="Start voice call"
                   onClick={handleStartVoiceCall}
-                  disabled={callState !== null && callState !== 'ended'}
+                  disabled={isCallLive(callState)}
                 >
                   <Phone className="size-4" />
                 </Button>
@@ -969,7 +970,7 @@ function DirectMessageHeader({
                   size="icon-sm"
                   aria-label="Start video call"
                   onClick={handleStartVideoCall}
-                  disabled={callState !== null && callState !== 'ended'}
+                  disabled={isCallLive(callState)}
                 >
                   <Video className="size-4" />
                 </Button>

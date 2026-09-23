@@ -11,6 +11,7 @@ import type {
   CallNotesAssistResponse,
   CallSummaryView,
   CallTranscriptItemView,
+  CallUpdatedRealtimePayload,
   CallView,
 } from '@org/types';
 import type {
@@ -19,7 +20,6 @@ import type {
   CreateCallActionItemInput,
   CreateCallDecisionInput,
   CreateCallInput,
-  EndCallInput,
   RegenerateCallSummarySectionInput,
   ShareCallSummaryInput,
   UpdateCallActionItemInput,
@@ -28,6 +28,9 @@ import type {
 } from '@org/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+/** How often an open summary re-checks while the model is still working. */
+const PROCESSING_POLL_MS = 4_000;
 
 // ============================================================================
 // Queries
@@ -45,7 +48,8 @@ export function useCallsList(
   });
 }
 
-export function useCall(
+/** One call with its notes, summary, decisions, action items and transcript. */
+export function useCallDetail(
   workspaceId: string | undefined,
   callId: string | null | undefined,
 ) {
@@ -75,6 +79,10 @@ export function useCallSummary(
     queryKey: queryKeys.calls.summary(workspaceId ?? '', callId ?? ''),
     queryFn: () => callsApi.getSummary(workspaceId as string, callId as string),
     enabled: !!workspaceId && !!callId,
+    // Realtime announces the READY flip; the poll only covers a missed event
+    // (reconnecting tab, API restart) so the spinner can never hang forever.
+    refetchInterval: (query) =>
+      query.state.data?.status === 'PROCESSING' ? PROCESSING_POLL_MS : false,
   });
 }
 
@@ -112,85 +120,97 @@ export function useCallTranscripts(
 }
 
 // ============================================================================
-// Realtime Invalidation
+// Realtime invalidation
 // ============================================================================
 
-export function useCallRealtimeSync(workspaceId: string | undefined, callId: string | null | undefined) {
+/**
+ * Keeps an open call view live. The server broadcasts `call.started` /
+ * `call.ended` / `call.updated` with ids only; this refetches just the slices
+ * that changed, through the access-checked API.
+ */
+export function useCallRealtimeSync(
+  workspaceId: string | undefined,
+  callId: string | null | undefined,
+) {
   const queryClient = useQueryClient();
 
-  useRealtimeListener('call.started', () => {
-    if (!workspaceId) return;
-    queryClient.invalidateQueries({ queryKey: queryKeys.calls.list(workspaceId) });
+  const invalidate = useCallback(
+    (key: readonly unknown[]) => void queryClient.invalidateQueries({ queryKey: key }),
+    [queryClient],
+  );
+
+  useRealtimeListener<{ callId: string }>('call.started', () => {
+    if (workspaceId) invalidate(queryKeys.calls.list(workspaceId));
   });
 
-  useRealtimeListener('call.ended', (payload: any) => {
+  useRealtimeListener<{ callId: string }>('call.ended', (event) => {
     if (!workspaceId) return;
-    queryClient.invalidateQueries({ queryKey: queryKeys.calls.list(workspaceId) });
-    if (callId && payload?.callId === callId) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.detail(workspaceId, callId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.summary(workspaceId, callId) });
+    invalidate(queryKeys.calls.list(workspaceId));
+    if (callId && event.payload?.callId === callId) {
+      invalidate(queryKeys.calls.detail(workspaceId, callId));
     }
   });
 
-  useRealtimeListener('note.updated', (payload: any) => {
-    if (!workspaceId) return;
-    if (callId && payload?.callId === callId) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.notes(workspaceId, callId) });
+  useRealtimeListener<CallUpdatedRealtimePayload>('call.updated', (event) => {
+    if (!workspaceId || !callId || event.payload?.callId !== callId) return;
+    const keys = queryKeys.calls;
+    switch (event.payload.entity) {
+      case 'note':
+        invalidate(keys.notes(workspaceId, callId));
+        break;
+      case 'summary':
+        invalidate(keys.summary(workspaceId, callId));
+        // A finished summary brings extracted decisions and action items.
+        invalidate(keys.decisions(workspaceId, callId));
+        invalidate(keys.actionItems(workspaceId, callId));
+        break;
+      case 'action_item':
+        invalidate(keys.actionItems(workspaceId, callId));
+        break;
+      case 'decision':
+        invalidate(keys.decisions(workspaceId, callId));
+        break;
+      case 'transcript':
+        invalidate(keys.transcripts(workspaceId, callId));
+        break;
+      default:
+        break;
     }
-  });
-
-  useRealtimeListener('summary.updated', (payload: any) => {
-    if (!workspaceId) return;
-    if (callId && payload?.callId === callId) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.summary(workspaceId, callId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.detail(workspaceId, callId) });
-    }
-  });
-
-  useRealtimeListener('action_item.updated', (payload: any) => {
-    if (!workspaceId) return;
-    if (callId && payload?.callId === callId) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.actionItems(workspaceId, callId) });
-    }
-  });
-
-  useRealtimeListener('decision.updated', (payload: any) => {
-    if (!workspaceId) return;
-    if (callId && payload?.callId === callId) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.decisions(workspaceId, callId) });
-    }
+    invalidate(keys.detail(workspaceId, callId));
   });
 }
 
 // ============================================================================
-// Call Session & Summary Mutations
+// Mutations
 // ============================================================================
 
 export function useCallMutations(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   const ws = workspaceId ?? '';
+  const keys = queryKeys.calls;
+  const invalidate = (key: readonly unknown[]) =>
+    void queryClient.invalidateQueries({ queryKey: key });
 
   const startCall = useMutation({
     mutationFn: (input: CreateCallInput) => callsApi.startCall(ws, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.list(ws) });
-    },
+    onSuccess: () => invalidate(keys.list(ws)),
   });
 
   const endCall = useMutation({
-    mutationFn: ({ callId }: { callId: string; input?: EndCallInput }) =>
-      callsApi.endCall(ws, callId),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.list(ws) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.detail(ws, callId) });
+    mutationFn: (callId: string) => callsApi.endCall(ws, callId),
+    onSuccess: (_data, callId) => {
+      invalidate(keys.list(ws));
+      invalidate(keys.detail(ws, callId));
     },
   });
 
   const generateSummary = useMutation({
     mutationFn: (callId: string) => callsApi.generateSummary(ws, callId),
-    onSuccess: (_data, callId) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.summary(ws, callId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.detail(ws, callId) });
+    onSuccess: (summary, callId) => {
+      queryClient.setQueryData(keys.summary(ws, callId), summary);
+      invalidate(keys.detail(ws, callId));
+      invalidate(keys.decisions(ws, callId));
+      invalidate(keys.actionItems(ws, callId));
     },
   });
 
@@ -202,8 +222,10 @@ export function useCallMutations(workspaceId: string | undefined) {
       callId: string;
       input: RegenerateCallSummarySectionInput;
     }) => callsApi.regenerateSummarySection(ws, callId, input),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.summary(ws, callId) });
+    onSuccess: (summary, { callId }) => {
+      queryClient.setQueryData(keys.summary(ws, callId), summary);
+      invalidate(keys.decisions(ws, callId));
+      invalidate(keys.actionItems(ws, callId));
     },
   });
 
@@ -215,8 +237,8 @@ export function useCallMutations(workspaceId: string | undefined) {
       callId: string;
       input: UpdateCallSummaryInput;
     }) => callsApi.updateSummary(ws, callId, input),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.summary(ws, callId) });
+    onSuccess: (summary, { callId }) => {
+      queryClient.setQueryData(keys.summary(ws, callId), summary);
     },
   });
 
@@ -238,6 +260,7 @@ export function useCallMutations(workspaceId: string | undefined) {
       callId: string;
       input: ShareCallSummaryInput;
     }) => callsApi.shareSummary(ws, callId, input),
+    onSuccess: (_data, { callId }) => invalidate(keys.detail(ws, callId)),
   });
 
   const askQuestion = useMutation<
@@ -264,9 +287,7 @@ export function useCallMutations(workspaceId: string | undefined) {
       callId: string;
       input: CreateCallActionItemInput;
     }) => callsApi.createActionItem(ws, callId, input),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.actionItems(ws, callId) });
-    },
+    onSuccess: (_data, { callId }) => invalidate(keys.actionItems(ws, callId)),
   });
 
   const updateActionItem = useMutation({
@@ -279,25 +300,21 @@ export function useCallMutations(workspaceId: string | undefined) {
       itemId: string;
       input: UpdateCallActionItemInput;
     }) => callsApi.updateActionItem(ws, callId, itemId, input),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.actionItems(ws, callId) });
-    },
+    onSuccess: (_data, { callId }) => invalidate(keys.actionItems(ws, callId)),
   });
 
   const deleteActionItem = useMutation({
     mutationFn: ({ callId, itemId }: { callId: string; itemId: string }) =>
       callsApi.deleteActionItem(ws, callId, itemId),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.actionItems(ws, callId) });
-    },
+    onSuccess: (_data, { callId }) => invalidate(keys.actionItems(ws, callId)),
   });
 
   const convertActionItemToTask = useMutation({
     mutationFn: ({ callId, itemId }: { callId: string; itemId: string }) =>
       callsApi.convertActionItemToTask(ws, callId, itemId),
     onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.actionItems(ws, callId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.workTools.all(ws) });
+      invalidate(keys.actionItems(ws, callId));
+      invalidate(queryKeys.workTools.all(ws));
     },
   });
 
@@ -309,9 +326,7 @@ export function useCallMutations(workspaceId: string | undefined) {
       callId: string;
       input: CreateCallDecisionInput;
     }) => callsApi.createDecision(ws, callId, input),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.decisions(ws, callId) });
-    },
+    onSuccess: (_data, { callId }) => invalidate(keys.decisions(ws, callId)),
   });
 
   const updateDecision = useMutation({
@@ -324,17 +339,13 @@ export function useCallMutations(workspaceId: string | undefined) {
       decisionId: string;
       input: UpdateCallDecisionInput;
     }) => callsApi.updateDecision(ws, callId, decisionId, input),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.decisions(ws, callId) });
-    },
+    onSuccess: (_data, { callId }) => invalidate(keys.decisions(ws, callId)),
   });
 
   const deleteDecision = useMutation({
     mutationFn: ({ callId, decisionId }: { callId: string; decisionId: string }) =>
       callsApi.deleteDecision(ws, callId, decisionId),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.decisions(ws, callId) });
-    },
+    onSuccess: (_data, { callId }) => invalidate(keys.decisions(ws, callId)),
   });
 
   const appendTranscript = useMutation({
@@ -345,9 +356,7 @@ export function useCallMutations(workspaceId: string | undefined) {
       callId: string;
       input: AppendCallTranscriptInput;
     }) => callsApi.appendTranscript(ws, callId, input),
-    onSuccess: (_data, { callId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.calls.transcripts(ws, callId) });
-    },
+    onSuccess: (_data, { callId }) => invalidate(keys.transcripts(ws, callId)),
   });
 
   return {
@@ -372,7 +381,7 @@ export function useCallMutations(workspaceId: string | undefined) {
 }
 
 // ============================================================================
-// Notes Debounced Autosave Hook with Offline Fallback
+// Live notes autosave
 // ============================================================================
 
 export type AutosaveStatus = 'saved' | 'saving' | 'failed' | 'offline';
@@ -380,131 +389,138 @@ export type AutosaveStatus = 'saved' | 'saving' | 'failed' | 'offline';
 export interface UseCallNotesAutosaveOptions {
   workspaceId: string | undefined;
   callId: string | undefined;
-  initialContent?: string;
+  /** The caller's own saved note, once loaded — never someone else's. */
+  savedContent?: string;
+  /** False until the notes query settles, so a slow load can't clobber typing. */
+  isLoaded?: boolean;
   debounceMs?: number;
 }
 
+const draftKey = (callId: string) => `onetab:call-note:${callId}`;
+
+function readDraft(callId: string): string | null {
+  try {
+    return localStorage.getItem(draftKey(callId));
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(callId: string, content: string | null): void {
+  try {
+    if (content === null) localStorage.removeItem(draftKey(callId));
+    else localStorage.setItem(draftKey(callId), content);
+  } catch {
+    // Private mode / quota — the in-memory draft still holds.
+  }
+}
+
+/**
+ * The live notes editor's state. Every save upserts the caller's single running
+ * note (`PUT …/notes/mine`), debounced while typing and flushed when the editor
+ * closes. A local draft covers offline gaps and is restored on the next open if
+ * it is newer than what the server has.
+ */
 export function useCallNotesAutosave({
   workspaceId,
   callId,
-  initialContent = '',
+  savedContent,
+  isLoaded = true,
   debounceMs = 800,
 }: UseCallNotesAutosaveOptions) {
   const queryClient = useQueryClient();
-  const [content, setContent] = useState(initialContent);
+  const [content, setContent] = useState('');
   const [status, setStatus] = useState<AutosaveStatus>('saved');
-  const [lastSavedContent, setLastSavedContent] = useState(initialContent);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
-  const localKey = `onetab:call-note:${callId}`;
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSaved = useRef('');
+  const pending = useRef<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seededFor = useRef<string | null>(null);
 
-  // Sync initialContent when it loads from server if user hasn't typed anything
+  // Seed once per call: the server copy, unless an unsent local draft differs.
   useEffect(() => {
-    if (initialContent && !content) {
-      setContent(initialContent);
-      setLastSavedContent(initialContent);
+    if (!callId || !isLoaded || seededFor.current === callId) return;
+    seededFor.current = callId;
+    const server = savedContent ?? '';
+    const draft = readDraft(callId);
+    lastSaved.current = server;
+    if (draft !== null && draft !== server) {
+      setContent(draft);
+      pending.current = draft;
+      setStatus('saving');
+    } else {
+      setContent(server);
+      setStatus('saved');
     }
-  }, [initialContent]);
+  }, [callId, isLoaded, savedContent]);
 
-  // Check local offline backup on mount
-  useEffect(() => {
-    if (!callId) return;
-    try {
-      const cached = localStorage.getItem(localKey);
-      if (cached && cached !== initialContent && !content) {
-        setContent(cached);
-      }
-    } catch {
-      // Ignore localStorage errors
-    }
-  }, [callId]);
-
-  const saveToServer = useCallback(
-    async (textToSave: string) => {
+  const save = useCallback(
+    async (text: string) => {
       if (!workspaceId || !callId) return;
-      if (textToSave === lastSavedContent) {
+      if (text === lastSaved.current) {
+        pending.current = null;
         setStatus('saved');
+        writeDraft(callId, null);
         return;
       }
-
-      if (!navigator.onLine) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
         setStatus('offline');
-        try {
-          localStorage.setItem(localKey, textToSave);
-        } catch {
-          // Private mode / quota exceeded — the in-memory draft still holds.
-        }
+        writeDraft(callId, text);
         return;
       }
-
       setStatus('saving');
       try {
-        await callsApi.addNote(workspaceId, callId, { content: textToSave });
-        setLastSavedContent(textToSave);
-        setLastSavedAt(new Date());
-        setStatus('saved');
-        try {
-          localStorage.removeItem(localKey);
-        } catch {
-          // Ignore — the backup is stale now regardless.
-        }
-        queryClient.invalidateQueries({
+        const note = await callsApi.upsertMyNote(workspaceId, callId, { content: text });
+        lastSaved.current = note.content;
+        if (pending.current === text) pending.current = null;
+        setLastSavedAt(new Date(note.updatedAt));
+        setStatus(pending.current === null ? 'saved' : 'saving');
+        writeDraft(callId, pending.current);
+        void queryClient.invalidateQueries({
           queryKey: queryKeys.calls.notes(workspaceId, callId),
         });
       } catch {
         setStatus('failed');
-        try {
-          localStorage.setItem(localKey, textToSave);
-        } catch {
-          // Private mode / quota exceeded — the in-memory draft still holds.
-        }
+        writeDraft(callId, text);
       }
     },
-    [workspaceId, callId, lastSavedContent, localKey, queryClient],
+    [workspaceId, callId, queryClient],
   );
 
   const updateContent = useCallback(
-    (newText: string) => {
-      setContent(newText);
+    (text: string) => {
+      setContent(text);
+      pending.current = text;
       setStatus('saving');
-
-      // Update local storage backup immediately
-      try {
-        localStorage.setItem(localKey, newText);
-      } catch {
-        // Private mode / quota exceeded — the in-memory draft still holds.
-      }
-
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-
-      timerRef.current = setTimeout(() => {
-        void saveToServer(newText);
-      }, debounceMs);
+      if (callId) writeDraft(callId, text);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => void save(text), debounceMs);
     },
-    [debounceMs, localKey, saveToServer],
+    [callId, debounceMs, save],
   );
 
   const retry = useCallback(() => {
-    void saveToServer(content);
-  }, [content, saveToServer]);
+    if (pending.current !== null) void save(pending.current);
+  }, [save]);
 
-  // Flush on unmount
+  // Coming back online retries whatever was typed while offline.
+  useEffect(() => {
+    const onOnline = () => {
+      if (pending.current !== null) void save(pending.current);
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [save]);
+
+  // Closing the editor (hang-up, dialog close) must not drop the last words
+  // typed inside the debounce window.
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      if (timer.current) clearTimeout(timer.current);
+      if (pending.current !== null) void save(pending.current);
     };
-  }, []);
+  }, [save]);
 
-  return {
-    content,
-    updateContent,
-    status,
-    lastSavedAt,
-    retry,
-  };
+  return { content, updateContent, status, lastSavedAt, retry };
 }

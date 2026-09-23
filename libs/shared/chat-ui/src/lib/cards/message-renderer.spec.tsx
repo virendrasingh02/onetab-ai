@@ -323,45 +323,153 @@ describe('MessageRenderer', () => {
     expect(onForward).toHaveBeenCalledTimes(1);
   });
 
-  it('renders updated more actions dropdown according to reference image without duplicated outside actions', async () => {
-    const user = userEvent.setup();
-    const onEdit = vi.fn();
-    const onDelete = vi.fn();
-    const onCopyLink = vi.fn();
-    const onTogglePin = vi.fn();
-    const onCreateTask = vi.fn();
-    const msg = createMockMessage({ body: 'Message for dropdown test', timestamp: Date.now() });
 
-    renderWithProviders(
-      <MessageRenderer
-        message={msg}
-        isOwn={true}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onCopyLink={onCopyLink}
-        onTogglePin={onTogglePin}
-        onCreateTask={onCreateTask}
-      />,
-    );
+  describe('More actions menu', () => {
+    const openMenu = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole('button', { name: 'More actions' }));
+    };
 
-    const moreBtn = screen.getByRole('button', { name: 'More actions' });
-    expect(moreBtn).toBeInTheDocument();
-    await user.click(moreBtn);
+    it('keeps the toolbar actions out of the menu and groups the rest', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ body: 'Menu layout', timestamp: Date.now() })}
+          isOwn
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onReply={vi.fn()}
+          onOpenThread={vi.fn()}
+          onForward={vi.fn()}
+          onToggleSave={vi.fn()}
+          onCopyLink={vi.fn()}
+          onMarkUnread={vi.fn()}
+          onRemind={vi.fn()}
+          onToggleReplyNotifications={vi.fn()}
+          onTogglePin={vi.fn()}
+          onCreateTask={vi.fn()}
+        />,
+      );
+      await openMenu(user);
 
-    // Duplicated outside actions must NOT be in the dropdown
-    expect(screen.queryByRole('menuitem', { name: /Reply in thread/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /^Reply$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Forward message/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Save for later/i })).not.toBeInTheDocument();
+      // Already one click away on the hover toolbar.
+      expect(screen.queryByRole('menuitem', { name: /Reply in thread/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /^Reply$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Forward message/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Save for later/i })).not.toBeInTheDocument();
 
-    // Ref image items should be present
-    expect(screen.getByRole('menuitem', { name: /Edit message/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Mark unread/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Remind me/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Turn off notifications for replies/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Copy link/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Organize/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Connect to apps/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Delete message\.\.\./i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Edit message/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Mark unread/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Remind me about this/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('menuitem', { name: /Turn off notifications for replies/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Copy link/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Organize/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Connect to apps/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Delete message…/i })).toBeInTheDocument();
+    });
+
+    it('offers no stand-in items for actions the host has not wired', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ body: 'Read-only host', timestamp: Date.now() })}
+          isOwn={false}
+          onCopyLink={vi.fn()}
+        />,
+      );
+      await openMenu(user);
+
+      expect(screen.queryByRole('menuitem', { name: /Mark unread/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Remind me/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('menuitem', { name: /notifications for replies/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Delete message/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Copy link/i })).toBeInTheDocument();
+    });
+
+    it('runs the real handlers for mark unread and reply notifications', async () => {
+      const user = userEvent.setup();
+      const onMarkUnread = vi.fn();
+      const onToggleReplyNotifications = vi.fn();
+      const { unmount } = renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ timestamp: Date.now() })}
+          isOwn={false}
+          onMarkUnread={onMarkUnread}
+          onToggleReplyNotifications={onToggleReplyNotifications}
+          replyNotificationsMuted
+        />,
+      );
+
+      await openMenu(user);
+      await user.click(screen.getByRole('menuitem', { name: /Mark unread/i }));
+      expect(onMarkUnread).toHaveBeenCalledTimes(1);
+
+      await openMenu(user);
+      // Already muted, so the entry offers to turn them back on.
+      await user.click(
+        screen.getByRole('menuitem', { name: /Turn on notifications for replies/i }),
+      );
+      expect(onToggleReplyNotifications).toHaveBeenCalledTimes(1);
+      unmount();
+    });
+
+    it('sets a reminder at the chosen time', async () => {
+      const user = userEvent.setup();
+      const onRemind = vi.fn();
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ timestamp: Date.now() })}
+          isOwn={false}
+          onRemind={onRemind}
+        />,
+      );
+
+      await openMenu(user);
+      // Keyboard, as a submenu is reached without a pointer: jsdom has no
+      // layout, so Radix's pointer-grace area would close it mid-move.
+      screen.getByRole('menuitem', { name: /Remind me about this/i }).focus();
+      await user.keyboard('{ArrowRight}');
+      const before = Date.now();
+      (await screen.findByRole('menuitem', { name: /In 1 hour/i })).focus();
+      await user.keyboard('{Enter}');
+
+      expect(onRemind).toHaveBeenCalledTimes(1);
+      const remindAt = onRemind.mock.calls[0][0] as Date;
+      const minutesAhead = (remindAt.getTime() - before) / 60_000;
+      expect(minutesAhead).toBeGreaterThan(58);
+      expect(minutesAhead).toBeLessThan(62);
+    });
+
+    it('honours the keyboard shortcuts it shows', async () => {
+      const user = userEvent.setup();
+      const onEdit = vi.fn();
+      const onMarkUnread = vi.fn();
+      const onCopyLink = vi.fn();
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ timestamp: Date.now() })}
+          isOwn
+          onEdit={onEdit}
+          onMarkUnread={onMarkUnread}
+          onCopyLink={onCopyLink}
+        />,
+      );
+
+      await openMenu(user);
+      await user.keyboard('u');
+      expect(onMarkUnread).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+      await openMenu(user);
+      await user.keyboard('l');
+      expect(onCopyLink).toHaveBeenCalledTimes(1);
+
+      await openMenu(user);
+      await user.keyboard('e');
+      expect(onEdit).toHaveBeenCalledTimes(1);
+    });
   });
 });

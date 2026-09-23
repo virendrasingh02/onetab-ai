@@ -71,6 +71,8 @@ export const AppEvent = {
   CallActionItemUpdated: 'call.action_item.updated',
   CallDecisionUpdated: 'call.decision.updated',
   CallSummaryShared: 'call.summary.shared',
+  /** Any other change inside a call (title, transcript, task link) — refresh only. */
+  CallUpdated: 'call.updated',
   /**
    * Someone was @named in free text — a channel message (via the Matrix
    * bridge), a task comment, a document. Carries only resolved user ids and a
@@ -384,6 +386,12 @@ export interface CallSummarySharedEvent extends BaseEvent {
   title: string;
   target: string;
   recipientIds: string[];
+}
+
+export interface CallUpdatedEvent extends BaseEvent {
+  callId: string;
+  entity: 'call' | 'action_item' | 'transcript';
+  action: string;
 }
 
 export interface ChannelArchiveChangedEvent extends BaseEvent {

@@ -245,6 +245,7 @@ export class AuthController {
     return { user, ...session.tokens, refreshToken: session.refreshToken };
   }
 
+  /** Same as `request`, behind a tighter per-IP throttle for the resend button. */
   @Public()
   @Post('magic-link/resend')
   @HttpCode(HttpStatus.OK)
@@ -253,7 +254,7 @@ export class AuthController {
     @Body(zodBody(magicLinkRequestSchema)) body: MagicLinkRequestInput,
     @Req() request: Request,
   ) {
-    return this.auth.resendMagicLink(body, this.contextOf(request));
+    return this.auth.requestMagicLink(body, this.contextOf(request));
   }
 
   @Post('change-password')

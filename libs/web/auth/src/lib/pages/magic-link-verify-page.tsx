@@ -1,296 +1,335 @@
-import { ApiError, getAccessToken } from '@org/api-client';
+import { ApiError } from '@org/api-client';
 import { Button } from '@org/ui';
 import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
+  Clock,
   KeyRound,
   Loader2,
-  Mail,
   Sparkles,
   UserCheck,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAccountStore } from '../account-store.js';
 import { trackAuthEvent } from '../auth-analytics.js';
 import { AuthLayout } from '../auth-layout.js';
 import { useAuthStore } from '../auth.store.js';
-import { resolveSafeHandoff, withHandoffToken } from '../safe-handoff-redirect.js';
-import { redirectPathFromAuthState, useVerifyMagicLink } from '../use-auth.js';
+import { useAddAccountWithMagicLink } from '../use-account-switcher.js';
+import { useVerifyMagicLink } from '../use-auth.js';
 
-type VerificationState =
-  | 'idle'
-  | 'verifying'
-  | 'success'
-  | 'already_authenticated'
-  | 'account_mismatch'
-  | 'error';
+type FailureReason =
+  | 'missing'
+  | 'invalid'
+  | 'expired'
+  | 'used'
+  | 'rate_limited'
+  | 'network'
+  | 'server';
 
+type VerifyState =
+  | { kind: 'waiting' }
+  | { kind: 'verifying' }
+  | { kind: 'success' }
+  | { kind: 'signed-in' }
+  | { kind: 'error'; reason: FailureReason };
+
+/** Brief enough to read the confirmation, short enough not to feel stuck. */
+const SUCCESS_REDIRECT_MS = 900;
+
+const REQUEST_NEW_LINK = '/login?method=magic-link';
+
+const FAILURE_COPY: Record<FailureReason, { title: string; body: string }> = {
+  missing: {
+    title: 'Incomplete sign-in link',
+    body: 'This link is missing its token. Copy the whole link from the email, or request a new one.',
+  },
+  invalid: {
+    title: 'Invalid sign-in link',
+    body: 'This link is not valid. Request a new one to sign in.',
+  },
+  expired: {
+    title: 'Sign-in link expired',
+    body: 'For your security, links expire shortly after they are sent, and only the newest one works. Request a new link.',
+  },
+  used: {
+    title: 'Link already used',
+    body: 'Each sign-in link works once. Request a new one if you still need to sign in.',
+  },
+  rate_limited: {
+    title: 'Too many attempts',
+    body: 'Please wait a minute before trying again.',
+  },
+  network: {
+    title: 'You appear to be offline',
+    body: "We couldn't reach the server to verify the link. Check your connection and try again — the link is still valid if it hasn't expired.",
+  },
+  server: {
+    title: 'Something went wrong',
+    body: 'We could not verify the link right now. Try again, or sign in with your password.',
+  },
+};
+
+/** Maps an API failure onto what the reader can do about it — by code, not message text. */
+function classifyFailure(error: unknown): FailureReason {
+  if (!(error instanceof ApiError)) return 'server';
+  if (error.status === 429 || error.code === 'RATE_LIMITED') {
+    return 'rate_limited';
+  }
+  if (error.code === 'TOKEN_EXPIRED') return 'expired';
+  if (error.code === 'CONFLICT') return 'used';
+  if (
+    error.code === 'INVALID_CREDENTIALS' ||
+    error.code === 'VALIDATION_FAILED'
+  ) {
+    return 'invalid';
+  }
+  // `toApiError` reports "no response at all" as status 0.
+  if (error.status === 0) return 'network';
+  return 'server';
+}
+
+function StatusIcon({
+  tone,
+  children,
+}: {
+  tone: 'neutral' | 'success' | 'danger' | 'warning';
+  children: ReactNode;
+}) {
+  const toneClass = {
+    neutral: 'text-foreground',
+    success: 'text-success-text',
+    danger: 'text-destructive-text',
+    warning: 'text-warning-text',
+  }[tone];
+  return (
+    <div
+      className={`mx-auto size-12 rounded-full bg-surface-raised border border-border flex items-center justify-center ${toneClass}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Landing page for the emailed sign-in link (`/auth/magic-link/verify?token=`).
+ *
+ * Waits for the session bootstrap to settle first, so a signed-in reader is
+ * asked before anything happens rather than having the link silently spent. The
+ * token is only ever sent to the API once per page load.
+ */
 export function MagicLinkVerifyPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
-  const returnTo = searchParams.get('returnTo');
 
   const authUser = useAuthStore((s) => s.user);
   const authStatus = useAuthStore((s) => s.status);
-  const clearSession = useAuthStore((s) => s.clear);
 
-  const verifyMutation = useVerifyMagicLink();
+  const verify = useVerifyMagicLink();
+  const addAccount = useAddAccountWithMagicLink();
 
-  const [state, setState] = useState<VerificationState>('idle');
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [errorKind, setErrorKind] = useState<
-    'expired' | 'used' | 'invalid' | 'rate_limited' | 'network' | 'server'
-  >('invalid');
-
-  const hasAttemptedRef = useRef(false);
-
-  const completeNavigation = useCallback(() => {
-    if (returnTo) {
-      const handoff = resolveSafeHandoff(
-        returnTo,
-        window.location.origin,
-        window.location.hostname,
-      );
-      if (handoff) {
-        const currentToken = getAccessToken();
-        window.location.href =
-          handoff.crossOrigin && currentToken
-            ? withHandoffToken(handoff.url, currentToken)
-            : handoff.url.toString();
-        return;
-      }
-    }
-    navigate(redirectPathFromAuthState(null, '/'), { replace: true });
-  }, [navigate, returnTo]);
-
-  const runVerification = useCallback(
-    async (tokenToVerify: string) => {
-      setState('verifying');
-      setErrorMessage('');
-      trackAuthEvent('auth_magic_link_clicked');
-
-      try {
-        await verifyMutation.mutateAsync({ token: tokenToVerify });
-        trackAuthEvent('auth_magic_link_verified');
-        setState('success');
-
-        // Short timeout so user sees positive confirmation, then redirect
-        setTimeout(() => {
-          completeNavigation();
-        }, 1200);
-      } catch (err: unknown) {
-        let msg = 'Something went wrong. Please try again or use your password to sign in.';
-        let kind: typeof errorKind = 'server';
-
-        if (err instanceof ApiError) {
-          if (err.status === 429) {
-            kind = 'rate_limited';
-            msg = 'Too many requests. Please wait before trying again.';
-          } else if (err.status === 401 || err.status === 400) {
-            const rawMsg = err.message.toLowerCase();
-            if (rawMsg.includes('expired')) {
-              kind = 'expired';
-              msg = 'This sign-in link has expired. Request a new Magic Link.';
-              trackAuthEvent('auth_magic_link_expired');
-            } else if (rawMsg.includes('already been used') || rawMsg.includes('used')) {
-              kind = 'used';
-              msg = 'This sign-in link has already been used. Request a new Magic Link.';
-            } else {
-              kind = 'invalid';
-              msg = 'This sign-in link is invalid. Request a new Magic Link.';
-            }
-          } else if (err.status === 0 || err.status >= 500) {
-            kind = 'server';
-            msg = 'Something went wrong on our servers. Please try again or use your password.';
-          }
-        } else if (err instanceof Error && err.name === 'TypeError') {
-          kind = 'network';
-          msg = "We couldn't verify the link. Please check your internet connection.";
-        }
-
-        trackAuthEvent('auth_magic_link_failed', { errorCode: kind });
-        setErrorKind(kind);
-        setErrorMessage(msg);
-        setState('error');
-      }
-    },
-    [completeNavigation, verifyMutation],
+  const [state, setState] = useState<VerifyState>(() =>
+    token ? { kind: 'waiting' } : { kind: 'error', reason: 'missing' },
   );
+  const decided = useRef(false);
+
+  const fail = (error: unknown) => {
+    const reason = classifyFailure(error);
+    trackAuthEvent(
+      reason === 'expired' ? 'auth_magic_link_expired' : 'auth_magic_link_failed',
+      { method: 'magic_link', errorCode: reason },
+    );
+    setState({ kind: 'error', reason });
+  };
+
+  const runVerification = async (tokenToVerify: string) => {
+    setState({ kind: 'verifying' });
+    trackAuthEvent('auth_magic_link_clicked', { method: 'magic_link' });
+    try {
+      await verify.mutateAsync({ token: tokenToVerify });
+      trackAuthEvent('auth_magic_link_verified', { method: 'magic_link' });
+      setState({ kind: 'success' });
+    } catch (error) {
+      fail(error);
+    }
+  };
 
   useEffect(() => {
-    if (!token) {
-      setState('error');
-      setErrorKind('invalid');
-      setErrorMessage('No verification token found in URL. Please request a new Magic Link.');
-      return;
-    }
+    if (!token || decided.current) return;
+    // Still restoring a session from the refresh cookie — wait for the answer.
+    if (authStatus === 'idle' || authStatus === 'authenticating') return;
+    decided.current = true;
 
-    if (hasAttemptedRef.current) return;
-    hasAttemptedRef.current = true;
-
-    // Check if user is already authenticated
     if (authStatus === 'authenticated' && authUser) {
-      // The user is already logged in. Rather than silently replace their session,
-      // offer confirmation.
-      setState('already_authenticated');
+      setState({ kind: 'signed-in' });
       return;
     }
-
     void runVerification(token);
-  }, [token, authStatus, authUser, runVerification]);
+    // The decision is made exactly once per load; later auth changes (our own
+    // sign-in included) must not re-run it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, authStatus, authUser]);
 
-  const handleContinueAsExisting = () => {
-    completeNavigation();
-  };
+  useEffect(() => {
+    if (state.kind !== 'success') return;
+    const timer = setTimeout(
+      () => navigate('/', { replace: true }),
+      SUCCESS_REDIRECT_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [state.kind, navigate]);
 
-  const handleSwitchAccount = async () => {
+  const handleUseLinkAccount = async () => {
     if (!token) return;
-    clearSession();
-    useAccountStore.getState().clearAll();
-    void runVerification(token);
+    setState({ kind: 'verifying' });
+    trackAuthEvent('auth_magic_link_clicked', { method: 'magic_link' });
+    try {
+      // Adds the link's identity next to the current one and switches to it.
+      await addAccount.mutateAsync(token);
+      trackAuthEvent('auth_magic_link_verified', { method: 'magic_link' });
+    } catch (error) {
+      fail(error);
+    }
   };
+
+  const failure = state.kind === 'error' ? FAILURE_COPY[state.reason] : null;
+  const canRetry =
+    state.kind === 'error' &&
+    token !== null &&
+    (state.reason === 'network' ||
+      state.reason === 'server' ||
+      state.reason === 'rate_limited');
+
+  const title =
+    state.kind === 'success'
+      ? 'You are signed in'
+      : state.kind === 'signed-in'
+        ? 'Already signed in'
+        : failure
+          ? failure.title
+          : 'Signing you in';
 
   return (
     <AuthLayout
-      title="Magic Link Verification"
-      subtitle="Verifying your passwordless sign-in link."
+      title={title}
+      subtitle={
+        state.kind === 'success'
+          ? 'Taking you to your workspace…'
+          : state.kind === 'signed-in'
+            ? 'This browser already has an active session.'
+            : failure
+              ? undefined
+              : 'Verifying your sign-in link.'
+      }
       footer={
-        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-          <Link
-            to="/login"
-            className="hover:text-foreground transition-colors inline-flex items-center gap-1"
-          >
-            <KeyRound className="size-3.5" />
-            <span>Sign in with password</span>
-          </Link>
-          <span>•</span>
-          <Link
-            to="/login"
-            className="hover:text-foreground transition-colors inline-flex items-center gap-1"
-          >
-            <Mail className="size-3.5" />
-            <span>Request new link</span>
-          </Link>
-        </div>
+        <Link
+          to="/login"
+          className="font-medium text-foreground hover:underline transition-colors"
+        >
+          Back to sign in
+        </Link>
       }
     >
-      <div className="py-2" aria-live="polite">
-        {/* STATE: VERIFYING */}
-        {state === 'verifying' && (
-          <div className="py-8 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="size-12 rounded-full bg-surface-raised flex items-center justify-center border border-border">
-              <Loader2 className="size-6 animate-spin text-foreground" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-foreground">
-                Verifying your sign-in link…
-              </h3>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                Authenticating your credentials and establishing your session.
-              </p>
-            </div>
+      <div className="text-center" aria-live="polite">
+        {state.kind === 'waiting' || state.kind === 'verifying' ? (
+          <div className="py-6 space-y-3">
+            <StatusIcon tone="neutral">
+              <Loader2 className="size-6 animate-spin" />
+            </StatusIcon>
+            <p className="text-xs text-muted-foreground">
+              Checking the link and starting your session…
+            </p>
           </div>
-        )}
+        ) : null}
 
-        {/* STATE: SUCCESS */}
-        {state === 'success' && (
-          <div className="py-8 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
+        {state.kind === 'success' ? (
+          <div className="py-6 space-y-3">
+            <StatusIcon tone="success">
               <CheckCircle2 className="size-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-foreground">
-                Authentication successful!
-              </h3>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                Welcome back. Redirecting you to your workspace…
-              </p>
-            </div>
-            <div className="pt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" />
-              <span>Opening workspace…</span>
-            </div>
+            </StatusIcon>
+            <p className="text-xs text-muted-foreground">
+              Welcome back{authUser?.displayName || authUser?.name ? `, ${authUser.displayName || authUser.name}` : ''}.
+            </p>
           </div>
-        )}
+        ) : null}
 
-        {/* STATE: ALREADY AUTHENTICATED */}
-        {state === 'already_authenticated' && authUser && (
-          <div className="py-4 space-y-4 text-center">
-            <div className="size-12 mx-auto rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+        {state.kind === 'signed-in' && authUser ? (
+          <div className="space-y-4">
+            <StatusIcon tone="neutral">
               <UserCheck className="size-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-foreground">
-                Already signed in
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                You are currently signed in as{' '}
-                <span className="font-semibold text-foreground">
-                  {authUser.email}
-                </span>
-                .
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-2">
+            </StatusIcon>
+            <p className="text-xs text-muted-foreground">
+              You are signed in as{' '}
+              <span className="font-semibold text-foreground">
+                {authUser.email}
+              </span>
+              . Continue as that account, or use the link to add the account it
+              was sent to.
+            </p>
+            <div className="space-y-2">
               <Button
                 type="button"
                 size="md"
                 className="w-full"
-                onClick={handleContinueAsExisting}
+                onClick={() => navigate('/', { replace: true })}
                 trailingIcon={<ArrowRight className="size-3.5" />}
               >
-                Continue to workspace
+                Continue as {authUser.email}
               </Button>
-
               <Button
                 type="button"
                 variant="outline"
                 size="md"
                 className="w-full"
-                onClick={handleSwitchAccount}
+                loading={addAccount.isPending}
+                onClick={() => void handleUseLinkAccount()}
               >
                 Sign in with this link instead
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* STATE: ERROR */}
-        {state === 'error' && (
-          <div className="py-4 space-y-4 text-center">
-            <div className="size-12 mx-auto rounded-full bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20">
-              <AlertCircle className="size-6" />
-            </div>
-            <div className="space-y-1.5">
-              <h3 className="text-sm font-semibold text-foreground">
-                {errorKind === 'expired'
-                  ? 'Sign-in link expired'
-                  : errorKind === 'used'
-                  ? 'Link already used'
-                  : errorKind === 'rate_limited'
-                  ? 'Too many attempts'
-                  : 'Verification failed'}
-              </h3>
-              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                {errorMessage}
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-2">
-              <Button
-                type="button"
-                size="md"
-                className="w-full"
-                onClick={() => navigate('/login')}
-                leadingIcon={<Sparkles className="size-3.5" />}
-              >
-                Request a new Magic Link
-              </Button>
-
+        {failure && state.kind === 'error' ? (
+          <div className="space-y-4">
+            <StatusIcon
+              tone={
+                state.reason === 'expired' || state.reason === 'rate_limited'
+                  ? 'warning'
+                  : 'danger'
+              }
+            >
+              {state.reason === 'expired' ? (
+                <Clock className="size-6" />
+              ) : (
+                <AlertCircle className="size-6" />
+              )}
+            </StatusIcon>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
+              {failure.body}
+            </p>
+            <div className="space-y-2">
+              {canRetry && token ? (
+                <Button
+                  type="button"
+                  size="md"
+                  className="w-full"
+                  onClick={() => void runVerification(token)}
+                >
+                  Try again
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="md"
+                  className="w-full"
+                  onClick={() => navigate(REQUEST_NEW_LINK)}
+                  leadingIcon={<Sparkles className="size-3.5" />}
+                >
+                  Request a new link
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -303,7 +342,7 @@ export function MagicLinkVerifyPage() {
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </AuthLayout>
   );

@@ -25,6 +25,40 @@ export interface CallDeviceInfo {
 export type CallListener = (call: Call) => void;
 export type CallQualityListener = (quality: CallQuality) => void;
 
+/** States a call cannot leave — once reached, a new call may start or ring in. */
+const TERMINAL_STATES: ReadonlySet<CallState> = new Set<CallState>([
+  'idle',
+  'ended',
+  'rejected',
+  'failed',
+  'timeout',
+  'busy',
+]);
+
+/** True while a call is ringing, connecting or connected — i.e. not over. */
+export function isCallLive(state: CallState | null | undefined): boolean {
+  return !!state && !TERMINAL_STATES.has(state);
+}
+
+/** How often the connection-quality monitor samples WebRTC stats. */
+const QUALITY_SAMPLE_MS = 3_000;
+
+/**
+ * Round-trip time and packet loss → a label a person can act on. Thresholds
+ * follow common VoIP guidance: under 150 ms / 2 % is indistinguishable from
+ * in-person; past 400 ms / 8 % speech starts to break up.
+ */
+export function classifyCallQuality(
+  rttMs: number | null,
+  lossRatio: number | null,
+): CallQuality {
+  const rtt = rttMs ?? 0;
+  const loss = lossRatio ?? 0;
+  if (rtt < 150 && loss < 0.02) return 'excellent';
+  if (rtt < 400 && loss < 0.08) return 'good';
+  return 'poor';
+}
+
 /**
  * Voice and video calling — WebRTC Matrix calling layer.
  *
@@ -51,6 +85,8 @@ export class CallManager {
   private selectedAudioInputId: string | null = null;
   private selectedVideoInputId: string | null = null;
   private selectedAudioOutputId: string | null = null;
+  private qualityTimer: ReturnType<typeof setInterval> | null = null;
+  private lastInboundPackets: { received: number; lost: number } | null = null;
 
   constructor(private readonly client: OneTabMatrixClient) {}
 
@@ -82,6 +118,8 @@ export class CallManager {
   }
 
   private emitQuality(quality: CallQuality): void {
+    // Sampled every few seconds — only a change is news.
+    if (quality === this.connectionQuality) return;
     this.connectionQuality = quality;
     for (const listener of this.qualityListeners) {
       try {
@@ -165,10 +203,11 @@ export class CallManager {
    * Receives and tracks an incoming MatrixCall from the homeserver.
    */
   handleIncomingCall(matrixCall: MatrixCall): void {
-    if (this.active && this.active.state !== 'ended' && this.active.state !== 'rejected' && this.active.state !== 'failed') {
-      // Busy: another call in progress, reject incoming
+    if (this.active && isCallLive(this.active.state)) {
+      // Already on a call: answer "busy" so the caller's client can say so
+      // (it maps `user_busy` to a busy state) instead of ringing out.
       try {
-        matrixCall.reject();
+        matrixCall.hangup(SdkCallErrorCode.UserBusy, false);
       } catch {
         // ignore
       }
@@ -217,7 +256,7 @@ export class CallManager {
     this.videoEnabled = kind === 'video';
     this.muted = false;
     this.screensharing = false;
-    this.connectionQuality = 'good';
+    this.emitQuality('good');
 
     const initialCall: Call = {
       id: matrixCall.callId,
@@ -230,7 +269,15 @@ export class CallManager {
     };
     this.emit(initialCall);
 
+    /*
+     * A MatrixCall keeps emitting after we have moved on (a late 'ended' after
+     * hang-up, an error while tearing down). Those must never touch the call
+     * that replaced it, so every handler first checks it is still current.
+     */
+    const isCurrent = () => this.matrixCall === matrixCall;
+
     matrixCall.on(CallEvent.State, (state: string) => {
+      if (!isCurrent()) return;
       let mappedState: CallState = 'connecting';
       switch (state) {
         case 'ringing':
@@ -247,26 +294,36 @@ export class CallManager {
         case 'connected':
           this.clearRingingTimeout();
           mappedState = 'connected';
-          this.emitQuality('excellent');
+          this.startQualityMonitor(matrixCall);
           break;
         case 'ended':
           this.clearRingingTimeout();
-          mappedState = 'ended';
+          // The SDK reports every finish as 'ended'; the hang-up reason says
+          // whether the other side was busy or never picked up.
+          mappedState =
+            matrixCall.hangupReason === 'user_busy'
+              ? 'busy'
+              : matrixCall.hangupReason === 'invite_timeout'
+                ? 'timeout'
+                : 'ended';
           break;
       }
       if (this.active) {
         this.emit({
           ...this.active,
           state: mappedState,
-          endedAt: mappedState === 'ended' ? Date.now() : this.active.endedAt,
+          endedAt: TERMINAL_STATES.has(mappedState)
+            ? Date.now()
+            : this.active.endedAt,
         });
       }
-      if (mappedState === 'ended') {
+      if (TERMINAL_STATES.has(mappedState)) {
         this.cleanup();
       }
     });
 
-    matrixCall.on(CallEvent.Error, (err: any) => {
+    matrixCall.on(CallEvent.Error, (err: { code?: string; message?: string }) => {
+      if (!isCurrent()) return;
       this.clearRingingTimeout();
       const code: CallErrorCode =
         err?.code === 'user_hangup' ? 'CALL_ENDED' : 'CALL_CONNECTION_FAILED';
@@ -283,6 +340,7 @@ export class CallManager {
     });
 
     matrixCall.on(CallEvent.FeedsChanged, () => {
+      if (!isCurrent()) return;
       this.localStream = matrixCall.localUsermediaStream ?? null;
       this.remoteStream = matrixCall.remoteUsermediaStream ?? null;
       if (this.active) {
@@ -301,7 +359,7 @@ export class CallManager {
         'This browser cannot make calls (no media devices or WebRTC).',
       );
     }
-    if (this.active && this.active.state !== 'ended' && this.active.state !== 'rejected' && this.active.state !== 'failed') {
+    if (this.active && isCallLive(this.active.state)) {
       throw new MatrixError('UNSUPPORTED', 'A call is already in progress.');
     }
     this.assertRoom(roomId);
@@ -438,6 +496,7 @@ export class CallManager {
 
   private cleanup(): void {
     this.clearRingingTimeout();
+    this.stopQualityMonitor();
     for (const track of this.localStream?.getTracks() ?? []) {
       try {
         track.stop();
@@ -494,62 +553,44 @@ export class CallManager {
   }
 
   /**
-   * Switches audio input device (microphone) on the fly.
+   * Switches the microphone mid-call. Goes through the SDK's MediaHandler,
+   * which re-acquires the stream and replaces the track on the live peer
+   * connection — swapping tracks on our own MediaStream copy alone would leave
+   * the other side hearing the old (stopped) microphone, i.e. silence.
    */
   async setAudioInputDevice(deviceId: string): Promise<boolean> {
-    this.selectedAudioInputId = deviceId;
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      return false;
-    }
-    try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: deviceId } },
-      });
-      const newAudioTrack = newStream.getAudioTracks()[0];
-      if (!newAudioTrack) return false;
-
-      // Replace audio track in local stream
-      if (this.localStream) {
-        const oldTrack = this.localStream.getAudioTracks()[0];
-        if (oldTrack) {
-          this.localStream.removeTrack(oldTrack);
-          oldTrack.stop();
-        }
-        this.localStream.addTrack(newAudioTrack);
-      }
-      return true;
-    } catch (err) {
-      console.warn('[CallManager] Failed to switch audio input device:', err);
-      return false;
-    }
+    return this.switchInput('audio', deviceId);
   }
 
-  /**
-   * Switches video input device (camera) on the fly.
-   */
+  /** Switches the camera mid-call — see {@link setAudioInputDevice}. */
   async setVideoInputDevice(deviceId: string): Promise<boolean> {
-    this.selectedVideoInputId = deviceId;
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      return false;
-    }
-    try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: deviceId } },
-      });
-      const newVideoTrack = newStream.getVideoTracks()[0];
-      if (!newVideoTrack) return false;
+    return this.switchInput('video', deviceId);
+  }
 
-      if (this.localStream) {
-        const oldTrack = this.localStream.getVideoTracks()[0];
-        if (oldTrack) {
-          this.localStream.removeTrack(oldTrack);
-          oldTrack.stop();
-        }
-        this.localStream.addTrack(newVideoTrack);
+  private async switchInput(
+    kind: 'audio' | 'video',
+    deviceId: string,
+  ): Promise<boolean> {
+    const sdk = this.client.getSdk();
+    if (!sdk) return false;
+    try {
+      const media = sdk.getMediaHandler();
+      if (kind === 'audio') {
+        await media.setAudioInput(deviceId);
+        this.selectedAudioInputId = deviceId;
+      } else {
+        await media.setVideoInput(deviceId);
+        this.selectedVideoInputId = deviceId;
       }
+      this.localStream =
+        this.matrixCall?.localUsermediaStream ?? this.localStream;
+      // Keep the person's mute / camera-off choice across the swap.
+      if (kind === 'audio' && this.muted) await this.setMuted(true);
+      if (kind === 'video' && !this.videoEnabled) await this.setVideoEnabled(false);
+      if (this.active) this.emit({ ...this.active });
       return true;
     } catch (err) {
-      console.warn('[CallManager] Failed to switch video input device:', err);
+      console.warn(`[CallManager] Failed to switch ${kind} input device:`, err);
       return false;
     }
   }
@@ -559,9 +600,13 @@ export class CallManager {
    */
   async setAudioOutputDevice(element: HTMLMediaElement, deviceId: string): Promise<boolean> {
     this.selectedAudioOutputId = deviceId;
-    if (typeof (element as any).setSinkId === 'function') {
+    // `setSinkId` is not in every browser (nor in older DOM typings).
+    const sink = element as HTMLMediaElement & {
+      setSinkId?: (sinkId: string) => Promise<void>;
+    };
+    if (typeof sink.setSinkId === 'function') {
       try {
-        await (element as any).setSinkId(deviceId);
+        await sink.setSinkId(deviceId);
         return true;
       } catch (err) {
         console.warn('[CallManager] Failed to set sinkId on element:', err);
@@ -569,6 +614,70 @@ export class CallManager {
       }
     }
     return false;
+  }
+
+  /**
+   * Samples the peer connection every few seconds: ICE state says whether we
+   * are connected at all ("reconnecting" while ICE recovers), round-trip time
+   * and inbound packet loss grade how well.
+   */
+  private startQualityMonitor(matrixCall: MatrixCall): void {
+    this.stopQualityMonitor();
+    this.emitQuality('good');
+
+    const sample = async () => {
+      const peer = matrixCall.peerConn;
+      if (!peer || this.matrixCall !== matrixCall) return;
+      if (
+        peer.iceConnectionState === 'disconnected' ||
+        peer.iceConnectionState === 'checking'
+      ) {
+        this.emitQuality('reconnecting');
+        return;
+      }
+      try {
+        const stats = await peer.getStats();
+        let rttMs: number | null = null;
+        let received = 0;
+        let lost = 0;
+        stats.forEach((report) => {
+          const r = report as Record<string, unknown>;
+          if (
+            r['type'] === 'candidate-pair' &&
+            r['state'] === 'succeeded' &&
+            typeof r['currentRoundTripTime'] === 'number'
+          ) {
+            rttMs = r['currentRoundTripTime'] * 1000;
+          }
+          if (r['type'] === 'inbound-rtp' && r['kind'] === 'audio') {
+            if (typeof r['packetsReceived'] === 'number') received += r['packetsReceived'];
+            if (typeof r['packetsLost'] === 'number') lost += r['packetsLost'];
+          }
+        });
+        // Loss over the last interval, not since the call began.
+        const previous = this.lastInboundPackets;
+        this.lastInboundPackets = { received, lost };
+        let lossRatio: number | null = null;
+        if (previous) {
+          const newReceived = received - previous.received;
+          const newLost = Math.max(0, lost - previous.lost);
+          const total = newReceived + newLost;
+          lossRatio = total > 0 ? newLost / total : 0;
+        }
+        this.emitQuality(classifyCallQuality(rttMs, lossRatio));
+      } catch {
+        // getStats can reject while the connection is being torn down.
+      }
+    };
+
+    void sample();
+    this.qualityTimer = setInterval(() => void sample(), QUALITY_SAMPLE_MS);
+  }
+
+  private stopQualityMonitor(): void {
+    if (this.qualityTimer) clearInterval(this.qualityTimer);
+    this.qualityTimer = null;
+    this.lastInboundPackets = null;
   }
 }
 

@@ -19,7 +19,10 @@ import { CallManager } from './calls.js';
 import { toMatrixError, withRetry } from './errors.js';
 import {
   collectUnreadMentions,
+  MARKED_UNREAD_EVENT,
+  MARKED_UNREAD_FROM_KEY,
   readDirectMap,
+  readMutedThreadRootIds,
   resolveDirectMessageRoom,
   resolveGroupDirectMessageRoom,
   resolveMediaUrl,
@@ -29,6 +32,7 @@ import {
   toRoom,
   toRoomKind,
   toRoomMember,
+  THREAD_NOTIFICATIONS_EVENT,
   toThread,
 } from './mappers.js';
 import { KeyBackupManager } from './services/crypto/key-backup.js';
@@ -102,6 +106,8 @@ export class OneTabMatrixClient {
   private readonly options: Required<Omit<MatrixClientOptions, 'sessionStore'>>;
   /** Local echoes awaiting acknowledgement, keyed by transaction id. */
   private readonly pendingEchoes = new Map<string, Message>();
+  /** Rooms whose automatic read receipts are held after "Mark unread". */
+  private readonly readHolds = new Set<RoomId>();
   private readonly verification = new VerificationManager(
     () => this.sdk?.getCrypto(),
     () => this.sdk?.getUserId() ?? null,
@@ -544,6 +550,12 @@ export class OneTabMatrixClient {
       const room = roomId ? sdk.getRoom(roomId) : null;
       const message = toMessage(sdk, event, room);
       if (message) this.emit({ type: 'message.updated', message });
+    });
+
+    // "Mark unread" and per-thread mutes live in room account data; a change
+    // (from this device or another) must refresh the sidebar and open views.
+    sdk.on(RoomEvent.AccountData, (_event, room) => {
+      this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
     });
 
     sdk.on(RoomEvent.Receipt, (event, room) => {
@@ -1378,8 +1390,14 @@ export class OneTabMatrixClient {
   async markRead(
     roomId: RoomId,
     eventId: EventId,
-    options: { private?: boolean } = {},
+    options: { private?: boolean; force?: boolean } = {},
   ): Promise<void> {
+    // The reader just marked this room unread while looking at it: automatic
+    // "you have seen this" receipts wait until they leave (see
+    // `releaseReadHold`). An explicit "mark as read" passes `force`.
+    if (this.readHolds.has(roomId) && !options.force) return;
+    if (options.force) this.readHolds.delete(roomId);
+
     const sdk = this.require();
     const room = sdk.getRoom(roomId);
     const event = room?.getUnfilteredTimelineSet().findEventById(eventId);
@@ -1388,6 +1406,72 @@ export class OneTabMatrixClient {
       event,
       options.private ? ReceiptType.ReadPrivate : ReceiptType.Read,
     );
+    // Reading a room ends its "marked unread" state, as in every Matrix client.
+    if (room && toRoom(sdk, room).markedUnread) {
+      await this.setMarkedUnread(roomId, false);
+    }
+  }
+
+  /**
+   * "Mark unread" from a message: flags the room unread (Matrix
+   * `m.marked_unread`, so other clients and devices agree) and remembers the
+   * message, which becomes the "new messages" line. Read receipts cannot move
+   * backwards, so this flag — not the receipt — is what the sidebar reads.
+   *
+   * Automatic read receipts for the room are held until `releaseReadHold`, so
+   * marking the conversation you are looking at unread actually sticks.
+   */
+  async markUnread(roomId: RoomId, fromEventId: EventId): Promise<void> {
+    this.readHolds.add(roomId);
+    await this.setMarkedUnread(roomId, true, fromEventId);
+  }
+
+  /** Clears a "mark unread" without sending a receipt. */
+  async setMarkedUnread(
+    roomId: RoomId,
+    unread: boolean,
+    fromEventId?: EventId,
+  ): Promise<void> {
+    const sdk = this.require();
+    await sdk.setRoomAccountData(roomId, MARKED_UNREAD_EVENT as never, {
+      unread,
+      ...(unread && fromEventId ? { [MARKED_UNREAD_FROM_KEY]: fromEventId } : {}),
+    } as never);
+  }
+
+  /** The reader left the room — automatic read receipts may resume. */
+  releaseReadHold(roomId: RoomId): void {
+    this.readHolds.delete(roomId);
+  }
+
+  /** Whether automatic read receipts are currently held for a room. */
+  isReadHeld(roomId: RoomId): boolean {
+    return this.readHolds.has(roomId);
+  }
+
+  /**
+   * Turns reply notifications for one thread off or on. Stored as room account
+   * data, so every device of this user honours it; mentions still notify.
+   */
+  async setThreadNotificationsMuted(
+    roomId: RoomId,
+    threadRootId: EventId,
+    muted: boolean,
+  ): Promise<void> {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    const current = new Set(room ? readMutedThreadRootIds(room) : []);
+    if (muted) current.add(threadRootId);
+    else current.delete(threadRootId);
+    await sdk.setRoomAccountData(roomId, THREAD_NOTIFICATIONS_EVENT as never, {
+      muted: [...current],
+    } as never);
+  }
+
+  /** True when replies in this thread should make no sound or notification. */
+  isThreadMuted(roomId: RoomId, threadRootId: EventId): boolean {
+    const room = this.sdk?.getRoom(roomId);
+    return room ? readMutedThreadRootIds(room).includes(threadRootId) : false;
   }
 
   /**

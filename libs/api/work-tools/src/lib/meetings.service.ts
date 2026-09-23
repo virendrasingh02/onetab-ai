@@ -151,7 +151,7 @@ export class MeetingsService {
         where: { id: meetingId },
         include: MEETING_DETAIL_INCLUDE,
       }),
-      this.calls.listCalls(workspaceId, { meetingId }),
+      this.calls.listMeetingCalls(workspaceId, meetingId),
     ]);
     return { ...meeting, calls };
   }
