@@ -11,6 +11,8 @@ import {
 import type {
   ForgotPasswordInput,
   LoginInput,
+  MagicLinkRequestInput,
+  MagicLinkVerifyInput,
   RegisterInput,
   ResetPasswordInput,
 } from '@org/validation';
@@ -342,6 +344,36 @@ export function useForgotPassword() {
 export function useResetPassword() {
   return useMutation({
     mutationFn: (input: ResetPasswordInput) => authApi.resetPassword(input),
+  });
+}
+
+export function useRequestMagicLink() {
+  return useMutation({
+    mutationFn: (input: MagicLinkRequestInput) =>
+      authApi.requestMagicLink(input),
+  });
+}
+
+export function useResendMagicLink() {
+  return useMutation({
+    mutationFn: (input: MagicLinkRequestInput) =>
+      authApi.resendMagicLink(input),
+  });
+}
+
+export function useVerifyMagicLink() {
+  const setSession = useAuthStore((state) => state.setSession);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: MagicLinkVerifyInput) =>
+      authApi.verifyMagicLink(input),
+    onSuccess: (data) => {
+      trackAccount(data.user, data.accessToken, data.refreshToken);
+      setSession(data.user, data.accessToken);
+      // Anything cached for a previous account must not leak into this one.
+      queryClient.clear();
+    },
   });
 }
 

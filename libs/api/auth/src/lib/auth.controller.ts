@@ -25,6 +25,8 @@ import {
   forgotPasswordSchema,
   loginSchema,
   logoutSchema,
+  magicLinkRequestSchema,
+  magicLinkVerifySchema,
   pollDeviceAuthSchema,
   refreshSchema,
   registerSchema,
@@ -39,6 +41,8 @@ import {
   type ForgotPasswordInput,
   type LoginInput,
   type LogoutInput,
+  type MagicLinkRequestInput,
+  type MagicLinkVerifyInput,
   type PollDeviceAuthInput,
   type RefreshInput,
   type RegisterInput,
@@ -211,6 +215,45 @@ export class AuthController {
     @Body(zodBody(resetPasswordSchema)) body: ResetPasswordInput,
   ): Promise<void> {
     await this.auth.resetPassword(body);
+  }
+
+  @Public()
+  @Post('magic-link/request')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async requestMagicLink(
+    @Body(zodBody(magicLinkRequestSchema)) body: MagicLinkRequestInput,
+    @Req() request: Request,
+  ) {
+    return this.auth.requestMagicLink(body, this.contextOf(request));
+  }
+
+  @Public()
+  @Post('magic-link/verify')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async verifyMagicLink(
+    @Body(zodBody(magicLinkVerifySchema)) body: MagicLinkVerifyInput,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { user, session } = await this.auth.verifyMagicLink(
+      body,
+      this.contextOf(request),
+    );
+    this.setRefreshCookie(response, session);
+    return { user, ...session.tokens, refreshToken: session.refreshToken };
+  }
+
+  @Public()
+  @Post('magic-link/resend')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  async resendMagicLink(
+    @Body(zodBody(magicLinkRequestSchema)) body: MagicLinkRequestInput,
+    @Req() request: Request,
+  ) {
+    return this.auth.resendMagicLink(body, this.contextOf(request));
   }
 
   @Post('change-password')

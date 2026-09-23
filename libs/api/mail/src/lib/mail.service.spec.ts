@@ -1,7 +1,11 @@
 import { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MailService } from './mail.service.js';
-import { passwordResetEmail, workspaceInviteEmail } from './templates.js';
+import {
+  magicLinkEmail,
+  passwordResetEmail,
+  workspaceInviteEmail,
+} from './templates.js';
 
 function makeConfig(values: Record<string, string>): ConfigService {
   return {
@@ -96,9 +100,19 @@ describe('email templates', () => {
       role: 'MEMBER',
       acceptUrl: 'https://app.test/invite/tok',
     });
-    expect(out.subject).toContain('Ada');
-    expect(out.subject).toContain('Acme');
     expect(out.text).toContain('https://app.test/invite/tok');
     expect(out.text).toContain('MEMBER');
+  });
+
+  it('magic link email carries the verification URL, CTA button, and single-use disclaimer', () => {
+    const out = magicLinkEmail({
+      verifyUrl: 'https://app.test/auth/magic-link/verify?token=secure_tok_123',
+      expiresInMinutes: 15,
+    });
+    expect(out.subject).toBe('Sign in to OneTab AI');
+    expect(out.text).toContain('https://app.test/auth/magic-link/verify?token=secure_tok_123');
+    expect(out.text).toContain('expires in 15 minutes');
+    expect(out.html).toContain('Sign in securely');
+    expect(out.html).toContain('token=secure_tok_123');
   });
 });

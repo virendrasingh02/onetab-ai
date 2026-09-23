@@ -63,6 +63,32 @@ export function passwordResetEmail(vars: {
   return { subject, html, text };
 }
 
+export function magicLinkEmail(vars: {
+  verifyUrl: string;
+  expiresInMinutes: number;
+}): RenderedEmail {
+  const subject = 'Sign in to OneTab AI';
+  const text = [
+    'Sign in to your account',
+    '',
+    'Use the link below to securely sign in to OneTab AI:',
+    vars.verifyUrl,
+    '',
+    `This link expires in ${vars.expiresInMinutes} minutes and can only be used once.`,
+    '',
+    'If you did not request this email, you can safely ignore it.',
+  ].join('\n');
+  const html = layout(
+    [
+      '<p style="font-size:16px;font-weight:600;margin-top:0">Sign in to your account</p>',
+      '<p>Use the button below to securely sign in to OneTab AI.</p>',
+      button(vars.verifyUrl, 'Sign in securely'),
+      `<p style="color:#78716c;font-size:13px;margin-top:20px">This link expires in ${vars.expiresInMinutes} minutes and can only be used once.<br>If you did not request this email, you can safely ignore it.</p>`,
+    ].join(''),
+  );
+  return { subject, html, text };
+}
+
 export function workspaceInviteEmail(vars: {
   inviterName: string;
   workspaceName: string;

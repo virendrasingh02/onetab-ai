@@ -321,6 +321,8 @@ import type {
   DeviceAuthInfoResponse,
   ExchangeDeviceAuthInput,
   ForgotPasswordInput,
+  MagicLinkRequestInput,
+  MagicLinkVerifyInput,
   IconPatch,
   InviteMembersInput,
   CreateInvitationLinkInput,
@@ -398,6 +400,21 @@ export const authApi = {
 
   resetPassword: (input: ResetPasswordInput) =>
     request<void>(http.post('/auth/reset-password', input)),
+
+  requestMagicLink: (input: MagicLinkRequestInput) =>
+    request<{ message: string; devToken?: string }>(
+      http.post('/auth/magic-link/request', input),
+    ),
+
+  verifyMagicLink: (input: MagicLinkVerifyInput) =>
+    request<AuthResponse & { refreshToken: string }>(
+      http.post('/auth/magic-link/verify', input),
+    ),
+
+  resendMagicLink: (input: MagicLinkRequestInput) =>
+    request<{ message: string; devToken?: string }>(
+      http.post('/auth/magic-link/resend', input),
+    ),
 
   authorizeDesktop: (input: DesktopAuthorizeInput) =>
     request<{ code: string; state: string }>(

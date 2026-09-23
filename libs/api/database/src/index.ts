@@ -54,6 +54,7 @@ export type {
   ChannelMember,
   ChannelPin,
   Invitation,
+  MagicLinkToken,
   PasswordResetToken,
   RefreshToken,
   Upload,

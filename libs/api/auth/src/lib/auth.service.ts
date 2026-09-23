@@ -4,11 +4,13 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { expiresAt, generateToken, hashToken } from '@org/api-common';
-import { MailService, passwordResetEmail } from '@org/api-mail';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { expiresAt, generateToken, hashToken, parseDuration } from '@org/api-common';
+import { MailService, magicLinkEmail, passwordResetEmail } from '@org/api-mail';
 import { PrismaService } from '@org/database';
 import {
   ApiErrorCode,
@@ -23,6 +25,8 @@ import type {
   ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
+  MagicLinkRequestInput,
+  MagicLinkVerifyInput,
   RegisterInput,
   ResetPasswordInput,
 } from '@org/validation';
@@ -60,6 +64,7 @@ export class AuthService {
     private readonly tokens: TokenService,
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    @Optional() private readonly events?: EventEmitter2,
   ) {}
 
   async register(
@@ -281,6 +286,174 @@ export class AuthService {
     ]);
   }
 
+  async requestMagicLink(
+    input: MagicLinkRequestInput,
+    context: SessionContext = {},
+  ): Promise<{ message: string; devToken?: string }> {
+    const identifier = input.email.trim();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: identifier, mode: 'insensitive' } },
+          { email: { startsWith: `${identifier}@`, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, email: true },
+    });
+
+    this.logger.log({
+      event: 'magic_link_requested',
+      email: identifier,
+      ip: context.ipAddress,
+      userAgent: context.userAgent,
+      accountExists: Boolean(user),
+      timestamp: new Date().toISOString(),
+    });
+
+    if (!user) {
+      return {
+        message:
+          'If an account exists for that email, a sign-in link is on its way.',
+      };
+    }
+
+    // Invalidate previous unused magic link tokens for this user
+    await this.prisma.magicLinkToken.updateMany({
+      where: { userId: user.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+
+    const token = generateToken(32);
+    const ttl = this.config.get<string>('MAGIC_LINK_TTL') ?? '15m';
+    const expires = expiresAt(ttl);
+
+    await this.prisma.magicLinkToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(token),
+        expiresAt: expires,
+      },
+    });
+
+    const appUrl = (
+      this.config.get<string>('APP_URL') ?? 'http://localhost:4200'
+    ).replace(/\/+$/, '');
+    const verifyUrl = `${appUrl}/auth/magic-link/verify?token=${encodeURIComponent(token)}`;
+    const expiresInMinutes = Math.round(parseDuration(ttl) / 60_000);
+    const email = magicLinkEmail({ verifyUrl, expiresInMinutes });
+
+    void this.mail
+      .send({ to: user.email, ...email })
+      .catch((err) =>
+        this.logger.error('Failed to send magic-link email', err),
+      );
+
+    this.logger.log({
+      event: 'magic_link_sent',
+      userId: user.id,
+      timestamp: new Date().toISOString(),
+    });
+
+    this.events?.emit('auth.magic_link_sent', {
+      userId: user.id,
+      email: user.email,
+      timestamp: new Date().toISOString(),
+    });
+
+    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
+    return {
+      message:
+        'If an account exists for that email, a sign-in link is on its way.',
+      ...(isProduction ? {} : { devToken: token }),
+    };
+  }
+
+  async verifyMagicLink(
+    input: MagicLinkVerifyInput,
+    context: SessionContext = {},
+  ): Promise<{ user: CurrentUser; session: IssuedSession }> {
+    const tokenHash = hashToken(input.token);
+    const record = await this.prisma.magicLinkToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!record) {
+      this.logger.warn({
+        event: 'magic_link_invalid',
+        ip: context.ipAddress,
+        userAgent: context.userAgent,
+        timestamp: new Date().toISOString(),
+      });
+      throw new UnauthorizedException({
+        code: ApiErrorCode.INVALID_CREDENTIALS,
+        message: 'This sign-in link is invalid. Request a new Magic Link.',
+      });
+    }
+
+    if (record.usedAt) {
+      this.logger.warn({
+        event: 'magic_link_reused',
+        userId: record.userId,
+        ip: context.ipAddress,
+        userAgent: context.userAgent,
+        timestamp: new Date().toISOString(),
+      });
+      throw new UnauthorizedException({
+        code: ApiErrorCode.TOKEN_EXPIRED,
+        message:
+          'This sign-in link has already been used. Request a new Magic Link.',
+      });
+    }
+
+    if (record.expiresAt.getTime() <= Date.now()) {
+      this.logger.warn({
+        event: 'magic_link_expired',
+        userId: record.userId,
+        ip: context.ipAddress,
+        userAgent: context.userAgent,
+        timestamp: new Date().toISOString(),
+      });
+      throw new UnauthorizedException({
+        code: ApiErrorCode.TOKEN_EXPIRED,
+        message: 'This sign-in link has expired. Request a new Magic Link.',
+      });
+    }
+
+    const [_, signedIn] = await this.prisma.$transaction([
+      this.prisma.magicLinkToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { lastSeenAt: new Date(), presence: 'ONLINE' },
+      }),
+    ]);
+
+    const session = await this.tokens.issueSession(signedIn, context);
+
+    this.logger.log({
+      event: 'magic_link_verified',
+      userId: signedIn.id,
+      timestamp: new Date().toISOString(),
+    });
+
+    this.events?.emit('auth.magic_link_verified', {
+      userId: signedIn.id,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { user: toCurrentUser(signedIn), session };
+  }
+
+  async resendMagicLink(
+    input: MagicLinkRequestInput,
+    context: SessionContext = {},
+  ): Promise<{ message: string; devToken?: string }> {
+    return this.requestMagicLink(input, context);
+  }
+
   async changePassword(
     userId: string,
     input: ChangePasswordInput,
@@ -334,25 +507,35 @@ export class AuthService {
   }
 
   async getSecurityOverview(userId: string): Promise<SecurityOverviewDto> {
-    const [user, twoFactor, passkeysCount, activeSessionsCount, ssoConfig] =
-      await Promise.all([
-        this.prisma.user.findUniqueOrThrow({
-          where: { id: userId },
-          select: { createdAt: true, updatedAt: true, passwordHash: true },
-        }),
-        this.prisma.twoFactorAuth.findUnique({
-          where: { userId },
-        }),
-        this.prisma.webAuthnCredential.count({
-          where: { userId },
-        }),
-        this.prisma.refreshToken.count({
-          where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
-        }),
-        this.prisma.sSOConfig.findFirst({
-          where: { isActive: true },
-        }),
-      ]);
+    const [
+      user,
+      twoFactor,
+      passkeysCount,
+      activeSessionsCount,
+      ssoConfig,
+      latestMagicLink,
+    ] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { createdAt: true, updatedAt: true, passwordHash: true },
+      }),
+      this.prisma.twoFactorAuth.findUnique({
+        where: { userId },
+      }),
+      this.prisma.webAuthnCredential.count({
+        where: { userId },
+      }),
+      this.prisma.refreshToken.count({
+        where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      }),
+      this.prisma.sSOConfig.findFirst({
+        where: { isActive: true },
+      }),
+      this.prisma.magicLinkToken.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
     const hasBackupCodes = Boolean(
       twoFactor?.backupCodes &&
@@ -377,6 +560,10 @@ export class AuthService {
         isConnected: Boolean(ssoConfig),
         providerType: ssoConfig?.providerType ?? null,
         isOrganizationManaged: Boolean(ssoConfig),
+      },
+      magicLink: {
+        isEnabled: true,
+        lastRequestedAt: latestMagicLink?.createdAt.toISOString() ?? null,
       },
       passkeysCount,
       activeSessionsCount,

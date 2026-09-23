@@ -60,6 +60,14 @@ export const registerSchema = z
 
 export const forgotPasswordSchema = z.object({ email: emailSchema });
 
+export const magicLinkRequestSchema = z.object({
+  email: emailSchema,
+});
+
+export const magicLinkVerifySchema = z.object({
+  token: z.string().min(1, 'Verification token is required'),
+});
+
 export const resetPasswordSchema = z
   .object({
     token: z.string().min(1, 'Reset token is required'),
@@ -154,6 +162,8 @@ export const logoutSchema = refreshSchema;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type MagicLinkRequestInput = z.infer<typeof magicLinkRequestSchema>;
+export type MagicLinkVerifyInput = z.infer<typeof magicLinkVerifySchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type DesktopAuthorizeInput = z.infer<typeof desktopAuthorizeSchema>;

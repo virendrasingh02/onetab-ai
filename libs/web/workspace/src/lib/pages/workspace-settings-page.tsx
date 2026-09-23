@@ -106,6 +106,7 @@ import {
   Lock,
   LogOut,
   Globe,
+  Sparkles,
 } from 'lucide-react';
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
@@ -3449,6 +3450,38 @@ export function WorkspaceSettingsPage({
                 >
                   Change password
                 </Button>
+              </div>
+
+              {/* Magic Link Card */}
+              <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="h-8 w-8 bg-primary/10 text-primary flex items-center justify-center rounded-lg">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="font-semibold text-emerald-600 bg-emerald-500/10 border-emerald-500/20 text-[10px] uppercase"
+                    >
+                      Active
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-foreground">
+                      Magic Link
+                    </h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {securityOverviewQuery.data?.magicLink?.lastRequestedAt
+                        ? `Last used on ${new Date(
+                            securityOverviewQuery.data.magicLink.lastRequestedAt,
+                          ).toLocaleDateString()}`
+                        : 'Secure passwordless login via email link'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-[11px] text-muted-foreground bg-surface rounded-lg px-3 py-2 border border-border">
+                  Available for all registered accounts
+                </div>
               </div>
 
               {/* Single Sign-On (SSO) Card */}

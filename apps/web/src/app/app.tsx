@@ -2,6 +2,7 @@ import {
   DesktopAuthCallbackPage,
   ForgotPasswordPage,
   LoginPage,
+  MagicLinkVerifyPage,
   MobileDeviceConfirmPage,
   MobileDevicePairPage,
   ProtectedRoute,
@@ -299,6 +300,10 @@ export function App() {
         <Route path="/auth/callback" element={<DesktopAuthCallbackPage />} />
         <Route path="/auth/device" element={<MobileDeviceConfirmPage />} />
         <Route path="/auth/pair" element={<MobileDevicePairPage />} />
+        <Route
+          path="/auth/magic-link/verify"
+          element={<MagicLinkVerifyPage />}
+        />
         <Route path="/invite/:token" element={<AcceptInvitationPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route element={<PublicOnlyRoute />}>

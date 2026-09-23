@@ -236,6 +236,10 @@ export interface SecurityOverviewDto {
     providerType: string | null;
     isOrganizationManaged: boolean;
   };
+  magicLink?: {
+    isEnabled: boolean;
+    lastRequestedAt?: IsoDateString | null;
+  };
   passkeysCount: number;
   activeSessionsCount: number;
 }

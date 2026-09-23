@@ -35,6 +35,8 @@ import {
   Laptop,
   Loader2,
   Mail,
+  MailCheck,
+  RotateCw,
   Smartphone,
   Sparkles,
 } from 'lucide-react';
@@ -46,11 +48,14 @@ import {
   useNavigate,
   useSearchParams,
 } from 'react-router-dom';
+import { trackAuthEvent } from '../auth-analytics.js';
 import { AuthLayout } from '../auth-layout.js';
 import {
   formErrorMessage,
   redirectPathFromAuthState,
   useLogin,
+  useRequestMagicLink,
+  useResendMagicLink,
 } from '../use-auth.js';
 import { useAuthStore } from '../auth.store.js';
 import { resolveSafeHandoff, withHandoffToken } from '../safe-handoff-redirect.js';
@@ -67,6 +72,15 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [browserLoginStarting, setBrowserLoginStarting] = useState(false);
   const [desktopHandoffRunning, setDesktopHandoffRunning] = useState(false);
+
+  // Magic link states & mutations
+  const requestMagicLinkMutation = useRequestMagicLink();
+  const resendMagicLinkMutation = useResendMagicLink();
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState('');
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
+  const resendTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Mobile QR pairing mode state
   const [isMobileQRMode, setIsMobileQRMode] = useState(false);
@@ -235,23 +249,85 @@ export function LoginPage() {
     };
   }, [isMobileQRMode, deviceAuthData, setSession, completeNavigation]);
 
-  const handleMagicLinkSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    trackAuthEvent('auth_login_view');
+  }, []);
+
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      resendTimerRef.current = setTimeout(() => {
+        setResendCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (resendTimerRef.current) {
+        clearTimeout(resendTimerRef.current);
+      }
+    };
+  }, [resendCountdown]);
+
+  const handleMagicLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Passwordless / magic-link sign-in has no backend endpoint yet
-    // (auth exposes only password, refresh, reset and device/QR flows).
-    // Rather than fake a "link sent" screen, steer the user to the working
-    // password flow. Wire the real request here once POST /auth/magic-link
-    // exists.
-    form.setError('email', {
-      message:
-        "Magic-link sign-in isn't available yet — please sign in with your password.",
+    const emailVal = form.getValues('email')?.trim();
+    if (!emailVal || !emailVal.includes('@')) {
+      form.setError('email', {
+        message: 'Please enter a valid email address.',
+      });
+      return;
+    }
+
+    setMagicLinkError(null);
+    trackAuthEvent('auth_magic_link_requested', {
+      emailDomain: emailVal.split('@')[1],
     });
-    setAuthMode('password');
+
+    try {
+      await requestMagicLinkMutation.mutateAsync({ email: emailVal });
+      trackAuthEvent('auth_magic_link_sent', {
+        emailDomain: emailVal.split('@')[1],
+      });
+      setMagicLinkEmail(emailVal);
+      setMagicLinkSent(true);
+      setResendCountdown(30);
+    } catch (err: unknown) {
+      const msg =
+        formErrorMessage(err) ||
+        'Failed to request magic link. Please try again.';
+      setMagicLinkError(msg);
+    }
+  };
+
+  const handleResendMagicLink = async () => {
+    if (resendCountdown > 0 || !magicLinkEmail) return;
+    setMagicLinkError(null);
+
+    try {
+      await resendMagicLinkMutation.mutateAsync({ email: magicLinkEmail });
+      trackAuthEvent('auth_magic_link_sent', {
+        emailDomain: magicLinkEmail.split('@')[1],
+      });
+      setResendCountdown(30);
+    } catch (err: unknown) {
+      const msg =
+        formErrorMessage(err) ||
+        'Failed to resend magic link. Please wait before trying again.';
+      setMagicLinkError(msg);
+    }
+  };
+
+  const handleDifferentEmail = () => {
+    setMagicLinkSent(false);
+    setMagicLinkError(null);
+    setResendCountdown(0);
   };
 
   const handlePasswordLogin = async (values: LoginInput) => {
     try {
+      trackAuthEvent('auth_password_login_started', {
+        emailDomain: values.email.includes('@') ? values.email.split('@')[1] : undefined,
+      });
       await login.mutateAsync(values);
+      trackAuthEvent('auth_password_login_success');
 
       if (isDesktopHandoff && stateParam && codeChallengeParam) {
         setDesktopHandoffRunning(true);
@@ -413,10 +489,18 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Sign in"
+      title={
+        magicLinkSent
+          ? 'Check your email'
+          : authMode === 'magic-link'
+          ? 'Sign in with Magic Link'
+          : 'Welcome back'
+      }
       subtitle={
-        authMode === 'magic-link'
-          ? 'Enter your work email to get a magic link.'
+        magicLinkSent
+          ? 'We sent a secure verification link to your email.'
+          : authMode === 'magic-link'
+          ? "Enter your email and we'll send you a secure sign-in link."
           : 'Enter your credentials to access your account.'
       }
       footer={
@@ -459,39 +543,133 @@ export function LoginPage() {
         </div>
       )}
 
-      {/* FORM: MAGIC LINK MODE */}
+      {/* VIEW: MAGIC LINK MODE */}
       {authMode === 'magic-link' ? (
-        <form onSubmit={handleMagicLinkSubmit} className="space-y-3.5" noValidate>
-          <div className="space-y-1.5">
-            <Input
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="your@company.com"
-              value={form.watch('email')}
-              onChange={(e) => form.setValue('email', e.target.value)}
-              leadingIcon={<Mail />}
-              invalid={!!form.formState.errors.email}
-            />
-            {form.formState.errors.email && (
-              <p className="text-[11px] text-destructive">
-                {form.formState.errors.email.message}
-              </p>
-            )}
-            <p className="text-[11px] text-muted-foreground text-left pt-0.5">
-              We&apos;ll email a secure sign-in link.
-            </p>
-          </div>
+        magicLinkSent ? (
+          /* CONFIRMATION SCREEN */
+          <div className="space-y-4 text-center" aria-live="polite">
+            <div className="size-12 mx-auto rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+              <MailCheck className="size-6" />
+            </div>
 
-          <Button
-            type="submit"
-            size="md"
-            className="w-full"
-            trailingIcon={<ArrowRight className="size-3.5" />}
-          >
-            Continue with magic link
-          </Button>
-        </form>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">
+                We&apos;ve sent a secure sign-in link to
+              </p>
+              <p className="text-sm font-semibold text-foreground">
+                {magicLinkEmail}
+              </p>
+              <p className="text-[11px] text-muted-foreground pt-1">
+                The link expires in 15 minutes and can only be used once.
+              </p>
+            </div>
+
+            {magicLinkError && (
+              <p className="text-xs text-destructive">{magicLinkError}</p>
+            )}
+
+            <div className="pt-2 space-y-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                className="w-full"
+                disabled={resendCountdown > 0 || resendMagicLinkMutation.isPending}
+                loading={resendMagicLinkMutation.isPending}
+                onClick={handleResendMagicLink}
+                leadingIcon={<RotateCw className="size-3.5" />}
+              >
+                {resendCountdown > 0
+                  ? `Resend available in ${resendCountdown}s`
+                  : 'Resend Link'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                className="w-full"
+                onClick={handleDifferentEmail}
+              >
+                Use a different email
+              </Button>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground pt-1">
+              Didn&apos;t receive it? Check your spam folder or resend the link.
+            </p>
+
+            <div className="pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('password');
+                  setMagicLinkSent(false);
+                  setMagicLinkError(null);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+              >
+                <KeyRound className="size-3.5" />
+                <span>Back to password login</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* MAGIC LINK EMAIL INPUT FORM */
+          <form onSubmit={handleMagicLinkSubmit} className="space-y-3.5" noValidate>
+            <div className="space-y-1.5 text-left">
+              <FormLabel className="text-xs">Work Email</FormLabel>
+              <Input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="your@company.com"
+                value={form.watch('email')}
+                onChange={(e) => {
+                  form.setValue('email', e.target.value);
+                  if (magicLinkError) setMagicLinkError(null);
+                }}
+                leadingIcon={<Mail className="size-3.5 text-muted-foreground" />}
+                invalid={Boolean(form.formState.errors.email || magicLinkError)}
+              />
+              {form.formState.errors.email && (
+                <p className="text-[11px] text-destructive">
+                  {form.formState.errors.email.message}
+                </p>
+              )}
+              {magicLinkError && (
+                <p className="text-[11px] text-destructive">{magicLinkError}</p>
+              )}
+              <p className="text-[11px] text-muted-foreground text-left pt-0.5">
+                We&apos;ll email a secure sign-in link.
+              </p>
+            </div>
+
+            <Button
+              type="submit"
+              size="md"
+              className="w-full"
+              loading={requestMagicLinkMutation.isPending}
+              trailingIcon={<ArrowRight className="size-3.5" />}
+            >
+              Send Magic Link
+            </Button>
+
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('password');
+                  setMagicLinkError(null);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+              >
+                <KeyRound className="size-3.5" />
+                <span>Back to password login</span>
+              </button>
+            </div>
+          </form>
+        )
       ) : (
         /* FORM: PASSWORD SIGN-IN MODE */
         <Form {...form}>
@@ -596,33 +774,34 @@ export function LoginPage() {
             >
               Sign in
             </Button>
+
+            {/* Divider */}
+            <div className="relative my-4 flex items-center justify-center">
+              <div className="border-t border-border w-full absolute" />
+              <span className="bg-surface px-2.5 text-[11px] text-muted-foreground relative uppercase tracking-wider">
+                or
+              </span>
+            </div>
+
+            {/* Continue with Magic Link Button */}
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              className="w-full"
+              onClick={() => {
+                setAuthMode('magic-link');
+                setMagicLinkSent(false);
+                setMagicLinkError(null);
+                trackAuthEvent('auth_magic_link_started');
+              }}
+              leadingIcon={<Sparkles className="size-3.5 text-primary" />}
+            >
+              Continue with Magic Link
+            </Button>
           </form>
         </Form>
       )}
-
-      {/* Mode Switcher Link */}
-
-      <div className="mt-4 text-center">
-        {authMode === 'magic-link' ? (
-          <button
-            type="button"
-            onClick={() => setAuthMode('password')}
-            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
-          >
-            <KeyRound className="size-3.5" />
-            <span>Sign in with password instead</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAuthMode('magic-link')}
-            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
-          >
-            <Sparkles className="size-3.5" />
-            <span>Sign in with magic link instead</span>
-          </button>
-        )}
-      </div>
     </AuthLayout>
   );
 }
