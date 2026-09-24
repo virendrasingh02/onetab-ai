@@ -57,6 +57,36 @@ const MAX_RATE_LIMIT_WAIT_MS = 8_000;
  *  not worth pushing through the homeserver media repo. */
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 
+/** Room state holding the pinned messages. */
+const PINNED_EVENTS_TYPE = 'm.room.pinned_events';
+
+type PowerLevelsContent = {
+  events_default?: number;
+  events?: Record<string, number>;
+  users?: Record<string, number>;
+};
+
+function sameLevels(
+  a: Record<string, number> = {},
+  b: Record<string, number> = {},
+): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) if (a[key] !== b[key]) return false;
+  return true;
+}
+
+/** True when two power-levels contents grant exactly the same levels. */
+export function samePowerLevels(
+  a: PowerLevelsContent,
+  b: PowerLevelsContent,
+): boolean {
+  return (
+    (a.events_default ?? 0) === (b.events_default ?? 0) &&
+    sameLevels(a.events, b.events) &&
+    sameLevels(a.users, b.users)
+  );
+}
+
 /**
  * Decodes a `data:` URL into bytes and a MIME type, or `null` for any other
  * shape. Only `image/*` payloads are accepted — the one caller is avatar sync.
@@ -894,10 +924,10 @@ export class MatrixAdminService {
     const accessToken = await this.roomActorToken(roomId);
     const path = `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`;
 
-    const current = await this.request<{
-      events?: Record<string, number>;
-      users?: Record<string, number>;
-    }>(path, { method: 'GET', accessToken });
+    const current = await this.request<PowerLevelsContent>(path, {
+      method: 'GET',
+      accessToken,
+    });
 
     const events = { ...(current.events ?? {}) };
     const users = { ...(current.users ?? {}) };
@@ -910,16 +940,25 @@ export class MatrixAdminService {
     } else {
       delete events['m.reaction'];
     }
+    // Pins (`m.room.pinned_events`) are state, so Matrix defaults them to
+    // moderators only. Any member may pin in a normal channel; in an
+    // announcement channel only the people who may post.
+    events[PINNED_EVENTS_TYPE] = opts.enabled ? 50 : 0;
+
+    const next = {
+      ...current,
+      events_default: opts.enabled ? 50 : 0,
+      events,
+      users,
+    };
+    // The reconciler converges every room on a timer — skip the write (and
+    // the power-levels event it would add to the timeline) when nothing moved.
+    if (samePowerLevels(current, next)) return;
 
     await this.request(path, {
       method: 'PUT',
       accessToken,
-      body: JSON.stringify({
-        ...current,
-        events_default: opts.enabled ? 50 : 0,
-        events,
-        users,
-      }),
+      body: JSON.stringify(next),
     });
   }
 

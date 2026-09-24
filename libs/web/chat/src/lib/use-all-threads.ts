@@ -15,6 +15,8 @@ export interface CrossRoomThread {
   roomName: string;
   /** What the thread's room is, so the list can group channels apart from DMs. */
   roomKind: RoomKind;
+  /** The other person's Matrix id, for a 1:1 DM — what its route is keyed on. */
+  directUserId?: string;
   /** The message the thread hangs off, when it is in the loaded timeline. */
   root: Message | null;
   title: string;
@@ -66,6 +68,7 @@ export function useAllThreads() {
           roomId: room.id,
           roomName: room.name,
           roomKind: room.kind,
+          directUserId: room.directUserId,
           root,
           title: root?.body || 'Thread',
           authorName: root?.senderName ?? 'Someone',

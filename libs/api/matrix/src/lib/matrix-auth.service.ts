@@ -201,8 +201,8 @@ export class MatrixAuthService {
       data: { matrixRoomId: roomId },
     });
 
-    // A room linked for an announcement-mode channel needs its power levels
-    // locked down immediately, not just on the next reconcile pass.
+    // Set the room's posting and pinning levels now (announcement lock-down,
+    // members may pin), not just on the next reconcile pass.
     void this.applyChannelPostingPolicy(channelId).catch(() => undefined);
 
     this.logger.log(`Linked channel ${channel.name} to room ${roomId}`);
@@ -465,7 +465,9 @@ export class MatrixAuthService {
    * Reconciles a channel's announcement-mode posting policy into its Matrix
    * room — the real server-side gate behind `ChannelSummary.canPost` (brief
    * §3). In announcement mode the room's `events_default` becomes PL50 so only
-   * authorized posters can send anything; standard mode reopens it. Best-effort
+   * authorized posters can send anything; standard mode reopens it. Pinning
+   * follows posting: anyone in a standard channel, posters in an announcement
+   * one. Best-effort
    * — `MatrixReconcilerService` re-runs it on a cron. No-op without a room.
    */
   async applyChannelPostingPolicy(channelId: string): Promise<void> {

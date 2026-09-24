@@ -28,10 +28,13 @@
   ],
   "references": [
     {
-      "path": "../../../packages/matrix-client/tsconfig.lib.json"
+      "path": "../../shared/design-system/tsconfig.lib.json"
     },
     {
       "path": "../../shared/common/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/matrix-client/tsconfig.lib.json"
     },
     {
       "path": "../../shared/chat-ui/tsconfig.lib.json"

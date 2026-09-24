@@ -60,6 +60,8 @@ describe('AuthService - Magic Link', () => {
         findUnique: vi.fn(),
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
+      // No two-factor on this account: the link alone signs in.
+      twoFactorAuth: { findUnique: vi.fn().mockResolvedValue(null) },
       $transaction: vi
         .fn()
         .mockImplementation((operations) => Promise.all(operations)),
@@ -235,6 +237,7 @@ describe('AuthService - Magic Link', () => {
         where: { id: 'ml_1', usedAt: null, expiresAt: { gt: expect.any(Date) } },
         data: { usedAt: expect.any(Date) },
       });
+      if ('twoFactor' in result) throw new Error('expected a session');
       expect(result.user.id).toBe(mockUser.id);
       expect(result.session.tokens.accessToken).toBe('mock_ml_access_token');
       expect(mockTokens.issueSession).toHaveBeenCalled();

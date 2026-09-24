@@ -114,9 +114,7 @@ export function AIChatView() {
       toolbarSlot={
         <AIModelPicker model={chat.model} onModelChange={chat.setModel} />
       }
-      placeholder={
-        chat.isEmpty ? 'Ask anything…' : 'Ask a follow-up…'
-      }
+      placeholder={chat.isEmpty ? 'Ask anything…' : 'Ask a follow-up…'}
     />
   );
 
@@ -131,12 +129,12 @@ export function AIChatView() {
     <div className="min-h-0 flex w-full flex-1 flex-col items-center text-foreground">
       {chat.isEmpty ? (
         /* Landing: headline and composer centred in the column together. */
-        <div className="max-w-2xl gap-6 px-4 animate-in fade-in flex w-full flex-1 flex-col items-center justify-center duration-(--duration-slow)">
+        <div className="max-w-2xl gap-4 px-4 animate-in fade-in flex w-full flex-1 flex-col items-center justify-center duration-(--duration-slow)">
           <div className="space-y-2 text-center">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
               {firstName ? `${greeting}, ${firstName}` : greeting}
             </h1>
-            <p className="gap-1.5 text-sm flex items-center justify-center text-muted-foreground">
+            {/* <p className="gap-1.5 text-sm flex items-center justify-center text-muted-foreground">
               <DaypartIcon className="size-3.5" aria-hidden />
               <span>
                 {now.toLocaleDateString(undefined, {
@@ -150,7 +148,7 @@ export function AIChatView() {
                   minute: '2-digit',
                 })}
               </span>
-            </p>
+            </p> */}
           </div>
 
           {composer}
@@ -235,7 +233,7 @@ export function AIChatView() {
           </header>
 
           {/* Native scroll container without SimpleBar */}
-          <div className="max-w-3xl min-h-0 w-full flex-1 overflow-y-auto px-4">
+          <div className="max-w-3xl min-h-0 px-4 w-full flex-1 overflow-y-auto">
             <div
               role="log"
               aria-live="polite"

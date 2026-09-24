@@ -134,11 +134,7 @@ export function WorkspaceMenu({
   useLinkedAccountWorkspaces();
 
   const othersLevel = current
-    ? summariseOthers(
-        workspaces,
-        current.id,
-        workspaceActivity,
-      )
+    ? summariseOthers(workspaces, current.id, workspaceActivity)
     : 'none';
 
   const currentEmail = current?.email || userEmail;
@@ -308,9 +304,10 @@ export function WorkspaceMenu({
                 <span className="truncate">{current.name}</span>
                 <PlanBadge
                   plan={plan}
-                  size="xs"
+                  size="sm"
+                  showIcon={false}
                   variant="subtle"
-                  className="font-semibold text-[9px] shrink-0"
+                  className="font-semibold shrink-0 text-[10px]"
                 />
                 <ChevronDown
                   className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) group-data-[state=open]/trigger:rotate-180"
@@ -327,9 +324,9 @@ export function WorkspaceMenu({
           className="w-72 sm:w-80 p-1.5 shadow-2xl space-y-1.5 rounded-xl border border-border bg-popover text-foreground select-none"
         >
           {/* Active Workspace Plan & Quotas Card */}
-          <div className="p-2.5 rounded-lg border border-border/80 bg-surface-muted/60 space-y-1.5">
+          <div className="p-2.5 space-y-1.5 rounded-lg border border-border/80 bg-surface-muted/60">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
+              <div className="gap-1.5 flex items-center">
                 <PlanBadge
                   plan={plan}
                   size="xs"
@@ -337,21 +334,23 @@ export function WorkspaceMenu({
                   className="font-bold text-[10px]"
                 />
                 {isTrialing && (
-                  <span className="text-[10px] font-semibold text-primary px-1.5 py-0.5 rounded bg-primary/10">
-                    {trialDaysRemaining !== null ? `${trialDaysRemaining}d trial` : 'Trial'}
+                  <span className="font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-[10px] text-primary">
+                    {trialDaysRemaining !== null
+                      ? `${trialDaysRemaining}d trial`
+                      : 'Trial'}
                   </span>
                 )}
               </div>
               <Link
                 to={`/w/${current.slug}/settings/billing`}
                 onClick={() => setMenuOpen(false)}
-                className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5"
+                className="font-semibold gap-0.5 flex items-center text-[11px] text-primary hover:underline"
               >
                 {plan === 'enterprise' ? 'Manage' : 'Upgrade'}
                 <ArrowUpRight className="size-3" />
               </Link>
             </div>
-            <div className="text-[10px] text-muted-foreground flex justify-between pt-1 border-t border-border/40">
+            <div className="pt-1 flex justify-between border-t border-border/40 text-[10px] text-muted-foreground">
               <span>
                 Micro-Agents:{' '}
                 <strong className="text-foreground">{microAgentsUsed}</strong> /{' '}
@@ -359,7 +358,9 @@ export function WorkspaceMenu({
               </span>
               <span>
                 Credits:{' '}
-                <strong className="text-foreground">${creditBalance.toFixed(2)}</strong>
+                <strong className="text-foreground">
+                  ${creditBalance.toFixed(2)}
+                </strong>
               </span>
             </div>
           </div>
@@ -600,7 +601,10 @@ export function WorkspaceMenu({
             asChild
             className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
-            <Link to={`/w/${current.slug}/settings`} onClick={() => setMenuOpen(false)}>
+            <Link
+              to={`/w/${current.slug}/settings`}
+              onClick={() => setMenuOpen(false)}
+            >
               <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-border text-subtle">
                 <Settings className="size-3" />
               </span>
@@ -620,7 +624,7 @@ export function WorkspaceMenu({
               <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-border text-primary">
                 <CreditCard className="size-3" />
               </span>
-              <div className="flex items-center justify-between flex-1">
+              <div className="flex flex-1 items-center justify-between">
                 <span className="font-medium">Plans & Billing</span>
                 <PlanBadge
                   plan={plan}

@@ -6,7 +6,10 @@ import {
   ReceiptType,
   RoomEvent,
   RoomMemberEvent,
+  RoomStateEvent,
   SyncState,
+  ConditionKind,
+  PushRuleKind,
   createClient,
   type MatrixClient as SdkClient,
   type MatrixEvent,
@@ -21,8 +24,11 @@ import {
   collectUnreadMentions,
   MARKED_UNREAD_EVENT,
   MARKED_UNREAD_FROM_KEY,
+  PINNED_EVENTS_EVENT,
   readDirectMap,
   readMutedThreadRootIds,
+  readPinnedEventIds,
+  threadMuteRuleId,
   resolveDirectMessageRoom,
   resolveGroupDirectMessageRoom,
   resolveMediaUrl,
@@ -556,6 +562,15 @@ export class OneTabMatrixClient {
     // (from this device or another) must refresh the sidebar and open views.
     sdk.on(RoomEvent.AccountData, (_event, room) => {
       this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
+    });
+
+    // Pins are room state, and who may pin follows the power levels: either
+    // changing (from anyone, on any device) refreshes the pinned bar.
+    sdk.on(RoomStateEvent.Events, (event) => {
+      const type = event.getType();
+      if (type !== PINNED_EVENTS_EVENT && type !== 'm.room.power_levels') return;
+      const room = sdk.getRoom(event.getRoomId() ?? '');
+      if (room) this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
     });
 
     sdk.on(RoomEvent.Receipt, (event, room) => {
@@ -1466,6 +1481,83 @@ export class OneTabMatrixClient {
     await sdk.setRoomAccountData(roomId, THREAD_NOTIFICATIONS_EVENT as never, {
       muted: [...current],
     } as never);
+
+    // Account data only reaches our own clients. Phone/desktop push comes from
+    // the homeserver's push rules, so mirror the mute as a silent underride
+    // rule on the thread's replies. Underride sits below the mention rules, so
+    // an @mention inside the thread still notifies.
+    const ruleId = threadMuteRuleId(threadRootId);
+    try {
+      if (muted) {
+        await sdk.addPushRule('global', PushRuleKind.Underride, ruleId, {
+          actions: [],
+          conditions: [
+            { kind: ConditionKind.EventMatch, key: 'room_id', pattern: roomId },
+            {
+              kind: ConditionKind.EventPropertyIs,
+              key: 'content.m\\.relates_to.rel_type',
+              value: 'm.thread',
+            },
+            {
+              kind: ConditionKind.EventPropertyIs,
+              key: 'content.m\\.relates_to.event_id',
+              value: threadRootId,
+            },
+          ],
+        });
+      } else {
+        await sdk.deletePushRule('global', PushRuleKind.Underride, ruleId);
+      }
+    } catch (error) {
+      // Unmuting a thread muted before push rules were written: no rule.
+      if (muted || (error as { httpStatus?: number })?.httpStatus !== 404) {
+        console.warn('[matrix] could not sync thread mute to push rules', error);
+      }
+    }
+  }
+
+  /**
+   * Pins or unpins a message for everyone in the room (`m.room.pinned_events`
+   * state). The newest pin goes last, matching other Matrix clients.
+   */
+  async setMessagePinned(
+    roomId: RoomId,
+    eventId: EventId,
+    pinned: boolean,
+  ): Promise<void> {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    const current = room ? readPinnedEventIds(room) : [];
+    if (current.includes(eventId) === pinned) return;
+    const next = current.filter((id) => id !== eventId);
+    if (pinned) next.push(eventId);
+    await withRetry(() =>
+      sdk.sendStateEvent(
+        roomId,
+        PINNED_EVENTS_EVENT as never,
+        { pinned: next } as never,
+        '',
+      ),
+    );
+  }
+
+  /**
+   * Loads one message by id, even when it is outside the loaded timeline — e.g.
+   * a pin on an old message. Resolves `null` when it is gone or unreadable.
+   */
+  async fetchMessage(roomId: RoomId, eventId: EventId): Promise<Message | null> {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    const loaded = room?.findEventById(eventId);
+    if (loaded) return toMessage(sdk, loaded, room ?? null);
+    try {
+      const raw = await sdk.fetchRoomEvent(roomId, eventId);
+      const event = sdk.getEventMapper()(raw);
+      await sdk.decryptEventIfNeeded(event);
+      return toMessage(sdk, event, room ?? null);
+    } catch {
+      return null;
+    }
   }
 
   /** True when replies in this thread should make no sound or notification. */

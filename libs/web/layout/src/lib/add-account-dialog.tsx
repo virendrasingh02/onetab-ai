@@ -1,5 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { formErrorMessage, useAddAccount, useSignUpAccount } from '@org/auth';
+import { isTwoFactorChallenge } from '@org/api-client';
+import {
+  formErrorMessage,
+  TwoFactorChallengePanel,
+  useAddAccount,
+  useSignUpAccount,
+} from '@org/auth';
+import type { TwoFactorChallengeResponse } from '@org/types';
 import {
   Button,
   Checkbox,
@@ -37,10 +44,17 @@ export interface AddAccountDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) {
+export function AddAccountDialog({
+  open,
+  onOpenChange,
+}: AddAccountDialogProps) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const addAccount = useAddAccount();
   const signUp = useSignUpAccount();
+  // The account being added has two-factor on: its code is still owed.
+  const [twoFactor, setTwoFactor] = useState<TwoFactorChallengeResponse | null>(
+    null,
+  );
 
   const loginForm = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -66,14 +80,17 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
     signupForm.reset();
     addAccount.reset();
     signUp.reset();
+    setTwoFactor(null);
   };
 
   const handleLogin = loginForm.handleSubmit(async (values) => {
     try {
       const data = await addAccount.mutateAsync(values);
-      toast.success(
-        `Signed in as ${data.user.displayName ?? data.user.name}.`,
-      );
+      if (isTwoFactorChallenge(data)) {
+        setTwoFactor(data);
+        return;
+      }
+      toast.success(`Signed in as ${data.user.displayName ?? data.user.name}.`);
       close();
     } catch {
       // Shown inline from `addAccount.error` / field errors.
@@ -97,13 +114,13 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(true) : close())}
     >
-      <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden bg-background border border-border shadow-2xl rounded-2xl">
+      <DialogContent className="sm:max-w-md p-0 gap-0 shadow-2xl overflow-hidden rounded-2xl border border-border bg-background">
         <DialogHeader className="p-5 pb-4 border-b border-border bg-surface-raised/40">
-          <DialogTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+          <DialogTitle className="text-lg font-semibold tracking-tight gap-2 flex items-center text-foreground">
             <UserPlus className="size-5 text-primary" />
             <span>Add another account</span>
           </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground mt-1">
+          <DialogDescription className="text-xs mt-1 text-muted-foreground">
             Log in or sign up with another account. Your current account stays
             signed in, and you can switch between them any time.
           </DialogDescription>
@@ -124,59 +141,78 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
           </TabsList>
 
           <TabsContent value="login" className="mt-4">
-            <Form {...loginForm}>
-              <form onSubmit={handleLogin} className="space-y-3" noValidate>
-                <FormError error={formErrorMessage(addAccount.error)} />
+            {twoFactor ? (
+              <TwoFactorChallengePanel
+                challenge={twoFactor}
+                mode="add-account"
+                cancelLabel="Back"
+                onSignedIn={(data) => {
+                  toast.success(
+                    `Signed in as ${data.user.displayName ?? data.user.name}.`,
+                  );
+                  close();
+                }}
+                onCancel={() => {
+                  setTwoFactor(null);
+                  addAccount.reset();
+                  loginForm.setValue('password', '');
+                }}
+              />
+            ) : (
+              <Form {...loginForm}>
+                <form onSubmit={handleLogin} className="space-y-3" noValidate>
+                  <FormError error={formErrorMessage(addAccount.error)} />
 
-                <FormField
-                  control={loginForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email or username</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="text"
-                          autoComplete="username"
-                          placeholder="you@company.com"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={loginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email or username</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="text"
+                            autoComplete="username"
+                            placeholder="you@company.com"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={loginForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="password"
-                          autoComplete="current-password"
-                          placeholder="••••••••••"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={loginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="password"
+                            autoComplete="current-password"
+                            placeholder="••••••••••"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  loading={
-                    loginForm.formState.isSubmitting || addAccount.isPending
-                  }
-                >
-                  Log in &amp; switch
-                </Button>
-              </form>
-            </Form>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    loading={
+                      loginForm.formState.isSubmitting || addAccount.isPending
+                    }
+                  >
+                    Log in &amp; switch
+                  </Button>
+                </form>
+              </Form>
+            )}
           </TabsContent>
 
           <TabsContent value="signup" className="mt-4">
@@ -264,7 +300,7 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
                   name="acceptTerms"
                   render={({ field }) => (
                     <FormItem>
-                      <div className="flex items-start gap-2.5 text-xs">
+                      <div className="gap-2.5 text-xs flex items-start">
                         <Checkbox
                           id="add-account-terms"
                           checked={!!field.value}
@@ -277,7 +313,7 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
                         />
                         <label
                           htmlFor="add-account-terms"
-                          className="cursor-pointer select-none text-muted-foreground"
+                          className="cursor-pointer text-muted-foreground select-none"
                         >
                           I agree to the Terms of Service and Privacy Policy.
                         </label>
@@ -301,7 +337,7 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
           </TabsContent>
         </Tabs>
 
-        <div className="p-3 bg-surface-raised/50 border-t border-border flex justify-end">
+        <div className="p-3 flex justify-end border-t border-border bg-surface-raised/50">
           <Button
             variant="ghost"
             size="sm"

@@ -2,6 +2,7 @@ import {
   ApiError,
   authApi,
   getAccessToken,
+  isTwoFactorChallenge,
   queryKeys,
   SessionRejectedError,
   setAccessToken,
@@ -15,6 +16,7 @@ import type {
   MagicLinkVerifyInput,
   RegisterInput,
   ResetPasswordInput,
+  TwoFactorLoginInput,
 } from '@org/validation';
 import { getDesktopApi } from '@org/web-desktop';
 import type { CurrentUser } from '@org/types';
@@ -276,6 +278,11 @@ export function useSessionBootstrap(): void {
   }, [liveStatus, liveUser]);
 }
 
+/**
+ * Password sign-in. Resolves to the session, or to a two-factor challenge (see
+ * {@link isTwoFactorChallenge}) that {@link useCompleteTwoFactorLogin} redeems —
+ * nothing is signed in until then.
+ */
 export function useLogin() {
   const setSession = useAuthStore((state) => state.setSession);
   const queryClient = useQueryClient();
@@ -283,9 +290,26 @@ export function useLogin() {
   return useMutation({
     mutationFn: (input: LoginInput) => authApi.login(input),
     onSuccess: (data) => {
+      if (isTwoFactorChallenge(data)) return;
       trackAccount(data.user, data.accessToken, data.refreshToken);
       setSession(data.user, data.accessToken);
       // Anything cached for a previous account must not leak into this one.
+      queryClient.clear();
+    },
+  });
+}
+
+/** The code step of a two-factor sign-in; starts the session on success. */
+export function useCompleteTwoFactorLogin() {
+  const setSession = useAuthStore((state) => state.setSession);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: TwoFactorLoginInput) =>
+      authApi.completeTwoFactorLogin(input),
+    onSuccess: (data) => {
+      trackAccount(data.user, data.accessToken, data.refreshToken);
+      setSession(data.user, data.accessToken);
       queryClient.clear();
     },
   });
@@ -369,6 +393,8 @@ export function useVerifyMagicLink() {
     mutationFn: (input: MagicLinkVerifyInput) =>
       authApi.verifyMagicLink(input),
     onSuccess: (data) => {
+      // Two-factor on: the link was only the first step.
+      if (isTwoFactorChallenge(data)) return;
       trackAccount(data.user, data.accessToken, data.refreshToken);
       setSession(data.user, data.accessToken);
       // Anything cached for a previous account must not leak into this one.

@@ -126,14 +126,11 @@ export class MatrixReconcilerService {
           }
         }
 
-        // Converge the announcement-mode posting policy onto the room's power
-        // levels — the backstop for a missed `channel.updated` event (§3).
-        // Only announcement channels need it: a STANDARD channel's
-        // `events_default` is 0 by default and nothing else raises it, so
-        // re-checking every room every tick would be pure Synapse traffic.
-        if (channel.mode === 'ANNOUNCEMENT') {
-          await this.auth.applyChannelPostingPolicy(channel.id);
-        }
+        // Converge the posting + pinning policy onto the room's power levels —
+        // the backstop for a missed `channel.updated` event (§3), and how rooms
+        // created before members could pin pick that up. One GET per room;
+        // the PUT only happens when a level actually differs.
+        await this.auth.applyChannelPostingPolicy(channel.id);
       } catch (err) {
         this.logger.warn(
           `Reconcile failed for channel ${channel.name} (${channel.id}): ${

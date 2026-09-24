@@ -935,8 +935,14 @@ export function Composer({
     setPickerState((current) => ({ ...current, open: false }));
   };
 
-  const handleSelectSticker = (sticker: { url: string; alt: string; name?: string }) => {
-    void onSend(`![sticker:${sticker.alt || sticker.name || 'sticker'}](${sticker.url})`);
+  const handleSelectSticker = (sticker: {
+    url: string;
+    alt: string;
+    name?: string;
+  }) => {
+    void onSend(
+      `![sticker:${sticker.alt || sticker.name || 'sticker'}](${sticker.url})`,
+    );
     setPickerState((current) => ({ ...current, open: false }));
   };
 
@@ -960,10 +966,7 @@ export function Composer({
 
   return (
     <div
-      className={cn(
-        'bottom-0 px-3 pt-3 sticky z-20 w-full shrink-0 bg-background',
-        className,
-      )}
+      className={cn('bottom-0 sticky z-20 w-full shrink-0', className)}
       style={{ paddingBottom: composerPadBottom }}
     >
       {contextSlot}

@@ -35,6 +35,7 @@
   "dependencies": {
     "@org/api-client": "*",
     "@org/auth": "*",
+    "@org/design-system": "*",
     "@org/hooks": "*",
     "@org/media-preview": "*",
     "@org/notifications": "*",

@@ -620,6 +620,18 @@ export const MARKED_UNREAD_FROM_KEY = 'mie.from_event_id';
 /** Room account data listing the thread roots whose replies are muted. */
 export const THREAD_NOTIFICATIONS_EVENT = 'mie.thread_notifications';
 
+/**
+ * The push rule id silencing one thread's replies. Rule ids travel in URL paths
+ * and may not hold `/` or `\`, so every character outside `[A-Za-z0-9]` is
+ * escaped (reversibly, so two threads never share a rule).
+ */
+export function threadMuteRuleId(threadRootId: string): string {
+  const escaped = Array.from(threadRootId, (char) =>
+    /[A-Za-z0-9]/.test(char) ? char : `_${char.codePointAt(0)?.toString(16)}_`,
+  ).join('');
+  return `mie.thread_mute.${escaped}`;
+}
+
 function readMarkedUnread(room: SdkRoom): { unread: boolean; fromId?: string } {
   const content = (
     room.getAccountData(MARKED_UNREAD_EVENT as never) ??
@@ -637,6 +649,19 @@ export function readMutedThreadRootIds(room: SdkRoom): string[] {
   const muted = content?.muted;
   return Array.isArray(muted)
     ? muted.filter((id): id is string => typeof id === 'string')
+    : [];
+}
+
+/** Room state listing the pinned messages — shared by everyone in the room. */
+export const PINNED_EVENTS_EVENT = 'm.room.pinned_events';
+
+export function readPinnedEventIds(room: SdkRoom): string[] {
+  const content = room.currentState
+    .getStateEvents(PINNED_EVENTS_EVENT, '')
+    ?.getContent() as { pinned?: unknown } | undefined;
+  const pinned = content?.pinned;
+  return Array.isArray(pinned)
+    ? [...new Set(pinned.filter((id): id is string => typeof id === 'string'))]
     : [];
 }
 
@@ -673,6 +698,10 @@ export function toRoom(client: SdkClient, room: SdkRoom): Room {
     markedUnread: markedUnread.unread,
     markedUnreadFromId: markedUnread.fromId,
     mutedThreadRootIds: readMutedThreadRootIds(room),
+    pinnedEventIds: readPinnedEventIds(room),
+    canPin: myUserId
+      ? room.currentState.maySendStateEvent(PINNED_EVENTS_EVENT, myUserId)
+      : false,
   };
 }
 

@@ -1,5 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { authApi, getAccessToken, setAccessToken } from '@org/api-client';
+import {
+  authApi,
+  getAccessToken,
+  isTwoFactorChallenge,
+  setAccessToken,
+} from '@org/api-client';
+import type { TwoFactorChallengeResponse } from '@org/types';
 import {
   Button,
   Card,
@@ -48,6 +54,7 @@ import {
 import { trackAuthEvent } from '../auth-analytics.js';
 import { AuthLayout } from '../auth-layout.js';
 import { MagicLinkPanel } from '../components/magic-link-panel.js';
+import { TwoFactorChallengePanel } from '../components/two-factor-challenge-panel.js';
 import {
   formErrorMessage,
   redirectPathFromAuthState,
@@ -81,6 +88,9 @@ export function LoginPage() {
       : 'password',
   );
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  // Set when the password was right but the account also wants a code.
+  const [twoFactor, setTwoFactor] =
+    useState<TwoFactorChallengeResponse | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [browserLoginStarting, setBrowserLoginStarting] = useState(false);
   const [desktopHandoffRunning, setDesktopHandoffRunning] = useState(false);
@@ -257,14 +267,9 @@ export function LoginPage() {
     setMagicLinkSent(false);
   }, []);
 
-  const handlePasswordLogin = async (values: LoginInput) => {
+  /** After the session exists: hand it to the desktop app, or go on in. */
+  const finishSignIn = async () => {
     try {
-      trackAuthEvent('auth_password_login_started', {
-        emailDomain: values.email.includes('@') ? values.email.split('@')[1] : undefined,
-      });
-      await login.mutateAsync(values);
-      trackAuthEvent('auth_password_login_success');
-
       if (isDesktopHandoff && stateParam && codeChallengeParam) {
         setDesktopHandoffRunning(true);
         const authRes = await authApi.authorizeDesktop({
@@ -277,6 +282,23 @@ export function LoginPage() {
       }
 
       completeNavigation();
+    } catch {
+      setDesktopHandoffRunning(false);
+    }
+  };
+
+  const handlePasswordLogin = async (values: LoginInput) => {
+    try {
+      trackAuthEvent('auth_password_login_started', {
+        emailDomain: values.email.includes('@') ? values.email.split('@')[1] : undefined,
+      });
+      const result = await login.mutateAsync(values);
+      if (isTwoFactorChallenge(result)) {
+        setTwoFactor(result);
+        return;
+      }
+      trackAuthEvent('auth_password_login_success');
+      await finishSignIn();
     } catch {
       // Rendered by <FormError>
     }
@@ -419,6 +441,28 @@ export function LoginPage() {
             </div>
           ) : null}
         </div>
+      </AuthLayout>
+    );
+  }
+
+  if (twoFactor) {
+    return (
+      <AuthLayout
+        title="Verify it's you"
+        subtitle="Your account has two-factor authentication turned on."
+      >
+        <TwoFactorChallengePanel
+          challenge={twoFactor}
+          onSignedIn={() => {
+            trackAuthEvent('auth_password_login_success');
+            void finishSignIn();
+          }}
+          onCancel={() => {
+            setTwoFactor(null);
+            login.reset();
+            form.setValue('password', '');
+          }}
+        />
       </AuthLayout>
     );
   }

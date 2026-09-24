@@ -27,6 +27,7 @@ import {
   logoutSchema,
   magicLinkRequestSchema,
   magicLinkVerifySchema,
+  twoFactorLoginSchema,
   pollDeviceAuthSchema,
   refreshSchema,
   registerSchema,
@@ -43,6 +44,7 @@ import {
   type LogoutInput,
   type MagicLinkRequestInput,
   type MagicLinkVerifyInput,
+  type TwoFactorLoginInput,
   type PollDeviceAuthInput,
   type RefreshInput,
   type RegisterInput,
@@ -126,14 +128,39 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { user, session } = await this.auth.login(
-      body,
-      this.contextOf(request),
-    );
+    const result = await this.auth.login(body, this.contextOf(request));
+    // Two-factor on: no session (and no cookie) until the code step.
+    if ('twoFactor' in result) return result.twoFactor;
+    const { user, session } = result;
     this.setRefreshCookie(response, session);
     // See `register` — the body copy is for a browser holding this as a
     // background account alongside another.
     return { user, ...session.tokens, refreshToken: session.refreshToken };
+  }
+
+  /**
+   * The code step of a two-factor sign-in, after `login` or
+   * `magic-link/verify` answered `requiresTwoFactor`. Tight throttle on top of
+   * the per-challenge attempt cap.
+   */
+  @Public()
+  @Post('login/2fa')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async completeTwoFactorLogin(
+    @Body(zodBody(twoFactorLoginSchema)) body: TwoFactorLoginInput,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { user, session, usedRecoveryCode } =
+      await this.auth.completeTwoFactorLogin(body, this.contextOf(request));
+    this.setRefreshCookie(response, session);
+    return {
+      user,
+      ...session.tokens,
+      refreshToken: session.refreshToken,
+      usedRecoveryCode,
+    };
   }
 
   @Public()
@@ -237,10 +264,12 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { user, session } = await this.auth.verifyMagicLink(
+    const result = await this.auth.verifyMagicLink(
       body,
       this.contextOf(request),
     );
+    if ('twoFactor' in result) return result.twoFactor;
+    const { user, session } = result;
     this.setRefreshCookie(response, session);
     return { user, ...session.tokens, refreshToken: session.refreshToken };
   }

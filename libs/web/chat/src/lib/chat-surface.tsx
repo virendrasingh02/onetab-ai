@@ -203,6 +203,8 @@ export interface ChatSurfaceProps {
   huddleRequest?: number;
 
   pinnedIds?: string[];
+  /** Pinned messages older than the loaded timeline, fetched on their own. */
+  pinnedOutsideTimeline?: Message[];
   savedIds?: string[];
   firstUnreadId?: string | null;
 
@@ -354,6 +356,7 @@ export function ChatSurface({
   welcome,
   huddleRequest = 0,
   pinnedIds = [],
+  pinnedOutsideTimeline,
   savedIds = [],
   firstUnreadId,
   deepLinkThreadId,
@@ -555,13 +558,16 @@ export function ChatSurface({
     [messages, members, myUserId, firstUnreadId, byId],
   );
 
-  const pinnedMessages = useMemo(
-    () =>
-      pinnedIds
-        .map((id) => byId.get(id))
-        .filter((message): message is Message => !!message),
-    [pinnedIds, byId],
-  );
+  // Newest pin first, like the rest of the side panels.
+  const pinnedMessages = useMemo(() => {
+    const older = new Map(
+      (pinnedOutsideTimeline ?? []).map((message) => [message.id, message]),
+    );
+    return pinnedIds
+      .map((id) => byId.get(id) ?? older.get(id))
+      .filter((message): message is Message => !!message)
+      .reverse();
+  }, [pinnedIds, pinnedOutsideTimeline, byId]);
 
   /* `savedIds` still drives each bubble's bookmark toggle; the list of saved
      messages itself now lives on the Saved page in the sidebar. */

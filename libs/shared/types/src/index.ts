@@ -214,6 +214,7 @@ export type {
   AuthTokens,
   Paginated,
   PaginationParams,
+  TwoFactorChallengeResponse,
 } from './lib/api.js';
 
 export type {

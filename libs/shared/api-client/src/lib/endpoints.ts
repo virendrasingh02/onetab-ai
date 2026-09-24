@@ -84,6 +84,7 @@ import type {
   AppActionDefinition,
   AppActionResult,
   AuthTokens,
+  TwoFactorChallengeResponse,
   ChannelAnonymousSettingsView,
   AutomationWorkflow,
   AutomationWorkflowDetail,
@@ -326,6 +327,7 @@ import type {
   ForgotPasswordInput,
   MagicLinkRequestInput,
   MagicLinkVerifyInput,
+  TwoFactorLoginInput,
   IconPatch,
   InviteMembersInput,
   CreateInvitationLinkInput,
@@ -368,6 +370,18 @@ export interface AuthResponse extends AuthTokens {
 }
 
 /**
+ * A password or magic-link sign-in: a session, or — when the account has
+ * two-factor on — a challenge to redeem with `authApi.completeTwoFactorLogin`.
+ */
+export type SignInResponse = AuthResponse | TwoFactorChallengeResponse;
+
+export function isTwoFactorChallenge(
+  response: SignInResponse,
+): response is TwoFactorChallengeResponse {
+  return 'requiresTwoFactor' in response && response.requiresTwoFactor === true;
+}
+
+/**
  * `POST /auth/magic-link/{request,resend}` — the same answer whether or not the
  * address is registered. `devToken` only outside production (no mail transport).
  */
@@ -382,7 +396,13 @@ export const authApi = {
     request<AuthResponse>(http.post('/auth/register', input)),
 
   login: (input: LoginInput) =>
-    request<AuthResponse>(http.post('/auth/login', input)),
+    request<SignInResponse>(http.post('/auth/login', input)),
+
+  /** The code step of a two-factor sign-in (authenticator or recovery code). */
+  completeTwoFactorLogin: (input: TwoFactorLoginInput) =>
+    request<AuthResponse & { usedRecoveryCode: boolean }>(
+      http.post('/auth/login/2fa', input),
+    ),
 
   /**
    * `refreshToken` in the body removes one *background* account from a
@@ -420,7 +440,7 @@ export const authApi = {
     ),
 
   verifyMagicLink: (input: MagicLinkVerifyInput) =>
-    request<AuthResponse>(http.post('/auth/magic-link/verify', input)),
+    request<SignInResponse>(http.post('/auth/magic-link/verify', input)),
 
   resendMagicLink: (input: MagicLinkRequestInput) =>
     request<MagicLinkRequestResponse>(

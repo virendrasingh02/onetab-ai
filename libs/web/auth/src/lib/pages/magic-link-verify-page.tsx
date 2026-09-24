@@ -1,4 +1,5 @@
-import { ApiError } from '@org/api-client';
+import { ApiError, isTwoFactorChallenge } from '@org/api-client';
+import type { TwoFactorChallengeResponse } from '@org/types';
 import { Button } from '@org/ui';
 import {
   AlertCircle,
@@ -14,6 +15,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { trackAuthEvent } from '../auth-analytics.js';
 import { AuthLayout } from '../auth-layout.js';
+import { TwoFactorChallengePanel } from '../components/two-factor-challenge-panel.js';
 import { useAuthStore } from '../auth.store.js';
 import { useAddAccountWithMagicLink } from '../use-account-switcher.js';
 import { useVerifyMagicLink } from '../use-auth.js';
@@ -32,6 +34,12 @@ type VerifyState =
   | { kind: 'verifying' }
   | { kind: 'success' }
   | { kind: 'signed-in' }
+  /** The link was the first factor; the account also wants a code. */
+  | {
+      kind: 'two-factor';
+      challenge: TwoFactorChallengeResponse;
+      mode: 'session' | 'add-account';
+    }
   | { kind: 'error'; reason: FailureReason };
 
 /** Brief enough to read the confirmation, short enough not to feel stuck. */
@@ -147,7 +155,11 @@ export function MagicLinkVerifyPage() {
     setState({ kind: 'verifying' });
     trackAuthEvent('auth_magic_link_clicked', { method: 'magic_link' });
     try {
-      await verify.mutateAsync({ token: tokenToVerify });
+      const result = await verify.mutateAsync({ token: tokenToVerify });
+      if (isTwoFactorChallenge(result)) {
+        setState({ kind: 'two-factor', challenge: result, mode: 'session' });
+        return;
+      }
       trackAuthEvent('auth_magic_link_verified', { method: 'magic_link' });
       setState({ kind: 'success' });
     } catch (error) {
@@ -186,7 +198,11 @@ export function MagicLinkVerifyPage() {
     trackAuthEvent('auth_magic_link_clicked', { method: 'magic_link' });
     try {
       // Adds the link's identity next to the current one and switches to it.
-      await addAccount.mutateAsync(token);
+      const result = await addAccount.mutateAsync(token);
+      if (isTwoFactorChallenge(result)) {
+        setState({ kind: 'two-factor', challenge: result, mode: 'add-account' });
+        return;
+      }
       trackAuthEvent('auth_magic_link_verified', { method: 'magic_link' });
     } catch (error) {
       fail(error);
@@ -200,6 +216,27 @@ export function MagicLinkVerifyPage() {
     (state.reason === 'network' ||
       state.reason === 'server' ||
       state.reason === 'rate_limited');
+
+  if (state.kind === 'two-factor') {
+    return (
+      <AuthLayout
+        title="Verify it's you"
+        subtitle="Your account has two-factor authentication turned on."
+      >
+        <TwoFactorChallengePanel
+          challenge={state.challenge}
+          mode={state.mode}
+          onSignedIn={() => {
+            trackAuthEvent('auth_magic_link_verified', { method: 'magic_link' });
+            // Adding an account switches to it on its own; a plain sign-in
+            // shows the confirmation and then redirects.
+            if (state.mode === 'session') setState({ kind: 'success' });
+          }}
+          onCancel={() => navigate('/login', { replace: true })}
+        />
+      </AuthLayout>
+    );
+  }
 
   const title =
     state.kind === 'success'

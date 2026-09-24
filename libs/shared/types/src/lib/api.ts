@@ -56,3 +56,14 @@ export interface AuthTokens {
    */
   refreshToken?: string;
 }
+
+/**
+ * What a sign-in returns instead of tokens when the account has two-factor on:
+ * the first factor was accepted and a code is still owed. Redeem the challenge
+ * at `POST /auth/login/2fa` within `expiresAt`.
+ */
+export interface TwoFactorChallengeResponse {
+  requiresTwoFactor: true;
+  challengeToken: string;
+  expiresAt: string;
+}

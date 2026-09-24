@@ -1,5 +1,6 @@
 import { channelApi, queryKeys } from '@org/api-client';
 import { useMessageDensity, useChatPreferences } from '@org/common';
+import { normalizeAvatarSeed } from '@org/design-system';
 import {
   AttachmentRenderer,
   Composer,
@@ -20,6 +21,7 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
+  toast,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
 import {
@@ -59,8 +61,27 @@ function useChannelLink(
     if (thread.roomKind === 'group') {
       return `/w/${workspaceSlug}/dms?room=${thread.roomId}&thread=${thread.id}`;
     }
+    // A 1:1 DM is routed by the other person's workspace id, which the chat
+    // bridge wraps as `@onetab_<id>:server`.
+    if (thread.directUserId) {
+      return `/w/${workspaceSlug}/dms/${normalizeAvatarSeed(thread.directUserId)}?thread=${thread.id}`;
+    }
     return `/w/${workspaceSlug}/dms`;
   }, [thread, workspaceSlug, channelSlugByName]);
+}
+
+/**
+ * Copies an absolute link that opens the thread's conversation with the thread
+ * panel up and `messageId` highlighted — the same `?thread=&msg=` form the
+ * conversation itself hands out. (A `#id` on this page opened nothing.)
+ */
+function copyThreadMessageLink(conversationLink: string, messageId: string): void {
+  const url = new URL(conversationLink, window.location.origin);
+  url.searchParams.set('msg', messageId);
+  void navigator.clipboard
+    ?.writeText(url.toString())
+    .then(() => toast.success('Link copied'))
+    .catch(() => toast.error('Could not copy the link.'));
 }
 
 /** Every thread bucketed under the specific channel or DM it belongs to. */
@@ -268,11 +289,7 @@ function ThreadDetail({
                 onCopyText={() =>
                   void navigator.clipboard?.writeText(reply.body)
                 }
-                onCopyLink={() =>
-                  void navigator.clipboard?.writeText(
-                    `${window.location.origin}${window.location.pathname}#${reply.id}`,
-                  )
-                }
+                onCopyLink={() => copyThreadMessageLink(channelLink, reply.id)}
                 attachmentSlot={attachmentSlot(reply)}
               />
             </li>
@@ -447,11 +464,7 @@ function ThreadRow({
             : undefined
         }
         onCopyText={() => void navigator.clipboard?.writeText(root.body)}
-        onCopyLink={() =>
-          void navigator.clipboard?.writeText(
-            `${window.location.origin}${window.location.pathname}#${root.id}`,
-          )
-        }
+        onCopyLink={() => copyThreadMessageLink(channelLink, root.id)}
         attachmentSlot={attachmentSlot(root)}
       />
 

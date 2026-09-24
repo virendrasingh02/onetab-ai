@@ -53,16 +53,30 @@ export function generateTotpCode(secret: string, counterOffset = 0): string {
 }
 
 export function verifyTotpToken(secret: string, token: string, window = 1): boolean {
-  if (!token || typeof token !== 'string') return false;
-  const cleanToken = token.trim();
-  if (cleanToken.length !== 6) return false;
+  return matchTotpStep(secret, token, window) !== null;
+}
 
+/**
+ * The 30-second time step a code belongs to, or `null` when it matches none in
+ * the window. Recording the last accepted step lets sign-in refuse a code that
+ * was already used (RFC 6238 §5.2).
+ */
+export function matchTotpStep(
+  secret: string,
+  token: string,
+  window = 1,
+): number | null {
+  if (!token || typeof token !== 'string') return null;
+  const cleanToken = token.replace(/\s/g, '');
+  if (!/^\d{6}$/.test(cleanToken)) return null;
+
+  const current = Math.floor(Date.now() / 1000 / 30);
   for (let offset = -window; offset <= window; offset++) {
     if (generateTotpCode(secret, offset) === cleanToken) {
-      return true;
+      return current + offset;
     }
   }
-  return false;
+  return null;
 }
 
 export function generateRecoveryCodes(count = 8): string[] {

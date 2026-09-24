@@ -18,6 +18,7 @@ import {
   type SecurityOverviewDto,
   type TotpSetupResponse,
   type TotpVerifyResponse,
+  type TwoFactorChallengeResponse,
   type UserSessionDto,
   type WebAuthnCredentialDto,
 } from '@org/types';
@@ -29,12 +30,14 @@ import type {
   MagicLinkVerifyInput,
   RegisterInput,
   ResetPasswordInput,
+  TwoFactorLoginInput,
 } from '@org/validation';
 import * as bcrypt from 'bcrypt';
 import { TokenService, type IssuedSession } from './token.service.js';
 import {
   generateBase32Secret,
   generateRecoveryCodes,
+  matchTotpStep,
   verifyTotpToken,
 } from './totp.util.js';
 
@@ -48,6 +51,27 @@ const MAGIC_LINK_DEFAULT_TTL = '15m';
  * cannot be scripted into mail-bombing someone's inbox.
  */
 const MAGIC_LINK_COOLDOWN_MS = 30_000;
+
+/** How long the code step of a two-factor sign-in stays open. */
+const TWO_FACTOR_CHALLENGE_TTL_MS = 5 * 60_000;
+/** Wrong codes allowed per challenge before the whole sign-in restarts. */
+const TWO_FACTOR_MAX_ATTEMPTS = 5;
+
+/** Recovery codes are `XXXX-XXXX` hex; accept any case, spacing or dash. */
+function normalizeRecoveryCode(code: string): string | null {
+  const compact = code.replace(/[\s-]/g, '').toUpperCase();
+  return /^[0-9A-F]{8}$/.test(compact)
+    ? `${compact.slice(0, 4)}-${compact.slice(4)}`
+    : null;
+}
+
+/**
+ * A first-factor sign-in (password, magic link) either yields a session, or —
+ * for an account with two-factor on — a challenge the code step must redeem.
+ */
+export type SignInResult =
+  | { user: CurrentUser; session: IssuedSession }
+  | { twoFactor: TwoFactorChallengeResponse };
 
 const MAGIC_LINK_SENT_MESSAGE =
   'If an account exists for that email, a sign-in link is on its way.';
@@ -118,7 +142,7 @@ export class AuthService {
   async login(
     input: LoginInput,
     context: SessionContext = {},
-  ): Promise<{ user: CurrentUser; session: IssuedSession }> {
+  ): Promise<SignInResult> {
     const identifier = input.email.trim();
     const user = await this.prisma.user.findFirst({
       where: {
@@ -144,6 +168,9 @@ export class AuthService {
         message: 'Incorrect email or password.',
       });
     }
+
+    const challenge = await this.startTwoFactorChallenge(user.id, 'password');
+    if (challenge) return { twoFactor: challenge };
 
     const signedIn = await this.prisma.user.update({
       where: { id: user.id },
@@ -396,7 +423,7 @@ export class AuthService {
   async verifyMagicLink(
     input: MagicLinkVerifyInput,
     context: SessionContext = {},
-  ): Promise<{ user: CurrentUser; session: IssuedSession }> {
+  ): Promise<SignInResult> {
     const record = await this.prisma.magicLinkToken.findUnique({
       where: { tokenHash: hashToken(input.token) },
       select: {
@@ -449,6 +476,23 @@ export class AuthService {
     });
     if (claimed.count !== 1) throw usedError();
 
+    // The link is only the first factor when two-factor is on. It still proves
+    // control of the inbox, whatever happens at the code step.
+    const challenge = await this.startTwoFactorChallenge(
+      record.userId,
+      'magic_link',
+    );
+    if (challenge) {
+      if (!record.user.emailVerifiedAt) {
+        await this.prisma.user.update({
+          where: { id: record.userId },
+          data: { emailVerifiedAt: now },
+        });
+      }
+      this.logger.log({ event: 'magic_link_2fa_required', userId: record.userId });
+      return { twoFactor: challenge };
+    }
+
     const signedIn = await this.prisma.user.update({
       where: { id: record.userId },
       data: {
@@ -465,6 +509,166 @@ export class AuthService {
     this.events?.emit('auth.magic_link_verified', { userId: signedIn.id });
 
     return { user: toCurrentUser(signedIn), session };
+  }
+
+  /**
+   * Opens the code step of a sign-in when the account has two-factor on;
+   * `null` when it does not. The token is returned once and stored hashed.
+   */
+  private async startTwoFactorChallenge(
+    userId: string,
+    method: 'password' | 'magic_link',
+  ): Promise<TwoFactorChallengeResponse | null> {
+    const twoFactor = await this.prisma.twoFactorAuth.findUnique({
+      where: { userId },
+      select: { isEnabled: true },
+    });
+    if (!twoFactor?.isEnabled) return null;
+
+    const token = generateToken(32);
+    const expires = new Date(Date.now() + TWO_FACTOR_CHALLENGE_TTL_MS);
+    await this.prisma.twoFactorChallenge.create({
+      data: { userId, method, tokenHash: hashToken(token), expiresAt: expires },
+    });
+    return {
+      requiresTwoFactor: true,
+      challengeToken: token,
+      expiresAt: expires.toISOString(),
+    };
+  }
+
+  /**
+   * The code step of a two-factor sign-in: redeems a challenge with an
+   * authenticator code or a one-time recovery code and issues the session.
+   * Every attempt is counted atomically before the code is checked, so
+   * parallel guesses cannot exceed {@link TWO_FACTOR_MAX_ATTEMPTS}.
+   */
+  async completeTwoFactorLogin(
+    input: TwoFactorLoginInput,
+    context: SessionContext = {},
+  ): Promise<{ user: CurrentUser; session: IssuedSession; usedRecoveryCode: boolean }> {
+    const now = new Date();
+    const restart = (message: string) =>
+      new UnauthorizedException({ code: ApiErrorCode.TOKEN_EXPIRED, message });
+
+    const challenge = await this.prisma.twoFactorChallenge.findUnique({
+      where: { tokenHash: hashToken(input.challengeToken) },
+      select: { id: true, userId: true, method: true, expiresAt: true, usedAt: true },
+    });
+    if (!challenge || challenge.usedAt) {
+      throw restart('This sign-in is no longer valid. Sign in again.');
+    }
+    if (challenge.expiresAt.getTime() <= now.getTime()) {
+      throw restart('This sign-in timed out. Sign in again.');
+    }
+
+    const attempt = await this.prisma.twoFactorChallenge.updateMany({
+      where: {
+        id: challenge.id,
+        usedAt: null,
+        attempts: { lt: TWO_FACTOR_MAX_ATTEMPTS },
+      },
+      data: { attempts: { increment: 1 } },
+    });
+    if (attempt.count !== 1) {
+      this.logger.warn({
+        event: 'two_factor_locked',
+        userId: challenge.userId,
+        ip: context.ipAddress,
+      });
+      throw restart('Too many incorrect codes. Sign in again.');
+    }
+
+    const twoFactor = await this.prisma.twoFactorAuth.findUnique({
+      where: { userId: challenge.userId },
+    });
+    // Two-factor was turned off after the first factor: nothing left to prove.
+    const factor = twoFactor?.isEnabled
+      ? await this.redeemSecondFactor(twoFactor, input.code)
+      : 'none';
+    if (!factor) {
+      this.logger.warn({
+        event: 'two_factor_failed',
+        userId: challenge.userId,
+        ip: context.ipAddress,
+      });
+      throw new UnauthorizedException({
+        code: ApiErrorCode.INVALID_CREDENTIALS,
+        message: 'That code is not right. Check your authenticator app and try again.',
+      });
+    }
+
+    const claimed = await this.prisma.twoFactorChallenge.updateMany({
+      where: { id: challenge.id, usedAt: null, expiresAt: { gt: now } },
+      data: { usedAt: now },
+    });
+    if (claimed.count !== 1) {
+      throw restart('This sign-in is no longer valid. Sign in again.');
+    }
+
+    const signedIn = await this.prisma.user.update({
+      where: { id: challenge.userId },
+      data: { lastSeenAt: now, presence: 'ONLINE' },
+    });
+    const session = await this.tokens.issueSession(signedIn, context);
+
+    this.logger.log({
+      event: 'two_factor_verified',
+      userId: signedIn.id,
+      method: challenge.method,
+      factor,
+    });
+    return {
+      user: toCurrentUser(signedIn),
+      session,
+      usedRecoveryCode: factor === 'recovery',
+    };
+  }
+
+  /**
+   * Checks a code against the account's authenticator, then its recovery
+   * codes, and burns what it used: the TOTP time step (no replay) or the
+   * recovery code (single use). Both writes are conditional, so a code raced
+   * from two tabs is accepted once. `null` when the code is wrong.
+   */
+  private async redeemSecondFactor(
+    twoFactor: { userId: string; secret: string; backupCodes: string; lastTotpStep: number | null },
+    code: string,
+  ): Promise<'totp' | 'recovery' | null> {
+    const step = matchTotpStep(twoFactor.secret, code);
+    if (step !== null) {
+      const burned = await this.prisma.twoFactorAuth.updateMany({
+        where: {
+          userId: twoFactor.userId,
+          OR: [{ lastTotpStep: null }, { lastTotpStep: { lt: step } }],
+        },
+        data: { lastTotpStep: step },
+      });
+      return burned.count === 1 ? 'totp' : null;
+    }
+
+    const recovery = normalizeRecoveryCode(code);
+    if (!recovery) return null;
+    let hashes: string[];
+    try {
+      const parsed: unknown = JSON.parse(twoFactor.backupCodes);
+      hashes = Array.isArray(parsed)
+        ? parsed.filter((h): h is string => typeof h === 'string')
+        : [];
+    } catch {
+      return null;
+    }
+    for (const [index, hash] of hashes.entries()) {
+      if (!(await bcrypt.compare(recovery, hash))) continue;
+      const burned = await this.prisma.twoFactorAuth.updateMany({
+        where: { userId: twoFactor.userId, backupCodes: twoFactor.backupCodes },
+        data: {
+          backupCodes: JSON.stringify(hashes.filter((_, i) => i !== index)),
+        },
+      });
+      return burned.count === 1 ? 'recovery' : null;
+    }
+    return null;
   }
 
   async changePassword(
@@ -657,6 +861,12 @@ export class AuthService {
 
     if (!twoFactor || !twoFactor.isEnabled) {
       return;
+    }
+
+    if (!currentPassword && !code) {
+      throw new BadRequestException(
+        'Confirm with your password or an authenticator code to turn off two-factor.',
+      );
     }
 
     if (currentPassword) {

@@ -1,13 +1,19 @@
 import {
   ApiError,
   authApi,
+  isTwoFactorChallenge,
   SessionRejectedError,
   setAccessToken,
   workspaceApi,
   type AuthResponse,
+  type SignInResponse,
 } from '@org/api-client';
 import type { CurrentUser } from '@org/types';
-import type { LoginInput, RegisterInput } from '@org/validation';
+import type {
+  LoginInput,
+  RegisterInput,
+  TwoFactorLoginInput,
+} from '@org/validation';
 import { getDesktopApi } from '@org/web-desktop';
 import {
   useMutation,
@@ -275,9 +281,35 @@ export function useAddAccount() {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: async (input: AddAccountInput): Promise<AuthResponse> => {
+    mutationFn: async (input: AddAccountInput): Promise<SignInResponse> => {
       await protectCurrentSession();
       const data = await authApi.login({ ...input, rememberMe: true });
+      // Two-factor on: nothing is signed in yet — the caller asks for a code
+      // and finishes with `useAddAccountTwoFactor`.
+      if (isTwoFactorChallenge(data)) return data;
+      registerAuthedAccount(data);
+      return data;
+    },
+    onSuccess: (data) => {
+      if (isTwoFactorChallenge(data)) return;
+      return activateAccount(data.user.id, queryClient, navigate);
+    },
+  });
+}
+
+/**
+ * The code step when the account being added has two-factor on: redeems the
+ * challenge {@link useAddAccount} (or {@link useAddAccountWithMagicLink})
+ * returned, then adds and switches to the account like they would have.
+ */
+export function useAddAccountTwoFactor() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: async (input: TwoFactorLoginInput): Promise<AuthResponse> => {
+      await protectCurrentSession();
+      const data = await authApi.completeTwoFactorLogin(input);
       registerAuthedAccount(data);
       return data;
     },
@@ -315,13 +347,17 @@ export function useAddAccountWithMagicLink() {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: async (token: string): Promise<AuthResponse> => {
+    mutationFn: async (token: string): Promise<SignInResponse> => {
       await protectCurrentSession();
       const data = await authApi.verifyMagicLink({ token });
+      if (isTwoFactorChallenge(data)) return data;
       registerAuthedAccount(data);
       return data;
     },
-    onSuccess: (data) => activateAccount(data.user.id, queryClient, navigate),
+    onSuccess: (data) => {
+      if (isTwoFactorChallenge(data)) return;
+      return activateAccount(data.user.id, queryClient, navigate);
+    },
   });
 }
 

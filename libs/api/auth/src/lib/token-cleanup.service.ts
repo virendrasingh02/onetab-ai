@@ -28,7 +28,7 @@ export class TokenCleanupService {
     const revokedBefore = new Date(now.getTime() - REVOKED_SESSION_RETENTION_MS);
 
     try {
-      const [resets, magicLinks, sessions] = await this.prisma.$transaction([
+      const [resets, magicLinks, sessions, challenges] = await this.prisma.$transaction([
         this.prisma.passwordResetToken.deleteMany({
           where: {
             OR: [
@@ -59,11 +59,15 @@ export class TokenCleanupService {
             ],
           },
         }),
+        // Two-factor challenges live minutes and are worthless once spent.
+        this.prisma.twoFactorChallenge.deleteMany({
+          where: { expiresAt: { lt: now } },
+        }),
       ]);
 
-      if (resets.count || magicLinks.count || sessions.count) {
+      if (resets.count || magicLinks.count || sessions.count || challenges.count) {
         this.logger.log(
-          `Token cleanup removed ${resets.count} reset token(s), ${magicLinks.count} magic link token(s), and ${sessions.count} stale session(s).`,
+          `Token cleanup removed ${resets.count} reset token(s), ${magicLinks.count} magic link token(s), ${challenges.count} two-factor challenge(s), and ${sessions.count} stale session(s).`,
         );
       }
     } catch (err) {

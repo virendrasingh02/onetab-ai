@@ -68,6 +68,16 @@ export const magicLinkVerifySchema = z.object({
   token: z.string().min(1, 'Verification token is required'),
 });
 
+/** A 6-digit authenticator code, or a recovery code like `A1B2-C3D4`. */
+export const twoFactorLoginSchema = z.object({
+  challengeToken: z.string().min(1).max(256),
+  code: z
+    .string()
+    .trim()
+    .min(6, 'Enter the 6-digit code from your authenticator app')
+    .max(32, 'That code is too long'),
+});
+
 export const resetPasswordSchema = z
   .object({
     token: z.string().min(1, 'Reset token is required'),
@@ -164,6 +174,7 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type MagicLinkRequestInput = z.infer<typeof magicLinkRequestSchema>;
 export type MagicLinkVerifyInput = z.infer<typeof magicLinkVerifySchema>;
+export type TwoFactorLoginInput = z.infer<typeof twoFactorLoginSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type DesktopAuthorizeInput = z.infer<typeof desktopAuthorizeSchema>;

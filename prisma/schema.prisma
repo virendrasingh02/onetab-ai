@@ -51,6 +51,7 @@ model User {
   notificationPreferences   NotificationPreference[]
   passwordResets            PasswordResetToken[]
   magicLinkTokens           MagicLinkToken[]
+  twoFactorChallenges       TwoFactorChallenge[]
   pushRegistrations         PushRegistration[]
   recentActivities          RecentActivity[]
   refreshTokens             RefreshToken[]
@@ -855,6 +856,25 @@ model MagicLinkToken {
   @@map("magic_link_tokens")
 }
 
+/// The second step of a sign-in for an account with two-factor on: the first
+/// factor (password or magic link) was accepted, a code is still owed.
+model TwoFactorChallenge {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  /// "password" | "magic_link" — which first factor started it.
+  method    String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("two_factor_challenges")
+}
+
 model TwoFactorAuth {
   id          String    @id @default(cuid())
   userId      String    @unique
@@ -862,6 +882,8 @@ model TwoFactorAuth {
   isEnabled   Boolean   @default(false)
   verifiedAt  DateTime?
   backupCodes String    @default("[]")
+  /// The TOTP time step last accepted at sign-in, so a code cannot be replayed.
+  lastTotpStep Int?
   phoneNumber String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

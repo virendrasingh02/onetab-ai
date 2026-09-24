@@ -76,6 +76,10 @@ export interface Room {
   markedUnreadFromId?: EventId;
   /** Thread roots whose replies this user turned notifications off for. */
   mutedThreadRootIds?: EventId[];
+  /** Pinned messages (`m.room.pinned_events` state), oldest pin first. */
+  pinnedEventIds?: EventId[];
+  /** Whether this user's power level lets them pin and unpin messages. */
+  canPin?: boolean;
 }
 
 export interface RoomMember {

@@ -20,6 +20,7 @@ export {
   useAccounts,
   useAddAccount,
   useAddAccountWithMagicLink,
+  useAddAccountTwoFactor,
   useSignUpAccount,
   useSwitchAccount,
   useRemoveAccount,
@@ -33,6 +34,7 @@ export {
   redirectPathFromAuthState,
   useCurrentUser,
   useForgotPassword,
+  useCompleteTwoFactorLogin,
   useLogin,
   useLogout,
   useRegister,
@@ -55,6 +57,10 @@ export {
   type AuthAnalyticsPayload,
 } from './lib/auth-analytics.js';
 
+export {
+  TwoFactorChallengePanel,
+  type TwoFactorChallengePanelProps,
+} from './lib/components/two-factor-challenge-panel.js';
 export { LoginPage } from './lib/pages/login-page.js';
 export { MagicLinkVerifyPage } from './lib/pages/magic-link-verify-page.js';
 export { RegisterPage } from './lib/pages/register-page.js';

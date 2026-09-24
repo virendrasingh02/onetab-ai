@@ -9,6 +9,8 @@ import {
   toMessage,
   toMessageKind,
   toPresence,
+  readPinnedEventIds,
+  threadMuteRuleId,
   toReaders,
   toRoomKind,
 } from './mappers.js';
@@ -833,3 +835,31 @@ describe('toReaders', () => {
   });
 });
 
+
+describe('readPinnedEventIds', () => {
+  const roomWithPins = (content: unknown) =>
+    ({
+      currentState: {
+        getStateEvents: (type: string) =>
+          type === 'm.room.pinned_events' ? { getContent: () => content } : null,
+      },
+    }) as unknown as SdkRoom;
+
+  it('reads the pinned list, dropping junk and duplicates', () => {
+    expect(
+      readPinnedEventIds(roomWithPins({ pinned: ['$a', 7, '$b', '$a'] })),
+    ).toEqual(['$a', '$b']);
+  });
+
+  it('is empty when nothing was ever pinned', () => {
+    expect(readPinnedEventIds(roomWithPins(undefined))).toEqual([]);
+  });
+});
+
+describe('threadMuteRuleId', () => {
+  it('escapes characters rule ids cannot carry, without collisions', () => {
+    const a = threadMuteRuleId('$abc/def+g=');
+    expect(a).toMatch(/^mie\.thread_mute\.[A-Za-z0-9_]+$/);
+    expect(a).not.toBe(threadMuteRuleId('$abc+def/g='));
+  });
+});

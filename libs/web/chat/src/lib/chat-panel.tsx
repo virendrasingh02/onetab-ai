@@ -52,6 +52,7 @@ import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
 import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
 import { useMatrix } from './matrix-provider.js';
 import { useUnreadMentions } from './use-unread-mentions.js';
+import { usePinnedOutsideTimeline } from './use-pinned-messages.js';
 import {
   usePresence,
   useRoom,
@@ -61,6 +62,7 @@ import {
 } from './use-chat.js';
 
 const NO_IDS: readonly string[] = [];
+const NO_PINS: string[] = [];
 
 /**
  * The workspace-relative path that reopens a message — the current
@@ -74,9 +76,6 @@ function messageDeepLink(pathname: string, message: Message): string {
   params.set('msg', message.id);
   return `${conversationPath}?${params.toString()}`;
 }
-
-const toggle = (ids: string[], id: string) =>
-  ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id];
 
 /**
  * The `customHandler` `executeStructuredAction` runs for an app's card
@@ -216,6 +215,15 @@ export function ChatPanel({
   const threads = useRoomThreads(roomId ?? undefined);
   const { room: roomSummary } = useRoomSummary(roomId ?? undefined);
   const mutedThreadRootIds = roomSummary?.mutedThreadRootIds ?? NO_IDS;
+  // Pins are `m.room.pinned_events` room state: shared with everyone in the
+  // room and kept across sessions and devices.
+  const pinnedIds: string[] = roomSummary?.pinnedEventIds ?? NO_PINS;
+  const canPin = roomSummary?.canPin ?? false;
+  const pinnedOutsideTimeline = usePinnedOutsideTimeline(
+    roomId ?? undefined,
+    pinnedIds,
+    room.messages,
+  );
   const location = useLocation();
 
   /*
@@ -416,10 +424,6 @@ export function ChatPanel({
     [client, roomId],
   );
 
-  // Pins have no Matrix account-data binding yet, so they live here for the
-  // session. The surface does not care where they come from.
-  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
-
   /*
    * Saved items do outlive the visit: they are listed on the sidebar's Saved
    * page, which never opens this room. See `use-saved-messages`.
@@ -434,8 +438,19 @@ export function ChatPanel({
   const presenceOf = usePresence(memberIds);
 
   const togglePin = useCallback(
-    (eventId: string) => setPinnedIds((current) => toggle(current, eventId)),
-    [],
+    async (eventId: string) => {
+      if (!client || !roomId) return;
+      const pin = !pinnedIds.includes(eventId);
+      try {
+        await client.setMessagePinned(roomId, eventId, pin);
+        toast.success(pin ? 'Pinned for everyone here' : 'Unpinned');
+      } catch {
+        toast.error(
+          pin ? 'Could not pin the message.' : 'Could not unpin the message.',
+        );
+      }
+    },
+    [client, roomId, pinnedIds],
   );
   const toggleSave = useCallback(
     (eventId: string) => {
@@ -841,6 +856,7 @@ export function ChatPanel({
       onLoadOlder={() => void room.loadOlder()}
       presenceOf={presenceOf}
       pinnedIds={pinnedIds}
+      pinnedOutsideTimeline={pinnedOutsideTimeline}
       savedIds={savedIds}
       deepLinkThreadId={threadParam}
       onDeepLinkThreadChange={handleThreadChange}
@@ -873,7 +889,7 @@ export function ChatPanel({
       onAttach={actions.attach}
       onSendVoice={actions.sendVoice}
       onRetry={actions.retry}
-      onTogglePin={togglePin}
+      onTogglePin={canPin ? togglePin : undefined}
       onToggleSave={toggleSave}
       onMarkUnread={handleMarkUnread}
       onRemind={workspaceId ? handleRemind : undefined}

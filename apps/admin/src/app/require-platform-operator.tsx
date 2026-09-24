@@ -1,4 +1,9 @@
-import { authApi, getAccessToken, setAccessToken } from '@org/api-client';
+import {
+  authApi,
+  getAccessToken,
+  isTwoFactorChallenge,
+  setAccessToken,
+} from '@org/api-client';
 import { SystemRole, type CurrentUser } from '@org/types';
 import { Button, Checkbox, Input, LoadingState } from '@org/ui';
 import {
@@ -10,6 +15,7 @@ import {
   Mail,
   RefreshCw,
   ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   useCallback,
@@ -43,11 +49,7 @@ const WEB_APP_URL =
  * If unauthenticated, allows direct operator login on the console's origin or
  * one-click session handoff from the main web application.
  */
-export function RequirePlatformOperator({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function RequirePlatformOperator({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>({ status: 'loading' });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,6 +58,9 @@ export function RequirePlatformOperator({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(false);
+  // Password accepted, but the operator has two-factor on: a code is owed.
+  const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
 
   const checkSession = useCallback(async (isManualRetry = false) => {
     if (isManualRetry) {
@@ -145,15 +150,12 @@ export function RequirePlatformOperator({
 
     try {
       const res = await authApi.login({ email, password, rememberMe });
-      setAccessToken(res.accessToken);
-
-      // Verify platform operator role
-      const user = await authApi.me();
-      if (user.systemRole === SystemRole.USER) {
-        setState({ status: 'forbidden', user });
-      } else {
-        setState({ status: 'ready' });
+      if (isTwoFactorChallenge(res)) {
+        setTwoFactorToken(res.challengeToken);
+        setTwoFactorCode('');
+        return;
       }
+      await finishOperatorSignIn(res.accessToken);
     } catch (err: unknown) {
       const msg =
         err instanceof Error
@@ -165,27 +167,63 @@ export function RequirePlatformOperator({
     }
   };
 
+  const finishOperatorSignIn = async (accessToken: string) => {
+    setAccessToken(accessToken);
+    // Verify platform operator role
+    const user = await authApi.me();
+    if (user.systemRole === SystemRole.USER) {
+      setState({ status: 'forbidden', user });
+    } else {
+      setState({ status: 'ready' });
+    }
+  };
+
+  const handleTwoFactor = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!twoFactorToken || !twoFactorCode.trim()) return;
+
+    setIsSubmitting(true);
+    setLoginError(null);
+    try {
+      const res = await authApi.completeTwoFactorLogin({
+        challengeToken: twoFactorToken,
+        code: twoFactorCode.trim(),
+      });
+      setTwoFactorToken(null);
+      await finishOperatorSignIn(res.accessToken);
+    } catch (err: unknown) {
+      setTwoFactorCode('');
+      setLoginError(
+        err instanceof Error ? err.message : 'That code is not right.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (state.status === 'loading') {
     return <LoadingState fullPage label="Checking your session…" />;
   }
 
   const webAppLoginUrl = `${WEB_APP_URL}/login?returnTo=${encodeURIComponent(
-    typeof window !== 'undefined' ? window.location.href : 'http://localhost:4201',
+    typeof window !== 'undefined'
+      ? window.location.href
+      : 'http://localhost:4201',
   )}`;
 
   if (state.status === 'unauthenticated') {
     return (
-      <div className="dark min-h-screen flex flex-col justify-between items-center bg-background text-foreground px-4 py-8 sm:py-10 selection:bg-primary/25">
+      <div className="dark px-4 py-8 sm:py-10 flex min-h-screen flex-col items-center justify-between bg-background text-foreground selection:bg-primary/25">
         {/* Top Header Bar */}
-        <header className="pt-2 sm:pt-4 w-full max-w-4xl px-4 flex items-center justify-between">
-          <div className="inline-flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg">
-            <div className="size-7 rounded-md bg-surface-raised border border-border flex items-center justify-center font-bold text-xs text-foreground shadow-xs">
+        <header className="pt-2 sm:pt-4 max-w-4xl px-4 flex w-full items-center justify-between">
+          <div className="gap-2.5 px-2.5 py-1.5 inline-flex items-center rounded-lg">
+            <div className="size-7 font-bold text-xs flex items-center justify-center rounded-md border border-border bg-surface-raised text-foreground shadow-xs">
               O
             </div>
             <span className="text-sm font-semibold tracking-tight text-foreground">
               OneTab AI
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+            <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-primary/20 bg-primary/10 text-[10px] text-primary uppercase">
               Admin
             </span>
           </div>
@@ -193,7 +231,7 @@ export function RequirePlatformOperator({
           <Button variant="ghost" size="sm" asChild>
             <a
               href={WEB_APP_URL}
-              className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
+              className="text-xs gap-1.5 inline-flex items-center text-muted-foreground hover:text-foreground"
             >
               <span>Go to workspace</span>
               <ExternalLink className="size-3.5" />
@@ -202,120 +240,182 @@ export function RequirePlatformOperator({
         </header>
 
         {/* Main Content Area */}
-        <main className="w-full max-w-[380px] my-auto py-8 flex flex-col items-center">
+        <main className="py-8 my-auto flex w-full max-w-[380px] flex-col items-center">
           <div className="w-full">
-            <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-foreground text-center leading-tight">
+            <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight leading-tight text-center text-foreground">
               Sign in to Admin
             </h1>
 
-            <p className="mt-2 text-xs sm:text-sm text-muted-foreground text-center text-balance leading-relaxed">
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-center text-balance text-muted-foreground">
               Enter your operator credentials to access the console.
             </p>
 
             <div className="mt-6 w-full">
               {loginError && (
-                <div className="mb-4 p-2.5 rounded-lg border border-destructive/30 bg-destructive/10 text-xs text-destructive flex items-center gap-2">
+                <div className="mb-4 p-2.5 text-xs gap-2 flex items-center rounded-lg border border-destructive/30 bg-destructive/10 text-destructive">
                   <ShieldAlert className="size-4 shrink-0" />
                   <span>{loginError}</span>
                 </div>
               )}
 
-              <form onSubmit={handleDirectLogin} className="space-y-3" noValidate>
-                <div className="space-y-1 text-left">
-                  <label className="text-xs font-medium text-foreground">
-                    Work Email
-                  </label>
-                  <Input
-                    type="email"
-                    autoComplete="username"
-                    placeholder="operator@onetab.ai"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoFocus
-                    leadingIcon={<Mail className="size-4 text-muted-foreground" />}
-                  />
-                </div>
-
-                <div className="space-y-1 text-left">
-                  <label className="text-xs font-medium text-foreground">
-                    Password
-                  </label>
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    placeholder="••••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    leadingIcon={<Lock className="size-4 text-muted-foreground" />}
-                    trailingSlot={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((v) => !v)}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                        className="flex items-center text-muted-foreground hover:text-foreground transition-colors pr-1"
-                        tabIndex={-1}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="size-3.5" />
-                        ) : (
-                          <Eye className="size-3.5" />
-                        )}
-                      </button>
-                    }
-                  />
-                </div>
-
-                <div className="space-x-2 space-y-0 flex flex-row items-center pt-0.5">
-                  <Checkbox
-                    id="rememberMe"
-                    checked={rememberMe}
-                    onCheckedChange={(checked) => setRememberMe(!!checked)}
-                  />
-                  <label
-                    htmlFor="rememberMe"
-                    className="text-xs font-normal cursor-pointer text-muted-foreground select-none"
-                  >
-                    Remember me for 30 days
-                  </label>
-                </div>
-
-                <Button
-                  type="submit"
-                  size="md"
-                  className="w-full mt-1"
-                  loading={isSubmitting}
-                  disabled={!email || !password}
-                  trailingIcon={<ArrowRight className="size-3.5" />}
+              {twoFactorToken ? (
+                <form
+                  onSubmit={handleTwoFactor}
+                  className="space-y-3"
+                  noValidate
                 >
-                  Sign in
-                </Button>
-              </form>
+                  <div className="space-y-1 text-left">
+                    <label
+                      htmlFor="operator-2fa-code"
+                      className="text-xs font-medium text-foreground"
+                    >
+                      Authentication code
+                    </label>
+                    <Input
+                      id="operator-2fa-code"
+                      autoComplete="one-time-code"
+                      placeholder="6-digit code or recovery code"
+                      value={twoFactorCode}
+                      onChange={(e) => setTwoFactorCode(e.target.value)}
+                      autoFocus
+                      leadingIcon={
+                        <ShieldCheck className="size-4 text-muted-foreground" />
+                      }
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Two-factor authentication is on for this account.
+                    </p>
+                  </div>
+                  <Button
+                    type="submit"
+                    size="md"
+                    className="mt-1 w-full"
+                    loading={isSubmitting}
+                    disabled={twoFactorCode.trim().length < 6}
+                    trailingIcon={<ArrowRight className="size-3.5" />}
+                  >
+                    Verify and sign in
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTwoFactorToken(null);
+                      setLoginError(null);
+                      setPassword('');
+                    }}
+                    className="text-xs w-full text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Back to sign in
+                  </button>
+                </form>
+              ) : (
+                <form
+                  onSubmit={handleDirectLogin}
+                  className="space-y-3"
+                  noValidate
+                >
+                  <div className="space-y-1 text-left">
+                    <label className="text-xs font-medium text-foreground">
+                      Work Email
+                    </label>
+                    <Input
+                      type="email"
+                      autoComplete="username"
+                      placeholder="operator@onetab.ai"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                      leadingIcon={
+                        <Mail className="size-4 text-muted-foreground" />
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-1 text-left">
+                    <label className="text-xs font-medium text-foreground">
+                      Password
+                    </label>
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      placeholder="••••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      leadingIcon={
+                        <Lock className="size-4 text-muted-foreground" />
+                      }
+                      trailingSlot={
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((v) => !v)}
+                          aria-label={
+                            showPassword ? 'Hide password' : 'Show password'
+                          }
+                          className="pr-1 flex items-center text-muted-foreground transition-colors hover:text-foreground"
+                          tabIndex={-1}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="size-3.5" />
+                          ) : (
+                            <Eye className="size-3.5" />
+                          )}
+                        </button>
+                      }
+                    />
+                  </div>
+
+                  <div className="space-x-2 space-y-0 pt-0.5 flex flex-row items-center">
+                    <Checkbox
+                      id="rememberMe"
+                      checked={rememberMe}
+                      onCheckedChange={(checked) => setRememberMe(!!checked)}
+                    />
+                    <label
+                      htmlFor="rememberMe"
+                      className="text-xs font-normal cursor-pointer text-muted-foreground select-none"
+                    >
+                      Remember me for 30 days
+                    </label>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    size="md"
+                    className="mt-1 w-full"
+                    loading={isSubmitting}
+                    disabled={!email || !password}
+                    trailingIcon={<ArrowRight className="size-3.5" />}
+                  >
+                    Sign in
+                  </Button>
+                </form>
+              )}
 
               {/* Divider */}
-              <div className="relative my-5">
-                <div className="absolute inset-0 flex items-center">
+              <div className="my-5 relative">
+                <div className="inset-0 absolute flex items-center">
                   <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-[11px]">
-                  <span className="bg-background px-2 text-muted-foreground">
+                  <span className="px-2 bg-background text-muted-foreground">
                     or continue with
                   </span>
                 </div>
               </div>
 
               {/* Secondary actions */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="gap-2 grid grid-cols-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="md"
-                  className="w-full text-xs"
+                  className="text-xs w-full"
                   asChild
                 >
                   <a href={webAppLoginUrl}>
-                    <ExternalLink className="size-3.5 text-muted-foreground mr-1.5" />
+                    <ExternalLink className="size-3.5 mr-1.5 text-muted-foreground" />
                     Main App
                   </a>
                 </Button>
@@ -324,7 +424,7 @@ export function RequirePlatformOperator({
                   type="button"
                   variant="outline"
                   size="md"
-                  className="w-full text-xs"
+                  className="text-xs w-full"
                   onClick={() => void checkSession(true)}
                   disabled={isCheckingSession}
                   loading={isCheckingSession}
@@ -338,38 +438,40 @@ export function RequirePlatformOperator({
                 </Button>
               </div>
 
-              <div className="mt-5 text-xs text-center text-muted-foreground leading-normal">
+              <div className="mt-5 text-xs leading-normal text-center text-muted-foreground">
                 Requires an account with{' '}
-                <span className="font-medium text-foreground">SUPERADMIN</span> or{' '}
-                <span className="font-medium text-foreground">SUPPORT</span> role.
+                <span className="font-medium text-foreground">SUPERADMIN</span>{' '}
+                or <span className="font-medium text-foreground">SUPPORT</span>{' '}
+                role.
               </div>
             </div>
           </div>
         </main>
 
         {/* Bottom Legal Notice & Footer Links */}
-        <footer className="pt-6 pb-2 text-center max-w-md w-full px-2 space-y-2.5">
-          <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed">
-            Admin console is restricted to authorized platform personnel only. All administrative actions are logged and audited.
+        <footer className="pt-6 pb-2 max-w-md px-2 space-y-2.5 w-full text-center">
+          <p className="sm:text-xs leading-relaxed text-[11px] text-muted-foreground">
+            Admin console is restricted to authorized platform personnel only.
+            All administrative actions are logged and audited.
           </p>
 
-          <div className="text-[11px] sm:text-xs text-muted-foreground flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+          <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-[11px] text-muted-foreground">
             <span>© {new Date().getFullYear()} OneTab AI</span>
             <a
               href={`${WEB_APP_URL}/privacy`}
-              className="hover:text-foreground transition-colors"
+              className="transition-colors hover:text-foreground"
             >
               Privacy Policy
             </a>
             <a
               href={`${WEB_APP_URL}/docs`}
-              className="hover:text-foreground transition-colors"
+              className="transition-colors hover:text-foreground"
             >
               Docs
             </a>
             <a
               href={`${WEB_APP_URL}/support`}
-              className="hover:text-foreground transition-colors"
+              className="transition-colors hover:text-foreground"
             >
               Support
             </a>
@@ -381,17 +483,17 @@ export function RequirePlatformOperator({
 
   if (state.status === 'forbidden') {
     return (
-      <div className="dark min-h-screen flex flex-col justify-between items-center bg-background text-foreground px-4 py-8 sm:py-10 selection:bg-primary/25">
+      <div className="dark px-4 py-8 sm:py-10 flex min-h-screen flex-col items-center justify-between bg-background text-foreground selection:bg-primary/25">
         {/* Top Header Bar */}
-        <header className="pt-2 sm:pt-4 w-full max-w-4xl px-4 flex items-center justify-between">
-          <div className="inline-flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg">
-            <div className="size-7 rounded-md bg-surface-raised border border-border flex items-center justify-center font-bold text-xs text-foreground shadow-xs">
+        <header className="pt-2 sm:pt-4 max-w-4xl px-4 flex w-full items-center justify-between">
+          <div className="gap-2.5 px-2.5 py-1.5 inline-flex items-center rounded-lg">
+            <div className="size-7 font-bold text-xs flex items-center justify-center rounded-md border border-border bg-surface-raised text-foreground shadow-xs">
               O
             </div>
             <span className="text-sm font-semibold tracking-tight text-foreground">
               OneTab AI
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-destructive/10 text-destructive border border-destructive/20">
+            <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-destructive/20 bg-destructive/10 text-[10px] text-destructive uppercase">
               Access Denied
             </span>
           </div>
@@ -399,7 +501,7 @@ export function RequirePlatformOperator({
           <Button variant="ghost" size="sm" asChild>
             <a
               href={WEB_APP_URL}
-              className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
+              className="text-xs gap-1.5 inline-flex items-center text-muted-foreground hover:text-foreground"
             >
               <span>Back to app</span>
               <ExternalLink className="size-3.5" />
@@ -408,22 +510,23 @@ export function RequirePlatformOperator({
         </header>
 
         {/* Main Content Area */}
-        <main className="w-full max-w-[380px] my-auto py-8 flex flex-col items-center">
+        <main className="py-8 my-auto flex w-full max-w-[380px] flex-col items-center">
           <div className="w-full text-center">
-            <div className="size-12 rounded-full bg-destructive/10 border border-destructive/20 flex items-center justify-center mx-auto mb-4 text-destructive">
+            <div className="size-12 mb-4 mx-auto flex items-center justify-center rounded-full border border-destructive/20 bg-destructive/10 text-destructive">
               <ShieldAlert className="size-6" />
             </div>
 
-            <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-foreground text-center leading-tight">
+            <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight leading-tight text-center text-foreground">
               Access Denied
             </h1>
 
-            <p className="mt-2 text-xs sm:text-sm text-muted-foreground text-center text-balance leading-relaxed">
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-center text-balance text-muted-foreground">
               Signed in as{' '}
               <span className="font-medium text-foreground">
                 {state.user.email}
               </span>{' '}
-              ({state.user.systemRole}), which is not a platform-operator account.
+              ({state.user.systemRole}), which is not a platform-operator
+              account.
             </p>
 
             <div className="mt-6 space-y-2.5 w-full">
@@ -444,7 +547,7 @@ export function RequirePlatformOperator({
               </Button>
             </div>
 
-            <div className="mt-5 text-xs text-center text-muted-foreground leading-normal">
+            <div className="mt-5 text-xs leading-normal text-center text-muted-foreground">
               Ask an existing administrator to assign you the{' '}
               <span className="font-medium text-foreground">SUPERADMIN</span> or{' '}
               <span className="font-medium text-foreground">SUPPORT</span> role.
@@ -453,24 +556,24 @@ export function RequirePlatformOperator({
         </main>
 
         {/* Footer */}
-        <footer className="pt-6 pb-2 text-center max-w-md w-full px-2 space-y-2.5">
-          <div className="text-[11px] sm:text-xs text-muted-foreground flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+        <footer className="pt-6 pb-2 max-w-md px-2 space-y-2.5 w-full text-center">
+          <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-[11px] text-muted-foreground">
             <span>© {new Date().getFullYear()} OneTab AI</span>
             <a
               href={`${WEB_APP_URL}/privacy`}
-              className="hover:text-foreground transition-colors"
+              className="transition-colors hover:text-foreground"
             >
               Privacy Policy
             </a>
             <a
               href={`${WEB_APP_URL}/docs`}
-              className="hover:text-foreground transition-colors"
+              className="transition-colors hover:text-foreground"
             >
               Docs
             </a>
             <a
               href={`${WEB_APP_URL}/support`}
-              className="hover:text-foreground transition-colors"
+              className="transition-colors hover:text-foreground"
             >
               Support
             </a>
