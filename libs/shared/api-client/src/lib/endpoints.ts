@@ -2361,6 +2361,78 @@ export const agentsApi = {
     request<AgentExecutionLogEntry[]>(
       http.get(`/workspaces/${workspaceId}/agents/logs`),
     ),
+
+  validate: (workspaceId: string, agentId: string, graphJson?: string) =>
+    request<{ valid: boolean; errors: string[]; warnings: string[] }>(
+      http.post(`/workspaces/${workspaceId}/agents/${agentId}/validate`, {
+        graphJson,
+      }),
+    ),
+
+  publish: (workspaceId: string, agentId: string, summary?: string) =>
+    request<{ success: boolean; agent: AIAgent; version: any }>(
+      http.post(`/workspaces/${workspaceId}/agents/${agentId}/publish`, {
+        summary,
+      }),
+    ),
+
+  unpublish: (workspaceId: string, agentId: string) =>
+    request<{ success: boolean; agent: AIAgent }>(
+      http.post(`/workspaces/${workspaceId}/agents/${agentId}/unpublish`, {}),
+    ),
+
+  getVersions: (workspaceId: string, agentId: string) =>
+    request<any[]>(
+      http.get(`/workspaces/${workspaceId}/agents/${agentId}/versions`),
+    ),
+
+  createVersion: (workspaceId: string, agentId: string, summary?: string) =>
+    request<any>(
+      http.post(`/workspaces/${workspaceId}/agents/${agentId}/versions`, {
+        summary,
+      }),
+    ),
+
+  restoreVersion: (workspaceId: string, agentId: string, version: number) =>
+    request<any>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/versions/${version}/restore`,
+        {},
+      ),
+    ),
+
+  testRun: (
+    workspaceId: string,
+    agentId: string,
+    payload: { input?: Record<string, unknown>; message?: string; prompt?: string },
+  ) =>
+    request<{
+      executionId: string;
+      status: string;
+      steps: any[];
+      output: any;
+      duration: number;
+      tokensUsed: number;
+      credits: number;
+    }>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/test-run`,
+        payload,
+      ),
+    ),
+
+  listMcpTools: (workspaceId: string) =>
+    request<Array<{ name: string; description: string }>>(
+      http.get(`/workspaces/${workspaceId}/agents/studio/mcp-tools`),
+    ),
+
+  testMcpTool: (workspaceId: string, toolName: string, params: any) =>
+    request<any>(
+      http.post(`/workspaces/${workspaceId}/agents/studio/mcp-tools/test`, {
+        toolName,
+        params,
+      }),
+    ),
 };
 
 /** AI Coworkers — persistent teammate layer above agents. */

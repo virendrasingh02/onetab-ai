@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AI Agent Studio | OneTab AI</title>
+    <base href="/" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta
+      name="theme-color"
+      content="#FBFBFC"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#010102"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+
+    <script>
+      (function () {
+        try {
+          var ws = null;
+          try {
+            ws = localStorage.getItem('onetab_active_workspace_id');
+          } catch (e) {}
+          function g(base) {
+            var v = null;
+            if (ws) {
+              try {
+                v = localStorage.getItem(base + '::' + ws);
+              } catch (e) {}
+            }
+            if (v == null) {
+              try {
+                v = localStorage.getItem(base);
+              } catch (e) {}
+            }
+            return v;
+          }
+          var k = g('onetab.theme');
+          var d =
+            k === 'dark' ||
+            (k === 'system' &&
+              matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', d);
+          document.documentElement.style.colorScheme = d ? 'dark' : 'light';
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

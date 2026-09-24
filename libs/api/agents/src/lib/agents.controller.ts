@@ -137,6 +137,95 @@ export class AgentsController {
   ) {
     return this.agentsService.getExecutionLogs(workspaceId, agentId);
   }
+
+  // --- AI Agent Studio Endpoints ---
+
+  @Post(':agentId/validate')
+  validateAgent(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { graphJson?: string },
+  ) {
+    return this.agentsService.validateGraph(body.graphJson);
+  }
+
+  @Post(':agentId/publish')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  publishAgent(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { summary?: string },
+  ) {
+    return this.agentsService.publishAgent(workspaceId, agentId, body.summary);
+  }
+
+  @Post(':agentId/unpublish')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  unpublishAgent(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.agentsService.unpublishAgent(workspaceId, agentId);
+  }
+
+  @Get(':agentId/versions')
+  getAgentVersions(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.agentsService.getAgentVersions(workspaceId, agentId);
+  }
+
+  @Post(':agentId/versions')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  createAgentVersion(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { summary?: string },
+  ) {
+    return this.agentsService.createAgentVersion(workspaceId, agentId, body.summary);
+  }
+
+  @Post(':agentId/versions/:version/restore')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  restoreAgentVersion(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Param('version') version: string,
+  ) {
+    return this.agentsService.restoreAgentVersion(workspaceId, agentId, parseInt(version, 10));
+  }
+
+  @Post(':agentId/test-run')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  testRunAgent(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { input?: Record<string, unknown>; message?: string; prompt?: string },
+  ) {
+    return this.agentsService.testRunWorkflow(
+      workspaceId,
+      agentId,
+      body.input ?? { message: body.message ?? body.prompt },
+      userId,
+    );
+  }
+
+  @Get('studio/mcp-tools')
+  listMcpTools() {
+    return this.agentsService.listMcpTools();
+  }
+
+  @Post('studio/mcp-tools/test')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  testMcpTool(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: { toolName: string; params: any },
+  ) {
+    return this.agentsService.testMcpTool(body.toolName, body.params, workspaceId, userId);
+  }
 }
 
 /**

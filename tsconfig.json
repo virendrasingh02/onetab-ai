@@ -239,6 +239,9 @@
     },
     {
       "path": "./libs/web/coworkers"
+    },
+    {
+      "path": "./apps/ai-agent-studio"
     }
   ],
   "compilerOptions": {}

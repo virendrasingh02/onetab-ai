@@ -259,6 +259,23 @@ function LegacyStudioTabRedirect() {
   );
 }
 
+function AgentStudioRedirect() {
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
+  useEffect(() => {
+    const studioUrl =
+      (import.meta.env?.['VITE_AGENT_STUDIO_URL'] as string | undefined) ||
+      (window.location.port === '4200' ? 'http://localhost:4202' : '/studio');
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    const target = token ? `${studioUrl}/agents#token=${encodeURIComponent(token)}` : `${studioUrl}/agents`;
+    window.location.href = target;
+  }, [workspaceSlug]);
+  return (
+    <div className="flex h-screen items-center justify-center">
+      <div className="text-sm text-muted-foreground animate-pulse">Launching AI Agent Studio...</div>
+    </div>
+  );
+}
+
 function NotFoundPage() {
   return (
     <div className="p-6 grid min-h-full place-items-center">
@@ -404,6 +421,10 @@ export function App() {
           <Route
             path="/w/:workspaceSlug/ai-studio/:tab"
             element={<LegacyStudioTabRedirect />}
+          />
+          <Route
+            path="/w/:workspaceSlug/agent-studio"
+            element={<AgentStudioRedirect />}
           />
 
           {/* --- Main Workspace Shell with Navigation & Tools --- */}

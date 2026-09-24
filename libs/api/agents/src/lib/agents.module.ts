@@ -20,6 +20,7 @@ import { AIEntitiesService } from './ai-entities.service.js';
 import { AIRuntimeService } from './ai-runtime.service.js';
 import { IntegrationToolBridgeService } from './integration-tool-bridge.service.js';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
+import { FirecrawlService } from './firecrawl.service.js';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
     AIEntitiesService,
     AIRuntimeService,
     MCPToolRegistryService,
+    FirecrawlService,
     IntegrationToolBridgeService,
     AgentMatrixBridgeService,
     AgentApprovalListener,
@@ -52,6 +54,7 @@ import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
     AIEntitiesService,
     AIRuntimeService,
     MCPToolRegistryService,
+    FirecrawlService,
   ],
 })
 export class AgentsModule {}

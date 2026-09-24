@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MatrixAdminService, MatrixBotMessagingService } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
+import { FirecrawlService } from './firecrawl.service.js';
 
 /**
  * Everything a tool handler is allowed to know about who is calling it.
@@ -38,6 +39,7 @@ export class MCPToolRegistryService {
     private readonly prisma: PrismaService,
     private readonly matrixAdmin: MatrixAdminService,
     private readonly botMessaging: MatrixBotMessagingService,
+    private readonly firecrawl: FirecrawlService,
   ) {
     this.registerBuiltInTools();
   }
@@ -300,6 +302,61 @@ export class MCPToolRegistryService {
           orderBy: { updatedAt: 'desc' },
           take: 50,
         });
+      },
+    });
+
+    // 10. Firecrawl Search
+    this.tools.set('firecrawl_search', {
+      name: 'firecrawl_search',
+      description: 'Search the web using Firecrawl and return markdown content with URLs and citations',
+      parameters: {
+        query: { type: 'string', description: 'The search query' },
+        limit: { type: 'number', description: 'Maximum number of results (default 5)' },
+      },
+      handler: async (params: { query: string; limit?: number }, { workspaceId }) => {
+        if (!params.query) throw new Error('Search query is required');
+        return this.firecrawl.search(params.query, { limit: params.limit ?? 5 }, workspaceId);
+      },
+    });
+
+    // 11. Firecrawl Scrape
+    this.tools.set('firecrawl_scrape', {
+      name: 'firecrawl_scrape',
+      description: 'Scrape and clean a webpage into markdown using Firecrawl',
+      parameters: {
+        url: { type: 'string', description: 'Web page URL to scrape' },
+      },
+      handler: async (params: { url: string }, { workspaceId }) => {
+        if (!params.url) throw new Error('URL is required for scrape');
+        return this.firecrawl.scrape(params.url, workspaceId);
+      },
+    });
+
+    // 12. Firecrawl Crawl
+    this.tools.set('firecrawl_crawl', {
+      name: 'firecrawl_crawl',
+      description: 'Crawl an entire website or docs site up to a depth/page limit using Firecrawl',
+      parameters: {
+        url: { type: 'string', description: 'Root URL to crawl' },
+        limit: { type: 'number', description: 'Maximum pages to crawl (default 5)' },
+      },
+      handler: async (params: { url: string; limit?: number }, { workspaceId }) => {
+        if (!params.url) throw new Error('Root URL is required for crawl');
+        return this.firecrawl.crawl(params.url, params.limit ?? 5, workspaceId);
+      },
+    });
+
+    // 13. Firecrawl Extract
+    this.tools.set('firecrawl_extract', {
+      name: 'firecrawl_extract',
+      description: 'Extract structured information and schema entities from a webpage using Firecrawl',
+      parameters: {
+        url: { type: 'string', description: 'Target URL to extract data from' },
+        prompt: { type: 'string', description: 'Extraction objective or prompt' },
+      },
+      handler: async (params: { url: string; prompt: string; schema?: Record<string, unknown> }, { workspaceId }) => {
+        if (!params.url) throw new Error('URL is required for extract');
+        return this.firecrawl.extract(params.url, params.prompt || 'Extract key facts and entities', params.schema, workspaceId);
       },
     });
   }

@@ -69,3 +69,5 @@ apps/web/.env.local
 
 # electron-builder installers (`nx package @org/desktop`)
 apps/desktop/release/
+
+vitest.config.*.timestamp*

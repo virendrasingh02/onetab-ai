@@ -618,8 +618,64 @@ export class WorkflowEngineService {
 
       case 'TOOL':
       case 'MCP':
+      case 'MCP_TOOL':
       case 'APP':
         return this.runToolNode(node, context, workspaceId, creatorId, cfg);
+
+      case 'END':
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: { completed: true, ...context },
+        };
+
+      case 'FIRECRAWL_SEARCH': {
+        const query = interpolateVariables(String(cfg['query'] || cfg['prompt'] || ''), context);
+        const limit = Number(cfg['limit']) || 5;
+        const result = await this.mcpRegistry.executeTool('firecrawl_search', { query, limit }, { workspaceId, actingUserId: creatorId });
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: { searchResult: result },
+        };
+      }
+
+      case 'FIRECRAWL_SCRAPE': {
+        const url = interpolateVariables(String(cfg['url'] || ''), context);
+        const result = await this.mcpRegistry.executeTool('firecrawl_scrape', { url }, { workspaceId, actingUserId: creatorId });
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: { scrapeResult: result },
+        };
+      }
+
+      case 'FIRECRAWL_CRAWL': {
+        const url = interpolateVariables(String(cfg['url'] || ''), context);
+        const limit = Number(cfg['limit']) || 5;
+        const result = await this.mcpRegistry.executeTool('firecrawl_crawl', { url, limit }, { workspaceId, actingUserId: creatorId });
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: { crawlResult: result },
+        };
+      }
+
+      case 'FIRECRAWL_EXTRACT': {
+        const url = interpolateVariables(String(cfg['url'] || ''), context);
+        const prompt = interpolateVariables(String(cfg['prompt'] || 'Extract structured data'), context);
+        const result = await this.mcpRegistry.executeTool('firecrawl_extract', { url, prompt, schema: cfg['schema'] as any }, { workspaceId, actingUserId: creatorId });
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: { extractedResult: result },
+        };
+      }
 
       case 'DATABASE': {
         return {

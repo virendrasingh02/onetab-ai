@@ -238,6 +238,17 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     keywords: ['studio', 'ai', 'rag', 'knowledge', 'prompts', 'models', 'mcp', 'tools'],
   },
   {
+    id: 'agent-studio',
+    label: 'Agent Studio',
+    icon: Bot,
+    href: 'agent-studio',
+    visible: true,
+    order: 1,
+    group: 'ai',
+    description: 'Visual AI Agent Studio, Firecrawl workflows, MCP tools & Canvas',
+    keywords: ['studio', 'agent-studio', 'builder', 'firecrawl', 'mcp', 'agents', 'workflow'],
+  },
+  {
     id: 'ai-chat',
     label: 'AI Assistant',
     icon: Sparkles,

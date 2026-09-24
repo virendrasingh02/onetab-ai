@@ -1,0 +1,12 @@
+/* Inter + JetBrains Mono come from the design system's theme.css. */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@org/design-system/styles/theme.css';
+
+/* Register library sources explicitly for Tailwind v4 scanner */
+@source '../../../libs/shared/ui/src';
+@source '../../../libs/shared/design-system/src';
+@source '../../../libs/web/agents/src';
+@source '../../../libs/web/automations/src';
+@source '../../../libs/web/workspace/src';
+@source './**/*.{ts,tsx}';
