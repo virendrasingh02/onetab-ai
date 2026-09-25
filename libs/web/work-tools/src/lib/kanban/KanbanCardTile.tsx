@@ -1,31 +1,35 @@
 import { TaskStatus } from '@org/types';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
+  ActionDropdownMenu,
+  copyToClipboard,
+  EntityContextMenu,
+  entityUrl,
+  type EntityAction,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  CalendarClock,
   CalendarPlus,
   CalendarX2,
-  Copy,
+  CircleDashed,
+  CopyPlus,
   CornerUpRight,
+  FileText,
+  Flag,
+  Link2,
   MoreHorizontal,
   Pencil,
   Trash2,
+  UserCheck,
+  Users,
 } from 'lucide-react';
 import { parseDay } from './card-meta.js';
 import { useKanbanCustomStore } from './kanban-custom-store.js';
 import { CubeProjectIcon } from './kanban-icons.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
 import { KanbanStatusPicker } from './KanbanStatusPicker.js';
-import type { BoardMember, KanbanCard, KanbanList } from './types.js';
+import type { CardPatch } from './server-board.js';
+import type { BoardMember, KanbanCard, KanbanList, Priority } from './types.js';
 import type { DragHandlers } from './use-board-drag.js';
 
 export interface KanbanCardTileProps {
@@ -47,6 +51,41 @@ export interface KanbanCardTileProps {
   onMoveToList: (toListId: TaskStatus) => void;
   onAssigneeChange?: (memberId: string | null) => void;
   onAssigneesChange?: (memberIds: string[]) => void;
+  /** Field edits (priority, due date, assignees) from the card's action menu. */
+  onUpdate?: (patch: CardPatch) => void;
+  /** The signed-in user, for "Assign to me". */
+  currentUserId?: string;
+  /** Creates a document from the task and resolves once it exists. */
+  onConvertToDoc?: () => Promise<unknown>;
+}
+
+const PRIORITIES: { value: Priority; label: string }[] = [
+  { value: 'URGENT', label: 'Urgent' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'LOW', label: 'Low' },
+];
+
+/** Local calendar day, `yyyy-mm-dd` — the board's due-date format. */
+function dayString(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function dueDatePresets(): { id: string; label: string; day: string }[] {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const nextMonday = new Date(today);
+  nextMonday.setDate(today.getDate() + (((8 - today.getDay()) % 7) || 7));
+  const inTwoWeeks = new Date(today);
+  inTwoWeeks.setDate(today.getDate() + 14);
+  return [
+    { id: 'today', label: 'Today', day: dayString(today) },
+    { id: 'tomorrow', label: 'Tomorrow', day: dayString(tomorrow) },
+    { id: 'next-week', label: 'Next week', day: dayString(nextMonday) },
+    { id: 'two-weeks', label: 'In two weeks', day: dayString(inTwoWeeks) },
+  ];
 }
 
 function formatCardDate(dateStr?: string): string | null {
@@ -85,6 +124,9 @@ export function KanbanCardTile({
   onMoveToList,
   onAssigneeChange,
   onAssigneesChange,
+  onUpdate,
+  currentUserId,
+  onConvertToDoc,
 }: KanbanCardTileProps) {
   const customStore = useKanbanCustomStore();
   const cardCustomProps = customStore.getCardProperties(card.id);
@@ -95,8 +137,173 @@ export function KanbanCardTile({
   const currentLeadId = cardCustomProps.leadId ?? card.memberIds[0];
   const currentLabels = cardCustomProps.labels ?? [];
   const currentStartDate = cardCustomProps.startDate;
+  const cardName = `“${card.title}”`;
+
+  const setAssignees = (memberIds: string[]) => {
+    customStore.setCardProperties(card.id, { leadId: memberIds[0] || undefined });
+    onAssigneeChange?.(memberIds[0] ?? null);
+    onAssigneesChange?.(memberIds);
+  };
+
+  /*
+   * The card's actions, shared by its "⋯" menu, right-click and the Menu key.
+   * Everything routes through the board's own dispatch (optimistic, rolled
+   * back by the query layer on failure), so the menu can't disagree with a
+   * drag or the details dialog.
+   */
+  const buildActions = (): EntityAction[] => [
+    { id: 'open', group: 'open', label: 'Open task', icon: Pencil, shortcut: 'O', run: onOpen },
+    {
+      id: 'assign-me',
+      group: 'assign',
+      label: 'Assign to me',
+      icon: UserCheck,
+      shortcut: 'I',
+      hidden: !currentUserId || !onAssigneesChange,
+      disabled: currentUserId ? card.memberIds.includes(currentUserId) : true,
+      disabledReason: 'Already assigned to you',
+      run: () =>
+        currentUserId && setAssignees([...new Set([currentUserId, ...card.memberIds])]),
+    },
+    {
+      id: 'assign',
+      group: 'assign',
+      label: 'Assignees',
+      icon: Users,
+      hidden: !onAssigneesChange || members.length === 0,
+      children: members.map(
+        (member): EntityAction => ({
+          id: `assign-${member.id}`,
+          label: member.displayName ?? member.name,
+          checked: card.memberIds.includes(member.id),
+          run: () =>
+            setAssignees(
+              card.memberIds.includes(member.id)
+                ? card.memberIds.filter((id) => id !== member.id)
+                : [...card.memberIds, member.id],
+            ),
+        }),
+      ),
+    },
+    {
+      id: 'status',
+      group: 'fields',
+      label: 'Status',
+      icon: CircleDashed,
+      children: lists.map(
+        (list): EntityAction => ({
+          id: `status-${list.id}`,
+          label: list.title,
+          checked: list.id === listId,
+          disabled: list.id === listId,
+          run: () => onMoveToList(list.id as TaskStatus),
+        }),
+      ),
+    },
+    {
+      id: 'priority',
+      group: 'fields',
+      label: 'Priority',
+      icon: Flag,
+      hidden: !onUpdate,
+      children: PRIORITIES.map(
+        (p): EntityAction => ({
+          id: `priority-${p.value}`,
+          label: p.label,
+          checked: card.priority === p.value,
+          run: () => onUpdate?.({ priority: p.value }),
+        }),
+      ),
+    },
+    {
+      id: 'due',
+      group: 'fields',
+      label: 'Due date',
+      icon: CalendarClock,
+      hidden: !onUpdate,
+      children: [
+        ...dueDatePresets().map(
+          (preset): EntityAction => ({
+            id: `due-${preset.id}`,
+            label: preset.label,
+            hint: formatCardDate(preset.day)?.replace(/, \d{4}$/, ''),
+            checked: card.dueDate === preset.day,
+            run: () => onUpdate?.({ dueDate: preset.day }),
+          }),
+        ),
+        {
+          id: 'due-clear',
+          group: 'clear',
+          label: 'Remove due date',
+          icon: CalendarX2,
+          hidden: !card.dueDate,
+          run: () => onUpdate?.({ dueDate: null }),
+        },
+      ],
+    },
+    {
+      id: 'move',
+      group: 'fields',
+      label: 'Move to column',
+      icon: CornerUpRight,
+      children: lists
+        .filter((list) => list.id !== listId)
+        .map(
+          (list): EntityAction => ({
+            id: `move-${list.id}`,
+            label: list.title,
+            run: () => onMoveToList(list.id as TaskStatus),
+          }),
+        ),
+    },
+    {
+      id: 'duplicate',
+      group: 'more',
+      label: 'Duplicate task',
+      icon: CopyPlus,
+      shortcut: 'D',
+      run: onCopy,
+    },
+    {
+      id: 'copy-link',
+      group: 'more',
+      label: 'Copy task link',
+      icon: Link2,
+      shortcut: 'L',
+      run: () =>
+        copyToClipboard(entityUrl(`${window.location.pathname}?card=${card.id}`)),
+    },
+    {
+      id: 'convert-doc',
+      group: 'more',
+      label: 'Convert to document',
+      icon: FileText,
+      hidden: !onConvertToDoc,
+      run: onConvertToDoc,
+    },
+    {
+      id: 'delete',
+      group: 'danger',
+      label: 'Delete task…',
+      icon: Trash2,
+      shortcut: 'Del',
+      destructive: true,
+      // The column confirms before dispatching the delete.
+      run: onDelete,
+    },
+  ];
 
   return (
+    <EntityContextMenu
+      actions={buildActions}
+      scope={`task:${card.id}`}
+      entityType="task"
+      entity={card}
+      label={cardName}
+      // A touch-hold on a card starts a drag; touch uses the ⋯ button instead.
+      longPress={false}
+      disabled={dragging}
+    >
     <li
       data-kanban-card={card.id}
       hidden={dragging}
@@ -137,55 +344,22 @@ export function KanbanCardTile({
             align="end"
           />
 
-          {/* 3-dots more menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          {/* 3-dots more menu — the same actions as right-click */}
+          <ActionDropdownMenu
+            actions={buildActions}
+            scope={`task:${card.id}`}
+            entityType="task"
+            entity={card}
+            trigger={
               <button
                 type="button"
                 className="flex items-center justify-center size-6 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                aria-label={`Actions for “${card.title}”`}
+                aria-label={`Actions for ${cardName}`}
               >
                 <MoreHorizontal className="size-3.5" />
               </button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onSelect={onOpen}>
-                <Pencil />
-                Open card
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onCopy}>
-                <Copy />
-                Copy card
-              </DropdownMenuItem>
-
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <CornerUpRight />
-                  Move to
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent className="w-44">
-                    {lists.map((list) => (
-                      <DropdownMenuItem
-                        key={list.id}
-                        disabled={list.id === listId}
-                        onSelect={() => onMoveToList(list.id as TaskStatus)}
-                      >
-                        {list.title}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
-
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-                <Trash2 />
-                Delete card
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            }
+          />
 
           {/* Assignee lead picker */}
           <KanbanLeadPicker
@@ -193,13 +367,7 @@ export function KanbanCardTile({
             currentMemberId={currentLeadId}
             members={members}
             multiple={true}
-            onSelectMembers={(memberIds) => {
-              customStore.setCardProperties(card.id, {
-                leadId: memberIds[0] || undefined,
-              });
-              onAssigneeChange?.(memberIds[0] ?? null);
-              onAssigneesChange?.(memberIds);
-            }}
+            onSelectMembers={setAssignees}
             onSelectMember={(memberId) => {
               customStore.setCardProperties(card.id, {
                 leadId: memberId || undefined,
@@ -275,5 +443,6 @@ export function KanbanCardTile({
         ) : null}
       </div>
     </li>
+    </EntityContextMenu>
   );
 }

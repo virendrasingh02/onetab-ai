@@ -3,7 +3,6 @@ import { AlertOctagon, Bug, Layers, Trash2 } from 'lucide-react';
 import { Button, confirm, SegmentedControl } from '@org/ui';
 import { useState } from 'react';
 import {
-  BarChart,
   Breakdown,
   DataTable,
   MetricCard,
@@ -14,6 +13,7 @@ import {
   ViewShell,
   formatNumber,
   formatRelative,
+  TimeSeriesChart,
 } from '@org/analytics-ui';
 import {
   useClearPlatformErrors,
@@ -138,8 +138,8 @@ export function ErrorTrackingView() {
                 subtitle="Failures per hour"
                 className="lg:col-span-2"
               >
-                <BarChart
-                  series={data.series}
+                <TimeSeriesChart
+                  points={data.series}
                   accent="rose"
                   valueLabel="errors"
                 />

@@ -197,6 +197,55 @@ function readSeenAt(
   }
 }
 
+/*
+ * "Mark as unread" flags, one per channel (`c:<id>`) or DM peer (`dm:<id>`).
+ *
+ * Backdating a row's seen marker cannot express "unread": the cutoff is the
+ * later of the row's marker and the workspace marker, so once the Inbox has
+ * been cleared a backdated row stays read. The flag is the explicit bit — it
+ * lights the row until the row is opened (which clears it).
+ */
+function unreadFlagKey(workspaceId: string, target: string) {
+  return `${SEEN_KEY_PREFIX}${workspaceId}:u:${target}`;
+}
+
+function writeUnreadFlag(workspaceId: string, target: string, flagged: boolean) {
+  try {
+    if (flagged) {
+      window.localStorage.setItem(
+        unreadFlagKey(workspaceId, target),
+        new Date().toISOString(),
+      );
+    } else {
+      window.localStorage.removeItem(unreadFlagKey(workspaceId, target));
+    }
+  } catch {
+    // Private-mode Safari: the flag just won't persist.
+  }
+  notifySeenChanged();
+}
+
+/** Targets (`c:<id>`, `dm:<id>`) currently flagged unread in this workspace. */
+function readUnreadFlags(workspaceId: string): Set<string> {
+  const flags = new Set<string>();
+  try {
+    const prefix = unreadFlagKey(workspaceId, '');
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(prefix)) flags.add(key.slice(prefix.length));
+    }
+  } catch {
+    // No storage — nothing flagged.
+  }
+  return flags;
+}
+
+/** Lights a flagged row that the feed alone would leave dark. */
+function withUnreadFlag(indicator: ActivityIndicator | undefined): ActivityIndicator {
+  if (indicator && indicator.level !== 'none') return indicator;
+  return { level: 'activity', count: 1, mentionCount: 0 };
+}
+
 function notifySeenChanged() {
   seenVersion += 1;
   for (const listener of seenListeners) listener();
@@ -415,13 +464,13 @@ export function useChannelActivity(
 
   return useMemo(() => {
     const result: Record<string, ActivityIndicator> = {};
-    if (!workspaceId || !feed?.length) return result;
+    if (!workspaceId) return result;
 
     const workspaceSeen = Date.parse(readSeenAt(workspaceId) ?? '');
     const channelSeen = new Map<string, number>();
     const grouped = new Map<string, ActivityFeedItem[]>();
 
-    for (const item of feed) {
+    for (const item of feed ?? []) {
       const channelId = item.channel?.id;
       if (!channelId) continue;
 
@@ -449,6 +498,11 @@ export function useChannelActivity(
     for (const [channelId, items] of grouped) {
       result[channelId] = toIndicator(items);
     }
+    for (const flag of readUnreadFlags(workspaceId)) {
+      if (!flag.startsWith('c:')) continue;
+      const channelId = flag.slice(2);
+      result[channelId] = withUnreadFlag(result[channelId]);
+    }
     return result;
     /* `seenVersionValue` is not read in the body — the markers it stands for
        are, via `readSeenAt`. Dropping it would leave stale dots on screen after
@@ -474,7 +528,13 @@ export function useDirectMessageActivity(
 
   return useMemo(() => {
     const result: Record<string, ActivityIndicator> = {};
-    if (!workspaceId || !feed?.length) return result;
+    if (!workspaceId) return result;
+
+    const flags = readUnreadFlags(workspaceId);
+    for (const flag of flags) {
+      if (flag.startsWith('dm:')) result[flag.slice(3)] = withUnreadFlag(undefined);
+    }
+    if (!feed?.length) return result;
 
     const workspaceSeen = Date.parse(readSeenAt(workspaceId) ?? '');
     // A missing/unparseable marker means this browser has never stamped one;
@@ -484,7 +544,9 @@ export function useDirectMessageActivity(
     const grouped = new Map<string, ActivityFeedItem[]>();
     for (const item of feed) {
       if (item.channel || !item.user?.id) continue;
-      if (Date.parse(item.occurredAt) <= workspaceSeen) continue;
+      const peerSeen = Date.parse(readSeenAt(workspaceId, `dm:${item.user.id}`) ?? '');
+      const cutoff = Math.max(workspaceSeen, Number.isNaN(peerSeen) ? 0 : peerSeen);
+      if (Date.parse(item.occurredAt) <= cutoff) continue;
       const bucket = grouped.get(item.user.id);
       if (bucket) bucket.push(item);
       else grouped.set(item.user.id, [item]);
@@ -510,27 +572,63 @@ export function useMarkChannelSeen(workspaceId: string | undefined) {
     (channelId: string | undefined) => {
       if (!workspaceId || !channelId) return;
       writeSeenAt(workspaceId, new Date().toISOString(), channelId);
+      if (readUnreadFlags(workspaceId).has(`c:${channelId}`)) {
+        writeUnreadFlag(workspaceId, `c:${channelId}`, false);
+      }
     },
     [workspaceId],
   );
 }
 
 /**
- * Stamps a channel as unread again — the inverse of `useMarkChannelSeen`.
- *
- * Backdates the channel's marker rather than clearing it: `useChannelActivity`
- * treats a cutoff of exactly zero (i.e. never stamped) as "don't light up the
- * whole backlog", so clearing the key here would silently do nothing whenever
- * the workspace-level marker is already caught up. `1` (one millisecond past
- * the epoch) is old enough that every real message sorts after it, while still
- * being a real, non-zero timestamp.
+ * Flags a channel as unread again — the inverse of `useMarkChannelSeen`. The
+ * row lights (and stays lit across reloads and tabs) until the channel is next
+ * opened.
  */
 export function useMarkChannelUnread(workspaceId: string | undefined) {
   return useCallback(
     (channelId: string | undefined) => {
       if (!workspaceId || !channelId) return;
-      writeSeenAt(workspaceId, new Date(1).toISOString(), channelId);
+      writeUnreadFlag(workspaceId, `c:${channelId}`, true);
     },
     [workspaceId],
+  );
+}
+
+/** Stamps a DM conversation as read (and clears a manual unread flag). */
+export function useMarkDirectMessageSeen(workspaceId: string | undefined) {
+  return useCallback(
+    (peerId: string | undefined) => {
+      if (!workspaceId || !peerId) return;
+      writeSeenAt(workspaceId, new Date().toISOString(), `dm:${peerId}`);
+      if (readUnreadFlags(workspaceId).has(`dm:${peerId}`)) {
+        writeUnreadFlag(workspaceId, `dm:${peerId}`, false);
+      }
+    },
+    [workspaceId],
+  );
+}
+
+/** Flags a DM conversation as unread until it is next opened. */
+export function useMarkDirectMessageUnread(workspaceId: string | undefined) {
+  return useCallback(
+    (peerId: string | undefined) => {
+      if (!workspaceId || !peerId) return;
+      writeUnreadFlag(workspaceId, `dm:${peerId}`, true);
+    },
+    [workspaceId],
+  );
+}
+
+/** Whether a channel (`c:<id>`) / DM (`dm:<id>`) carries a manual unread flag. */
+export function useIsFlaggedUnread(
+  workspaceId: string | undefined,
+  target: string | undefined,
+): boolean {
+  const version = useSeenVersion();
+  return useMemo(
+    () => (workspaceId && target ? readUnreadFlags(workspaceId).has(target) : false),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workspaceId, target, version],
   );
 }

@@ -6,6 +6,8 @@ import {
   Card,
   EmptyState,
   Hint,
+  buildObjectActions,
+  EntityContextMenu,
   ObjectActionMenu,
   Spinner,
 } from '@org/ui';
@@ -231,6 +233,27 @@ export function SavedView() {
                 const ItemIcon = getTypeIcon(item.targetType);
                 return (
                   <li key={`${item.targetType}-${item.id}`}>
+                    <EntityContextMenu
+                      actions={() =>
+                        buildObjectActions(
+                          {
+                            type: item.targetType,
+                            id: item.targetId,
+                            title: item.title,
+                            href: item.href,
+                          },
+                          {
+                            isBookmarked: true,
+                            onBookmarkToggle: () => handleRemove(item),
+                            onOpen: (href) => navigate(href),
+                          },
+                        )
+                      }
+                      scope={`${item.targetType}:${item.targetId}`}
+                      entityType={item.targetType}
+                      entity={item}
+                      label={item.title}
+                    >
                     <Card className="p-4 gap-4 group flex items-start justify-between bg-card transition-colors hover:border-border-strong">
                       <div className="gap-3 min-w-0 flex flex-1 items-start">
                         <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
@@ -296,6 +319,7 @@ export function SavedView() {
                           }}
                           isBookmarked={true}
                           onBookmarkToggle={() => handleRemove(item)}
+                          onOpen={(href) => navigate(href)}
                         />
 
                         <Hint label="Remove bookmark">
@@ -311,6 +335,7 @@ export function SavedView() {
                         </Hint>
                       </div>
                     </Card>
+                    </EntityContextMenu>
                   </li>
                 );
               })}

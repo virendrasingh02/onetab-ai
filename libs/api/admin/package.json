@@ -37,6 +37,7 @@
     "@nestjs/core": "^11.0.0",
     "@org/api-cache": "*",
     "@org/database": "*",
-    "@org/types": "*"
+    "@org/types": "*",
+    "@org/utils": "*"
   }
 }

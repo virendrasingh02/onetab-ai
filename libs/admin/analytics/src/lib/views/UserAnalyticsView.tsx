@@ -1,27 +1,30 @@
-import type { AdminAnalyticsFilter, AdminUserAnalytics } from '@org/types';
+import {
+  AreaChart,
+  BarChart,
+  ChartContainer,
+  DonutChart,
+} from '@org/analytics-ui';
+import type { AdminUserAnalytics } from '@org/types';
 import { Badge, Card } from '@org/ui';
 import { UserCheck, Users, UserX, Zap } from 'lucide-react';
-import { useState } from 'react';
 import {
-  AnalyticsAreaChart,
-  AnalyticsBarChart,
   AnalyticsDataTable,
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
   type ColumnDef,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminUserAnalytics } from '../use-admin-analytics.js';
 
 type TopUserItem = AdminUserAnalytics['topUsers'][number];
 
 export function UserAnalyticsView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminUserAnalytics(filter);
 
-  const colors = ['#10b981', '#ef4444', '#f59e0b', '#6b7280', '#3b82f6'];
+  const colors = ['green', 'var(--destructive)', 'amber', 'var(--muted-foreground)', 'blue'];
 
   const statusDonutData =
     data?.statusBreakdown.map((s, idx) => ({
@@ -111,8 +114,7 @@ export function UserAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* Summary KPI Cards */}
@@ -181,13 +183,13 @@ export function UserAnalyticsView() {
             isEmpty={!data?.userActivitySeries?.length}
             height={320}
           >
-            <AnalyticsAreaChart
+            <AreaChart
               data={data?.userActivitySeries || []}
               xAxisKey="date"
               series={[
-                { dataKey: 'dau', name: 'DAU (Daily)', color: '#3b82f6' },
-                { dataKey: 'wau', name: 'WAU (Weekly)', color: '#10b981' },
-                { dataKey: 'mau', name: 'MAU (Monthly)', color: '#8b5cf6' },
+                { dataKey: 'dau', name: 'DAU (Daily)', color: 'blue' },
+                { dataKey: 'wau', name: 'WAU (Weekly)', color: 'green' },
+                { dataKey: 'mau', name: 'MAU (Monthly)', color: 'violet' },
               ]}
               height={320}
               showLegend
@@ -204,7 +206,7 @@ export function UserAnalyticsView() {
             isEmpty={statusDonutData.length === 0}
             height={320}
           >
-            <AnalyticsDonutChart
+            <DonutChart
               data={statusDonutData}
               centerLabel="Accounts"
               centerValue={data?.totalAccounts}
@@ -223,12 +225,12 @@ export function UserAnalyticsView() {
         isEmpty={!data?.userGrowthSeries?.length}
         height={260}
       >
-        <AnalyticsBarChart
+        <BarChart
           data={data?.userGrowthSeries || []}
           xAxisKey="date"
           series={[
-            { dataKey: 'newUsers', name: 'New Signups', color: '#06b6d4' },
-            { dataKey: 'returningUsers', name: 'Returning Users', color: '#3b82f6' },
+            { dataKey: 'newUsers', name: 'New Signups', color: 'cyan' },
+            { dataKey: 'returningUsers', name: 'Returning Users', color: 'blue' },
           ]}
           height={260}
           showLegend

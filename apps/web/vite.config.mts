@@ -251,6 +251,14 @@ export default defineConfig(() => ({
       'debug',
       'prismjs',
       'use-sync-external-store/shim/with-selector.js',
+      // `recharts` (behind @org/analytics-ui's shared charts) reaches the
+      // same CJS shim through react-redux. Discovered lazily — it sits behind
+      // an excluded workspace package — esbuild pre-bundles the shim twice in
+      // passes that disagree on its shape, and the browser throws "does not
+      // provide an export named 'useSyncExternalStoreWithSelector'". Listing
+      // it here puts it in the startup pass with the shim (same fix as
+      // apps/admin/vite.config.mts).
+      'recharts',
       // `axe-core` is CJS-only (`main: "axe.js"`, `module.exports = axe`), and
       // the dev-only `AccessibilityDevAuditor` (mounted unconditionally in
       // `apps/web/src/app/providers.tsx` behind `import.meta.env.DEV`) reaches

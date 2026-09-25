@@ -1,11 +1,6 @@
-import {
-  authApi,
-  getAccessToken,
-  setAccessToken,
-  workspaceApi,
-} from '@org/api-client';
+import { restoreBrowserSession, workspaceApi } from '@org/api-client';
 import type { CurrentUser, Workspace } from '@org/types';
-import { Button, LoadingState } from '@org/ui';
+import { Button, ErrorState, LoadingState } from '@org/ui';
 import { ExternalLink, RefreshCw, ShieldAlert, Sparkles } from 'lucide-react';
 import {
   createContext,
@@ -50,47 +45,9 @@ export function SessionGuard({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      // 1. Check for handoff token in URL fragment
-      if (typeof window !== 'undefined' && window.location.hash) {
-        try {
-          const hashParams = new URLSearchParams(
-            window.location.hash.replace(/^#/, ''),
-          );
-          const hashToken =
-            hashParams.get('token') || hashParams.get('accessToken');
-          if (hashToken) {
-            setAccessToken(hashToken);
-            window.history.replaceState(
-              {},
-              document.title,
-              `${window.location.pathname}${window.location.search}`,
-            );
-          }
-        } catch {
-          // Ignore
-        }
-      }
-
-      // 2. Check if we already have an active access token or refresh cookie
-      let activeUser: CurrentUser | null = null;
-      const currentToken = getAccessToken();
-      if (currentToken) {
-        try {
-          activeUser = await authApi.me();
-        } catch {
-          // Token expired, attempt refresh
-        }
-      }
-
-      if (!activeUser) {
-        try {
-          const tokens = await authApi.refresh();
-          setAccessToken(tokens.accessToken);
-          activeUser = await authApi.me();
-        } catch {
-          // Unauthenticated
-        }
-      }
+      // Hand-off fragment → in-memory token → shared refresh cookie. `null`
+      // means signed out; an unreachable API throws into the catch below.
+      const activeUser = await restoreBrowserSession();
 
       if (!activeUser) {
         setUser(null);
@@ -142,6 +99,18 @@ export function SessionGuard({ children }: { children: ReactNode }) {
 
   if (loading) {
     return <LoadingState fullPage label="Connecting to platform workspace session…" />;
+  }
+
+  // The API could not be reached — not the same as being signed out.
+  if (error) {
+    return (
+      <ErrorState
+        fullPage
+        title="Couldn't reach the platform"
+        description={error}
+        onRetry={() => void initSession()}
+      />
+    );
   }
 
   // Not authenticated: seamless login redirect or single-click authentication

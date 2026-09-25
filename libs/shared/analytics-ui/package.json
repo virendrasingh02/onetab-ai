@@ -24,7 +24,9 @@
     "@org/types": "*",
     "@org/ui": "*",
     "@org/utils": "*",
+    "date-fns": "^4.4.0",
     "lucide-react": "^1.28.0",
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "recharts": "^3.10.1"
   }
 }

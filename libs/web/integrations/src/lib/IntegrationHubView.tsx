@@ -1,33 +1,33 @@
 import {
-  Badge,
+  Button,
   confirm,
+  ConnectionCard,
+  ConnectionList,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  EmptyState,
   Hint,
   SearchInput,
   toast,
+  toConnectionState,
+  type ConnectionState,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Activity,
-  Check,
   ChevronDown,
-  Code2,
-  ExternalLink,
   Inbox,
   RefreshCw,
   Share2,
   Webhook,
-  Zap,
 } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -532,6 +532,27 @@ const integrationsList: IntegrationCard[] = [
   },
 ];
 
+/** Providers with a viewer modal beyond the generic connection card. */
+const APPS_WITH_MODAL = new Set([
+  'gmail',
+  'google_calendar',
+  'google_drive',
+  'google_docs',
+  'google_sheets',
+]);
+
+const APP_CATEGORIES: AppCategory[] = [
+  'Analytics',
+  'Customer Support & Communication',
+  'Design',
+  'Developer Tools',
+  'Productivity & Project Management',
+  'HR & Team Culture',
+  'Sales & Marketing',
+  'Finance',
+  'Other',
+];
+
 export function IntegrationHubView() {
   const workspaceId = useWorkspaceId() ?? '';
   const integrations = useIntegrations(workspaceId);
@@ -557,10 +578,16 @@ export function IntegrationHubView() {
   const [activeAppModal, setActiveAppModal] = useState<ActiveAppModal | null>(null);
   const [logsCard, setLogsCard] = useState<IntegrationCard | null>(null);
 
-  const connectedMap = new Map<string, ExternalIntegration>();
+  /*
+   * Every linked integration by provider — not only `CONNECTED` ones. An
+   * expired or failing link used to drop out of this map, so its card read
+   * "not connected" and offered a plain Connect with no hint anything was
+   * wrong. `DISCONNECTED` rows are history, not links.
+   */
+  const integrationMap = new Map<string, ExternalIntegration>();
   for (const integration of integrations.data ?? []) {
-    if (integration.status === 'CONNECTED') {
-      connectedMap.set(integration.provider.toUpperCase(), integration);
+    if (toConnectionState(integration.status) !== 'disconnected') {
+      integrationMap.set(integration.provider.toUpperCase(), integration);
     }
   }
 
@@ -616,21 +643,32 @@ export function IntegrationHubView() {
     );
   };
 
-  const toggleConnection = (card: IntegrationCard) => {
-    if (!card.supported) return;
-
-    const connected = connectedMap.get(card.id.toUpperCase());
-    if (connected) {
-      void confirm({
-        title: `Disconnect ${card.name}?`,
-        description:
-          'This integration is removed from your workspace and its webhooks stop firing. You can reconnect it later.',
-        confirmLabel: 'Disconnect',
-        destructive: true,
-      }).then((ok) => {
-        if (ok) disconnect.mutate(connected.id);
+  const confirmDisconnect = (card: IntegrationCard, integration: ExternalIntegration) => {
+    void confirm({
+      title: `Disconnect ${card.name}?`,
+      description:
+        'This integration is removed from your workspace and its webhooks stop firing. You can reconnect it later.',
+      confirmLabel: 'Disconnect',
+      destructive: true,
+    }).then((ok) => {
+      if (!ok) return;
+      disconnect.mutate(integration.id, {
+        onError: (err: unknown) =>
+          toast.error(err instanceof Error ? err.message : `Failed to disconnect ${card.name}.`),
       });
-    } else void startConnect(card);
+    });
+  };
+
+  const cardState = (
+    card: IntegrationCard,
+    integration: ExternalIntegration | undefined,
+  ): ConnectionState => {
+    if (!card.supported) return 'disabled';
+    const providerKey = card.id.toUpperCase();
+    if (connect.isPending && connect.variables?.provider === providerKey) {
+      return integration ? 'reconnecting' : 'connecting';
+    }
+    return toConnectionState(integration?.status);
   };
 
   const openAppModal = (card: IntegrationCard, integration: ExternalIntegration) => {
@@ -646,13 +684,7 @@ export function IntegrationHubView() {
       setActiveAppModal({ kind: 'google_sheets', integrationId: integration.id, email });
   };
 
-  const APPS_WITH_MODAL = new Set([
-    'gmail',
-    'google_calendar',
-    'google_drive',
-    'google_docs',
-    'google_sheets',
-  ]);
+  const linkedCount = integrationMap.size;
 
   const filteredCards = integrationsList.filter((card) => {
     const matchesSearch =
@@ -698,275 +730,175 @@ export function IntegrationHubView() {
 
       <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
-          {/* Filter Dropdown & App Counter Header */}
-          <div className="mb-4 flex items-center justify-between">
+          {/* Category filter & count */}
+          <div className="mb-4 gap-2 flex flex-wrap items-center justify-between">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
+                <Button
                   type="button"
-                  className="gap-2 px-3.5 py-1.5 text-xs font-semibold flex items-center rounded-xl border border-border bg-surface-inset text-foreground shadow-sm transition-colors hover:bg-surface hover:text-foreground"
+                  variant="outline"
+                  size="sm"
+                  trailingIcon={<ChevronDown className="size-3.5 text-muted-foreground" />}
                 >
-                  <span>
-                    {selectedFilter === 'All'
-                      ? 'All app types'
-                      : selectedFilter}
-                  </span>
-                  <ChevronDown className="size-3.5 text-muted-foreground" />
-                </button>
+                  {selectedFilter === 'All' ? 'All app types' : selectedFilter}
+                </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                side="bottom"
-                sideOffset={4}
-                className="w-72 max-h-80 scrollbar-subtle p-1.5 shadow-2xl overflow-y-auto border-border bg-surface-inset text-foreground"
-              >
-                <DropdownMenuItem
-                  onSelect={() => setSelectedFilter('All')}
-                  className="px-3 py-2 text-xs font-semibold flex cursor-pointer items-center justify-between rounded-lg hover:bg-accent"
+              <DropdownMenuContent align="start" className="w-72">
+                <DropdownMenuRadioGroup
+                  value={selectedFilter}
+                  onValueChange={(value) => setSelectedFilter(value as 'All' | AppCategory)}
                 >
-                  <span>All app types</span>
-                  {selectedFilter === 'All' ? (
-                    <Check className="size-4 text-info-text" />
-                  ) : null}
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onSelect={() => setSelectedFilter('Internal Apps')}
-                  className="px-3 py-2 text-xs font-semibold flex cursor-pointer items-center justify-between rounded-lg hover:bg-accent"
-                >
-                  <span>Internal Apps</span>
-                  {selectedFilter === 'Internal Apps' ? (
-                    <Check className="size-4 text-info-text" />
-                  ) : null}
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator className="my-1.5 bg-border" />
-
-                <DropdownMenuLabel className="px-3 py-1 font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
-                  Categories
-                </DropdownMenuLabel>
-
-                {(
-                  [
-                    'Analytics',
-                    'Customer Support & Communication',
-                    'Design',
-                    'Developer Tools',
-                    'Productivity & Project Management',
-                    'HR & Team Culture',
-                    'Sales & Marketing',
-                    'Finance',
-                    'Other',
-                  ] as AppCategory[]
-                ).map((category) => (
-                  <DropdownMenuItem
-                    key={category}
-                    onSelect={() => setSelectedFilter(category)}
-                    className="px-3 py-2 text-xs font-medium flex cursor-pointer items-center justify-between rounded-lg hover:bg-accent"
-                  >
-                    <span>{category}</span>
-                    {selectedFilter === category ? (
-                      <Check className="size-4 text-info-text" />
-                    ) : null}
-                  </DropdownMenuItem>
-                ))}
+                  <DropdownMenuRadioItem value="All" indicator="check">
+                    All app types
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="Internal Apps" indicator="check">
+                    Internal Apps
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Categories</DropdownMenuLabel>
+                  {APP_CATEGORIES.map((category) => (
+                    <DropdownMenuRadioItem key={category} value={category} indicator="check">
+                      {category}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <p className="text-xs font-bold tracking-wide text-muted-foreground">
-              {filteredCards.length}{' '}
-              {filteredCards.length === 1 ? 'app' : 'apps'} in workspace
+            <p className="text-xs font-semibold text-muted-foreground" aria-live="polite">
+              {filteredCards.length} {filteredCards.length === 1 ? 'app' : 'apps'}
+              {linkedCount > 0 ? ` · ${linkedCount} connected` : ''}
             </p>
           </div>
 
-          {/* 3-Columns Grid of Cards matching Reference Design */}
-          {filteredCards.length > 0 ? (
-            <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 grid grid-cols-1">
-              {filteredCards.map((card) => {
-                const connectedInfo = connectedMap.get(card.id.toUpperCase());
-                const isConnected = Boolean(connectedInfo);
-                const showQuickActions = isConnected && card.supported;
+          <ConnectionList
+            isLoading={integrations.isLoading || providersQuery.isLoading}
+            error={integrations.error ?? providersQuery.error}
+            onRetry={() => {
+              void integrations.refetch();
+              void providersQuery.refetch();
+            }}
+            isEmpty={filteredCards.length === 0}
+            emptyTitle="No integrations found"
+            emptyDescription="Try a different search or category to see available apps."
+            emptyAction={
+              searchQuery || selectedFilter !== 'All' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedFilter('All');
+                  }}
+                >
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+          >
+            {filteredCards.map((card) => {
+              const integration = integrationMap.get(card.id.toUpperCase());
+              const state = cardState(card, integration);
+              const isConnected = state === 'connected';
+              const hasSettings = card.id === 'custom_api' || card.id === 'trello';
 
-                return (
-                  <div
-                    key={card.id}
-                    className={cn(
-                      'group p-5 flex min-h-[175px] flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs transition-all',
-                      card.supported ? 'hover:border-border-strong' : 'opacity-60',
-                    )}
-                  >
-                    {/* Top Row: App Icon & External Link / Action Menu */}
-                    <div className="flex items-start justify-between">
-                      <div className="size-10 p-2 flex items-center justify-center rounded-xl border border-border bg-surface text-foreground shadow-xs">
-                        <IntegrationAppIcon id={card.id} name={card.name} />
-                      </div>
-
-                      <div className="gap-1.5 flex items-center">
-                        {!card.supported ? (
-                          <Badge variant="secondary" className="text-[10px]">
-                            Coming soon
-                          </Badge>
-                        ) : null}
-
-                        {showQuickActions && connectedInfo && (
-                          <>
-                            {APPS_WITH_MODAL.has(card.id) && (
-                              <Hint label={`Open ${card.name}`}>
-                                <button
-                                  type="button"
-                                  aria-label={`Open ${card.name}`}
-                                  onClick={() => openAppModal(card, connectedInfo)}
-                                  className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                                >
-                                  <Inbox className="size-3.5" />
-                                </button>
-                              </Hint>
-                            )}
-
-                            {card.id === 'custom_api' && (
-                              <Hint label="Edit API config">
-                                <button
-                                  type="button"
-                                  aria-label="Edit API config"
-                                  onClick={() => setIsCustomApiModalOpen(true)}
-                                  className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                                >
-                                  <Code2 className="size-3.5" />
-                                </button>
-                              </Hint>
-                            )}
-
-                            {card.id === 'trello' && (
-                              <Hint label="Update key/token">
-                                <button
-                                  type="button"
-                                  aria-label="Update key/token"
-                                  onClick={() => setIsTrelloModalOpen(true)}
-                                  className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                                >
-                                  <Code2 className="size-3.5" />
-                                </button>
-                              </Hint>
-                            )}
-
-                            <Hint label="Sync now">
-                              <button
-                                type="button"
-                                aria-label="Sync now"
-                                disabled={sync.isPending}
-                                onClick={() => sync.mutate(connectedInfo.id)}
-                                className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                              >
-                                <RefreshCw
-                                  className={cn(
-                                    'size-3.5',
-                                    sync.isPending && 'animate-spin',
-                                  )}
-                                />
-                              </button>
-                            </Hint>
-
-                            <Hint label="Activity log">
-                              <button
-                                type="button"
-                                aria-label="Activity log"
-                                onClick={() => setLogsCard(card)}
-                                className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                              >
-                                <Activity className="size-3.5" />
-                              </button>
-                            </Hint>
-                          </>
-                        )}
-
-                        {card.supported ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleConnection(card)}
-                            aria-label={`Open ${card.name}`}
-                            className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                          >
-                            <ExternalLink className="size-4" />
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {/* Middle Row: Description text */}
-                    <p className="py-2.5 text-xs sm:text-[13px] font-normal leading-relaxed my-auto line-clamp-2 text-muted-foreground">
-                      {card.description}
-                    </p>
-
-                    {/* Bottom Row: Action Button & Toggle Switch */}
-                    <div className="pt-1 flex items-center justify-between">
-                      {!card.supported ? (
-                        <span className="px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
-                          Not yet available
-                        </span>
-                      ) : isConnected ? (
-                        <button
-                          type="button"
-                          onClick={() => toggleConnection(card)}
-                          className="px-3.5 py-1.5 text-xs font-semibold rounded-lg border border-border bg-surface text-foreground transition-colors hover:bg-accent"
-                        >
-                          Disconnect
-                        </button>
-                      ) : (
-                        (() => {
-                          const connectButton = (
-                            <button
+              return (
+                <ConnectionCard
+                  key={card.id}
+                  name={card.name}
+                  description={card.description}
+                  icon={<IntegrationAppIcon id={card.id} name={card.name} />}
+                  state={state}
+                  statusLabel={card.supported ? undefined : 'Coming soon'}
+                  account={integration?.displayName}
+                  lastSyncAt={integration?.lastSyncAt}
+                  errorMessage={integration?.lastErrorMessage}
+                  permissions={integration?.scopes}
+                  canConnect={canInstallApps}
+                  cannotConnectReason="Only admins can install apps in this workspace."
+                  busy={
+                    (connect.isPending &&
+                      connect.variables?.provider === card.id.toUpperCase()) ||
+                    (disconnect.isPending && disconnect.variables === integration?.id)
+                  }
+                  onConnect={() => void startConnect(card)}
+                  onReconnect={() => void startConnect(card)}
+                  onDisconnect={
+                    integration ? () => confirmDisconnect(card, integration) : undefined
+                  }
+                  onSettings={
+                    hasSettings
+                      ? () =>
+                          card.id === 'trello'
+                            ? setIsTrelloModalOpen(true)
+                            : setIsCustomApiModalOpen(true)
+                      : undefined
+                  }
+                  actions={
+                    integration ? (
+                      <>
+                        {isConnected && APPS_WITH_MODAL.has(card.id) ? (
+                          <Hint label={`Open ${card.name}`}>
+                            <Button
                               type="button"
-                              disabled={!canInstallApps}
-                              onClick={() => toggleConnection(card)}
-                              className="px-3.5 py-1.5 text-xs font-semibold gap-1.5 flex items-center rounded-lg bg-primary text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Open ${card.name}`}
+                              onClick={() => openAppModal(card, integration)}
                             >
-                              <Zap className="size-3" />
-                              <span>Connect</span>
-                            </button>
-                          );
-                          return canInstallApps ? (
-                            connectButton
-                          ) : (
-                            <Hint label="Only admins can install apps in this workspace.">
-                              {connectButton}
-                            </Hint>
-                          );
-                        })()
-                      )}
-
-                      {/* Pill Switch matching reference design */}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={isConnected}
-                        disabled={!card.supported}
-                        onClick={() => toggleConnection(card)}
-                        aria-label={
-                          card.supported
-                            ? `Toggle ${card.name} connection`
-                            : `${card.name} is not yet available`
-                        }
-                        className={cn(
-                          'w-9 h-5 px-0.5 flex items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          card.supported ? 'cursor-pointer' : 'cursor-not-allowed',
-                          isConnected
-                            ? 'justify-end bg-primary'
-                            : 'justify-start border border-border bg-muted',
-                        )}
-                      >
-                        <span className="size-3.5 rounded-full bg-background shadow-xs transition-transform" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <EmptyState
-              title="No integrations found"
-              description="Try adjusting your search query or selecting a different category to see available apps."
-            />
-          )}
+                              <Inbox className="size-3.5" />
+                            </Button>
+                          </Hint>
+                        ) : null}
+                        {isConnected ? (
+                          <Hint label="Sync now">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Sync ${card.name} now`}
+                              disabled={sync.isPending}
+                              onClick={() =>
+                                sync.mutate(integration.id, {
+                                  onError: (err: unknown) =>
+                                    toast.error(
+                                      err instanceof Error
+                                        ? err.message
+                                        : `Failed to sync ${card.name}.`,
+                                    ),
+                                })
+                              }
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  'size-3.5',
+                                  sync.isPending &&
+                                    sync.variables === integration.id &&
+                                    'animate-spin',
+                                )}
+                              />
+                            </Button>
+                          </Hint>
+                        ) : null}
+                        <Hint label="Activity log">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`${card.name} activity log`}
+                            onClick={() => setLogsCard(card)}
+                          >
+                            <Activity className="size-3.5" />
+                          </Button>
+                        </Hint>
+                      </>
+                    ) : null
+                  }
+                />
+              );
+            })}
+          </ConnectionList>
         </div>
       </div>
 
@@ -1049,7 +981,7 @@ export function IntegrationHubView() {
           </DialogHeader>
           {logsCard
             ? (() => {
-                const info = connectedMap.get(logsCard.id.toUpperCase());
+                const info = integrationMap.get(logsCard.id.toUpperCase());
                 return info ? (
                   <IntegrationLogsView
                     workspaceId={workspaceId}

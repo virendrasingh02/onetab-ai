@@ -1,17 +1,18 @@
-import type { AdminAnalyticsFilter } from '@org/types';
+import {
+  AreaChart,
+  BarChart,
+  ChartContainer,
+  DonutChart,
+} from '@org/analytics-ui';
 import { Badge, Card } from '@org/ui';
 import { Building2, MessageSquare, MessagesSquare, Send, Smile } from 'lucide-react';
-import { useState } from 'react';
 import {
-  AnalyticsAreaChart,
-  AnalyticsBarChart,
   AnalyticsDataTable,
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
   type ColumnDef,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminMessagingAnalytics } from '../use-admin-analytics.js';
 
 type MessagesByWorkspaceRow = {
@@ -21,11 +22,12 @@ type MessagesByWorkspaceRow = {
 };
 
 export function MessagingAnalyticsView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminMessagingAnalytics(filter);
 
-  const colors = ['#3b82f6', '#10b981', '#8b5cf6'];
+  const colors = ['blue', 'green', 'violet'];
 
   const typeDonut =
     data?.dmVsChannelBreakdown.map((item, idx) => ({
@@ -74,8 +76,7 @@ export function MessagingAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* KPI Cards */}
@@ -144,12 +145,12 @@ export function MessagingAnalyticsView() {
             isEmpty={!data?.messagesOverTime?.length}
             height={320}
           >
-            <AnalyticsAreaChart
+            <AreaChart
               data={data?.messagesOverTime || []}
               xAxisKey="date"
               series={[
-                { dataKey: 'sent', name: 'Messages Sent', color: '#3b82f6' },
-                { dataKey: 'total', name: 'Total Volume', color: '#10b981' },
+                { dataKey: 'sent', name: 'Messages Sent', color: 'blue' },
+                { dataKey: 'total', name: 'Total Volume', color: 'green' },
               ]}
               height={320}
               showLegend
@@ -166,7 +167,7 @@ export function MessagingAnalyticsView() {
             isEmpty={typeDonut.length === 0}
             height={320}
           >
-            <AnalyticsDonutChart
+            <DonutChart
               data={typeDonut}
               centerLabel="Messages"
               centerValue={data?.totalMessages}
@@ -185,14 +186,14 @@ export function MessagingAnalyticsView() {
         isEmpty={!data?.messagesByHour?.length}
         height={240}
       >
-        <AnalyticsBarChart
+        <BarChart
           data={(data?.messagesByHour || []).map((h) => ({
             ...h,
             label: `${h.hour}:00`,
           }))}
           xAxisKey="label"
           series={[
-            { dataKey: 'count', name: 'Messages', color: '#8b5cf6' },
+            { dataKey: 'count', name: 'Messages', color: 'violet' },
           ]}
           height={240}
         />

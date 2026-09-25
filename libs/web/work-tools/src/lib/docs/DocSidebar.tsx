@@ -1,6 +1,10 @@
 import {
+  ActionDropdownMenu,
   Button,
   confirm,
+  copyToClipboard,
+  EntityContextMenu,
+  entityUrl,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -10,14 +14,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   IconRenderer,
   Panel,
   SearchInput,
   usePromptDialog,
+  type EntityAction,
   type PromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -25,8 +27,11 @@ import {
   Building,
   ChevronDown,
   ChevronRight,
-  Copy,
+  CopyPlus,
+  Download,
+  FileText,
   Folder,
+  Link2,
   FolderPlus,
   LayoutTemplate,
   MoreVertical,
@@ -37,6 +42,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
+import { downloadDocAsMarkdown } from './doc-export.js';
 import type { CompanyItem, DocCategory, DocItem } from './doc-types.js';
 
 interface DocSidebarProps {
@@ -486,9 +492,121 @@ function DocTreeNodeItem({
   const childDocs = allDocs.filter((d) => d.parentId === doc.id);
   const isExpanded = !!expandedDocIds[doc.id];
   const isActive = doc.id === activeDocId;
+  const moveTargets = companies.filter((c) => c.id !== doc.companyId);
+
+  /* The row's "⋯" menu, right-click and touch sheet all render this list. */
+  const actions: EntityAction[] = [
+    { id: 'open', group: 'open', label: 'Open', icon: FileText, run: () => onSelectDoc(doc.id) },
+    {
+      id: 'add-subpage',
+      group: 'edit',
+      label: 'Add subpage',
+      icon: Plus,
+      run: () => {
+        if (!isExpanded) toggleDocExpand(doc.id);
+        onCreateDoc(companyId, 'Untitled Page', 'General', undefined, doc.id);
+      },
+    },
+    {
+      id: 'rename',
+      group: 'edit',
+      label: 'Rename…',
+      icon: Pencil,
+      shortcut: 'R',
+      hidden: !onUpdateTitle,
+      run: async () => {
+        const title = await prompts.promptText({
+          title: 'Rename document',
+          label: 'Title',
+          defaultValue: doc.title,
+          confirmLabel: 'Rename',
+        });
+        if (title && title !== doc.title) onUpdateTitle?.(doc.id, title);
+      },
+    },
+    {
+      id: 'duplicate',
+      group: 'edit',
+      label: 'Duplicate',
+      icon: CopyPlus,
+      shortcut: 'D',
+      run: () => onDuplicateDoc(doc.id),
+    },
+    {
+      id: 'favorite',
+      group: 'organize',
+      label: doc.favorite ? 'Remove from favorites' : 'Add to favorites',
+      icon: Star,
+      shortcut: 'F',
+      run: () => onToggleFavorite(doc.id),
+    },
+    {
+      id: 'move',
+      group: 'organize',
+      label: 'Move to folder',
+      icon: MoveRight,
+      hidden: !onMoveDocToCompany || moveTargets.length === 0,
+      children: moveTargets.map(
+        (c): EntityAction => ({
+          id: `move-${c.id}`,
+          label: c.name,
+          icon: Building,
+          run: () => onMoveDocToCompany?.(doc.id, c.id),
+        }),
+      ),
+    },
+    {
+      id: 'copy-link',
+      group: 'share',
+      label: 'Copy link',
+      icon: Link2,
+      shortcut: 'L',
+      run: () =>
+        copyToClipboard(
+          entityUrl(
+            `${window.location.pathname.replace(/\/docs(\/.*)?$/, '')}/docs/${doc.id}`,
+          ),
+        ),
+    },
+    {
+      id: 'export',
+      group: 'share',
+      label: 'Export as Markdown',
+      icon: Download,
+      run: () => downloadDocAsMarkdown(doc),
+    },
+    {
+      id: 'delete',
+      group: 'danger',
+      label: 'Delete…',
+      icon: Trash2,
+      destructive: true,
+      // The last document can't go — the editor always needs one open.
+      hidden: allDocs.length <= 1,
+      confirm: {
+        title: `Delete “${doc.title}”?`,
+        description:
+          childDocs.length > 0
+            ? `This also deletes ${childDocs.length} page${
+                childDocs.length === 1 ? '' : 's'
+              } inside it. This cannot be undone.`
+            : 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        destructive: true,
+      },
+      run: () => onDeleteDoc(doc.id),
+    },
+  ];
 
   return (
     <li className="space-y-0.5">
+      <EntityContextMenu
+        actions={actions}
+        scope={`doc:${doc.id}`}
+        entityType="doc"
+        entity={doc}
+        label={doc.title}
+      >
       <div className="group relative flex items-center justify-between">
         <button
           type="button"
@@ -539,106 +657,26 @@ function DocTreeNodeItem({
           >
             <Plus className="size-3 text-accent-blue" />
           </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <ActionDropdownMenu
+            actions={actions}
+            scope={`doc:${doc.id}`}
+            entityType="doc"
+            entity={doc}
+            contentClassName="w-52"
+            trigger={
               <button
                 type="button"
                 className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
-                title="Doc Options"
+                title="Doc options"
+                aria-label={`Options for ${doc.title}`}
               >
                 <MoreVertical className="size-3.5" />
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {onUpdateTitle && (
-                <DropdownMenuItem
-                  onClick={() => {
-                    void prompts
-                      .promptText({
-                        title: 'Rename document',
-                        label: 'Title',
-                        defaultValue: doc.title,
-                        confirmLabel: 'Rename',
-                      })
-                      .then((title) => {
-                        if (title) onUpdateTitle(doc.id, title);
-                      });
-                  }}
-                  className="text-xs gap-2"
-                >
-                  <Pencil className="size-3 text-primary" />
-                  Rename Doc
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                onClick={() => onToggleFavorite(doc.id)}
-                className="text-xs gap-2"
-              >
-                <Star className="size-3 text-accent-amber" />
-                {doc.favorite ? 'Unfavorite' : 'Favorite'}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onDuplicateDoc(doc.id)}
-                className="text-xs gap-2"
-              >
-                <Copy className="size-3" />
-                Duplicate Doc
-              </DropdownMenuItem>
-
-              {onMoveDocToCompany && companies.length > 1 && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="text-xs gap-2">
-                    <MoveRight className="size-3 text-accent-blue" />
-                    Move to Folder
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-44">
-                    {companies
-                      .filter((c) => c.id !== doc.companyId)
-                      .map((c) => (
-                        <DropdownMenuItem
-                          key={c.id}
-                          onClick={() => onMoveDocToCompany(doc.id, c.id)}
-                          className="text-xs gap-2"
-                        >
-                          <Building className="size-3" />
-                          {c.name}
-                        </DropdownMenuItem>
-                      ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              )}
-
-              {allDocs.length > 1 && (
-                <DropdownMenuItem
-                  /* Deleting used to fire straight off the menu item, taking any
-                     sub-pages with it and with no undo anywhere in the app. */
-                  onClick={() => {
-                    void prompts
-                      .confirmAction({
-                        title: `Delete “${doc.title}”?`,
-                        description:
-                          childDocs.length > 0
-                            ? `This also deletes ${childDocs.length} page${
-                                childDocs.length === 1 ? '' : 's'
-                              } inside it. This cannot be undone.`
-                            : 'This cannot be undone.',
-                        confirmLabel: 'Delete',
-                        destructive: true,
-                      })
-                      .then((confirmed) => {
-                        if (confirmed) onDeleteDoc(doc.id);
-                      });
-                  }}
-                  className="text-xs gap-2 text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="size-3" />
-                  Delete Doc
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            }
+          />
         </div>
       </div>
+      </EntityContextMenu>
 
       {/* Expanded Children */}
       {isExpanded && (

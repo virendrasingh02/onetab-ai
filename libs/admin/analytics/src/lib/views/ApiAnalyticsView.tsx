@@ -1,23 +1,26 @@
-import type { AdminAnalyticsFilter, AdminApiAnalytics } from '@org/types';
+import {
+  AreaChart,
+  ChartContainer,
+  DonutChart,
+  LineChart,
+} from '@org/analytics-ui';
+import type { AdminApiAnalytics } from '@org/types';
 import { Badge, Card } from '@org/ui';
 import { Activity, AlertCircle, Clock, Server } from 'lucide-react';
-import { useState } from 'react';
 import {
-  AnalyticsAreaChart,
   AnalyticsDataTable,
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  AnalyticsLineChart,
-  ChartContainer,
   type ColumnDef,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminApiAnalytics } from '../use-admin-analytics.js';
 
 type ApiTableRow = AdminApiAnalytics['apiTable'][number];
 
 export function ApiAnalyticsView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminApiAnalytics(filter);
 
@@ -25,12 +28,12 @@ export function ApiAnalyticsView() {
     {
       name: 'Successful Requests',
       value: data?.successfulRequests || 0,
-      color: '#10b981',
+      color: 'green',
     },
     {
       name: 'Failed Requests (4xx/5xx)',
       value: data?.failedRequests || 0,
-      color: '#ef4444',
+      color: 'var(--destructive)',
     },
   ];
 
@@ -132,8 +135,7 @@ export function ApiAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* KPI Cards */}
@@ -202,12 +204,12 @@ export function ApiAnalyticsView() {
             isEmpty={!data?.requestsOverTime?.length}
             height={320}
           >
-            <AnalyticsAreaChart
+            <AreaChart
               data={data?.requestsOverTime || []}
               xAxisKey="date"
               series={[
-                { dataKey: 'requests', name: 'Total Requests', color: '#3b82f6' },
-                { dataKey: 'errors', name: 'Errors (4xx/5xx)', color: '#ef4444' },
+                { dataKey: 'requests', name: 'Total Requests', color: 'blue' },
+                { dataKey: 'errors', name: 'Errors (4xx/5xx)', color: 'var(--destructive)' },
               ]}
               height={320}
               showLegend
@@ -224,7 +226,7 @@ export function ApiAnalyticsView() {
             isEmpty={(data?.totalRequests || 0) === 0}
             height={320}
           >
-            <AnalyticsDonutChart
+            <DonutChart
               data={statusDonut}
               centerLabel="Calls"
               centerValue={data?.totalRequests}
@@ -243,11 +245,11 @@ export function ApiAnalyticsView() {
         isEmpty={!data?.requestsOverTime?.length}
         height={260}
       >
-        <AnalyticsLineChart
+        <LineChart
           data={data?.requestsOverTime || []}
           xAxisKey="date"
           series={[
-            { dataKey: 'avgLatency', name: 'Average Latency', color: '#10b981' },
+            { dataKey: 'avgLatency', name: 'Average Latency', color: 'green' },
           ]}
           height={260}
           valueFormatter={(val) => `${val}ms`}

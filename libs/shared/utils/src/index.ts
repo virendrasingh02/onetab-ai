@@ -45,3 +45,23 @@ export {
   generateProjectIdentifier,
   isValidIdentifierPrefix,
 } from './lib/dynamic-identifier.js';
+
+export {
+  DATE_RANGE_PRESETS,
+  DEFAULT_DATE_RANGE,
+  formatDateRangeSpan,
+  getDateRangeLabel,
+  isDateRangePreset,
+  isSameDateRange,
+  parseDateRangeParams,
+  parseIsoDay,
+  resolveDateRange,
+  resolveQueryWindow,
+  toDateRangeQuery,
+  toIsoDay,
+  writeDateRangeParams,
+  type DateRangeOptions,
+  type DateRangePreset,
+  type DateRangeValue,
+  type ResolvedDateRange,
+} from './lib/date-range.js';

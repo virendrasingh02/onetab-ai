@@ -91,6 +91,8 @@ import {
   type ProjectViewMode,
 } from './kanban/ViewDisplayMenu.js';
 import { KanbanBoard } from './KanbanBoard.js';
+import { buildProjectActions } from './actions/project-actions.js';
+import { useWorkspacePermission } from '@org/web-workspace';
 import {
   useCurrentWorkspace,
   useCycleMutations,
@@ -290,6 +292,7 @@ export function AsanaProjectManager() {
   const projectMutations = useProjectMutations(workspaceId);
   const taskMutations = useTaskMutations(workspaceId);
   const prompts = usePromptDialog();
+  const { can } = useWorkspacePermission();
 
   const teamsQuery = useTeams(workspaceId);
   const initiativesQuery = useInitiatives(workspaceId);
@@ -341,11 +344,14 @@ export function AsanaProjectManager() {
     const openNewProject = searchParams.get('newProject') === 'true';
     const openImport = searchParams.get('import') === 'true';
     const showProjects = searchParams.get('view') === 'projects';
-    if (!openNewProject && !openImport && !showProjects && !cardParam) return;
+    // `?view=settings` is the sidebar's "Project settings" deep link.
+    const showSettings = searchParams.get('view') === 'settings';
+    if (!openNewProject && !openImport && !showProjects && !showSettings && !cardParam) return;
 
     if (openNewProject) setIsNewProjectOpen(true);
     if (openImport) setIsImportOpen(true);
     if (showProjects) setViewMode('projects');
+    if (showSettings) setViewMode('settings');
 
     const next = new URLSearchParams(searchParams);
     next.delete('newProject');
@@ -558,7 +564,11 @@ export function AsanaProjectManager() {
       destructive: true,
     });
     if (!confirmed) return;
+    await removeProject(projectId);
+  };
 
+  /** Deletes without asking — for callers (the action menus) that already confirmed. */
+  const removeProject = async (projectId: string) => {
     try {
       await projectMutations.remove.mutateAsync(projectId);
       if (selectedProjectId === projectId) {
@@ -574,6 +584,19 @@ export function AsanaProjectManager() {
     } catch {
       toast.error('Failed to delete project');
     }
+  };
+
+  const exportProject = async (id: string) => {
+    const p = projects.find((x) => x.id === id);
+    if (!p || !workspaceId) return;
+    const fileContent = await exportProjectBoard(workspaceId, p);
+    const blob = new Blob([fileContent], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${p.slug}-board.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleImport = async (result: ImportResult) => {
@@ -674,22 +697,38 @@ export function AsanaProjectManager() {
           onOpenProject={openProject}
           onNewProject={openNewProject}
           onImport={() => setIsImportOpen(true)}
-          onDeleteProject={handleDeleteProject}
-          onExportProject={async (id: string) => {
-            const p = projects.find((x) => x.id === id);
-            if (p && workspaceId) {
-              const fileContent = await exportProjectBoard(workspaceId, p);
-              const blob = new Blob([fileContent], {
-                type: 'application/json',
-              });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `${p.slug}-board.json`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }
-          }}
+          projectActions={(project) =>
+            buildProjectActions({
+              project,
+              can,
+              path: `/w/${workspaceSlug}/tasks/${project.id}`,
+              onOpen: () => openProject(project.id),
+              onOpenSettings: () => {
+                openProject(project.id);
+                setViewMode('settings');
+              },
+              onRename: async () => {
+                const name = await prompts.promptText({
+                  title: 'Rename project',
+                  label: 'Project name',
+                  defaultValue: project.name,
+                  confirmLabel: 'Rename',
+                });
+                if (!name || name === project.name) return;
+                await projectMutations.update.mutateAsync({
+                  projectId: project.id,
+                  input: { name },
+                });
+              },
+              onSetStatus: (status) =>
+                projectMutations.update.mutateAsync({
+                  projectId: project.id,
+                  input: { status },
+                }),
+              onDelete: () => removeProject(project.id),
+              onExport: () => exportProject(project.id),
+            })
+          }
         />
         {dialogs}
       </div>

@@ -300,6 +300,23 @@ export {
 } from './lib/components/date-picker.js';
 
 export {
+  ConnectionCard,
+  ConnectionList,
+  ConnectionStatusBadge,
+  isLinked,
+  needsReconnect,
+  toConnectionState,
+  type ConnectionCardProps,
+  type ConnectionListProps,
+  type ConnectionState,
+} from './lib/components/connection.js';
+
+export {
+  DateRangeFilter,
+  type DateRangeFilterProps,
+} from './lib/components/date-range-filter.js';
+
+export {
   Form,
   FormControl,
   FormDescription,
@@ -608,7 +625,11 @@ export {
   type ContextMenuShortcutProps,
   type ContextMenuSubTriggerProps,
   type ContextMenuSubContentProps,
+  type ContextMenuPoint,
+  contextMenuPointFromEvent,
 } from './lib/components/context-menu.js';
+
+export * from './lib/components/action-menu/index.js';
 
 export {
   Drawer,
@@ -823,7 +844,9 @@ export {
 } from './lib/components/language-select.js';
 
 export {
+  buildObjectActions,
   ObjectActionMenu,
+  type ObjectActionOptions,
   type ObjectActionMenuProps,
   type ObjectActionMenuTarget,
 } from './lib/components/object-action-menu.js';

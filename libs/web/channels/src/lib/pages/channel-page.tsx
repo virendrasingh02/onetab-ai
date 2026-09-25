@@ -503,6 +503,7 @@ function ChannelHeader({
                         src={m.user.avatarUrl ?? undefined}
                         seed={m.user.id}
                         size="xs"
+                        indicator={false}
                         className="size-5 ring-2 ring-background"
                       />
                     ))}

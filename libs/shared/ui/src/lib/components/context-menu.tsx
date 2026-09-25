@@ -1,5 +1,6 @@
 import { cn } from '@org/utils';
 import * as MenuPrimitive from '@radix-ui/react-menu';
+import { Slot } from '@radix-ui/react-slot';
 import { Check, ChevronRight, Circle } from 'lucide-react';
 import {
   createContext,
@@ -29,10 +30,12 @@ import {
 /* Context Menu State & Trigger                                               */
 /* -------------------------------------------------------------------------- */
 
-interface Point {
+export interface ContextMenuPoint {
   x: number;
   y: number;
 }
+
+type Point = ContextMenuPoint;
 
 interface ContextMenuContextValue {
   open: boolean;
@@ -44,22 +47,67 @@ interface ContextMenuContextValue {
 
 const ContextMenuContext = createContext<ContextMenuContextValue | null>(null);
 
+/**
+ * Where a `contextmenu` event should anchor the menu.
+ *
+ * A pointer right-click carries real coordinates. The keyboard gesture (the
+ * Menu key, Shift+F10) raises the same event but browsers report it at 0,0 —
+ * or at the focused element's corner — so anchor that one under the element
+ * that has focus instead of the top-left of the viewport.
+ */
+export function contextMenuPointFromEvent(
+  e: Pick<ReactMouseEvent, 'clientX' | 'clientY' | 'currentTarget' | 'target'>,
+): Point {
+  if (e.clientX !== 0 || e.clientY !== 0) return { x: e.clientX, y: e.clientY };
+  const el =
+    (e.target instanceof Element ? e.target : null) ??
+    (e.currentTarget instanceof Element ? e.currentTarget : null);
+  const rect = el?.getBoundingClientRect();
+  if (!rect) return { x: 0, y: 0 };
+  return { x: rect.left + Math.min(16, rect.width / 2), y: rect.bottom };
+}
+
 export interface ContextMenuProps {
   children: ReactNode;
   modal?: boolean;
   dir?: 'ltr' | 'rtl';
+  /** Controlled open state. Leave unset to let the menu manage itself. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Controlled anchor point (viewport coordinates). */
+  position?: Point;
 }
 
-export function ContextMenu({ children, modal = true, dir }: ContextMenuProps) {
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
+export function ContextMenu({
+  children,
+  modal = true,
+  dir,
+  open: openProp,
+  onOpenChange,
+  position: positionProp,
+}: ContextMenuProps) {
+  const [openState, setOpenState] = useState(false);
+  const [positionState, setPosition] = useState<Point>({ x: 0, y: 0 });
+  const open = openProp ?? openState;
+  const position = positionProp ?? positionState;
 
-  const handleContextMenu = useCallback((e: ReactMouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setPosition({ x: e.clientX, y: e.clientY });
-    setOpen(true);
-  }, []);
+  const setOpen = useCallback(
+    (next: boolean) => {
+      setOpenState(next);
+      onOpenChange?.(next);
+    },
+    [onOpenChange],
+  );
+
+  const handleContextMenu = useCallback(
+    (e: ReactMouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setPosition(contextMenuPointFromEvent(e));
+      setOpen(true);
+    },
+    [setOpen],
+  );
 
   return (
     <ContextMenuContext.Provider
@@ -74,28 +122,38 @@ export function ContextMenu({ children, modal = true, dir }: ContextMenuProps) {
 
 export interface ContextMenuTriggerProps extends ComponentPropsWithoutRef<'div'> {
   disabled?: boolean;
+  /**
+   * Merge the right-click handling onto the single child instead of wrapping
+   * it in a `<div>` — for list rows (`<li>`, `<article>`) whose markup must not
+   * change, and whose text must stay selectable.
+   */
+  asChild?: boolean;
 }
 
 export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerProps>(
-  ({ disabled = false, onContextMenu, className, children, ...props }, ref) => {
+  ({ disabled = false, asChild = false, onContextMenu, className, children, ...props }, ref) => {
     const context = useContext(ContextMenuContext);
 
     const handleContextMenu = (e: ReactMouseEvent<HTMLDivElement>) => {
       if (disabled) return;
       onContextMenu?.(e);
+      if (e.defaultPrevented && e.isPropagationStopped()) return;
       context?.handleContextMenu(e);
     };
 
+    const Comp = asChild ? Slot : 'div';
+
     return (
-      <div
+      <Comp
         ref={ref}
         data-slot="context-menu-trigger"
+        data-state={context?.open ? 'open' : 'closed'}
         onContextMenu={handleContextMenu}
-        className={cn('select-none', className)}
+        className={asChild ? className : cn('select-none', className)}
         {...props}
       >
         {children}
-      </div>
+      </Comp>
     );
   },
 );
@@ -192,7 +250,11 @@ export const ContextMenuItem = forwardRef<
           {icon}
         </span>
       )}
-      <span className="flex-1 text-left truncate">{children}</span>
+      {icon || shortcut ? (
+        <span className="flex-1 text-left truncate">{children}</span>
+      ) : (
+        children
+      )}
       {shortcut && (
         <span className="ml-auto inline-flex items-center pl-3">
           <KbdShortcut keys={shortcut} size="xs" variant="muted" />

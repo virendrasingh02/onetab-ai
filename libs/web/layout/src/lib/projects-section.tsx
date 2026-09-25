@@ -14,29 +14,24 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { ProjectDetail } from '@org/types';
+import { ProjectStatus, type ProjectDetail } from '@org/types';
 import {
+  ActionDropdownMenu,
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
+  EntityContextMenu,
   Hint,
   ProjectGlyph,
   type PromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useProjectMutations, useProjects } from '@org/web-work-tools';
-import { useCurrentWorkspace } from '@org/web-workspace';
 import {
-  Check,
-  Copy,
-  Pencil,
+  buildProjectActions,
+  useProjectMutations,
+  useProjects,
+} from '@org/web-work-tools';
+import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import {
   Plus,
-  Settings,
-  Share2,
-  Trash2,
 } from 'lucide-react';
 import { useCallback, useId, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -46,9 +41,8 @@ import {
   navIconClass,
   navRowClass,
   NavRowActions,
-  NavRowMenuTrigger,
+  NavRowMenuButton,
   Section,
-  useCopyLink,
   type NavDepth,
 } from './nav-primitives.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
@@ -74,9 +68,9 @@ export function ProjectNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const projectUrl = `${window.location.origin}/w/${workspaceSlug}/tasks/${project.id}`;
-  const { copied, copy: handleCopyLink } = useCopyLink(projectUrl);
-  const { copied: shared, copy: handleShare } = useCopyLink(projectUrl);
+  const { can } = useWorkspacePermission();
+  const projectPath = `/w/${workspaceSlug}/tasks/${project.id}`;
+  const isArchived = project.status === ProjectStatus.ARCHIVED;
 
   const handleRename = useCallback(async () => {
     const name = await prompts.promptText({
@@ -85,103 +79,68 @@ export function ProjectNavRow({
       defaultValue: project.name,
       confirmLabel: 'Rename',
     });
-    if (!name || !mutations) return;
-    mutations.update.mutate({ projectId: project.id, input: { name } });
+    if (!name || name === project.name || !mutations) return;
+    await mutations.update.mutateAsync({ projectId: project.id, input: { name } });
   }, [project.id, project.name, prompts, mutations]);
 
-  const handleDelete = useCallback(async () => {
-    const confirmed = await prompts.confirmAction({
-      title: `Delete “${project.name}”?`,
-      description:
-        'The project and every task on its board are deleted for everyone. This cannot be undone.',
-      confirmLabel: 'Delete project',
-      destructive: true,
-    });
-    if (!confirmed || !mutations) return;
-    mutations.remove.mutate(project.id);
-  }, [project.id, project.name, prompts, mutations]);
+  const actions = buildProjectActions({
+    project,
+    can,
+    path: projectPath,
+    onOpen: () => navigate(projectPath),
+    onOpenSettings: () => navigate(`${projectPath}?view=settings`),
+    onRename: mutations ? handleRename : undefined,
+    onSetStatus: mutations
+      ? (status) =>
+          mutations.update.mutateAsync({ projectId: project.id, input: { status } })
+      : undefined,
+    onDelete: mutations ? () => mutations.remove.mutateAsync(project.id) : undefined,
+    favorite: { isFavorite, onToggle: () => onToggleFavorite(project) },
+  });
 
   return (
-    <li className="group/row relative">
-      <NavLink
-        to={`/w/${workspaceSlug}/tasks/${project.id}`}
-        className={navRowClass(isSelected, {
-          depth,
-          extra: 'pr-14',
-        })}
-      >
-        <ProjectGlyph
-          icon={project.icon ?? undefined}
-          color={project.color ?? undefined}
-          size="sm"
-          className="shrink-0"
-        />
+    <EntityContextMenu
+      actions={actions}
+      scope={`project:${project.id}`}
+      entityType="project"
+      entity={project}
+      label={project.name}
+    >
+      <li className="group/row relative">
+        <NavLink
+          to={projectPath}
+          className={navRowClass(isSelected, {
+            depth,
+            extra: cn('pr-14', isArchived && 'opacity-65'),
+          })}
+        >
+          <ProjectGlyph
+            icon={project.icon ?? undefined}
+            color={project.color ?? undefined}
+            size="sm"
+            className="shrink-0"
+          />
 
-        <span className="flex-1 truncate">{project.name}</span>
-      </NavLink>
+          <span className="flex-1 truncate">{project.name}</span>
+        </NavLink>
 
-      <NavRowActions isPinned={isFavorite}>
-        <FavoriteToggle
-          isFavorite={isFavorite}
-          onToggle={() => onToggleFavorite(project)}
-        />
-
-        <DropdownMenu modal={false}>
-          <NavRowMenuTrigger label={`Options for ${project.name}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-56">
-            <DropdownMenuItem onSelect={handleRename} className="gap-2.5">
-              <Pencil className="size-4" />
-              <span>Rename</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onSelect={handleCopyLink}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                {copied ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                <span>{copied ? 'Link copied!' : 'Copy link'}</span>
-              </div>
-              <DropdownMenuShortcut>C</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(`/w/${workspaceSlug}/tasks/${project.id}`)
-              }
-              className="gap-2.5"
-            >
-              <Settings className="size-4" />
-              <span>Project settings</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem onSelect={handleShare} className="gap-2.5">
-              {shared ? (
-                <Check className="size-4 text-success-text" />
-              ) : (
-                <Share2 className="size-4" />
-              )}
-              <span>{shared ? 'Link copied!' : 'Sharing & Permissions'}</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={handleDelete}
-              variant="destructive"
-              className="gap-2.5"
-            >
-              <Trash2 className="size-4" />
-              <span>Delete project</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </NavRowActions>
-    </li>
+        <NavRowActions isPinned={isFavorite}>
+          <FavoriteToggle
+            isFavorite={isFavorite}
+            onToggle={() => onToggleFavorite(project)}
+          />
+          <ActionDropdownMenu
+            modal={false}
+            actions={actions}
+            scope={`project:${project.id}`}
+            entityType="project"
+            entity={project}
+            contentClassName="w-56"
+            trigger={<NavRowMenuButton label={`Options for ${project.name}`} />}
+          />
+        </NavRowActions>
+      </li>
+    </EntityContextMenu>
   );
 }
 

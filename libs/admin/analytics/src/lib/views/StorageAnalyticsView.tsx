@@ -1,17 +1,18 @@
-import type { AdminAnalyticsFilter } from '@org/types';
+import {
+  AreaChart,
+  ChartContainer,
+  DonutChart,
+} from '@org/analytics-ui';
 import { Card } from '@org/ui';
 import { FileText, HardDrive, Layers, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AnalyticsAreaChart,
   AnalyticsDataTable,
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
   type ColumnDef,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminStorageAnalytics } from '../use-admin-analytics.js';
 
 type StorageByWorkspaceRow = {
@@ -22,7 +23,8 @@ type StorageByWorkspaceRow = {
 };
 
 export function StorageAnalyticsView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminStorageAnalytics(filter);
 
@@ -34,7 +36,7 @@ export function StorageAnalyticsView() {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   };
 
-  const mimeColors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'];
+  const mimeColors = ['blue', 'green', 'violet', 'amber', 'pink', 'var(--muted-foreground)'];
 
   const typeDonut =
     data?.filesByType.map((item, idx) => ({
@@ -91,8 +93,7 @@ export function StorageAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* KPI Cards */}
@@ -161,11 +162,11 @@ export function StorageAnalyticsView() {
             isEmpty={!data?.storageGrowth?.length}
             height={320}
           >
-            <AnalyticsAreaChart
+            <AreaChart
               data={data?.storageGrowth || []}
               xAxisKey="date"
               series={[
-                { dataKey: 'value', name: 'Total Storage', color: '#3b82f6' },
+                { dataKey: 'value', name: 'Total Storage', color: 'blue' },
               ]}
               valueFormatter={formatBytes}
               height={320}
@@ -182,7 +183,7 @@ export function StorageAnalyticsView() {
             isEmpty={typeDonut.length === 0}
             height={320}
           >
-            <AnalyticsDonutChart
+            <DonutChart
               data={typeDonut}
               valueFormatter={formatBytes}
               centerLabel="Storage"

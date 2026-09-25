@@ -13,6 +13,8 @@ import {
   Spinner,
   toast,
   type RightPanelProfile,
+  ConnectionStatusBadge,
+  toConnectionState,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -208,12 +210,7 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
               />
             </div>
             <div className="flex items-center gap-1.5 pb-1">
-              <Badge
-                variant={isConnected ? 'primary' : 'outline'}
-                className="text-[10px] px-2 py-0.5 font-semibold"
-              >
-                {isConnected ? 'Connected' : 'Not Connected'}
-              </Badge>
+              <ConnectionStatusBadge state={toConnectionState(connectedMatch?.status)} />
             </div>
           </div>
 

@@ -19,6 +19,38 @@ export interface FirecrawlSearchResult {
   }>;
 }
 
+/** The slice of Firecrawl's page metadata this service reads. */
+interface FirecrawlPageMetadata {
+  title?: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
+/** Raw Firecrawl response bodies — `fetch().json()` is `unknown` under Node's types. */
+interface FirecrawlSearchResponse {
+  data?: Array<{
+    title?: string;
+    url: string;
+    description?: string;
+    markdown?: string;
+    content?: string;
+    metadata?: FirecrawlPageMetadata;
+  }>;
+}
+
+interface FirecrawlScrapeResponse {
+  data?: {
+    markdown?: string;
+    content?: string;
+    metadata?: FirecrawlPageMetadata;
+  };
+}
+
+interface FirecrawlCrawlResponse {
+  id?: string;
+  data?: Array<{ url: string; markdown: string; title?: string }>;
+}
+
 export interface FirecrawlScrapeResult {
   success: boolean;
   data: {
@@ -123,10 +155,10 @@ export class FirecrawlService {
         });
 
         if (response.ok) {
-          const json = await response.json();
+          const json = (await response.json()) as FirecrawlSearchResponse;
           return {
             success: true,
-            data: (json.data || []).map((item: any) => ({
+            data: (json.data || []).map((item) => ({
               title: item.title || item.metadata?.title || 'Search Result',
               url: item.url,
               description: item.description || item.metadata?.description || '',
@@ -217,7 +249,7 @@ export class FirecrawlService {
         });
 
         if (response.ok) {
-          const json = await response.json();
+          const json = (await response.json()) as FirecrawlScrapeResponse;
           return {
             success: true,
             data: {
@@ -288,7 +320,7 @@ export class FirecrawlService {
         });
 
         if (response.ok) {
-          const json = await response.json();
+          const json = (await response.json()) as FirecrawlCrawlResponse;
           return {
             success: true,
             id: json.id,

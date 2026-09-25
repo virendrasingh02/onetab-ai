@@ -1,5 +1,5 @@
 import { useCurrentUser } from '@org/auth';
-import type { AttentionItem, TrendDelta } from '@org/types';
+import type { AttentionItem } from '@org/types';
 import {
   Badge,
   Button,
@@ -8,10 +8,11 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  DateRangeFilter,
   EmptyState,
   Progress,
   SkeletonList,
-  TrendBadge,
+  StatCard,
   UserAvatar,
 } from '@org/ui';
 import {
@@ -22,6 +23,7 @@ import {
 } from '@org/utils';
 import {
   useAIUsageAnalytics,
+  useAnalyticsDateRange,
   useDashboardAnalytics,
   useStorageAnalytics,
 } from '@org/web-analytics';
@@ -62,46 +64,6 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-
-function MetricCard({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  trend,
-  className = '',
-}: {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  icon: typeof Users;
-  trend?: TrendDelta;
-  className?: string;
-}) {
-  return (
-    <Card className={className}>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-medium text-muted-foreground">
-            {title}
-          </CardTitle>
-          <div className="size-8 flex items-center justify-center rounded-md bg-accent text-accent-foreground">
-            <Icon className="size-4" aria-hidden />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-1">
-        <div className="font-semibold text-2xl tracking-tight text-foreground">
-          {value}
-        </div>
-        <div className="gap-2 flex items-center text-xs text-muted-foreground">
-          {trend ? <TrendBadge trend={trend} /> : null}
-          {subtitle ? <span>{subtitle}</span> : null}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 function AttentionCard({
   item,
@@ -220,10 +182,22 @@ export function DashboardPage() {
   const members = useMembers(workspaceId);
   const integrations = useIntegrations(workspaceId);
 
-  // Analytics queries (preserved for Analytics tab)
-  const dashboardAnalytics = useDashboardAnalytics(30);
-  const aiUsage = useAIUsageAnalytics(30);
-  const storageAnalytics = useStorageAnalytics(30);
+  // Analytics tab: one shared date range, and nothing fetched until the tab
+  // is opened — these are the three most expensive aggregations in the API
+  // and the home tab never shows them.
+  const analyticsRange = useAnalyticsDateRange(workspaceId);
+  const analyticsOptions = { enabled: activeTab === 'analytics' };
+  const dashboardAnalytics = useDashboardAnalytics(
+    workspaceId,
+    analyticsRange.query,
+    analyticsOptions,
+  );
+  const aiUsage = useAIUsageAnalytics(workspaceId, analyticsRange.query, analyticsOptions);
+  const storageAnalytics = useStorageAnalytics(
+    workspaceId,
+    analyticsRange.query,
+    analyticsOptions,
+  );
 
   const channelCount = channels.data?.length ?? 0;
   const memberCount = members.data?.length ?? 0;
@@ -283,8 +257,15 @@ export function DashboardPage() {
         </div>
 
         {/* Tab Switcher: Home Experience vs Analytics */}
-        <div className="flex items-center gap-2 bg-muted/60 p-1 rounded-lg border border-border shrink-0 self-start sm:self-auto">
+        <div
+          role="tablist"
+          aria-label="Dashboard view"
+          className="flex items-center gap-2 bg-muted/60 p-1 rounded-lg border border-border shrink-0 self-start sm:self-auto"
+        >
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'home'}
             onClick={() => setActiveTab('home')}
             className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
               activeTab === 'home'
@@ -301,6 +282,9 @@ export function DashboardPage() {
             ) : null}
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'analytics'}
             onClick={() => setActiveTab('analytics')}
             className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
               activeTab === 'analytics'
@@ -654,32 +638,50 @@ export function DashboardPage() {
           </div>
         </div>
       ) : (
-        /* ANALYTICS & METRICS TAB (Preserved Foundation) */
+        /* ANALYTICS & METRICS TAB */
         <div className="space-y-6">
+          <div className="gap-2 flex flex-wrap items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Trends compare the selected range with the period before it.
+            </p>
+            <DateRangeFilter value={analyticsRange.range} onChange={analyticsRange.setRange} />
+          </div>
           <div className="sm:grid-cols-2 lg:grid-cols-4 gap-4 grid grid-cols-1">
-            <MetricCard
-              title="Active Coworkers"
+            <StatCard
+              label="Active Coworkers"
               value={formatCount(dashboardAnalytics.data?.totals.members ?? memberCount)}
-              subtitle={`${memberCount} registered`}
+              hint={`${memberCount} registered`}
               icon={Users}
               trend={dashboardAnalytics.data?.headline.members}
             />
-            <MetricCard
-              title="Public & Private Channels"
+            <StatCard
+              label="Public & Private Channels"
               value={formatCount(dashboardAnalytics.data?.totals.channels ?? channelCount)}
-              subtitle={`${groups.favorites.length} pinned as favourite`}
+              hint={`${groups.favorites.length} pinned as favourite`}
               icon={Hash}
             />
-            <MetricCard
-              title="Cloud Storage Used"
-              value={formatBytes(storageAnalytics.data?.totalBytes ?? 0)}
-              subtitle="Files, attachments & canvas assets"
+            <StatCard
+              label="Cloud Storage Used"
+              value={
+                storageAnalytics.data
+                  ? formatBytes(storageAnalytics.data.totalBytes)
+                  : storageAnalytics.isError
+                    ? 'Unavailable'
+                    : '—'
+              }
+              hint="Files, attachments & canvas assets"
               icon={BarChart3}
             />
-            <MetricCard
-              title="AI Studio Assistant Tokens"
-              value={formatCount(aiUsage.data?.estimatedTokens ?? 0)}
-              subtitle="LLM inference consumed"
+            <StatCard
+              label="AI Studio Assistant Tokens"
+              value={
+                aiUsage.data
+                  ? formatCount(aiUsage.data.estimatedTokens)
+                  : aiUsage.isError
+                    ? 'Unavailable'
+                    : '—'
+              }
+              hint="LLM inference consumed"
               icon={Bot}
             />
           </div>

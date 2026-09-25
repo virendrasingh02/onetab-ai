@@ -1,4 +1,7 @@
-import type { AdminAnalyticsFilter } from '@org/types';
+import {
+  BarChart,
+  ChartContainer,
+} from '@org/analytics-ui';
 import { Card, Progress } from '@org/ui';
 import {
   Activity,
@@ -7,17 +10,16 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import { useState } from 'react';
 import {
-  AnalyticsBarChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminEngagementAnalytics } from '../use-admin-analytics.js';
 
 export function EngagementAnalyticsView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminEngagementAnalytics(filter);
 
@@ -41,8 +43,7 @@ export function EngagementAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* KPI Cards */}
@@ -111,11 +112,11 @@ export function EngagementAnalyticsView() {
         isEmpty={adoptionData.length === 0}
         height={300}
       >
-        <AnalyticsBarChart
+        <BarChart
           data={adoptionData}
           xAxisKey="feature"
           series={[
-            { dataKey: 'percentage', name: 'Adoption %', color: '#3b82f6' },
+            { dataKey: 'percentage', name: 'Adoption %', color: 'blue' },
           ]}
           valueFormatter={(val) => `${val}%`}
           height={300}

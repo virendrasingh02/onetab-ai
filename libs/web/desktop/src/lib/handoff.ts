@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { getDesktopApi, isDesktop, openExternal } from './desktop-api.js';
 
 export interface OpenAppOrWebOptions {
@@ -34,21 +33,6 @@ export function isMobileDevice(): boolean {
   const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
   const isSmallScreen = window.innerWidth <= 768;
   return mobileRegex.test(userAgent) || isSmallScreen;
-}
-
-/**
- * React hook that returns whether the client is on a mobile device/viewport.
- */
-export function useIsMobile(): boolean {
-  const [isMobile, setIsMobile] = useState<boolean>(() => isMobileDevice());
-
-  useEffect(() => {
-    const check = () => setIsMobile(isMobileDevice());
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  return isMobile;
 }
 
 /**

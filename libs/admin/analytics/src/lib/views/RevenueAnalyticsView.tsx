@@ -1,4 +1,8 @@
-import type { AdminAnalyticsFilter } from '@org/types';
+import {
+  AreaChart,
+  ChartContainer,
+  DonutChart,
+} from '@org/analytics-ui';
 import { Card, Progress } from '@org/ui';
 import {
   DollarSign,
@@ -7,18 +11,16 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { useState } from 'react';
 import {
-  AnalyticsAreaChart,
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminRevenueAnalytics } from '../use-admin-analytics.js';
 
 export function RevenueAnalyticsView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminRevenueAnalytics(filter);
 
@@ -29,7 +31,7 @@ export function RevenueAnalyticsView() {
       maximumFractionDigits: 0,
     }).format(val);
 
-  const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
+  const colors = ['blue', 'violet', 'green', 'amber'];
 
   const planDonut =
     data?.revenueByPlan.map((p, idx) => ({
@@ -51,8 +53,7 @@ export function RevenueAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* Security notice */}
@@ -129,11 +130,11 @@ export function RevenueAnalyticsView() {
             isEmpty={!data?.mrrTrend?.length}
             height={320}
           >
-            <AnalyticsAreaChart
+            <AreaChart
               data={data?.mrrTrend || []}
               xAxisKey="date"
               series={[
-                { dataKey: 'value', name: 'MRR', color: '#10b981' },
+                { dataKey: 'value', name: 'MRR', color: 'green' },
               ]}
               valueFormatter={formatCurrency}
               height={320}
@@ -151,7 +152,7 @@ export function RevenueAnalyticsView() {
             isEmpty={planDonut.length === 0}
             height={320}
           >
-            <AnalyticsDonutChart
+            <DonutChart
               data={planDonut}
               valueFormatter={formatCurrency}
               centerLabel="MRR"

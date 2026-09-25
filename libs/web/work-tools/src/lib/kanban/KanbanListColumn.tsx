@@ -53,6 +53,10 @@ export interface KanbanListColumnProps {
   index: number;
 
   onOpenCard: (cardId: string) => void;
+  /** The signed-in user, for a card's "Assign to me". */
+  currentUserId?: string;
+  /** "Convert to document" for a card. */
+  onConvertCardToDoc?: (card: KanbanCard) => Promise<unknown>;
 }
 
 export function KanbanListColumn({
@@ -65,6 +69,8 @@ export function KanbanListColumn({
   drag,
   index,
   onOpenCard,
+  currentUserId,
+  onConvertCardToDoc,
 }: KanbanListColumnProps) {
   const sectionRef = useRef<HTMLElement>(null);
   /** The `<ul>` — the drag engine measures the tiles inside it. */
@@ -363,6 +369,13 @@ export function KanbanListColumn({
                   cardId: card.id,
                   patch: { memberIds },
                 })
+              }
+              onUpdate={(patch) =>
+                dispatch({ type: 'card/update', cardId: card.id, patch })
+              }
+              currentUserId={currentUserId}
+              onConvertToDoc={
+                onConvertCardToDoc ? () => onConvertCardToDoc(card) : undefined
               }
             />
           ))}

@@ -1,4 +1,7 @@
-import type { AdminAnalyticsFilter } from '@org/types';
+import {
+  AreaChart,
+  ChartContainer,
+} from '@org/analytics-ui';
 import {
   Badge,
   Button,
@@ -15,20 +18,19 @@ import {
   MessageSquare,
   Users,
 } from 'lucide-react';
-import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  AnalyticsAreaChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminWorkspaceDetailAnalytics } from '../use-admin-analytics.js';
 
 export function WorkspaceDetailAnalyticsView() {
   const { workspaceId = '' } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
 
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminWorkspaceDetailAnalytics(workspaceId, filter);
@@ -112,8 +114,7 @@ export function WorkspaceDetailAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* KPI Cards */}
@@ -181,11 +182,11 @@ export function WorkspaceDetailAnalyticsView() {
           isEmpty={!data?.communication?.messageGrowth?.length}
           height={280}
         >
-          <AnalyticsAreaChart
+          <AreaChart
             data={data?.communication?.messageGrowth || []}
             xAxisKey="date"
             series={[
-              { dataKey: 'value', name: 'Messages', color: '#8b5cf6' },
+              { dataKey: 'value', name: 'Messages', color: 'violet' },
             ]}
             height={280}
           />
@@ -199,11 +200,11 @@ export function WorkspaceDetailAnalyticsView() {
           isEmpty={!data?.files?.storageGrowth?.length}
           height={280}
         >
-          <AnalyticsAreaChart
+          <AreaChart
             data={data?.files?.storageGrowth || []}
             xAxisKey="date"
             series={[
-              { dataKey: 'value', name: 'Storage Bytes', color: '#3b82f6' },
+              { dataKey: 'value', name: 'Storage Bytes', color: 'blue' },
             ]}
             valueFormatter={formatBytes}
             height={280}

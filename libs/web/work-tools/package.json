@@ -31,6 +31,7 @@
     "@org/web-coworkers": "*",
     "@org/web-integrations": "*",
     "@org/web-upload": "*",
+    "@org/web-workspace": "*",
     "@tanstack/react-query": "^5.101.4",
     "lucide-react": "^1.28.0",
     "react": "^19.0.0",

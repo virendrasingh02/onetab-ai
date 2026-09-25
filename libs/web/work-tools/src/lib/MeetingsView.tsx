@@ -5,11 +5,6 @@ import {
   Button,
   Card,
   confirm,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   EmptyState,
   Panel,
   SkeletonList,
@@ -19,6 +14,11 @@ import {
   TabsTrigger,
   toast,
   UserAvatarGroup,
+  ActionDropdownMenu,
+  copyToClipboard,
+  EntityContextMenu,
+  entityUrl,
+  type EntityAction,
 } from '@org/ui';
 import { cn, formatDateTime } from '@org/utils';
 import {
@@ -40,8 +40,11 @@ import {
   TriangleAlert,
   Video,
   X,
+  CopyPlus,
+  UserPlus,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MeetingDetailSheet } from './meetings/meeting-detail-sheet.js';
 import { MeetingScheduleDialog } from './meetings/meeting-schedule-dialog.js';
 import {
@@ -283,15 +286,12 @@ function MeetingAppCard({
 function MeetingCard({
   meeting,
   onOpen,
-  onEdit,
-  onCancel,
-  onDelete,
+  actions,
 }: {
   meeting: Meeting;
   onOpen: () => void;
-  onEdit: () => void;
-  onCancel: () => void;
-  onDelete: () => void;
+  /** The meeting's actions — its "⋯" menu, right-click menu and touch sheet. */
+  actions: () => EntityAction[];
 }) {
   const joinUrl = joinUrlOf(meeting);
   const live = isLive(meeting);
@@ -299,6 +299,13 @@ function MeetingCard({
   const attendees = meeting.participants.map((p) => p.user);
 
   return (
+    <EntityContextMenu
+      actions={actions}
+      scope={`meeting:${meeting.id}`}
+      entityType="meeting"
+      entity={meeting}
+      label={meeting.title}
+    >
     <Panel className="flex flex-col justify-between">
       <div>
         <div className="gap-2 flex items-start justify-between">
@@ -311,8 +318,12 @@ function MeetingCard({
             </p>
           </button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <ActionDropdownMenu
+            actions={actions}
+            scope={`meeting:${meeting.id}`}
+            entityType="meeting"
+            entity={meeting}
+            trigger={
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -320,46 +331,8 @@ function MeetingCard({
               >
                 <MoreHorizontal className="size-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onSelect={onOpen}>
-                <CalendarClock className="size-4" aria-hidden />
-                Open details
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={onEdit}
-                disabled={
-                  meeting.status === 'CANCELLED' || meeting.status === 'ENDED'
-                }
-              >
-                <Pencil className="size-4" aria-hidden />
-                Edit meeting
-              </DropdownMenuItem>
-              {joinUrl ? (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    void navigator.clipboard.writeText(joinUrl);
-                    toast.success('Join link copied');
-                  }}
-                >
-                  <Link2 className="size-4" aria-hidden />
-                  Copy join link
-                </DropdownMenuItem>
-              ) : null}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={onCancel}
-                disabled={meeting.status === 'CANCELLED'}
-              >
-                <X className="size-4" aria-hidden />
-                Cancel meeting
-              </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-                <Trash2 className="size-4" aria-hidden />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            }
+          />
         </div>
 
         {meeting.description ? (
@@ -414,6 +387,7 @@ function MeetingCard({
         </Button>
       )}
     </Panel>
+    </EntityContextMenu>
   );
 }
 
@@ -430,7 +404,7 @@ export function MeetingsView() {
     [],
   );
   const meetingsQuery = useMeetings(workspaceId, meetingsWindow);
-  const { cancel, remove } = useMeetingMutations(workspaceId);
+  const { create, cancel, remove } = useMeetingMutations(workspaceId);
   const integrations = useIntegrations(workspaceId);
   const { connect, disconnect } = useIntegrationMutations(workspaceId);
 
@@ -438,6 +412,17 @@ export function MeetingsView() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+
+  /* `?meeting=<id>` is a meeting's shareable link ("Copy link"). */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const meetingParam = searchParams.get('meeting');
+  useEffect(() => {
+    if (!meetingParam) return;
+    setDetailId(meetingParam);
+    const next = new URLSearchParams(searchParams);
+    next.delete('meeting');
+    setSearchParams(next, { replace: true });
+  }, [meetingParam, searchParams, setSearchParams]);
 
   const connectedProviders = useMemo(
     () =>
@@ -475,18 +460,118 @@ export function MeetingsView() {
     setScheduleOpen(true);
   };
 
-  const confirmCancel = (meeting: Meeting) => {
-    void (async () => {
-      await cancel.mutateAsync(meeting.id);
-      toast.success('Meeting cancelled');
-    })();
-  };
-
-  const confirmDelete = (meeting: Meeting) => {
-    void (async () => {
-      await remove.mutateAsync(meeting.id);
-      toast.success('Meeting deleted');
-    })();
+  /*
+   * Every meeting action, for the card's "⋯" menu, right-click and touch sheet.
+   * Cancel and delete confirm first — they used to fire straight off the menu.
+   */
+  const meetingActions = (meeting: Meeting): EntityAction[] => {
+    const joinUrl = joinUrlOf(meeting);
+    const closed = meeting.status === 'CANCELLED' || meeting.status === 'ENDED';
+    return [
+      {
+        id: 'open',
+        group: 'open',
+        label: 'Open details',
+        icon: CalendarClock,
+        run: () => setDetailId(meeting.id),
+      },
+      {
+        id: 'join',
+        group: 'open',
+        label: 'Open meeting link',
+        icon: ExternalLink,
+        hidden: !joinUrl,
+        run: () => window.open(joinUrl ?? '', '_blank', 'noopener,noreferrer'),
+      },
+      {
+        id: 'edit',
+        group: 'edit',
+        label: 'Edit or reschedule…',
+        icon: Pencil,
+        shortcut: 'E',
+        disabled: closed,
+        disabledReason: 'Cancelled and ended meetings can’t be edited',
+        run: () => openEdit(meeting),
+      },
+      {
+        id: 'participants',
+        group: 'edit',
+        label: 'Add participants…',
+        icon: UserPlus,
+        disabled: closed,
+        // Participants are managed from the details sheet.
+        run: () => setDetailId(meeting.id),
+      },
+      {
+        id: 'duplicate',
+        group: 'edit',
+        label: 'Duplicate',
+        icon: CopyPlus,
+        shortcut: 'D',
+        run: async () => {
+          const copy = await create.mutateAsync({
+            title: `${meeting.title} (copy)`,
+            description: meeting.description ?? undefined,
+            location: meeting.location ?? undefined,
+            startAt: meeting.startAt,
+            endAt: meeting.endAt,
+            projectId: meeting.projectId,
+            participantIds: meeting.participants.map((p) => p.user.id),
+          });
+          toast.success('Meeting duplicated', { description: 'Pick a new time for the copy.' });
+          openEdit(copy);
+        },
+      },
+      {
+        id: 'copy-link',
+        group: 'share',
+        label: 'Copy link',
+        icon: Link2,
+        shortcut: 'L',
+        run: () =>
+          copyToClipboard(entityUrl(`${window.location.pathname}?meeting=${meeting.id}`)),
+      },
+      {
+        id: 'copy-join',
+        group: 'share',
+        label: 'Copy join link',
+        icon: Link2,
+        hidden: !joinUrl,
+        run: () => copyToClipboard(joinUrl ?? '', 'Join link'),
+      },
+      {
+        id: 'cancel',
+        group: 'danger',
+        label: 'Cancel meeting…',
+        icon: X,
+        destructive: true,
+        hidden: meeting.status === 'CANCELLED' || meeting.status === 'ENDED',
+        confirm: {
+          title: `Cancel “${meeting.title}”?`,
+          description: 'Participants will see it as cancelled. It stays in the list for reference.',
+          confirmLabel: 'Cancel meeting',
+          cancelLabel: 'Keep meeting',
+          destructive: true,
+        },
+        successMessage: 'Meeting cancelled',
+        run: () => cancel.mutateAsync(meeting.id),
+      },
+      {
+        id: 'delete',
+        group: 'danger',
+        label: 'Delete…',
+        icon: Trash2,
+        destructive: true,
+        confirm: {
+          title: `Delete “${meeting.title}”?`,
+          description: 'The meeting, its notes and action items are removed for everyone. This cannot be undone.',
+          confirmLabel: 'Delete meeting',
+          destructive: true,
+        },
+        successMessage: 'Meeting deleted',
+        run: () => remove.mutateAsync(meeting.id),
+      },
+    ];
   };
 
   /** Catalogue apps this workspace has actually linked. */
@@ -654,9 +739,7 @@ export function MeetingsView() {
                         key={meeting.id}
                         meeting={meeting}
                         onOpen={() => setDetailId(meeting.id)}
-                        onEdit={() => openEdit(meeting)}
-                        onCancel={() => confirmCancel(meeting)}
-                        onDelete={() => confirmDelete(meeting)}
+                        actions={() => meetingActions(meeting)}
                       />
                     ))}
                   </div>

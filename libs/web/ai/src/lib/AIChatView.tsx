@@ -69,7 +69,7 @@ function useDaypartClock() {
 export function AIChatView() {
   const chat = useAIConversation();
   const user = useCurrentUser();
-  const { now, greeting, Icon: DaypartIcon } = useDaypartClock();
+  const { greeting } = useDaypartClock();
   const [isFavorite, setIsFavorite] = useState(false);
   const [copied, setCopied] = useState(false);
 

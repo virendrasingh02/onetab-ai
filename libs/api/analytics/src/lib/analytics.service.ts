@@ -10,11 +10,11 @@ import type {
   WorkspaceAnalytics,
 } from '@org/types';
 import {
-  normaliseDays,
-  startOfRange,
+  resolveAnalyticsWindow,
   toBreakdown,
   toDailySeries,
   toTrend,
+  type AnalyticsRangeQuery,
 } from './analytics.util.js';
 import { ERROR_EVENT_TYPE } from './error-tracking.service.js';
 import { HealthService } from './health.service.js';
@@ -65,13 +65,9 @@ export class AnalyticsService {
   /** The landing screen: headline trends, activity curve and platform health. */
   async getDashboard(
     workspaceId: string,
-    rawDays?: string | number,
+    range?: AnalyticsRangeQuery | string | number,
   ): Promise<DashboardOverview> {
-    const days = normaliseDays(rawDays);
-    const since = startOfRange(days);
-    const previousSince = new Date(
-      since.getTime() - days * 24 * 60 * 60 * 1_000,
-    );
+    const { since, until, previousSince, days } = resolveAnalyticsWindow(range);
 
     // Batched through `$transaction` rather than `Promise.all`: the array form
     // runs the queries sequentially on a single pooled connection, so a screen
@@ -105,7 +101,7 @@ export class AnalyticsService {
         _sum: { size: true },
       }),
       this.prisma.analyticsEvent.findMany({
-        where: { workspaceId, createdAt: { gte: previousSince } },
+        where: { workspaceId, createdAt: { gte: previousSince, lt: until } },
         select: { eventType: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
         take: MAX_SCAN,
@@ -113,7 +109,7 @@ export class AnalyticsService {
       // One scan of each windowed table, split into current vs. previous
       // period in memory — cheaper than a second round of count queries.
       this.prisma.workspaceMember.findMany({
-        where: { workspaceId, joinedAt: { gte: previousSince } },
+        where: { workspaceId, joinedAt: { gte: previousSince, lt: until } },
         select: { joinedAt: true },
         take: MAX_SCAN,
       }),
@@ -121,18 +117,18 @@ export class AnalyticsService {
         where: {
           workspaceId,
           kind: 'MESSAGE',
-          occurredAt: { gte: previousSince },
+          occurredAt: { gte: previousSince, lt: until },
         },
         select: { occurredAt: true },
         take: MAX_SCAN,
       }),
       this.prisma.task.findMany({
-        where: { workspaceId, createdAt: { gte: previousSince } },
+        where: { workspaceId, createdAt: { gte: previousSince, lt: until } },
         select: { createdAt: true },
         take: MAX_SCAN,
       }),
       this.prisma.aIChatSession.findMany({
-        where: { workspaceId, createdAt: { gte: previousSince } },
+        where: { workspaceId, createdAt: { gte: previousSince, lt: until } },
         select: { createdAt: true },
         take: MAX_SCAN,
       }),
@@ -177,7 +173,7 @@ export class AnalyticsService {
       },
       activitySeries: toDailySeries(
         currentEvents.map((e) => e.createdAt),
-        days,
+        { since, days },
       ),
       eventBreakdown: this.countBy(currentEvents.map((e) => e.eventType)),
       health,
@@ -190,13 +186,9 @@ export class AnalyticsService {
 
   async getWorkspaceAnalytics(
     workspaceId: string,
-    rawDays?: string | number,
+    range?: AnalyticsRangeQuery | string | number,
   ): Promise<WorkspaceAnalytics> {
-    const days = normaliseDays(rawDays);
-    const since = startOfRange(days);
-    const previousSince = new Date(
-      since.getTime() - days * 24 * 60 * 60 * 1_000,
-    );
+    const { since, until, previousSince, days } = resolveAnalyticsWindow(range);
 
     const [
       totalMembers,
@@ -222,7 +214,7 @@ export class AnalyticsService {
       this.prisma.project.count({ where: { workspaceId } }),
       this.prisma.upload.count({ where: { workspaceId } }),
       this.prisma.workspaceMember.count({
-        where: { workspaceId, lastSeenAt: { gte: since } },
+        where: { workspaceId, lastSeenAt: { gte: since, lt: until } },
       }),
       this.prisma.task.groupBy({
         by: ['status'],
@@ -239,7 +231,7 @@ export class AnalyticsService {
         take: 200,
       }),
       this.prisma.workspaceMember.findMany({
-        where: { workspaceId, joinedAt: { gte: since } },
+        where: { workspaceId, joinedAt: { gte: since, lt: until } },
         select: { joinedAt: true },
         take: MAX_SCAN,
       }),
@@ -247,7 +239,7 @@ export class AnalyticsService {
         where: {
           workspaceId,
           kind: 'MESSAGE',
-          occurredAt: { gte: previousSince },
+          occurredAt: { gte: previousSince, lt: until },
         },
         select: { occurredAt: true },
         take: MAX_SCAN,
@@ -283,7 +275,7 @@ export class AnalyticsService {
         .slice(0, 10),
       memberGrowth: toDailySeries(
         memberJoins.map((m) => m.joinedAt),
-        days,
+        { since, days },
       ),
       messageTrend: toTrend(
         currentMessages,
@@ -298,17 +290,16 @@ export class AnalyticsService {
 
   async getUserAnalytics(
     workspaceId: string,
-    rawDays?: string | number,
+    range?: AnalyticsRangeQuery | string | number,
   ): Promise<UserAnalytics> {
-    const days = normaliseDays(rawDays);
-    const since = startOfRange(days);
+    const { since, until, days } = resolveAnalyticsWindow(range);
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1_000);
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1_000);
 
     const [events, members, messageCounts, taskCounts] =
       await this.prisma.$transaction([
         this.prisma.analyticsEvent.findMany({
-          where: { workspaceId, createdAt: { gte: since } },
+          where: { workspaceId, createdAt: { gte: since, lt: until } },
           select: { userId: true, eventType: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
           take: MAX_SCAN,
@@ -326,12 +317,12 @@ export class AnalyticsService {
         }),
         this.prisma.recentActivity.groupBy({
           by: ['userId'],
-          where: { workspaceId, kind: 'MESSAGE', occurredAt: { gte: since } },
+          where: { workspaceId, kind: 'MESSAGE', occurredAt: { gte: since, lt: until } },
           _count: { _all: true },
         }),
         this.prisma.task.groupBy({
           by: ['assigneeId'],
-          where: { workspaceId, createdAt: { gte: since } },
+          where: { workspaceId, createdAt: { gte: since, lt: until } },
           _count: { _all: true },
         }),
       ]);
@@ -391,7 +382,7 @@ export class AnalyticsService {
       stickiness: mau === 0 ? 0 : Math.round((dau / mau) * 1000) / 10,
       activitySeries: toDailySeries(
         events.map((e) => e.createdAt),
-        days,
+        { since, days },
       ),
       eventBreakdown: this.countBy(events.map((e) => e.eventType)),
       topUsers: rows
@@ -409,10 +400,9 @@ export class AnalyticsService {
 
   async getAIUsageStats(
     workspaceId: string,
-    rawDays?: string | number,
+    range?: AnalyticsRangeQuery | string | number,
   ): Promise<AIUsageStats> {
-    const days = normaliseDays(rawDays);
-    const since = startOfRange(days);
+    const { since, until, days } = resolveAnalyticsWindow(range);
 
     const [
       totalSessions,
@@ -434,7 +424,7 @@ export class AnalyticsService {
         take: 500,
       }),
       this.prisma.agentExecutionLog.findMany({
-        where: { agent: { workspaceId }, executedAt: { gte: since } },
+        where: { agent: { workspaceId }, executedAt: { gte: since, lt: until } },
         select: {
           agentId: true,
           status: true,
@@ -446,13 +436,13 @@ export class AnalyticsService {
       this.prisma.workflowExecution.findMany({
         where: {
           workflow: { workspaceId },
-          startedAt: { gte: since },
+          startedAt: { gte: since, lt: until },
         },
         select: { status: true, startedAt: true, finishedAt: true },
         take: MAX_SCAN,
       }),
       this.prisma.aIChatSession.findMany({
-        where: { workspaceId, createdAt: { gte: since } },
+        where: { workspaceId, createdAt: { gte: since, lt: until } },
         select: { createdAt: true, messages: true },
         take: MAX_SCAN,
       }),
@@ -523,7 +513,7 @@ export class AnalyticsService {
           ...workflowRuns.map((r) => r.startedAt),
           ...windowSessions.map((s) => s.createdAt),
         ],
-        days,
+        { since, days },
       ),
       featureBreakdown: toBreakdown({
         'Chat sessions': windowSessions.length,
@@ -550,10 +540,9 @@ export class AnalyticsService {
 
   async getStorageAnalytics(
     workspaceId: string,
-    rawDays?: string | number,
+    range?: AnalyticsRangeQuery | string | number,
   ): Promise<StorageAnalytics> {
-    const days = normaliseDays(rawDays);
-    const since = startOfRange(days);
+    const { since, until, days } = resolveAnalyticsWindow(range);
 
     const [uploads, largest, recent] = await this.prisma.$transaction([
       this.prisma.upload.findMany({
@@ -579,7 +568,7 @@ export class AnalyticsService {
         take: 10,
       }),
       this.prisma.upload.findMany({
-        where: { workspaceId, createdAt: { gte: since } },
+        where: { workspaceId, createdAt: { gte: since, lt: until } },
         select: { createdAt: true },
         take: MAX_SCAN,
       }),
@@ -620,7 +609,7 @@ export class AnalyticsService {
       byType: toBreakdown(byType),
       growthSeries: toDailySeries(
         recent.map((u) => u.createdAt),
-        days,
+        { since, days },
       ),
       largestFiles: largest.map((file) => ({
         id: file.id,
@@ -640,10 +629,13 @@ export class AnalyticsService {
   // Raw activity feed (kept for the events drill-down)
   // -------------------------------------------------------------------------
 
-  async getUserActivity(workspaceId: string, rawDays?: string | number) {
-    const days = normaliseDays(rawDays);
+  async getUserActivity(
+    workspaceId: string,
+    range?: AnalyticsRangeQuery | string | number,
+  ) {
+    const { since, until } = resolveAnalyticsWindow(range);
     return this.prisma.analyticsEvent.findMany({
-      where: { workspaceId, createdAt: { gte: startOfRange(days) } },
+      where: { workspaceId, createdAt: { gte: since, lt: until } },
       orderBy: { createdAt: 'desc' },
       take: 500,
     });

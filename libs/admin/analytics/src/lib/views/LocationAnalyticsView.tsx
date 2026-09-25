@@ -1,26 +1,29 @@
-import type { AdminAnalyticsFilter, AdminLocationAnalytics } from '@org/types';
+import {
+  BarChart,
+  ChartContainer,
+  DonutChart,
+} from '@org/analytics-ui';
+import type { AdminLocationAnalytics } from '@org/types';
 import { Badge, Card, Progress } from '@org/ui';
 import { Globe, MapPin, ShieldCheck, Users } from 'lucide-react';
-import { useState } from 'react';
 import {
-  AnalyticsBarChart,
   AnalyticsDataTable,
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
   type ColumnDef,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminLocationAnalytics } from '../use-admin-analytics.js';
 
 type CountryRow = AdminLocationAnalytics['countries'][number];
 
 export function LocationAnalyticsView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminLocationAnalytics(filter);
 
-  const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#64748b'];
+  const colors = ['blue', 'green', 'violet', 'amber', 'pink', 'cyan', 'var(--muted-foreground)'];
 
   const countryDonut =
     data?.countries.slice(0, 6).map((c, idx) => ({
@@ -90,8 +93,7 @@ export function LocationAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* Privacy Notice Banner */}
@@ -168,11 +170,11 @@ export function LocationAnalyticsView() {
             isEmpty={!data?.countries?.length}
             height={320}
           >
-            <AnalyticsBarChart
+            <BarChart
               data={data?.countries?.slice(0, 10) || []}
               xAxisKey="name"
               series={[
-                { dataKey: 'usersCount', name: 'Active Users', color: '#3b82f6' },
+                { dataKey: 'usersCount', name: 'Active Users', color: 'blue' },
               ]}
               height={320}
             />
@@ -188,7 +190,7 @@ export function LocationAnalyticsView() {
             isEmpty={countryDonut.length === 0}
             height={320}
           >
-            <AnalyticsDonutChart
+            <DonutChart
               data={countryDonut}
               centerLabel="Jurisdictions"
               centerValue={data?.totalCountries}

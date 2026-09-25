@@ -58,6 +58,17 @@ export {
 } from './lib/auth-analytics.js';
 
 export {
+  DesktopBrowserSignIn,
+  type DesktopBrowserSignInProps,
+} from './lib/components/desktop-browser-sign-in.js';
+export {
+  desktopCallbackUrl,
+  readDesktopHandoff,
+  withDesktopHandoff,
+  type DesktopHandoff,
+} from './lib/desktop-handoff.js';
+
+export {
   TwoFactorChallengePanel,
   type TwoFactorChallengePanelProps,
 } from './lib/components/two-factor-challenge-panel.js';

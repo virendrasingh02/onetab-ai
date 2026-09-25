@@ -38,6 +38,12 @@ export {
   useDraftsStore,
   type ConversationDraft,
 } from './lib/drafts-store.js';
+export {
+  insertIntoComposer,
+  quoteMarkdown,
+  useComposerInsertStore,
+  type ComposerInsertRequest,
+} from './lib/composer-insert-store.js';
 
 export {
   DEFAULT_SLASH_COMMANDS,

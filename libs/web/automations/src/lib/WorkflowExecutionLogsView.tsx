@@ -1,5 +1,6 @@
 import {
   Badge,
+  Button,
   EmptyState,
   ErrorState,
   Page,
@@ -14,6 +15,7 @@ import {
   TableRow,
 } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
+import { useSearchParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Activity, AlertCircle, CheckCircle } from 'lucide-react';
 import { useWorkspaceExecutions } from './use-automations.js';
@@ -38,14 +40,42 @@ function formatDuration(startedAt: string, finishedAt: string): string {
 export function WorkflowExecutionLogsView() {
   const { workspaceId } = useCurrentWorkspace();
   const executions = useWorkspaceExecutions(workspaceId);
+  // `?workflow=<id>` narrows the log to one workflow ("View execution history").
+  const [searchParams, setSearchParams] = useSearchParams();
+  const workflowFilter = searchParams.get('workflow');
+  const rows = workflowFilter
+    ? (executions.data ?? []).filter((e) => e.workflowId === workflowFilter)
+    : (executions.data ?? []);
+  const filteredName = workflowFilter
+    ? executions.data?.find((e) => e.workflowId === workflowFilter)?.workflow.name
+    : undefined;
 
   return (
     <Page>
       <PageHeader
         title="Execution logs"
-        description="Audit trail, step payloads and run timings for every workflow."
+        description={
+          workflowFilter
+            ? `Runs of “${filteredName ?? 'this workflow'}”.`
+            : 'Audit trail, step payloads and run timings for every workflow.'
+        }
         icon={<Activity />}
         accent="green"
+        actions={
+          workflowFilter ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.delete('workflow');
+                setSearchParams(next, { replace: true });
+              }}
+            >
+              Show all workflows
+            </Button>
+          ) : undefined
+        }
       />
 
       <Panel flush>
@@ -59,7 +89,7 @@ export function WorkflowExecutionLogsView() {
             description="Something went wrong reaching the server."
             onRetry={() => executions.refetch()}
           />
-        ) : (executions.data?.length ?? 0) === 0 ? (
+        ) : rows.length === 0 ? (
           <EmptyState
             icon={<Activity />}
             title="No workflow runs yet"
@@ -78,7 +108,7 @@ export function WorkflowExecutionLogsView() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {executions.data?.map((execution) => {
+              {rows.map((execution) => {
                 const steps = stepCount(execution.stepResults);
                 const succeeded = execution.status === 'SUCCESS';
                 return (

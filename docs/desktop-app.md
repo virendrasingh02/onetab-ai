@@ -134,6 +134,40 @@ to the shell. Both the refresh token and the (short-lived) access token are
 encrypted at rest via `safeStorage` (DPAPI / Keychain / libsecret); the on-disk
 `onetab-auth-session.json` holds no plaintext token.
 
+### Sign-in happens in the browser only
+
+The shell has **no sign-in or sign-up form**. `/login` and `/register` render
+`DesktopBrowserSignIn` (`@org/auth`) when `isDesktop`: "Continue in Browser"
+(plus the existing phone-pairing QR as a second path). Every method — password,
+magic link, SSO, 2FA — lives once, in the web app, in the user's own browser.
+
+```text
+DesktopBrowserSignIn ──startBrowserLogin(intent)──▶ main: PKCE pair + 10 min timer
+        ▲                                              │ shell.openExternal(/login|/register?desktop=true&state&code_challenge)
+        │ auth flow-status events                      ▼
+        │ waiting · success · cancelled ·         browser LoginPage / RegisterPage
+        │ expired · timeout · error                    │ session exists → POST /auth/desktop/authorize (single-flight)
+        │                                              ▼
+main: handleAuthCallback ◀── onetab://auth/callback?code&state   (or ?error=cancelled&state)
+        │ POST /auth/desktop/exchange → safeStorage session → authSessionChanged
+```
+
+- The browser tab's last screen is `DesktopHandoffPanel`; its button re-sends the
+  *same* callback URL if the "Open OneTab AI?" prompt was dismissed.
+- `/auth/callback` deep links are handled in the main process and never
+  forwarded to the renderer (replaying them there would bounce back to
+  `onetab://`).
+- A duplicate callback within 30 s of a success is ignored rather than reported
+  as expired. Specs: `apps/desktop/src/main/auth-flow.spec.ts`.
+
+### Browser-only surfaces
+
+AI Agent Studio and the Admin console are separate browser apps and are not in
+the desktop bundle (`electron-builder.json` packs only `apps/web/dist`). They are
+declared `platforms: ['web']` in `FEATURE_REGISTRY` (`agentStudio`,
+`adminConsole`); the web app's `/w/:slug/agent-studio` entry point opens the
+system browser on desktop instead of navigating the app window.
+
 ### Production CORS
 
 `getCorsOrigins()` only auto-allows `localhost:4200–4209` outside production.

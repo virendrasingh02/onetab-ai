@@ -23,6 +23,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ComponentProps,
   type ReactNode,
 } from 'react';
 import { NavLink } from 'react-router-dom';
@@ -466,19 +467,37 @@ export function FavoriteToggle({
 export function NavRowMenuTrigger({ label }: { label: string }) {
   return (
     <DropdownMenuTrigger asChild>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={label}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-        className="size-5 p-0 text-muted-foreground hover:text-foreground"
-      >
-        <MoreHorizontal className="size-3.5" />
-      </Button>
+      <NavRowMenuButton label={label} />
     </DropdownMenuTrigger>
+  );
+}
+
+/**
+ * The row's bare "⋯" button — for `ActionDropdownMenu`, which supplies its own
+ * trigger wrapper. Spreads the props Radix injects (`onPointerDown`, aria
+ * state) so the menu can open from it.
+ */
+export function NavRowMenuButton({
+  label,
+  onClick,
+  ...props
+}: { label: string } & ComponentProps<typeof Button>) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={label}
+      {...props}
+      onClick={(event) => {
+        // Keep the click from reaching the row's link underneath.
+        event.preventDefault();
+        event.stopPropagation();
+        onClick?.(event);
+      }}
+      className="size-5 p-0 text-muted-foreground hover:text-foreground"
+    >
+      <MoreHorizontal className="size-3.5" />
+    </Button>
   );
 }
 

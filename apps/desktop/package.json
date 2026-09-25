@@ -5,6 +5,7 @@
   "private": true,
   "main": "./dist/main.js",
   "nx": {
+    "projectType": "application",
     "tags": ["type:app", "scope:desktop"],
     "targets": {
       "build": {

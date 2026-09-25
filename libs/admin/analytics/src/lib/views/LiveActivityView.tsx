@@ -21,7 +21,9 @@ import {
   User,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { AnalyticsHeader } from '../components/index.js';
+import {
+  AnalyticsHeader,
+} from '../components/index.js';
 import { useAdminLiveActivity } from '../use-admin-analytics.js';
 
 function getActivityIcon(type: string) {

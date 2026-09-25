@@ -16,6 +16,9 @@ import {
   TabsList,
   TabsTrigger,
   toast,
+  ActionDropdownMenu,
+  EntityContextMenu,
+  type EntityAction,
 } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -32,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { buildWorkflowActions, downloadWorkflowConfig } from './workflow-actions.js';
 import { useWorkflowMutations, useWorkflows } from './use-automations.js';
 
 /**
@@ -155,7 +159,7 @@ type WorkflowTab = 'all' | 'prebuilt' | 'mine';
 export function WorkflowListView() {
   const { workspaceId } = useCurrentWorkspace();
   const workflowsQuery = useWorkflows(workspaceId);
-  const { create, remove, trigger } = useWorkflowMutations(workspaceId);
+  const { create, update, remove, trigger } = useWorkflowMutations(workspaceId);
 
   const workflows = workflowsQuery.data ?? [];
 
@@ -170,6 +174,36 @@ export function WorkflowListView() {
 
   const openBuilder = (workflowId?: string) =>
     navigate(workflowId ? `builder?id=${workflowId}` : 'builder');
+
+  /*
+   * A saved workflow's contextual actions — the card's right-click menu, its
+   * "⋯" menu and the touch sheet all render this.
+   */
+  const workflowActions = (workflow: AutomationWorkflowDetail) =>
+    buildWorkflowActions({
+      workflow,
+      path: `${window.location.pathname.replace(/\/$/, '')}/builder?id=${workflow.id}`,
+      onOpen: () => openBuilder(workflow.id),
+      onRun: () => runNow(workflow),
+      onSetActive: (isActive) =>
+        update.mutateAsync({ workflowId: workflow.id, input: { isActive } }),
+      onViewHistory: () => navigate(`logs?workflow=${workflow.id}`),
+      onDuplicate: async () => {
+        const copy = await create.mutateAsync({
+          name: `${workflow.name} (copy)`,
+          description: workflow.description ?? undefined,
+          triggerType: workflow.triggerType,
+          nodesJson: workflow.nodesJson,
+          edgesJson: workflow.edgesJson,
+        });
+        toast.success(`Duplicated “${workflow.name}”`, {
+          description: 'The copy starts disabled.',
+          action: { label: 'Open', onClick: () => openBuilder(copy.id) },
+        });
+      },
+      onExport: () => downloadWorkflowConfig(workflow),
+      onDelete: () => remove.mutateAsync(workflow.id),
+    });
 
   const runNow = (workflow: AutomationWorkflowDetail) => {
     trigger.mutate(
@@ -352,6 +386,7 @@ export function WorkflowListView() {
                           onOpen={() => openBuilder(workflow.id)}
                           onRun={() => runNow(workflow)}
                           running={trigger.isPending}
+                          actions={() => workflowActions(workflow)}
                         />
                       </li>
                     ))}
@@ -400,6 +435,7 @@ export function WorkflowListView() {
                       onOpen={() => openBuilder(workflow.id)}
                       onRun={() => runNow(workflow)}
                       running={trigger.isPending}
+                      actions={() => workflowActions(workflow)}
                     />
                   </li>
                 ))}
@@ -432,15 +468,24 @@ function SavedWorkflowCard({
   onOpen,
   onRun,
   running,
+  actions,
 }: {
   workflow: AutomationWorkflowDetail;
   onOpen: () => void;
   onRun: () => void;
   running: boolean;
+  actions: () => EntityAction[];
 }) {
   const TriggerIcon = TRIGGER_ICON[workflow.triggerType] ?? Zap;
 
   return (
+    <EntityContextMenu
+      actions={actions}
+      scope={`workflow:${workflow.id}`}
+      entityType="workflow"
+      entity={workflow}
+      label={workflow.name}
+    >
     <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
       <div>
         <div className="mb-3 gap-2 flex items-center justify-between">
@@ -494,8 +539,21 @@ function SavedWorkflowCard({
           <SlidersHorizontal aria-hidden />
           <span className="sr-only">Edit {workflow.name}</span>
         </Button>
+        <ActionDropdownMenu
+          actions={actions}
+          scope={`workflow:${workflow.id}`}
+          entityType="workflow"
+          entity={workflow}
+          trigger={
+            <Button variant="ghost" size="icon-sm" title={`More actions for ${workflow.name}`}>
+              <MoreHorizontal aria-hidden />
+              <span className="sr-only">More actions for {workflow.name}</span>
+            </Button>
+          }
+        />
       </div>
     </Card>
+    </EntityContextMenu>
   );
 }
 

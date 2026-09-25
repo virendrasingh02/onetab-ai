@@ -169,3 +169,5 @@ export {
 } from './lib/use-context-links.js';
 export { CallDetailPage } from './lib/CallDetailPage.js';
 
+export { buildProjectActions, type ProjectActionOptions } from './lib/actions/project-actions.js';
+export { useConvertTaskToDocument } from './lib/use-work-tools.js';

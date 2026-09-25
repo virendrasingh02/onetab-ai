@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import {
-  BarChart,
   DataTable,
   LiveToggle,
   MetricCard,
@@ -22,6 +21,7 @@ import {
   formatBytes,
   formatDuration,
   formatNumber,
+  TimeSeriesChart,
 } from '@org/analytics-ui';
 import { usePerformanceMetrics } from './use-admin-analytics.js';
 
@@ -112,8 +112,8 @@ export function PerformanceMonitoringView() {
                 subtitle="Requests handled per minute"
                 className="lg:col-span-2"
               >
-                <BarChart
-                  series={data.throughputSeries}
+                <TimeSeriesChart
+                  points={data.throughputSeries}
                   accent="amber"
                   valueLabel="requests"
                 />

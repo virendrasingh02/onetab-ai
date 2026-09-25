@@ -71,4 +71,9 @@ export {
 } from './lib/endpoints.js';
 
 
+export {
+  consumeHandoffToken,
+  restoreBrowserSession,
+} from './lib/browser-session.js';
+
 export { queryKeys } from './lib/query-keys.js';

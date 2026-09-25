@@ -420,7 +420,8 @@ export class AgentsService {
       const prompt = String(context['input']);
       const run = await this.runtimeService.executeTurn(workspaceId, agent.id, prompt, {});
       const duration = Date.now() - startTime;
-      totalTokens += 250;
+      // Flat per-turn estimate until the runtime reports real usage.
+      const turnTokens = 250;
 
       await this.prisma.aIExecutionStep.create({
         data: {
@@ -431,7 +432,7 @@ export class AgentsService {
           inputJson: { prompt } as any,
           outputJson: { result: run.result, tools: run.tools } as any,
           latencyMs: duration,
-          tokensUsed: 250,
+          tokensUsed: turnTokens,
         },
       });
 
@@ -441,8 +442,8 @@ export class AgentsService {
           status: 'COMPLETED',
           finishedAt: new Date(),
           latencyMs: duration,
-          tokensUsed: 250,
-          totalCost: Number((250 * 0.000002).toFixed(5)),
+          tokensUsed: turnTokens,
+          totalCost: Number((turnTokens * 0.000002).toFixed(5)),
         },
       });
 
@@ -457,12 +458,12 @@ export class AgentsService {
             status: 'SUCCESS',
             output: run.result,
             latencyMs: duration,
-            tokensUsed: 250,
+            tokensUsed: turnTokens,
           },
         ],
         output: run.result,
         duration,
-        tokensUsed: 250,
+        tokensUsed: turnTokens,
         credits: 1,
       };
     }
@@ -489,7 +490,7 @@ export class AgentsService {
       const cfg = node.data?.config || node.data || {};
       const label = node.data?.label || node.id;
       let stepStatus: 'SUCCESS' | 'FAILED' | 'WAITING' = 'SUCCESS';
-      let stepOutput: unknown = {};
+      let stepOutput: unknown;
       let tokensUsed = 0;
 
       try {

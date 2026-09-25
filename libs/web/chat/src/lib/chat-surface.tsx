@@ -24,6 +24,8 @@ import {
   TypingIndicator,
   UnreadMentionsPill,
   ComposerWarning,
+  insertIntoComposer,
+  quoteMarkdown,
 } from '@org/chat-ui';
 import type {
   ConnectionState,
@@ -970,6 +972,18 @@ export function ChatSurface({
               .catch(() => toast.error('Could not copy the text.'));
           }}
           onCopyLink={() => copyMessageLink(message, 'Link copied')}
+          onQuote={
+            conversationId
+              ? () =>
+                  insertIntoComposer(
+                    // A reply quotes into the thread's own composer.
+                    message.threadRootId
+                      ? `${conversationId}-thread-${message.threadRootId}`
+                      : conversationId,
+                    quoteMarkdown(message.body, message.senderName),
+                  )
+              : undefined
+          }
           attachmentSlot={(() => {
             const uploaderContext = {
               senderId: message.senderId,
@@ -1076,6 +1090,7 @@ export function ChatSurface({
       roomKind,
       workspaceId,
       copyMessageLink,
+      conversationId,
     ],
   );
 

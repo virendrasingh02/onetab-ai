@@ -6,6 +6,7 @@ import {
 } from '@org/types';
 import {
   accentClasses,
+  ActionDropdownMenu,
   Badge,
   Button,
   Card,
@@ -20,6 +21,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
+  EntityContextMenu,
+  type EntityAction,
   Progress,
   ProjectGlyph,
   ScrollArea,
@@ -29,17 +32,14 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  ArrowRight,
   Check,
   ChevronDown,
-  Download,
   Filter,
   FolderKanban,
   Import,
   Kanban,
   LayoutGrid,
   Plus,
-  Trash2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { accentForHex } from './project-color.js';
@@ -70,10 +70,14 @@ export interface ProjectGalleryProps {
   activeProjectId: string | undefined;
   isLoading?: boolean;
   onOpenProject: (projectId: string) => void;
-  onDeleteProject: (projectId: string) => void;
   onNewProject: () => void;
   onImport: () => void;
-  onExportProject: (projectId: string) => void;
+  /**
+   * The project's full action list (open, rename, archive, delete…) — shared
+   * with the sidebar via `buildProjectActions`. Drives the card's "⋯" menu,
+   * its right-click menu and the touch action sheet.
+   */
+  projectActions: (project: ProjectDetail) => EntityAction[];
 }
 
 export function ProjectGallery({
@@ -82,10 +86,9 @@ export function ProjectGallery({
   activeProjectId,
   isLoading = false,
   onOpenProject,
-  onDeleteProject,
   onNewProject,
   onImport,
-  onExportProject,
+  projectActions,
 }: ProjectGalleryProps) {
   const [search, setSearch] = useState('');
   const [layout, setLayout] = useState<'grid' | 'compact'>('grid');
@@ -279,8 +282,15 @@ export function ProjectGallery({
               const isActive = project.id === activeProjectId;
 
               return (
-                <Card
+                <EntityContextMenu
                   key={project.id}
+                  actions={() => projectActions(project)}
+                  scope={`project:${project.id}`}
+                  entityType="project"
+                  entity={project}
+                  label={project.name}
+                >
+                <Card
                   onClick={() => onOpenProject(project.id)}
                   className={cn(
                     'cursor-pointer bg-surface text-foreground border-border',
@@ -320,49 +330,25 @@ export function ProjectGallery({
                         ) : null}
                       </div>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={(e) => e.stopPropagation()}
-                            title="Project options"
-                            className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                          >
-                            <ChevronDown className="size-3.5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="w-44"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <DropdownMenuLabel className="text-[11px]">
-                            {project.name}
-                          </DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => onOpenProject(project.id)}
-                            className="gap-2 text-xs"
-                          >
-                            <ArrowRight className="size-3.5 text-primary" />
-                            Open board
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onExportProject(project.id)}
-                            className="gap-2 text-xs"
-                          >
-                            <Download className="size-3.5 text-muted-foreground" />
-                            Export as JSON
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onDeleteProject(project.id)}
-                            className="gap-2 text-xs text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="size-3.5" />
-                            Delete project
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <ActionDropdownMenu
+                          actions={() => projectActions(project)}
+                          scope={`project:${project.id}`}
+                          entityType="project"
+                          entity={project}
+                          contentClassName="w-52"
+                          trigger={
+                            <button
+                              type="button"
+                              title="Project options"
+                              aria-label={`Options for ${project.name}`}
+                              className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            >
+                              <ChevronDown className="size-3.5" />
+                            </button>
+                          }
+                        />
+                      </div>
                     </div>
 
                     <CardDescription className="line-clamp-2 text-muted-foreground">
@@ -398,6 +384,7 @@ export function ProjectGallery({
                     </div>
                   </CardContent>
                 </Card>
+                </EntityContextMenu>
               );
             })}
           </div>

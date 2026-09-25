@@ -119,8 +119,32 @@ export function DropdownMenuCheckboxItem({
 export function DropdownMenuRadioItem({
   className,
   children,
+  indicator = 'dot',
   ...props
-}: ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+}: ComponentProps<typeof DropdownMenuPrimitive.RadioItem> & {
+  /**
+   * `dot` (default) sits in the left gutter like a radio; `check` trails the
+   * label, for single-select pickers (date range, sort order) where the row
+   * reads as "this one is active" rather than as one of a radio set.
+   */
+  indicator?: 'dot' | 'check';
+}) {
+  if (indicator === 'check') {
+    return (
+      <DropdownMenuPrimitive.RadioItem
+        className={cn(menuItemClasses, 'pr-8', className)}
+        {...props}
+      >
+        {children}
+        <span className="right-2 size-3.5 absolute flex items-center justify-center">
+          <DropdownMenuPrimitive.ItemIndicator>
+            <Check className="size-3.5 text-primary" />
+          </DropdownMenuPrimitive.ItemIndicator>
+        </span>
+      </DropdownMenuPrimitive.RadioItem>
+    );
+  }
+
   return (
     <DropdownMenuPrimitive.RadioItem
       className={cn(menuItemClasses, menuIndicatorInset, className)}

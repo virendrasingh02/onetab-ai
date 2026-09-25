@@ -2,16 +2,11 @@ import { useCurrentUser } from '@org/auth';
 import { useUserPresenceMap } from '@org/realtime';
 import { WorkspacePermission, WorkspaceRole } from '@org/types';
 import {
+  ActionDropdownMenu,
   Badge,
   Button,
-  confirm,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   EmptyState,
+  EntityContextMenu,
   LocalTime,
   SearchInput,
   Skeleton,
@@ -19,6 +14,7 @@ import {
   SkeletonText,
   UserAvatar,
   useRightPanelStore,
+  type EntityAction,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
 import {
@@ -27,7 +23,16 @@ import {
   useWorkspaceStore,
   type WorkspaceState,
 } from '@org/web-workspace';
-import { MoreHorizontal, UserPlus, Users } from 'lucide-react';
+import {
+  MessageSquare,
+  MoreHorizontal,
+  ShieldCheck,
+  UserMinus,
+  UserPlus,
+  UserRound,
+  Users,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { useMemberMutations, useMembers } from '../use-members.js';
 
@@ -39,7 +44,8 @@ const ROLE_BADGE: Record<string, 'primary' | 'info' | 'neutral'> = {
 };
 
 export function MembersPage() {
-  const { workspaceId } = useCurrentWorkspace();
+  const { workspaceId, workspace } = useCurrentWorkspace();
+  const navigate = useNavigate();
   const members = useMembers(workspaceId);
   const { updateRole, remove } = useMemberMutations(workspaceId);
   const currentUser = useCurrentUser();
@@ -165,14 +171,8 @@ export function MembersPage() {
                     ? 'busy'
                     : 'offline');
 
-                return (
-                  <li
-                    key={member.id}
-                    className="gap-3 px-4 py-3 flex items-center justify-between"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
+                const name = member.user.displayName ?? member.user.name;
+                const openProfile = () =>
                         openProfilePanel({
                           userId: member.user.id,
                           name: member.user.displayName ?? member.user.name,
@@ -187,8 +187,71 @@ export function MembersPage() {
                             memberStatus === 'away' || memberStatus === 'busy'
                               ? 'unavailable'
                               : memberStatus,
-                        })
-                      }
+                        });
+
+                /* Everyone can view and message; role and removal need
+                   `manage_members` (the API's guard) and never touch the
+                   owner — ownership moves only through an explicit transfer. */
+                const manageable = canManage && !isOwner && !isSelf;
+                const actions: EntityAction[] = [
+                  { id: 'profile', group: 'open', label: 'View profile', icon: UserRound, run: openProfile },
+                  {
+                    id: 'message',
+                    group: 'open',
+                    label: isSelf ? 'Open your notes' : `Message ${name}`,
+                    icon: MessageSquare,
+                    hidden: !workspace?.slug,
+                    run: () => navigate(`/w/${workspace?.slug}/dms/${member.user.id}`),
+                  },
+                  {
+                    id: 'role',
+                    group: 'manage',
+                    label: 'Change role',
+                    icon: ShieldCheck,
+                    hidden: !manageable,
+                    children: [WorkspaceRole.ADMIN, WorkspaceRole.MEMBER, WorkspaceRole.GUEST].map(
+                      (role): EntityAction => ({
+                        id: `role-${role}`,
+                        label: role.charAt(0) + role.slice(1).toLowerCase(),
+                        checked: member.role === role,
+                        disabled: member.role === role,
+                        successMessage: `${name} is now ${role.toLowerCase()}`,
+                        run: () =>
+                          updateRole.mutateAsync({ userId: member.user.id, input: { role } }),
+                      }),
+                    ),
+                  },
+                  {
+                    id: 'remove',
+                    group: 'danger',
+                    label: 'Remove from workspace…',
+                    icon: UserMinus,
+                    destructive: true,
+                    hidden: !manageable,
+                    confirm: {
+                      title: `Remove ${name} from this workspace?`,
+                      description:
+                        'They lose access immediately. Their content stays, and you can re-invite them later.',
+                      confirmLabel: 'Remove',
+                      destructive: true,
+                    },
+                    run: () => remove.mutateAsync(member.user.id),
+                  },
+                ];
+
+                return (
+                  <EntityContextMenu
+                    key={member.id}
+                    actions={actions}
+                    scope={`member:${member.user.id}`}
+                    entityType="member"
+                    entity={member}
+                    label={name}
+                  >
+                  <li className="gap-3 px-4 py-3 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={openProfile}
                       className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left transition-opacity hover:opacity-80"
                     >
                       <UserAvatar
@@ -228,10 +291,13 @@ export function MembersPage() {
                       {member.role.toLowerCase()}
                     </Badge>
 
-                    {/* The owner is only reassignable through an explicit transfer. */}
-                    {canManage && !isOwner && !isSelf ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                    {manageable ? (
+                      <ActionDropdownMenu
+                        actions={actions}
+                        scope={`member:${member.user.id}`}
+                        entityType="member"
+                        entity={member}
+                        trigger={
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -239,50 +305,11 @@ export function MembersPage() {
                           >
                             <MoreHorizontal />
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Change role</DropdownMenuLabel>
-                          {[
-                            WorkspaceRole.ADMIN,
-                            WorkspaceRole.MEMBER,
-                            WorkspaceRole.GUEST,
-                          ].map((role) => (
-                            <DropdownMenuItem
-                              key={role}
-                              disabled={member.role === role}
-                              onClick={() =>
-                                updateRole.mutate({
-                                  userId: member.user.id,
-                                  input: { role },
-                                })
-                              }
-                            >
-                              {role.toLowerCase()}
-                            </DropdownMenuItem>
-                          ))}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => {
-                              const name =
-                                member.user.displayName ?? member.user.name;
-                              void confirm({
-                                title: `Remove ${name} from this workspace?`,
-                                description:
-                                  'They lose access immediately. Their content stays, and you can re-invite them later.',
-                                confirmLabel: 'Remove',
-                                destructive: true,
-                              }).then((ok) => {
-                                if (ok) remove.mutate(member.user.id);
-                              });
-                            }}
-                          >
-                            Remove from workspace
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        }
+                      />
                     ) : null}
                   </li>
+                  </EntityContextMenu>
                 );
               })}
             </ul>

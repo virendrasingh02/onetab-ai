@@ -1,6 +1,6 @@
 import type { Message } from '@org/types';
 import { TooltipProvider } from '@org/ui';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { MessageRenderer } from './message-renderer.js';
@@ -470,6 +470,90 @@ describe('MessageRenderer', () => {
       await openMenu(user);
       await user.keyboard('e');
       expect(onEdit).toHaveBeenCalledTimes(1);
+    });
+  });
+  describe('Right-click menu', () => {
+    const rightClick = () =>
+      fireEvent.contextMenu(screen.getByRole('article'), { clientX: 40, clientY: 40 });
+
+    it('offers every action, including the ones the hover toolbar shows', async () => {
+      const onOpenThread = vi.fn();
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ body: 'Right click me', timestamp: Date.now() })}
+          isOwn
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onOpenThread={onOpenThread}
+          onForward={vi.fn()}
+          onToggleSave={vi.fn()}
+          onReact={vi.fn()}
+          onQuote={vi.fn()}
+          onCopyLink={vi.fn()}
+        />,
+      );
+      rightClick();
+
+      expect(await screen.findByRole('menuitem', { name: /Reply in thread/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Quote message/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Add reaction/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Save for later/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Forward message/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Edit message/i })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Delete message/i })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('menuitem', { name: /Reply in thread/i }));
+      await vi.waitFor(() => expect(onOpenThread).toHaveBeenCalledTimes(1));
+    });
+
+    it('never offers edit or delete on someone else’s message to a non-moderator', async () => {
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ body: 'Not mine', timestamp: Date.now() })}
+          isOwn={false}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onCopyLink={vi.fn()}
+        />,
+      );
+      rightClick();
+      expect(await screen.findByRole('menuitem', { name: /Copy link/i })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Edit message/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Delete message/i })).not.toBeInTheDocument();
+    });
+
+    it('lets a moderator delete someone else’s message', async () => {
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ body: 'Spam', timestamp: Date.now() })}
+          isOwn={false}
+          canModerateMessages
+          onDelete={vi.fn()}
+        />,
+      );
+      rightClick();
+      expect(await screen.findByRole('menuitem', { name: /Delete message/i })).toBeInTheDocument();
+      expect(screen.getByText('Moderator')).toBeInTheDocument();
+    });
+
+    it('keeps the browser menu over a text selection so Copy still works', () => {
+      renderWithProviders(
+        <MessageRenderer
+          message={createMockMessage({ body: 'Select this text', timestamp: Date.now() })}
+          isOwn={false}
+          onCopyLink={vi.fn()}
+        />,
+      );
+      const text = screen.getByText('Select this text');
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(range);
+
+      const notPrevented = fireEvent.contextMenu(text, { clientX: 5, clientY: 5 });
+      expect(notPrevented).toBe(true);
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      window.getSelection()?.removeAllRanges();
     });
   });
 });

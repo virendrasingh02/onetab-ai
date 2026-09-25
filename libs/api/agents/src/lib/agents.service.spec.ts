@@ -16,8 +16,15 @@ function makeService() {
   };
   const entitiesService = {} as any;
   const runtimeService = {} as any;
+  const mcpRegistry = {} as any;
   const events = { emit: vi.fn() };
-  const service = new AgentsService(prisma, entitiesService, runtimeService, events as any);
+  const service = new AgentsService(
+    prisma,
+    entitiesService,
+    runtimeService,
+    mcpRegistry,
+    events as any,
+  );
   return { service, prisma, events };
 }
 

@@ -90,22 +90,22 @@ export const queryKeys = {
   },
   analytics: {
     all: (workspaceId: string) => ['analytics', workspaceId] as const,
-    dashboard: (workspaceId: string, days: number) =>
-      ['analytics', workspaceId, 'dashboard', days] as const,
-    workspace: (workspaceId: string, days: number) =>
-      ['analytics', workspaceId, 'workspace', days] as const,
-    users: (workspaceId: string, days: number) =>
-      ['analytics', workspaceId, 'users', days] as const,
-    aiUsage: (workspaceId: string, days: number) =>
-      ['analytics', workspaceId, 'ai-usage', days] as const,
-    storage: (workspaceId: string, days: number) =>
-      ['analytics', workspaceId, 'storage', days] as const,
+    dashboard: (workspaceId: string, range: { from: string; to: string }) =>
+      ['analytics', workspaceId, 'dashboard', range.from, range.to] as const,
+    workspace: (workspaceId: string, range: { from: string; to: string }) =>
+      ['analytics', workspaceId, 'workspace', range.from, range.to] as const,
+    users: (workspaceId: string, range: { from: string; to: string }) =>
+      ['analytics', workspaceId, 'users', range.from, range.to] as const,
+    aiUsage: (workspaceId: string, range: { from: string; to: string }) =>
+      ['analytics', workspaceId, 'ai-usage', range.from, range.to] as const,
+    storage: (workspaceId: string, range: { from: string; to: string }) =>
+      ['analytics', workspaceId, 'storage', range.from, range.to] as const,
     errors: (workspaceId: string, hours: number) =>
       ['analytics', workspaceId, 'errors', hours] as const,
     reports: (workspaceId: string) =>
       ['analytics', workspaceId, 'reports'] as const,
-    report: (workspaceId: string, type: string, days: number) =>
-      ['analytics', workspaceId, 'reports', type, days] as const,
+    report: (workspaceId: string, type: string, range: { from: string; to: string }) =>
+      ['analytics', workspaceId, 'reports', type, range.from, range.to] as const,
     /** Not workspace-scoped — the whole API process is the subject. */
     platform: () => ['analytics', 'platform'] as const,
     performance: () => ['analytics', 'platform', 'performance'] as const,

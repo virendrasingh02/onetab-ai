@@ -18,12 +18,12 @@ import { useCurrentUser } from '@org/auth';
 import { useUserPresenceMap } from '@org/realtime';
 import type { WorkspaceMember } from '@org/types';
 import {
+  ActionDropdownMenu,
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
+  copyToClipboard,
+  DropdownMenuLabel,
+  EntityContextMenu,
+  entityUrl,
   Hint,
   PRESENCE_LABELS,
   PresenceDot,
@@ -32,10 +32,15 @@ import {
   UserAvatar,
   GroupAvatar,
   DirectMessagesNavSkeleton,
+  useRightPanelStore,
+  type EntityAction,
   type PresenceStatus,
 } from '@org/ui';
 import {
   useDirectMessageActivity,
+  useIsFlaggedUnread,
+  useMarkDirectMessageSeen,
+  useMarkDirectMessageUnread,
   useNotificationFeed,
   type ActivityIndicator,
 } from '@org/notifications';
@@ -51,31 +56,28 @@ import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bell,
   BellOff,
-  Check,
-  Copy,
+  Link2,
   Mail,
+  MailOpen,
+  MessageSquare,
   Plus,
   Star,
   UserRound,
 } from 'lucide-react';
 import {
-  useCallback,
   useEffect,
   useId,
   useMemo,
-  useRef,
-  useState,
 } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useMatch, useNavigate } from 'react-router-dom';
 import {
   FavoriteToggle,
   navActionClass,
   navIconClass,
   navRowClass,
   NavRowActions,
-  NavRowMenuTrigger,
+  NavRowMenuButton,
   Section,
-  useCopyLink,
 } from './nav-primitives.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
 
@@ -84,6 +86,7 @@ import { useSidebarStore } from './navigation/sidebar-store.js';
  */
 function DirectMessageRow({
   member,
+  workspaceId,
   workspaceSlug,
   isFavorite,
   isMuted,
@@ -92,6 +95,7 @@ function DirectMessageRow({
   onToggleMuted,
 }: {
   member: WorkspaceMember;
+  workspaceId: string | undefined;
   workspaceSlug: string;
   isFavorite: boolean;
   isMuted: boolean;
@@ -100,8 +104,6 @@ function DirectMessageRow({
   onToggleMuted: () => void;
 }) {
   const navigate = useNavigate();
-  const [unreadState, setUnreadState] = useState(false);
-  const unreadTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const presenceMap = useUserPresenceMap();
   const name = member.user.displayName ?? member.user.name;
   const livePresence = presenceMap[member.user.id];
@@ -109,19 +111,87 @@ function DirectMessageRow({
     livePresence?.status ?? toPresenceStatus(member.user.presence);
   const hasUnread = !isMuted && !!activity && activity.level !== 'none';
   const to = `/w/${workspaceSlug}/dms/${member.user.id}`;
-  const { copied, copy: handleCopyLink } = useCopyLink(
-    `${window.location.origin}${to}`,
-  );
+  const markUnread = useMarkDirectMessageUnread(workspaceId);
+  const markSeen = useMarkDirectMessageSeen(workspaceId);
+  const flagged = useIsFlaggedUnread(workspaceId, `dm:${member.user.id}`);
+  const isActive = useMatch(to) !== null;
 
-  useEffect(() => () => clearTimeout(unreadTimer.current), []);
+  // Opening the conversation is what reads it — including a manual unread flag.
+  useEffect(() => {
+    if (isActive && flagged) markSeen(member.user.id);
+  }, [isActive, flagged, markSeen, member.user.id]);
 
-  const handleMarkUnread = useCallback(() => {
-    setUnreadState(true);
-    clearTimeout(unreadTimer.current);
-    unreadTimer.current = setTimeout(() => setUnreadState(false), 2000);
-  }, []);
+  const actions: EntityAction[] = [
+    {
+      id: 'open',
+      group: 'open',
+      label: 'Open conversation',
+      icon: MessageSquare,
+      run: () => navigate(to),
+    },
+    hasUnread || flagged
+      ? {
+          id: 'mark-read',
+          group: 'state',
+          label: 'Mark as read',
+          icon: MailOpen,
+          shortcut: 'R',
+          run: () => markSeen(member.user.id),
+        }
+      : {
+          id: 'mark-unread',
+          group: 'state',
+          label: 'Mark as unread',
+          icon: Mail,
+          shortcut: 'U',
+          run: () => markUnread(member.user.id),
+          successMessage: `Conversation with ${name} marked as unread`,
+        },
+    {
+      id: 'favorite',
+      group: 'state',
+      label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+      icon: Star,
+      shortcut: 'F',
+      run: onToggleFavorite,
+    },
+    {
+      id: 'mute',
+      group: 'state',
+      label: isMuted ? 'Unmute conversation' : 'Mute conversation',
+      icon: isMuted ? Bell : BellOff,
+      shortcut: 'M',
+      run: onToggleMuted,
+    },
+    {
+      id: 'copy-link',
+      group: 'share',
+      label: 'Copy link',
+      icon: Link2,
+      shortcut: 'C',
+      run: () => copyToClipboard(entityUrl(to)),
+    },
+    {
+      id: 'profile',
+      group: 'profile',
+      label: 'View profile',
+      icon: UserRound,
+      run: () => {
+        navigate(to);
+        useRightPanelStore.getState().openProfile({
+          userId: member.user.id,
+          name,
+          avatarUrl: member.user.avatarUrl ?? undefined,
+          role: member.role,
+          timezone: member.user.timezone,
+          statusEmoji: member.user.statusEmoji,
+          statusText: member.user.statusText,
+        });
+      },
+    },
+  ];
 
-  return (
+  const row = (
     <li className="group/row relative">
       <NavLink
         to={to}
@@ -173,102 +243,47 @@ function DirectMessageRow({
       <NavRowActions isPinned={isFavorite}>
         <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
 
-        <DropdownMenu modal={false}>
-          <NavRowMenuTrigger label={`Options for ${name}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-60">
-            <div className="px-2 py-1.5 border-b border-border/60">
-              <div className="gap-2 flex items-center">
+        <ActionDropdownMenu
+          modal={false}
+          actions={actions}
+          scope={`dm:${member.user.id}`}
+          entityType="direct-message"
+          entity={member}
+          trigger={<NavRowMenuButton label={`Options for ${name}`} />}
+          header={
+            <DropdownMenuLabel className="normal-case tracking-normal border-b border-border/60 mb-1 pb-1.5">
+              <span className="gap-2 flex items-center">
                 <PresenceDot presence={presence} hint={false} />
                 <span className="text-xs font-semibold truncate text-foreground">
                   {name}
                 </span>
-              </div>
-              <span className="text-[11px] text-muted-foreground">
+              </span>
+              <span className="block text-[11px] font-normal text-muted-foreground">
                 {PRESENCE_LABELS[presence]} · @{member.user.name}
               </span>
-            </div>
-
-            <DropdownMenuItem
-              onSelect={handleMarkUnread}
-              className="mt-1 justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                {unreadState ? (
-                  <Check className="size-4 text-success" />
-                ) : (
-                  <Mail className="size-4" />
-                )}
-                <span>
-                  {unreadState ? 'Marked as unread!' : 'Mark as unread'}
-                </span>
-              </div>
-              <DropdownMenuShortcut>U</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onSelect={handleCopyLink}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                {copied ? (
-                  <Check className="size-4 text-success" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                <span>{copied ? 'Link copied!' : 'Copy link'}</span>
-              </div>
-              <DropdownMenuShortcut>C</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={onToggleFavorite}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                <Star
-                  className={cn(
-                    'size-4',
-                    isFavorite && 'fill-current text-accent-amber',
-                  )}
-                />
-                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onSelect={onToggleMuted}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                {isMuted ? (
-                  <Bell className="size-4" />
-                ) : (
-                  <BellOff className="size-4" />
-                )}
-                <span>{isMuted ? 'Unmute' : 'Mute'}</span>
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={() => navigate(`/w/${workspaceSlug}/members`)}
-              className="gap-2.5"
-            >
-              <UserRound className="size-4" />
-              <span>View Profile</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuLabel>
+          }
+        />
       </NavRowActions>
     </li>
+  );
+
+  return (
+    <EntityContextMenu
+      actions={actions}
+      scope={`dm:${member.user.id}`}
+      entityType="direct-message"
+      entity={member}
+      label={name}
+    >
+      {row}
+    </EntityContextMenu>
   );
 }
 
 function SortableDirectMessageRow(props: {
   member: WorkspaceMember;
+  workspaceId: string | undefined;
   workspaceSlug: string;
   isFavorite: boolean;
   isMuted: boolean;
@@ -370,13 +385,45 @@ function GroupDmRow({
   onToggleFavorite: () => void;
   onToggleMuted: () => void;
 }) {
+  const navigate = useNavigate();
   const to = `/w/${workspaceSlug}/dms?room=${group.roomId}`;
-  const { copied, copy: handleCopyLink } = useCopyLink(
-    `${window.location.origin}${to}`,
-  );
   const hasUnread = !isMuted && group.unreadCount > 0;
 
-  return (
+  const actions: EntityAction[] = [
+    {
+      id: 'open',
+      group: 'open',
+      label: 'Open conversation',
+      icon: MessageSquare,
+      run: () => navigate(to),
+    },
+    {
+      id: 'favorite',
+      group: 'state',
+      label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+      icon: Star,
+      shortcut: 'F',
+      run: onToggleFavorite,
+    },
+    {
+      id: 'mute',
+      group: 'state',
+      label: isMuted ? 'Unmute conversation' : 'Mute conversation',
+      icon: isMuted ? Bell : BellOff,
+      shortcut: 'M',
+      run: onToggleMuted,
+    },
+    {
+      id: 'copy-link',
+      group: 'share',
+      label: 'Copy link',
+      icon: Link2,
+      shortcut: 'C',
+      run: () => copyToClipboard(entityUrl(to)),
+    },
+  ];
+
+  const row = (
     <li className="group/row relative">
       <NavLink
         to={to}
@@ -417,58 +464,29 @@ function GroupDmRow({
       <NavRowActions isPinned={isFavorite}>
         <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
 
-        <DropdownMenu modal={false}>
-          <NavRowMenuTrigger label={`Options for ${group.name}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-56">
-            <DropdownMenuItem
-              onSelect={handleCopyLink}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                {copied ? (
-                  <Check className="size-4 text-success" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                <span>{copied ? 'Link copied!' : 'Copy link'}</span>
-              </div>
-              <DropdownMenuShortcut>C</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={onToggleFavorite}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                <Star
-                  className={cn(
-                    'size-4',
-                    isFavorite && 'fill-current text-accent-amber',
-                  )}
-                />
-                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onSelect={onToggleMuted}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                {isMuted ? (
-                  <Bell className="size-4" />
-                ) : (
-                  <BellOff className="size-4" />
-                )}
-                <span>{isMuted ? 'Unmute' : 'Mute'}</span>
-              </div>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ActionDropdownMenu
+          modal={false}
+          actions={actions}
+          scope={`group-dm:${group.roomId}`}
+          entityType="group-dm"
+          entity={group}
+          contentClassName="w-56"
+          trigger={<NavRowMenuButton label={`Options for ${group.name}`} />}
+        />
       </NavRowActions>
     </li>
+  );
+
+  return (
+    <EntityContextMenu
+      actions={actions}
+      scope={`group-dm:${group.roomId}`}
+      entityType="group-dm"
+      entity={group}
+      label={group.name}
+    >
+      {row}
+    </EntityContextMenu>
   );
 }
 
@@ -660,6 +678,7 @@ export function DirectMessagesSection({
                 <SortableDirectMessageRow
                   key={member.user.id}
                   member={member}
+                  workspaceId={workspaceId}
                   workspaceSlug={workspaceSlug}
                   isFavorite={favoriteIds.includes(member.user.id)}
                   isMuted={mutedIds.includes(member.user.id)}

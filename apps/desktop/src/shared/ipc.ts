@@ -38,6 +38,7 @@ export const IPC = {
   authGetSession: 'onetab:auth/get-session',
   authClearSession: 'onetab:auth/clear-session',
   authRefreshSession: 'onetab:auth/refresh-session',
+  authCancelBrowserLogin: 'onetab:auth/cancel-browser-login',
   openAppOrWeb: 'onetab:shell/open-app-or-web',
   openSystemSettings: 'onetab:shell/open-system-settings',
 } as const;
@@ -52,6 +53,7 @@ export const IPC_EVENT = {
   command: 'onetab:event/command',
   onlineStatus: 'onetab:event/online-status',
   authSessionChanged: 'onetab:event/auth-session',
+  authFlowStatus: 'onetab:event/auth-flow-status',
   capabilitiesChanged: 'onetab:event/capabilities-changed',
 } as const;
 
@@ -214,6 +216,18 @@ export interface DesktopAuthSession {
   } | null;
   accessToken: string | null;
   refreshToken?: string | null;
+}
+
+/** Which browser page a "sign in with browser" hand-off opens. */
+export type DesktopBrowserAuthIntent = 'sign-in' | 'sign-up';
+
+/**
+ * Progress of a browser sign-in, pushed to the renderer so the desktop sign-in
+ * screen can say what is happening instead of waiting silently forever.
+ */
+export interface DesktopAuthFlowStatus {
+  state: 'waiting' | 'success' | 'cancelled' | 'expired' | 'timeout' | 'error';
+  message?: string;
 }
 
 export interface DesktopHandoffRequest {

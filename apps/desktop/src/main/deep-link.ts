@@ -4,7 +4,7 @@ import {
   IPC_EVENT,
   type DesktopDeepLink,
 } from '../shared/ipc.js';
-import { handleAuthCallback } from './auth.js';
+import { handleAuthCallback, handleAuthCallbackError } from './auth.js';
 import { triggerBackgroundSyncNow } from './background-sync.js';
 import { logger } from './logger.js';
 import { getMainWindow, showMainWindow } from './window.js';
@@ -82,18 +82,20 @@ export async function dispatchDeepLink(raw: string | undefined | null): Promise<
 
   logger.info('DeepLink', `Dispatching deep link: ${link.route}`);
 
-  // Special handling for auth callback
-  if (link.route.startsWith('/auth/callback') && link.params?.['code'] && link.params?.['state']) {
-    const handled = await handleAuthCallback(
-      link.params['code'],
-      link.params['state'],
-      configuredApiUrl,
-    );
-    if (handled) {
-      triggerBackgroundSyncNow();
-      // Do not navigate renderer to raw auth callback query; the auth session change event will route to workspace
-      return;
+  // The browser sign-in hand-off. Never forwarded to the renderer: its
+  // `/auth/callback` route exists for the *browser* tab, and replaying it in
+  // the shell would bounce straight back to `onetab://`. Success and every
+  // failure are reported through the auth flow-status event instead.
+  if (link.route.startsWith('/auth/callback')) {
+    const params = link.params ?? {};
+    if (params['code'] && params['state']) {
+      const handled = await handleAuthCallback(params['code'], params['state'], configuredApiUrl);
+      if (handled) triggerBackgroundSyncNow();
+    } else if (params['error']) {
+      handleAuthCallbackError(params['error'], params['state']);
     }
+    showMainWindow();
+    return;
   }
 
   const window = getMainWindow();

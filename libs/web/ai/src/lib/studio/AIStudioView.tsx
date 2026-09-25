@@ -34,7 +34,7 @@ import {
   Textarea,
   toast,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, toDateRangeQuery } from '@org/utils';
 import {
   Activity,
   ArrowLeft,
@@ -1678,7 +1678,10 @@ function PromptsTab() {
 function AnalyticsTab() {
   const currentWorkspace = useCurrentWorkspace();
   const navigate = useNavigate();
-  const { data, isLoading, error } = useAIUsageAnalytics(1);
+  // "Today" as calendar days in the viewer's zone — the same resolution the
+  // Settings → Analytics filter uses, so both screens agree on the numbers.
+  const today = toDateRangeQuery({ preset: 'today' });
+  const { data, isLoading, error } = useAIUsageAnalytics(currentWorkspace.workspaceId, today);
 
   return (
     <div className="space-y-4">

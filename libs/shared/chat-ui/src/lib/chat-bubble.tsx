@@ -1,17 +1,11 @@
 import type { Message, RoomKind, RoomMember, WorkspacePolicy } from '@org/types';
 import { SeenBy } from './seen-by.js';
 import {
+  ActionDropdownMenu,
   Badge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
   EmojiPicker,
+  EntityContextMenu,
+  type EntityAction,
   Hint,
   Popover,
   PopoverContent,
@@ -40,11 +34,13 @@ import {
   Lock,
   MessageSquare,
   MoreHorizontal,
+  Quote,
   Pencil,
   Pin,
   PinOff,
   Reply,
   Smile,
+  SmilePlus,
   SquareDot,
   Trash2,
   UserCheck,
@@ -70,10 +66,8 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import { useLongPress } from '@org/hooks';
 import { detectLinks, normalizeUrl } from './link-detector.js';
 import { LinkPreviewCard } from './link-preview-card.js';
 import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
@@ -108,6 +102,8 @@ export interface ChatBubbleProps {
   onToggleSave?: () => void;
   onCopyLink?: () => void;
   onCopyText?: () => void;
+  /** Quote the message into the composer, ready to reply under. */
+  onQuote?: () => void;
   onForward?: () => void;
   onAssignToMe?: () => void;
   onCreateTask?: () => void;
@@ -293,6 +289,9 @@ function StickerMessage({ url, alt }: { url: string; alt: string }) {
   );
 }
 
+/** One-tap reactions offered in the message menu / action sheet. */
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '👀', '✅'] as const;
+
 export function ChatBubble({
   message,
   isOwn,
@@ -315,6 +314,7 @@ export function ChatBubble({
   onToggleSave,
   onCopyLink,
   onCopyText,
+  onQuote,
   onForward,
   onAssignToMe,
   onCreateTask,
@@ -394,15 +394,14 @@ export function ChatBubble({
     });
   }, [message.linkPreviews, detectedLinks, previewsMap]);
   /*
-   * Touch has no hover, so the floating action toolbar is opened by a
-   * long-press on the message instead. It stays up until a tap or scroll
-   * outside the message, or until a menu it launched closes.
+   * Touch has no hover: a long-press opens the message's action sheet (via
+   * `EntityContextMenu` below). The floating toolbar is only pinned open when
+   * an action needs its anchor — "More reactions…" opens the full picker from
+   * the toolbar's smiley. It stays up until a tap or scroll outside the
+   * message, or until the picker it launched closes.
    */
   const [actionsPinned, setActionsPinned] = useState(false);
   const articleRef = useRef<HTMLElement | null>(null);
-  const longPress = useLongPress(() => setActionsPinned(true), {
-    disabled: message.isRedacted,
-  });
 
   useEffect(() => {
     if (!actionsPinned) return;
@@ -547,49 +546,243 @@ export function ChatBubble({
       Date.now() - message.timestamp < editWindowMinutes * 60_000);
 
   const canDelete = Boolean(onDelete) && (isOwn || canModerateMessages);
-  const hasOrganizeItems = Boolean(onTogglePin || onAssignToMe || onViewContext);
-  const hasAppItems = Boolean(onCreateTask || onCreateDoc || onAskAI);
-
-  /** Closes the menu, then runs the action — every menu entry goes through this. */
-  const runAction = (action: (() => void) | undefined) => {
-    setIsMenuOpen(false);
-    action?.();
-  };
 
   /*
-   * The letters shown beside menu items are real: with the menu open, E edits,
-   * U marks unread, L copies the link and Delete deletes. Handled before Radix's
-   * type-ahead (preventDefault stops it), so "e" never just moves the focus.
+   * Every message action, once. The right-click menu, the touch action sheet
+   * and the "⋯" menu all render this list, so they cannot disagree about what
+   * a message offers. Handlers are the props the host wired — an action whose
+   * prop is absent is simply not offered. Built lazily (only when a menu
+   * opens), so "Remind me in 1 hour" is an hour from the click.
+   *
+   * The "⋯" menu sits on the hover toolbar, so it leaves out what the toolbar
+   * already shows one click away (react, thread, forward, save); the
+   * right-click menu and the sheet have no toolbar beside them and show all.
    */
-  const handleMenuShortcut = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const key = event.key.toLowerCase();
-    const action =
-      key === 'e' && canEdit
-        ? onEdit
-        : key === 'u'
-          ? onMarkUnread
-          : key === 'l'
-            ? onCopyLink
-            : (event.key === 'Delete' || event.key === 'Backspace') && canDelete
-              ? onDelete
-              : undefined;
-    if (!action) return;
-    event.preventDefault();
-    runAction(action);
+  const buildActions = (surface: 'menu' | 'dropdown' = 'menu'): EntityAction[] => {
+    const onToolbar = surface === 'dropdown';
+    return [
+      {
+        id: 'reply-thread',
+        group: 'reply',
+        label: 'Reply in thread',
+        icon: MessageSquare,
+        shortcut: 'T',
+        hidden: onToolbar || !onOpenThread,
+        run: onOpenThread,
+      },
+      {
+        id: 'quote',
+        group: 'reply',
+        label: 'Quote message',
+        icon: Quote,
+        shortcut: 'Q',
+        hidden: !onQuote || !message.body,
+        run: onQuote,
+      },
+      {
+        id: 'react',
+        group: 'reply',
+        label: 'Add reaction',
+        icon: SmilePlus,
+        hidden: onToolbar || !onReact,
+        children: [
+          ...QUICK_REACTIONS.map(
+            (emoji): EntityAction => ({
+              id: `react-${emoji}`,
+              group: 'quick',
+              label: emoji,
+              checked: message.reactions.some((r) => r.key === emoji && r.reactedByMe),
+              run: () => onReact?.(emoji),
+            }),
+          ),
+          {
+            id: 'react-more',
+            group: 'more',
+            label: 'More reactions…',
+            icon: Smile,
+            run: () => {
+              setActionsPinned(true);
+              // Let the menu finish closing before the picker takes focus.
+              setTimeout(() => setIsReactionOpen(true), 0);
+            },
+          },
+        ],
+      },
+      {
+        id: 'save',
+        group: 'reply',
+        label: isSaved ? 'Remove from saved' : 'Save for later',
+        icon: Bookmark,
+        shortcut: 'S',
+        hidden: onToolbar || !onToggleSave,
+        run: onToggleSave,
+      },
+      {
+        id: 'edit',
+        group: 'edit',
+        label: 'Edit message',
+        icon: Pencil,
+        shortcut: 'E',
+        hidden: !canEdit,
+        run: onEdit,
+      },
+      {
+        id: 'reply-notifications',
+        group: 'state',
+        label: replyNotificationsMuted
+          ? 'Turn on notifications for replies'
+          : 'Turn off notifications for replies',
+        icon: replyNotificationsMuted ? Bell : BellOff,
+        hidden: !onToggleReplyNotifications,
+        run: onToggleReplyNotifications,
+      },
+      {
+        id: 'mark-unread',
+        group: 'state',
+        label: 'Mark unread',
+        icon: SquareDot,
+        shortcut: 'U',
+        hidden: !onMarkUnread,
+        run: onMarkUnread,
+      },
+      {
+        id: 'remind',
+        group: 'state',
+        label: 'Remind me about this',
+        icon: Clock,
+        hidden: !onRemind,
+        children: onRemind
+          ? reminderPresets().map(
+              (preset): EntityAction => ({
+                id: `remind-${preset.id}`,
+                label: preset.label,
+                hint: preset.hint,
+                run: () => onRemind(preset.at),
+              }),
+            )
+          : [],
+      },
+      {
+        id: 'copy-link',
+        group: 'share',
+        label: 'Copy link',
+        icon: Link2,
+        shortcut: 'L',
+        hidden: !onCopyLink,
+        run: onCopyLink,
+      },
+      {
+        id: 'copy-text',
+        group: 'share',
+        label: 'Copy text',
+        icon: Copy,
+        shortcut: 'C',
+        hidden: !onCopyText || !message.body,
+        run: onCopyText,
+      },
+      {
+        id: 'forward',
+        group: 'share',
+        label: 'Forward message',
+        icon: Forward,
+        shortcut: 'F',
+        hidden: onToolbar || !onForward,
+        run: onForward,
+      },
+      {
+        id: 'link-preview',
+        group: 'share',
+        label: isPreviewsVisible ? 'Hide link preview' : 'Show link preview',
+        icon: isPreviewsVisible ? Link2Off : Link2,
+        hidden: !hasLinkPreviews,
+        run: () => toggleMessageOverride(message.id, isPreviewsVisible),
+      },
+      {
+        id: 'organize',
+        group: 'more',
+        label: 'Organize',
+        icon: FolderKanban,
+        children: [
+          {
+            id: 'pin',
+            label: isPinned ? 'Unpin from channel' : 'Pin to channel',
+            icon: isPinned ? PinOff : Pin,
+            hidden: !onTogglePin,
+            run: onTogglePin,
+          },
+          {
+            id: 'assign-to-me',
+            label: 'Assign to me',
+            icon: UserCheck,
+            hidden: !onAssignToMe,
+            run: onAssignToMe,
+          },
+          {
+            id: 'view-context',
+            label: 'View related context',
+            icon: Link2,
+            hidden: !onViewContext,
+            run: onViewContext,
+          },
+        ],
+      },
+      {
+        id: 'apps',
+        group: 'more',
+        label: 'Connect to apps',
+        icon: Blocks,
+        children: [
+          {
+            id: 'create-task',
+            label: 'Create task from message',
+            icon: CheckSquare,
+            hidden: !onCreateTask,
+            run: onCreateTask,
+          },
+          {
+            id: 'create-doc',
+            label: 'Create document from message',
+            icon: FileText,
+            hidden: !onCreateDoc,
+            run: onCreateDoc,
+          },
+          {
+            id: 'ask-ai',
+            label: 'Ask AI about message',
+            icon: Bot,
+            hidden: !onAskAI,
+            run: onAskAI,
+          },
+        ],
+      },
+      {
+        id: 'delete',
+        group: 'danger',
+        label: 'Delete message…',
+        icon: Trash2,
+        shortcut: 'Del',
+        destructive: true,
+        hint: !isOwn ? 'Moderator' : undefined,
+        hidden: !canDelete,
+        // The host confirms — it knows whether this is a thread root, etc.
+        run: onDelete,
+      },
+    ];
   };
 
-  // Resolved when the menu opens, so "in 1 hour" is an hour from the click.
-  const presets = isMenuOpen && onRemind ? reminderPresets() : [];
-  const hasStateItems = Boolean(onMarkUnread || onRemind || onToggleReplyNotifications);
-  const hasCopyItems = Boolean(onCopyLink || onCopyText || hasLinkPreviews);
-
   return (
+    <EntityContextMenu
+      actions={() => buildActions('menu')}
+      entityType="message"
+      entity={message}
+      scope={`message:${message.id}`}
+      label={`Message from ${message.senderName}`}
+      disabled={message.sendState === 'sending'}
+    >
     <article
       data-message-id={message.id}
       aria-label={`Message from ${message.senderName}, ${formatFullTimestamp(message.timestamp)}`}
       ref={articleRef}
-      {...longPress}
       className={cn(
         'group/message relative flex transition-colors hover:bg-accent',
         actionsPinned && 'bg-accent',
@@ -1061,14 +1254,18 @@ export function ChatBubble({
           </Hint>
         ) : null}
 
-        <DropdownMenu
+        <ActionDropdownMenu
           open={isMenuOpen}
           onOpenChange={(open) => {
             setIsMenuOpen(open);
             if (!open) setActionsPinned(false);
           }}
-        >
-          <DropdownMenuTrigger asChild>
+          actions={() => buildActions('dropdown')}
+          entityType="message"
+          entity={message}
+          scope={`message:${message.id}`}
+          contentClassName="w-64"
+          trigger={
             <button
               aria-label="More actions"
               className={cn(
@@ -1078,179 +1275,11 @@ export function ChatBubble({
             >
               <MoreHorizontal className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110" />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            side="bottom"
-            sideOffset={4}
-            collisionPadding={8}
-            className="w-64"
-            onKeyDown={handleMenuShortcut}
-          >
-            {canEdit ? (
-              <DropdownMenuItem onSelect={() => runAction(onEdit)}>
-                <Pencil />
-                <span>Edit message</span>
-                <DropdownMenuShortcut>E</DropdownMenuShortcut>
-              </DropdownMenuItem>
-            ) : null}
-
-            {hasStateItems ? (
-              <>
-                {canEdit ? <DropdownMenuSeparator /> : null}
-                {onToggleReplyNotifications ? (
-                  <DropdownMenuItem onSelect={() => runAction(onToggleReplyNotifications)}>
-                    {replyNotificationsMuted ? <Bell /> : <BellOff />}
-                    <span>
-                      {replyNotificationsMuted
-                        ? 'Turn on notifications for replies'
-                        : 'Turn off notifications for replies'}
-                    </span>
-                  </DropdownMenuItem>
-                ) : null}
-                {onMarkUnread ? (
-                  <DropdownMenuItem onSelect={() => runAction(onMarkUnread)}>
-                    <SquareDot />
-                    <span>Mark unread</span>
-                    <DropdownMenuShortcut>U</DropdownMenuShortcut>
-                  </DropdownMenuItem>
-                ) : null}
-                {onRemind ? (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <Clock />
-                      <span>Remind me about this</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-56">
-                      {presets.map((preset) => (
-                        <DropdownMenuItem
-                          key={preset.id}
-                          onSelect={() => runAction(() => onRemind(preset.at))}
-                        >
-                          <span>{preset.label}</span>
-                          <span className="ml-auto pl-3 text-[11px] font-normal text-muted-foreground tabular-nums">
-                            {preset.hint}
-                          </span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                ) : null}
-              </>
-            ) : null}
-
-            {hasCopyItems ? (
-              <>
-                {canEdit || hasStateItems ? <DropdownMenuSeparator /> : null}
-                {onCopyLink ? (
-                  <DropdownMenuItem onSelect={() => runAction(onCopyLink)}>
-                    <Link2 />
-                    <span>Copy link</span>
-                    <DropdownMenuShortcut>L</DropdownMenuShortcut>
-                  </DropdownMenuItem>
-                ) : null}
-                {onCopyText ? (
-                  <DropdownMenuItem onSelect={() => runAction(onCopyText)}>
-                    <Copy />
-                    <span>Copy text</span>
-                  </DropdownMenuItem>
-                ) : null}
-                {hasLinkPreviews ? (
-                  <DropdownMenuItem
-                    onSelect={() =>
-                      runAction(
-                        () => void toggleMessageOverride(message.id, isPreviewsVisible),
-                      )
-                    }
-                  >
-                    {isPreviewsVisible ? <Link2Off /> : <Link2 />}
-                    <span>{isPreviewsVisible ? 'Hide link preview' : 'Show link preview'}</span>
-                  </DropdownMenuItem>
-                ) : null}
-              </>
-            ) : null}
-
-            {hasOrganizeItems || hasAppItems ? <DropdownMenuSeparator /> : null}
-
-            {hasOrganizeItems ? (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <FolderKanban />
-                  <span>Organize</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-56">
-                  {onTogglePin ? (
-                    <DropdownMenuItem onSelect={() => runAction(onTogglePin)}>
-                      {isPinned ? <PinOff /> : <Pin />}
-                      <span>{isPinned ? 'Unpin from channel' : 'Pin to channel'}</span>
-                    </DropdownMenuItem>
-                  ) : null}
-                  {onAssignToMe ? (
-                    <DropdownMenuItem onSelect={() => runAction(onAssignToMe)}>
-                      <UserCheck />
-                      <span>Assign to me</span>
-                    </DropdownMenuItem>
-                  ) : null}
-                  {onViewContext ? (
-                    <DropdownMenuItem onSelect={() => runAction(onViewContext)}>
-                      <Link2 />
-                      <span>View related context</span>
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            ) : null}
-
-            {hasAppItems ? (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Blocks />
-                  <span>Connect to apps</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-60">
-                  {onCreateTask ? (
-                    <DropdownMenuItem onSelect={() => runAction(onCreateTask)}>
-                      <CheckSquare />
-                      <span>Create task from message</span>
-                    </DropdownMenuItem>
-                  ) : null}
-                  {onCreateDoc ? (
-                    <DropdownMenuItem onSelect={() => runAction(onCreateDoc)}>
-                      <FileText />
-                      <span>Create document from message</span>
-                    </DropdownMenuItem>
-                  ) : null}
-                  {onAskAI ? (
-                    <DropdownMenuItem onSelect={() => runAction(onAskAI)}>
-                      <Bot />
-                      <span>Ask AI about message</span>
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            ) : null}
-
-            {canDelete ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onSelect={() => runAction(onDelete)}>
-                  <Trash2 />
-                  <span>Delete message…</span>
-                  {!isOwn ? (
-                    <span className="ml-auto text-[10px] font-normal text-muted-foreground">
-                      Moderator
-                    </span>
-                  ) : null}
-                  <DropdownMenuShortcut className={!isOwn ? 'ml-0 pl-2' : undefined}>
-                    Del
-                  </DropdownMenuShortcut>
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          }
+        />
       </div>
     </article>
+    </EntityContextMenu>
   );
 }
 

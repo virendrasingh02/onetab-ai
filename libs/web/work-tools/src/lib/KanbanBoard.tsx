@@ -1,7 +1,10 @@
 import type { TaskStatus } from '@org/types';
 import { Input, SkeletonList } from '@org/ui';
 import { Sparkles, X } from 'lucide-react';
+import { useCurrentUser } from '@org/auth';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useConvertTaskToDocument } from './use-work-tools.js';
 import {
   countActiveFilters,
   EMPTY_FILTER,
@@ -67,6 +70,15 @@ export function KanbanBoard({
   showAIFilterInput: externalShowAIFilterInput,
   setShowAIFilterInput: externalSetShowAIFilterInput,
 }: KanbanBoardProps) {
+  const currentUser = useCurrentUser();
+  const navigate = useNavigate();
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
+  const convertTaskToDoc = useConvertTaskToDocument(
+    workspaceId,
+    workspaceSlug
+      ? (docId) => navigate(`/w/${workspaceSlug}/docs/${docId}`)
+      : undefined,
+  );
   const [internalFilter, setInternalFilter] = useState<BoardFilter>(EMPTY_FILTER);
   const filter = externalFilter ?? internalFilter;
   const setFilter = externalSetFilter ?? setInternalFilter;
@@ -322,6 +334,8 @@ export function KanbanBoard({
               drag={drag}
               index={index}
               onOpenCard={setOpenCardId}
+              currentUserId={currentUser?.id}
+              onConvertCardToDoc={convertTaskToDoc}
             />
           ))}
 

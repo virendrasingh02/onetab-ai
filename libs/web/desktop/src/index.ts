@@ -19,7 +19,9 @@ export {
   setBadgeCount,
   type DesktopAppInfo,
   type DesktopAppMetadata,
+  type DesktopAuthFlowStatus,
   type DesktopAuthSession,
+  type DesktopBrowserAuthIntent,
   type DesktopCapabilities,
   type DesktopCommand,
   type DesktopDeepLink,
@@ -56,13 +58,17 @@ export {
   openDesktopApp,
   openDesktopOrFallback,
   openInBrowser,
-  useIsMobile,
   type DesktopDetectionOptions,
   type OpenAppOrWebOptions,
   type OpenDesktopAppOptions,
 } from './lib/handoff.js';
 
 export { DesktopProvider, useDesktop } from './lib/desktop-provider.js';
+export {
+  useBrowserSignIn,
+  type BrowserSignIn,
+  type BrowserSignInState,
+} from './lib/use-browser-sign-in.js';
 export { useDesktopCommand } from './lib/use-desktop-command.js';
 export { useDesktopBadge } from './lib/use-desktop-badge.js';
 export { useDesktopPreference } from './lib/use-desktop-preference.js';

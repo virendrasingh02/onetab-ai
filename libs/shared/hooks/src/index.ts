@@ -5,3 +5,4 @@ export * from './lib/use-long-press.js';
 export * from './lib/use-microphone-permission.js';
 export * from './lib/use-voice-recorder.js';
 export * from './lib/use-speech-to-text.js';
+export * from './lib/use-date-range-param.js';

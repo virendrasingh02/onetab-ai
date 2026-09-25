@@ -5,6 +5,16 @@
  * to an aggregation shape breaks the compile rather than the screen.
  */
 
+/**
+ * The window every workspace analytics endpoint accepts: inclusive calendar
+ * days as `YYYY-MM-DD`, resolved in the viewer's time zone by the shared
+ * `DateRangeFilter` (`toDateRangeQuery` in `@org/utils`).
+ */
+export interface AnalyticsDateRange {
+  from: string;
+  to: string;
+}
+
 /** A single point in a daily time series. `date` is `YYYY-MM-DD`. */
 export interface TimeSeriesPoint {
   date: string;

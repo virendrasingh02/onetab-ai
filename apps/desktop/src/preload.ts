@@ -4,7 +4,9 @@ import type {
   IPC_EVENT as IpcEventContract,
   DesktopAppInfo,
   DesktopAppMetadata,
+  DesktopAuthFlowStatus,
   DesktopAuthSession,
+  DesktopBrowserAuthIntent,
   DesktopCapabilities,
   DesktopCommand,
   DesktopDeepLink,
@@ -55,6 +57,7 @@ const IPC = {
   authGetSession: 'onetab:auth/get-session',
   authClearSession: 'onetab:auth/clear-session',
   authRefreshSession: 'onetab:auth/refresh-session',
+  authCancelBrowserLogin: 'onetab:auth/cancel-browser-login',
   openAppOrWeb: 'onetab:shell/open-app-or-web',
   openSystemSettings: 'onetab:shell/open-system-settings',
 } as const satisfies typeof IpcContract;
@@ -68,6 +71,7 @@ const IPC_EVENT = {
   command: 'onetab:event/command',
   onlineStatus: 'onetab:event/online-status',
   authSessionChanged: 'onetab:event/auth-session',
+  authFlowStatus: 'onetab:event/auth-flow-status',
   capabilitiesChanged: 'onetab:event/capabilities-changed',
 } as const satisfies typeof IpcEventContract;
 
@@ -93,13 +97,17 @@ const api = {
   },
 
   auth: {
-    startBrowserLogin: (): Promise<boolean> => ipcRenderer.invoke(IPC.authStartBrowserLogin),
+    startBrowserLogin: (intent?: DesktopBrowserAuthIntent): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.authStartBrowserLogin, intent),
+    cancelBrowserLogin: (): Promise<void> => ipcRenderer.invoke(IPC.authCancelBrowserLogin),
     getSession: (): Promise<DesktopAuthSession | null> => ipcRenderer.invoke(IPC.authGetSession),
     clearSession: (): Promise<void> => ipcRenderer.invoke(IPC.authClearSession),
     refreshSession: (): Promise<DesktopAuthSession | null> =>
       ipcRenderer.invoke(IPC.authRefreshSession),
     onSessionChange: (handler: (session: DesktopAuthSession) => void): Unsubscribe =>
       subscribe(IPC_EVENT.authSessionChanged, handler),
+    onFlowStatus: (handler: (status: DesktopAuthFlowStatus) => void): Unsubscribe =>
+      subscribe(IPC_EVENT.authFlowStatus, handler),
   },
 
   window: {

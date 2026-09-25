@@ -1,7 +1,7 @@
 import {
   authApi,
-  getAccessToken,
   isTwoFactorChallenge,
+  restoreBrowserSession,
   setAccessToken,
 } from '@org/api-client';
 import { SystemRole, type CurrentUser } from '@org/types';
@@ -39,15 +39,14 @@ const WEB_APP_URL =
  * Gates the whole console behind a signed-in platform-operator session.
  * Matches the exact minimalist design system and styling of the OneTab AI auth layout.
  *
- * Checks:
- * 1. URL fragment for a handoff token (#token=…) — the fragment never
- *    leaves the browser, so unlike a query string it can't leak into
- *    server/proxy/CDN access logs on the handoff navigation.
- * 2. Active access token from storage / memory
- * 3. httpOnly refresh cookie
+ * The session comes from `restoreBrowserSession` (shared with AI Agent
+ * Studio): a `#token=` hand-off from the web app, the in-memory token, or the
+ * shared refresh cookie.
  *
- * If unauthenticated, allows direct operator login on the console's origin or
- * one-click session handoff from the main web application.
+ * Signed out, the primary path is the platform sign-in on the web app (every
+ * method — magic link, SSO, 2FA — lives there once). The direct operator form
+ * stays as the fallback for deployments where the console is not on the web
+ * app's site, so the cookie and hand-off cannot reach it.
  */
 export function RequirePlatformOperator({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>({ status: 'loading' });
@@ -69,58 +68,21 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
     }
 
     try {
-      // 1. Ingest access token if passed via the URL fragment (e.g. from web
-      //    app returnTo handoff). Stripped immediately so it never lingers
-      //    in browser history.
-      if (typeof window !== 'undefined') {
-        try {
-          if (window.location.hash) {
-            const hashParams = new URLSearchParams(
-              window.location.hash.replace(/^#/, ''),
-            );
-            const hashToken =
-              hashParams.get('token') || hashParams.get('accessToken');
-            if (hashToken) {
-              setAccessToken(hashToken);
-              window.history.replaceState(
-                {},
-                document.title,
-                `${window.location.pathname}${window.location.search}`,
-              );
-            }
-          }
-        } catch {
-          // Ignore URL cleanup error
-        }
-      }
-
-      // 2. Check if we already have an active access token in memory or localStorage
-      const token = getAccessToken();
-      if (token) {
-        try {
-          const user = await authApi.me();
-          if (user.systemRole === SystemRole.USER) {
-            setState({ status: 'forbidden', user });
-          } else {
-            setState({ status: 'ready' });
-          }
-          return;
-        } catch {
-          // Stored access token may be expired; fall through to refresh attempt
-        }
-      }
-
-      // 3. Attempt to exchange refresh cookie
-      const tokens = await authApi.refresh();
-      setAccessToken(tokens.accessToken);
-      const user = await authApi.me();
-      if (user.systemRole === SystemRole.USER) {
+      // Hand-off fragment → in-memory token → shared refresh cookie.
+      const user = await restoreBrowserSession();
+      if (!user) {
+        setState({ status: 'unauthenticated' });
+      } else if (user.systemRole === SystemRole.USER) {
         setState({ status: 'forbidden', user });
       } else {
         setState({ status: 'ready' });
       }
-    } catch {
+    } catch (err: unknown) {
+      // The API is unreachable — say so rather than presenting it as a sign-out.
       setState({ status: 'unauthenticated' });
+      setLoginError(
+        err instanceof Error ? err.message : 'Could not reach the platform API.',
+      );
     } finally {
       if (isManualRetry) {
         setIsCheckingSession(false);
@@ -247,16 +209,40 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
             </h1>
 
             <p className="mt-2 text-xs sm:text-sm leading-relaxed text-center text-balance text-muted-foreground">
-              Enter your operator credentials to access the console.
+              Use your platform account — the same sign-in as the main app.
             </p>
 
             <div className="mt-6 w-full">
               {loginError && (
-                <div className="mb-4 p-2.5 text-xs gap-2 flex items-center rounded-lg border border-destructive/30 bg-destructive/10 text-destructive">
+                <div
+                  role="alert"
+                  className="mb-4 p-2.5 text-xs gap-2 flex items-center rounded-lg border border-destructive/30 bg-destructive/10 text-destructive"
+                >
                   <ShieldAlert className="size-4 shrink-0" />
                   <span>{loginError}</span>
                 </div>
               )}
+
+              {!twoFactorToken ? (
+                <>
+                  <Button size="md" className="w-full" asChild>
+                    <a href={webAppLoginUrl}>
+                      <ExternalLink className="size-3.5 mr-1.5" />
+                      Continue with platform sign-in
+                    </a>
+                  </Button>
+                  <div className="my-5 relative">
+                    <div className="inset-0 absolute flex items-center">
+                      <div className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-[11px]">
+                      <span className="px-2 bg-background text-muted-foreground">
+                        or use operator credentials
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : null}
 
               {twoFactorToken ? (
                 <form
@@ -393,33 +379,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
                 </form>
               )}
 
-              {/* Divider */}
-              <div className="my-5 relative">
-                <div className="inset-0 absolute flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-[11px]">
-                  <span className="px-2 bg-background text-muted-foreground">
-                    or continue with
-                  </span>
-                </div>
-              </div>
-
-              {/* Secondary actions */}
-              <div className="gap-2 grid grid-cols-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="md"
-                  className="text-xs w-full"
-                  asChild
-                >
-                  <a href={webAppLoginUrl}>
-                    <ExternalLink className="size-3.5 mr-1.5 text-muted-foreground" />
-                    Main App
-                  </a>
-                </Button>
-
+              <div className="mt-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -434,7 +394,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
                     ) : undefined
                   }
                 >
-                  Check Session
+                  Already signed in? Check session
                 </Button>
               </div>
 

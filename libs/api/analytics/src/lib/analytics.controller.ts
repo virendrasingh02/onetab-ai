@@ -79,8 +79,10 @@ export class AnalyticsController {
   getDashboard(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.analytics.getDashboard(workspaceId, days);
+    return this.analytics.getDashboard(workspaceId, { days, from, to });
   }
 
   @Get('workspace/:workspaceId')
@@ -88,8 +90,10 @@ export class AnalyticsController {
   getWorkspaceAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.analytics.getWorkspaceAnalytics(workspaceId, days);
+    return this.analytics.getWorkspaceAnalytics(workspaceId, { days, from, to });
   }
 
   @Get('workspace/:workspaceId/users')
@@ -97,8 +101,10 @@ export class AnalyticsController {
   getUserAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.analytics.getUserAnalytics(workspaceId, days);
+    return this.analytics.getUserAnalytics(workspaceId, { days, from, to });
   }
 
   @Get('workspace/:workspaceId/activity')
@@ -106,8 +112,10 @@ export class AnalyticsController {
   getUserActivity(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.analytics.getUserActivity(workspaceId, days);
+    return this.analytics.getUserActivity(workspaceId, { days, from, to });
   }
 
   @Get('workspace/:workspaceId/ai-usage')
@@ -115,8 +123,10 @@ export class AnalyticsController {
   getAIUsage(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.analytics.getAIUsageStats(workspaceId, days);
+    return this.analytics.getAIUsageStats(workspaceId, { days, from, to });
   }
 
   @Get('workspace/:workspaceId/storage')
@@ -124,8 +134,10 @@ export class AnalyticsController {
   getStorageAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.analytics.getStorageAnalytics(workspaceId, days);
+    return this.analytics.getStorageAnalytics(workspaceId, { days, from, to });
   }
 
   @Get('workspace/:workspaceId/errors')
@@ -157,8 +169,14 @@ export class AnalyticsController {
     @Res({ passthrough: true }) response: Response,
     @Query('days') days?: string,
     @Query('format') format?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    const report = await this.reports.generate(workspaceId, type, days);
+    const report = await this.reports.generate(workspaceId, type, {
+      days,
+      from,
+      to,
+    });
 
     if (format === 'csv') {
       response.setHeader('Content-Type', 'text/csv; charset=utf-8');

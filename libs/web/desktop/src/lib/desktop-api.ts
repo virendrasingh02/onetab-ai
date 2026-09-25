@@ -158,6 +158,15 @@ export interface DesktopAuthSession {
   refreshToken?: string | null;
 }
 
+/** Which browser page a "sign in with browser" hand-off opens. */
+export type DesktopBrowserAuthIntent = 'sign-in' | 'sign-up';
+
+/** Progress of a browser sign-in, pushed by the main process. */
+export interface DesktopAuthFlowStatus {
+  state: 'waiting' | 'success' | 'cancelled' | 'expired' | 'timeout' | 'error';
+  message?: string;
+}
+
 export interface DesktopHandoffRequest {
   route: string;
   fallbackUrl?: string;
@@ -174,7 +183,10 @@ export interface OneTabDesktopApi {
     onChange: (handler: (caps: DesktopCapabilities) => void) => Unsubscribe;
   };
   auth: {
-    startBrowserLogin: () => Promise<boolean>;
+    /** Opens the system browser on the web sign-in (or sign-up) page. */
+    startBrowserLogin: (intent?: DesktopBrowserAuthIntent) => Promise<boolean>;
+    /** Abandons a pending browser sign-in. */
+    cancelBrowserLogin: () => Promise<void>;
     getSession: () => Promise<DesktopAuthSession | null>;
     clearSession: () => Promise<void>;
     /**
@@ -186,6 +198,7 @@ export interface OneTabDesktopApi {
      */
     refreshSession: () => Promise<DesktopAuthSession | null>;
     onSessionChange: (handler: (session: DesktopAuthSession) => void) => Unsubscribe;
+    onFlowStatus: (handler: (status: DesktopAuthFlowStatus) => void) => Unsubscribe;
   };
   window: {
     getState: () => Promise<DesktopWindowState>;

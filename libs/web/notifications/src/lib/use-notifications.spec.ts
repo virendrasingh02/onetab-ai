@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { mergeActivityIndicators } from './use-notifications.js';
 
 describe('mergeActivityIndicators', () => {
@@ -60,5 +60,56 @@ describe('mergeActivityIndicators', () => {
     expect(
       mergeActivityIndicators(undefined, { unreadCount: -3, mentionCount: -1 }),
     ).toEqual({ level: 'none', count: 0, mentionCount: 0 });
+  });
+});
+
+describe('manual unread flags', () => {
+  const ws = 'ws-flags';
+
+  beforeEach(() => window.localStorage.clear());
+
+  it('lights a channel marked unread even after the Inbox was cleared, until it is opened', async () => {
+    const { renderHook, act } = await import('@testing-library/react');
+    const mod = await import('./use-notifications.js');
+    // The workspace marker is recent — the case where backdating failed.
+    window.localStorage.setItem(`onetab:notifications:seen:${ws}`, new Date().toISOString());
+
+    const { result } = renderHook(() => ({
+      activity: mod.useChannelActivity(ws, []),
+      markUnread: mod.useMarkChannelUnread(ws),
+      markSeen: mod.useMarkChannelSeen(ws),
+    }));
+    expect(result.current.activity['chan-1']).toBeUndefined();
+
+    act(() => result.current.markUnread('chan-1'));
+    expect(result.current.activity['chan-1']).toEqual({
+      level: 'activity',
+      count: 1,
+      mentionCount: 0,
+    });
+
+    act(() => result.current.markSeen('chan-1'));
+    expect(result.current.activity['chan-1']).toBeUndefined();
+  });
+
+  it('flags and clears a DM peer independently of channels', async () => {
+    const { renderHook, act } = await import('@testing-library/react');
+    const mod = await import('./use-notifications.js');
+    const { result } = renderHook(() => ({
+      dms: mod.useDirectMessageActivity(ws, undefined),
+      channels: mod.useChannelActivity(ws, undefined),
+      markUnread: mod.useMarkDirectMessageUnread(ws),
+      markSeen: mod.useMarkDirectMessageSeen(ws),
+      flagged: mod.useIsFlaggedUnread(ws, 'dm:user-9'),
+    }));
+
+    act(() => result.current.markUnread('user-9'));
+    expect(result.current.dms['user-9']?.level).toBe('activity');
+    expect(result.current.flagged).toBe(true);
+    expect(Object.keys(result.current.channels)).toEqual([]);
+
+    act(() => result.current.markSeen('user-9'));
+    expect(result.current.dms['user-9']).toBeUndefined();
+    expect(result.current.flagged).toBe(false);
   });
 });

@@ -19,6 +19,7 @@ import {
   type DesktopAppInfo,
   type DesktopAppMetadata,
   type DesktopAuthSession,
+  type DesktopBrowserAuthIntent,
   type DesktopCapabilities,
   type DesktopCommand,
   type DesktopUpdateStatus,
@@ -52,7 +53,7 @@ interface DesktopContextValue {
   checkForUpdates: () => Promise<void>;
   downloadUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;
-  startBrowserLogin: () => Promise<boolean>;
+  startBrowserLogin: (intent?: DesktopBrowserAuthIntent) => Promise<boolean>;
   clearAuthSession: () => Promise<void>;
 }
 
@@ -195,10 +196,10 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
     await getDesktopApi()?.updates.install();
   }, []);
 
-  const startBrowserLogin = useCallback(async () => {
+  const startBrowserLogin = useCallback(async (intent?: DesktopBrowserAuthIntent) => {
     const api = getDesktopApi();
     if (!api) return false;
-    return api.auth.startBrowserLogin();
+    return api.auth.startBrowserLogin(intent);
   }, []);
 
   const clearAuthSession = useCallback(async () => {

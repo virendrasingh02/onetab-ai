@@ -1,5 +1,6 @@
 import type {
   ActivityFeedItem,
+  AnalyticsDateRange,
   AttentionItem,
   BookmarkDto,
   CatchUpSummary,
@@ -1319,36 +1320,36 @@ export const linkPreviewApi = {
  * range picker is currently set to without validating it first.
  */
 export const analyticsApi = {
-  dashboard: (workspaceId: string, days: number) =>
+  dashboard: (workspaceId: string, range: AnalyticsDateRange) =>
     request<DashboardOverview>(
       http.get(`/analytics/workspace/${workspaceId}/dashboard`, {
-        params: { days },
+        params: range,
       }),
     ),
 
-  workspace: (workspaceId: string, days: number) =>
+  workspace: (workspaceId: string, range: AnalyticsDateRange) =>
     request<WorkspaceAnalytics>(
-      http.get(`/analytics/workspace/${workspaceId}`, { params: { days } }),
+      http.get(`/analytics/workspace/${workspaceId}`, { params: range }),
     ),
 
-  users: (workspaceId: string, days: number) =>
+  users: (workspaceId: string, range: AnalyticsDateRange) =>
     request<UserAnalytics>(
       http.get(`/analytics/workspace/${workspaceId}/users`, {
-        params: { days },
+        params: range,
       }),
     ),
 
-  aiUsage: (workspaceId: string, days: number) =>
+  aiUsage: (workspaceId: string, range: AnalyticsDateRange) =>
     request<AIUsageStats>(
       http.get(`/analytics/workspace/${workspaceId}/ai-usage`, {
-        params: { days },
+        params: range,
       }),
     ),
 
-  storage: (workspaceId: string, days: number) =>
+  storage: (workspaceId: string, range: AnalyticsDateRange) =>
     request<StorageAnalytics>(
       http.get(`/analytics/workspace/${workspaceId}/storage`, {
-        params: { days },
+        params: range,
       }),
     ),
 
@@ -1377,20 +1378,20 @@ export const analyticsApi = {
       http.get(`/analytics/workspace/${workspaceId}/reports`),
     ),
 
-  report: (workspaceId: string, type: ReportType, days: number) =>
+  report: (workspaceId: string, type: ReportType, range: AnalyticsDateRange) =>
     request<GeneratedReport>(
       http.get(`/analytics/workspace/${workspaceId}/reports/${type}`, {
-        params: { days },
+        params: range,
       }),
     ),
 
   /**
    * CSV comes back as text, not JSON — callers turn this into a Blob download.
    */
-  reportCsv: (workspaceId: string, type: ReportType, days: number) =>
+  reportCsv: (workspaceId: string, type: ReportType, range: AnalyticsDateRange) =>
     request<string>(
       http.get(`/analytics/workspace/${workspaceId}/reports/${type}`, {
-        params: { days, format: 'csv' },
+        params: { ...range, format: 'csv' },
         responseType: 'text',
       }),
     ),

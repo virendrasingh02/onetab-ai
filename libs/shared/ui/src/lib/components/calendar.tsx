@@ -11,6 +11,7 @@ import {
   isSameMonth,
   isSameDay,
   isToday,
+  isWithinInterval,
   parseISO,
   isValid,
 } from 'date-fns';
@@ -25,6 +26,15 @@ export interface CalendarProps {
   minDate?: Date;
   maxDate?: Date;
   disabled?: boolean;
+  /**
+   * Highlights a span instead of a single day — `from`/`to` render as filled
+   * endpoints and the days between as a tinted band. Selection itself stays
+   * with the caller (`onSelect` still fires per click), so a range picker is
+   * just a two-click state machine on top of this.
+   */
+  range?: { from?: Date; to?: Date };
+  /** Month shown first when nothing is selected yet. */
+  defaultMonth?: Date;
 }
 
 export function Calendar({
@@ -34,6 +44,8 @@ export function Calendar({
   minDate,
   maxDate,
   disabled = false,
+  range,
+  defaultMonth,
 }: CalendarProps) {
   const selectedDate =
     typeof selected === 'string'
@@ -43,8 +55,12 @@ export function Calendar({
       : selected;
 
   const [currentMonth, setCurrentMonth] = useState<Date>(
-    selectedDate ?? new Date(),
+    selectedDate ?? range?.from ?? defaultMonth ?? new Date(),
   );
+
+  const rangeFrom = range?.from;
+  const rangeTo = range?.to;
+  const hasSpan = Boolean(rangeFrom && rangeTo && rangeFrom < rangeTo);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
@@ -126,7 +142,19 @@ export function Calendar({
       {/* Days grid */}
       <div className="gap-1 grid grid-cols-7">
         {days.map((day) => {
-          const isSelected = selectedDate && isSameDay(day, selectedDate);
+          const isRangeEnd =
+            (rangeFrom && isSameDay(day, rangeFrom)) ||
+            (rangeTo && isSameDay(day, rangeTo));
+          const isInRange =
+            hasSpan &&
+            !isRangeEnd &&
+            isWithinInterval(day, {
+              start: rangeFrom as Date,
+              end: rangeTo as Date,
+            });
+          const isSelected =
+            Boolean(selectedDate && isSameDay(day, selectedDate)) ||
+            Boolean(isRangeEnd);
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isDisabled = isDateDisabled(day);
           const isCurrentDay = isToday(day);
@@ -136,12 +164,18 @@ export function Calendar({
               key={day.toISOString()}
               type="button"
               disabled={isDisabled}
+              aria-label={format(day, 'EEEE, MMMM d, yyyy')}
+              aria-pressed={isSelected || isInRange}
+              aria-current={isCurrentDay ? 'date' : undefined}
               onClick={() => onSelect?.(day)}
               className={cn(
                 'size-8 text-xs font-normal flex items-center justify-center rounded-md transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none',
                 !isCurrentMonth && 'text-muted-foreground/40',
+                isInRange &&
+                  'bg-primary/15 text-foreground hover:bg-primary/25',
                 isCurrentMonth &&
                   !isSelected &&
+                  !isInRange &&
                   'text-foreground hover:bg-accent hover:text-accent-foreground',
                 isCurrentDay &&
                   !isSelected &&

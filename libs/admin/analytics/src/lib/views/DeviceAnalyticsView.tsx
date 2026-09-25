@@ -1,21 +1,23 @@
-import type { AdminAnalyticsFilter } from '@org/types';
+import {
+  ChartContainer,
+  DonutChart,
+} from '@org/analytics-ui';
 import { Card, Progress } from '@org/ui';
 import { Globe, Laptop, Monitor, ShieldAlert } from 'lucide-react';
-import { useState } from 'react';
 import {
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminDeviceAnalytics } from '../use-admin-analytics.js';
 
 export function DeviceAnalyticsView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminDeviceAnalytics(filter);
 
-  const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#64748b'];
+  const colors = ['blue', 'green', 'violet', 'amber', 'pink', 'cyan', 'var(--muted-foreground)'];
 
   const osDonut =
     data?.usersByOs.map((o, idx) => ({
@@ -44,8 +46,7 @@ export function DeviceAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* KPI Cards */}
@@ -113,7 +114,7 @@ export function DeviceAnalyticsView() {
           isEmpty={osDonut.length === 0}
           height={300}
         >
-          <AnalyticsDonutChart
+          <DonutChart
             data={osDonut}
             centerLabel="Users"
             centerValue={data?.totalDevices}
@@ -129,7 +130,7 @@ export function DeviceAnalyticsView() {
           isEmpty={browserDonut.length === 0}
           height={300}
         >
-          <AnalyticsDonutChart
+          <DonutChart
             data={browserDonut}
             centerLabel="Browsers"
             centerValue={data?.totalDevices}

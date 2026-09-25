@@ -1,5 +1,6 @@
 import {
   channelApi,
+  contextLinksApi,
   memberApi,
   queryKeys,
   workspaceApi,
@@ -70,6 +71,7 @@ import {
 } from '@org/sync';
 import { toast } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 
 /** A per-call id for queue entries that must never collapse into each other (distinct creates), unlike idempotent read-state actions keyed by target id. */
@@ -1119,3 +1121,44 @@ export type {
   WorkDocument,
   WorkItemRelation,
 };
+
+/**
+ * "Convert to document" for a task: creates a doc seeded from the task, links
+ * the two (so each shows up in the other's related context) and offers to
+ * open it. The task itself is left untouched.
+ */
+export function useConvertTaskToDocument(
+  workspaceId: string | undefined,
+  onOpen?: (docId: string) => void,
+) {
+  const queryClient = useQueryClient();
+  return useCallback(
+    async (task: { id: string; title: string; description?: string | null }) => {
+      if (!workspaceId) throw new Error('Workspace context required');
+      const doc = await workToolsApi.createDocument(workspaceId, {
+        title: task.title,
+        content: task.description ?? '',
+        kind: 'DOC',
+      });
+      try {
+        await contextLinksApi.createLink(workspaceId, {
+          sourceType: 'task',
+          sourceId: task.id,
+          targetType: 'doc',
+          targetId: doc.id,
+          linkType: 'DOCUMENTED_BY',
+        });
+      } catch {
+        // The document exists either way; the link is a nicety.
+      }
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.workTools.documents(workspaceId),
+      });
+      toast.success('Document created from task', {
+        action: onOpen ? { label: 'Open', onClick: () => onOpen(doc.id) } : undefined,
+      });
+      return doc;
+    },
+    [workspaceId, queryClient, onOpen],
+  );
+}

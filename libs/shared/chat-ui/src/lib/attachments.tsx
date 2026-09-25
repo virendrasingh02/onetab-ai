@@ -2,15 +2,19 @@ import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { downloadMediaItem } from '@org/media-preview';
 import type { Attachment } from '@org/types';
 import {
+  ActionDropdownMenu,
   Button,
+  copyToClipboard,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  EntityContextMenu,
   Hint,
   Skeleton,
   toast,
+  type EntityAction,
 } from '@org/ui';
 import { cn, formatBytes } from '@org/utils';
 import {
@@ -44,6 +48,62 @@ export interface AttachmentFileHeaderProps {
   className?: string;
 }
 
+/**
+ * A link is only worth copying when someone else can open it. Matrix media
+ * behind authenticated-media (`/_matrix/…`) needs the viewer's bearer token,
+ * so a copied URL 401s for everyone else — those files get no "Copy link".
+ */
+function shareableUrl(attachment: Attachment): string | null {
+  const url = attachment.url;
+  if (!url || !/^https?:\/\//.test(url) || url.includes('/_matrix/')) return null;
+  return url;
+}
+
+/** One attachment's actions — the filename menu, right-click and touch sheet. */
+function attachmentActions(
+  attachment: Attachment,
+  { onOpen, onDownload }: { onOpen?: () => void; onDownload?: () => unknown },
+): EntityAction[] {
+  const url = shareableUrl(attachment);
+  return [
+    {
+      id: 'preview',
+      group: 'open',
+      label: 'Open preview',
+      icon: Maximize2,
+      hidden: !onOpen,
+      run: onOpen,
+    },
+    {
+      id: 'download',
+      group: 'open',
+      label: 'Download',
+      icon: Download,
+      shortcut: 'D',
+      // `downloadAttachment` reports its own failure.
+      errorMessage: false,
+      run: () => (onDownload ? onDownload() : downloadAttachment(attachment)),
+    },
+    {
+      id: 'open-tab',
+      group: 'open',
+      label: 'Open in new tab',
+      icon: ExternalLink,
+      hidden: !url,
+      run: () => window.open(url ?? '', '_blank', 'noopener,noreferrer'),
+    },
+    {
+      id: 'copy-link',
+      group: 'share',
+      label: 'Copy link',
+      icon: Copy,
+      shortcut: 'L',
+      hidden: !url,
+      run: () => copyToClipboard(url ?? ''),
+    },
+  ];
+}
+
 /** Slack-style single-attachment filename header with dropdown actions */
 export function AttachmentFileHeader({
   attachment,
@@ -51,28 +111,16 @@ export function AttachmentFileHeader({
   onDownload,
   className,
 }: AttachmentFileHeaderProps) {
-  const handleDownload = async () => {
-    if (onDownload) {
-      onDownload();
-    } else {
-      await downloadAttachment(attachment);
-    }
-  };
-
-  const handleCopyLink = async () => {
-    if (!attachment.url) return;
-    try {
-      await navigator.clipboard.writeText(attachment.url);
-      toast.success('Link copied to clipboard');
-    } catch {
-      toast.error('Failed to copy link');
-    }
-  };
-
   return (
     <div className={cn('flex items-center gap-1.5 text-xs', className)}>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <ActionDropdownMenu
+        actions={() => attachmentActions(attachment, { onOpen, onDownload })}
+        scope={`attachment:${attachment.url}`}
+        entityType="attachment"
+        entity={attachment}
+        align="start"
+        contentClassName="w-52"
+        trigger={
           <button
             type="button"
             className="group/file-hdr inline-flex items-center gap-1 py-0.5 px-1 -ml-1 text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors rounded hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -87,26 +135,8 @@ export function AttachmentFileHeader({
             ) : null}
             <ChevronDown className="size-3 text-muted-foreground transition-transform duration-150 group-data-[state=open]/file-hdr:rotate-180 shrink-0" />
           </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48">
-          {onOpen ? (
-            <DropdownMenuItem onClick={onOpen} className="gap-2 text-xs cursor-pointer">
-              <ExternalLink className="size-3.5" />
-              <span>Open preview</span>
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuItem onClick={handleDownload} className="gap-2 text-xs cursor-pointer">
-            <Download className="size-3.5" />
-            <span>Download</span>
-          </DropdownMenuItem>
-          {attachment.url ? (
-            <DropdownMenuItem onClick={handleCopyLink} className="gap-2 text-xs cursor-pointer">
-              <Copy className="size-3.5" />
-              <span>Copy link</span>
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        }
+      />
     </div>
   );
 }
@@ -230,6 +260,13 @@ export function AttachmentCard({
   const Icon = iconFor(attachment.mimeType);
 
   return (
+    <EntityContextMenu
+      actions={() => attachmentActions(attachment, { onOpen })}
+      scope={`attachment:${attachment.url}`}
+      entityType="attachment"
+      entity={attachment}
+      label={attachment.name}
+    >
     <div
       className={cn(
         'group/attachment mt-1 max-w-sm gap-3 p-2.5 flex items-center rounded-lg border border-border bg-surface transition-colors hover:bg-muted/40',
@@ -274,6 +311,7 @@ export function AttachmentCard({
         </a>
       </div>
     </div>
+    </EntityContextMenu>
   );
 }
 
@@ -341,6 +379,13 @@ export function ImagePreview({
       {/* A `div`, not a `<button>` — it hosts a real download `<button>`, and
           nested buttons are invalid HTML (and silently break the browser's
           click handling for one of them). */}
+      <EntityContextMenu
+        actions={() => attachmentActions(attachment, { onOpen })}
+        scope={`attachment:${attachment.url}`}
+        entityType="attachment"
+        entity={attachment}
+        label={attachment.name}
+      >
       <div
         role="button"
         tabIndex={0}
@@ -387,6 +432,7 @@ export function ImagePreview({
           </Hint>
         </span>
       </div>
+      </EntityContextMenu>
     </div>
   );
 }

@@ -315,6 +315,7 @@ export function HuddleBar({
               src={participant.avatarUrl}
               seed={participant.userId}
               size="xs"
+              indicator={false}
               className="ring-2 ring-background"
             />
           ))}
@@ -993,6 +994,7 @@ export function ThreadListPanel({
                       src={participant.avatarUrl}
                       seed={participant.userId}
                       size="xs"
+                      indicator={false}
                       className="ring-2 ring-background"
                     />
                   ))}

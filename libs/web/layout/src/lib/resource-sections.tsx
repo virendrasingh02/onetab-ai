@@ -1,13 +1,13 @@
 import {
+  ActionDropdownMenu,
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
+  copyToClipboard,
+  EntityContextMenu,
+  entityUrl,
   Hint,
   IconRenderer,
   ResourceNavSkeleton,
+  type EntityAction,
   type PromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -21,15 +21,14 @@ import {
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bot,
-  Check,
-  Copy,
+  Link2,
+  MessageSquare,
   Pause,
   Pencil,
   Play,
   Plus,
   RefreshCw,
   Settings,
-  Shield,
   Star,
   Trash2,
   UserCheck,
@@ -52,11 +51,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  useCallback,
-  useEffect,
   useId,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -66,9 +62,8 @@ import {
   navIconClass,
   navRowClass,
   NavRowActions,
-  NavRowMenuTrigger,
+  NavRowMenuButton,
   Section,
-  useCopyLink,
   type NavDepth,
 } from './nav-primitives.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
@@ -190,6 +185,96 @@ export function AppLogo({
   );
 }
 
+/**
+ * The frame every resource row shares: a nav link, the favourite star, the
+ * "⋯" menu and a right-click / long-press menu — the last two built from the
+ * same `actions`, so they can't drift apart.
+ */
+function ResourceRowShell({
+  to,
+  name,
+  title,
+  isSelected,
+  isFavorite,
+  onToggleFavorite,
+  actions,
+  scope,
+  entityType,
+  entity,
+  depth,
+  children,
+}: {
+  to: string;
+  name: string;
+  title?: string;
+  isSelected: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  actions: EntityAction[];
+  scope: string;
+  entityType: string;
+  entity: unknown;
+  depth: NavDepth;
+  children: React.ReactNode;
+}) {
+  return (
+    <EntityContextMenu
+      actions={actions}
+      scope={scope}
+      entityType={entityType}
+      entity={entity}
+      label={name}
+    >
+      <li className="group/row relative">
+        <NavLink
+          to={to}
+          className={({ isActive }) =>
+            navRowClass(isSelected || isActive, { depth, extra: 'pr-14' })
+          }
+          title={title}
+        >
+          {children}
+        </NavLink>
+
+        <NavRowActions isPinned={isFavorite}>
+          <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
+          <ActionDropdownMenu
+            modal={false}
+            actions={actions}
+            scope={scope}
+            entityType={entityType}
+            entity={entity}
+            contentClassName="w-64"
+            trigger={<NavRowMenuButton label={`Options for ${name}`} />}
+          />
+        </NavRowActions>
+      </li>
+    </EntityContextMenu>
+  );
+}
+
+function favoriteAction(isFavorite: boolean, onToggle: () => void): EntityAction {
+  return {
+    id: 'favorite',
+    group: 'organize',
+    label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+    icon: Star,
+    shortcut: 'F',
+    run: onToggle,
+  };
+}
+
+function copyLinkAction(path: string, label = 'Copy link'): EntityAction {
+  return {
+    id: 'copy-link',
+    group: 'organize',
+    label,
+    icon: Link2,
+    shortcut: 'C',
+    run: () => copyToClipboard(entityUrl(path)),
+  };
+}
+
 export function CoworkerNavRow({
   coworker,
   workspaceSlug,
@@ -208,116 +293,65 @@ export function CoworkerNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const { copied, copy } = useCopyLink(
-    `${window.location.origin}/w/${workspaceSlug}/coworkers/${coworker.id}`,
-  );
+  const path = `/w/${workspaceSlug}/coworkers/${coworker.id}`;
+
+  const actions: EntityAction[] = [
+    {
+      id: 'open',
+      group: 'open',
+      label: 'Chat with coworker',
+      icon: UserCheck,
+      run: () => navigate(path),
+    },
+    {
+      id: 'profile',
+      group: 'open',
+      label: 'Profile & settings',
+      icon: Settings,
+      run: () => navigate(`${path}?tab=profile`),
+    },
+    favoriteAction(isFavorite, onToggleFavorite),
+    copyLinkAction(path, 'Copy coworker link'),
+    {
+      id: 'delete',
+      group: 'danger',
+      label: 'Delete coworker…',
+      icon: Trash2,
+      destructive: true,
+      hidden: !onDelete,
+      run: onDelete,
+    },
+  ];
 
   return (
-    <li className="group/row relative">
-      <NavLink
-        to={`/w/${workspaceSlug}/coworkers/${coworker.id}`}
-        className={({ isActive }) =>
-          navRowClass(isSelected || isActive, {
-            depth,
-            extra: 'pr-14',
-          })
-        }
-        title={
-          coworker.detail
-            ? `${coworker.name} — ${coworker.detail}`
-            : coworker.name
-        }
+    <ResourceRowShell
+      to={path}
+      name={coworker.name}
+      title={coworker.detail ? `${coworker.name} — ${coworker.detail}` : coworker.name}
+      isSelected={isSelected}
+      isFavorite={isFavorite}
+      onToggleFavorite={onToggleFavorite}
+      actions={actions}
+      scope={`coworker:${coworker.id}`}
+      entityType="coworker"
+      entity={coworker}
+      depth={depth}
+    >
+      <span
+        className={navIconClass(
+          depth,
+          'relative flex items-center justify-center shrink-0',
+        )}
       >
-        <span
-          className={navIconClass(
-            depth,
-            'relative flex items-center justify-center shrink-0',
-          )}
-        >
-          <CoworkerAvatar
-            name={coworker.name}
-            avatarUrl={coworker.avatarUrl}
-            status={coworker.status ?? 'AVAILABLE'}
-            size="xs"
-          />
-        </span>
-        <span className="flex-1 truncate font-medium">{coworker.name}</span>
-      </NavLink>
-
-      <NavRowActions isPinned={isFavorite}>
-        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
-
-        <DropdownMenu modal={false}>
-          <NavRowMenuTrigger label={`Options for ${coworker.name}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-64">
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(`/w/${workspaceSlug}/coworkers/${coworker.id}`)
-              }
-              className="gap-2.5"
-            >
-              <UserCheck className="size-4" />
-              <span>Chat with Coworker</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(
-                  `/w/${workspaceSlug}/coworkers/${coworker.id}?tab=profile`,
-                )
-              }
-              className="gap-2.5"
-            >
-              <Settings className="size-4" />
-              <span>View Profile & Settings</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem onSelect={copy} className="justify-between">
-              <div className="gap-2.5 flex items-center">
-                {copied ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                <span>{copied ? 'Link copied!' : 'Copy coworker link'}</span>
-              </div>
-              <DropdownMenuShortcut>C</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={onToggleFavorite}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                <Star
-                  className={cn(
-                    'size-4',
-                    isFavorite && 'fill-current text-accent-amber',
-                  )}
-                />
-                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-              </div>
-            </DropdownMenuItem>
-
-            {onDelete ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={onDelete}
-                  className="gap-2.5"
-                >
-                  <Trash2 className="size-4" />
-                  <span>Delete coworker</span>
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </NavRowActions>
-    </li>
+        <CoworkerAvatar
+          name={coworker.name}
+          avatarUrl={coworker.avatarUrl}
+          status={coworker.status ?? 'AVAILABLE'}
+          size="xs"
+        />
+      </span>
+      <span className="flex-1 truncate font-medium">{coworker.name}</span>
+    </ResourceRowShell>
   );
 }
 
@@ -339,132 +373,72 @@ export function AgentNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const { copied, copy } = useCopyLink(
-    `${window.location.origin}/w/${workspaceSlug}/agents/${agent.id}/chat`,
-  );
+  const chatPath = `/w/${workspaceSlug}/agents/${agent.id}/chat`;
+
+  const actions: EntityAction[] = [
+    {
+      id: 'open',
+      group: 'open',
+      label: 'Chat with agent',
+      icon: Bot,
+      run: () => navigate(chatPath),
+    },
+    {
+      id: 'edit',
+      group: 'open',
+      label: 'Edit in builder',
+      icon: Wrench,
+      shortcut: 'E',
+      run: () => navigate(`/w/${workspaceSlug}/agents/builder?agentId=${agent.id}`),
+    },
+    favoriteAction(isFavorite, onToggleFavorite),
+    copyLinkAction(chatPath, 'Copy agent link'),
+    {
+      id: 'delete',
+      group: 'danger',
+      label: 'Delete agent…',
+      icon: Trash2,
+      destructive: true,
+      hidden: !onDelete,
+      run: onDelete,
+    },
+  ];
 
   return (
-    <li className="group/row relative">
-      <NavLink
-        to={`/w/${workspaceSlug}/agents/${agent.id}/chat`}
-        className={({ isActive }) =>
-          navRowClass(isSelected || isActive, {
-            depth,
-            extra: 'pr-14',
-          })
-        }
-        title={agent.detail ? `${agent.name} — ${agent.detail}` : agent.name}
+    <ResourceRowShell
+      to={chatPath}
+      name={agent.name}
+      title={agent.detail ? `${agent.name} — ${agent.detail}` : agent.name}
+      isSelected={isSelected}
+      isFavorite={isFavorite}
+      onToggleFavorite={onToggleFavorite}
+      actions={actions}
+      scope={`agent:${agent.id}`}
+      entityType="agent"
+      entity={agent}
+      depth={depth}
+    >
+      <span
+        className={navIconClass(
+          depth,
+          'relative flex items-center justify-center',
+        )}
       >
+        <IconRenderer
+          icon={agent.icon ?? 'Bot'}
+          fallbackEmoji="🤖"
+          sizeClassName="size-4 text-primary"
+        />
         <span
-          className={navIconClass(
-            depth,
-            'relative flex items-center justify-center',
+          className={cn(
+            '-right-0.5 -bottom-0.5 size-2 absolute rounded-full border-2 border-sidebar bg-success',
           )}
         >
-          <IconRenderer
-            icon={agent.icon ?? 'Bot'}
-            fallbackEmoji="🤖"
-            sizeClassName="size-4 text-primary"
-          />
-          <span
-            className={cn(
-              '-right-0.5 -bottom-0.5 size-2 absolute rounded-full border-2 border-sidebar bg-success',
-            )}
-          >
-            <span className="sr-only">Active</span>
-          </span>
+          <span className="sr-only">Active</span>
         </span>
-        <span className="flex-1 truncate">{agent.name}</span>
-      </NavLink>
-
-      <NavRowActions isPinned={isFavorite}>
-        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
-
-        <DropdownMenu modal={false}>
-          <NavRowMenuTrigger label={`Options for ${agent.name}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-64">
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(`/w/${workspaceSlug}/agents/${agent.id}/chat`)
-              }
-              className="gap-2.5"
-            >
-              <Bot className="size-4" />
-              <span>Chat with Agent</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(
-                  `/w/${workspaceSlug}/agents/builder?agentId=${agent.id}`,
-                )
-              }
-              className="gap-2.5"
-            >
-              <Wrench className="size-4" />
-              <span>Open in Builder</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem onSelect={copy} className="justify-between">
-              <div className="gap-2.5 flex items-center">
-                {copied ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                <span>{copied ? 'Link copied!' : 'Copy agent link'}</span>
-              </div>
-              <DropdownMenuShortcut>C</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={onToggleFavorite}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                <Star
-                  className={cn(
-                    'size-4',
-                    isFavorite && 'fill-current text-accent-amber',
-                  )}
-                />
-                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(
-                  `/w/${workspaceSlug}/agents/builder?agentId=${agent.id}`,
-                )
-              }
-              className="gap-2.5"
-            >
-              <Settings className="size-4" />
-              <span>Agent settings & tools</span>
-            </DropdownMenuItem>
-
-            {onDelete ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={onDelete}
-                  className="gap-2.5"
-                >
-                  <Trash2 className="size-4" />
-                  <span>Delete agent</span>
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </NavRowActions>
-    </li>
+      </span>
+      <span className="flex-1 truncate">{agent.name}</span>
+    </ResourceRowShell>
   );
 }
 
@@ -488,146 +462,70 @@ export function AppNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const [synced, setSynced] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const syncTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const { copied, copy } = useCopyLink(
-    `${window.location.origin}/w/${workspaceSlug}/integrations?app=${app.id}`,
-  );
+  const chatPath = `/w/${workspaceSlug}/apps/${app.id}/chat`;
+  const managePath = `/w/${workspaceSlug}/integrations?app=${app.id}`;
 
-  useEffect(() => () => clearTimeout(syncTimer.current), []);
-
-  const handleSync = useCallback(async () => {
-    if (!onSync || syncing) return;
-    setSyncing(true);
-    try {
-      await onSync();
-      setSynced(true);
-      clearTimeout(syncTimer.current);
-      syncTimer.current = setTimeout(() => setSynced(false), 2000);
-    } catch {
-      // The mutation surfaces its own error toast.
-    } finally {
-      setSyncing(false);
-    }
-  }, [onSync, syncing]);
+  const actions: EntityAction[] = [
+    {
+      id: 'open',
+      group: 'open',
+      label: 'Open app',
+      icon: MessageSquare,
+      run: () => navigate(chatPath),
+    },
+    {
+      id: 'manage',
+      group: 'open',
+      label: 'Manage integration & permissions',
+      icon: Settings,
+      run: () => navigate(managePath),
+    },
+    {
+      id: 'sync',
+      group: 'open',
+      label: 'Sync connection',
+      icon: RefreshCw,
+      hidden: !onSync,
+      successMessage: `${app.name} synced`,
+      // The mutation toasts its own failure.
+      errorMessage: false,
+      run: onSync,
+    },
+    favoriteAction(isFavorite, onToggleFavorite),
+    copyLinkAction(managePath, 'Copy app link'),
+    {
+      id: 'disconnect',
+      group: 'danger',
+      label: 'Disconnect app…',
+      icon: Trash2,
+      destructive: true,
+      hidden: !onDisconnect,
+      run: onDisconnect,
+    },
+  ];
 
   return (
-    <li className="group/row relative">
-      <NavLink
-        to={`/w/${workspaceSlug}/apps/${app.id}/chat`}
-        className={navRowClass(isSelected, {
-          depth,
-          extra: 'pr-14',
-        })}
-        title={app.detail ? `${app.name} — ${app.detail}` : app.name}
-      >
-        <AppLogo
-          providerId={app.id}
-          name={app.name}
-          sizeClassName={navIconClass(depth)}
-          fallbackIcon={app.icon}
-        />
-        <span className="flex-1 truncate">{app.name}</span>
-      </NavLink>
-
-      <NavRowActions isPinned={isFavorite}>
-        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
-
-        <DropdownMenu modal={false}>
-          <NavRowMenuTrigger label={`Options for ${app.name}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-64">
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(`/w/${workspaceSlug}/integrations?app=${app.id}`)
-              }
-              className="gap-2.5"
-            >
-              <Settings className="size-4" />
-              <span>Manage integration</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem onSelect={copy} className="justify-between">
-              <div className="gap-2.5 flex items-center">
-                {copied ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                <span>{copied ? 'Link copied!' : 'Copy app link'}</span>
-              </div>
-              <DropdownMenuShortcut>C</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            {onSync ? (
-              <DropdownMenuItem
-                onSelect={handleSync}
-                disabled={syncing}
-                className="gap-2.5"
-              >
-                {synced ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <RefreshCw
-                    className={cn('size-4', syncing && 'animate-spin')}
-                  />
-                )}
-                <span>
-                  {synced
-                    ? 'Synced successfully!'
-                    : syncing
-                      ? 'Syncing…'
-                      : 'Sync connection'}
-                </span>
-              </DropdownMenuItem>
-            ) : null}
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={onToggleFavorite}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                <Star
-                  className={cn(
-                    'size-4',
-                    isFavorite && 'fill-current text-accent-amber',
-                  )}
-                />
-                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(`/w/${workspaceSlug}/integrations?app=${app.id}`)
-              }
-              className="gap-2.5"
-            >
-              <Shield className="size-4" />
-              <span>Permissions & scopes</span>
-            </DropdownMenuItem>
-
-            {onDisconnect ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={onDisconnect}
-                  className="gap-2.5"
-                >
-                  <Trash2 className="size-4" />
-                  <span>Disconnect app</span>
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </NavRowActions>
-    </li>
+    <ResourceRowShell
+      to={chatPath}
+      name={app.name}
+      title={app.detail ? `${app.name} — ${app.detail}` : app.name}
+      isSelected={isSelected}
+      isFavorite={isFavorite}
+      onToggleFavorite={onToggleFavorite}
+      actions={actions}
+      scope={`app:${app.id}`}
+      entityType="app"
+      entity={app}
+      depth={depth}
+    >
+      <AppLogo
+        providerId={app.id}
+        name={app.name}
+        sizeClassName={navIconClass(depth)}
+        fallbackIcon={app.icon}
+      />
+      <span className="flex-1 truncate">{app.name}</span>
+    </ResourceRowShell>
   );
 }
 
@@ -653,165 +551,72 @@ export function WorkflowNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const [triggered, setTriggered] = useState(false);
-  const [running, setRunning] = useState(false);
-  const runTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const { copied, copy } = useCopyLink(
-    `${window.location.origin}/w/${workspaceSlug}/automations?workflow=${workflow.id}`,
-  );
+  const path = `/w/${workspaceSlug}/automations?workflow=${workflow.id}`;
   const isActive = workflow.isActive ?? true;
 
-  useEffect(() => () => clearTimeout(runTimer.current), []);
-
-  const handleRunWorkflow = useCallback(async () => {
-    if (!onRun || running) return;
-    setRunning(true);
-    try {
-      await onRun();
-      setTriggered(true);
-      clearTimeout(runTimer.current);
-      runTimer.current = setTimeout(() => setTriggered(false), 2000);
-    } catch {
-      // The mutation surfaces its own error toast.
-    } finally {
-      setRunning(false);
-    }
-  }, [onRun, running]);
+  const actions: EntityAction[] = [
+    {
+      id: 'open',
+      group: 'open',
+      label: 'Open workflow',
+      icon: Pencil,
+      shortcut: 'E',
+      run: () => navigate(path),
+    },
+    {
+      id: 'run',
+      group: 'run',
+      label: 'Run now',
+      icon: Play,
+      hidden: !onRun,
+      disabled: !isActive,
+      disabledReason: 'Resume the automation to run it',
+      successMessage: `“${workflow.name}” triggered`,
+      errorMessage: false,
+      run: onRun,
+    },
+    {
+      id: 'toggle-active',
+      group: 'run',
+      label: isActive ? 'Disable automation' : 'Enable automation',
+      icon: isActive ? Pause : Play,
+      hidden: !onToggleActive,
+      run: onToggleActive,
+    },
+    favoriteAction(isFavorite, onToggleFavorite),
+    copyLinkAction(path),
+    {
+      id: 'delete',
+      group: 'danger',
+      label: 'Delete workflow…',
+      icon: Trash2,
+      destructive: true,
+      hidden: !onDelete,
+      run: onDelete,
+    },
+  ];
 
   return (
-    <li className="group/row relative">
-      <NavLink
-        to={`/w/${workspaceSlug}/automations?workflow=${workflow.id}`}
-        className={navRowClass(isSelected, {
-          depth,
-          extra: 'pr-14',
-        })}
-        title={
-          workflow.detail
-            ? `${workflow.name} — ${workflow.detail}`
-            : workflow.name
-        }
-      >
-        <IconRenderer
-          icon={workflow.icon ?? 'Zap'}
-          fallbackEmoji="⚡"
-          sizeClassName={navIconClass(depth)}
-        />
-        <span className="flex-1 truncate">{workflow.name}</span>
-      </NavLink>
-
-      <NavRowActions isPinned={isFavorite}>
-        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
-
-        <DropdownMenu modal={false}>
-          <NavRowMenuTrigger label={`Options for ${workflow.name}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-64">
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(
-                  `/w/${workspaceSlug}/automations?workflow=${workflow.id}`,
-                )
-              }
-              className="gap-2.5"
-            >
-              <Pencil className="size-4" />
-              <span>Edit workflow</span>
-            </DropdownMenuItem>
-
-            {onRun ? (
-              <DropdownMenuItem
-                onSelect={handleRunWorkflow}
-                disabled={running}
-                className="gap-2.5"
-              >
-                {triggered ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Play className="size-4" />
-                )}
-                <span>
-                  {triggered
-                    ? 'Workflow triggered!'
-                    : running
-                      ? 'Triggering…'
-                      : 'Run workflow now'}
-                </span>
-              </DropdownMenuItem>
-            ) : null}
-
-            <DropdownMenuItem onSelect={copy} className="justify-between">
-              <div className="gap-2.5 flex items-center">
-                {copied ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                <span>{copied ? 'Link copied!' : 'Copy link'}</span>
-              </div>
-              <DropdownMenuShortcut>C</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={onToggleFavorite}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                <Star
-                  className={cn(
-                    'size-4',
-                    isFavorite && 'fill-current text-accent-amber',
-                  )}
-                />
-                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            {onToggleActive ? (
-              <DropdownMenuItem onSelect={onToggleActive} className="gap-2.5">
-                {isActive ? (
-                  <Pause className="size-4" />
-                ) : (
-                  <Play className="size-4" />
-                )}
-                <span>
-                  {isActive ? 'Pause automation' : 'Resume automation'}
-                </span>
-              </DropdownMenuItem>
-            ) : null}
-
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(
-                  `/w/${workspaceSlug}/automations?workflow=${workflow.id}`,
-                )
-              }
-              className="gap-2.5"
-            >
-              <Settings className="size-4" />
-              <span>Workflow settings</span>
-            </DropdownMenuItem>
-
-            {onDelete ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={onDelete}
-                  className="gap-2.5"
-                >
-                  <Trash2 className="size-4" />
-                  <span>Delete workflow</span>
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </NavRowActions>
-    </li>
+    <ResourceRowShell
+      to={path}
+      name={workflow.name}
+      title={workflow.detail ? `${workflow.name} — ${workflow.detail}` : workflow.name}
+      isSelected={isSelected}
+      isFavorite={isFavorite}
+      onToggleFavorite={onToggleFavorite}
+      actions={actions}
+      scope={`workflow:${workflow.id}`}
+      entityType="workflow"
+      entity={workflow}
+      depth={depth}
+    >
+      <IconRenderer
+        icon={workflow.icon ?? 'Zap'}
+        fallbackEmoji="⚡"
+        sizeClassName={cn(navIconClass(depth), !isActive && 'opacity-50')}
+      />
+      <span className="flex-1 truncate">{workflow.name}</span>
+    </ResourceRowShell>
   );
 }
 

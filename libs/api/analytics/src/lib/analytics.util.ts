@@ -1,4 +1,5 @@
 import type { BreakdownSlice, TimeSeriesPoint, TrendDelta } from '@org/types';
+import { resolveQueryWindow } from '@org/utils';
 
 /** `YYYY-MM-DD` in local time — the key every daily series is bucketed by. */
 export function dayKey(date: Date): string {
@@ -24,10 +25,12 @@ export function startOfRange(days: number): Date {
  */
 export function toDailySeries(
   timestamps: Array<Date | string>,
-  days: number,
+  range: number | Pick<AnalyticsWindow, 'since' | 'days'>,
 ): TimeSeriesPoint[] {
   const buckets = new Map<string, number>();
-  const cursor = startOfRange(days);
+  const days = typeof range === 'number' ? range : range.days;
+  const cursor =
+    typeof range === 'number' ? startOfRange(range) : new Date(range.since);
 
   for (let i = 0; i < days; i += 1) {
     buckets.set(dayKey(cursor), 0);
@@ -90,4 +93,36 @@ export function normaliseHours(value: string | number | undefined): number {
   const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
   if (!parsed || Number.isNaN(parsed)) return 24;
   return Math.min(720, Math.max(1, parsed));
+}
+
+/** What a workspace analytics route accepts: `?from=&to=` days, or legacy `?days=`. */
+export interface AnalyticsRangeQuery {
+  days?: string | number;
+  from?: string;
+  to?: string;
+}
+
+/** Half-open `[since, until)` plus the equally long window before it. */
+export interface AnalyticsWindow {
+  since: Date;
+  until: Date;
+  previousSince: Date;
+  days: number;
+}
+
+/**
+ * Resolves the request window through the same `@org/utils` date-range code
+ * the web `DateRangeFilter` uses, so "Last week" or a custom span means the
+ * same calendar days on both sides. Accepts a bare `days` value for callers
+ * that predate `from`/`to`; the span is capped at a year either way.
+ */
+export function resolveAnalyticsWindow(
+  range?: AnalyticsRangeQuery | string | number,
+): AnalyticsWindow {
+  const query: AnalyticsRangeQuery =
+    typeof range === 'object' && range !== null ? range : { days: range };
+  return resolveQueryWindow(
+    { from: query.from, to: query.to, days: normaliseDays(query.days) },
+    { maxDays: 365 },
+  );
 }

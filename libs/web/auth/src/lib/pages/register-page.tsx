@@ -15,8 +15,16 @@ import { registerSchema, type RegisterInput } from '@org/validation';
 import { ArrowRight, Check, Eye, EyeOff, Mail, User } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { isDesktop } from '@org/web-desktop';
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
 import { AuthLayout } from '../auth-layout.js';
+import { DesktopBrowserSignIn } from '../components/desktop-browser-sign-in.js';
+import { readDesktopHandoff, withDesktopHandoff } from '../desktop-handoff.js';
 import {
   formErrorMessage,
   redirectPathFromAuthState,
@@ -36,6 +44,7 @@ export function RegisterPage() {
   const register = useRegister();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -57,6 +66,12 @@ export function RegisterPage() {
   const onSubmit = form.handleSubmit(async (values) => {
     try {
       await register.mutateAsync(values);
+      // Signing up on behalf of the desktop app: the login page sees the new
+      // session and hands it straight back to the app.
+      if (readDesktopHandoff(searchParams)) {
+        navigate(withDesktopHandoff('/login', searchParams), { replace: true });
+        return;
+      }
       navigate(redirectPathFromAuthState(location.state, '/workspaces/new'), {
         replace: true,
       });
@@ -64,6 +79,12 @@ export function RegisterPage() {
       // Surfaced through <FormError> / field errors.
     }
   });
+
+  // The desktop app has no sign-up form either: it opens this page in the
+  // system browser instead.
+  if (isDesktop) {
+    return <DesktopBrowserSignIn intent="sign-up" />;
+  }
 
   return (
     <AuthLayout
@@ -73,7 +94,7 @@ export function RegisterPage() {
         <>
           Already have an account?{' '}
           <Link
-            to="/login"
+            to={withDesktopHandoff('/login', searchParams)}
             className="font-medium text-foreground hover:underline transition-colors"
           >
             Sign in

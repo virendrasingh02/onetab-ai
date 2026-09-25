@@ -1,16 +1,16 @@
 import {
+  ActionDropdownMenu,
   Button,
+  copyToClipboard,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  EntityContextMenu,
+  entityUrl,
   Hint,
   IconRenderer,
+  type EntityAction,
   type PromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -18,15 +18,15 @@ import { useDocsWorkspace } from '@org/web-work-tools';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Building,
-  Check,
   ChevronDown,
-  Copy,
+  CopyPlus,
+  FileText,
   FolderPlus,
+  Link2,
   MoreVertical,
   MoveRight,
   Pencil,
   Plus,
-  Share2,
   Star,
   Trash2,
 } from 'lucide-react';
@@ -40,9 +40,8 @@ import {
   navIconClass,
   navRowClass,
   NavRowActions,
-  NavRowMenuTrigger,
+  NavRowMenuButton,
   Section,
-  useCopyLink,
   type NavDepth,
 } from './nav-primitives.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
@@ -85,142 +84,133 @@ export function DocNavRow({
   depth?: NavDepth;
   children?: React.ReactNode;
 }) {
-  const docUrl = `${window.location.origin}/w/${workspaceSlug}/docs/${doc.id}`;
-  const { copied, copy: handleCopyLink } = useCopyLink(docUrl);
-  /* "Share" copies the same link; it only differs in the confirmation it shows. */
-  const { copied: shared, copy: handleShare } = useCopyLink(docUrl);
+  const navigate = useNavigate();
+  const docPath = `/w/${workspaceSlug}/docs/${doc.id}`;
+  const moveTargets = companies.filter((c) => c.id !== doc.companyId);
+
+  /* One list behind the "⋯" menu, right-click and the touch sheet. Delete is
+     confirmed by the section's handler, which knows the doc's subpages. */
+  const actions: EntityAction[] = [
+    {
+      id: 'open',
+      group: 'open',
+      label: 'Open',
+      icon: FileText,
+      run: () => navigate(docPath),
+    },
+    {
+      id: 'add-subpage',
+      group: 'edit',
+      label: 'Add subpage',
+      icon: Plus,
+      hidden: !onAddSubpage,
+      run: onAddSubpage,
+    },
+    {
+      id: 'rename',
+      group: 'edit',
+      label: 'Rename…',
+      icon: Pencil,
+      shortcut: 'R',
+      hidden: !onRename,
+      run: onRename,
+    },
+    {
+      id: 'duplicate',
+      group: 'edit',
+      label: 'Duplicate',
+      icon: CopyPlus,
+      shortcut: 'D',
+      hidden: !onDuplicate,
+      run: onDuplicate,
+    },
+    {
+      id: 'favorite',
+      group: 'organize',
+      label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+      icon: Star,
+      shortcut: 'F',
+      run: () => onToggleFavorite(doc),
+    },
+    {
+      id: 'move',
+      group: 'organize',
+      label: 'Move to folder',
+      icon: MoveRight,
+      hidden: !onMoveToCompany || moveTargets.length === 0,
+      children: moveTargets.map(
+        (c): EntityAction => ({
+          id: `move-${c.id}`,
+          label: c.name,
+          icon: Building,
+          run: () => onMoveToCompany?.(c.id),
+        }),
+      ),
+    },
+    {
+      id: 'copy-link',
+      group: 'share',
+      label: 'Copy link',
+      icon: Link2,
+      shortcut: 'C',
+      run: () => copyToClipboard(entityUrl(docPath)),
+    },
+    {
+      id: 'delete',
+      group: 'danger',
+      label: 'Delete…',
+      icon: Trash2,
+      shortcut: 'Del',
+      destructive: true,
+      hidden: !onDelete,
+      run: onDelete,
+    },
+  ];
 
   return (
-    <li className="group/row space-y-0.5 relative">
-      <NavLink
-        to={`/w/${workspaceSlug}/docs/${doc.id}`}
-        className={navRowClass(isSelected, {
-          depth,
-          extra: 'pr-14',
-        })}
-      >
-        <IconRenderer
-          icon={doc.icon}
-          iconColor={doc.iconColor}
-          fallbackEmoji="📝"
-          sizeClassName={navIconClass(depth)}
-        />
-        <span className="flex-1 truncate">{doc.title}</span>
-      </NavLink>
+    <EntityContextMenu
+      actions={actions}
+      scope={`doc:${doc.id}`}
+      entityType="doc"
+      entity={doc}
+      label={doc.title}
+    >
+      <li className="group/row space-y-0.5 relative">
+        <NavLink
+          to={docPath}
+          className={navRowClass(isSelected, {
+            depth,
+            extra: 'pr-14',
+          })}
+        >
+          <IconRenderer
+            icon={doc.icon}
+            iconColor={doc.iconColor}
+            fallbackEmoji="📝"
+            sizeClassName={navIconClass(depth)}
+          />
+          <span className="flex-1 truncate">{doc.title}</span>
+        </NavLink>
 
-      <NavRowActions isPinned={isFavorite}>
-        <FavoriteToggle
-          isFavorite={isFavorite}
-          onToggle={() => onToggleFavorite(doc)}
-        />
+        <NavRowActions isPinned={isFavorite}>
+          <FavoriteToggle
+            isFavorite={isFavorite}
+            onToggle={() => onToggleFavorite(doc)}
+          />
+          <ActionDropdownMenu
+            modal={false}
+            actions={actions}
+            scope={`doc:${doc.id}`}
+            entityType="doc"
+            entity={doc}
+            contentClassName="w-64"
+            trigger={<NavRowMenuButton label={`Options for ${doc.title}`} />}
+          />
+        </NavRowActions>
 
-        <DropdownMenu modal={false}>
-          <NavRowMenuTrigger label={`Options for ${doc.title}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-64">
-            <DropdownMenuItem
-              onSelect={handleCopyLink}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                {copied ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                <span>{copied ? 'Link copied!' : 'Copy link'}</span>
-              </div>
-              <DropdownMenuShortcut>C</DropdownMenuShortcut>
-            </DropdownMenuItem>
-
-            {onAddSubpage ? (
-              <DropdownMenuItem onSelect={onAddSubpage} className="gap-2.5">
-                <Plus className="size-4" />
-                <span>Add subpage</span>
-              </DropdownMenuItem>
-            ) : null}
-
-            {onRename ? (
-              <DropdownMenuItem onSelect={onRename} className="gap-2.5">
-                <Pencil className="size-4" />
-                <span>Rename doc</span>
-              </DropdownMenuItem>
-            ) : null}
-
-            {onDuplicate ? (
-              <DropdownMenuItem onSelect={onDuplicate} className="gap-2.5">
-                <Copy className="size-4" />
-                <span>Duplicate doc</span>
-              </DropdownMenuItem>
-            ) : null}
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={() => onToggleFavorite(doc)}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                <Star
-                  className={cn(
-                    'size-4',
-                    isFavorite && 'fill-current text-accent-amber',
-                  )}
-                />
-                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-              </div>
-            </DropdownMenuItem>
-
-            {companies.length > 1 && onMoveToCompany ? (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2.5">
-                  <MoveRight className="size-4" />
-                  <span>Move to folder</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-48">
-                  {companies
-                    .filter((c) => c.id !== doc.companyId)
-                    .map((c) => (
-                      <DropdownMenuItem
-                        key={c.id}
-                        onSelect={() => onMoveToCompany(c.id)}
-                        className="gap-2.5 text-xs"
-                      >
-                        <Building className="size-3.5" />
-                        <span>{c.name}</span>
-                      </DropdownMenuItem>
-                    ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            ) : null}
-
-            <DropdownMenuItem onSelect={handleShare} className="gap-2.5">
-              {shared ? (
-                <Check className="size-4 text-success-text" />
-              ) : (
-                <Share2 className="size-4" />
-              )}
-              <span>{shared ? 'Link copied!' : 'Sharing & Permissions'}</span>
-            </DropdownMenuItem>
-
-            {onDelete ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={onDelete}
-                  className="gap-2.5"
-                >
-                  <Trash2 className="size-4" />
-                  <span>Delete doc</span>
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </NavRowActions>
-
-      {children}
-    </li>
+        {children}
+      </li>
+    </EntityContextMenu>
   );
 }
 

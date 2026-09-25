@@ -3,6 +3,9 @@ import { useCurrentUser } from '@org/auth';
 import { getMediaType, useMediaPreview, type MediaItem } from '@org/media-preview';
 import type { Upload, UploadContextType } from '@org/types';
 import {
+  copyToClipboard,
+  entityUrl,
+  toast,
   AppSelect,
   Badge,
   Button,
@@ -50,7 +53,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCurrentWorkspace } from './use-work-tools.js';
 
 type OwnerTab = 'all' | 'created' | 'shared';
@@ -102,7 +105,7 @@ export function FileManagerView() {
   const roomFiles = useWorkspaceRoomFiles();
   const { groups: destinationGroups, isLoading: destsLoading } =
     useDestinationOptions(workspaceId);
-  const { remove, download } = useUploadMutations(workspaceId);
+  const { remove, download, update } = useUploadMutations(workspaceId);
   const { toMediaItem } = useUploadMediaAdapter(workspaceId);
   const { openPreview } = useMediaPreview();
   const prompts = usePromptDialog();
@@ -115,6 +118,17 @@ export function FileManagerView() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [destination, setDestination] = useState<string>(DEST_WORKSPACE);
   const [detailsId, setDetailsId] = useState<string | null>(null);
+
+  /* `?file=<id>` is the file's shareable link ("Copy link"): open its details. */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fileParam = searchParams.get('file');
+  useEffect(() => {
+    if (!fileParam) return;
+    setDetailsId(fileParam);
+    const next = new URLSearchParams(searchParams);
+    next.delete('file');
+    setSearchParams(next, { replace: true });
+  }, [fileParam, searchParams, setSearchParams]);
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = uploads;
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -469,6 +483,28 @@ export function FileManagerView() {
                 }}
                 onDelete={(item) => void confirmDelete(item.id, item.filename)}
                 onNavigateSource={(href) => navigate(href)}
+                onRename={async (item) => {
+                  const filename = await prompts.promptText({
+                    title: `Rename “${item.filename}”`,
+                    label: 'File name',
+                    defaultValue: item.filename,
+                    confirmLabel: 'Rename',
+                  });
+                  if (!filename || filename === item.filename) return;
+                  await update.mutateAsync({ uploadId: item.id, patch: { filename } });
+                  toast.success('File renamed');
+                }}
+                // The details panel is where a file's destination is edited.
+                onMove={(item) => setDetailsId(item.id)}
+                onCopyLink={(item) => {
+                  const row = visibleRows.find((r) => r.item.id === item.id);
+                  // Chat files live in their conversation; hub files open here.
+                  const path = row?.upload
+                    ? `/w/${slug}/files?file=${item.id}`
+                    : (row?.item.source?.href ?? null);
+                  if (!path) throw new Error('This file has no shareable link');
+                  return copyToClipboard(entityUrl(path));
+                }}
                 scrollParentRef={scrollRef}
                 empty={
                   <div className="rounded-card border border-border bg-surface/60 p-8 text-center">

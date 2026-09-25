@@ -1,4 +1,8 @@
-import type { AdminAnalyticsFilter } from '@org/types';
+import {
+  AreaChart,
+  ChartContainer,
+  DonutChart,
+} from '@org/analytics-ui';
 import { Card } from '@org/ui';
 import {
   Building2,
@@ -9,18 +13,17 @@ import {
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AnalyticsAreaChart,
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
   ExecutiveKpiGrid,
   LiveActivityFeed,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminLiveActivity, useAdminOverviewAnalytics } from '../use-admin-analytics.js';
 
 export function OverviewDashboardView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const [isLive, setIsLive] = useState(false);
 
   const {
@@ -39,12 +42,12 @@ export function OverviewDashboardView() {
         {
           name: 'Web Browser',
           value: overview.platformSplit.web,
-          color: '#3b82f6',
+          color: 'blue',
         },
         {
           name: 'Desktop App',
           value: overview.platformSplit.desktop,
-          color: '#8b5cf6',
+          color: 'violet',
         },
       ]
     : [];
@@ -72,8 +75,7 @@ export function OverviewDashboardView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* Executive KPI Grid */}
@@ -151,14 +153,14 @@ export function OverviewDashboardView() {
             isEmpty={!overview?.userGrowthSeries?.length}
             height={320}
           >
-            <AnalyticsAreaChart
+            <AreaChart
               data={overview?.userGrowthSeries || []}
               xAxisKey="date"
               series={[
                 {
                   dataKey: 'value',
                   name: 'New Users',
-                  color: '#3b82f6',
+                  color: 'blue',
                 },
               ]}
               height={320}
@@ -176,7 +178,7 @@ export function OverviewDashboardView() {
             isEmpty={platformDonutData.length === 0}
             height={320}
           >
-            <AnalyticsDonutChart
+            <DonutChart
               data={platformDonutData}
               centerLabel="Clients"
               centerValue={
@@ -200,14 +202,14 @@ export function OverviewDashboardView() {
             isEmpty={!overview?.activitySeries?.length}
             height={300}
           >
-            <AnalyticsAreaChart
+            <AreaChart
               data={overview?.activitySeries || []}
               xAxisKey="date"
               series={[
                 {
                   dataKey: 'value',
                   name: 'Events / Actions',
-                  color: '#8b5cf6',
+                  color: 'violet',
                 },
               ]}
               height={300}

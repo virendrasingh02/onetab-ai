@@ -1,23 +1,48 @@
 import type { CalendarEvent } from '@org/types';
+import { useCurrentUser } from '@org/auth';
 import {
   Badge,
   Button,
+  copyToClipboard,
   EmptyState,
+  EntityContextMenu,
   ErrorState,
   Panel,
   SkeletonList,
+  usePromptDialog,
+  type EntityAction,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
+  CalendarClock,
   Clock,
+  ClipboardCopy,
+  CopyPlus,
   MapPin,
+  Pencil,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useCalendarEvents, useCurrentWorkspace } from './use-work-tools.js';
+import {
+  useCalendarEvents,
+  useCalendarMutations,
+  useCurrentWorkspace,
+} from './use-work-tools.js';
+
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+
+/** Moves an event by `offsetMs`, keeping its length. */
+function shifted(event: CalendarEvent, offsetMs: number) {
+  return {
+    startAt: new Date(Date.parse(event.startAt) + offsetMs).toISOString(),
+    endAt: new Date(Date.parse(event.endAt) + offsetMs).toISOString(),
+  };
+}
 
 /** Monday-first, matching the column headers. */
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -74,6 +99,107 @@ export function CalendarView() {
   }, [month]);
 
   const query = useCalendarEvents(workspaceId, from, to);
+  const calendar = useCalendarMutations(workspaceId);
+  const currentUser = useCurrentUser();
+  const prompts = usePromptDialog();
+
+  /*
+   * An agenda event's right-click / long-press actions. Only the organizer
+   * edits, reschedules or deletes — the rest can duplicate or copy details.
+   */
+  const eventActions = (event: CalendarEvent): EntityAction[] => {
+    const isOrganizer = event.organizer.id === currentUser?.id;
+    const reschedule = (label: string, offsetMs: number): EntityAction => ({
+      id: `reschedule-${label}`,
+      label,
+      hint: TIME_LABEL.format(new Date(Date.parse(event.startAt) + offsetMs)),
+      successMessage: `“${event.title}” rescheduled`,
+      run: () =>
+        calendar.update.mutateAsync({ eventId: event.id, input: shifted(event, offsetMs) }),
+    });
+    return [
+      {
+        id: 'rename',
+        group: 'edit',
+        label: 'Rename…',
+        icon: Pencil,
+        hidden: !isOrganizer,
+        run: async () => {
+          const title = await prompts.promptText({
+            title: 'Rename event',
+            label: 'Title',
+            defaultValue: event.title,
+            confirmLabel: 'Rename',
+          });
+          if (!title || title === event.title) return;
+          await calendar.update.mutateAsync({ eventId: event.id, input: { title } });
+        },
+      },
+      {
+        id: 'reschedule',
+        group: 'edit',
+        label: 'Reschedule',
+        icon: CalendarClock,
+        hidden: !isOrganizer || event.isAllDay,
+        children: [
+          reschedule('In 1 hour', HOUR),
+          reschedule('Tomorrow', DAY),
+          reschedule('Next week', 7 * DAY),
+        ],
+      },
+      {
+        id: 'duplicate',
+        group: 'edit',
+        label: 'Duplicate',
+        icon: CopyPlus,
+        successMessage: 'Event duplicated',
+        run: () =>
+          calendar.create.mutateAsync({
+            title: `${event.title} (copy)`,
+            description: event.description ?? undefined,
+            location: event.location ?? undefined,
+            startAt: event.startAt,
+            endAt: event.endAt,
+            isAllDay: event.isAllDay,
+          }),
+      },
+      {
+        id: 'copy-details',
+        group: 'share',
+        label: 'Copy details',
+        icon: ClipboardCopy,
+        run: () =>
+          copyToClipboard(
+            [
+              event.title,
+              event.isAllDay
+                ? `${DAY_LABEL.format(new Date(event.startAt))} · All day`
+                : `${DAY_LABEL.format(new Date(event.startAt))} · ${TIME_LABEL.format(new Date(event.startAt))}–${TIME_LABEL.format(new Date(event.endAt))}`,
+              event.location,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            'Event details',
+          ),
+      },
+      {
+        id: 'delete',
+        group: 'danger',
+        label: 'Delete…',
+        icon: Trash2,
+        destructive: true,
+        hidden: !isOrganizer,
+        confirm: {
+          title: `Delete “${event.title}”?`,
+          description: 'It’s removed from everyone’s calendar. This cannot be undone.',
+          confirmLabel: 'Delete event',
+          destructive: true,
+        },
+        successMessage: 'Event deleted',
+        run: () => calendar.remove.mutateAsync(event.id),
+      },
+    ];
+  };
 
   const today = new Date();
   const daysInMonth = new Date(
@@ -251,9 +377,17 @@ export function CalendarView() {
           ) : (
             <ul className="space-y-3">
               {agenda.map((event) => (
-                <li
+                <EntityContextMenu
                   key={event.id}
-                  className="p-3 rounded-lg border bg-surface-muted"
+                  actions={() => eventActions(event)}
+                  scope={`event:${event.id}`}
+                  entityType="calendar-event"
+                  entity={event}
+                  label={event.title}
+                >
+                <li
+                  tabIndex={0}
+                  className="p-3 rounded-lg border bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 >
                   <div className="mb-1 gap-2 flex items-center justify-between">
                     <span className="gap-1 text-xs flex items-center font-mono text-success">
@@ -276,6 +410,7 @@ export function CalendarView() {
                     </p>
                   ) : null}
                 </li>
+                </EntityContextMenu>
               ))}
             </ul>
           )}
@@ -283,6 +418,7 @@ export function CalendarView() {
       </div>
         </div>
       </div>
+      {prompts.dialog}
     </div>
   );
 }

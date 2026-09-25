@@ -10,7 +10,9 @@ import {
   RegisterPage,
   ResetPasswordPage,
   useSessionBootstrap,
+  withHandoffToken,
 } from '@org/auth';
+import { getAccessToken } from '@org/api-client';
 import { Button, EmptyState, LoadingState } from '@org/ui';
 /*
  * `@org/web-chat` is already in the main chunk — `Providers` mounts its
@@ -26,8 +28,8 @@ import { EncryptionSecurityPanel, SavedView, ThreadsView } from '@org/web-chat';
  * nothing behind it, and trips `@nx/enforce-module-boundaries`' check against
  * importing the same library both ways.
  */
-import { PlatformDiagnosticsPage } from '@org/web-desktop';
-import { lazy, Suspense } from 'react';
+import { openExternal, PlatformDiagnosticsPage, useFeature } from '@org/web-desktop';
+import { lazy, Suspense, useCallback, useEffect, useRef } from 'react';
 import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { DocumentTitle } from './document-title';
 
@@ -259,21 +261,90 @@ function LegacyStudioTabRedirect() {
   );
 }
 
+/**
+ * Where AI Agent Studio is served. It is a separate browser app, so the
+ * production URL must come from configuration; the dev fallback matches its
+ * Vite port. Returns `null` when unconfigured rather than guessing a path on
+ * this origin (the old `/studio` fallback just landed on "Page not found").
+ */
+function agentStudioUrl(): string | null {
+  const configured = import.meta.env?.['VITE_AGENT_STUDIO_URL'] as string | undefined;
+  if (configured) return configured;
+  return import.meta.env.DEV ? 'http://localhost:4202' : null;
+}
+
+/**
+ * `/w/:slug/agent-studio` — the sidebar's entry point into AI Agent Studio.
+ *
+ * Studio is browser-only (`agentStudio` in `@org/platform`'s feature
+ * registry). In a browser this hands the current session over and navigates;
+ * in the desktop app it opens the system browser instead — navigating the
+ * app window off-origin is blocked by the shell, which used to leave this
+ * screen spinning forever. No token is passed to the external browser: it
+ * signs in with its own session.
+ */
 function AgentStudioRedirect() {
   const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
+  const studio = useFeature('agentStudio');
+  const baseUrl = agentStudioUrl();
+  const inApp = studio.available;
+  const launched = useRef(false);
+
+  const launch = useCallback(() => {
+    if (!baseUrl) return;
+    const target = new URL('/agents', baseUrl);
+    if (!inApp) {
+      void openExternal(target.toString());
+      return;
+    }
+    const token = getAccessToken();
+    window.location.href = token ? withHandoffToken(target, token) : target.toString();
+  }, [baseUrl, inApp]);
+
   useEffect(() => {
-    const studioUrl =
-      (import.meta.env?.['VITE_AGENT_STUDIO_URL'] as string | undefined) ||
-      (window.location.port === '4200' ? 'http://localhost:4202' : '/studio');
-    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-    const target = token ? `${studioUrl}/agents#token=${encodeURIComponent(token)}` : `${studioUrl}/agents`;
-    window.location.href = target;
-  }, [workspaceSlug]);
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="text-sm text-muted-foreground animate-pulse">Launching AI Agent Studio...</div>
-    </div>
-  );
+    if (launched.current) return;
+    launched.current = true;
+    launch();
+  }, [launch]);
+
+  if (!baseUrl) {
+    return (
+      <div className="p-6 grid min-h-screen place-items-center">
+        <EmptyState
+          size="lg"
+          title="AI Agent Studio isn't configured"
+          description="Set VITE_AGENT_STUDIO_URL for this deployment to link the Studio app."
+          action={
+            <Button asChild variant="outline">
+              <Link to={`/w/${workspaceSlug}`}>Back to workspace</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (!inApp) {
+    return (
+      <div className="p-6 grid min-h-screen place-items-center">
+        <EmptyState
+          size="lg"
+          title="AI Agent Studio opened in your browser"
+          description="Studio is a browser app that uses your same account and workspaces."
+          action={
+            <div className="gap-2 flex flex-wrap justify-center">
+              <Button onClick={launch}>Open again</Button>
+              <Button asChild variant="outline">
+                <Link to={`/w/${workspaceSlug}`}>Back to workspace</Link>
+              </Button>
+            </div>
+          }
+        />
+      </div>
+    );
+  }
+
+  return <LoadingState fullPage label="Launching AI Agent Studio…" />;
 }
 
 function NotFoundPage() {

@@ -1,17 +1,16 @@
 import {
+  ActionDropdownMenu,
   Button,
+  copyToClipboard,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  EntityContextMenu,
+  entityUrl,
   Hint,
+  type EntityAction,
   SidebarActivityIndicator,
   SkeletonList,
   ChannelNavSkeleton,
@@ -21,14 +20,20 @@ import {
   type SidebarActivityState,
 } from '@org/ui';
 import type { ActivityIndicator } from '@org/notifications';
-import { useMarkChannelUnread } from '@org/notifications';
+import { useMarkChannelSeen, useMarkChannelUnread } from '@org/notifications';
+import { useCurrentUser } from '@org/auth';
+import { WorkspacePermission } from '@org/types';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
 import { useAgents, useAgentMutations } from '@org/web-agents';
 import { useWorkflows, useWorkflowMutations } from '@org/web-automations';
 import {
+  AddPeopleDialog,
+  EditChannelDetailsDialog,
   useArchiveChannel,
+  useChannelMembers,
   useChannelPreferences,
+  useLeaveChannel,
   useGroupedChannels,
   useUpdateChannel,
 } from '@org/web-channels';
@@ -43,28 +48,31 @@ import {
 } from '@org/web-work-tools';
 import {
   persistLastChannel,
+  useWorkspacePermission,
   useWorkspaceStore,
   type WorkspaceState,
 } from '@org/web-workspace';
 import {
   Activity,
   Archive,
+  Bell,
   BellOff,
   Bookmark,
-  Check,
   Clock,
-  Copy,
   Flag,
   FolderTree,
   HardDrive,
   Hash,
+  Link2,
   Lock,
+  LogOut,
   Mail,
+  MailOpen,
   MoreHorizontal,
   Pencil,
   Pin,
   Plus,
-  Share2,
+  Settings2,
   SlidersHorizontal,
   Star,
   Users,
@@ -106,9 +114,8 @@ import {
   navRowClass,
   NavRow,
   NavRowActions,
-  NavRowMenuTrigger,
+  NavRowMenuButton,
   Section,
-  useCopyLink,
   type NavEntry,
 } from './nav-primitives.js';
 import { ChannelOrganizationMenu } from './navigation/channel-organization-menu.js';
@@ -200,11 +207,15 @@ function ChannelRow({
   /** Manual sections this channel can be filed under (brief §1.1). */
   sectionOptions?: { id: string; label: string; hasChannel: boolean }[];
 }) {
-  const [unreadState, setUnreadState] = useState(false);
-  const unreadTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const navigate = useNavigate();
+  const currentUser = useCurrentUser();
+  const { can } = useWorkspacePermission();
   const updateChannel = useUpdateChannel(workspaceId);
   const archiveChannel = useArchiveChannel(workspaceId);
+  const leaveChannel = useLeaveChannel(workspaceId);
   const markChannelUnread = useMarkChannelUnread(workspaceId);
+  const markChannelSeen = useMarkChannelSeen(workspaceId);
+  const [dialog, setDialog] = useState<'details' | 'members' | null>(null);
 
   const priority =
     useSidebarStore(
@@ -221,6 +232,11 @@ function ChannelRow({
   const isFavorite = channel.membership?.isFavorite ?? false;
   const isMuted = channel.membership?.isMuted ?? false;
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
+  /* Mirrors the server's `assertCanManage` (and the channel page's gate): a
+     channel admin, or a workspace admin/owner holding `manage_settings`. */
+  const canManage =
+    channel.membership?.role === 'ADMIN' ||
+    can(WorkspacePermission.MANAGE_SETTINGS);
 
   /*
    * A muted channel keeps its mention dot but loses its ambient one. Muting
@@ -235,19 +251,7 @@ function ChannelRow({
     : (activity?.level ?? 'none');
   const hasUnread = level !== 'none';
 
-  const channelUrl = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}`;
-  const { copied, copy: handleCopyLink } = useCopyLink(channelUrl);
-  /* "Share" copies the same link; it only differs in the confirmation it shows. */
-  const { copied: shared, copy: handleShare } = useCopyLink(channelUrl);
-
-  useEffect(() => () => clearTimeout(unreadTimer.current), []);
-
-  const handleMarkUnread = useCallback(() => {
-    markChannelUnread(channel.id);
-    setUnreadState(true);
-    clearTimeout(unreadTimer.current);
-    unreadTimer.current = setTimeout(() => setUnreadState(false), 2000);
-  }, [channel.id, markChannelUnread]);
+  const channelPath = `/w/${workspaceSlug}/c/${channel.slug}`;
 
   const handleRename = useCallback(async () => {
     const name = await prompts.promptText({
@@ -257,25 +261,183 @@ function ChannelRow({
       confirmLabel: 'Rename',
     });
     if (!name || name === channel.name) return;
-    updateChannel.mutate({ channelId: channel.id, input: { name } });
+    await updateChannel.mutateAsync({ channelId: channel.id, input: { name } });
   }, [channel.id, channel.name, prompts, updateChannel]);
 
-  const handleArchiveChannel = useCallback(async () => {
-    const confirmed = await prompts.confirmAction({
-      title: `Archive #${channel.name}?`,
-      description:
-        'The channel will be hidden from the sidebar and marked read-only. Its history is kept, and a workspace admin can unarchive it later.',
-      confirmLabel: 'Archive Channel',
-      destructive: true,
-    });
-    if (!confirmed) return;
-    archiveChannel.mutate({ channelId: channel.id, archived: true });
-  }, [archiveChannel, channel.id, channel.name, prompts]);
+  /*
+   * One list drives the row's "⋯" menu, its right-click menu and the touch
+   * action sheet. Management entries are hidden (not merely disabled) for
+   * people who can't use them — the API refuses them either way.
+   */
+  const actions: EntityAction[] = channel.membership
+    ? [
+        {
+          id: 'open',
+          group: 'open',
+          label: 'Open channel',
+          icon: Icon,
+          run: () => {
+            persistLastChannel(workspaceId, channel.slug);
+            navigate(channelPath);
+          },
+        },
+        hasUnread
+          ? {
+              id: 'mark-read',
+              group: 'state',
+              label: 'Mark as read',
+              icon: MailOpen,
+              shortcut: 'R',
+              run: () => markChannelSeen(channel.id),
+            }
+          : {
+              id: 'mark-unread',
+              group: 'state',
+              label: 'Mark as unread',
+              icon: Mail,
+              shortcut: 'U',
+              run: () => markChannelUnread(channel.id),
+              successMessage: `#${channel.name} marked as unread`,
+            },
+        {
+          id: 'favorite',
+          group: 'state',
+          label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+          icon: Star,
+          shortcut: 'F',
+          run: () => onToggleFavorite(channel),
+        },
+        {
+          id: 'mute',
+          group: 'state',
+          label: isMuted ? 'Unmute channel' : 'Mute channel',
+          icon: isMuted ? Bell : BellOff,
+          shortcut: 'M',
+          description: isMuted
+            ? undefined
+            : 'Hide unread activity. Mentions still notify you.',
+          run: () => onToggleMute(channel),
+        },
+        {
+          id: 'priority',
+          group: 'organize',
+          label: 'Priority',
+          icon: Flag,
+          children: CHANNEL_PRIORITY_LABELS.map(
+            (label, value): EntityAction => ({
+              id: `priority-${value}`,
+              label,
+              checked: priority === value,
+              run: () =>
+                setChannelPriority(
+                  workspaceId,
+                  channel.id,
+                  value as ChannelPriority,
+                ),
+            }),
+          ),
+        },
+        {
+          id: 'section',
+          group: 'organize',
+          label: 'Move to section',
+          icon: FolderTree,
+          hidden: sectionOptions.length === 0,
+          children: sectionOptions.map(
+            (section): EntityAction => ({
+              id: `section-${section.id}`,
+              label: section.label,
+              checked: section.hasChannel,
+              run: () =>
+                section.hasChannel
+                  ? removeChannelFromSection(workspaceId, section.id, channel.id)
+                  : assignChannelToSection(workspaceId, section.id, channel.id),
+            }),
+          ),
+        },
+        {
+          id: 'copy-link',
+          group: 'share',
+          label: 'Copy link',
+          icon: Link2,
+          shortcut: 'C',
+          run: () => copyToClipboard(entityUrl(channelPath)),
+        },
+        {
+          id: 'rename',
+          group: 'manage',
+          label: 'Rename…',
+          icon: Pencil,
+          hidden: !canManage,
+          run: handleRename,
+        },
+        {
+          id: 'details',
+          group: 'manage',
+          label: 'Edit channel details…',
+          icon: Settings2,
+          hidden: !canManage,
+          run: () => setDialog('details'),
+        },
+        {
+          id: 'members',
+          group: 'manage',
+          label: 'Add people…',
+          icon: Users,
+          hidden: !canManage,
+          run: () => setDialog('members'),
+        },
+        {
+          id: 'leave',
+          group: 'danger',
+          label: 'Leave channel…',
+          icon: LogOut,
+          destructive: true,
+          hidden: !currentUser,
+          confirm: {
+            title: `Leave #${channel.name}?`,
+            description:
+              channel.visibility === 'PRIVATE'
+                ? 'This channel is private — you’ll need to be re-invited to rejoin.'
+                : 'You can rejoin from Browse channels at any time.',
+            confirmLabel: 'Leave channel',
+            destructive: true,
+          },
+          run: async () => {
+            if (!currentUser) return;
+            await leaveChannel.mutateAsync({
+              channelId: channel.id,
+              userId: currentUser.id,
+            });
+            if (window.location.pathname.startsWith(channelPath)) {
+              navigate(`/w/${workspaceSlug}/home`);
+            }
+          },
+        },
+        {
+          id: 'archive',
+          group: 'danger',
+          label: 'Archive channel…',
+          icon: Archive,
+          destructive: true,
+          hidden: !canManage || channel.isArchived,
+          confirm: {
+            title: `Archive #${channel.name}?`,
+            description:
+              'The channel will be hidden from the sidebar and marked read-only. Its history is kept, and a workspace admin can unarchive it later.',
+            confirmLabel: 'Archive channel',
+            destructive: true,
+          },
+          run: () =>
+            archiveChannel.mutateAsync({ channelId: channel.id, archived: true }),
+        },
+      ]
+    : [];
 
-  return (
+  const row = (
     <li className="group/row relative">
       <NavLink
-        to={`/w/${workspaceSlug}/c/${channel.slug}`}
+        to={channelPath}
         className={({ isActive }) =>
           navRowClass(isActive, {
             depth: 1,
@@ -323,164 +485,70 @@ function ChannelRow({
             isFavorite={isFavorite}
             onToggle={() => onToggleFavorite(channel)}
           />
-
-          <DropdownMenu modal={false}>
-            <NavRowMenuTrigger label={`Options for ${channel.name}`} />
-            <DropdownMenuContent align="end" side="bottom" className="w-64">
-              <DropdownMenuItem
-                onSelect={handleMarkUnread}
-                className="justify-between"
-              >
-                <div className="gap-2.5 flex items-center">
-                  {unreadState ? (
-                    <Check className="size-4 text-success-text" />
-                  ) : (
-                    <Mail className="size-4" />
-                  )}
-                  <span>
-                    {unreadState ? 'Marked as unread!' : 'Mark as unread'}
-                  </span>
-                </div>
-                <DropdownMenuShortcut>U</DropdownMenuShortcut>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem onSelect={handleRename} className="gap-2.5">
-                <Pencil className="size-4" />
-                <span>Rename</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                onSelect={handleCopyLink}
-                className="justify-between"
-              >
-                <div className="gap-2.5 flex items-center">
-                  {copied ? (
-                    <Check className="size-4 text-success-text" />
-                  ) : (
-                    <Copy className="size-4" />
-                  )}
-                  <span>{copied ? 'Link copied!' : 'Copy link'}</span>
-                </div>
-                <DropdownMenuShortcut>C</DropdownMenuShortcut>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onSelect={() => onToggleFavorite(channel)}
-                className="justify-between"
-              >
-                <div className="gap-2.5 flex items-center">
-                  <Star
-                    className={cn(
-                      'size-4',
-                      isFavorite && 'fill-current text-accent-amber',
-                    )}
-                  />
-                  <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-                </div>
-              </DropdownMenuItem>
-
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2.5">
-                  <Flag className="size-4" />
-                  <span>Priority</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
-                  <DropdownMenuRadioGroup
-                    value={String(priority)}
-                    onValueChange={(value) =>
-                      setChannelPriority(
-                        workspaceId,
-                        channel.id,
-                        Number(value) as ChannelPriority,
-                      )
-                    }
-                  >
-                    {CHANNEL_PRIORITY_LABELS.map((label, value) => (
-                      <DropdownMenuRadioItem
-                        key={label}
-                        value={String(value)}
-                        className="text-xs"
-                      >
-                        {label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-
-              {sectionOptions.length > 0 && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="gap-2.5">
-                    <FolderTree className="size-4" />
-                    <span>Add to section</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {sectionOptions.map((section) => (
-                      <DropdownMenuItem
-                        key={section.id}
-                        className="gap-2.5 text-xs justify-between"
-                        onSelect={() =>
-                          section.hasChannel
-                            ? removeChannelFromSection(
-                                workspaceId,
-                                section.id,
-                                channel.id,
-                              )
-                            : assignChannelToSection(
-                                workspaceId,
-                                section.id,
-                                channel.id,
-                              )
-                        }
-                      >
-                        <span className="truncate">{section.label}</span>
-                        {section.hasChannel && (
-                          <Check className="size-3.5 text-success-text" />
-                        )}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              )}
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onSelect={() => onToggleMute(channel)}
-                description="Follow this Channel in the future to show it in your sidebar again."
-              >
-                <BellOff className="size-4" />
-                <span>{isMuted ? 'Follow Channel' : 'Unfollow'}</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem onSelect={handleShare} className="gap-2.5">
-                {shared ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Share2 className="size-4" />
-                )}
-                <span>{shared ? 'Link copied!' : 'Sharing & Permissions'}</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onSelect={handleArchiveChannel}
-                variant="destructive"
-                className="gap-2.5"
-              >
-                <Archive className="size-4" />
-                <span>Archive Channel</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ActionDropdownMenu
+            modal={false}
+            actions={actions}
+            scope={`channel:${channel.id}`}
+            entityType="channel"
+            entity={channel}
+            contentClassName="w-64"
+            trigger={<NavRowMenuButton label={`Options for ${channel.name}`} />}
+          />
         </NavRowActions>
       ) : null}
     </li>
+  );
+
+  return (
+    <>
+      <EntityContextMenu
+        actions={actions}
+        scope={`channel:${channel.id}`}
+        entityType="channel"
+        entity={channel}
+        label={`#${channel.name}`}
+        disabled={!channel.membership}
+      >
+        {row}
+      </EntityContextMenu>
+      {dialog === 'details' ? (
+        <EditChannelDetailsDialog
+          open
+          onOpenChange={(open) => !open && setDialog(null)}
+          workspaceId={workspaceId}
+          channel={channel}
+        />
+      ) : null}
+      {dialog === 'members' ? (
+        <ChannelMembersDialog
+          workspaceId={workspaceId}
+          channel={channel}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/** Mounted only while open, so the member list is fetched on demand. */
+function ChannelMembersDialog({
+  workspaceId,
+  channel,
+  onClose,
+}: {
+  workspaceId: string;
+  channel: ChannelSummary;
+  onClose: () => void;
+}) {
+  const members = useChannelMembers(workspaceId, channel.id);
+  return (
+    <AddPeopleDialog
+      open
+      onOpenChange={(open) => !open && onClose()}
+      workspaceId={workspaceId}
+      channel={channel}
+      existingMemberIds={(members.data ?? []).map((member) => member.user.id)}
+    />
   );
 }
 

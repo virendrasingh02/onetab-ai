@@ -1,4 +1,7 @@
-import type { AdminAnalyticsFilter } from '@org/types';
+import {
+  ChartContainer,
+  DonutChart,
+} from '@org/analytics-ui';
 import { Card } from '@org/ui';
 import {
   Clock,
@@ -7,22 +10,21 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react';
-import { useState } from 'react';
 import {
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsFunnelChart,
   AnalyticsHeader,
-  ChartContainer,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminSubscriptionAnalytics } from '../use-admin-analytics.js';
 
 export function SubscriptionAnalyticsView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminSubscriptionAnalytics(filter);
 
-  const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
+  const colors = ['blue', 'violet', 'green', 'amber'];
 
   const tierDonut =
     data?.planDistribution.map((t, idx) => ({
@@ -51,8 +53,7 @@ export function SubscriptionAnalyticsView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
       />
 
       {/* KPI Cards */}
@@ -135,7 +136,7 @@ export function SubscriptionAnalyticsView() {
           isEmpty={tierDonut.length === 0}
           height={320}
         >
-          <AnalyticsDonutChart
+          <DonutChart
             data={tierDonut}
             centerLabel="Accounts"
             centerValue={(data?.paidCount || 0) + (data?.freeCount || 0)}

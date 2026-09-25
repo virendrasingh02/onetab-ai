@@ -5,7 +5,10 @@ import type {
   ReportType,
 } from '@org/types';
 import { AnalyticsService } from './analytics.service.js';
-import { normaliseDays } from './analytics.util.js';
+import {
+  resolveAnalyticsWindow,
+  type AnalyticsRangeQuery,
+} from './analytics.util.js';
 import { ErrorTrackingService } from './error-tracking.service.js';
 import { MetricsService } from './metrics.service.js';
 
@@ -96,7 +99,7 @@ export class ReportsService {
   async generate(
     workspaceId: string,
     type: string,
-    rawDays?: string | number,
+    range?: AnalyticsRangeQuery | string | number,
   ): Promise<GeneratedReport> {
     if (!isReportType(type)) {
       throw new BadRequestException(
@@ -106,7 +109,9 @@ export class ReportsService {
       );
     }
 
-    const days = normaliseDays(rawDays);
+    const query: AnalyticsRangeQuery =
+      typeof range === 'object' && range !== null ? range : { days: range };
+    const { days } = resolveAnalyticsWindow(query);
     const definition = DEFINITIONS.find((d) => d.type === type) as ReportDefinition;
     const base = {
       type: definition.type,
@@ -119,13 +124,13 @@ export class ReportsService {
 
     switch (definition.type) {
       case 'WORKSPACE_SUMMARY':
-        return { ...base, ...(await this.workspaceSummary(workspaceId, days)) };
+        return { ...base, ...(await this.workspaceSummary(workspaceId, query)) };
       case 'USER_ACTIVITY':
-        return { ...base, ...(await this.userActivity(workspaceId, days)) };
+        return { ...base, ...(await this.userActivity(workspaceId, query)) };
       case 'AI_USAGE':
-        return { ...base, ...(await this.aiUsage(workspaceId, days)) };
+        return { ...base, ...(await this.aiUsage(workspaceId, query)) };
       case 'STORAGE':
-        return { ...base, ...(await this.storage(workspaceId, days)) };
+        return { ...base, ...(await this.storage(workspaceId, query)) };
       case 'PERFORMANCE':
         return { ...base, ...(await this.performance()) };
       case 'ERRORS':
@@ -147,8 +152,8 @@ export class ReportsService {
     return `${report.type.toLowerCase()}-${date}.${extension}`;
   }
 
-  private async workspaceSummary(workspaceId: string, days: number) {
-    const data = await this.analytics.getWorkspaceAnalytics(workspaceId, days);
+  private async workspaceSummary(workspaceId: string, query: AnalyticsRangeQuery) {
+    const data = await this.analytics.getWorkspaceAnalytics(workspaceId, query);
     return {
       rows: [
         ['Members', data.totalMembers],
@@ -175,8 +180,8 @@ export class ReportsService {
     };
   }
 
-  private async userActivity(workspaceId: string, days: number) {
-    const data = await this.analytics.getUserAnalytics(workspaceId, days);
+  private async userActivity(workspaceId: string, query: AnalyticsRangeQuery) {
+    const data = await this.analytics.getUserAnalytics(workspaceId, query);
     return {
       rows: data.topUsers.map((user) => [
         user.name,
@@ -197,8 +202,8 @@ export class ReportsService {
     };
   }
 
-  private async aiUsage(workspaceId: string, days: number) {
-    const data = await this.analytics.getAIUsageStats(workspaceId, days);
+  private async aiUsage(workspaceId: string, query: AnalyticsRangeQuery) {
+    const data = await this.analytics.getAIUsageStats(workspaceId, query);
     return {
       rows: [
         ['Chat sessions (all time)', data.totalSessions],
@@ -221,8 +226,8 @@ export class ReportsService {
     };
   }
 
-  private async storage(workspaceId: string, days: number) {
-    const data = await this.analytics.getStorageAnalytics(workspaceId, days);
+  private async storage(workspaceId: string, query: AnalyticsRangeQuery) {
+    const data = await this.analytics.getStorageAnalytics(workspaceId, query);
     return {
       rows: [
         ...data.byType.map(

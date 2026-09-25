@@ -43,6 +43,8 @@ export interface MessageRendererProps {
   onToggleSave?: () => void;
   onCopyLink?: () => void;
   onCopyText?: () => void;
+  /** "Quote message" into the composer — see `ChatBubble`. */
+  onQuote?: () => void;
   onForward?: () => void;
   onAssignToMe?: () => void;
   onCreateTask?: () => void;

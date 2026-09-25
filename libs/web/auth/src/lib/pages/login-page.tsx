@@ -4,15 +4,11 @@ import {
   getAccessToken,
   isTwoFactorChallenge,
   setAccessToken,
+  toApiError,
 } from '@org/api-client';
 import type { TwoFactorChallengeResponse } from '@org/types';
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Checkbox,
   Form,
   FormControl,
@@ -24,7 +20,7 @@ import {
   Input,
   QRCode,
 } from '@org/ui';
-import { getDesktopApi, isDesktop } from '@org/web-desktop';
+import { isDesktop } from '@org/web-desktop';
 import {
   loginSchema,
   type CreateDeviceAuthResponse,
@@ -36,11 +32,9 @@ import {
   Copy,
   Eye,
   EyeOff,
-  Globe,
   Laptop,
   Loader2,
   Mail,
-  Smartphone,
   Sparkles,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -53,6 +47,8 @@ import {
 } from 'react-router-dom';
 import { trackAuthEvent } from '../auth-analytics.js';
 import { AuthLayout } from '../auth-layout.js';
+import { DesktopBrowserSignIn } from '../components/desktop-browser-sign-in.js';
+import { DesktopHandoffPanel } from '../components/desktop-handoff-panel.js';
 import { MagicLinkPanel } from '../components/magic-link-panel.js';
 import { TwoFactorChallengePanel } from '../components/two-factor-challenge-panel.js';
 import {
@@ -61,6 +57,11 @@ import {
   useLogin,
 } from '../use-auth.js';
 import { useAuthStore } from '../auth.store.js';
+import {
+  authorizeDesktopHandoff,
+  desktopCancelUrl,
+  withDesktopHandoff,
+} from '../desktop-handoff.js';
 import { resolveSafeHandoff, withHandoffToken } from '../safe-handoff-redirect.js';
 
 export function LoginPage() {
@@ -71,9 +72,10 @@ export function LoginPage() {
   const authUser = useAuthStore((s) => s.user);
   const setSession = useAuthStore((s) => s.setSession);
 
+  // This browser tab is signing in on behalf of the desktop app.
   const isDesktopHandoff = searchParams.get('desktop') === 'true';
-  const stateParam = searchParams.get('state');
-  const codeChallengeParam = searchParams.get('code_challenge');
+  const handoffState = searchParams.get('state');
+  const handoffChallenge = searchParams.get('code_challenge');
 
   /*
    * An emailed link opens in the system browser, so it can only ever sign in
@@ -92,8 +94,9 @@ export function LoginPage() {
   const [twoFactor, setTwoFactor] =
     useState<TwoFactorChallengeResponse | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [browserLoginStarting, setBrowserLoginStarting] = useState(false);
   const [desktopHandoffRunning, setDesktopHandoffRunning] = useState(false);
+  const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
+  const [handoffError, setHandoffError] = useState<string | null>(null);
 
   // Mobile QR pairing mode state
   const [isMobileQRMode, setIsMobileQRMode] = useState(false);
@@ -138,37 +141,46 @@ export function LoginPage() {
     }
   }, [authStatus, completeNavigation, isDesktopHandoff]);
 
-  // If already logged in and desktop handoff query params are present, authorize immediately
-  useEffect(() => {
-    async function completeExistingSessionHandoff() {
-      if (
-        authUser &&
-        isDesktopHandoff &&
-        stateParam &&
-        codeChallengeParam &&
-        !desktopHandoffRunning
-      ) {
-        setDesktopHandoffRunning(true);
-        try {
-          const authRes = await authApi.authorizeDesktop({
-            state: stateParam,
-            codeChallenge: codeChallengeParam,
-          });
-          const callbackUrl = `onetab://auth/callback?code=${encodeURIComponent(authRes.code)}&state=${encodeURIComponent(stateParam)}`;
-          window.location.href = callbackUrl;
-        } catch {
-          setDesktopHandoffRunning(false);
-        }
-      }
+  /**
+   * Mints the one-time desktop code for this browser session and hands it to
+   * the app. A failure used to silently drop back to the sign-in form; it now
+   * says what went wrong and offers a retry.
+   */
+  // Single-flight: both the "already signed in" effect and `finishSignIn`
+  // reach for this right after a password sign-in, and every call mints a
+  // separate one-time code — the app would consume one and report the other
+  // as expired.
+  const handoffInFlight = useRef(false);
+  const runDesktopHandoff = useCallback(async () => {
+    if (handoffInFlight.current) return;
+    handoffInFlight.current = true;
+    const handoff =
+      handoffState && handoffChallenge
+        ? { state: handoffState, codeChallenge: handoffChallenge }
+        : null;
+    setDesktopHandoffRunning(true);
+    setHandoffError(null);
+    if (!handoff) {
+      setHandoffError('This sign-in link is incomplete. Start again from the desktop app.');
+      return;
     }
-    void completeExistingSessionHandoff();
-  }, [
-    authUser,
-    isDesktopHandoff,
-    stateParam,
-    codeChallengeParam,
-    desktopHandoffRunning,
-  ]);
+    try {
+      setHandoffUrl(await authorizeDesktopHandoff(handoff));
+    } catch (error) {
+      handoffInFlight.current = false; // allow "Try again"
+      setHandoffError(
+        toApiError(error).message ||
+          'Could not hand your session to the desktop app. Try again.',
+      );
+    }
+  }, [handoffState, handoffChallenge]);
+
+  // Already signed in in this browser: hand the session straight to the app.
+  useEffect(() => {
+    if (authUser && isDesktopHandoff && !desktopHandoffRunning) {
+      void runDesktopHandoff();
+    }
+  }, [authUser, isDesktopHandoff, desktopHandoffRunning, runDesktopHandoff]);
 
   // Start mobile device auth request
   const startMobileQRLogin = async () => {
@@ -269,22 +281,11 @@ export function LoginPage() {
 
   /** After the session exists: hand it to the desktop app, or go on in. */
   const finishSignIn = async () => {
-    try {
-      if (isDesktopHandoff && stateParam && codeChallengeParam) {
-        setDesktopHandoffRunning(true);
-        const authRes = await authApi.authorizeDesktop({
-          state: stateParam,
-          codeChallenge: codeChallengeParam,
-        });
-        const callbackUrl = `onetab://auth/callback?code=${encodeURIComponent(authRes.code)}&state=${encodeURIComponent(stateParam)}`;
-        window.location.href = callbackUrl;
-        return;
-      }
-
-      completeNavigation();
-    } catch {
-      setDesktopHandoffRunning(false);
+    if (isDesktopHandoff) {
+      await runDesktopHandoff();
+      return;
     }
+    completeNavigation();
   };
 
   const handlePasswordLogin = async (values: LoginInput) => {
@@ -304,15 +305,6 @@ export function LoginPage() {
     }
   };
 
-  const onBrowserLoginClick = async () => {
-    setBrowserLoginStarting(true);
-    try {
-      await getDesktopApi()?.auth.startBrowserLogin();
-    } finally {
-      setTimeout(() => setBrowserLoginStarting(false), 2000);
-    }
-  };
-
   const handleCopyCode = () => {
     if (deviceAuthData?.userCode) {
       navigator.clipboard.writeText(deviceAuthData.userCode);
@@ -323,39 +315,11 @@ export function LoginPage() {
 
   if (desktopHandoffRunning) {
     return (
-      <div className="dark p-4 flex min-h-screen items-center justify-center bg-background">
-        <Card className="max-w-md w-full bg-surface border-border text-foreground shadow-2xl">
-          <CardHeader className="pb-2 text-center">
-            <div className="size-12 mb-3 mx-auto flex items-center justify-center rounded-full bg-surface-raised text-foreground">
-              <Laptop className="size-6" />
-            </div>
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Connecting to Desktop App
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Handing off authenticated session to OneTab AI Desktop…
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-2 text-center">
-            <p className="text-xs text-muted-foreground">
-              Please check your desktop application. If it didn&apos;t focus
-              automatically, click below:
-            </p>
-            <Button
-              type="button"
-              size="lg"
-              className="w-full"
-              onClick={() => {
-                if (stateParam) {
-                  window.location.href = `onetab://open`;
-                }
-              }}
-            >
-              Open Desktop Client
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <DesktopHandoffPanel
+        callbackUrl={handoffUrl}
+        error={handoffError}
+        onRetry={() => void runDesktopHandoff()}
+      />
     );
   }
 
@@ -445,6 +409,15 @@ export function LoginPage() {
     );
   }
 
+  /*
+   * Inside the desktop app there is no sign-in form: authentication happens in
+   * the system browser (every method, one implementation) and comes back over
+   * `onetab://`. Phone pairing (above) stays available as the second path.
+   */
+  if (isDesktop) {
+    return <DesktopBrowserSignIn onUseMobile={() => void startMobileQRLogin()} />;
+  }
+
   if (twoFactor) {
     return (
       <AuthLayout
@@ -487,7 +460,7 @@ export function LoginPage() {
         <>
           Don&apos;t have an account?{' '}
           <Link
-            to="/register"
+            to={withDesktopHandoff('/register', searchParams)}
             className="font-medium text-foreground hover:underline transition-colors"
           >
             Create one
@@ -495,33 +468,27 @@ export function LoginPage() {
         </>
       }
     >
-      {/* Desktop-only helpers: browser hand-off + mobile QR sign-in. */}
-      {isDesktop && (
-        <div className="space-y-2.5 mb-4">
-          <Button
+      {isDesktopHandoff && handoffState ? (
+        <div
+          role="note"
+          className="mb-4 gap-2.5 p-3 text-xs flex items-start rounded-lg border border-info/25 bg-info/10 text-info-text"
+        >
+          <Laptop aria-hidden className="size-4 mt-px shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Signing in to OneTab AI Desktop</p>
+            <p className="mt-0.5">After you sign in, you’ll be sent back to the app.</p>
+          </div>
+          <button
             type="button"
-            variant="secondary"
-            size="md"
-            className="w-full"
-            onClick={onBrowserLoginClick}
-            loading={browserLoginStarting}
-            leadingIcon={<Globe className="size-3.5" />}
+            className="shrink-0 font-medium underline-offset-2 hover:underline"
+            onClick={() => {
+              window.location.href = desktopCancelUrl(handoffState);
+            }}
           >
-            Continue with Browser (Recommended)
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="md"
-            className="w-full"
-            onClick={startMobileQRLogin}
-            leadingIcon={<Smartphone className="size-3.5 text-muted-foreground" />}
-          >
-            Sign in with Mobile (QR)
-          </Button>
+            Cancel
+          </button>
         </div>
-      )}
+      ) : null}
 
       {/* VIEW: MAGIC LINK MODE */}
       {authMode === 'magic-link' ? (

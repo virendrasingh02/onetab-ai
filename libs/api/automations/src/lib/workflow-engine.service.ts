@@ -21,6 +21,13 @@ interface WorkflowNode {
   type: string;
   label?: string;
   config?: Record<string, unknown>;
+  /** The builder's React Flow payload; `data.disabled` switches a node off. */
+  data?: Record<string, unknown>;
+}
+
+/** A node the builder switched off: it passes through without running. */
+export function isNodeDisabled(node: WorkflowNode): boolean {
+  return node.data?.['disabled'] === true || node.config?.['disabled'] === true;
 }
 
 interface WorkflowEdge {
@@ -324,6 +331,16 @@ export class WorkflowEngineService {
     executionId: string,
     creatorId: string | null,
   ): Promise<WorkflowStepResult> {
+    if (isNodeDisabled(node)) {
+      // Skipped, not failed: downstream nodes still run, as if it were wired
+      // straight through.
+      return {
+        stepId: node.id,
+        type: node.type,
+        status: 'SKIPPED',
+        output: { skipped: true, reason: 'Node disabled in the builder' },
+      };
+    }
     const cfg = node.config ?? {};
     const retries = Math.min(num(cfg['retries'], 0), 5);
     const timeoutMs = num(cfg['timeoutMs'], DEFAULT_STEP_TIMEOUT_MS);

@@ -14,6 +14,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@org/utils": "*",
     "react": "^19.0.0"
   },
   "nx": {

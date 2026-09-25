@@ -47,6 +47,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useDraftsStore } from './drafts-store.js';
+import { useComposerInsertStore } from './composer-insert-store.js';
 import {
   LexicalComposerInput,
   type LexicalEditorRef,
@@ -483,6 +484,25 @@ export function Composer({
       setDetectedUrls([]);
     }
   }, [conversationId, getDraft, setDraft, linkPreviewsEnabled, fetchPreview]);
+
+  /*
+   * "Quote message" and friends post markdown for a conversation; the composer
+   * bound to that conversation appends it after whatever is already typed and
+   * takes focus, so the user can write their reply straight under the quote.
+   */
+  const insertRequest = useComposerInsertStore((s) =>
+    conversationId && s.request?.conversationId === conversationId ? s.request : null,
+  );
+  const consumeInsert = useComposerInsertStore((s) => s.consume);
+  useEffect(() => {
+    if (!insertRequest || !lexicalRef.current || edit) return;
+    const current = lexicalRef.current.getMarkdown().trimEnd();
+    const next = current ? `${current}\n\n${insertRequest.markdown}` : insertRequest.markdown;
+    lexicalRef.current.setMarkdown(next);
+    lexicalRef.current.focus();
+    setHasContent(next.trim().length > 0);
+    consumeInsert(insertRequest.nonce);
+  }, [insertRequest, consumeInsert, edit]);
 
   /*
    * Opening (or switching) an edit swaps the box to the message's own

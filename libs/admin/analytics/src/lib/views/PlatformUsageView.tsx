@@ -1,16 +1,17 @@
-import type { AdminAnalyticsFilter } from '@org/types';
+import {
+  AreaChart,
+  ChartContainer,
+  DonutChart,
+} from '@org/analytics-ui';
 import { Card } from '@org/ui';
 import { Globe, Laptop, Monitor, Sparkles } from 'lucide-react';
-import { useState } from 'react';
 import {
-  AnalyticsAreaChart,
   AnalyticsDataTable,
-  AnalyticsDonutChart,
   AnalyticsFilterBar,
   AnalyticsHeader,
-  ChartContainer,
   type ColumnDef,
 } from '../components/index.js';
+import { useAdminAnalyticsFilter } from '../use-admin-analytics-filter.js';
 import { useAdminPlatformUsageAnalytics } from '../use-admin-analytics.js';
 
 type PlatformTableRow = {
@@ -25,7 +26,8 @@ type PlatformTableRow = {
 };
 
 export function PlatformUsageView() {
-  const [filter, setFilter] = useState<AdminAnalyticsFilter>({ range: '30d' });
+  const filterState = useAdminAnalyticsFilter();
+  const { filter } = filterState;
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } =
     useAdminPlatformUsageAnalytics(filter);
 
@@ -42,12 +44,12 @@ export function PlatformUsageView() {
     {
       name: 'Web Browser',
       value: data?.sessionsByPlatform?.web || 0,
-      color: '#3b82f6',
+      color: 'blue',
     },
     {
       name: 'Desktop App (Electron)',
       value: data?.sessionsByPlatform?.desktop || 0,
-      color: '#8b5cf6',
+      color: 'violet',
     },
   ];
 
@@ -142,8 +144,7 @@ export function PlatformUsageView() {
       />
 
       <AnalyticsFilterBar
-        filter={filter}
-        onFilterChange={(newFilter) => setFilter(newFilter)}
+        state={filterState}
         showPlatformFilter={false}
       />
 
@@ -237,12 +238,12 @@ export function PlatformUsageView() {
             isEmpty={!data?.usageOverTime?.length}
             height={320}
           >
-            <AnalyticsAreaChart
+            <AreaChart
               data={data?.usageOverTime || []}
               xAxisKey="date"
               series={[
-                { dataKey: 'webSessions', name: 'Web Sessions', color: '#3b82f6' },
-                { dataKey: 'desktopSessions', name: 'Desktop Sessions', color: '#8b5cf6' },
+                { dataKey: 'webSessions', name: 'Web Sessions', color: 'blue' },
+                { dataKey: 'desktopSessions', name: 'Desktop Sessions', color: 'violet' },
               ]}
               height={320}
               showLegend
@@ -259,7 +260,7 @@ export function PlatformUsageView() {
             isEmpty={totalSessions === 0}
             height={320}
           >
-            <AnalyticsDonutChart
+            <DonutChart
               data={sessionDonut}
               centerLabel="Sessions"
               centerValue={totalSessions}

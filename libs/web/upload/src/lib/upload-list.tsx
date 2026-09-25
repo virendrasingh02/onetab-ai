@@ -1,13 +1,11 @@
 import type { UploadContextType } from '@org/types';
 import {
+  ActionDropdownMenu,
   Badge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  EntityContextMenu,
   Hint,
   UserAvatar,
+  type EntityAction,
 } from '@org/ui';
 import { cn, formatBytes, formatDateTime, formatRelative } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -22,9 +20,13 @@ import {
   FolderKanban,
   Hash,
   Image as ImageIcon,
+  ExternalLink,
+  FolderInput,
   Info,
+  Link2,
   MessageSquare,
   MoreVertical,
+  Pencil,
   SquareKanban,
   Table2,
   Trash2,
@@ -236,6 +238,12 @@ export interface UploadListProps {
   onOpenDetails?: (item: UploadListItem, index: number) => void;
   /** Navigate to a source's origin (`source.href`). Enables the source badge. */
   onNavigateSource?: (href: string) => void;
+  /** Rename a manageable file (prompt + save). */
+  onRename?: (item: UploadListItem) => unknown;
+  /** Copy a shareable link to the file. */
+  onCopyLink?: (item: UploadListItem) => unknown;
+  /** Move / attach a manageable file elsewhere (a project, channel…). */
+  onMove?: (item: UploadListItem, index: number) => unknown;
   /**
    * The scroll container to virtualize against. Set for large lists (the Files
    * hub); leave unset to render every row (bounded per-surface lists).
@@ -341,6 +349,9 @@ function Row({
   onDelete,
   onOpenDetails,
   onNavigateSource,
+  onRename,
+  onCopyLink,
+  onMove,
 }: UploadListProps & { item: UploadListItem; index: number }) {
   return (
     <UploadRow
@@ -355,6 +366,9 @@ function Row({
       onDelete={onDelete}
       onOpenDetails={onOpenDetails}
       onNavigateSource={onNavigateSource}
+      onRename={onRename}
+      onCopyLink={onCopyLink}
+      onMove={onMove}
     />
   );
 }
@@ -371,6 +385,9 @@ function UploadRow({
   onDelete,
   onOpenDetails,
   onNavigateSource,
+  onRename,
+  onCopyLink,
+  onMove,
 }: {
   item: UploadListItem;
   index: number;
@@ -383,15 +400,97 @@ function UploadRow({
   onDelete?: (item: UploadListItem) => void;
   onOpenDetails?: (item: UploadListItem, index: number) => void;
   onNavigateSource?: (href: string) => void;
+  onRename?: (item: UploadListItem) => unknown;
+  onCopyLink?: (item: UploadListItem) => unknown;
+  onMove?: (item: UploadListItem, index: number) => unknown;
 }) {
   const uploaderName = item.uploader.displayName ?? item.uploader.name;
-  const canDelete = item.manageable !== false && !!onDelete;
+  const manageable = item.manageable !== false;
+  const canDelete = manageable && !!onDelete;
+  const sourceHref = item.source?.href ?? null;
+
+  /* One list for the "⋯" menu, right-click and the touch sheet. Chat files
+     (not manageable here) keep only what works on them: view and download. */
+  const actions: EntityAction[] = [
+    { id: 'preview', group: 'open', label: 'Preview', icon: Eye, run: () => onPreview(item, index) },
+    {
+      id: 'download',
+      group: 'open',
+      label: 'Download',
+      icon: Download,
+      shortcut: 'D',
+      disabled: isDownloading,
+      run: () => onDownload(item),
+    },
+    {
+      id: 'details',
+      group: 'open',
+      label: 'View details',
+      icon: Info,
+      shortcut: 'I',
+      hidden: !onOpenDetails,
+      run: () => onOpenDetails?.(item, index),
+    },
+    {
+      id: 'source',
+      group: 'open',
+      label: item.source?.label ? `Go to ${item.source.label}` : 'Go to source',
+      icon: ExternalLink,
+      hidden: !sourceHref || !onNavigateSource,
+      run: () => sourceHref && onNavigateSource?.(sourceHref),
+    },
+    {
+      id: 'rename',
+      group: 'manage',
+      label: 'Rename…',
+      icon: Pencil,
+      shortcut: 'R',
+      hidden: !manageable || !onRename,
+      run: () => onRename?.(item),
+    },
+    {
+      id: 'move',
+      group: 'manage',
+      label: 'Move or attach to project…',
+      icon: FolderInput,
+      hidden: !manageable || !onMove,
+      run: () => onMove?.(item, index),
+    },
+    {
+      id: 'copy-link',
+      group: 'manage',
+      label: 'Copy link',
+      icon: Link2,
+      shortcut: 'L',
+      hidden: !onCopyLink,
+      run: () => onCopyLink?.(item),
+    },
+    {
+      id: 'delete',
+      group: 'danger',
+      label: 'Delete…',
+      icon: Trash2,
+      shortcut: 'Del',
+      destructive: true,
+      hidden: !canDelete,
+      disabled: isDeleting,
+      // The host confirms (it owns the prompt dialog).
+      run: () => onDelete?.(item),
+    },
+  ];
   const primary = onOpenDetails ?? onPreview;
   const edited =
     item.updatedAt &&
     Math.abs(Date.parse(item.updatedAt) - Date.parse(item.createdAt)) > 60_000;
 
   return (
+    <EntityContextMenu
+      actions={actions}
+      scope={`file:${item.id}`}
+      entityType="file"
+      entity={item}
+      label={item.filename}
+    >
     <div
       className={cn(
         'group gap-3 p-3 sm:px-4 flex items-center justify-between transition-colors hover:bg-accent/40',
@@ -484,45 +583,23 @@ function UploadRow({
           </button>
         </Hint>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <ActionDropdownMenu
+          actions={actions}
+          scope={`file:${item.id}`}
+          entityType="file"
+          entity={item}
+          contentClassName="w-56"
+          trigger={
             <button
               className="size-7 flex items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground"
               aria-label={`More options for ${item.filename}`}
             >
               <MoreVertical className="size-3.5" />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44 text-xs">
-            {onOpenDetails ? (
-              <DropdownMenuItem onSelect={() => onOpenDetails(item, index)}>
-                <Info className="size-3.5 mr-2" />
-                <span>Details</span>
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem onSelect={() => onPreview(item, index)}>
-              <Eye className="size-3.5 mr-2" />
-              <span>Preview</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onDownload(item)}>
-              <Download className="size-3.5 mr-2" />
-              <span>Download</span>
-            </DropdownMenuItem>
-            {canDelete ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => onDelete?.(item)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="size-3.5 mr-2" />
-                  <span>Delete</span>
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          }
+        />
       </div>
     </div>
+    </EntityContextMenu>
   );
 }

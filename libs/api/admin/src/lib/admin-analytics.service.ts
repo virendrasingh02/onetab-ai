@@ -20,6 +20,14 @@ import type {
   AdminWorkspaceDetailAnalytics,
   ExecutiveKpi,
 } from '@org/types';
+import {
+  parseIsoDay,
+  resolveQueryWindow,
+  toDateRangeQuery,
+  toIsoDay,
+  type DateRangePreset,
+  type DateRangeValue,
+} from '@org/utils';
 
 interface ResolvedDateRange {
   days: number;
@@ -30,67 +38,61 @@ interface ResolvedDateRange {
   label: string;
 }
 
+/** Pre-`DateRangeFilter` range ids, still accepted from older clients and exports. */
+const LEGACY_RANGE_PRESETS: Partial<Record<string, DateRangePreset>> = {
+  today: 'today',
+  yesterday: 'yesterday',
+  '7d': 'last_7_days',
+  '30d': 'last_30_days',
+  '90d': 'last_90_days',
+  this_month: 'this_month',
+  last_month: 'last_month',
+};
+
+/** A custom range may not ask for more than two years of rows. */
+const MAX_RANGE_DAYS = 731;
+
+/**
+ * Turns the filter into inclusive `[since, until]` bounds (queries use
+ * `gte`/`lte`) plus the equally long window just before it.
+ *
+ * The console sends explicit `startDate`/`endDate` calendar days, resolved in
+ * the operator's time zone by the shared `DateRangeFilter`. The preset ids are
+ * only a fallback — and resolve through the same `@org/utils` date-range code
+ * the UI uses. The hand-rolled switch this replaces left `until = now` for
+ * "yesterday" and "last month", so both silently included today's data.
+ */
 function resolveDateRange(filter?: AdminAnalyticsFilter): ResolvedDateRange {
   const now = new Date();
-  const until = filter?.endDate ? new Date(filter.endDate) : now;
-  let since = new Date(until);
-  let days = 30;
+  let value: DateRangeValue;
 
-  const range = filter?.range ?? '30d';
-  switch (range) {
-    case 'today':
-      days = 1;
-      since = new Date(until.getFullYear(), until.getMonth(), until.getDate());
-      break;
-    case 'yesterday': {
-      days = 1;
-      const y = new Date(until.getFullYear(), until.getMonth(), until.getDate() - 1);
-      since = y;
-      break;
-    }
-    case '7d':
-      days = 7;
-      since = new Date(until.getTime() - 7 * 24 * 60 * 60 * 1000);
-      break;
-    case '30d':
-      days = 30;
-      since = new Date(until.getTime() - 30 * 24 * 60 * 60 * 1000);
-      break;
-    case '90d':
-      days = 90;
-      since = new Date(until.getTime() - 90 * 24 * 60 * 60 * 1000);
-      break;
-    case 'this_month':
-      since = new Date(until.getFullYear(), until.getMonth(), 1);
-      days = Math.max(1, Math.round((until.getTime() - since.getTime()) / (24 * 60 * 60 * 1000)));
-      break;
-    case 'last_month': {
-      const prevMonthStart = new Date(until.getFullYear(), until.getMonth() - 1, 1);
-      const prevMonthEnd = new Date(until.getFullYear(), until.getMonth(), 0, 23, 59, 59, 999);
-      since = prevMonthStart;
-      days = Math.max(1, Math.round((prevMonthEnd.getTime() - prevMonthStart.getTime()) / (24 * 60 * 60 * 1000)));
-      break;
-    }
-    case 'this_year':
-      since = new Date(until.getFullYear(), 0, 1);
-      days = Math.max(1, Math.round((until.getTime() - since.getTime()) / (24 * 60 * 60 * 1000)));
-      break;
-    case 'custom':
-      if (filter?.startDate) {
-        since = new Date(filter.startDate);
-        days = Math.max(1, Math.round((until.getTime() - since.getTime()) / (24 * 60 * 60 * 1000)));
-      } else {
-        days = 30;
-        since = new Date(until.getTime() - 30 * 24 * 60 * 60 * 1000);
-      }
-      break;
+  const startDay = filter?.startDate?.slice(0, 10);
+  const endDay = filter?.endDate?.slice(0, 10);
+  if (startDay && endDay && parseIsoDay(startDay) && parseIsoDay(endDay)) {
+    value = { preset: 'custom', from: startDay, to: endDay };
+  } else if (filter?.range === 'this_year') {
+    value = {
+      preset: 'custom',
+      from: `${now.getFullYear()}-01-01`,
+      to: toIsoDay(now),
+    };
+  } else {
+    value = { preset: LEGACY_RANGE_PRESETS[filter?.range ?? '30d'] ?? 'last_30_days' };
   }
 
-  const durationMs = until.getTime() - since.getTime();
-  const previousUntil = new Date(since.getTime());
-  const previousSince = new Date(since.getTime() - durationMs);
+  const { from, to } = toDateRangeQuery(value, { now });
+  const window = resolveQueryWindow({ from, to }, { now, maxDays: MAX_RANGE_DAYS });
+  const until = new Date(window.until.getTime() - 1);
+  const previousUntil = new Date(window.since.getTime() - 1);
 
-  return { days, since, until, previousSince, previousUntil, label: range };
+  return {
+    days: window.days,
+    since: window.since,
+    until,
+    previousSince: window.previousSince,
+    previousUntil,
+    label: value.preset,
+  };
 }
 
 function calculateKpi(
@@ -127,11 +129,16 @@ function calculateKpi(
   };
 }
 
+/**
+ * One `YYYY-MM-DD` key per local calendar day in `[since, until]`. Keys are
+ * local days to match how `resolveDateRange` draws the window — keying by
+ * `toISOString()` (UTC) shifted every bucket back a day east of UTC.
+ */
 function generateDailyBuckets(since: Date, until: Date): string[] {
   const buckets: string[] = [];
   const curr = new Date(since);
   while (curr <= until) {
-    buckets.push(curr.toISOString().slice(0, 10));
+    buckets.push(toIsoDay(curr));
     curr.setDate(curr.getDate() + 1);
   }
   return buckets;
@@ -416,7 +423,7 @@ export class AdminAnalyticsService {
     const buckets = generateDailyBuckets(since, until);
     const activityMap = new Map<string, number>();
     for (const act of activityRows) {
-      const key = act.occurredAt.toISOString().slice(0, 10);
+      const key = toIsoDay(act.occurredAt);
       activityMap.set(key, (activityMap.get(key) ?? 0) + 1);
     }
     const activitySeries = buckets.map((date) => ({
@@ -959,7 +966,7 @@ export class AdminAnalyticsService {
         billingHistory: [
           {
             id: 'inv_1',
-            date: new Date().toISOString().slice(0, 10),
+            date: toIsoDay(new Date()),
             amount: rev,
             status: 'PAID',
             description: `${plan} Plan (${seats} seats)`,

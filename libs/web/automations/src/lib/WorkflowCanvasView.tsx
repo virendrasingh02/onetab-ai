@@ -14,11 +14,26 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Badge, Button, Card, Hint, Panel, toast } from '@org/ui';
+import {
+  ActionContextMenu,
+  Badge,
+  Button,
+  Card,
+  copyToClipboard,
+  Hint,
+  Panel,
+  toast,
+  type EntityAction,
+} from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   ArrowLeft,
+  ClipboardCopy,
+  PowerOff,
+  Power,
+  CopyPlus,
+  Settings2,
   Bot,
   Brain,
   CheckCircle,
@@ -300,14 +315,18 @@ function UnifiedFlowNode({ data, selected, id }: NodeProps) {
   const isSwitch = nodeType === 'SWITCH';
   const isOutput = nodeType === 'OUTPUT';
   const isTrigger = nodeType === 'TRIGGER' || nodeType === 'START';
+  const isDisabled = data.disabled === true;
 
   return (
     <Card
+      aria-disabled={isDisabled || undefined}
+      title={isDisabled ? 'Disabled — skipped when the workflow runs' : undefined}
       className={cn(
         'p-3 min-w-[220px] max-w-[280px] rounded-xl border-2 bg-surface shadow-md transition-all duration-200 select-none cursor-pointer',
         selected
           ? 'border-primary ring-2 ring-primary/25 shadow-lg'
           : currentTheme.border,
+        isDisabled && 'opacity-50 border-dashed',
       )}
     >
       {/* Target handle (except for root triggers) */}
@@ -540,6 +559,127 @@ export function WorkflowCanvasView() {
     });
   };
 
+  /* ---- node context menu (right-click a node on the canvas) ---- */
+  const [nodeMenu, setNodeMenu] = useState<{ node: Node; x: number; y: number } | null>(
+    null,
+  );
+
+  const nodeLabel = (node: Node) =>
+    String((node.data as { label?: string })?.label || node.type || 'Node');
+
+  const duplicateNode = (node: Node) => {
+    const copy: Node = {
+      ...node,
+      id: `node_${Date.now()}`,
+      position: { x: node.position.x + 40, y: node.position.y + 60 },
+      selected: false,
+      data: { ...node.data },
+    };
+    setNodes((nds) => [...nds, copy]);
+    setSelectedNode(copy);
+  };
+
+  const setNodeDisabled = (node: Node, disabled: boolean) => {
+    setNodes((nds) =>
+      nds.map((n) => (n.id === node.id ? { ...n, data: { ...n.data, disabled } } : n)),
+    );
+    setSelectedNode((prev) =>
+      prev?.id === node.id ? { ...prev, data: { ...prev.data, disabled } } : prev,
+    );
+  };
+
+  const removeNode = (node: Node) => {
+    setNodes((nds) => nds.filter((n) => n.id !== node.id));
+    setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
+    setSelectedNode((prev) => (prev?.id === node.id ? null : prev));
+    toast.info(`Deleted ${nodeLabel(node)}`);
+  };
+
+  /** Adds `item` below `source` and wires source → new node. */
+  const addConnectedNode = (source: Node, item: NodeCatalogItem) => {
+    const newNode: Node = {
+      id: `node_${Date.now()}`,
+      type: item.type,
+      position: { x: source.position.x, y: source.position.y + 140 },
+      data: { type: item.type, ...item.defaultData },
+    };
+    setNodes((nds) => [...nds, newNode]);
+    setEdges((eds) =>
+      addEdge({ source: source.id, target: newNode.id, sourceHandle: null, targetHandle: null, animated: true }, eds),
+    );
+    setSelectedNode(newNode);
+  };
+
+  const nodeActions = (node: Node): EntityAction[] => {
+    const disabled = (node.data as { disabled?: boolean })?.disabled === true;
+    const categories = [...new Set(NODE_CATALOG.map((c) => c.category))];
+    return [
+      {
+        id: 'configure',
+        group: 'edit',
+        label: 'Configure node',
+        icon: Settings2,
+        run: () => setSelectedNode(node),
+      },
+      {
+        id: 'add-connected',
+        group: 'edit',
+        label: 'Add connected node',
+        icon: Plus,
+        children: categories.map(
+          (category): EntityAction => ({
+            id: `add-${category}`,
+            label: category.charAt(0).toUpperCase() + category.slice(1),
+            children: NODE_CATALOG.filter((c) => c.category === category).map(
+              (item): EntityAction => ({
+                id: `add-${item.type}`,
+                label: item.label,
+                icon: item.icon,
+                run: () => addConnectedNode(node, item),
+              }),
+            ),
+          }),
+        ),
+      },
+      {
+        id: 'duplicate',
+        group: 'edit',
+        label: 'Duplicate node',
+        icon: CopyPlus,
+        shortcut: 'D',
+        run: () => duplicateNode(node),
+      },
+      {
+        id: 'toggle-disabled',
+        group: 'state',
+        label: disabled ? 'Enable node' : 'Disable node',
+        icon: disabled ? Power : PowerOff,
+        description: disabled ? undefined : 'Skipped when the workflow runs.',
+        run: () => setNodeDisabled(node, !disabled),
+      },
+      {
+        id: 'copy-config',
+        group: 'state',
+        label: 'Copy node configuration',
+        icon: ClipboardCopy,
+        run: () =>
+          copyToClipboard(
+            JSON.stringify({ type: node.type, data: node.data }, null, 2),
+            'Configuration',
+          ),
+      },
+      {
+        id: 'delete',
+        group: 'danger',
+        label: 'Delete node',
+        icon: Trash2,
+        shortcut: 'Del',
+        destructive: true,
+        run: () => removeNode(node),
+      },
+    ];
+  };
+
   const deleteSelectedNode = () => {
     if (!selectedNode) return;
     const label = (selectedNode.data as { label?: string })?.label || 'Node';
@@ -736,6 +876,11 @@ export function WorkflowCanvasView() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
+            onNodeContextMenu={(event, node) => {
+              event.preventDefault();
+              setNodeMenu({ node, x: event.clientX, y: event.clientY });
+            }}
+            onPaneClick={() => setNodeMenu(null)}
             nodeTypes={customNodeTypes}
             fitView
             attributionPosition="bottom-left"
@@ -754,6 +899,14 @@ export function WorkflowCanvasView() {
             />
             <Background gap={18} size={1} color="currentColor" className="text-border/40" />
           </ReactFlow>
+          <ActionContextMenu
+            at={nodeMenu ? { x: nodeMenu.x, y: nodeMenu.y } : null}
+            onClose={() => setNodeMenu(null)}
+            actions={() => (nodeMenu ? nodeActions(nodeMenu.node) : [])}
+            entityType="workflow-node"
+            entity={nodeMenu?.node}
+            scope={nodeMenu ? `workflow-node:${nodeMenu.node.id}` : undefined}
+          />
 
           {/* Floating Palette Button & Popover */}
           <div className="absolute top-3 left-3 z-30">

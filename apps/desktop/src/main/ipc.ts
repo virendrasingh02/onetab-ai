@@ -27,6 +27,7 @@ import {
   type DesktopSaveResult,
 } from '../shared/ipc.js';
 import {
+  cancelBrowserLogin,
   clearSecureSession,
   loadSecureSession,
   refreshSecureSession,
@@ -142,10 +143,12 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
 
   ipcMain.handle(
     IPC.authStartBrowserLogin,
-    guard(async () => {
-      return startBrowserLogin(webAppUrl);
+    guard(async (_event, intent?: unknown) => {
+      return startBrowserLogin(webAppUrl, intent === 'sign-up' ? 'sign-up' : 'sign-in');
     }),
   );
+
+  ipcMain.handle(IPC.authCancelBrowserLogin, guard(() => cancelBrowserLogin()));
 
   ipcMain.handle(
     IPC.authGetSession,

@@ -1,5 +1,5 @@
 import { ACCENTS, type Accent } from '@org/design-system';
-import type { BreakdownSlice, TimeSeriesPoint, TrendDelta } from '@org/types';
+import type { BreakdownSlice, TrendDelta } from '@org/types';
 import {
   accentClasses,
   Badge,
@@ -10,7 +10,6 @@ import {
   PageHeader,
   Panel,
   Progress,
-  SegmentedControl,
   StatCard,
   Table,
   TableBody,
@@ -23,43 +22,20 @@ import {
 import { cn } from '@org/utils';
 import { RefreshCw } from 'lucide-react';
 import type { ReactNode } from 'react';
-
-/**
- * Ranges offered by every analytics screen's picker.
- *
- * Lives here rather than beside the data hooks because `RangePicker` is the
- * only thing that renders it, and the hooks now sit in two different libraries
- * — the workspace-scoped screens in `@org/web-analytics` and the platform ones
- * in `@org/admin-analytics`.
- */
-export const RANGE_OPTIONS = [
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-  { label: '90d', days: 90 },
-] as const;
+import { formatCompactNumber } from './charts/chart-theme.js';
 
 // ---------------------------------------------------------------------------
 // Formatting
 // ---------------------------------------------------------------------------
 
-export function formatNumber(value: number): string {
-  if (!Number.isFinite(value)) return '—';
-  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(value) >= 10_000) return `${(value / 1_000).toFixed(1)}k`;
-  return value.toLocaleString();
-}
+/**
+ * Compact counts (`12.3k`, `4.5M`). Same function the charts use for their
+ * axes, so a KPI card and the chart under it never disagree on a number.
+ */
+export const formatNumber = formatCompactNumber;
 
-export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
-}
+/** Re-exported from `@org/utils` — there is exactly one byte formatter. */
+export { formatBytes } from '@org/utils';
 
 export function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.round(seconds)}s`;
@@ -120,28 +96,6 @@ export function ViewShell({ children }: { children: ReactNode }) {
 
 /** Re-exported so analytics screens keep importing `Panel` from one place. */
 export { Panel };
-
-export function RangePicker({
-  days,
-  onChange,
-}: {
-  days: number;
-  onChange: (days: number) => void;
-}) {
-  return (
-    <SegmentedControl
-      aria-label="Date range"
-      size="sm"
-      value={days}
-      onChange={onChange}
-      options={RANGE_OPTIONS.map((option) => ({
-        value: option.days,
-        label: option.label,
-        hint: `Last ${option.days} days`,
-      }))}
-    />
-  );
-}
 
 export function RefreshButton({
   onClick,
@@ -210,7 +164,8 @@ export function QueryState({
   isLoading,
   error,
   isEmpty,
-  emptyMessage = 'No data has been recorded for this range yet.',
+  emptyMessage = 'No analytics data for this period.',
+  emptyAction,
   onRetry,
   children,
 }: {
@@ -218,6 +173,8 @@ export function QueryState({
   error: unknown;
   isEmpty?: boolean;
   emptyMessage?: string;
+  /** e.g. a "Change date range" button under the empty message. */
+  emptyAction?: ReactNode;
   onRetry?: () => void;
   children: ReactNode;
 }) {
@@ -242,8 +199,12 @@ export function QueryState({
 
   if (isEmpty) {
     return (
-      <div className="p-8 rounded-xl border bg-surface-muted text-center">
+      <div
+        role="status"
+        className="gap-3 p-8 flex flex-col items-center rounded-xl border bg-surface-muted text-center"
+      >
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+        {emptyAction}
       </div>
     );
   }
@@ -291,60 +252,6 @@ export function MetricCard({
 }
 
 export { TrendBadge };
-
-/**
- * Bars are scaled against the series maximum rather than a fixed ceiling, so a
- * quiet workspace still gets a readable chart instead of a flat line.
- */
-export function BarChart({
-  series,
-  accent = 'violet',
-  height = 160,
-  valueLabel = 'events',
-}: {
-  series: TimeSeriesPoint[];
-  accent?: Accent;
-  height?: number;
-  valueLabel?: string;
-}) {
-  const max = Math.max(1, ...series.map((point) => point.value));
-  const step = Math.max(1, Math.ceil(series.length / 8));
-  const total = series.reduce((sum, point) => sum + point.value, 0);
-
-  return (
-    <div>
-      <div
-        className="gap-0.75 flex w-full items-end"
-        style={{ height }}
-        role="img"
-        aria-label={`${formatNumber(total)} ${valueLabel} across ${series.length} periods, from ${series.at(0)?.date ?? ''} to ${series.at(-1)?.date ?? ''}`}
-      >
-        {series.map((point) => (
-          <div
-            key={point.date}
-            className="group min-w-0.75 relative flex flex-1 flex-col justify-end"
-            title={`${point.date}: ${point.value} ${valueLabel}`}
-          >
-            <div
-              className={cn(
-                'rounded-t w-full transition-opacity duration-(--duration-fast) group-hover:opacity-80',
-                accentClasses[accent].bg,
-              )}
-              style={{ height: `${Math.max(2, (point.value / max) * 100)}%` }}
-            />
-          </div>
-        ))}
-      </div>
-      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
-        {series
-          .filter((_, index) => index % step === 0)
-          .map((point) => (
-            <span key={point.date}>{point.date.slice(5)}</span>
-          ))}
-      </div>
-    </div>
-  );
-}
 
 export function Breakdown({
   slices,

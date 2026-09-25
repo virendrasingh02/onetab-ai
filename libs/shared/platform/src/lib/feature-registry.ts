@@ -94,6 +94,32 @@ export const FEATURE_REGISTRY: Record<string, FeatureDefinition> = {
     uiRelevance: 'user-facing',
   },
 
+  /*
+   * Browser-only surfaces. They are separate web apps with their own origin
+   * and shell, deliberately not bundled into the desktop app; on desktop
+   * their entry points open the system browser instead of navigating the
+   * app window (which the shell's navigation policy blocks anyway). The
+   * fallback URL is resolved by the caller from its own configuration.
+   */
+  agentStudio: {
+    id: 'agentStudio',
+    name: 'AI Agent Studio',
+    description:
+      'The agent and workflow builder. A browser app that shares the platform account, workspace and permissions.',
+    platforms: ['web'],
+    fallback: { type: 'external', url: '', label: 'Open in browser' },
+    uiRelevance: 'user-facing',
+  },
+
+  adminConsole: {
+    id: 'adminConsole',
+    name: 'Admin console',
+    description: 'Platform operations console for SUPERADMIN and SUPPORT accounts. Browser only.',
+    platforms: ['web'],
+    fallback: { type: 'external', url: '', label: 'Open in browser' },
+    uiRelevance: 'informational',
+  },
+
   singleInstance: {
     id: 'singleInstance',
     name: 'Single instance enforcement',

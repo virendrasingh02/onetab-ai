@@ -14,8 +14,11 @@ export {
   dayKey,
   normaliseDays,
   normaliseHours,
+  resolveAnalyticsWindow,
   startOfRange,
   toBreakdown,
   toDailySeries,
   toTrend,
+  type AnalyticsRangeQuery,
+  type AnalyticsWindow,
 } from './lib/analytics.util.js';
