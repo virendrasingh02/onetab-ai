@@ -234,7 +234,7 @@ export function DashboardPage() {
       title: 'Explore AI Agents & Automations',
       desc: 'Deploy prompt assistants or automate recurring cross-platform routines.',
       done: false,
-      link: `/w/${slug}/agents/builder`,
+      link: `/w/${slug}/ai/agents/new`,
     },
   ];
 
@@ -590,7 +590,7 @@ export function DashboardPage() {
                   </Link>
 
                   <Link
-                    to={`/w/${slug}/agents/builder`}
+                    to={`/w/${slug}/ai/agents/new`}
                     className="p-2.5 rounded-md border border-border hover:border-primary/40 hover:bg-accent/30 transition-all flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
@@ -797,13 +797,13 @@ export function DashboardPage() {
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="sm" className="w-full justify-start text-xs h-8">
-                    <Link to={`/w/${slug}/agents/builder`}>
+                    <Link to={`/w/${slug}/ai/agents/new`}>
                       <Bot className="size-3.5 mr-2" />
                       Deploy AI Assistant
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="sm" className="w-full justify-start text-xs h-8">
-                    <Link to={`/w/${slug}/automations/builder`}>
+                    <Link to={`/w/${slug}/ai/workflows/new`}>
                       <Workflow className="size-3.5 mr-2" />
                       Build Workflows
                     </Link>

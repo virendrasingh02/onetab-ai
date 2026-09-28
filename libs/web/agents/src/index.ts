@@ -6,8 +6,19 @@ export {
 } from './lib/use-agents.js';
 
 export { AgentMarketplaceView, AgentAvatar } from './lib/AgentMarketplaceView.js';
-export { AgentBuilderView } from './lib/AgentBuilderView.js';
-export { AgentMonitoringView } from './lib/AgentMonitoringView.js';
+/*
+ * The unified agent editor (AI Workspace → Agents → an agent). It replaced the
+ * in-app Agent Builder, the standalone Agent Studio's agent screens and the
+ * agent monitor (runs now live in the AI Workspace's Runs view).
+ */
+export { AgentEditorView, type AgentEditorViewProps } from './lib/editor/AgentEditorView.js';
+export { AIEntityRunsList } from './lib/editor/AIEntityRunsList.js';
+export {
+  AgentBuilderOptionsProvider,
+  BuilderOptionSelect,
+  useAgentBuilderOptions,
+  type OptionSource,
+} from './lib/agent-graph/index.js';
 export { AgentChatView } from './lib/AgentChatView.js';
 export { AgentProfileRightPanel } from './lib/AgentProfileRightPanel.js';
 export { AIEntityAvatar, type AIEntityAvatarProps } from './lib/shared/ai-entity-avatar.js';

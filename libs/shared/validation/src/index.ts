@@ -16,3 +16,4 @@ export * from './lib/link-preview.schema.js';
 export * from './lib/calls.schema.js';
 export * from './lib/reminders.schema.js';
 
+export * from './lib/ai-workspace.schema.js';

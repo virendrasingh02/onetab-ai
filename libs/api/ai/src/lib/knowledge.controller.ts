@@ -12,9 +12,17 @@ import {
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
+  createKnowledgeBaseSchema,
+  ingestKnowledgeDocumentSchema,
+  knowledgeRetrievalSchema,
+  updateKnowledgeBaseSchema,
+  updateKnowledgeChunkSchema,
+} from '@org/validation';
+import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
 import type {
@@ -47,7 +55,7 @@ export class KnowledgeController {
   create(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: CreateKnowledgeBaseInput,
+    @Body(zodBody(createKnowledgeBaseSchema)) body: CreateKnowledgeBaseInput,
   ) {
     return this.knowledgeService.createKnowledgeBase(workspaceId, userId, body);
   }
@@ -57,7 +65,7 @@ export class KnowledgeController {
   update(
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,
-    @Body() body: Partial<CreateKnowledgeBaseInput>,
+    @Body(zodBody(updateKnowledgeBaseSchema)) body: Partial<CreateKnowledgeBaseInput>,
   ) {
     return this.knowledgeService.updateKnowledgeBase(workspaceId, id, body);
   }
@@ -87,7 +95,7 @@ export class KnowledgeController {
   ingestDocument(
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,
-    @Body() body: IngestDocumentInput,
+    @Body(zodBody(ingestKnowledgeDocumentSchema)) body: IngestDocumentInput,
   ) {
     return this.knowledgeService.ingestDocument(workspaceId, id, body);
   }
@@ -121,7 +129,7 @@ export class KnowledgeController {
     @Param('id') id: string,
     @Param('documentId') documentId: string,
     @Param('chunkId') chunkId: string,
-    @Body('content') content: string,
+    @Body(zodBody(updateKnowledgeChunkSchema)) { content }: { content: string },
   ) {
     return this.knowledgeService.updateChunk(
       workspaceId,
@@ -138,7 +146,7 @@ export class KnowledgeController {
   retrieve(
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,
-    @Body() query: KnowledgeRetrievalQuery,
+    @Body(zodBody(knowledgeRetrievalSchema)) query: KnowledgeRetrievalQuery,
   ) {
     return this.knowledgeService.retrieve(workspaceId, id, query);
   }

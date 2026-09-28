@@ -14,9 +14,11 @@ import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
 import type { CreateAISecretInput } from '@org/types';
+import { createAISecretSchema } from '@org/validation';
 import { AISecretsService } from './ai-secrets.service.js';
 
 @Controller({ path: 'workspaces/:workspaceId/ai-secrets', version: '1' })
@@ -34,7 +36,7 @@ export class AISecretsController {
   create(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: CreateAISecretInput,
+    @Body(zodBody(createAISecretSchema)) body: CreateAISecretInput,
   ) {
     return this.secretsService.createSecret(workspaceId, userId, body);
   }

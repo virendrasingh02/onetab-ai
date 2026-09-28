@@ -10,9 +10,7 @@ import {
   RegisterPage,
   ResetPasswordPage,
   useSessionBootstrap,
-  withHandoffToken,
 } from '@org/auth';
-import { getAccessToken } from '@org/api-client';
 import { Button, EmptyState, LoadingState } from '@org/ui';
 /*
  * `@org/web-chat` is already in the main chunk — `Providers` mounts its
@@ -28,9 +26,9 @@ import { EncryptionSecurityPanel, SavedView, ThreadsView } from '@org/web-chat';
  * nothing behind it, and trips `@nx/enforce-module-boundaries`' check against
  * importing the same library both ways.
  */
-import { openExternal, PlatformDiagnosticsPage, useFeature } from '@org/web-desktop';
-import { lazy, Suspense, useCallback, useEffect, useRef } from 'react';
-import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { PlatformDiagnosticsPage } from '@org/web-desktop';
+import { lazy, Suspense } from 'react';
+import { Link, Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
 import { DocumentTitle } from './document-title';
 
 /**
@@ -171,28 +169,44 @@ const WhiteboardCanvas = lazy(() =>
 const AIChatView = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.AIChatView })),
 );
-const PromptLibraryView = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.PromptLibraryView })),
+/*
+ * The AI Workspace (`/w/:slug/ai`) — the one place agents, coworkers and
+ * workflows are built, run and reviewed. Each section comes from the library
+ * that owns it; the route layer is the first place that may depend on all of
+ * them (`@org/web-coworkers` already sits above `@org/web-agents`).
+ */
+const AIWorkspaceLayout = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIWorkspaceLayout })),
 );
-const AIStudioView = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIStudioView })),
+const AIOverviewSection = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIOverviewSection })),
+);
+const AIRunsSection = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIRunsSection })),
+);
+const AIApprovalsSection = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIApprovalsSection })),
+);
+const AIKnowledgeSection = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIKnowledgeSection })),
+);
+const AIToolsSection = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIToolsSection })),
+);
+const AIPromptsSection = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIPromptsSection })),
+);
+const AIAgentsDirectory = lazy(() =>
+  import('@org/web-coworkers').then((m) => ({ default: m.AIAgentsDirectory })),
+);
+const AIEntityEditorRoute = lazy(() =>
+  import('@org/web-coworkers').then((m) => ({ default: m.AIEntityEditorRoute })),
 );
 const AgentMarketplaceView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentMarketplaceView })),
 );
 const AgentChatView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentChatView })),
-);
-const AgentBuilderView = lazy(() =>
-  import('@org/web-agents').then((m) => ({ default: m.AgentBuilderView })),
-);
-const AgentMonitoringView = lazy(() =>
-  import('@org/web-agents').then((m) => ({ default: m.AgentMonitoringView })),
-);
-const CoworkerDirectoryView = lazy(() =>
-  import('@org/web-coworkers').then((m) => ({
-    default: m.CoworkerDirectoryView,
-  })),
 );
 const CoworkerChatView = lazy(() =>
   import('@org/web-coworkers').then((m) => ({
@@ -205,11 +219,6 @@ const WorkflowListView = lazy(() =>
 const WorkflowCanvasView = lazy(() =>
   import('@org/web-automations').then((m) => ({
     default: m.WorkflowCanvasView,
-  })),
-);
-const WorkflowExecutionLogsView = lazy(() =>
-  import('@org/web-automations').then((m) => ({
-    default: m.WorkflowExecutionLogsView,
   })),
 );
 const IntegrationHubView = lazy(() =>
@@ -246,105 +255,74 @@ function LegacySettingsRedirect({ section }: { section: string }) {
   return <Navigate to={`/w/${workspaceSlug}/settings/${section}`} replace />;
 }
 
-function LegacyStudioRedirect() {
-  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
-  return <Navigate to={`/w/${workspaceSlug}/studio`} replace />;
-}
-
-function LegacyStudioTabRedirect() {
-  const { workspaceSlug, tab } = useParams<{
-    workspaceSlug: string;
-    tab?: string;
-  }>();
-  return (
-    <Navigate to={`/w/${workspaceSlug}/studio/${tab ?? 'overview'}`} replace />
-  );
-}
+/**
+ * Where each tab of the former AI Studio lives now. Models had no settings of
+ * their own there (a static list); provider keys and models are configured in
+ * Settings → AI providers.
+ */
+const STUDIO_TAB_TO_SECTION: Record<string, string> = {
+  overview: '',
+  agents: 'agents',
+  coworkers: 'agents?type=coworker',
+  workflows: 'workflows',
+  executions: 'runs',
+  approvals: 'approvals',
+  knowledge: 'knowledge',
+  prompts: 'prompts',
+  tools: 'tools',
+  mcp: 'tools',
+  models: 'tools',
+  apps: '',
+  analytics: '',
+};
 
 /**
- * Where AI Agent Studio is served. It is a separate browser app, so the
- * production URL must come from configuration; the dev fallback matches its
- * Vite port. Returns `null` when unconfigured rather than guessing a path on
- * this origin (the old `/studio` fallback just landed on "Page not found").
+ * Sends a bookmark or link to any former AI surface — AI Studio, the separate
+ * Agent Studio app, the Agent Builder, Automations, the coworker directory —
+ * to its place in the AI Workspace, keeping the id it referred to.
  */
-function agentStudioUrl(): string | null {
-  const configured = import.meta.env?.['VITE_AGENT_STUDIO_URL'] as string | undefined;
-  if (configured) return configured;
-  return import.meta.env.DEV ? 'http://localhost:4202' : null;
-}
-
-/**
- * `/w/:slug/agent-studio` — the sidebar's entry point into AI Agent Studio.
- *
- * Studio is browser-only (`agentStudio` in `@org/platform`'s feature
- * registry). In a browser this hands the current session over and navigates;
- * in the desktop app it opens the system browser instead — navigating the
- * app window off-origin is blocked by the shell, which used to leave this
- * screen spinning forever. No token is passed to the external browser: it
- * signs in with its own session.
- */
-function AgentStudioRedirect() {
-  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
-  const studio = useFeature('agentStudio');
-  const baseUrl = agentStudioUrl();
-  const inApp = studio.available;
-  const launched = useRef(false);
-
-  const launch = useCallback(() => {
-    if (!baseUrl) return;
-    const target = new URL('/agents', baseUrl);
-    if (!inApp) {
-      void openExternal(target.toString());
-      return;
+function LegacyAIRedirect({ to }: { to: 'studio' | 'agents' | 'agent-builder' | 'agent-logs' | 'coworkers' | 'automations' | 'workflow-builder' | 'workflow-logs' }) {
+  const { workspaceSlug, tab } = useParams<{ workspaceSlug: string; tab?: string }>();
+  const [params] = useSearchParams();
+  const base = `/w/${workspaceSlug}/ai`;
+  const target = (() => {
+    switch (to) {
+      case 'studio': {
+        const section = STUDIO_TAB_TO_SECTION[tab ?? 'overview'] ?? '';
+        return section ? `${base}/${section}` : base;
+      }
+      case 'agents':
+        return `${base}/agents`;
+      case 'agent-builder': {
+        const id = params.get('agentId');
+        const name = params.get('name');
+        return id ? `${base}/agents/${id}` : `${base}/agents/new${name ? `?name=${encodeURIComponent(name)}` : ''}`;
+      }
+      case 'agent-logs':
+        return `${base}/runs?type=AGENT`;
+      case 'coworkers':
+        return `${base}/agents?type=coworker`;
+      case 'automations': {
+        const id = params.get('workflow');
+        return id ? `${base}/workflows/${id}` : `${base}/workflows`;
+      }
+      case 'workflow-builder': {
+        const id = params.get('id');
+        return `${base}/workflows/${id ?? 'new'}`;
+      }
+      case 'workflow-logs': {
+        const id = params.get('workflow');
+        return `${base}/runs?type=WORKFLOW${id ? `&entity=${id}` : ''}`;
+      }
     }
-    const token = getAccessToken();
-    window.location.href = token ? withHandoffToken(target, token) : target.toString();
-  }, [baseUrl, inApp]);
+  })();
+  return <Navigate to={target} replace />;
+}
 
-  useEffect(() => {
-    if (launched.current) return;
-    launched.current = true;
-    launch();
-  }, [launch]);
-
-  if (!baseUrl) {
-    return (
-      <div className="p-6 grid min-h-screen place-items-center">
-        <EmptyState
-          size="lg"
-          title="AI Agent Studio isn't configured"
-          description="Set VITE_AGENT_STUDIO_URL for this deployment to link the Studio app."
-          action={
-            <Button asChild variant="outline">
-              <Link to={`/w/${workspaceSlug}`}>Back to workspace</Link>
-            </Button>
-          }
-        />
-      </div>
-    );
-  }
-
-  if (!inApp) {
-    return (
-      <div className="p-6 grid min-h-screen place-items-center">
-        <EmptyState
-          size="lg"
-          title="AI Agent Studio opened in your browser"
-          description="Studio is a browser app that uses your same account and workspaces."
-          action={
-            <div className="gap-2 flex flex-wrap justify-center">
-              <Button onClick={launch}>Open again</Button>
-              <Button asChild variant="outline">
-                <Link to={`/w/${workspaceSlug}`}>Back to workspace</Link>
-              </Button>
-            </div>
-          }
-        />
-      </div>
-    );
-  }
-
-  return <LoadingState fullPage label="Launching AI Agent Studio…" />;
+/** `/marketplace/apps/:slug` — the marketplace reads the item from `?app=` / `?agent=`. */
+function MarketplaceItemRedirect({ kind }: { kind: 'app' | 'agent' }) {
+  const { workspaceSlug, slug } = useParams<{ workspaceSlug: string; slug: string }>();
+  return <Navigate to={`/w/${workspaceSlug}/marketplace?${kind}=${encodeURIComponent(slug ?? '')}`} replace />;
 }
 
 function NotFoundPage() {
@@ -472,31 +450,13 @@ export function App() {
             element={<LegacySettingsRedirect section="analytics" />}
           />
 
-          {/*
-            --- AI Studio ---
-            Dedicated standalone surface outside AppShell (mirrors Settings layout).
-            /w/:slug/studio lands on overview; /w/:slug/studio/:tab opens the tab.
-          */}
-          <Route
-            path="/w/:workspaceSlug/studio"
-            element={<Navigate to="overview" replace />}
-          />
-          <Route
-            path="/w/:workspaceSlug/studio/:tab"
-            element={<AIStudioView />}
-          />
-          <Route
-            path="/w/:workspaceSlug/ai-studio"
-            element={<LegacyStudioRedirect />}
-          />
-          <Route
-            path="/w/:workspaceSlug/ai-studio/:tab"
-            element={<LegacyStudioTabRedirect />}
-          />
-          <Route
-            path="/w/:workspaceSlug/agent-studio"
-            element={<AgentStudioRedirect />}
-          />
+          {/* The former AI Studio and the separate Agent Studio app now live
+              in the AI Workspace, inside the app shell. */}
+          <Route path="/w/:workspaceSlug/studio" element={<LegacyAIRedirect to="studio" />} />
+          <Route path="/w/:workspaceSlug/studio/:tab" element={<LegacyAIRedirect to="studio" />} />
+          <Route path="/w/:workspaceSlug/ai-studio" element={<LegacyAIRedirect to="studio" />} />
+          <Route path="/w/:workspaceSlug/ai-studio/:tab" element={<LegacyAIRedirect to="studio" />} />
+          <Route path="/w/:workspaceSlug/agent-studio" element={<LegacyAIRedirect to="agents" />} />
 
           {/* --- Main Workspace Shell with Navigation & Tools --- */}
           <Route path="/w/:workspaceSlug" element={<AppShell />}>
@@ -542,28 +502,42 @@ export function App() {
             <Route path="threads" element={<ThreadsView />} />
             <Route path="saved" element={<SavedView />} />
             <Route path="ai-chat" element={<AIChatView />} />
-            <Route path="ai/prompts" element={<PromptLibraryView />} />
             <Route path="whiteboards" element={<WhiteboardCanvas />} />
-            <Route path="coworkers" element={<CoworkerDirectoryView />} />
-            <Route path="coworkers/:id" element={<CoworkerChatView />} />
-            <Route path="agents" element={<AgentMarketplaceView />} />
-            <Route path="marketplace" element={<AgentMarketplaceView />} />
-            <Route path="marketplace/apps/:slug" element={<AgentMarketplaceView />} />
-            <Route path="marketplace/agents/:slug" element={<AgentMarketplaceView />} />
-            <Route path="marketplace/developer" element={<AgentMarketplaceView />} />
+
+            {/* --- AI Workspace: agents, coworkers, workflows, runs --- */}
+            <Route path="ai" element={<AIWorkspaceLayout />}>
+              <Route index element={<AIOverviewSection />} />
+              <Route path="agents" element={<AIAgentsDirectory />} />
+              <Route path="workflows" element={<WorkflowListView />} />
+              <Route path="runs" element={<AIRunsSection />} />
+              <Route path="approvals" element={<AIApprovalsSection />} />
+              <Route path="knowledge" element={<AIKnowledgeSection />} />
+              <Route path="tools" element={<AIToolsSection />} />
+              <Route path="prompts" element={<AIPromptsSection />} />
+            </Route>
+            {/* Editors take the whole content area, outside the section frame. */}
+            <Route path="ai/agents/:agentId" element={<AIEntityEditorRoute />} />
+            <Route path="ai/workflows/:workflowId" element={<WorkflowCanvasView />} />
+
+            {/* Conversations with an agent or coworker stay where chat lives. */}
             <Route path="agents/chat" element={<AgentChatView />} />
             <Route path="agents/:agentId/chat" element={<AgentChatView />} />
-            <Route path="agents/builder" element={<AgentBuilderView />} />
-            <Route path="agents/logs" element={<AgentMonitoringView />} />
-            <Route path="automations" element={<WorkflowListView />} />
-            <Route
-              path="automations/builder"
-              element={<WorkflowCanvasView />}
-            />
-            <Route
-              path="automations/logs"
-              element={<WorkflowExecutionLogsView />}
-            />
+            <Route path="coworkers/:id" element={<CoworkerChatView />} />
+
+            {/* Former AI entry points, kept so bookmarks resolve. */}
+            <Route path="agents" element={<LegacyAIRedirect to="agents" />} />
+            <Route path="agents/builder" element={<LegacyAIRedirect to="agent-builder" />} />
+            <Route path="agents/logs" element={<LegacyAIRedirect to="agent-logs" />} />
+            <Route path="coworkers" element={<LegacyAIRedirect to="coworkers" />} />
+            <Route path="automations" element={<LegacyAIRedirect to="automations" />} />
+            <Route path="automations/builder" element={<LegacyAIRedirect to="workflow-builder" />} />
+            <Route path="automations/logs" element={<LegacyAIRedirect to="workflow-logs" />} />
+
+            {/* Apps & integrations: third-party apps and agents to install. */}
+            <Route path="marketplace" element={<AgentMarketplaceView />} />
+            <Route path="marketplace/apps/:slug" element={<MarketplaceItemRedirect kind="app" />} />
+            <Route path="marketplace/agents/:slug" element={<MarketplaceItemRedirect kind="agent" />} />
+            <Route path="marketplace/developer" element={<AgentMarketplaceView />} />
             <Route path="integrations" element={<IntegrationHubView />} />
             <Route path="apps" element={<AppChatView />} />
             <Route path="apps/chat" element={<AppChatView />} />

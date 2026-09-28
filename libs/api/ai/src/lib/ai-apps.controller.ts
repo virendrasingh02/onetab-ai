@@ -11,10 +11,18 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
+import { Throttle } from '@nestjs/throttler';
+import {
+  createAIAppSchema,
+  publishAIAppSchema,
+  triggerWorkflowSchema,
+  updateAIAppSchema,
+} from '@org/validation';
 import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
 import type { CreateAIAppInput } from '@org/types';
@@ -43,7 +51,7 @@ export class AIAppsController {
   create(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: CreateAIAppInput,
+    @Body(zodBody(createAIAppSchema)) body: CreateAIAppInput,
   ) {
     return this.appsService.createApp(workspaceId, userId, body);
   }
@@ -53,7 +61,7 @@ export class AIAppsController {
   update(
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,
-    @Body() body: Partial<CreateAIAppInput>,
+    @Body(zodBody(updateAIAppSchema)) body: Partial<CreateAIAppInput>,
   ) {
     return this.appsService.updateApp(workspaceId, id, body);
   }
@@ -73,17 +81,20 @@ export class AIAppsController {
   publish(
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,
-    @Body('isPublished') isPublished: boolean,
+    @Body(zodBody(publishAIAppSchema)) { isPublished }: { isPublished: boolean },
   ) {
     return this.appsService.publishApp(workspaceId, id, isPublished);
   }
 
   @Post(':id/execute')
+  // Runs a model on the workspace's credits; a guest could call it before.
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   execute(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
-    @Body() payload: Record<string, unknown>,
+    @Body(zodBody(triggerWorkflowSchema)) payload: Record<string, unknown>,
   ) {
     return this.appsService.executeApp(workspaceId, userId, id, payload);
   }

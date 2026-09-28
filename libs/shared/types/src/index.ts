@@ -39,6 +39,7 @@ export {
   ROLE_PERMISSIONS,
   WORKSPACE_PERMISSIONS,
   WorkspacePermission,
+  canManageOwnedAIResource,
   permissionsForRole,
   roleHasAllPermissions,
   roleHasPermission,
@@ -259,6 +260,8 @@ export type {
   AgentExecutionLog,
   AgentExecutionLogEntry,
   AgentRunResult,
+  AgentTestRunResult,
+  AgentVersion,
   AgentSchedule,
   AIAgent,
   AIAgentDetail,
@@ -428,3 +431,27 @@ export type {
 
 export * from './lib/ai-studio.js';
 
+
+export {
+  AGENT_GRAPH_NODE_KINDS,
+  DEFAULT_AGENT_RUNTIME,
+  READ_ONLY_AGENT_TOOLS,
+  agentToolNeedsApproval,
+  convertLegacyAgentGraph,
+  deriveAgentFromGraph,
+  isAgentBuilderGraph,
+  readAgentRuntime,
+  type AgentAutonomy,
+  type AgentGraphNodeKind,
+  type AgentGuardrails,
+  type AgentKnowledgeBinding,
+  type AgentOutputKind,
+  type AgentOutputTarget,
+  type AgentPiiAction,
+  type AgentResponseFormat,
+  type AgentRuntimeConfig,
+  type AgentScheduleSpec,
+  type AgentToolPolicy,
+  type DerivedAgentConfig,
+  type LegacyGraphConversion,
+} from './lib/agent-config.js';

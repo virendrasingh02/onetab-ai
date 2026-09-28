@@ -29,8 +29,10 @@ export interface PageTitleEntities {
   dmPeerName?: string;
   /** Name of the project for `/projects/:projectId` or `/tasks/:projectId`. */
   projectName?: string;
-  /** Name of the agent for `/agents/:agentId/chat`. */
+  /** Name of the agent or coworker for `/agents/:agentId/chat` or `/ai/agents/:agentId`. */
   agentName?: string;
+  /** Name of the workflow for `/ai/workflows/:workflowId`. */
+  workflowName?: string;
   /** Name of the connected app for `/apps/:appId/chat`. */
   appName?: string;
   /** Title of the document for `/docs/:docId` or `/notes/:docId`. */
@@ -156,17 +158,17 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/activity': 'Activity Pulse',
   '/dms': 'Direct Messages',
   '/ai-chat': 'AI Assistant',
-  '/ai/prompts': 'Prompt Library',
-  '/coworkers': 'AI Coworkers',
-  '/agents': 'AI Agents',
+  '/ai': 'AI Workspace',
+  '/ai/agents': 'Agents',
+  '/ai/workflows': 'Workflows',
+  '/ai/runs': 'Runs',
+  '/ai/approvals': 'Approvals',
+  '/ai/knowledge': 'Knowledge',
+  '/ai/tools': 'Tools',
+  '/ai/prompts': 'Prompts',
   '/agents/chat': 'AI Agents',
-  '/agents/builder': 'Agent Builder',
-  '/agents/logs': 'Agent Monitoring',
-  '/automations': 'Automations & Workflows',
-  '/automations/builder': 'Automations & Workflows',
-  '/automations/logs': 'Automations & Workflows',
   '/integrations': 'Integration Hub',
-  '/marketplace': 'Agents & Apps',
+  '/marketplace': 'Marketplace',
   '/marketplace/developer': 'Developer Portal',
   '/apps': 'Apps',
   '/apps/chat': 'Apps',
@@ -243,6 +245,18 @@ export function resolvePageTitle(
 
   if (match(`${base}/agents/:agentId/chat`, path)) {
     return entities.agentName ? done(entities.agentName) : pending('AI Agent');
+  }
+
+  // AI Workspace editors. `new` is a route of its own, not an entity id.
+  if (match(`${base}/ai/agents/new`, path)) return done('New agent');
+  if (match(`${base}/ai/agents/:agentId`, path)) {
+    return entities.agentName ? done(entities.agentName) : pending('Agent');
+  }
+  if (match(`${base}/ai/workflows/new`, path)) return done('New workflow');
+  if (match(`${base}/ai/workflows/:workflowId`, path)) {
+    return entities.workflowName
+      ? done(entities.workflowName)
+      : pending('Workflow');
   }
 
   if (match(`${base}/apps/:appId/chat`, path)) {

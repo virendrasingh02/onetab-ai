@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  NotImplementedException,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import type { CreateAIAppInput } from '@org/types';
@@ -98,51 +99,22 @@ export class AIAppsService {
     });
   }
 
+  /**
+   * AI Apps have no runner yet. This used to return a canned sentence
+   * ("Delegated to underlying Agent … with response generated.") and record a
+   * COMPLETED run with a made-up 150 tokens, without running anything. It now
+   * says so instead of fabricating a result; run the underlying agent or
+   * workflow from the AI Workspace.
+   */
   async executeApp(
     workspaceId: string,
-    userId: string | undefined,
+    _userId: string | undefined,
     id: string,
-    payload: Record<string, unknown>,
-  ) {
-    const app = await this.getApp(workspaceId, id);
-
-    const execution = await this.prisma.aIExecution.create({
-      data: {
-        workspaceId,
-        userId,
-        entityType: 'APP',
-        entityId: app.id,
-        appId: app.id,
-        status: 'RUNNING',
-        stateJson: payload as any,
-      },
-    });
-
-    const start = Date.now();
-    let result = `Processed request via AI App '${app.name}'.`;
-
-    if (app.agentId) {
-      result = `Delegated to underlying Agent (${app.agentId}) with response generated.`;
-    } else if (app.workflowId) {
-      result = `Triggered underlying Automation Workflow (${app.workflowId}).`;
-    }
-
-    const latencyMs = Date.now() - start;
-
-    await this.prisma.aIExecution.update({
-      where: { id: execution.id },
-      data: {
-        status: 'COMPLETED',
-        finishedAt: new Date(),
-        latencyMs,
-        tokensUsed: 150,
-        totalCost: 0.0003,
-      },
-    });
-
-    return {
-      executionId: execution.id,
-      result,
-    };
+    _payload: Record<string, unknown>,
+  ): Promise<never> {
+    await this.getApp(workspaceId, id);
+    throw new NotImplementedException(
+      'AI Apps cannot be run yet. Run the agent or workflow behind it from the AI Workspace.',
+    );
   }
 }

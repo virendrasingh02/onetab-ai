@@ -21,7 +21,18 @@ export class AutomationsService {
     });
   }
 
-  async createWorkflow(workspaceId: string, creatorId: string, data: { name: string; description?: string; triggerType?: string; nodesJson?: string; edgesJson?: string }) {
+  async createWorkflow(
+    workspaceId: string,
+    creatorId: string,
+    data: {
+      name: string;
+      description?: string;
+      triggerType?: string;
+      nodesJson?: string;
+      edgesJson?: string;
+      isActive?: boolean;
+    },
+  ) {
     return this.prisma.automationWorkflow.create({
       data: {
         workspaceId,
@@ -31,6 +42,7 @@ export class AutomationsService {
         triggerType: data.triggerType ?? 'WEBHOOK',
         nodesJson: data.nodesJson ?? '[]',
         edgesJson: data.edgesJson ?? '[]',
+        ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
       },
     });
   }
@@ -102,6 +114,80 @@ export class AutomationsService {
       },
       orderBy: { startedAt: 'desc' },
       take,
+    });
+  }
+
+  async getWorkflow(workspaceId: string, workflowId: string) {
+    const workflow = await this.prisma.automationWorkflow.findFirst({
+      where: { id: workflowId, workspaceId },
+      include: { _count: { select: { executions: true } } },
+    });
+    if (!workflow) throw new NotFoundException('Workflow not found.');
+    return workflow;
+  }
+
+  async listVersions(workspaceId: string, workflowId: string) {
+    await this.assertWorkflow(workspaceId, workflowId);
+    return this.prisma.aIWorkflowVersion.findMany({
+      where: { workflowId },
+      orderBy: { versionNumber: 'desc' },
+      select: {
+        id: true,
+        versionNumber: true,
+        name: true,
+        changeSummary: true,
+        isPublished: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  /**
+   * An immutable copy of the workflow's current graph. Publishing is a
+   * snapshot marked published that also switches the workflow on, so what
+   * triggers run is always a version someone can roll back to.
+   */
+  async snapshot(
+    workspaceId: string,
+    workflowId: string,
+    options: { summary?: string; publish?: boolean } = {},
+  ) {
+    const workflow = await this.getWorkflow(workspaceId, workflowId);
+    const latest = await this.prisma.aIWorkflowVersion.findFirst({
+      where: { workflowId },
+      orderBy: { versionNumber: 'desc' },
+      select: { versionNumber: true },
+    });
+    const version = await this.prisma.aIWorkflowVersion.create({
+      data: {
+        workflowId,
+        versionNumber: (latest?.versionNumber ?? 0) + 1,
+        name: workflow.name,
+        description: workflow.description,
+        nodesJson: workflow.nodesJson,
+        edgesJson: workflow.edgesJson,
+        changeSummary: options.summary?.trim() || (options.publish ? 'Published' : 'Snapshot'),
+        isPublished: !!options.publish,
+      },
+    });
+    if (options.publish && !workflow.isActive) {
+      await this.prisma.automationWorkflow.update({
+        where: { id: workflowId },
+        data: { isActive: true },
+      });
+    }
+    return version;
+  }
+
+  async restoreVersion(workspaceId: string, workflowId: string, versionNumber: number) {
+    await this.assertWorkflow(workspaceId, workflowId);
+    const version = await this.prisma.aIWorkflowVersion.findUnique({
+      where: { workflowId_versionNumber: { workflowId, versionNumber } },
+    });
+    if (!version) throw new NotFoundException(`Version ${versionNumber} not found.`);
+    return this.prisma.automationWorkflow.update({
+      where: { id: workflowId },
+      data: { nodesJson: version.nodesJson, edgesJson: version.edgesJson },
     });
   }
 

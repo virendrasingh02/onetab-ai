@@ -46,12 +46,15 @@ export function isRouteActive(
     );
   }
 
-  if (itemHref === 'agents') {
-    return pathname.startsWith(`${basePath}/agents`);
-  }
-
-  if (itemHref === 'automations') {
-    return pathname.startsWith(`${basePath}/automations`);
+  // The AI Workspace also owns the legacy entry points that redirect into it.
+  if (itemHref === 'ai') {
+    return (
+      pathname.startsWith(`${basePath}/ai/`) ||
+      pathname.startsWith(`${basePath}/automations`) ||
+      pathname.startsWith(`${basePath}/studio`) ||
+      pathname === `${basePath}/agents` ||
+      pathname.startsWith(`${basePath}/agents/builder`)
+    );
   }
 
   if (itemHref === 'integrations') {
@@ -71,10 +74,6 @@ export function isRouteActive(
 
   if (itemHref === 'ai-chat') {
     return pathname.startsWith(`${basePath}/ai-chat`);
-  }
-
-  if (itemHref === 'ai/prompts') {
-    return pathname.startsWith(`${basePath}/ai/prompts`);
   }
 
   // 4. Default prefix check for nested subroutes

@@ -156,6 +156,12 @@ export const queryKeys = {
     workspaceLogs: (workspaceId: string) =>
       ['agents', workspaceId, 'logs'] as const,
     memory: (workspaceId: string) => ['agents', workspaceId, 'memory'] as const,
+    detail: (workspaceId: string, agentId: string) =>
+      ['agents', workspaceId, 'detail', agentId] as const,
+    versions: (workspaceId: string, agentId: string) =>
+      ['agents', workspaceId, 'detail', agentId, 'versions'] as const,
+    /** The built-in tools an agent can be given (the MCP tool registry). */
+    tools: (workspaceId: string) => ['agents', workspaceId, 'tools'] as const,
   },
   coworkers: {
     all: (workspaceId: string) => ['coworkers', workspaceId] as const,
@@ -179,6 +185,10 @@ export const queryKeys = {
       ['automations', workspaceId, workflowId, 'executions'] as const,
     workspaceExecutions: (workspaceId: string) =>
       ['automations', workspaceId, 'executions'] as const,
+    detail: (workspaceId: string, workflowId: string) =>
+      ['automations', workspaceId, 'detail', workflowId] as const,
+    versions: (workspaceId: string, workflowId: string) =>
+      ['automations', workspaceId, 'detail', workflowId, 'versions'] as const,
   },
   integrations: {
     all: (workspaceId: string) => ['integrations', workspaceId] as const,

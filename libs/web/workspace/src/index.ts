@@ -15,7 +15,10 @@ export {
   type CreateWorkspaceFlowResult,
 } from './lib/use-workspaces.js';
 
-export { useWorkspacePermission } from './lib/use-workspace-permission.js';
+export {
+  useCanManageAIResource,
+  useWorkspacePermission,
+} from './lib/use-workspace-permission.js';
 
 export { CreateWorkspacePage } from './lib/pages/create-workspace-page.js';
 export {

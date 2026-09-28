@@ -10,7 +10,9 @@ import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   RequireWorkspacePermissions,
   WorkspaceId,
+  ZodValidationPipe,
 } from '@org/api-common';
+import { aiExecutionFilterSchema } from '@org/validation';
 import { WorkspacePermission } from '@org/types';
 import type { AIExecutionFilter } from '@org/types';
 import { AIExecutionsService } from './ai-executions.service.js';
@@ -23,7 +25,7 @@ export class AIExecutionsController {
   @Get()
   list(
     @WorkspaceId() workspaceId: string,
-    @Query() filters: AIExecutionFilter,
+    @Query(new ZodValidationPipe(aiExecutionFilterSchema)) filters: AIExecutionFilter,
   ) {
     return this.executionsService.listExecutions(workspaceId, filters);
   }
@@ -36,6 +38,7 @@ export class AIExecutionsController {
     return this.executionsService.getExecution(workspaceId, id);
   }
 
+  /** Stops a run that is waiting on a person; see `cancelExecution`. */
   @Post(':id/cancel')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   cancel(
@@ -45,12 +48,7 @@ export class AIExecutionsController {
     return this.executionsService.cancelExecution(workspaceId, id);
   }
 
-  @Post(':id/retry')
-  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
-  retry(
-    @WorkspaceId() workspaceId: string,
-    @Param('id') id: string,
-  ) {
-    return this.executionsService.retryExecution(workspaceId, id);
-  }
+  // Retry lives in `AIRunsController` (@org/api-automations): re-running a
+  // run needs the workflow engine and the agent runtime, which this library
+  // sits below.
 }

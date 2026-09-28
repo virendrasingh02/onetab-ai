@@ -42,32 +42,32 @@ export function buildWorkflowActions({
   onDelete,
 }: WorkflowActionOptions): EntityAction[] {
   return [
-    { id: 'open', group: 'open', label: 'Open in builder', icon: Pencil, shortcut: 'E', run: onOpen },
+    { id: 'open', group: 'open', label: 'Open', icon: Pencil, shortcut: 'E', run: onOpen },
     {
       id: 'run',
       group: 'run',
       label: 'Run now',
       icon: Play,
       hidden: !onRun,
-      disabled: !workflow.isActive,
-      disabledReason: 'Enable the workflow to run it',
+      // Pausing stops schedules and events from starting it; a person can
+      // still run it by hand.
       run: onRun,
     },
     {
       id: 'toggle-active',
       group: 'run',
-      label: workflow.isActive ? 'Disable' : 'Enable',
+      label: workflow.isActive ? 'Pause' : 'Switch on',
       icon: workflow.isActive ? Pause : Play,
       hidden: !onSetActive,
       successMessage: workflow.isActive
-        ? `“${workflow.name}” disabled`
-        : `“${workflow.name}” enabled`,
+        ? `“${workflow.name}” paused`
+        : `“${workflow.name}” switched on`,
       run: () => onSetActive?.(!workflow.isActive),
     },
     {
       id: 'history',
       group: 'run',
-      label: 'View execution history',
+      label: 'View runs',
       icon: History,
       hidden: !onViewHistory,
       run: onViewHistory,
@@ -107,7 +107,7 @@ export function buildWorkflowActions({
       confirm: {
         title: `Delete “${workflow.name}”?`,
         description:
-          'The workflow and its run history are deleted for the whole workspace. This cannot be undone.',
+          'The workflow is deleted for the whole workspace. Its runs stay in the run history. This cannot be undone.',
         confirmLabel: 'Delete workflow',
         destructive: true,
       },

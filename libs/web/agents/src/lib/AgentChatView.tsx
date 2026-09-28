@@ -406,7 +406,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
 
                 <DropdownMenuItem
                   onClick={() =>
-                    navigate(`/w/${slug}/agents/builder?agentId=${agent.id}`)
+                    navigate(`/w/${slug}/ai/agents/${agent.id}`)
                   }
                   className="gap-2.5 cursor-pointer"
                 >
@@ -416,7 +416,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
 
                 <DropdownMenuItem
                   onClick={() =>
-                    navigate(`/w/${slug}/agents/logs?agentId=${agent.id}`)
+                    navigate(`/w/${slug}/ai/runs?type=AGENT&entity=${agent.id}`)
                   }
                   className="gap-2.5 cursor-pointer"
                 >

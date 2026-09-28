@@ -245,7 +245,10 @@ export interface AIApprovalRequest {
   workspaceId: string;
   requesterId?: string | null;
   approverId?: string | null;
-  entityType: 'WORKFLOW' | 'AGENT' | 'TOOL';
+  /** `agent`/`coworker` for a gated tool call, `WORKFLOW` for an approval step. */
+  entityType: 'WORKFLOW' | 'agent' | 'coworker' | 'AGENT' | 'TOOL';
+  /** Whether the viewer may approve or reject it (requester or admin). */
+  canDecide?: boolean;
   entityId: string;
   executionId?: string | null;
   stepId?: string | null;
@@ -369,19 +372,40 @@ export interface AIMemoryEntry {
 export type MCPTransport = 'HTTP' | 'SSE' | 'STDIO';
 export type MCPConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
 
+/** A tool an MCP server advertised during its last successful handshake. */
+export interface MCPDiscoveredTool {
+  name: string;
+  description?: string;
+  inputSchema?: Record<string, unknown>;
+  annotations?: { title?: string; readOnlyHint?: boolean; destructiveHint?: boolean };
+}
+
+/**
+ * A workspace MCP server as the API returns it. The token is never sent back —
+ * only whether one is set and its masked tail.
+ */
 export interface MCPConnection {
   id: string;
   workspaceId: string;
-  createdById?: string | null;
   name: string;
   serverUrl: string;
   transport: MCPTransport;
+  /** CONNECTED only after a real initialize + tools/list succeeded. */
   status: MCPConnectionStatus;
-  authConfig: Record<string, unknown>;
-  discoveredToolsJson: Array<Record<string, unknown>>;
+  hasToken: boolean;
+  maskedToken: string | null;
+  discoveredToolsJson: MCPDiscoveredTool[];
+  lastError: string | null;
+  lastSyncedAt: IsoDateString | null;
   isEnabled: boolean;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
+}
+
+/** The function name an agent uses for an MCP tool (mirrors `mcpFunctionName`). */
+export function mcpToolFunctionName(connectionId: string, toolName: string): string {
+  const safeTool = toolName.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `mcp_${connectionId.slice(-6)}_${safeTool}`.slice(0, 64);
 }
 
 export interface CreateMCPConnectionInput {
@@ -419,6 +443,16 @@ export interface AIStudioOverview {
     type: 'agent' | 'coworker' | 'workflow' | 'app';
     updatedAt: IsoDateString;
   }>;
+}
+
+/** One immutable snapshot of a workflow's graph. */
+export interface AutomationWorkflowVersion {
+  id: string;
+  versionNumber: number;
+  name: string;
+  changeSummary?: string | null;
+  isPublished: boolean;
+  createdAt: IsoDateString;
 }
 
 export interface AIFeedbackPayload {

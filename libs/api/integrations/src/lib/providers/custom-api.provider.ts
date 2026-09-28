@@ -213,6 +213,12 @@ export class CustomApiProvider implements ProviderAdapter {
       data: body,
       timeout: timeoutMs,
       validateStatus: () => true, // Don't throw for 4xx/5xx so caller receives full response
+      // The URL was validated above; a redirect would swap in one that was
+      // not, and a DNS answer could change before the socket opens. Return
+      // redirects to the caller and re-check the address at connect time.
+      maxRedirects: 0,
+      httpAgent: this.ssrfGuard.agents.httpAgent,
+      httpsAgent: this.ssrfGuard.agents.httpsAgent,
     };
 
     // Retry with exponential backoff on network errors

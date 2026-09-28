@@ -35,8 +35,9 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@org/api-cache": "*",
+    "@org/api-common": "*",
     "@org/types": "*",
     "@org/validation": "*",
-    "sharp": "^0.33.5"
+    "sharp": "^0.35.5"
   }
 }

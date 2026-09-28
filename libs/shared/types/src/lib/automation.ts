@@ -57,6 +57,41 @@ export interface AIEntity {
 
 export interface AIAgent extends AIEntity {
   type: 'agent';
+  /**
+   * Set on a save response when parts of a builder graph could not be applied
+   * (a Starter plan's model choice, a deleted knowledge base, an output
+   * channel the creator cannot post in…). Never persisted.
+   */
+  warnings?: string[];
+}
+
+/** What the builder's test console receives from a test run. */
+export interface AgentTestRunResult {
+  executionId: string | null;
+  status: 'SUCCESS' | 'WAITING_APPROVAL' | 'FAILED';
+  steps: Array<{
+    stepId: string;
+    nodeType: string;
+    label: string;
+    status: 'SUCCESS' | 'FAILED' | 'WAITING';
+    output: unknown;
+    latencyMs: number;
+    tokensUsed: number;
+  }>;
+  output: unknown;
+  notices: string[];
+  duration: number;
+  tokensUsed: number;
+  credits: number;
+}
+
+/** A published or manual snapshot of an agent. */
+export interface AgentVersion {
+  version: number;
+  versionTag?: string;
+  publishedAt?: string;
+  changeSummary?: string;
+  status?: 'PUBLISHED' | 'SNAPSHOT' | 'DRAFT' | string;
 }
 
 export interface AgentSchedule {

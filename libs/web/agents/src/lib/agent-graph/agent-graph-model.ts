@@ -71,42 +71,64 @@ export const CATEGORY_LABEL: Record<NodeCategory, string> = {
 export type ConfigValue = string | number | boolean | string[];
 export type NodeConfig = Record<string, ConfigValue>;
 
-export type FieldSpec =
-  | {
-      type: 'text';
-      key: string;
-      label: string;
-      placeholder?: string;
-      required?: boolean;
-      mono?: boolean;
-      hint?: string;
-    }
-  | {
-      type: 'textarea';
-      key: string;
-      label: string;
-      rows?: number;
-      placeholder?: string;
-      required?: boolean;
-      hint?: string;
-    }
-  | {
-      type: 'select';
-      key: string;
-      label: string;
-      options: ReadonlyArray<{ value: string; label: string }>;
-      hint?: string;
-    }
-  | {
-      type: 'number';
-      key: string;
-      label: string;
-      min?: number;
-      max?: number;
-      step?: number;
-      hint?: string;
-    }
-  | { type: 'toggle'; key: string; label: string; hint?: string };
+/**
+ * Where a `source` field's options come from. They are the workspace's real
+ * lists (tools the runtime can call, knowledge bases, channels…), loaded by
+ * `AgentBuilderOptionsProvider` — never a hard-coded list that can drift from
+ * what actually exists.
+ */
+export type OptionSource =
+  | 'tools'
+  | 'knowledgeBases'
+  | 'channels'
+  | 'projects'
+  | 'providers'
+  | 'models'
+  | 'agents'
+  | 'coworkers'
+  /** MCP server tools as `<connectionId>::<toolName>`, for workflow MCP steps. */
+  | 'mcpServerTools';
+
+/** Show a field only while another field of the same node has one of `is`. */
+export interface FieldCondition {
+  key: string;
+  is: readonly string[];
+}
+
+type FieldBase = {
+  key: string;
+  label: string;
+  hint?: string;
+  showWhen?: FieldCondition;
+};
+
+export type FieldSpec = FieldBase &
+  (
+    | { type: 'text'; placeholder?: string; required?: boolean; mono?: boolean }
+    | { type: 'textarea'; rows?: number; placeholder?: string; required?: boolean }
+    | { type: 'select'; options: ReadonlyArray<{ value: string; label: string }>; required?: boolean }
+    | {
+        type: 'source';
+        source: OptionSource;
+        required?: boolean;
+        placeholder?: string;
+        /** Narrow options to those whose `group` equals this sibling field's value. */
+        filterBy?: string;
+      }
+    | { type: 'number'; min?: number; max?: number; step?: number }
+    | { type: 'toggle' }
+  );
+
+/** Whether `field` applies to a node whose config is `config`. */
+export function isFieldVisible(field: FieldSpec, config: NodeConfig): boolean {
+  if (!field.showWhen) return true;
+  return field.showWhen.is.includes(String(config[field.showWhen.key] ?? ''));
+}
+
+/** The config key a `source` field writes its option's display label to. */
+export function labelKey(fieldKey: string): string {
+  return `${fieldKey}Label`;
+}
 
 /* ------------------------------------------------------------ accents ---- */
 
@@ -229,25 +251,6 @@ export interface NodeKindSpec {
   summary: (config: NodeConfig) => string;
 }
 
-const PROVIDER_OPTIONS = [
-  { value: 'nvidia', label: 'NVIDIA' },
-  { value: 'ollama', label: 'Ollama (local)' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'gemini', label: 'Google Gemini' },
-] as const;
-
-/** Mirrors the tool names the marketplace agents advertise. */
-const TOOL_OPTIONS = [
-  { value: 'create_task', label: 'create_task' },
-  { value: 'search_docs', label: 'search_docs' },
-  { value: 'send_channel_message', label: 'send_channel_message' },
-  { value: 'schedule_event', label: 'schedule_event' },
-  { value: 'http_request', label: 'http_request' },
-  { value: 'run_code', label: 'run_code' },
-  { value: 'index_document', label: 'index_document' },
-] as const;
-
 function str(config: NodeConfig, key: string, fallback = ''): string {
   const value = config[key];
   return typeof value === 'string' && value.length > 0 ? value : fallback;
@@ -258,6 +261,12 @@ function num(config: NodeConfig, key: string, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+/**
+ * Every field below maps onto something the runtime enforces
+ * (`deriveAgentFromGraph` in `@org/types` is the one mapping). Settings the
+ * runtime cannot honour — per-tool rate limits, memory windows, content
+ * classifiers — are deliberately absent rather than offered and ignored.
+ */
 export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
   agent: {
     kind: 'agent',
@@ -269,32 +278,31 @@ export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
     singleton: true,
     handles: { in: true, out: true, caps: true },
     defaults: {
-      name: 'Workspace Security Guard',
-      role: 'Security auditor',
-      objective:
-        'Inspect workspace activity, audit user permissions and report suspicious actions to the security channel.',
-      autonomy: 'supervised',
+      name: 'New agent',
+      role: 'Assistant',
+      objective: '',
+      autonomy: 'semi',
     },
     fields: [
       { type: 'text', key: 'name', label: 'Agent name', required: true },
-      { type: 'text', key: 'role', label: 'Role', required: true },
+      { type: 'text', key: 'role', label: 'Role', required: true, placeholder: 'e.g. Support triage' },
       {
         type: 'textarea',
         key: 'objective',
-        label: 'Objective',
-        rows: 4,
-        required: true,
-        hint: 'One paragraph on what success looks like for this agent.',
+        label: 'What it is for',
+        rows: 3,
+        hint: 'Shown to teammates as the agent’s description.',
       },
       {
         type: 'select',
         key: 'autonomy',
         label: 'Autonomy',
         options: [
-          { value: 'supervised', label: 'Supervised — every action approved' },
-          { value: 'semi', label: 'Semi-autonomous — writes need approval' },
-          { value: 'autonomous', label: 'Autonomous — acts within guardrails' },
+          { value: 'supervised', label: 'Supervised — every tool call needs approval' },
+          { value: 'semi', label: 'Semi-autonomous — reads run, writes need approval' },
+          { value: 'autonomous', label: 'Autonomous — only flagged tools need approval' },
         ],
+        hint: 'Approvals wait in the AI Workspace until the agent’s creator or an admin decides.',
       },
     ],
     summary: (config) => str(config, 'role', 'No role set'),
@@ -304,54 +312,67 @@ export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
     kind: 'trigger',
     label: 'Trigger',
     category: 'entry',
-    description: 'What wakes the agent up — a schedule, a webhook, a mention.',
+    description: 'When the agent runs: on request, on a schedule, or when mentioned.',
     accent: 'amber',
     icon: Zap,
     handles: { out: true },
     defaults: {
-      type: 'schedule',
-      expression: '0 */6 * * *',
+      type: 'manual',
+      expression: '0 9 * * 1-5',
+      task: '',
       enabled: true,
     },
     fields: [
       {
         type: 'select',
         key: 'type',
-        label: 'Trigger type',
+        label: 'Runs',
         options: [
-          { value: 'manual', label: 'Manual run' },
-          { value: 'schedule', label: 'Schedule (cron)' },
-          { value: 'webhook', label: 'Inbound webhook' },
-          { value: 'event', label: 'Workspace event' },
-          { value: 'mention', label: 'Channel mention' },
+          { value: 'manual', label: 'When someone messages it' },
+          { value: 'mention', label: 'When @mentioned in a channel it was added to' },
+          { value: 'schedule', label: 'On a schedule' },
         ],
       },
       {
         type: 'text',
         key: 'expression',
-        label: 'Expression',
+        label: 'Schedule (cron)',
         mono: true,
         required: true,
-        hint: 'A cron string, an event name or a webhook path.',
+        hint: 'Minute hour day month weekday — "0 9 * * 1-5" is 09:00 on weekdays (server time).',
+        showWhen: { key: 'type', is: ['schedule'] },
       },
-      { type: 'toggle', key: 'enabled', label: 'Enabled' },
+      {
+        type: 'textarea',
+        key: 'task',
+        label: 'What to do each time',
+        rows: 3,
+        required: true,
+        placeholder: 'Summarise yesterday’s support tickets and flag anything urgent.',
+        showWhen: { key: 'type', is: ['schedule'] },
+      },
+      { type: 'toggle', key: 'enabled', label: 'Enabled', showWhen: { key: 'type', is: ['schedule'] } },
     ],
     summary: (config) =>
-      `${str(config, 'type', 'manual')} · ${str(config, 'expression', '—')}`,
+      str(config, 'type') === 'schedule'
+        ? `schedule · ${str(config, 'expression', '—')}`
+        : str(config, 'type') === 'mention'
+          ? 'on @mention'
+          : 'on request',
   },
 
   guardrail: {
     kind: 'guardrail',
     label: 'Guardrail',
     category: 'safety',
-    description: 'A policy the run must clear before the agent acts.',
+    description: 'A policy applied to every run.',
     accent: 'rose',
     icon: ShieldCheck,
     handles: { in: true, out: true },
     defaults: {
       policy: 'pii-redaction',
       action: 'redact',
-      threshold: 0.8,
+      maxTokens: 2000,
     },
     fields: [
       {
@@ -359,34 +380,35 @@ export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
         key: 'policy',
         label: 'Policy',
         options: [
-          { value: 'pii-redaction', label: 'PII redaction' },
-          { value: 'content-filter', label: 'Content filter' },
-          { value: 'cost-cap', label: 'Cost cap per run' },
-          { value: 'tool-allowlist', label: 'Tool allowlist' },
+          { value: 'pii-redaction', label: 'Personal data in answers' },
+          { value: 'cost-cap', label: 'Token cap per model call' },
         ],
       },
       {
         type: 'select',
         key: 'action',
-        label: 'On violation',
+        label: 'When an answer contains emails, phone, card or SSN numbers',
         options: [
-          { value: 'block', label: 'Block the run' },
-          { value: 'warn', label: 'Warn and continue' },
-          { value: 'redact', label: 'Redact and continue' },
+          { value: 'redact', label: 'Redact them' },
+          { value: 'block', label: 'Withhold the answer' },
+          { value: 'warn', label: 'Allow, but note it in the run' },
         ],
+        showWhen: { key: 'policy', is: ['pii-redaction'] },
       },
       {
         type: 'number',
-        key: 'threshold',
-        label: 'Threshold',
-        min: 0,
-        max: 1,
-        step: 0.05,
-        hint: 'Confidence above which the policy fires.',
+        key: 'maxTokens',
+        label: 'Max tokens per call',
+        min: 64,
+        max: 128000,
+        step: 64,
+        showWhen: { key: 'policy', is: ['cost-cap'] },
       },
     ],
     summary: (config) =>
-      `${str(config, 'policy', 'policy')} → ${str(config, 'action', 'warn')}`,
+      str(config, 'policy') === 'cost-cap'
+        ? `≤ ${num(config, 'maxTokens')} tokens`
+        : `PII → ${str(config, 'action', 'redact')}`,
   },
 
   model: {
@@ -403,22 +425,17 @@ export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
       model: 'nvidia/nemotron-3-super-120b-a12b',
       temperature: 0.2,
       maxTokens: 4096,
-      streaming: true,
     },
     fields: [
+      { type: 'source', key: 'provider', label: 'Provider', source: 'providers', required: true },
       {
-        type: 'select',
-        key: 'provider',
-        label: 'Provider',
-        options: PROVIDER_OPTIONS,
-      },
-      {
-        type: 'text',
+        type: 'source',
         key: 'model',
         label: 'Model',
-        mono: true,
+        source: 'models',
+        filterBy: 'provider',
         required: true,
-        placeholder: 'nvidia/nemotron-3-super-120b-a12b',
+        hint: 'Custom models need a Pro or Business plan; otherwise the workspace default is used.',
       },
       {
         type: 'number',
@@ -427,23 +444,12 @@ export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
         min: 0,
         max: 2,
         step: 0.1,
-        hint: 'Lower is more deterministic. Audit work wants ≤ 0.3.',
+        hint: 'Lower is more deterministic.',
       },
-      {
-        type: 'number',
-        key: 'maxTokens',
-        label: 'Max tokens',
-        min: 256,
-        max: 128000,
-        step: 256,
-      },
-      { type: 'toggle', key: 'streaming', label: 'Stream responses' },
+      { type: 'number', key: 'maxTokens', label: 'Max tokens', min: 256, max: 128000, step: 256 },
     ],
     summary: (config) =>
-      `${str(config, 'provider', '—')}/${str(config, 'model', '—')} · t=${num(
-        config,
-        'temperature',
-      )}`,
+      `${str(config, 'model', '—')} · t=${num(config, 'temperature')}`,
   },
 
   prompt: {
@@ -458,26 +464,25 @@ export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
     defaults: {
       label: 'System instructions',
       systemPrompt:
-        'You are an autonomous AI security auditor. Inspect workspace activities, audit user permissions, and report suspicious actions. Cite the record you based each finding on.',
+        'You are a helpful AI agent in this workspace. Be concise, cite the source of anything you look up, and ask before doing anything you are unsure about.',
       responseFormat: 'markdown',
     },
     fields: [
-      { type: 'text', key: 'label', label: 'Label' },
       {
         type: 'textarea',
         key: 'systemPrompt',
         label: 'System prompt',
         rows: 9,
         required: true,
-        hint: 'Describe how the agent behaves and what it may access.',
+        hint: 'How the agent behaves, what it may do and what it must never do.',
       },
       {
         type: 'select',
         key: 'responseFormat',
-        label: 'Response format',
+        label: 'Answer format',
         options: [
           { value: 'markdown', label: 'Markdown' },
-          { value: 'json', label: 'Structured JSON' },
+          { value: 'json', label: 'JSON only' },
           { value: 'plain', label: 'Plain text' },
         ],
       },
@@ -489,177 +494,136 @@ export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
     kind: 'memory',
     label: 'Memory',
     category: 'reasoning',
-    description: 'How much of previous runs the agent carries forward.',
+    description: 'Whether the agent sees facts saved in this workspace.',
     accent: 'cyan',
     icon: Brain,
     singleton: true,
     handles: { cap: true },
-    defaults: {
-      strategy: 'summary',
-      windowSize: 20,
-      persist: true,
-    },
+    defaults: { strategy: 'workspace' },
     fields: [
       {
         type: 'select',
         key: 'strategy',
-        label: 'Strategy',
+        label: 'Memory',
         options: [
-          { value: 'none', label: 'Stateless' },
-          { value: 'buffer', label: 'Rolling buffer' },
-          { value: 'summary', label: 'Rolling summary' },
-          { value: 'vector', label: 'Vector recall' },
+          { value: 'workspace', label: 'Workspace memory — facts saved with save_memory' },
+          { value: 'none', label: 'None — every run starts fresh' },
         ],
-      },
-      {
-        type: 'number',
-        key: 'windowSize',
-        label: 'Window size',
-        min: 1,
-        max: 200,
-        step: 1,
-        hint: 'Messages kept before the strategy compacts them.',
-      },
-      {
-        type: 'toggle',
-        key: 'persist',
-        label: 'Persist between runs',
+        hint: 'Give the agent the save_memory tool so it can add facts.',
       },
     ],
-    summary: (config) =>
-      `${str(config, 'strategy', 'none')} · ${num(config, 'windowSize')} turns`,
+    summary: (config) => (str(config, 'strategy') === 'none' ? 'stateless' : 'workspace memory'),
   },
 
   knowledge: {
     kind: 'knowledge',
     label: 'Knowledge',
     category: 'capability',
-    description: 'A corpus the agent retrieves from before answering.',
+    description: 'A knowledge base the agent retrieves from before answering.',
     accent: 'teal',
     icon: BookOpen,
     handles: { cap: true },
-    defaults: {
-      source: 'workspace-docs',
-      collection: 'security-policies',
-      topK: 6,
-      rerank: true,
-    },
+    defaults: { knowledgeBaseId: '', topK: 5 },
     fields: [
       {
-        type: 'select',
-        key: 'source',
-        label: 'Source',
-        options: [
-          { value: 'workspace-docs', label: 'Workspace documents' },
-          { value: 'channels', label: 'Channel history' },
-          { value: 'uploads', label: 'Uploaded files' },
-          { value: 'external-url', label: 'External URL' },
-        ],
-      },
-      {
-        type: 'text',
-        key: 'collection',
-        label: 'Collection',
-        mono: true,
+        type: 'source',
+        key: 'knowledgeBaseId',
+        label: 'Knowledge base',
+        source: 'knowledgeBases',
         required: true,
+        placeholder: 'Pick a knowledge base',
+        hint: 'Create and fill knowledge bases in AI Workspace → Knowledge.',
       },
-      { type: 'number', key: 'topK', label: 'Top K', min: 1, max: 50, step: 1 },
-      { type: 'toggle', key: 'rerank', label: 'Rerank results' },
+      { type: 'number', key: 'topK', label: 'Passages per answer', min: 1, max: 20, step: 1 },
     ],
     summary: (config) =>
-      `${str(config, 'collection', '—')} · k=${num(config, 'topK')}`,
+      `${str(config, labelKey('knowledgeBaseId'), 'no knowledge base')} · ${num(config, 'topK', 5)} passages`,
   },
 
   tool: {
     kind: 'tool',
     label: 'Tool',
     category: 'capability',
-    description: 'A workspace action the agent is permitted to call.',
+    description: 'Something the agent may do: a workspace action, a web lookup or an MCP tool.',
     accent: 'green',
     icon: Wrench,
     handles: { cap: true },
-    defaults: {
-      toolId: 'search_docs',
-      permission: 'read',
-      requiresApproval: false,
-      rateLimit: 30,
-    },
+    defaults: { toolId: 'search_docs', requiresApproval: false },
     fields: [
-      { type: 'select', key: 'toolId', label: 'Tool', options: TOOL_OPTIONS },
       {
-        type: 'select',
-        key: 'permission',
-        label: 'Permission',
-        options: [
-          { value: 'read', label: 'Read only' },
-          { value: 'write', label: 'Read + write' },
-          { value: 'admin', label: 'Administrative' },
-        ],
+        type: 'source',
+        key: 'toolId',
+        label: 'Tool',
+        source: 'tools',
+        required: true,
       },
       {
         type: 'toggle',
         key: 'requiresApproval',
-        label: 'Require human approval',
-      },
-      {
-        type: 'number',
-        key: 'rateLimit',
-        label: 'Calls per hour',
-        min: 1,
-        max: 1000,
-        step: 1,
+        label: 'Always ask before using',
+        hint: 'On top of the agent’s autonomy setting.',
       },
     ],
     summary: (config) =>
-      `${str(config, 'toolId', '—')} · ${str(config, 'permission', 'read')}`,
+      `${str(config, labelKey('toolId'), str(config, 'toolId', '—'))}${config['requiresApproval'] ? ' · approval' : ''}`,
   },
 
   output: {
     kind: 'output',
     label: 'Output',
     category: 'delivery',
-    description: 'Where a finished run is delivered.',
+    description: 'Where a scheduled run’s result goes. Chat replies answer in place.',
     accent: 'orange',
     icon: Send,
     handles: { in: true },
-    defaults: {
-      channel: 'matrix-channel',
-      target: '#security-alerts',
-      format: 'summary',
-    },
+    defaults: { channel: 'chat', channelId: '', projectId: '', url: '' },
     fields: [
       {
         type: 'select',
         key: 'channel',
-        label: 'Destination',
+        label: 'Deliver to',
         options: [
-          { value: 'matrix-channel', label: 'Matrix channel' },
-          { value: 'email', label: 'Email digest' },
-          { value: 'webhook', label: 'Outbound webhook' },
-          { value: 'task', label: 'Create a task' },
-          { value: 'doc', label: 'Append to a document' },
+          { value: 'chat', label: 'The conversation it was asked in' },
+          { value: 'channel', label: 'A channel' },
+          { value: 'task', label: 'A new task' },
+          { value: 'webhook', label: 'A webhook (HTTPS POST)' },
         ],
+      },
+      {
+        type: 'source',
+        key: 'channelId',
+        label: 'Channel',
+        source: 'channels',
+        required: true,
+        showWhen: { key: 'channel', is: ['channel', 'matrix-channel'] },
+      },
+      {
+        type: 'source',
+        key: 'projectId',
+        label: 'Project',
+        source: 'projects',
+        hint: 'Optional — leave empty for a task with no project.',
+        showWhen: { key: 'channel', is: ['task'] },
       },
       {
         type: 'text',
-        key: 'target',
-        label: 'Target',
+        key: 'url',
+        label: 'Webhook URL',
         mono: true,
         required: true,
-      },
-      {
-        type: 'select',
-        key: 'format',
-        label: 'Payload',
-        options: [
-          { value: 'summary', label: 'Summary' },
-          { value: 'full', label: 'Full transcript' },
-          { value: 'json', label: 'Structured JSON' },
-        ],
+        placeholder: 'https://hooks.example.com/agent',
+        showWhen: { key: 'channel', is: ['webhook'] },
       },
     ],
-    summary: (config) =>
-      `${str(config, 'channel', '—')} → ${str(config, 'target', '—')}`,
+    summary: (config) => {
+      const kind = str(config, 'channel', 'chat');
+      if (kind === 'channel' || kind === 'matrix-channel') {
+        return `#${str(config, labelKey('channelId'), 'pick a channel')}`;
+      }
+      if (kind === 'task') return `task${str(config, labelKey('projectId')) ? ` in ${str(config, labelKey('projectId'))}` : ''}`;
+      if (kind === 'webhook') return str(config, 'url', 'webhook');
+      return 'reply in chat';
+    },
   },
 };
 

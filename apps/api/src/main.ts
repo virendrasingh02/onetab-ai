@@ -56,7 +56,14 @@ async function getAvailablePort(
   );
 }
 
-function getCorsOrigins(configuredOrigins: string[], _isProduction: boolean) {
+/**
+ * The origins allowed to make credentialed requests. The local dev-server
+ * ports are only added outside production: with `credentials: true`, any page
+ * a user happened to have running on `localhost:4200` could otherwise read
+ * production API responses with their session.
+ */
+function getCorsOrigins(configuredOrigins: string[], isProduction: boolean) {
+  if (isProduction) return [...new Set(configuredOrigins)];
   const localWebOrigins = Array.from(
     { length: 10 },
     (_, index) => `http://localhost:${4200 + index}`,

@@ -21,6 +21,8 @@ import { AIRuntimeService } from './ai-runtime.service.js';
 import { IntegrationToolBridgeService } from './integration-tool-bridge.service.js';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
 import { FirecrawlService } from './firecrawl.service.js';
+import { AIResourceManageGuard } from './ai-entity-access.guard.js';
+import { AgentOutputDeliveryService } from './agent-output-delivery.service.js';
 
 @Module({
   imports: [
@@ -48,8 +50,11 @@ import { FirecrawlService } from './firecrawl.service.js';
     AgentMatrixBridgeService,
     AgentApprovalListener,
     AgentScheduleSweepService,
+    AgentOutputDeliveryService,
+    AIResourceManageGuard,
   ],
   exports: [
+    AIResourceManageGuard,
     AgentsService,
     AIEntitiesService,
     AIRuntimeService,

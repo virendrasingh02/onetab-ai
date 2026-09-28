@@ -361,8 +361,13 @@ export class MCPToolRegistryService {
     });
   }
 
-  getToolDefinitions(): Array<{ name: string; description: string }> {
-    return Array.from(this.tools.values()).map((t) => ({ name: t.name, description: t.description }));
+  /** Name, description and parameters of every built-in tool — what the builder's tool picker and tester show. */
+  getToolDefinitions(): Array<{ name: string; description: string; parameters: Record<string, unknown> }> {
+    return Array.from(this.tools.values()).map((t) => ({
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters,
+    }));
   }
 
   /**

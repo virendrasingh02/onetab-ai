@@ -6,8 +6,8 @@
  * field edited in the inspector repaints the card on the canvas, updates the
  * validation list and marks the draft dirty in one pass.
  *
- * Persistence is `localStorage`, the same stopgap the workspace registries use
- * until the agent endpoints exist.
+ * The saved agent's `graphJson` is the source of truth. `localStorage` only
+ * holds an unsaved draft of a brand-new agent.
  */
 
 import {
@@ -18,10 +18,13 @@ import {
   type Edge,
   type Node,
 } from '@xyflow/react';
+import { READ_ONLY_AGENT_TOOLS } from '@org/types';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   coerceFieldValue,
   defaultConfigFor,
+  isFieldVisible,
+  labelKey,
   specFor,
   type AgentNodeKind,
   type ConfigValue,
@@ -133,44 +136,45 @@ function isAgentGraph(value: unknown): value is AgentGraph {
   );
 }
 
+/**
+ * A new agent's starting graph: valid as it stands, so the first Save works.
+ * It answers when messaged, with instructions, workspace memory and one
+ * read-only tool; knowledge, guardrails, schedules and outputs are added from
+ * the palette when wanted.
+ */
 function seedGraph(initialConfig?: UseAgentGraphOptions['initialConfig']): AgentGraph {
-  const agentName = initialConfig?.name || 'New AI Agent';
+  const agentName = initialConfig?.name || 'New agent';
   const agentRole = initialConfig?.role || 'Assistant';
-  const agentModel = initialConfig?.model || 'gpt-4o';
-  const agentPrompt =
-    initialConfig?.systemPrompt ||
-    'You are an autonomous AI agent designed to assist users in this workspace.';
+  const overrides = {
+    ...(initialConfig?.model ? { model: initialConfig.model } : {}),
+  };
 
   const nodes: AgentFlowNode[] = [
-    makeNode('model', { x: 0, y: CAPABILITY_ROW_Y }, { model: agentModel }, 'seed-model'),
-    makeNode('prompt', { x: COLUMN, y: CAPABILITY_ROW_Y }, { systemPrompt: agentPrompt }, 'seed-prompt'),
+    makeNode('model', { x: 0, y: CAPABILITY_ROW_Y }, overrides, 'seed-model'),
+    makeNode(
+      'prompt',
+      { x: COLUMN, y: CAPABILITY_ROW_Y },
+      initialConfig?.systemPrompt ? { systemPrompt: initialConfig.systemPrompt } : {},
+      'seed-prompt',
+    ),
     makeNode('memory', { x: COLUMN * 2, y: CAPABILITY_ROW_Y }, {}, 'seed-memory'),
     makeNode(
-      'knowledge',
-      { x: COLUMN * 3, y: CAPABILITY_ROW_Y },
-      {},
-      'seed-knowledge',
-    ),
-    makeNode(
       'tool',
-      { x: COLUMN * 4, y: CAPABILITY_ROW_Y },
-      { toolId: 'send_channel_message', permission: 'write' },
+      { x: COLUMN * 3, y: CAPABILITY_ROW_Y },
+      { toolId: 'search_docs', [labelKey('toolId')]: 'search_docs' },
       'seed-tool',
     ),
     makeNode('trigger', { x: 0, y: SPINE_ROW_Y }, {}, 'seed-trigger'),
-    makeNode('guardrail', { x: COLUMN, y: SPINE_ROW_Y }, {}, 'seed-guardrail'),
-    makeNode('agent', { x: COLUMN * 2, y: SPINE_ROW_Y }, { name: agentName, role: agentRole }, 'seed-agent'),
-    makeNode('output', { x: COLUMN * 3, y: SPINE_ROW_Y }, {}, 'seed-output'),
+    makeNode('agent', { x: COLUMN, y: SPINE_ROW_Y }, { name: agentName, role: agentRole }, 'seed-agent'),
+    makeNode('output', { x: COLUMN * 2, y: SPINE_ROW_Y }, {}, 'seed-output'),
   ];
 
   const edges: Edge[] = [
-    spineEdge('seed-trigger', 'seed-guardrail'),
-    spineEdge('seed-guardrail', 'seed-agent'),
+    spineEdge('seed-trigger', 'seed-agent'),
     spineEdge('seed-agent', 'seed-output'),
     capEdge('seed-model', 'seed-agent'),
     capEdge('seed-prompt', 'seed-agent'),
     capEdge('seed-memory', 'seed-agent'),
-    capEdge('seed-knowledge', 'seed-agent'),
     capEdge('seed-tool', 'seed-agent'),
   ];
 
@@ -269,7 +273,7 @@ export function validateGraph(graph: AgentGraph): GraphIssue[] {
     const spec = specFor(node.data.kind);
     for (const field of spec.fields) {
       const required = 'required' in field && field.required;
-      if (required && isBlank(node.data.config[field.key])) {
+      if (required && isFieldVisible(field, node.data.config) && isBlank(node.data.config[field.key])) {
         issues.push({
           id: `blank-${node.id}-${field.key}`,
           severity: 'error',
@@ -349,7 +353,7 @@ export function validateGraph(graph: AgentGraph): GraphIssue[] {
     const privilegedTool = nodes.find(
       (node) =>
         node.data.kind === 'tool' &&
-        node.data.config['permission'] !== 'read' &&
+        !READ_ONLY_AGENT_TOOLS.includes(String(node.data.config['toolId'] ?? '')) &&
         node.data.config['requiresApproval'] !== true,
     );
     const hasGuardrail = nodes.some((node) => node.data.kind === 'guardrail');
@@ -362,7 +366,7 @@ export function validateGraph(graph: AgentGraph): GraphIssue[] {
         id: 'unguarded-autonomy',
         severity: 'warning',
         message:
-          'A fully autonomous agent holds a write tool with no guardrail in front of it.',
+          'A fully autonomous agent can use a tool that changes things without asking. Consider semi autonomy or "Always ask before using".',
         nodeId: privilegedTool.id,
       });
     }
@@ -418,29 +422,38 @@ export function summarise(graph: AgentGraph): AgentSummary {
   const text = (node: AgentFlowNode | undefined, key: string) =>
     node ? String(node.data.config[key] ?? '') : null;
 
+  const label = (node: AgentFlowNode, key: string) =>
+    String(node.data.config[labelKey(key)] ?? node.data.config[key] ?? '');
+
   return {
     name: text(core, 'name') ?? 'Untitled agent',
     role: text(core, 'role') ?? '—',
     objective: text(core, 'objective') ?? '',
-    autonomy: text(core, 'autonomy') ?? 'supervised',
+    autonomy: text(core, 'autonomy') ?? 'semi',
     model: text(model, 'model'),
     provider: text(model, 'provider'),
     promptLength: (text(prompt, 'systemPrompt') ?? '').length,
-    memory: memory ? String(memory.data.config['strategy'] ?? '') : null,
-    tools: byKind('tool').map((node) => String(node.data.config['toolId'] ?? '')),
-    knowledge: byKind('knowledge').map((node) =>
-      String(node.data.config['collection'] ?? ''),
+    memory: memory && memory.data.config['strategy'] !== 'none' ? 'Workspace memory' : null,
+    tools: byKind('tool').map((node) => label(node, 'toolId')).filter(Boolean),
+    knowledge: byKind('knowledge').map((node) => label(node, 'knowledgeBaseId')).filter(Boolean),
+    triggers: byKind('trigger').map((node) =>
+      node.data.config['type'] === 'schedule'
+        ? `Schedule ${String(node.data.config['expression'] ?? '')}`
+        : node.data.config['type'] === 'mention'
+          ? 'When @mentioned'
+          : 'When messaged',
     ),
-    triggers: byKind('trigger').map(
-      (node) =>
-        `${node.data.config['type'] ?? ''}: ${node.data.config['expression'] ?? ''}`,
-    ),
-    outputs: byKind('output').map(
-      (node) =>
-        `${node.data.config['channel'] ?? ''} → ${node.data.config['target'] ?? ''}`,
-    ),
+    outputs: byKind('output').map((node) => {
+      const kind = String(node.data.config['channel'] ?? 'chat');
+      if (kind === 'channel' || kind === 'matrix-channel') return `#${label(node, 'channelId')}`;
+      if (kind === 'task') return 'New task';
+      if (kind === 'webhook') return String(node.data.config['url'] ?? 'Webhook');
+      return 'Reply in chat';
+    }),
     guardrails: byKind('guardrail').map((node) =>
-      String(node.data.config['policy'] ?? ''),
+      node.data.config['policy'] === 'cost-cap'
+        ? `Token cap ${String(node.data.config['maxTokens'] ?? '')}`
+        : `PII: ${String(node.data.config['action'] ?? 'redact')}`,
     ),
   };
 }
@@ -617,8 +630,13 @@ export function useAgentGraph(options?: UseAgentGraphOptions) {
     [nodes, setNodes],
   );
 
+  /**
+   * Sets one field. A `source` field also stores its option's display label
+   * (`labelKey`) so the canvas card can name a knowledge base or channel
+   * without another lookup.
+   */
   const updateField = useCallback(
-    (nodeId: string, fieldKey: string, raw: unknown) => {
+    (nodeId: string, fieldKey: string, raw: unknown, label?: string) => {
       setNodes((current) =>
         current.map((node) => {
           if (node.id !== nodeId) return node;
@@ -633,6 +651,7 @@ export function useAgentGraph(options?: UseAgentGraphOptions) {
               config: {
                 ...node.data.config,
                 [fieldKey]: coerceFieldValue(field, raw),
+                ...(field.type === 'source' ? { [labelKey(fieldKey)]: label ?? String(raw ?? '') } : {}),
               },
             },
           };

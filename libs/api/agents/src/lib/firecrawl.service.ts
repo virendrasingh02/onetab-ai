@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@org/database';
+import { AISecretsService } from '@org/api-ai';
+import { safeFetch, UnsafeUrlError } from '@org/api-common';
 
 export interface FirecrawlSearchOptions {
   limit?: number;
@@ -80,25 +81,22 @@ export interface FirecrawlExtractResult {
 export class FirecrawlService {
   private readonly logger = new Logger(FirecrawlService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly secrets: AISecretsService) {}
 
   /**
-   * Resolves the Firecrawl API key either from AISecret in the workspace or process.env.
+   * The workspace's `FIRECRAWL_API_KEY` secret, decrypted, else the
+   * deployment's env key. This used to hand Firecrawl the *ciphertext*
+   * straight from the row, so a workspace-configured key could never
+   * authenticate and every call quietly fell through to the fallbacks.
    */
   private async getApiKey(workspaceId: string): Promise<string | null> {
-    try {
-      const secret = await this.prisma.aISecret.findFirst({
-        where: {
-          workspaceId,
-          key: { in: ['FIRECRAWL_API_KEY', 'firecrawl_api_key'] },
-        },
-        select: { encryptedValue: true },
-      });
-      if (secret?.encryptedValue) {
-        return secret.encryptedValue;
+    if (workspaceId) {
+      try {
+        const key = await this.secrets.getDecryptedSecret(workspaceId, 'FIRECRAWL_API_KEY');
+        if (key) return key;
+      } catch (err) {
+        this.logger.warn(`Could not read FIRECRAWL_API_KEY for ${workspaceId}: ${String(err)}`);
       }
-    } catch {
-      // Fallback to env
     }
     return process.env['FIRECRAWL_API_KEY'] || null;
   }
@@ -213,18 +211,10 @@ export class FirecrawlService {
       // Ignore
     }
 
-    // Default informative simulated output
-    return {
-      success: true,
-      data: [
-        {
-          title: `Web Overview for "${query}"`,
-          url: `https://example.com/search?q=${encodeURIComponent(query)}`,
-          description: `Consolidated web search intelligence regarding ${query}`,
-          markdown: `### Research Summary on ${query}\n\nKey facts and sources identified across web indexes for **${query}**.\n- Primary finding: High domain relevance on topic\n- Recommended follow up: Scrape target pages for deep extraction`,
-        },
-      ],
-    };
+    // Nothing found. Say so rather than inventing a result: this used to
+    // return a fabricated "Web Overview" pointing at example.com with
+    // `success: true`, which agents then cited as a real source.
+    return { success: false, data: [] };
   }
 
   /**
@@ -265,16 +255,22 @@ export class FirecrawlService {
       }
     }
 
-    // Fallback scrape using standard fetch & HTML-to-markdown
+    // Fallback: fetch the page ourselves. The URL comes from a member, a
+    // workflow payload or a model's tool call, so it must go through the
+    // SSRF guard — a raw fetch here let anyone read cloud metadata or
+    // internal services through the scrape tool.
     try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml',
-        },
+      const res = await safeFetch(url, {
+        headers: { Accept: 'text/html,application/xhtml+xml' },
+        maxBytes: 2 * 1024 * 1024,
       });
-      const html = await res.text();
+      if (!res.ok) {
+        return {
+          success: false,
+          data: { title: 'Error scraping page', markdown: `The page answered HTTP ${res.status}.` },
+        };
+      }
+      const html = res.text();
       const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
       const title = titleMatch ? titleMatch[1] : url;
       const markdown = this.htmlToMarkdown(html);
@@ -288,11 +284,17 @@ export class FirecrawlService {
         },
       };
     } catch (err) {
+      const reason =
+        err instanceof UnsafeUrlError
+          ? `refused — ${err.message}`
+          : err instanceof Error
+            ? err.message
+            : String(err);
       return {
         success: false,
         data: {
           title: 'Error scraping page',
-          markdown: `Could not retrieve content from ${url}: ${err instanceof Error ? err.message : String(err)}`,
+          markdown: `Could not retrieve content from ${url}: ${reason}`,
         },
       };
     }
@@ -347,7 +349,10 @@ export class FirecrawlService {
   }
 
   /**
-   * Extracts structured data from a URL
+   * Fetches a page for extraction. Firecrawl's hosted extraction is not wired
+   * up, so this returns the page content and the extraction brief for the
+   * caller's model to work from — it no longer claims an extraction
+   * ("Extracted content matching …") it never performed.
    */
   async extract(
     url: string,
@@ -357,13 +362,13 @@ export class FirecrawlService {
   ): Promise<FirecrawlExtractResult> {
     const scraped = await this.scrape(url, workspaceId);
     return {
-      success: true,
+      success: scraped.success,
       data: {
         url,
         title: scraped.data.title,
-        extractedSummary: `Extracted content matching: "${prompt}"`,
-        rawContentSample: scraped.data.markdown.slice(0, 500),
-        schema: schema ?? { type: 'object', properties: { summary: { type: 'string' } } },
+        instructions: prompt,
+        ...(schema ? { schema } : {}),
+        content: scraped.data.markdown.slice(0, 15_000),
       },
     };
   }

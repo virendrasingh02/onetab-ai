@@ -52,6 +52,8 @@ import type {
   AdminEngagementAnalytics,
   AdminLiveActivityItem,
   AgentExecutionLog,
+  AgentTestRunResult,
+  AgentVersion,
   AgentExecutionLogEntry,
   AgentRunResult,
   AIEntity,
@@ -252,6 +254,7 @@ import type {
   AIApp,
   CreateAIAppInput,
   AIApprovalRequest,
+  AutomationWorkflowVersion,
   ApprovalDecisionInput,
   AIExecution,
   AIExecutionFilter,
@@ -2388,12 +2391,12 @@ export const agentsApi = {
     ),
 
   getVersions: (workspaceId: string, agentId: string) =>
-    request<any[]>(
+    request<AgentVersion[]>(
       http.get(`/workspaces/${workspaceId}/agents/${agentId}/versions`),
     ),
 
   createVersion: (workspaceId: string, agentId: string, summary?: string) =>
-    request<any>(
+    request<AgentVersion>(
       http.post(`/workspaces/${workspaceId}/agents/${agentId}/versions`, {
         summary,
       }),
@@ -2412,23 +2415,22 @@ export const agentsApi = {
     agentId: string,
     payload: { input?: Record<string, unknown>; message?: string; prompt?: string },
   ) =>
-    request<{
-      executionId: string;
-      status: string;
-      steps: any[];
-      output: any;
-      duration: number;
-      tokensUsed: number;
-      credits: number;
-    }>(
+    request<AgentTestRunResult>(
       http.post(
         `/workspaces/${workspaceId}/agents/${agentId}/test-run`,
         payload,
       ),
     ),
 
+  /** The built-in tools an agent can be given, with their parameters. */
   listMcpTools: (workspaceId: string) =>
-    request<Array<{ name: string; description: string }>>(
+    request<
+      Array<{
+        name: string;
+        description: string;
+        parameters: Record<string, { type?: string; description?: string }>;
+      }>
+    >(
       http.get(`/workspaces/${workspaceId}/agents/studio/mcp-tools`),
     ),
 
@@ -2625,6 +2627,39 @@ export const automationsApi = {
       http.get(`/workspaces/${workspaceId}/automations/workflows`),
     ),
 
+  get: (workspaceId: string, workflowId: string) =>
+    request<AutomationWorkflowDetail>(
+      http.get(`/workspaces/${workspaceId}/automations/workflows/${workflowId}`),
+    ),
+
+  versions: (workspaceId: string, workflowId: string) =>
+    request<AutomationWorkflowVersion[]>(
+      http.get(`/workspaces/${workspaceId}/automations/workflows/${workflowId}/versions`),
+    ),
+
+  createVersion: (workspaceId: string, workflowId: string, summary?: string) =>
+    request<AutomationWorkflowVersion>(
+      http.post(`/workspaces/${workspaceId}/automations/workflows/${workflowId}/versions`, {
+        summary,
+      }),
+    ),
+
+  /** Snapshots the current graph as a published version and switches the workflow on. */
+  publish: (workspaceId: string, workflowId: string, summary?: string) =>
+    request<AutomationWorkflowVersion>(
+      http.post(`/workspaces/${workspaceId}/automations/workflows/${workflowId}/publish`, {
+        summary,
+      }),
+    ),
+
+  restoreVersion: (workspaceId: string, workflowId: string, version: number) =>
+    request<AutomationWorkflow>(
+      http.post(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}/versions/${version}/restore`,
+        {},
+      ),
+    ),
+
   create: (
     workspaceId: string,
     input: {
@@ -2633,6 +2668,7 @@ export const automationsApi = {
       triggerType?: string;
       nodesJson?: string;
       edgesJson?: string;
+      isActive?: boolean;
     },
   ) =>
     request<AutomationWorkflow>(
@@ -2670,7 +2706,12 @@ export const automationsApi = {
     workflowId: string,
     payload: Record<string, unknown> = {},
   ) =>
-    request<unknown>(
+    request<{
+      executionId: string;
+      runId: string;
+      status: 'SUCCESS' | 'FAILED' | 'WAITING_APPROVAL';
+      results: Array<{ stepId: string; type: string; status: string; output: unknown }>;
+    }>(
       http.post(
         `/workspaces/${workspaceId}/automations/workflows/${workflowId}/trigger`,
         payload,
@@ -4504,10 +4545,13 @@ export const aiExecutionsApi = {
     request<AIExecution>(http.get(`/workspaces/${workspaceId}/ai-executions/${id}`)),
 
   cancel: (workspaceId: string, id: string) =>
-    request<void>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/cancel`)),
+    request<AIExecution>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/cancel`)),
 
+  /** Re-runs with the recorded input; the retry is a new run. */
   retry: (workspaceId: string, id: string) =>
-    request<AIExecution>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/retry`)),
+    request<{ entityType: string; status: string; executionId?: string | null }>(
+      http.post(`/workspaces/${workspaceId}/ai-executions/${id}/retry`),
+    ),
 };
 
 export const aiSecretsApi = {

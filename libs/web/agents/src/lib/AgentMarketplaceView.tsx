@@ -247,16 +247,9 @@ export function AgentMarketplaceView() {
     });
   };
 
-  const handleOpenBuilder = (agentId?: string, name?: string) => {
-    if (agentId) {
-      navigate(
-        `/w/${activeWorkspaceSlug}/agents/builder?agentId=${agentId}&name=${encodeURIComponent(
-          name || '',
-        )}`,
-      );
-    } else {
-      navigate(`/w/${activeWorkspaceSlug}/agents/builder`);
-    }
+  /** Workspace agents open in the AI Workspace editor. */
+  const handleOpenBuilder = (agentId?: string) => {
+    navigate(`/w/${activeWorkspaceSlug}/ai/agents/${agentId ?? 'new'}`);
   };
 
   const handleOpenChat = (agentId: string, prompt?: string) => {

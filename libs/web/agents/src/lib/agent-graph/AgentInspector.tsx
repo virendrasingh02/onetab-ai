@@ -39,9 +39,11 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
+import { BuilderOptionSelect } from './agent-builder-options.js';
 import {
   CATEGORY_LABEL,
   accentFor,
+  isFieldVisible,
   specFor,
   type FieldSpec,
   type NodeConfig,
@@ -55,10 +57,12 @@ export interface AgentInspectorProps {
   selected: AgentFlowNode | null;
   issues: GraphIssue[];
   summary: AgentSummary;
-  onFieldChange: (nodeId: string, fieldKey: string, value: unknown) => void;
+  onFieldChange: (nodeId: string, fieldKey: string, value: unknown, label?: string) => void;
   onSelect: (nodeId: string | null) => void;
   onDuplicate: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
+  /** Read-only: fields are shown but cannot be changed (viewer lacks rights). */
+  readOnly?: boolean;
   className?: string;
 }
 
@@ -72,6 +76,7 @@ export function AgentInspector({
   onSelect,
   onDuplicate,
   onDelete,
+  readOnly = false,
   className,
 }: AgentInspectorProps) {
   const errorCount = issues.filter((issue) => issue.severity === 'error').length;
@@ -112,6 +117,7 @@ export function AgentInspector({
             onSelect={onSelect}
             onDuplicate={onDuplicate}
             onDelete={onDelete}
+            readOnly={readOnly}
           />
         </TabsContent>
 
@@ -142,6 +148,7 @@ function NodeTab({
   onSelect,
   onDuplicate,
   onDelete,
+  readOnly = false,
 }: Omit<AgentInspectorProps, 'summary' | 'className'>) {
   const connections = useMemo(() => {
     if (!selected) return { incoming: [], outgoing: [] };
@@ -303,14 +310,21 @@ function NodeTab({
           {/* Keyed by node as well as field: `NumberInput` keeps the in-progress
               text locally, and two nodes of the same kind share field keys — so
               without the node id the draft would follow the selection. */}
-          {spec.fields.map((field) => (
-            <FieldControl
-              key={`${selected.id}-${field.key}`}
-              field={field}
-              config={selected.data.config}
-              onChange={(value) => onFieldChange(selected.id, field.key, value)}
-            />
-          ))}
+          {/* A disabled fieldset disables every control inside it, so a
+              viewer who may not edit sees the settings without being able
+              to change them. */}
+          <fieldset disabled={readOnly} className="m-0 min-w-0 space-y-4 border-0 p-0">
+            {spec.fields
+              .filter((field) => isFieldVisible(field, selected.data.config))
+              .map((field) => (
+                <FieldControl
+                  key={`${selected.id}-${field.key}`}
+                  field={field}
+                  config={selected.data.config}
+                  onChange={(value, label) => onFieldChange(selected.id, field.key, value, label)}
+                />
+              ))}
+          </fieldset>
 
           <section className="pt-1 space-y-1.5">
             <h4 className="gap-1.5 flex items-center text-[11px] font-semibold text-foreground">
@@ -350,7 +364,7 @@ function NodeTab({
         </div>
       </ScrollArea>
 
-      <div className="px-4 py-3 gap-2 flex border-t">
+      <div className={cn('px-4 py-3 gap-2 flex border-t', readOnly && 'hidden')}>
         <Button
           variant="outline"
           size="sm"
@@ -392,7 +406,7 @@ function NodeTab({
 interface FieldControlProps {
   field: FieldSpec;
   config: NodeConfig;
-  onChange: (value: unknown) => void;
+  onChange: (value: unknown, label?: string) => void;
 }
 
 function FieldControl({ field, config, onChange }: FieldControlProps) {
@@ -469,6 +483,16 @@ function FieldControl({ field, config, onChange }: FieldControlProps) {
         />
       ) : null}
 
+      {field.type === 'source' ? (
+        <SourceSelect
+          id={id}
+          field={field}
+          config={config}
+          describedBy={hintId}
+          onChange={onChange}
+        />
+      ) : null}
+
       {field.type === 'select' ? (
         <Select value={String(value ?? '')} onValueChange={onChange}>
           <SelectTrigger id={id} aria-describedby={hintId} className="w-full">
@@ -486,6 +510,34 @@ function FieldControl({ field, config, onChange }: FieldControlProps) {
 
       {hint}
     </div>
+  );
+}
+
+/** A `source` field: the shared picker over the workspace's real lists. */
+function SourceSelect({
+  id,
+  field,
+  config,
+  describedBy,
+  onChange,
+}: {
+  id: string;
+  field: Extract<FieldSpec, { type: 'source' }>;
+  config: NodeConfig;
+  describedBy?: string;
+  onChange: (value: unknown, label?: string) => void;
+}) {
+  return (
+    <BuilderOptionSelect
+      id={id}
+      source={field.source}
+      value={String(config[field.key] ?? '')}
+      savedLabel={String(config[`${field.key}Label`] ?? '')}
+      filterValue={field.filterBy ? String(config[field.filterBy] ?? '') : undefined}
+      placeholder={field.placeholder}
+      describedBy={describedBy}
+      onChange={onChange}
+    />
   );
 }
 

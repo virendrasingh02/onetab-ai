@@ -1196,8 +1196,7 @@ export function ChannelNav({
     starredCoworkers.forEach((coworker) => {
       const isSelected =
         location.pathname.includes(`/coworkers/${coworker.id}`) ||
-        (location.pathname.endsWith('/coworkers') &&
-          location.search.includes(`id=${coworker.id}`));
+        location.pathname.endsWith(`/ai/agents/${coworker.id}`);
       list.push({
         id: `coworker-${coworker.id}`,
         render: () => (
@@ -1236,8 +1235,8 @@ export function ChannelNav({
 
     starredAgents.forEach((agent) => {
       const isSelected =
-        location.pathname.endsWith('/agents') &&
-        location.search.includes(`agent=${agent.id}`);
+        location.pathname.includes(`/agents/${agent.id}/chat`) ||
+        location.pathname.endsWith(`/ai/agents/${agent.id}`);
       list.push({
         id: `agent-${agent.id}`,
         render: () => (
@@ -1309,9 +1308,7 @@ export function ChannelNav({
     });
 
     starredWorkflows.forEach((workflow) => {
-      const isSelected =
-        location.pathname.endsWith('/automations') &&
-        location.search.includes(`workflow=${workflow.id}`);
+      const isSelected = location.pathname.endsWith(`/ai/workflows/${workflow.id}`);
       list.push({
         id: `workflow-${workflow.id}`,
         render: () => (

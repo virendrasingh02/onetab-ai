@@ -1,8 +1,24 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppEvent, type AgentApprovalEntityType } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import type { ApprovalDecisionInput } from '@org/types';
+import {
+  canManageOwnedAIResource,
+  type ApprovalDecisionInput,
+  type WorkspacePermission,
+} from '@org/types';
+
+/** Who is looking at, or deciding, an approval. */
+export interface ApprovalActor {
+  userId: string;
+  permissions?: readonly WorkspacePermission[];
+}
 
 @Injectable()
 export class ApprovalsService {
@@ -25,6 +41,8 @@ export class ApprovalsService {
     requesterId: string | null;
     actionType: string;
     proposedPayload: Record<string, unknown>;
+    /** The run waiting on this decision, so deciding it closes the run. */
+    executionId?: string | null;
   }) {
     return this.prisma.approvalRequest.create({
       data: {
@@ -32,6 +50,7 @@ export class ApprovalsService {
         entityType: params.entityType,
         entityId: params.entityId,
         requesterId: params.requesterId,
+        executionId: params.executionId ?? null,
         actionType: params.actionType,
         proposedPayload: params.proposedPayload as any,
         state: 'PENDING',
@@ -39,8 +58,19 @@ export class ApprovalsService {
     });
   }
 
-  async listApprovals(workspaceId: string, state?: string) {
-    return this.prisma.approvalRequest.findMany({
+  /**
+   * Who may approve or reject: the person the request was raised on behalf
+   * of (the agent's or workflow's creator — the action would run as them), or
+   * a workspace admin. Previously any member with UPDATE could approve any
+   * agent's destructive action, and a workflow step's "requires ADMIN or
+   * OWNER review" was not enforced at all.
+   */
+  canDecide(requesterId: string | null, actor: ApprovalActor): boolean {
+    return canManageOwnedAIResource(requesterId, actor);
+  }
+
+  async listApprovals(workspaceId: string, state?: string, actor?: ApprovalActor) {
+    const rows = await this.prisma.approvalRequest.findMany({
       where: {
         workspaceId,
         ...(state ? { state } : {}),
@@ -55,6 +85,10 @@ export class ApprovalsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return rows.map((row) => ({
+      ...row,
+      canDecide: actor ? this.canDecide(row.requesterId, actor) : false,
+    }));
   }
 
   async getApproval(workspaceId: string, id: string) {
@@ -76,10 +110,16 @@ export class ApprovalsService {
   async decide(
     workspaceId: string,
     id: string,
-    approverId: string | undefined,
+    actor: ApprovalActor,
     data: ApprovalDecisionInput,
   ) {
+    const approverId = actor.userId;
     const req = await this.getApproval(workspaceId, id);
+    if (!this.canDecide(req.requesterId, actor)) {
+      throw new ForbiddenException(
+        'Only the person this request was raised for, or a workspace admin, can decide it.',
+      );
+    }
     if (req.state !== 'PENDING') {
       throw new BadRequestException(`Approval request is already ${req.state}`);
     }
@@ -103,7 +143,10 @@ export class ApprovalsService {
       },
     });
 
-    if (req.executionId) {
+    // A workflow run resumes (or stops) in the automations engine, which
+    // owns its status from here — see WorkflowApprovalListener.
+    const isWorkflow = updated.entityType === 'WORKFLOW';
+    if (req.executionId && !isWorkflow) {
       const exec = await this.prisma.aIExecution.findUnique({
         where: { id: req.executionId },
       });
@@ -122,7 +165,19 @@ export class ApprovalsService {
       `Approval request ${id} ${data.decision.toLowerCase()} by user ${approverId}`,
     );
 
-    if (updated.entityType === 'agent' || updated.entityType === 'coworker') {
+    if (isWorkflow) {
+      this.events.emit(AppEvent.WorkflowApprovalDecided, {
+        workspaceId,
+        approvalId: updated.id,
+        workflowId: updated.entityId,
+        executionId: updated.executionId,
+        stepId: updated.stepId,
+        decision: data.decision,
+        approverId: approverId ?? null,
+        comment: updated.comment ?? null,
+        proposedPayload: (updated.proposedPayload ?? {}) as Record<string, unknown>,
+      });
+    } else if (updated.entityType === 'agent' || updated.entityType === 'coworker') {
       this.events.emit(AppEvent.AgentApprovalDecided, {
         workspaceId,
         approvalId: updated.id,

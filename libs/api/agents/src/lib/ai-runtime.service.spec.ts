@@ -12,6 +12,8 @@ describe('AIRuntimeService', () => {
   let approvals: any;
   let creditService: any;
   let realtime: any;
+  let mcpServers: any;
+  let knowledge: any;
 
   beforeEach(() => {
     prisma = {
@@ -36,6 +38,13 @@ describe('AIRuntimeService', () => {
       },
       aIMemory: {
         findMany: vi.fn().mockResolvedValue([]),
+      },
+      aIExecution: {
+        create: vi.fn().mockResolvedValue({ id: 'exec_1' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      aIExecutionStep: {
+        create: vi.fn().mockResolvedValue({}),
       },
     };
     aiService = {
@@ -69,6 +78,15 @@ describe('AIRuntimeService', () => {
       broadcastToWorkspace: vi.fn().mockResolvedValue(undefined),
     };
 
+    mcpServers = {
+      getToolBindings: vi.fn().mockResolvedValue([]),
+      callTool: vi.fn(),
+    };
+
+    knowledge = {
+      retrieve: vi.fn().mockResolvedValue([]),
+    };
+
     service = new AIRuntimeService(
       prisma,
       aiService,
@@ -79,6 +97,8 @@ describe('AIRuntimeService', () => {
       approvals,
       creditService,
       realtime,
+      mcpServers,
+      knowledge,
     );
   });
 
@@ -324,6 +344,77 @@ describe('AIRuntimeService', () => {
     expect(result.tools[0]?.output).toEqual(
       expect.objectContaining({ pendingApproval: true, approvalId: 'approval_1' }),
     );
+  });
+
+  describe('workspace MCP server tools', () => {
+    const binding = (toolName: string, requiresApproval: boolean) => ({
+      functionName: `mcp_abc123_${toolName}`,
+      connectionId: 'conn_abc123',
+      connectionName: 'Docs server',
+      toolName,
+      requiresApproval,
+      schema: { type: 'function', function: { name: `mcp_abc123_${toolName}`, parameters: {} } },
+    });
+    const agentWithTools = (tools: string[]) => ({
+      id: 'agent_1',
+      name: 'Research Agent',
+      type: 'agent',
+      creatorId: 'user_1',
+      systemPrompt: 'Research.',
+      provider: 'nvidia',
+      tools: JSON.stringify(tools),
+      isActive: true,
+      workspace: { name: 'Test WS' },
+    });
+    const modelCalls = (name: string) =>
+      aiService.chat
+        .mockResolvedValueOnce({
+          message: { content: '', toolCalls: [{ id: 'call_1', function: { name, arguments: '{"q":"x"}' } }] },
+          usage: { totalTokens: 10 },
+        })
+        .mockResolvedValueOnce({ message: { content: 'Done.', toolCalls: [] }, usage: { totalTokens: 5 } });
+
+    it('never offers MCP tools to an agent that did not opt in', async () => {
+      prisma.aIAgent.findFirst.mockResolvedValue(agentWithTools(['search_docs']));
+      await service.executeTurn('ws_1', 'agent_1', 'Hi');
+      expect(mcpServers.getToolBindings).not.toHaveBeenCalled();
+    });
+
+    it('runs a read-only MCP tool directly and feeds its text back', async () => {
+      prisma.aIAgent.findFirst.mockResolvedValue(agentWithTools(['mcp:conn_abc123']));
+      mcpServers.getToolBindings.mockResolvedValue([binding('lookup', false)]);
+      mcpServers.callTool.mockResolvedValue({ isError: false, text: 'found it', content: [] });
+      modelCalls('mcp_abc123_lookup');
+
+      const result = await service.executeTurn('ws_1', 'agent_1', 'Look it up');
+
+      expect(mcpServers.callTool).toHaveBeenCalledWith('ws_1', 'conn_abc123', 'lookup', { q: 'x' });
+      expect(result.tools[0]).toMatchObject({ status: 'success', output: 'found it' });
+      expect(approvals.createForEntityAction).not.toHaveBeenCalled();
+    });
+
+    it('queues an approval for an MCP tool not declared read-only', async () => {
+      prisma.aIAgent.findFirst.mockResolvedValue(agentWithTools(['mcp_abc123_delete_page']));
+      mcpServers.getToolBindings.mockResolvedValue([binding('delete_page', true), binding('other', false)]);
+      modelCalls('mcp_abc123_delete_page');
+
+      const result = await service.executeTurn('ws_1', 'agent_1', 'Clean up');
+
+      expect(mcpServers.callTool).not.toHaveBeenCalled();
+      expect(approvals.createForEntityAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requesterId: 'user_1',
+          proposedPayload: expect.objectContaining({
+            mcpConnectionId: 'conn_abc123',
+            mcpToolName: 'delete_page',
+          }),
+        }),
+      );
+      expect(result.tools[0]?.output).toEqual(expect.objectContaining({ pendingApproval: true }));
+      // Only the tool the agent named was offered to the model.
+      const offered = aiService.chat.mock.calls[0][0].tools.map((t: any) => t.function.name);
+      expect(offered).toEqual(['mcp_abc123_delete_page']);
+    });
   });
 
   it('rejects delegation beyond the maximum depth', async () => {

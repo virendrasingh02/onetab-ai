@@ -11,6 +11,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   CurrentUser,
@@ -18,7 +19,20 @@ import {
   WorkspaceId,
   WorkspaceMemberRole,
   WorkspacePolicies,
+  zodBody,
 } from '@org/api-common';
+import {
+  agentTestRunSchema,
+  agentVersionSchema,
+  createAgentSchema,
+  executeAIEntitySchema,
+  linkAgentSchema,
+  setEnabledSchema,
+  testMcpToolSchema,
+  updateAgentSchema,
+  validateAgentGraphSchema,
+  type CreateAgentInput,
+} from '@org/validation';
 import {
   isPolicyRoleAllowed,
   WorkspacePermission,
@@ -26,6 +40,7 @@ import {
   type WorkspaceRole,
 } from '@org/types';
 import { AgentsService } from './agents.service.js';
+import { CanManageAIEntity } from './ai-entity-access.guard.js';
 
 /**
  * A workspace's own agents.
@@ -64,19 +79,7 @@ export class AgentsController {
     @CurrentUser('id') userId: string,
     @WorkspaceMemberRole() role: WorkspaceRole | undefined,
     @WorkspacePolicies() policies: WorkspacePolicy | undefined,
-    @Body()
-    body: {
-      name: string;
-      role?: string;
-      description?: string;
-      avatarUrl?: string | null;
-      systemPrompt?: string;
-      provider?: string;
-      model?: string;
-      tools?: string[];
-      isMarketplace?: boolean;
-      graphJson?: string;
-    },
+    @Body(zodBody(createAgentSchema)) body: CreateAgentInput,
   ) {
     // Settings → Permissions & Policies → "Who can create AI Agents".
     if (policies && !isPolicyRoleAllowed(role, policies.whoCanCreateAgents)) {
@@ -89,29 +92,18 @@ export class AgentsController {
 
   @Patch(':agentId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('agentId')
   updateAgent(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
-    @Body()
-    body: {
-      name?: string;
-      role?: string;
-      description?: string;
-      avatarUrl?: string | null;
-      systemPrompt?: string;
-      welcomeMessage?: string;
-      provider?: string;
-      model?: string;
-      tools?: string[];
-      isActive?: boolean;
-      graphJson?: string;
-    },
+    @Body(zodBody(updateAgentSchema)) body: Parameters<AgentsService['updateAgent']>[2],
   ) {
     return this.agentsService.updateAgent(workspaceId, agentId, body);
   }
 
   @Delete(':agentId')
-  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('agentId')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteAgent(
     @WorkspaceId() workspaceId: string,
@@ -122,10 +114,11 @@ export class AgentsController {
 
   @Post(':agentId/execute')
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   executeAgent(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
-    @Body() body: { promptText: string },
+    @Body(zodBody(executeAIEntitySchema)) body: { promptText: string },
   ) {
     return this.agentsService.executeAgent(workspaceId, agentId, body.promptText);
   }
@@ -144,23 +137,25 @@ export class AgentsController {
   validateAgent(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
-    @Body() body: { graphJson?: string },
+    @Body(zodBody(validateAgentGraphSchema)) body: { graphJson?: string },
   ) {
     return this.agentsService.validateGraph(body.graphJson);
   }
 
   @Post(':agentId/publish')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('agentId')
   publishAgent(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
-    @Body() body: { summary?: string },
+    @Body(zodBody(agentVersionSchema)) body: { summary?: string },
   ) {
     return this.agentsService.publishAgent(workspaceId, agentId, body.summary);
   }
 
   @Post(':agentId/unpublish')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('agentId')
   unpublishAgent(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
@@ -178,16 +173,18 @@ export class AgentsController {
 
   @Post(':agentId/versions')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('agentId')
   createAgentVersion(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
-    @Body() body: { summary?: string },
+    @Body(zodBody(agentVersionSchema)) body: { summary?: string },
   ) {
     return this.agentsService.createAgentVersion(workspaceId, agentId, body.summary);
   }
 
   @Post(':agentId/versions/:version/restore')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('agentId')
   restoreAgentVersion(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
@@ -198,11 +195,13 @@ export class AgentsController {
 
   @Post(':agentId/test-run')
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   testRunAgent(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
     @Param('agentId') agentId: string,
-    @Body() body: { input?: Record<string, unknown>; message?: string; prompt?: string },
+    @Body(zodBody(agentTestRunSchema))
+    body: { input?: Record<string, unknown>; message?: string; prompt?: string },
   ) {
     return this.agentsService.testRunWorkflow(
       workspaceId,
@@ -219,10 +218,11 @@ export class AgentsController {
 
   @Post('studio/mcp-tools/test')
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   testMcpTool(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: { toolName: string; params: any },
+    @Body(zodBody(testMcpToolSchema)) body: { toolName: string; params: Record<string, unknown> },
   ) {
     return this.agentsService.testMcpTool(body.toolName, body.params, workspaceId, userId);
   }
@@ -268,7 +268,7 @@ export class ChannelAgentsController {
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
     @Param('channelId') channelId: string,
-    @Body() body: { agentId: string },
+    @Body(zodBody(linkAgentSchema)) body: { agentId: string },
   ) {
     return this.agentsService.addChannelAgent(
       workspaceId,
@@ -285,7 +285,7 @@ export class ChannelAgentsController {
     @CurrentUser('id') userId: string,
     @Param('channelId') channelId: string,
     @Param('agentId') agentId: string,
-    @Body() body: { isEnabled: boolean },
+    @Body(zodBody(setEnabledSchema)) body: { isEnabled: boolean },
   ) {
     return this.agentsService.setChannelAgentEnabled(
       workspaceId,

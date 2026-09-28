@@ -131,6 +131,7 @@ export const AppEvent = {
    * not depend on `api-agents`, which already depends on it.
    */
   AgentApprovalDecided: 'agent.approval.decided',
+  WorkflowApprovalDecided: 'workflow.approval.decided',
 } as const;
 
 export type AppEventName = (typeof AppEvent)[keyof typeof AppEvent];
@@ -479,6 +480,20 @@ export interface AgentApprovalDecidedEvent {
   proposedPayload: Record<string, unknown>;
 }
 
+/** A workflow's human-approval step was decided — the run resumes or stops. */
+export interface WorkflowApprovalDecidedEvent {
+  workspaceId: string;
+  approvalId: string;
+  workflowId: string;
+  executionId: string | null;
+  stepId: string | null;
+  decision: 'APPROVED' | 'REJECTED';
+  approverId: string | null;
+  comment: string | null;
+  /** The run context when it paused, possibly revised by the approver. */
+  proposedPayload: Record<string, unknown>;
+}
+
 export interface AppEventPayloads {
   [AppEvent.TaskCreated]: TaskCreatedEvent;
   [AppEvent.TaskAssigned]: TaskAssignedEvent;
@@ -513,4 +528,5 @@ export interface AppEventPayloads {
   [AppEvent.IntegrationDisconnected]: IntegrationDisconnectedEvent;
   [AppEvent.SettingsUpdated]: SettingsUpdatedEvent;
   [AppEvent.AgentApprovalDecided]: AgentApprovalDecidedEvent;
+  [AppEvent.WorkflowApprovalDecided]: WorkflowApprovalDecidedEvent;
 }

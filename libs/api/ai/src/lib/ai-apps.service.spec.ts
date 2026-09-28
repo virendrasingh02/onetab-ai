@@ -66,10 +66,10 @@ describe("AIAppsService", () => {
     );
   });
 
-  it("executes an app and records execution trace", async () => {
-    const result = await service.executeApp("ws-1", "u-1", "app-1", { query: "hello" });
-    expect(result.executionId).toBe("exec-123");
-    expect(mockPrisma.aIExecution.create).toHaveBeenCalled();
-    expect(mockPrisma.aIExecution.update).toHaveBeenCalled();
+  it("refuses to run an app rather than fabricating a result", async () => {
+    await expect(
+      service.executeApp("ws-1", "u-1", "app-1", { query: "hello" }),
+    ).rejects.toThrow(/cannot be run yet/);
+    expect(mockPrisma.aIExecution.create).not.toHaveBeenCalled();
   });
 });

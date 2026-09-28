@@ -6,10 +6,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
+import { aiQuickCreateSchema } from '@org/validation';
 import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
 import { AIStudioService } from './ai-studio.service.js';
@@ -29,7 +31,7 @@ export class AIStudioController {
   quickCreate(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: { name: string; type: string; description?: string },
+    @Body(zodBody(aiQuickCreateSchema)) body: { name: string; type: string; description?: string },
   ) {
     return this.studioService.quickCreate(workspaceId, userId, body);
   }

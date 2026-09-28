@@ -13,6 +13,7 @@ import {
   Spinner,
   toast,
   type RightPanelProfile,
+  confirm,
 } from '@org/ui';
 import {
   Activity,
@@ -99,14 +100,18 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
 
   const handleDelete = async () => {
     if (!agentId) return;
-    if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: `Delete “${name}”?`,
+      description: 'The agent, its schedules and its builder graph are removed. Its past runs stay in Runs. This cannot be undone.',
+      confirmLabel: 'Delete agent',
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await mutations.remove.mutateAsync(agentId);
       toast.success(`Deleted agent ${name}`);
       onClose();
-      navigate(`/w/${workspaceSlug}/agents/marketplace`);
+      navigate(`/w/${workspaceSlug}/ai/agents`);
     } catch {
       toast.error('Failed to delete agent');
     }
@@ -134,7 +139,7 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/w/${workspaceSlug}/agents/builder?agentId=${agentId}`)}>
+              <DropdownMenuItem onClick={() => navigate(`/w/${workspaceSlug}/ai/agents/${agentId}`)}>
                 <Wrench className="mr-2 h-3.5 w-3.5 text-accent-violet" />
                 Open Visual Builder
               </DropdownMenuItem>
@@ -213,7 +218,7 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/w/${workspaceSlug}/agents/builder?agentId=${agentId}`)}
+              onClick={() => navigate(`/w/${workspaceSlug}/ai/agents/${agentId}`)}
               className="text-xs gap-1.5 flex-1 border-border bg-surface hover:bg-accent"
             >
               <Wrench className="size-3.5 text-accent-violet" />

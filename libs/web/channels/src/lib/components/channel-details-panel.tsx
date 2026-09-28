@@ -423,7 +423,7 @@ export function ChannelDetailsPanel({
               title="Browse All Workspace Agents"
               description="Explore pre-built integrations, custom agents, and bot webhooks."
               actionLabel="Explore marketplace"
-              to={`/w/${workspaceSlug}/agents`}
+              to={`/w/${workspaceSlug}/ai/agents`}
             />
           </div>
         </TabsContent>
@@ -489,7 +489,7 @@ export function ChannelDetailsPanel({
               title="Workspace Automations"
               description="Create cross-channel workflows, webhook triggers, and scheduled jobs."
               actionLabel="Open Workflow Builder"
-              to={`/w/${workspaceSlug}/automations`}
+              to={`/w/${workspaceSlug}/ai/workflows`}
             />
           </div>
         </TabsContent>

@@ -1,8 +1,8 @@
 /**
  * The agent-graph builder: model, state, canvas nodes, palette and inspector.
  *
- * `AgentBuilderView` is the only consumer today; the barrel keeps its import
- * list to one line and marks where the module boundary is.
+ * `AgentEditorView` is the consumer; the barrel keeps its import list to one
+ * line and marks where the module boundary is.
  */
 
 export {
@@ -16,10 +16,14 @@ export {
   coerceFieldValue,
   defaultConfigFor,
   isAgentNodeKind,
+  isFieldVisible,
+  labelKey,
   specFor,
   type AgentNodeKind,
   type ConfigValue,
+  type FieldCondition,
   type FieldSpec,
+  type OptionSource,
   type NodeAccent,
   type NodeAccentName,
   type NodeCategory,
@@ -55,3 +59,11 @@ export {
 } from './AgentNodePalette.js';
 
 export { AgentInspector, type AgentInspectorProps } from './AgentInspector.js';
+
+export {
+  AgentBuilderOptionsProvider,
+  BuilderOptionSelect,
+  useAgentBuilderOptions,
+  type BuilderOption,
+  type BuilderOptions,
+} from './agent-builder-options.js';

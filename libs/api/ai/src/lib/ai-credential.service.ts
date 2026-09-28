@@ -1,5 +1,6 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { assertPublicHttpUrl, UnsafeUrlError } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type {
   AIModelMetadata,
@@ -334,6 +335,26 @@ export class AICredentialService {
   }
 
   /**
+   * A workspace-supplied base URL is where the API server will send requests
+   * (with the key attached), so it must not point into the server's own
+   * network. Self-hosted deployments that run a model server on a private
+   * address (a local Ollama) opt in with `AI_ALLOW_PRIVATE_NETWORK=true`.
+   */
+  private async assertUsableBaseUrl(baseUrl: string): Promise<void> {
+    if (this.config.get<string>('AI_ALLOW_PRIVATE_NETWORK') === 'true') return;
+    try {
+      await assertPublicHttpUrl(baseUrl);
+    } catch (err) {
+      if (err instanceof UnsafeUrlError) {
+        throw new BadRequestException(
+          `That base URL can't be used: ${err.message} Private model servers need AI_ALLOW_PRIVATE_NETWORK=true on the API.`,
+        );
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Lists all available AI providers for a given workspace with masked keys and live statuses.
    */
   async listWorkspaceProviders(workspaceId: string): Promise<AIProviderMetadata[]> {
@@ -421,6 +442,8 @@ export class AICredentialService {
     input: SaveProviderCredentialInput,
     userId?: string
   ): Promise<AIProviderMetadata> {
+    if (input.baseUrl?.trim()) await this.assertUsableBaseUrl(input.baseUrl.trim());
+
     const existing = await this.prisma.aIProviderCredential.findFirst({
       where: { provider, scopeType: 'workspace', scopeId: workspaceId },
     });

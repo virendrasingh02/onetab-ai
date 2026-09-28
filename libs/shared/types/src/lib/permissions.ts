@@ -99,6 +99,30 @@ export function permissionsForRole(
 }
 
 /**
+ * Who may change an AI agent, coworker or workflow: the member who created it,
+ * or anyone who can manage workspace settings.
+ *
+ * `UPDATE` alone is not enough. An agent acts with its *creator's* identity —
+ * integration actions run as `creatorId` — so letting any member rewrite
+ * another member's agent (its prompt, tools, linked apps) would let them act
+ * through that person's connected accounts. Running an agent as configured is
+ * a separate, broader permission (`CREATE`).
+ *
+ * Shared by the API guard and the browser, like `roleHasPermission`.
+ */
+export function canManageOwnedAIResource(
+  creatorId: string | null | undefined,
+  actor: {
+    userId: string | null | undefined;
+    permissions?: readonly WorkspacePermission[] | null;
+  },
+): boolean {
+  if (actor.permissions?.includes(WorkspacePermission.MANAGE_SETTINGS)) return true;
+  if (!actor.permissions?.includes(WorkspacePermission.UPDATE)) return false;
+  return !!creatorId && !!actor.userId && creatorId === actor.userId;
+}
+
+/**
  * Platform administration compliance permissions.
  */
 export const CompliancePermission = {

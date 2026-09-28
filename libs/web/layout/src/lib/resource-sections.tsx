@@ -315,9 +315,9 @@ export function CoworkerNavRow({
     {
       id: 'profile',
       group: 'open',
-      label: 'Profile & settings',
+      label: 'Profile & runs',
       icon: Settings,
-      run: () => navigate(`${path}?tab=profile`),
+      run: () => navigate(`/w/${workspaceSlug}/ai/agents/${coworker.id}`),
     },
     favoriteAction(isFavorite, onToggleFavorite),
     copyLinkAction(path, 'Copy coworker link'),
@@ -398,7 +398,7 @@ export function AgentNavRow({
       label: 'Edit in builder',
       icon: Wrench,
       shortcut: 'E',
-      run: () => navigate(`/w/${workspaceSlug}/agents/builder?agentId=${agent.id}`),
+      run: () => navigate(`/w/${workspaceSlug}/ai/agents/${agent.id}`),
     },
     favoriteAction(isFavorite, onToggleFavorite),
     copyLinkAction(chatPath, 'Copy agent link'),
@@ -560,7 +560,7 @@ export function WorkflowNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const path = `/w/${workspaceSlug}/automations?workflow=${workflow.id}`;
+  const path = `/w/${workspaceSlug}/ai/workflows/${workflow.id}`;
   const isActive = workflow.isActive ?? true;
 
   const actions: EntityAction[] = [
@@ -578,8 +578,6 @@ export function WorkflowNavRow({
       label: 'Run now',
       icon: Play,
       hidden: !onRun,
-      disabled: !isActive,
-      disabledReason: 'Resume the automation to run it',
       successMessage: `“${workflow.name}” triggered`,
       errorMessage: false,
       run: onRun,
@@ -587,7 +585,7 @@ export function WorkflowNavRow({
     {
       id: 'toggle-active',
       group: 'run',
-      label: isActive ? 'Disable automation' : 'Enable automation',
+      label: isActive ? 'Pause' : 'Switch on',
       icon: isActive ? Pause : Play,
       hidden: !onToggleActive,
       run: onToggleActive,
@@ -821,7 +819,8 @@ export function CoworkersSection({
       partitionCoworkersByInactivity(coworkerList, {
         keepActive: (id) =>
           isFavorite('coworker', id) ||
-          location.pathname.includes(`/coworkers/${id}`),
+          location.pathname.includes(`/coworkers/${id}`) ||
+          location.pathname.endsWith(`/ai/agents/${id}`),
       }),
     [coworkerList, isFavorite, location.pathname],
   );
@@ -985,7 +984,7 @@ export function CoworkersSection({
             aria-label="Add coworker"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/coworkers`}>
+            <NavLink to={`/w/${workspaceSlug}/ai/agents?type=coworker`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -1008,8 +1007,7 @@ export function CoworkersSection({
             {items.map((item) => {
               const isSelected =
                 location.pathname.includes(`/coworkers/${item.id}`) ||
-                (location.pathname.endsWith('/coworkers') &&
-                  location.search.includes(`id=${item.id}`));
+                location.pathname.endsWith(`/ai/agents/${item.id}`);
 
               return (
                 <SortableCoworkerNavRow
@@ -1030,7 +1028,7 @@ export function CoworkersSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/coworkers`}
+          to={`/w/${workspaceSlug}/ai/agents?type=coworker`}
           className={navActionClass({ depth: 1 })}
         >
           <Plus className={navIconClass(1)} aria-hidden />
@@ -1070,7 +1068,8 @@ export function AgentsSection({
       partitionAgentsByInactivity(agentList, {
         keepActive: (id) =>
           isFavorite('agent', id) ||
-          (location.pathname.includes('/agents') &&
+          location.pathname.includes(`/agents/${id}`) ||
+          (location.pathname.includes('/agents/chat') &&
             new URLSearchParams(location.search).get('id') === id),
       }),
     [agentList, isFavorite, location.pathname, location.search],
@@ -1227,7 +1226,7 @@ export function AgentsSection({
             aria-label="Add agent"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/agents`}>
+            <NavLink to={`/w/${workspaceSlug}/ai/agents`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -1252,8 +1251,8 @@ export function AgentsSection({
                 (location.pathname.includes('/agents/chat') &&
                   (location.search.includes(`id=${item.id}`) ||
                     (!location.search.includes('id=') && index === 0))) ||
-                (location.pathname.endsWith('/agents') &&
-                  location.search.includes(`agent=${item.id}`));
+                location.pathname.includes(`/agents/${item.id}/chat`) ||
+                location.pathname.endsWith(`/ai/agents/${item.id}`);
 
               return (
                 <SortableAgentNavRow
@@ -1274,7 +1273,7 @@ export function AgentsSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/agents`}
+          to={`/w/${workspaceSlug}/ai/agents`}
           className={navActionClass({ depth: 1 })}
         >
           <Plus className={navIconClass(1)} aria-hidden />
@@ -1650,7 +1649,7 @@ export function WorkflowsSection({
             aria-label="Add workflow"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/automations`}>
+            <NavLink to={`/w/${workspaceSlug}/ai/workflows`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -1668,9 +1667,7 @@ export function WorkflowsSection({
           strategy={verticalListSortingStrategy}
         >
           {items.map((item) => {
-            const isSelected =
-              location.pathname.endsWith('/automations') &&
-              location.search.includes(`workflow=${item.id}`);
+            const isSelected = location.pathname.endsWith(`/ai/workflows/${item.id}`);
 
             return (
               <SortableWorkflowNavRow
@@ -1702,7 +1699,7 @@ export function WorkflowsSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/automations`}
+          to={`/w/${workspaceSlug}/ai/workflows`}
           className={navActionClass({ depth: 1 })}
         >
           <Plus className={navIconClass(1)} aria-hidden />

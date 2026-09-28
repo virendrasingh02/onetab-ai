@@ -2,6 +2,8 @@ import { queryKeys } from '@org/api-client';
 import {
   ChannelVisibility,
   type AIAgentDetail,
+  type AICoworkerDetail,
+  type AutomationWorkflowDetail,
   type ChannelSummary,
   type ExternalIntegration,
   type Project,
@@ -56,7 +58,10 @@ export function DocumentTitle(): null {
       projectId:
         grab('/w/:workspaceSlug/projects/:projectId', 'projectId') ??
         grab('/w/:workspaceSlug/tasks/:projectId', 'projectId'),
-      agentId: grab('/w/:workspaceSlug/agents/:agentId/chat', 'agentId'),
+      agentId:
+        grab('/w/:workspaceSlug/agents/:agentId/chat', 'agentId') ??
+        grab('/w/:workspaceSlug/ai/agents/:agentId', 'agentId'),
+      workflowId: grab('/w/:workspaceSlug/ai/workflows/:workflowId', 'workflowId'),
       appId: grab('/w/:workspaceSlug/apps/:appId/chat', 'appId'),
       docId:
         grab('/w/:workspaceSlug/docs/:docId', 'docId') ??
@@ -71,8 +76,18 @@ export function DocumentTitle(): null {
   const workspace = workspaceQuery.data as WorkspaceSummary | undefined;
   const workspaceId = workspace?.id ?? '';
 
-  const [channels, members, agents, integrations, projectList, docList] =
-    useQueries({
+  const [
+    channels,
+    members,
+    agents,
+    integrations,
+    projectList,
+    docList,
+    coworkers,
+    workflows,
+    aiEntity,
+    workflowDetail,
+  ] = useQueries({
       queries: [
         { queryKey: queryKeys.channels.list(workspaceId, false), queryFn: skipToken },
         { queryKey: queryKeys.members.list(workspaceId), queryFn: skipToken },
@@ -80,6 +95,18 @@ export function DocumentTitle(): null {
         { queryKey: queryKeys.integrations.list(workspaceId), queryFn: skipToken },
         { queryKey: queryKeys.workTools.projects(workspaceId), queryFn: skipToken },
         { queryKey: queryKeys.workTools.documents(workspaceId), queryFn: skipToken },
+        { queryKey: queryKeys.coworkers.list(workspaceId), queryFn: skipToken },
+        { queryKey: queryKeys.automations.list(workspaceId), queryFn: skipToken },
+        // What the AI Workspace editors load, for a deep link that opens one
+        // before any list is in the cache.
+        {
+          queryKey: ['ai-entities', workspaceId, 'detail', params.agentId],
+          queryFn: skipToken,
+        },
+        {
+          queryKey: queryKeys.automations.detail(workspaceId, params.workflowId ?? ''),
+          queryFn: skipToken,
+        },
       ],
     });
 
@@ -114,9 +141,22 @@ export function DocumentTitle(): null {
     }
 
     if (params.agentId) {
-      result.agentName = (
-        agents.data as AIAgentDetail[] | undefined
-      )?.find((agent) => agent.id === params.agentId)?.name;
+      result.agentName =
+        (agents.data as AIAgentDetail[] | undefined)?.find(
+          (agent) => agent.id === params.agentId,
+        )?.name ??
+        (coworkers.data as AICoworkerDetail[] | undefined)?.find(
+          (coworker) => coworker.id === params.agentId,
+        )?.name ??
+        (aiEntity.data as { name?: string } | undefined)?.name;
+    }
+
+    if (params.workflowId) {
+      result.workflowName =
+        (workflows.data as AutomationWorkflowDetail[] | undefined)?.find(
+          (workflow) => workflow.id === params.workflowId,
+        )?.name ??
+        (workflowDetail.data as AutomationWorkflowDetail | undefined)?.name;
     }
 
     if (params.appId) {
@@ -142,6 +182,10 @@ export function DocumentTitle(): null {
     integrations.data,
     projectList.data,
     docList.data,
+    coworkers.data,
+    workflows.data,
+    aiEntity.data,
+    workflowDetail.data,
   ]);
 
   const { title } = useMemo(

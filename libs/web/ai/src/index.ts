@@ -1,8 +1,13 @@
 export { AISidebar, type AISidebarProps } from './lib/AISidebar.js';
 export { AIChatView } from './lib/AIChatView.js';
-export { PromptLibraryView } from './lib/PromptLibraryView.js';
+export { PromptLibraryView, type PromptLibraryViewProps } from './lib/PromptLibraryView.js';
 export { AIImageGeneratorView } from './lib/AIImageGeneratorView.js';
-export { AIStudioView } from './lib/studio/AIStudioView.js';
+/*
+ * The AI Workspace (`/w/:slug/ai`) — the one home for agents, coworkers,
+ * workflows, runs, approvals, knowledge, tools and prompts. It replaced the
+ * former AI Studio view, which linked out to separate builders.
+ */
+export * from './lib/workspace/index.js';
 
 /*
  * The transcript rows live in `@org/chat-ui` — the agent conversation renders

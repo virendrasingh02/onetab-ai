@@ -109,6 +109,10 @@ export const apiEnvSchema = z.object({
   // Default Platform Provider & Model
   AI_DEFAULT_PROVIDER: z.string().default('nvidia'),
   AI_DEFAULT_MODEL: z.string().default('nvidia/nemotron-3-super-120b-a12b'),
+  // Workspace-configured AI endpoints (a provider base URL, an MCP server)
+  // must be public addresses unless this is 'true' — for self-hosted installs
+  // whose model or MCP server lives on the LAN.
+  AI_ALLOW_PRIVATE_NETWORK: z.enum(['true', 'false']).optional(),
 
   // GIF picker proxy. Optional: without a key the /gifs endpoints serve a
   // small bundled fallback set. Free key: https://developers.giphy.com

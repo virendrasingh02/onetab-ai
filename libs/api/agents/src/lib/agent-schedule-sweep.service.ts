@@ -1,51 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { isCronDue } from '@org/api-common';
 import { PrismaService } from '@org/database';
+import { AgentOutputDeliveryService } from './agent-output-delivery.service.js';
 import { AIRuntimeService } from './ai-runtime.service.js';
-
-/** Matches one 5-field cron subexpression — a wildcard, a comma list, a
- *  range, a step (every N units), or a combination — against a single
- *  calendar value. No external cron-parsing dependency — the field grammar
- *  this supports covers every expression the Agent Builder's schedule
- *  picker can produce. */
-function matchesCronField(field: string, value: number): boolean {
-  return field.split(',').some((part) => {
-    const [range, stepRaw] = part.split('/');
-    const step = stepRaw ? Number(stepRaw) : 1;
-    if (!Number.isFinite(step) || step <= 0) return false;
-
-    if (range === '*') {
-      return value % step === 0;
-    }
-    if (range.includes('-')) {
-      const [startRaw, endRaw] = range.split('-');
-      const start = Number(startRaw);
-      const end = Number(endRaw);
-      if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
-      return value >= start && value <= end && (value - start) % step === 0;
-    }
-    return Number(range) === value;
-  });
-}
-
-function isCronDue(expression: string, at: Date): boolean {
-  const parts = expression.trim().split(/\s+/);
-  if (parts.length !== 5) return false;
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts as [
-    string,
-    string,
-    string,
-    string,
-    string,
-  ];
-  return (
-    matchesCronField(minute, at.getMinutes()) &&
-    matchesCronField(hour, at.getHours()) &&
-    matchesCronField(dayOfMonth, at.getDate()) &&
-    matchesCronField(month, at.getMonth() + 1) &&
-    matchesCronField(dayOfWeek, at.getDay())
-  );
-}
 
 /**
  * Fires an Agent/Coworker's turn when one of its `AgentSchedule` rows'
@@ -63,6 +21,7 @@ export class AgentScheduleSweepService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly runtime: AIRuntimeService,
+    private readonly delivery: AgentOutputDeliveryService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE, { name: 'agent-schedule-sweep' })
@@ -74,7 +33,17 @@ export class AgentScheduleSweepService {
         id: true,
         cronExpression: true,
         description: true,
-        agent: { select: { id: true, workspaceId: true, name: true } },
+        agent: {
+          select: {
+            id: true,
+            type: true,
+            workspaceId: true,
+            name: true,
+            creatorId: true,
+            matrixUserId: true,
+            configuration: true,
+          },
+        },
       },
     });
 
@@ -86,8 +55,17 @@ export class AgentScheduleSweepService {
         ? `Perform your scheduled task: ${schedule.description}`
         : 'Perform your scheduled check-in.';
 
+      const task = schedule.description?.trim() || 'Scheduled check-in';
       this.runtime
         .executeTurn(schedule.agent.workspaceId, schedule.agent.id, promptText)
+        // Where the builder said a scheduled result goes (channel, task,
+        // webhook) — without this a scheduled run's answer went nowhere.
+        .then((run) => this.delivery.deliver(schedule.agent, run, task))
+        .then((notes) => {
+          if (notes.length) {
+            this.logger.log(`Delivered scheduled run of '${schedule.agent.name}': ${notes.join('; ')}`);
+          }
+        })
         .catch((error) => {
           this.logger.error(
             `Scheduled run failed for agent '${schedule.agent.name}' (${schedule.agent.id}, schedule ${schedule.id}): ${String(error)}`,

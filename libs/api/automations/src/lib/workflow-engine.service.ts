@@ -1,10 +1,23 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@org/database';
-import { AIInfrastructureService, KnowledgeService } from '@org/api-ai';
+import { safeFetch } from '@org/api-common';
+import {
+  AICredentialService,
+  AIInfrastructureService,
+  KnowledgeService,
+  MCPService,
+  ModelResolverService,
+} from '@org/api-ai';
 import { AIRuntimeService, MCPToolRegistryService } from '@org/api-agents';
 import { IntegrationsService } from '@org/api-integrations';
-import { PLANS_CONFIG, normalizePlanTier } from '@org/types';
-import { isBlockedRequestUrl } from './url-guard.js';
+import { PLANS_CONFIG, normalizePlanTier, type AIChatMessage } from '@org/types';
+import {
+  conditionSpecFrom,
+  evaluateCondition,
+  normalizeWorkflowNodes,
+  readPath,
+  type WorkflowNode,
+} from './workflow-graph.js';
 
 export interface WorkflowStepResult {
   stepId: string;
@@ -14,15 +27,6 @@ export interface WorkflowStepResult {
   /** Which outgoing branch to follow — set by CONDITION, SWITCH, etc. */
   branch?: string;
   attempts?: number;
-}
-
-interface WorkflowNode {
-  id: string;
-  type: string;
-  label?: string;
-  config?: Record<string, unknown>;
-  /** The builder's React Flow payload; `data.disabled` switches a node off. */
-  data?: Record<string, unknown>;
 }
 
 /** A node the builder switched off: it passes through without running. */
@@ -39,25 +43,20 @@ interface WorkflowEdge {
 }
 
 const MAX_NODE_VISITS = 50;
+/**
+ * Runs execute inside the request that started them, so a Delay step can only
+ * wait briefly. Longer waits fail visibly instead of being silently shortened
+ * (a "wait 5 minutes" step used to wait 0.1 s).
+ */
+const MAX_INLINE_DELAY_MS = 15_000;
+/** Context key carrying the legacy `WorkflowExecution` id across a pause. */
+const RUN_ID_KEY = '__workflowRunId';
 const DEFAULT_STEP_TIMEOUT_MS = 20_000;
 const MAX_API_RESPONSE_CHARS = 10_000;
 
 function num(value: unknown, fallback: number): number {
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
-}
-
-/** Reads a possibly-dotted path out of the payload or context. */
-function readPath(payload: Record<string, unknown>, path: string): unknown {
-  return path
-    .split('.')
-    .reduce<unknown>(
-      (acc, key) =>
-        acc && typeof acc === 'object'
-          ? (acc as Record<string, unknown>)[key]
-          : undefined,
-      payload,
-    );
 }
 
 /** Interpolates `{{variable.path}}` strings from the context. */
@@ -85,7 +84,37 @@ export class WorkflowEngineService {
     private readonly aiRuntime: AIRuntimeService,
     private readonly mcpRegistry: MCPToolRegistryService,
     private readonly integrations: IntegrationsService,
+    private readonly modelResolver: ModelResolverService,
+    private readonly credentials: AICredentialService,
+    private readonly mcpServers: MCPService,
   ) {}
+
+  /**
+   * One model call for a workflow step, billed to the workspace's own
+   * provider credential — the same resolution `AIRuntimeService` uses for
+   * agent turns. Calling the gateway without it silently fell back to the
+   * platform's environment key, whatever provider the workspace configured.
+   */
+  private async workspaceChat(
+    workspaceId: string,
+    cfg: Record<string, unknown>,
+    messages: AIChatMessage[],
+  ) {
+    const { provider, model } = this.modelResolver.resolve({
+      ...(cfg['provider'] ? { requestedProvider: cfg['provider'] as any } : {}),
+      ...(cfg['model'] ? { requestedModel: String(cfg['model']) } : {}),
+    });
+    const cred = await this.credentials.resolveCredential(provider, { workspaceId });
+    const temperature = Number(cfg['temperature']);
+    return this.aiService.chat({
+      provider,
+      model,
+      apiKey: cred.apiKey,
+      baseUrl: cred.baseUrl,
+      messages,
+      ...(Number.isFinite(temperature) ? { temperature } : {}),
+    });
+  }
 
   /**
    * Executes a workflow with support for all 35+ node types, universal variables,
@@ -168,9 +197,8 @@ export class WorkflowEngineService {
       }
     }
 
-    const nodes = this.parse<WorkflowNode[]>(workflow.nodesJson, []);
+    const nodes = normalizeWorkflowNodes(this.parse<unknown>(workflow.nodesJson, []));
     const edges = this.parse<WorkflowEdge[]>(workflow.edgesJson, []);
-    const nodeById = new Map(nodes.map((n) => [n.id, n]));
 
     // 1. Create legacy WorkflowExecution row for backwards compatibility
     const execution = await this.prisma.workflowExecution.create({
@@ -194,61 +222,163 @@ export class WorkflowEngineService {
       },
     });
 
-    const results: WorkflowStepResult[] = [];
-    let overallStatus: 'SUCCESS' | 'FAILED' | 'WAITING_APPROVAL' = 'SUCCESS';
     const executionContext: Record<string, unknown> = {
       ...initialPayload,
       workspaceId: workflow.workspaceId,
       workflowId: workflow.id,
       executionId: aiExecution.id,
+      // Lets a run paused at an approval find its legacy row again on resume.
+      [RUN_ID_KEY]: execution.id,
     };
 
+    const starts = this.startNodes(nodes, edges);
+    if (starts.length === 0 && nodes.length > 0) starts.push(nodes[0]!.id);
+
     const startTime = Date.now();
-    let totalTokens = 0;
+    const outcome = await this.runGraph(workflow, nodes, edges, starts, executionContext, aiExecution.id);
+    await this.finishRun(execution.id, aiExecution.id, outcome.status, outcome.results, outcome.tokens, Date.now() - startTime);
+
+    // `runId` is the unified run record the AI Workspace's Runs view shows.
+    return { executionId: execution.id, runId: aiExecution.id, status: outcome.status, results: outcome.results };
+  }
+
+  /**
+   * Continues a run that paused at a HUMAN_APPROVAL / HUMAN_INPUT step once a
+   * person decides it. Approved: execution continues from the step's
+   * successors with the context as it was when it paused (plus the decision).
+   * Rejected: the run is closed as failed. Before this, approving marked the
+   * run "completed" and every step after the approval silently never ran.
+   */
+  async resumeAfterApproval(event: {
+    workflowId: string;
+    executionId: string | null;
+    stepId: string | null;
+    decision: 'APPROVED' | 'REJECTED';
+    approverId: string | null;
+    comment: string | null;
+    proposedPayload: Record<string, unknown>;
+  }) {
+    if (!event.executionId || !event.stepId) return null;
+    const aiExecution = await this.prisma.aIExecution.findUnique({ where: { id: event.executionId } });
+    if (!aiExecution || aiExecution.status !== 'WAITING_APPROVAL') return null;
+    const workflow = await this.prisma.automationWorkflow.findUnique({ where: { id: event.workflowId } });
+    if (!workflow || workflow.id !== aiExecution.workflowId) return null;
+
+    const context: Record<string, unknown> = { ...event.proposedPayload };
+    const legacyRunId = typeof context[RUN_ID_KEY] === 'string' ? (context[RUN_ID_KEY] as string) : null;
+    const legacy = legacyRunId
+      ? await this.prisma.workflowExecution.findUnique({ where: { id: legacyRunId } })
+      : null;
+    const previous = this.parse<WorkflowStepResult[]>(legacy?.stepResults, []);
+
+    const decisionStep: WorkflowStepResult = {
+      stepId: event.stepId,
+      type: 'HUMAN_APPROVAL',
+      status: event.decision === 'APPROVED' ? 'SUCCESS' : 'FAILED',
+      output: { decision: event.decision, approverId: event.approverId, comment: event.comment },
+    };
+    // Settle the approval step that has been waiting, so the trace shows one
+    // row per step with its outcome rather than a waiting row and a second one.
+    const settled = await this.prisma.aIExecutionStep.updateMany({
+      where: { executionId: aiExecution.id, stepId: event.stepId, status: 'WAITING' },
+      data: { status: decisionStep.status, outputJson: decisionStep.output as any },
+    });
+    if (settled.count === 0) {
+      await this.prisma.aIExecutionStep.create({
+        data: {
+          executionId: aiExecution.id,
+          stepId: event.stepId,
+          nodeType: 'HUMAN_APPROVAL',
+          status: decisionStep.status,
+          outputJson: decisionStep.output as any,
+        },
+      });
+    }
+
+    if (event.decision === 'REJECTED') {
+      await this.finishRun(legacyRunId, aiExecution.id, 'FAILED', [...previous, decisionStep], aiExecution.tokensUsed, aiExecution.latencyMs);
+      return { status: 'FAILED' as const };
+    }
+
+    const nodes = normalizeWorkflowNodes(this.parse<unknown>(workflow.nodesJson, []));
+    const edges = this.parse<WorkflowEdge[]>(workflow.edgesJson, []);
+    context['approval'] = { approverId: event.approverId, comment: event.comment };
+    const next = edges.filter((e) => e.source === event.stepId).map((e) => e.target);
+
+    await this.prisma.aIExecution.update({ where: { id: aiExecution.id }, data: { status: 'RUNNING' } });
+    const startTime = Date.now();
+    const outcome = await this.runGraph(workflow, nodes, edges, next, context, aiExecution.id);
+    await this.finishRun(
+      legacyRunId,
+      aiExecution.id,
+      outcome.status,
+      [...previous, decisionStep, ...outcome.results],
+      aiExecution.tokensUsed + outcome.tokens,
+      aiExecution.latencyMs + (Date.now() - startTime),
+    );
+    return { status: outcome.status };
+  }
+
+  /**
+   * Walks the graph from `startIds`, running each reachable step once per
+   * visit and following only the branch a CONDITION/SWITCH/CLASSIFIER chose.
+   * Stops at the first failure or at a step that waits for a person.
+   */
+  private async runGraph(
+    workflow: { id: string; workspaceId: string; creatorId: string | null },
+    nodes: WorkflowNode[],
+    edges: WorkflowEdge[],
+    startIds: string[],
+    executionContext: Record<string, unknown>,
+    aiExecutionId: string,
+  ): Promise<{ status: 'SUCCESS' | 'FAILED' | 'WAITING_APPROVAL'; results: WorkflowStepResult[]; tokens: number }> {
+    const nodeById = new Map(nodes.map((n) => [n.id, n]));
+    const results: WorkflowStepResult[] = [];
+    let status: 'SUCCESS' | 'FAILED' | 'WAITING_APPROVAL' = 'SUCCESS';
+    let tokens = 0;
 
     try {
-      const starts = this.startNodes(nodes, edges);
-      if (starts.length === 0 && nodes.length > 0) {
-        starts.push(nodes[0]!.id);
-      }
-
-      const queue = [...starts];
-      const visits = new Map<string, number>();
+      const queue = [...startIds];
+      // Each step runs once per run: a node two branches lead to (a MERGE, or
+      // any shared downstream step) used to run once per incoming branch.
+      const done = new Set<string>();
+      const activated = new Set<string>(startIds);
+      const deferrals = new Map<string, number>();
 
       while (queue.length > 0) {
         const nodeId = queue.shift()!;
         const node = nodeById.get(nodeId);
-        if (!node) continue;
+        if (!node || done.has(nodeId)) continue;
 
-        const seen = (visits.get(nodeId) ?? 0) + 1;
-        visits.set(nodeId, seen);
-        if (seen > MAX_NODE_VISITS) {
-          throw new Error(
-            `Node '${nodeId}' visited ${seen} times — cycle detected.`,
+        // A MERGE (join) waits until every branch that was started and leads
+        // into it has finished, so it sees all of their outputs.
+        if (node.type === 'MERGE') {
+          const pending = edges.some(
+            (e) => e.target === nodeId && activated.has(e.source) && !done.has(e.source),
           );
+          const waited = (deferrals.get(nodeId) ?? 0) + 1;
+          if (pending && waited <= MAX_NODE_VISITS) {
+            deferrals.set(nodeId, waited);
+            queue.push(nodeId);
+            continue;
+          }
         }
+        done.add(nodeId);
 
         const stepStart = Date.now();
-        const step = await this.runNode(
-          node,
-          executionContext,
-          workflow.workspaceId,
-          aiExecution.id,
-          workflow.creatorId,
-        );
+        const step = await this.runNode(node, executionContext, workflow.workspaceId, aiExecutionId, workflow.creatorId);
         const stepLatency = Date.now() - stepStart;
         results.push(step);
 
         const stepTokensUsed = (step.output as any)?.tokensUsed ?? 0;
-        totalTokens += stepTokensUsed;
+        tokens += stepTokensUsed;
 
-        // Record step in AIExecutionStep
         await this.prisma.aIExecutionStep.create({
           data: {
-            executionId: aiExecution.id,
+            executionId: aiExecutionId,
             stepId: node.id,
             nodeType: node.type,
-            status: step.status === 'WAITING' ? 'WAITING' : step.status,
+            status: step.status,
             inputJson: (node.config ?? {}) as any,
             outputJson: (step.output as any) ?? {},
             latencyMs: stepLatency,
@@ -258,12 +388,11 @@ export class WorkflowEngineService {
         });
 
         if (step.status === 'WAITING') {
-          overallStatus = 'WAITING_APPROVAL';
+          status = 'WAITING_APPROVAL';
           break;
         }
-
         if (step.status === 'FAILED') {
-          overallStatus = 'FAILED';
+          status = 'FAILED';
           break;
         }
 
@@ -275,18 +404,13 @@ export class WorkflowEngineService {
 
         for (const edge of edges) {
           if (edge.source !== nodeId) continue;
-          if (
-            step.branch &&
-            edge.sourceHandle &&
-            edge.sourceHandle !== step.branch
-          ) {
-            continue;
-          }
+          if (step.branch && edge.sourceHandle && edge.sourceHandle !== step.branch) continue;
+          activated.add(edge.target);
           queue.push(edge.target);
         }
       }
     } catch (err) {
-      overallStatus = 'FAILED';
+      status = 'FAILED';
       results.push({
         stepId: 'engine',
         type: 'ENGINE',
@@ -295,31 +419,41 @@ export class WorkflowEngineService {
       });
     }
 
-    const duration = Date.now() - startTime;
+    return { status, results, tokens };
+  }
 
-    // Update legacy execution
-    const finished = await this.prisma.workflowExecution.update({
-      where: { id: execution.id },
-      data: {
-        status: overallStatus === 'WAITING_APPROVAL' ? 'RUNNING' : overallStatus,
-        stepResults: JSON.stringify(results).slice(0, 100_000),
-        finishedAt: new Date(),
-      },
-    });
-
-    // Update unified execution
+  /** Writes the outcome to both run records (legacy and unified). */
+  private async finishRun(
+    legacyRunId: string | null,
+    aiExecutionId: string,
+    status: 'SUCCESS' | 'FAILED' | 'WAITING_APPROVAL',
+    results: WorkflowStepResult[],
+    totalTokens: number,
+    duration: number,
+  ) {
+    if (legacyRunId) {
+      await this.prisma.workflowExecution.update({
+        where: { id: legacyRunId },
+        data: {
+          status: status === 'WAITING_APPROVAL' ? 'RUNNING' : status,
+          stepResults: JSON.stringify(results).slice(0, 100_000),
+          finishedAt: new Date(),
+        },
+      });
+    }
     await this.prisma.aIExecution.update({
-      where: { id: aiExecution.id },
+      where: { id: aiExecutionId },
       data: {
-        status: overallStatus === 'WAITING_APPROVAL' ? 'WAITING_APPROVAL' : overallStatus === 'SUCCESS' ? 'COMPLETED' : 'FAILED',
-        finishedAt: overallStatus === 'WAITING_APPROVAL' ? null : new Date(),
+        status: status === 'WAITING_APPROVAL' ? 'WAITING_APPROVAL' : status === 'SUCCESS' ? 'COMPLETED' : 'FAILED',
+        finishedAt: status === 'WAITING_APPROVAL' ? null : new Date(),
         latencyMs: duration,
         tokensUsed: totalTokens,
         totalCost: Number((totalTokens * 0.000002).toFixed(5)),
+        ...(status === 'FAILED'
+          ? { errorsJson: (results.filter((r) => r.status === 'FAILED').map((r) => ({ stepId: r.stepId, output: r.output })) as any) }
+          : {}),
       },
     });
-
-    return { executionId: finished.id, status: overallStatus, results };
   }
 
   // --- Node Execution Core ---
@@ -401,7 +535,9 @@ export class WorkflowEngineService {
 
       case 'OUTPUT': {
         const template = String(cfg['template'] || cfg['message'] || '');
-        const rendered = template ? interpolateVariables(template, context) : context;
+        // A snapshot, not the live context: the step's output is stored back
+        // into the context, and a self-reference made the run unserialisable.
+        const rendered = template ? interpolateVariables(template, context) : { ...context };
         return {
           stepId: node.id,
           type: node.type,
@@ -415,11 +551,9 @@ export class WorkflowEngineService {
       case 'AI_ACTION': {
         const rawPrompt = String(cfg['prompt'] || 'Process the input data');
         const prompt = interpolateVariables(rawPrompt, context);
-        const aiRes = await this.aiService.chat({
-          ...(cfg['provider'] ? { provider: cfg['provider'] as any } : {}),
-          ...(cfg['model'] ? { model: String(cfg['model']) } : {}),
-          messages: [{ role: 'user', content: prompt }],
-        });
+        const aiRes = await this.workspaceChat(workspaceId, cfg, [
+          { role: 'user', content: prompt },
+        ]);
         return {
           stepId: node.id,
           type: node.type,
@@ -429,7 +563,7 @@ export class WorkflowEngineService {
       }
 
       case 'PROMPT': {
-        const raw = String(cfg['promptText'] || '');
+        const raw = String(cfg['promptText'] || cfg['template'] || '');
         const rendered = interpolateVariables(raw, context);
         return {
           stepId: node.id,
@@ -463,7 +597,10 @@ export class WorkflowEngineService {
         let docs: any[] = [];
         if (kbId) {
           try {
-            docs = await this.knowledgeService.retrieve(workspaceId, kbId, { query: queryText, topK: 3 });
+            docs = await this.knowledgeService.retrieve(workspaceId, kbId, {
+              query: queryText,
+              topK: Math.min(Math.max(num(cfg['topK'], 4), 1), 20),
+            });
           } catch {
             docs = [];
           }
@@ -477,33 +614,79 @@ export class WorkflowEngineService {
       }
 
       case 'CLASSIFIER': {
-        const input = interpolateVariables(String(cfg['input'] || ''), context);
-        const categories = (cfg['categories'] as string[]) || ['general', 'support', 'billing'];
-        const chosen = categories[0] || 'general';
+        const input = interpolateVariables(
+          String(cfg['input'] || '{{input}}'),
+          context,
+        );
+        const rawCategories = cfg['categories'] ?? cfg['classes'];
+        const categories = (
+          Array.isArray(rawCategories)
+            ? (rawCategories as unknown[]).map(String)
+            : String(rawCategories || 'general,support,billing').split(',')
+        )
+          .map((c) => c.trim())
+          .filter(Boolean);
+        const aiRes = await this.workspaceChat(workspaceId, cfg, [
+          {
+            role: 'system',
+            content: `Classify the user's text into exactly one of these categories: ${categories.join(', ')}. Reply with the category name only.`,
+          },
+          { role: 'user', content: input },
+        ]);
+        const answer = aiRes.message.content.trim().toLowerCase();
+        // The model is asked for one label; accept it only if it is one of
+        // ours, otherwise route to the explicit fallback branch.
+        const chosen =
+          categories.find((c) => c.toLowerCase() === answer) ??
+          categories.find((c) => answer.includes(c.toLowerCase())) ??
+          'default';
         return {
           stepId: node.id,
           type: node.type,
           status: 'SUCCESS',
           branch: chosen,
-          output: { classification: chosen, classifiedInput: input },
+          output: {
+            classification: chosen,
+            classifiedInput: input,
+            tokensUsed: aiRes.usage?.totalTokens ?? 0,
+          },
         };
       }
 
       case 'STRUCTURED_OUTPUT':
       case 'EXTRACT_DATA': {
-        const raw = String(cfg['input'] || '');
-        const text = interpolateVariables(raw, context);
+        const text = interpolateVariables(String(cfg['input'] || '{{input}}'), context);
+        const fields = String(cfg['fields'] || cfg['schema'] || '')
+          .split(',')
+          .map((f) => f.trim())
+          .filter(Boolean);
+        const aiRes = await this.workspaceChat(workspaceId, cfg, [
+          {
+            role: 'system',
+            content: fields.length
+              ? `Extract these fields from the user's text and reply with a single JSON object with exactly these keys: ${fields.join(', ')}. Use null for anything not present. Reply with JSON only.`
+              : `Extract the key facts from the user's text as a single flat JSON object. Reply with JSON only.`,
+          },
+          { role: 'user', content: text },
+        ]);
+        const raw = aiRes.message.content.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+        let extracted: unknown;
+        try {
+          extracted = JSON.parse(raw);
+        } catch {
+          throw new Error('The model did not return valid JSON for this extraction step.');
+        }
         return {
           stepId: node.id,
           type: node.type,
           status: 'SUCCESS',
-          output: { extracted: { text, length: text.length } },
+          output: { extracted, tokensUsed: aiRes.usage?.totalTokens ?? 0 },
         };
       }
 
       // 3. Logic & Flow
       case 'CONDITION': {
-        const passed = this.evaluateCondition(cfg, context);
+        const passed = evaluateCondition(conditionSpecFrom(cfg), context);
         return {
           stepId: node.id,
           type: node.type,
@@ -547,7 +730,12 @@ export class WorkflowEngineService {
         };
 
       case 'DELAY': {
-        const ms = Math.min(num(cfg['delayMs'], 100), 5000);
+        const ms = cfg['seconds'] !== undefined ? num(cfg['seconds'], 0) * 1000 : num(cfg['delayMs'], 0);
+        if (ms > MAX_INLINE_DELAY_MS) {
+          throw new Error(
+            `Delays longer than ${MAX_INLINE_DELAY_MS / 1000} seconds aren't supported yet. Use a schedule trigger or an approval step to pause longer.`,
+          );
+        }
         await new Promise((r) => setTimeout(r, ms));
         return {
           stepId: node.id,
@@ -589,14 +777,20 @@ export class WorkflowEngineService {
         };
       }
 
-      case 'CODE': {
+      case 'CODE':
+        // There is no sandbox to run member-authored code in, and running it
+        // unsandboxed on the API host is not an option. This used to report
+        // SUCCESS with `{ computed: true }` without running anything; skip it
+        // visibly instead so the run log says what actually happened.
         return {
           stepId: node.id,
           type: node.type,
-          status: 'SUCCESS',
-          output: { computed: true },
+          status: 'SKIPPED',
+          output: {
+            skipped: true,
+            reason: 'Code steps are not executed. Use a Template or Variable step to shape data.',
+          },
         };
-      }
 
       case 'HTTP_REQUEST':
       case 'API_CALL':
@@ -605,10 +799,6 @@ export class WorkflowEngineService {
         const rawUrl = String(cfg['url'] ?? '');
         const url = interpolateVariables(rawUrl, context);
         const method = String(cfg['method'] ?? 'GET').toUpperCase();
-        const blocked = isBlockedRequestUrl(url);
-        if (blocked) {
-          throw new Error(`Refusing request to '${url}': ${blocked}`);
-        }
 
         const headers: Record<string, string> = {
           'user-agent': 'OneTab-AI-Workflow/1',
@@ -620,8 +810,17 @@ export class WorkflowEngineService {
           headers['content-type'] = 'application/json';
         }
 
-        const res = await fetch(url, { method, headers, body });
-        const text = (await res.text()).slice(0, MAX_API_RESPONSE_CHARS);
+        // The URL is member-authored and may be interpolated from the trigger
+        // payload, so it goes through the shared SSRF guard: private and
+        // internal destinations are refused, including via redirect or DNS
+        // rebinding.
+        const res = await safeFetch(url, {
+          method,
+          headers,
+          ...(body !== undefined ? { body } : {}),
+          maxBytes: MAX_API_RESPONSE_CHARS * 4,
+        });
+        const text = res.text().slice(0, MAX_API_RESPONSE_CHARS);
         if (!res.ok) {
           throw new Error(`HTTP ${res.status} from ${url}`);
         }
@@ -633,9 +832,21 @@ export class WorkflowEngineService {
         };
       }
 
-      case 'TOOL':
       case 'MCP':
-      case 'MCP_TOOL':
+      case 'MCP_TOOL': {
+        // The canvas stores the picked tool as `<connectionId>::<toolName>`.
+        const picked = typeof cfg['mcpTool'] === 'string' ? (cfg['mcpTool'] as string).split('::') : [];
+        const mcpCfg =
+          picked.length === 2 && !cfg['mcpConnectionId']
+            ? { ...cfg, mcpConnectionId: picked[0], mcpToolName: picked[1] }
+            : cfg;
+        if (mcpCfg['mcpConnectionId'] && mcpCfg['mcpToolName']) {
+          return this.runMcpServerNode(node, context, workspaceId, mcpCfg);
+        }
+        return this.runToolNode(node, context, workspaceId, creatorId, cfg);
+      }
+
+      case 'TOOL':
       case 'APP':
         return this.runToolNode(node, context, workspaceId, creatorId, cfg);
 
@@ -723,6 +934,9 @@ export class WorkflowEngineService {
               workspaceId,
               entityType: 'WORKFLOW',
               entityId: context['workflowId'] as string,
+              // The step would continue as the workflow's creator, so they
+              // (or an admin) are who may decide it — see ApprovalsService.
+              requesterId: creatorId,
               executionId,
               stepId: node.id,
               actionType: String(cfg['action'] || 'Approve step execution'),
@@ -790,6 +1004,41 @@ export class WorkflowEngineService {
     };
   }
 
+  /** A tool on one of the workspace's connected MCP servers. */
+  private async runMcpServerNode(
+    node: WorkflowNode,
+    context: Record<string, unknown>,
+    workspaceId: string,
+    cfg: Record<string, unknown>,
+  ): Promise<WorkflowStepResult> {
+    let rawInput: unknown = cfg['input'] ?? {};
+    if (typeof rawInput === 'string') {
+      // Parse first, fill in `{{…}}` values after: a value containing quotes
+      // must not be able to break (or rewrite) the JSON around it.
+      try {
+        rawInput = rawInput.trim() ? JSON.parse(rawInput) : {};
+      } catch {
+        throw new Error(`The input for '${node.label || node.id}' is not valid JSON.`);
+      }
+    }
+    const input: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries((rawInput as Record<string, unknown>) ?? {})) {
+      input[key] = typeof value === 'string' ? interpolateVariables(value, context) : value;
+    }
+    const out = await this.mcpServers.callTool(
+      workspaceId,
+      String(cfg['mcpConnectionId']),
+      String(cfg['mcpToolName']),
+      input,
+    );
+    return {
+      stepId: node.id,
+      type: node.type,
+      status: out.isError ? 'FAILED' : 'SUCCESS',
+      output: out.isError ? { error: out.text || 'The MCP tool reported an error.' } : { toolResult: out.text || out.content },
+    };
+  }
+
   /**
    * Runs a `TOOL`/`MCP`/`APP` node. Resolves `toolName` first against the
    * built-in MCP registry (`search_docs`, `create_task`, …), then — for the
@@ -815,9 +1064,17 @@ export class WorkflowEngineService {
       };
     }
 
-    const rawInput = (cfg['input'] as Record<string, unknown>) ?? {};
+    // The canvas edits the input as JSON text; API callers may send an object.
+    let rawInput: unknown = cfg['input'] ?? {};
+    if (typeof rawInput === 'string') {
+      try {
+        rawInput = rawInput.trim() ? JSON.parse(rawInput) : {};
+      } catch {
+        throw new Error(`The input for '${node.label || node.id}' is not valid JSON.`);
+      }
+    }
     const input: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(rawInput)) {
+    for (const [key, value] of Object.entries((rawInput as Record<string, unknown>) ?? {})) {
       input[key] = typeof value === 'string' ? interpolateVariables(value, context) : value;
     }
 
@@ -837,8 +1094,17 @@ export class WorkflowEngineService {
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '');
 
+      // This workspace's integration, or the workflow creator's own — never
+      // another member's personal connection (it would be refused anyway).
       const integration = await this.prisma.externalIntegration.findFirst({
-        where: { provider: providerKey, status: 'CONNECTED', OR: [{ workspaceId }, { workspaceId: null }] },
+        where: {
+          provider: providerKey,
+          status: 'CONNECTED',
+          OR: [
+            { workspaceId, scopeType: { not: 'USER' } },
+            ...(creatorId ? [{ scopeType: 'USER', userId: creatorId }] : []),
+          ],
+        },
         select: { id: true },
       });
 
@@ -873,29 +1139,6 @@ export class WorkflowEngineService {
         error: `Tool '${toolName}' is not a registered built-in tool or a connected integration action.`,
       },
     };
-  }
-
-  private evaluateCondition(
-    cfg: Record<string, unknown>,
-    payload: Record<string, unknown>,
-  ): boolean {
-    const field = String(cfg['field'] ?? '');
-    const operator = String(cfg['operator'] ?? 'exists');
-    const expected = cfg['value'];
-    const actual = field ? readPath(payload, field) : undefined;
-
-    switch (operator) {
-      case 'exists':
-        return actual !== undefined && actual !== null;
-      case 'notExists':
-        return actual === undefined || actual === null;
-      case 'eq':
-        return String(actual) === String(expected);
-      case 'ne':
-        return String(actual) !== String(expected);
-      default:
-        return true;
-    }
   }
 
   private startNodes(nodes: WorkflowNode[], edges: WorkflowEdge[]): string[] {

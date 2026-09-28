@@ -5,7 +5,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, WorkspaceId } from '@org/api-common';
+import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
+import { aiFeedbackSchema } from '@org/validation';
 import type { AIFeedbackPayload } from '@org/types';
 import { AIFeedbackService } from './ai-feedback.service.js';
 
@@ -18,7 +19,7 @@ export class AIFeedbackController {
   submit(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: AIFeedbackPayload,
+    @Body(zodBody(aiFeedbackSchema)) body: AIFeedbackPayload,
   ) {
     return this.feedbackService.submitFeedback(workspaceId, userId, body);
   }

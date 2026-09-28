@@ -28,7 +28,17 @@ export { AIStudioService } from './lib/ai-studio.service.js';
 export { AIAppsService } from './lib/ai-apps.service.js';
 export { ApprovalsService } from './lib/approvals.service.js';
 export { AISecretsService } from './lib/ai-secrets.service.js';
-export { MCPService } from './lib/mcp.service.js';
+export {
+  MCPService,
+  mcpFunctionName,
+  type MCPConnectionView,
+  type MCPToolBinding,
+} from './lib/mcp.service.js';
+export {
+  mcpToolNeedsApproval,
+  type MCPCallResult,
+  type MCPToolDescriptor,
+} from './lib/mcp-client.js';
 export { AIFeedbackService } from './lib/ai-feedback.service.js';
 export { AIExecutionsService } from './lib/ai-executions.service.js';
 export * from './lib/adapters/index.js';

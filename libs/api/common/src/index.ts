@@ -41,6 +41,7 @@ export {
   type SettingsUpdatedEvent,
   type AgentApprovalEntityType,
   type AgentApprovalDecidedEvent,
+  type WorkflowApprovalDecidedEvent,
   type CallStartedEvent,
   type CallEndedEvent,
   type CallNoteUpdatedEvent,
@@ -80,6 +81,21 @@ export {
   type AuthenticatedUser,
 } from './lib/decorators.js';
 
+
+export { isCronDue, isValidCronExpression } from './lib/cron.js';
+
+export {
+  assertPublicHttpUrl,
+  checkUrlShape,
+  createPublicOnlyAgents,
+  isPrivateOrReservedIp,
+  publicOnlyLookup,
+  safeFetch,
+  UnsafeUrlError,
+  type SafeFetchInit,
+  type SafeFetchResponse,
+  type UnsafeUrlReason,
+} from './lib/ssrf.js';
 
 export {
   expiresAt,

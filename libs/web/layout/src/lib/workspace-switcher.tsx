@@ -274,7 +274,7 @@ export function WorkspaceMenu({
               currentEmail ? ` (${currentEmail})` : ''
             }`}
             className={cn(
-              'group/trigger gap-2 px-2 py-1 flex flex-1 items-center rounded-lg text-left',
+              'group/trigger gap-2 px-2 py-1 flex min-w-0 flex-1 items-center rounded-lg text-left',
               'transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/70',
               'cursor-pointer outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
@@ -307,7 +307,8 @@ export function WorkspaceMenu({
                   size="sm"
                   showIcon={false}
                   variant="subtle"
-                  className="font-semibold shrink-0 text-[10px]"
+                  // On a phone the name needs the room; the plan is in the menu.
+                  className="font-semibold shrink-0 text-[10px] max-sm:hidden"
                 />
                 <ChevronDown
                   className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) group-data-[state=open]/trigger:rotate-180"

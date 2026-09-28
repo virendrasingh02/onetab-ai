@@ -2371,9 +2371,9 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/agents`)}
+                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents`)}
                 >
-                  Open Agent Builder
+                  Open AI Workspace
                 </Button>
               </SettingsRow>
 
@@ -2387,7 +2387,7 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/coworkers`)}
+                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)}
                 >
                   Open Coworkers
                 </Button>
@@ -2455,7 +2455,7 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/agents`)}
+                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents`)}
                 >
                   Agents
                 </Button>
@@ -2463,7 +2463,7 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/coworkers`)}
+                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)}
                 >
                   Coworkers
                 </Button>

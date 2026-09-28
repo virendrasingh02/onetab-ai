@@ -1,6 +1,9 @@
+import { useCurrentUser } from '@org/auth';
 import {
   WorkspacePermission,
   WorkspaceStatus,
+  canManageOwnedAIResource,
+  permissionsForRole,
   roleHasPermission,
   type WorkspaceRole,
 } from '@org/types';
@@ -66,4 +69,18 @@ export function useWorkspacePermission(): {
     },
     isLoading,
   };
+}
+
+/**
+ * Whether the signed-in user may change an AI agent, coworker or workflow
+ * created by `creatorId` — its creator or a workspace admin. The same rule the
+ * API enforces (`canManageOwnedAIResource`), so the builder hides Save, Delete
+ * and Publish from people the server would refuse. Presentation only.
+ */
+export function useCanManageAIResource(): (creatorId: string | null | undefined) => boolean {
+  const user = useCurrentUser();
+  const { role, isArchived } = useWorkspacePermission();
+  return (creatorId) =>
+    !isArchived &&
+    canManageOwnedAIResource(creatorId, { userId: user?.id, permissions: permissionsForRole(role) });
 }

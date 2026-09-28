@@ -1,3 +1,48 @@
+/**
+ * The workflow editor — `/w/:slug/ai/workflows/:id`.
+ *
+ * A workflow is a graph of steps the engine runs in order from its trigger,
+ * following only the branch a condition or classifier chose. Everything on
+ * screen maps to something `WorkflowEngineService` does: the inspector is
+ * generated from `workflow-catalog.ts`, the Variables list is the context keys
+ * earlier steps really produce, and after a test run each step shows how it
+ * went.
+ */
+
+import { automationsApi, queryKeys } from '@org/api-client';
+import type { AutomationWorkflowDetail } from '@org/types';
+import {
+  ActionContextMenu,
+  Badge,
+  Button,
+  Card,
+  confirm,
+  copyToClipboard,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  EmptyState,
+  Field,
+  Hint,
+  Input,
+  LoadingState,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+  Textarea,
+  toast,
+  type EntityAction,
+} from '@org/ui';
+import { cn, formatRelative } from '@org/utils';
+import { AgentBuilderOptionsProvider, BuilderOptionSelect } from '@org/web-agents';
+import { useCanManageAIResource, useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Background,
   Controls,
@@ -5,6 +50,7 @@ import {
   MiniMap,
   Position,
   ReactFlow,
+  ReactFlowProvider,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -15,890 +61,536 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
-  ActionContextMenu,
-  Badge,
-  Button,
-  Card,
-  copyToClipboard,
-  Hint,
-  Panel,
-  toast,
-  type EntityAction,
-} from '@org/ui';
-import { cn } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
-import {
   ArrowLeft,
   ClipboardCopy,
-  PowerOff,
-  Power,
+  Clock,
   CopyPlus,
-  Settings2,
-  Bot,
-  Brain,
-  CheckCircle,
-  Code2,
   Cpu,
-  Database,
-  FileSearch,
-  GitBranch,
-  GitMerge,
-  Globe,
-  HelpCircle,
-  Layers,
-  Link2,
-  Loader2,
-  MessageSquare,
+  ExternalLink,
   Play,
   Plus,
-  Radio,
+  Power,
+  PowerOff,
+  RotateCcw,
   Save,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Split,
-  Tag,
-  Terminal,
-  Timer,
+  Settings2,
+  Share2,
   Trash2,
-  UserCheck,
-  Variable as VariableIcon,
-  Webhook,
   Workflow,
-  Wrench,
-  Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useWorkflowMutations, useWorkflows } from './use-automations.js';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useWorkflowMutations } from './use-automations.js';
+import {
+  PALETTE,
+  WORKFLOW_EVENTS,
+  catalogItem,
+  isFieldShown,
+  missingFields,
+  triggerTypeFor,
+  type NodeCatalogItem,
+  type NodeCategory,
+  type WorkflowField,
+} from './workflow-catalog.js';
 
-// ==========================================
-// NODE CATALOG (35+ SUPPORTED TYPES)
-// ==========================================
+export { NODE_CATALOG, type NodeCatalogItem, type NodeCategory } from './workflow-catalog.js';
 
-export type NodeCategory = 'triggers' | 'ai' | 'knowledge' | 'logic' | 'tools';
-
-export interface NodeCatalogItem {
-  type: string;
-  category: NodeCategory;
-  label: string;
-  description: string;
-  icon: typeof Webhook;
-  defaultData: Record<string, unknown>;
+function aiPath(slug: string | undefined, ...rest: string[]) {
+  return [`/w/${slug ?? ''}/ai`, ...rest].join('/');
 }
 
-export const NODE_CATALOG: NodeCatalogItem[] = [
-  // Triggers & I/O
-  {
-    type: 'TRIGGER',
-    category: 'triggers',
-    label: 'Webhook Trigger',
-    description: 'Trigger flow via external HTTP POST webhook',
-    icon: Webhook,
-    defaultData: { label: 'Webhook Trigger', subtitle: 'POST /api/v1/workflows/trigger', triggerKind: 'WEBHOOK' },
-  },
-  {
-    type: 'START',
-    category: 'triggers',
-    label: 'Start Node',
-    description: 'Initial entrypoint for conversational apps & manual runs',
-    icon: Play,
-    defaultData: { label: 'Start Flow', subtitle: 'Receives user query & context' },
-  },
-  {
-    type: 'USER_INPUT',
-    category: 'triggers',
-    label: 'User Input Form',
-    description: 'Prompt user for required variables and form inputs',
-    icon: MessageSquare,
-    defaultData: { label: 'Collect User Input', subtitle: 'Form: prompt, category, email' },
-  },
-  {
-    type: 'OUTPUT',
-    category: 'triggers',
-    label: 'Flow Output',
-    description: 'Return structured response or formatted chat message',
-    icon: Radio,
-    defaultData: { label: 'Output Response', subtitle: 'Returns text or JSON schema' },
-  },
-  {
-    type: 'HUMAN_APPROVAL',
-    category: 'triggers',
-    label: 'Human-in-the-Loop Approval',
-    description: 'Pause execution until an admin or manager reviews and approves',
-    icon: ShieldCheck,
-    defaultData: { label: 'Manager Approval', subtitle: 'Requires ADMIN or OWNER review', requiredRole: 'ADMIN', timeoutHours: 24 },
-  },
-  {
-    type: 'HUMAN_INPUT',
-    category: 'triggers',
-    label: 'Human Clarification',
-    description: 'Pause workflow to ask a human for additional details',
-    icon: HelpCircle,
-    defaultData: { label: 'Request Details', subtitle: 'Prompt operator for missing info' },
-  },
+const CATEGORY_STYLE: Record<NodeCategory, { border: string; bg: string; text: string; handle: string; hex: string }> = {
+  triggers: { border: 'border-accent-amber/50', bg: 'bg-accent-amber/10', text: 'text-accent-amber', handle: '!bg-accent-amber', hex: '#f59e0b' },
+  ai: { border: 'border-accent-violet/50', bg: 'bg-accent-violet/10', text: 'text-accent-violet', handle: '!bg-accent-violet', hex: '#8b5cf6' },
+  knowledge: { border: 'border-accent-blue/50', bg: 'bg-accent-blue/10', text: 'text-accent-blue', handle: '!bg-accent-blue', hex: '#3b82f6' },
+  logic: { border: 'border-accent-cyan/50', bg: 'bg-accent-cyan/10', text: 'text-accent-cyan', handle: '!bg-accent-cyan', hex: '#06b6d4' },
+  tools: { border: 'border-accent-green/50', bg: 'bg-accent-green/10', text: 'text-accent-green', handle: '!bg-accent-green', hex: '#10b981' },
+};
 
-  // AI & Intelligence
-  {
-    type: 'LLM',
-    category: 'ai',
-    label: 'LLM Generation',
-    description: 'Query Claude 3.5, GPT-4o, DeepSeek R1, or Llama 3',
-    icon: Sparkles,
-    defaultData: { label: 'LLM Generator', subtitle: 'Claude 3.5 Sonnet · Temp 0.7', model: 'claude-3-5-sonnet', temperature: 0.7, prompt: '{{input.prompt}}' },
-  },
-  {
-    type: 'AGENT',
-    category: 'ai',
-    label: 'AI Agent Call',
-    description: 'Invoke an autonomous agent with multi-step reasoning and tools',
-    icon: Bot,
-    defaultData: { label: 'Research Agent', subtitle: 'Executes autonomous tool loop', agentId: '', goal: 'Analyze and summarize input' },
-  },
-  {
-    type: 'AI_COWORKER',
-    category: 'ai',
-    label: 'AI Coworker',
-    description: 'Delegate task to a specialized persistent coworker persona',
-    icon: UserCheck,
-    defaultData: { label: 'DevRel Coworker', subtitle: 'Persona: Technical Writer', coworkerId: '', task: 'Draft announcement' },
-  },
-  {
-    type: 'PROMPT',
-    category: 'ai',
-    label: 'Prompt Template',
-    description: 'Format reusable prompt template with dynamic variable substitution',
-    icon: Brain,
-    defaultData: { label: 'Format Prompt', subtitle: 'Template: Customer Support reply', template: 'Summarize {{input.query}} for {{user.name}}' },
-  },
-  {
-    type: 'CLASSIFIER',
-    category: 'ai',
-    label: 'Text Classifier',
-    description: 'Categorize user intent, tone, or topic into predefined branches',
-    icon: Tag,
-    defaultData: { label: 'Intent Classifier', subtitle: 'Classes: bug, billing, sales, general', classes: ['bug', 'billing', 'sales', 'general'] },
-  },
-  {
-    type: 'STRUCTURED_OUTPUT',
-    category: 'ai',
-    label: 'Structured JSON Output',
-    description: 'Guarantee LLM output conforms strictly to a JSON schema',
-    icon: Code2,
-    defaultData: { label: 'Structured Extractor', subtitle: 'Schema: { status, summary, actionItems }' },
-  },
-  {
-    type: 'EXTRACT_DATA',
-    category: 'ai',
-    label: 'Extract Entities & Regex',
-    description: 'Extract emails, dates, order IDs, or regex matches',
-    icon: FileSearch,
-    defaultData: { label: 'Extract Entities', subtitle: 'Extracts: emails, URLs, dates' },
-  },
+/** Per-step outcome of the last test run, painted onto the cards. */
+const RunStatusContext = createContext<Record<string, string>>({});
 
-  // Knowledge & RAG
-  {
-    type: 'KNOWLEDGE_RETRIEVAL',
-    category: 'knowledge',
-    label: 'Knowledge Retrieval (RAG)',
-    description: 'Vector search knowledge bases and return chunks with citations',
-    icon: Database,
-    defaultData: { label: 'RAG Retrieval', subtitle: 'Top 4 chunks · Cosine similarity', topK: 4, minScore: 0.7 },
-  },
+function nodeSummary(item: NodeCatalogItem | undefined, data: Record<string, unknown>): string {
+  if (!item) return String(data['subtitle'] ?? '');
+  if (item.type === 'TRIGGER') {
+    const kind = String(data['triggerKind'] ?? 'MANUAL');
+    if (kind === 'CRON') return `Schedule · ${String(data['cron'] ?? '')}`;
+    if (kind === 'EVENT') return WORKFLOW_EVENTS.find((e) => e.value === data['event'])?.label ?? 'On an event';
+    return 'On request';
+  }
+  const first = item.fields.find((f) => f.required) ?? item.fields[0];
+  if (!first) return item.description;
+  const label = data[`${first.key}Label`];
+  const value = label ?? data[first.key];
+  return value ? String(value).slice(0, 60) : `Set ${first.label.toLowerCase()}`;
+}
 
-  // Logic & Flow
-  {
-    type: 'CONDITION',
-    category: 'logic',
-    label: 'If / Else Branch',
-    description: 'Evaluate expression and split execution into True/False branches',
-    icon: GitBranch,
-    defaultData: { label: 'If / Else Condition', subtitle: 'Check {{input.score}} >= 0.8', expression: '{{input.score}} >= 0.8' },
-  },
-  {
-    type: 'SWITCH',
-    category: 'logic',
-    label: 'Multi-Way Switch',
-    description: 'Route flow to multiple outputs based on variable value',
-    icon: Split,
-    defaultData: { label: 'Switch Router', subtitle: 'Cases: dev, staging, prod' },
-  },
-  {
-    type: 'PARALLEL',
-    category: 'logic',
-    label: 'Parallel Fork',
-    description: 'Execute multiple downstream branches simultaneously',
-    icon: Layers,
-    defaultData: { label: 'Fork Parallel', subtitle: 'Broadcasts to branch A and B' },
-  },
-  {
-    type: 'MERGE',
-    category: 'logic',
-    label: 'Join / Merge',
-    description: 'Wait for parallel branches and merge their outputs',
-    icon: GitMerge,
-    defaultData: { label: 'Merge Outputs', subtitle: 'Combines parallel results' },
-  },
-  {
-    type: 'DELAY',
-    category: 'logic',
-    label: 'Delay / Sleep',
-    description: 'Pause execution for a specified duration before proceeding',
-    icon: Timer,
-    defaultData: { label: 'Wait 5 Minutes', subtitle: 'Duration: 300s', seconds: 300 },
-  },
-
-  // Tools & Compute
-  {
-    type: 'CODE',
-    category: 'tools',
-    label: 'JavaScript / Python Code',
-    description: 'Execute custom code transformation and mathematical logic',
-    icon: Terminal,
-    defaultData: { label: 'Custom Code', subtitle: 'Transforms payload with JavaScript', language: 'javascript', code: '// return transformed object\nreturn { processed: true, items: input.items };' },
-  },
-  {
-    type: 'VARIABLE',
-    category: 'tools',
-    label: 'Variable Assign',
-    description: 'Set, mutate, or map workflow state variables',
-    icon: VariableIcon,
-    defaultData: { label: 'Set Variables', subtitle: 'Sets session state and tokens' },
-  },
-  {
-    type: 'HTTP_REQUEST',
-    category: 'tools',
-    label: 'HTTP / Webhook Call',
-    description: 'Make authenticated REST API call to external service',
-    icon: Globe,
-    defaultData: { label: 'REST API Request', subtitle: 'POST https://api.service.com/v1', method: 'POST', url: 'https://api.service.com/v1' },
-  },
-  {
-    type: 'TOOL',
-    category: 'tools',
-    label: 'Workspace Tool',
-    description: 'Execute integrated workspace tool (GitHub, Jira, Slack, Drive)',
-    icon: Wrench,
-    defaultData: { label: 'Workspace Tool', subtitle: 'Slack notification / Jira issue', toolName: 'slack.postMessage' },
-  },
-  {
-    type: 'MCP',
-    category: 'tools',
-    label: 'Model Context Protocol (MCP)',
-    description: 'Call external MCP server tool or resource dynamically',
-    icon: Link2,
-    defaultData: { label: 'MCP Connector', subtitle: 'Server: postgres', server: 'postgres', tool: 'query' },
-  },
-];
-
-// ==========================================
-// UNIFIED CUSTOM FLOW NODE
-// ==========================================
-
-function UnifiedFlowNode({ data, selected, id }: NodeProps) {
-  const nodeType = String(data.type || 'TRIGGER');
-  const catalogItem = NODE_CATALOG.find((item) => item.type === nodeType);
-  const Icon = catalogItem?.icon || Cpu;
-
-  // Category styling
-  const category = catalogItem?.category || 'triggers';
-  const colorMap: Record<NodeCategory, { border: string; bg: string; text: string; handle: string; badge: string }> = {
-    triggers: { border: 'border-accent-amber/50', bg: 'bg-accent-amber/10', text: 'text-accent-amber', handle: '!bg-accent-amber', badge: 'bg-accent-amber/15 text-accent-amber' },
-    ai: { border: 'border-accent-violet/50', bg: 'bg-accent-violet/10', text: 'text-accent-violet', handle: '!bg-accent-violet', badge: 'bg-accent-violet/15 text-accent-violet' },
-    knowledge: { border: 'border-accent-blue/50', bg: 'bg-accent-blue/10', text: 'text-accent-blue', handle: '!bg-accent-blue', badge: 'bg-accent-blue/15 text-accent-blue' },
-    logic: { border: 'border-accent-cyan/50', bg: 'bg-accent-cyan/10', text: 'text-accent-cyan', handle: '!bg-accent-cyan', badge: 'bg-accent-cyan/15 text-accent-cyan' },
-    tools: { border: 'border-accent-green/50', bg: 'bg-accent-green/10', text: 'text-accent-green', handle: '!bg-accent-green', badge: 'bg-accent-green/15 text-accent-green' },
-  };
-
-  const currentTheme = colorMap[category] || colorMap.triggers;
-  const isCondition = nodeType === 'CONDITION';
-  const isSwitch = nodeType === 'SWITCH';
-  const isOutput = nodeType === 'OUTPUT';
-  const isTrigger = nodeType === 'TRIGGER' || nodeType === 'START';
-  const isDisabled = data.disabled === true;
+function StepNode({ data, selected, id }: NodeProps) {
+  const type = String((data as Record<string, unknown>)['type'] ?? '');
+  const item = catalogItem(type);
+  const Icon = item?.icon ?? Cpu;
+  const style = CATEGORY_STYLE[item?.category ?? 'tools'];
+  const record = data as Record<string, unknown>;
+  const isTrigger = type === 'TRIGGER' || type === 'START' || type === 'USER_INPUT';
+  const branches = item?.branches?.(record) ?? null;
+  const isEnd = type === 'OUTPUT';
+  const disabled = record['disabled'] === true;
+  const runStatus = useContext(RunStatusContext)[id];
 
   return (
     <Card
-      aria-disabled={isDisabled || undefined}
-      title={isDisabled ? 'Disabled — skipped when the workflow runs' : undefined}
+      aria-disabled={disabled || undefined}
       className={cn(
-        'p-3 min-w-[220px] max-w-[280px] rounded-xl border-2 bg-surface shadow-md transition-all duration-200 select-none cursor-pointer',
-        selected
-          ? 'border-primary ring-2 ring-primary/25 shadow-lg'
-          : currentTheme.border,
-        isDisabled && 'opacity-50 border-dashed',
+        'w-[240px] cursor-pointer select-none rounded-xl border-2 bg-surface p-3 shadow-md transition-shadow',
+        selected ? 'border-primary shadow-lg ring-2 ring-primary/25' : style.border,
+        disabled && 'border-dashed opacity-50',
+        runStatus === 'SUCCESS' && 'ring-2 ring-success/60',
+        runStatus === 'FAILED' && 'ring-2 ring-destructive/70',
+        runStatus === 'WAITING' && 'ring-2 ring-warning/70',
       )}
     >
-      {/* Target handle (except for root triggers) */}
-      {!isTrigger && (
-        <Handle
-          type="target"
-          position={Position.Top}
-          className={cn('w-3 h-3 rounded-full border-2 border-surface', currentTheme.handle)}
-        />
-      )}
-
-      {/* Node Header */}
-      <div className="flex items-center gap-2.5 mb-1.5">
-        <div className={cn('p-1.5 shrink-0 rounded-lg', currentTheme.bg, currentTheme.text)}>
-          <Icon className="size-4" />
-        </div>
+      {!isTrigger ? (
+        <Handle type="target" position={Position.Top} className={cn('h-3 w-3 rounded-full border-2 border-surface', style.handle)} />
+      ) : null}
+      <div className="flex items-center gap-2.5">
+        <span className={cn('shrink-0 rounded-lg p-1.5', style.bg, style.text)}>
+          <Icon className="size-4" aria-hidden />
+        </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-1">
-            <span className={cn('px-1.5 py-0 rounded text-[9px] font-semibold tracking-wider uppercase', currentTheme.badge)}>
-              {catalogItem?.label || nodeType}
-            </span>
-            <span className="font-mono text-[9px] text-muted-foreground truncate opacity-60">
-              #{id.slice(-4)}
-            </span>
-          </div>
-          <h4 className="text-xs font-semibold truncate text-foreground mt-0.5">
-            {String(data.label || catalogItem?.label || 'Node')}
-          </h4>
+          <p className={cn('text-[10px] font-semibold uppercase tracking-wider', style.text)}>{item?.label ?? type}</p>
+          <p className="truncate text-xs font-semibold text-foreground">{String(record['label'] || item?.label || 'Step')}</p>
         </div>
+        {runStatus ? (
+          <span className="sr-only">Last run: {runStatus.toLowerCase()}</span>
+        ) : null}
       </div>
-
-      {/* Node Subtitle / Configuration preview */}
-      <p className="truncate font-mono text-[10px] text-muted-foreground bg-background/60 px-2 py-1 rounded border border-border/50">
-        {String(data.subtitle || catalogItem?.description || 'Configured')}
+      <p className="mt-1.5 truncate rounded border border-border/50 bg-background/60 px-2 py-1 font-mono text-[10px] text-muted-foreground">
+        {nodeSummary(item, record)}
       </p>
-
-      {/* Special handles for conditionals */}
-      {isCondition ? (
-        <div className="flex justify-between items-center mt-2 pt-1 border-t border-border/50 text-[10px] font-mono">
-          <div className="flex items-center gap-1 text-accent-green">
-            <span>True</span>
-            <Handle
-              type="source"
-              id="true"
-              position={Position.Bottom}
-              style={{ left: '25%' }}
-              className="w-2.5 h-2.5 !bg-accent-green rounded-full border-2 border-surface"
-            />
-          </div>
-          <div className="flex items-center gap-1 text-accent-rose">
-            <span>False</span>
-            <Handle
-              type="source"
-              id="false"
-              position={Position.Bottom}
-              style={{ left: '75%' }}
-              className="w-2.5 h-2.5 !bg-accent-rose rounded-full border-2 border-surface"
-            />
-          </div>
+      {branches ? (
+        <div className="relative mt-2 flex justify-between gap-1 border-t border-border/50 pt-1 font-mono text-[9px] text-muted-foreground">
+          {branches.map((branch, index) => (
+            <span key={branch} className="relative flex-1 truncate text-center">
+              {branch}
+              <Handle
+                type="source"
+                id={branch}
+                position={Position.Bottom}
+                style={{ left: `${((index + 0.5) / branches.length) * 100}%` }}
+                className={cn('h-2.5 w-2.5 rounded-full border-2 border-surface', style.handle)}
+              />
+            </span>
+          ))}
         </div>
-      ) : isSwitch ? (
-        <div className="flex justify-around items-center mt-2 pt-1 border-t border-border/50 text-[9px] font-mono text-muted-foreground">
-          <span>Case 1</span>
-          <span>Case 2</span>
-          <span>Default</span>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            className={cn('w-3 h-3 rounded-full border-2 border-surface', currentTheme.handle)}
-          />
-        </div>
-      ) : !isOutput ? (
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          className={cn('w-3 h-3 rounded-full border-2 border-surface', currentTheme.handle)}
-        />
+      ) : !isEnd ? (
+        <Handle type="source" position={Position.Bottom} className={cn('h-3 w-3 rounded-full border-2 border-surface', style.handle)} />
       ) : null}
     </Card>
   );
 }
 
-const customNodeTypes = {
-  // Map legacy node types
-  triggerNode: UnifiedFlowNode,
-  conditionNode: UnifiedFlowNode,
-  aiActionNode: UnifiedFlowNode,
-  apiActionNode: UnifiedFlowNode,
-  // Map catalog types
-  TRIGGER: UnifiedFlowNode,
-  START: UnifiedFlowNode,
-  USER_INPUT: UnifiedFlowNode,
-  OUTPUT: UnifiedFlowNode,
-  HUMAN_APPROVAL: UnifiedFlowNode,
-  HUMAN_INPUT: UnifiedFlowNode,
-  LLM: UnifiedFlowNode,
-  AGENT: UnifiedFlowNode,
-  AI_COWORKER: UnifiedFlowNode,
-  PROMPT: UnifiedFlowNode,
-  CLASSIFIER: UnifiedFlowNode,
-  STRUCTURED_OUTPUT: UnifiedFlowNode,
-  EXTRACT_DATA: UnifiedFlowNode,
-  KNOWLEDGE_RETRIEVAL: UnifiedFlowNode,
-  CONDITION: UnifiedFlowNode,
-  SWITCH: UnifiedFlowNode,
-  PARALLEL: UnifiedFlowNode,
-  MERGE: UnifiedFlowNode,
-  DELAY: UnifiedFlowNode,
-  CODE: UnifiedFlowNode,
-  VARIABLE: UnifiedFlowNode,
-  HTTP_REQUEST: UnifiedFlowNode,
-  TOOL: UnifiedFlowNode,
-  MCP: UnifiedFlowNode,
-};
+const nodeTypes = Object.fromEntries(
+  [...new Set([...PALETTE.map((i) => i.type), ...['START', 'USER_INPUT', 'HUMAN_INPUT', 'PARALLEL', 'SWITCH', 'STRUCTURED_OUTPUT', 'CODE', 'triggerNode', 'conditionNode', 'aiActionNode', 'apiActionNode', 'ACTION']])].map((t) => [t, StepNode]),
+);
 
-// ==========================================
-// MAIN WORKFLOW CANVAS VIEW
-// ==========================================
+function starterGraph(): { nodes: Node[]; edges: Edge[] } {
+  return {
+    nodes: [
+      { id: 'trigger', type: 'TRIGGER', position: { x: 240, y: 60 }, data: { type: 'TRIGGER', label: 'Start', triggerKind: 'MANUAL' } },
+      { id: 'result', type: 'OUTPUT', position: { x: 240, y: 260 }, data: { type: 'OUTPUT', label: 'Result', template: '' } },
+    ],
+    edges: [{ id: 'trigger-result', source: 'trigger', target: 'result', animated: true }],
+  };
+}
+
+/** Reads a stored graph, bringing older node shapes up to the current catalog. */
+function loadGraph(workflow: AutomationWorkflowDetail | null): { nodes: Node[]; edges: Edge[] } {
+  if (!workflow) return starterGraph();
+  try {
+    const nodes = (JSON.parse(workflow.nodesJson || '[]') as Node[]).map((n) => {
+      const data = { ...(n.data as Record<string, unknown>) };
+      const type = String(data['type'] ?? n.type);
+      data['type'] = type;
+      // Older workflows called "run on request" a webhook; it never had a public URL.
+      if (type === 'TRIGGER' && (data['triggerKind'] === 'WEBHOOK' || !data['triggerKind'])) data['triggerKind'] = 'MANUAL';
+      return { ...n, type, data };
+    });
+    const edges = JSON.parse(workflow.edgesJson || '[]') as Edge[];
+    return nodes.length ? { nodes, edges } : starterGraph();
+  } catch {
+    return starterGraph();
+  }
+}
+
+function graphSignature(name: string, nodes: Node[], edges: Edge[]): string {
+  return JSON.stringify({
+    name,
+    nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: n.data })),
+    edges: edges.map((e) => ({ s: e.source, t: e.target, h: e.sourceHandle ?? null })),
+  });
+}
 
 export function WorkflowCanvasView() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [inspectorTab, setInspectorTab] = useState<'config' | 'variables' | 'test'>('config');
+  const { workflowId: routeId } = useParams<{ workflowId?: string }>();
+  const [params] = useSearchParams();
+  const workflowId = routeId && routeId !== 'new' ? routeId : params.get('id');
+  const { workspaceId, slug } = useCurrentWorkspace();
+  const [epoch, setEpoch] = useState(0);
 
-  // Palette state
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [paletteSearch, setPaletteSearch] = useState('');
-  const [paletteCategory, setPaletteCategory] = useState<string>('all');
+  const detail = useQuery({
+    queryKey: queryKeys.automations.detail(workspaceId ?? '', workflowId ?? ''),
+    queryFn: () => automationsApi.get(workspaceId as string, workflowId as string),
+    enabled: Boolean(workspaceId && workflowId),
+  });
 
-  // Workflow state
-  const [isSaved, setIsSaved] = useState(false);
-  const [workflowId, setWorkflowId] = useState<string | null>(null);
-  const [workflowName, setWorkflowName] = useState('Unified Automation Graph');
-  const [isRunning, setIsRunning] = useState(false);
-  const [executionResult, setExecutionResult] = useState<Record<string, unknown> | null>(null);
+  if (workflowId && detail.isLoading) return <LoadingState fullPage label="Opening workflow…" />;
+  if (workflowId && !detail.data) {
+    return (
+      <div className="grid flex-1 place-items-center p-6">
+        <EmptyState
+          icon={<Workflow />}
+          title="Workflow not found"
+          description="It may have been deleted, or it belongs to another workspace."
+          action={
+            <Button asChild variant="outline">
+              <Link to={aiPath(slug, 'workflows')}>Back to workflows</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
+  return (
+    <AgentBuilderOptionsProvider workspaceId={workspaceId}>
+      <ReactFlowProvider key={`${workflowId ?? 'new'}:${epoch}`}>
+        <WorkflowEditor workflow={detail.data ?? null} onReload={() => setEpoch((n) => n + 1)} />
+      </ReactFlowProvider>
+    </AgentBuilderOptionsProvider>
+  );
+}
+
+function WorkflowEditor({
+  workflow,
+  onReload,
+}: {
+  workflow: AutomationWorkflowDetail | null;
+  onReload: () => void;
+}) {
   const navigate = useNavigate();
-  const { slug, workspaceId } = useCurrentWorkspace();
+  const queryClient = useQueryClient();
+  const { workspaceId, slug } = useCurrentWorkspace();
+  const { can } = useWorkspacePermission();
+  const canManageResource = useCanManageAIResource();
+  const canEdit = workflow ? canManageResource(workflow.creatorId) : can('create');
   const { create, update, trigger } = useWorkflowMutations(workspaceId);
-  const isSaving = create.isPending || update.isPending;
 
-  // Hydrate workflow if editing existing id
-  const [searchParams] = useSearchParams();
-  const editingId = searchParams.get('id');
-  const workflowsQuery = useWorkflows(workspaceId);
-  const hydratedRef = useRef<string | null>(null);
+  const initial = useMemo(() => loadGraph(workflow), [workflow]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initial.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges);
+  const [name, setName] = useState(workflow?.name ?? 'Untitled workflow');
+  const [savedSignature, setSavedSignature] = useState(() =>
+    workflow ? graphSignature(workflow.name, initial.nodes, initial.edges) : '',
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [nodeMenu, setNodeMenu] = useState<{ node: Node; x: number; y: number } | null>(null);
+  const [runOpen, setRunOpen] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [runStatus, setRunStatus] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (!editingId || hydratedRef.current === editingId) return;
-    const wf = workflowsQuery.data?.find((w) => w.id === editingId);
-    if (!wf) return;
-    hydratedRef.current = editingId;
-    try {
-      const loadedNodes = JSON.parse(wf.nodesJson || '[]');
-      const loadedEdges = JSON.parse(wf.edgesJson || '[]');
-      if (Array.isArray(loadedNodes) && loadedNodes.length > 0) {
-        setNodes(loadedNodes as Node[]);
-      } else {
-        setNodes([
-          {
-            id: 'node-trigger',
-            type: 'TRIGGER',
-            position: { x: 250, y: 80 },
-            data: { type: 'TRIGGER', label: 'Webhook Trigger', subtitle: 'POST payload receiver' },
-          },
-        ]);
-      }
-      if (Array.isArray(loadedEdges)) setEdges(loadedEdges as Edge[]);
-    } catch {
-      toast.error('Could not parse graph', {
-        description: 'Using empty canvas state.',
+  const dirty = graphSignature(name, nodes, edges) !== savedSignature;
+  const selected = nodes.find((n) => n.id === selectedId) ?? null;
+  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.automations.all(workspaceId ?? '') });
+
+  const updateNodeData = useCallback(
+    (nodeId: string, patch: Record<string, unknown>) =>
+      setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, ...patch } } : n))),
+    [setNodes],
+  );
+
+  /** Saves the canvas; resolves to the workflow id, or null if it failed. */
+  const saveNow = useCallback(async (): Promise<string | null> => {
+    const triggers = nodes.filter((n) => ['TRIGGER', 'START'].includes(String(n.type)));
+    if (triggers.length !== 1) {
+      toast.error(triggers.length ? 'Keep one trigger' : 'Add a trigger', {
+        description: 'A workflow starts from exactly one trigger step.',
       });
+      return null;
     }
-    setWorkflowId(wf.id);
-    setWorkflowName(wf.name);
-  }, [editingId, workflowsQuery.data, setNodes, setEdges]);
+    for (const n of nodes) {
+      const missing = missingFields(String(n.type), n.data as Record<string, unknown>);
+      if (missing.length) {
+        setSelectedId(n.id);
+        toast.error(`“${String((n.data as Record<string, unknown>)['label'] ?? n.type)}” needs ${missing.join(', ')}`);
+        return null;
+      }
+    }
+    const input = {
+      name: name.trim() || 'Untitled workflow',
+      nodesJson: JSON.stringify(nodes.map(({ selected: _s, dragging: _d, ...n }) => n)),
+      edgesJson: JSON.stringify(edges),
+      triggerType: triggerTypeFor(triggers[0]?.data as Record<string, unknown>),
+    };
+    try {
+      if (workflow) {
+        await update.mutateAsync({ workflowId: workflow.id, input });
+        setSavedSignature(graphSignature(input.name, nodes, edges));
+        toast.success('Saved');
+        return workflow.id;
+      }
+      const created = await create.mutateAsync(input);
+      toast.success('Workflow created', { description: 'Test it, then publish to switch it on.' });
+      navigate(aiPath(slug, 'workflows', created.id), { replace: true });
+      return created.id;
+    } catch (err) {
+      toast.error('Could not save the workflow', {
+        description: err instanceof Error ? err.message : undefined,
+      });
+      return null;
+    }
+  }, [create, edges, name, navigate, nodes, slug, update, workflow]);
 
-  // Set default starter node if brand new canvas
   useEffect(() => {
-    if (!editingId && nodes.length === 0) {
-      setNodes([
-        {
-          id: 'node-start',
-          type: 'START',
-          position: { x: 260, y: 100 },
-          data: { type: 'START', label: 'Start Flow', subtitle: 'Trigger & context input' },
-        },
-      ]);
-    }
-  }, [editingId, nodes.length, setNodes]);
+    if (!canEdit) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        void saveNow();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [canEdit, saveNow]);
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate(`/w/${slug}/automations`);
-    }
-  };
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [dirty]);
 
-  const onConnect = useCallback(
+  const publish = useMutation({
+    mutationFn: (id: string) => automationsApi.publish(workspaceId as string, id),
+    onSuccess: (version) => {
+      toast.success(`Published v${version.versionNumber}`, { description: 'The workflow is on and will run on its trigger.' });
+      void refresh();
+    },
+    onError: (err) => toast.error('Could not publish', { description: err instanceof Error ? err.message : undefined }),
+  });
+
+  const setActive = useMutation({
+    mutationFn: (isActive: boolean) => automationsApi.update(workspaceId as string, workflow!.id, { isActive }),
+    onSuccess: (_row, isActive) => {
+      toast.success(isActive ? 'Workflow switched on' : 'Workflow paused', {
+        description: isActive ? undefined : 'Schedules and events won’t start it until you switch it back on.',
+      });
+      void refresh();
+    },
+    onError: () => toast.error('Could not change that'),
+  });
+
+  const connect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
     [setEdges],
   );
 
-  const onNodeClick = (_: React.MouseEvent, node: Node) => {
-    setSelectedNode(node);
-  };
-
-  // Add node from catalog
-  const addCatalogNode = (item: NodeCatalogItem) => {
-    const newNodeId = `node_${Date.now()}`;
-    const newNode: Node = {
-      id: newNodeId,
+  const addStep = (item: NodeCatalogItem, from?: Node) => {
+    const id = `${item.type.toLowerCase()}_${Math.random().toString(36).slice(2, 7)}`;
+    const base = from ?? nodes[nodes.length - 1];
+    const node: Node = {
+      id,
       type: item.type,
-      position: {
-        x: 250 + (nodes.length % 4) * 40,
-        y: 120 + nodes.length * 60,
-      },
-      data: {
-        type: item.type,
-        ...item.defaultData,
-      },
+      position: base ? { x: base.position.x, y: base.position.y + 170 } : { x: 240, y: 120 },
+      data: { type: item.type, ...item.defaultData },
     };
-    setNodes((nds) => [...nds, newNode]);
-    setSelectedNode(newNode);
+    setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), node]);
+    if (from) setEdges((eds) => addEdge({ id: `${from.id}-${id}`, source: from.id, target: id, animated: true }, eds));
+    setSelectedId(id);
     setPaletteOpen(false);
-    toast.success(`Added ${item.label}`, {
-      description: 'Placed onto workflow canvas. Configure details in inspector.',
-    });
-  };
-
-  /* ---- node context menu (right-click a node on the canvas) ---- */
-  const [nodeMenu, setNodeMenu] = useState<{ node: Node; x: number; y: number } | null>(
-    null,
-  );
-
-  const nodeLabel = (node: Node) =>
-    String((node.data as { label?: string })?.label || node.type || 'Node');
-
-  const duplicateNode = (node: Node) => {
-    const copy: Node = {
-      ...node,
-      id: `node_${Date.now()}`,
-      position: { x: node.position.x + 40, y: node.position.y + 60 },
-      selected: false,
-      data: { ...node.data },
-    };
-    setNodes((nds) => [...nds, copy]);
-    setSelectedNode(copy);
-  };
-
-  const setNodeDisabled = (node: Node, disabled: boolean) => {
-    setNodes((nds) =>
-      nds.map((n) => (n.id === node.id ? { ...n, data: { ...n.data, disabled } } : n)),
-    );
-    setSelectedNode((prev) =>
-      prev?.id === node.id ? { ...prev, data: { ...prev.data, disabled } } : prev,
-    );
   };
 
   const removeNode = (node: Node) => {
     setNodes((nds) => nds.filter((n) => n.id !== node.id));
     setEdges((eds) => eds.filter((e) => e.source !== node.id && e.target !== node.id));
-    setSelectedNode((prev) => (prev?.id === node.id ? null : prev));
-    toast.info(`Deleted ${nodeLabel(node)}`);
-  };
-
-  /** Adds `item` below `source` and wires source → new node. */
-  const addConnectedNode = (source: Node, item: NodeCatalogItem) => {
-    const newNode: Node = {
-      id: `node_${Date.now()}`,
-      type: item.type,
-      position: { x: source.position.x, y: source.position.y + 140 },
-      data: { type: item.type, ...item.defaultData },
-    };
-    setNodes((nds) => [...nds, newNode]);
-    setEdges((eds) =>
-      addEdge({ source: source.id, target: newNode.id, sourceHandle: null, targetHandle: null, animated: true }, eds),
-    );
-    setSelectedNode(newNode);
+    if (selectedId === node.id) setSelectedId(null);
   };
 
   const nodeActions = (node: Node): EntityAction[] => {
-    const disabled = (node.data as { disabled?: boolean })?.disabled === true;
-    const categories = [...new Set(NODE_CATALOG.map((c) => c.category))];
+    const disabled = (node.data as { disabled?: boolean }).disabled === true;
+    if (!canEdit) return [];
     return [
+      { id: 'configure', group: 'edit', label: 'Configure', icon: Settings2, run: () => setSelectedId(node.id) },
       {
-        id: 'configure',
+        id: 'add-next',
         group: 'edit',
-        label: 'Configure node',
-        icon: Settings2,
-        run: () => setSelectedNode(node),
-      },
-      {
-        id: 'add-connected',
-        group: 'edit',
-        label: 'Add connected node',
+        label: 'Add next step',
         icon: Plus,
-        children: categories.map(
-          (category): EntityAction => ({
-            id: `add-${category}`,
-            label: category.charAt(0).toUpperCase() + category.slice(1),
-            children: NODE_CATALOG.filter((c) => c.category === category).map(
-              (item): EntityAction => ({
-                id: `add-${item.type}`,
-                label: item.label,
-                icon: item.icon,
-                run: () => addConnectedNode(node, item),
-              }),
-            ),
-          }),
-        ),
+        children: (['ai', 'knowledge', 'logic', 'tools', 'triggers'] as const).map((category) => ({
+          id: `add-${category}`,
+          label: category === 'ai' ? 'AI' : category.charAt(0).toUpperCase() + category.slice(1),
+          children: PALETTE.filter((i) => i.category === category && i.type !== 'TRIGGER').map((item) => ({
+            id: `add-${item.type}`,
+            label: item.label,
+            icon: item.icon,
+            run: () => addStep(item, node),
+          })),
+        })),
       },
       {
         id: 'duplicate',
         group: 'edit',
-        label: 'Duplicate node',
+        label: 'Duplicate',
         icon: CopyPlus,
-        shortcut: 'D',
-        run: () => duplicateNode(node),
+        run: () => {
+          const copy = { ...node, id: `${String(node.type).toLowerCase()}_${Math.random().toString(36).slice(2, 7)}`, selected: false, position: { x: node.position.x + 40, y: node.position.y + 60 }, data: { ...node.data } };
+          setNodes((nds) => [...nds, copy]);
+        },
       },
       {
-        id: 'toggle-disabled',
+        id: 'toggle',
         group: 'state',
-        label: disabled ? 'Enable node' : 'Disable node',
+        label: disabled ? 'Turn step on' : 'Skip this step',
         icon: disabled ? Power : PowerOff,
-        description: disabled ? undefined : 'Skipped when the workflow runs.',
-        run: () => setNodeDisabled(node, !disabled),
+        run: () => updateNodeData(node.id, { disabled: !disabled }),
       },
       {
-        id: 'copy-config',
+        id: 'copy',
         group: 'state',
-        label: 'Copy node configuration',
+        label: 'Copy settings',
         icon: ClipboardCopy,
-        run: () =>
-          copyToClipboard(
-            JSON.stringify({ type: node.type, data: node.data }, null, 2),
-            'Configuration',
-          ),
+        run: () => copyToClipboard(JSON.stringify({ type: node.type, data: node.data }, null, 2), 'Settings'),
       },
-      {
-        id: 'delete',
-        group: 'danger',
-        label: 'Delete node',
-        icon: Trash2,
-        shortcut: 'Del',
-        destructive: true,
-        run: () => removeNode(node),
-      },
+      { id: 'delete', group: 'danger', label: 'Delete step', icon: Trash2, destructive: true, run: () => removeNode(node) },
     ];
   };
 
-  const deleteSelectedNode = () => {
-    if (!selectedNode) return;
-    const label = (selectedNode.data as { label?: string })?.label || 'Node';
-    setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id));
-    setEdges((eds) =>
-      eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id),
-    );
-    setSelectedNode(null);
-    toast.info(`Deleted ${label}`);
-  };
-
-  // Save workflow
-  const handleSave = async () => {
-    if (!workspaceId) {
-      toast.error('Workspace still loading');
-      return;
-    }
-    if (nodes.length === 0) {
-      toast.error('Cannot save empty workflow');
-      return;
-    }
-
-    const base = {
-      name: workflowName.trim() || 'Unified Workflow',
-      nodesJson: JSON.stringify(nodes),
-      edgesJson: JSON.stringify(edges),
-    };
-
-    const triggerNode = nodes.find((n) => n.type === 'TRIGGER' || n.type === 'START');
-    const triggerType = (triggerNode?.data as { triggerKind?: string })?.triggerKind ?? 'WEBHOOK';
-
+  const runWith = async (payload: Record<string, unknown>) => {
+    const id = dirty || !workflow ? await saveNow() : workflow.id;
+    if (!id) return null;
     try {
-      if (workflowId) {
-        await update.mutateAsync({ workflowId, input: base });
-      } else {
-        const created = await create.mutateAsync({ ...base, triggerType });
-        setWorkflowId(created.id);
-      }
-      setIsSaved(true);
-      toast.success('Workflow saved', {
-        description: `${nodes.length} nodes and ${edges.length} connections synced.`,
-      });
-      setTimeout(() => setIsSaved(false), 3000);
+      const result = await trigger.mutateAsync({ workflowId: id, payload });
+      setRunStatus(Object.fromEntries(result.results.map((r) => [r.stepId, r.status])));
+      return result;
     } catch (err) {
-      toast.error('Save failed', {
-        description: err instanceof Error ? err.message : 'Could not save workflow.',
-      });
+      toast.error('The run could not start', { description: err instanceof Error ? err.message : undefined });
+      return null;
     }
   };
 
-  // Run / Test workflow
-  const handleTestRun = async () => {
-    if (!workflowId) {
-      await handleSave();
-    }
-    const currentWfId = workflowId;
-    if (!currentWfId) {
-      toast.error('Please save the workflow before executing');
-      return;
-    }
-
-    setIsRunning(true);
-    setExecutionResult(null);
-    toast.loading('Executing workflow across nodes...', { id: 'run-toast' });
-
-    try {
-      const res = await trigger.mutateAsync({
-        workflowId: currentWfId,
-        payload: {
-          testMode: true,
-          triggeredBy: 'Studio Canvas',
-          timestamp: new Date().toISOString(),
-          input: {
-            prompt: 'Test prompt from Studio Canvas',
-            query: 'Evaluate knowledge retrieval and reasoning',
-          },
-        },
-      });
-      setIsRunning(false);
-      setExecutionResult((res as Record<string, unknown>) || { status: 'SUCCESS' });
-      toast.success('Workflow execution completed!', {
-        id: 'run-toast',
-        description: 'Check step logs below or in Execution Logs tab.',
-      });
-    } catch (err) {
-      setIsRunning(false);
-      toast.error('Execution failed', {
-        id: 'run-toast',
-        description: err instanceof Error ? err.message : 'Execution halted.',
-      });
-    }
-  };
-
-  // Filtered node catalog for palette
-  const filteredCatalog = useMemo(() => {
-    return NODE_CATALOG.filter((item) => {
-      const matchesSearch =
-        item.label.toLowerCase().includes(paletteSearch.toLowerCase()) ||
-        item.description.toLowerCase().includes(paletteSearch.toLowerCase()) ||
-        item.type.toLowerCase().includes(paletteSearch.toLowerCase());
-      const matchesCat = paletteCategory === 'all' || item.category === paletteCategory;
-      return matchesSearch && matchesCat;
-    });
-  }, [paletteSearch, paletteCategory]);
-
-  // Update selected node data helper
-  const updateNodeData = (key: string, value: unknown) => {
-    if (!selectedNode) return;
-    setNodes((nds) =>
-      nds.map((n) =>
-        n.id === selectedNode.id
-          ? { ...n, data: { ...n.data, [key]: value } }
-          : n,
-      ),
-    );
-    setSelectedNode((prev) =>
-      prev ? { ...prev, data: { ...prev.data, [key]: value } } : null,
-    );
-  };
+  const isActive = workflow?.isActive ?? false;
+  const triggerNode = nodes.find((n) => n.type === 'TRIGGER' || n.type === 'START');
 
   return (
-    <div className="min-h-0 flex flex-1 flex-col h-full bg-background">
-      {/* Header Bar */}
-      <div className="border-b border-border bg-surface px-4 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <Hint label="Back to Automations">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={handleBack}
-              className="shrink-0 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="size-4" />
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <Hint label="Back to workflows">
+            <Button variant="ghost" size="icon-sm" asChild aria-label="Back to workflows">
+              <Link to={aiPath(slug, 'workflows')}>
+                <ArrowLeft className="size-4" />
+              </Link>
             </Button>
           </Hint>
-
-          <div className="h-4 w-px bg-border shrink-0" />
-
-          <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <Workflow className="size-4" />
-          </div>
-
-          <div className="flex items-center gap-2 min-w-0">
-            <input
-              type="text"
-              value={workflowName}
-              onChange={(e) => setWorkflowName(e.target.value)}
-              className="text-sm font-semibold tracking-tight rounded px-1.5 py-0.5 border border-transparent hover:border-border focus:border-primary focus:bg-background outline-none text-foreground min-w-[200px]"
-              placeholder="Workflow Name"
-            />
-            <Badge variant="primary" className="text-[10px] shrink-0 font-medium">
-              35+ Nodes Ready
+          </span>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            readOnly={!canEdit}
+            aria-label="Workflow name"
+            className="h-8 w-44 border-transparent bg-transparent px-1.5 text-sm font-semibold shadow-none hover:border-border focus-visible:border-primary sm:w-64"
+          />
+          {workflow ? (
+            <Badge variant={isActive ? 'success' : 'neutral'} className="shrink-0 text-[10px]">
+              {isActive ? 'On' : 'Paused'}
             </Badge>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {isSaved && (
-            <Badge variant="success" className="gap-1 text-xs">
-              <CheckCircle className="size-3.5" />
-              Saved
+          ) : (
+            <Badge variant="outline" className="shrink-0 text-[10px]">
+              Not saved yet
             </Badge>
           )}
-
-          <Button
-            size="sm"
-            variant="outline"
-            leadingIcon={isRunning ? <Loader2 className="size-3.5 animate-spin text-primary" /> : <Play className="size-3.5 text-accent-green" />}
-            onClick={handleTestRun}
-            disabled={isRunning}
-          >
-            {isRunning ? 'Running…' : 'Test Run'}
-          </Button>
-
-          <Button
-            size="sm"
-            disabled={isSaving}
-            leadingIcon={isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-            onClick={handleSave}
-          >
-            {isSaving ? 'Saving…' : 'Save'}
-          </Button>
         </div>
-      </div>
-
-      {/* Main Canvas + Inspector */}
-      <div className="relative flex flex-1 min-h-0 overflow-hidden">
-        {/* ReactFlow Interactive Canvas */}
-        <div role="region" aria-label="Workflow canvas builder" className="relative flex-1 h-full">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onNodeContextMenu={(event, node) => {
-              event.preventDefault();
-              setNodeMenu({ node, x: event.clientX, y: event.clientY });
-            }}
-            onPaneClick={() => setNodeMenu(null)}
-            nodeTypes={customNodeTypes}
-            fitView
-            attributionPosition="bottom-left"
-          >
-            <Controls className="!border-border !bg-surface !shadow-md !rounded-lg" />
-            <MiniMap
-              className="!border-border !bg-surface !rounded-lg !shadow-md"
-              nodeColor={(node) => {
-                const item = NODE_CATALOG.find((c) => c.type === node.type);
-                if (item?.category === 'triggers') return '#f59e0b';
-                if (item?.category === 'ai') return '#8b5cf6';
-                if (item?.category === 'knowledge') return '#3b82f6';
-                if (item?.category === 'logic') return '#06b6d4';
-                return '#10b981';
+        <div className="flex flex-wrap items-center gap-1.5">
+          {workflow && canEdit ? (
+            <label className="mr-1 flex items-center gap-2 text-xs text-muted-foreground">
+              <Switch
+                checked={isActive}
+                disabled={setActive.isPending}
+                onCheckedChange={(on) => setActive.mutate(on)}
+                aria-label="Workflow on"
+              />
+              On
+            </label>
+          ) : null}
+          {workflow ? (
+            <Button variant="ghost" size="sm" leadingIcon={<Clock />} onClick={() => setVersionsOpen(true)}>
+              Versions
+            </Button>
+          ) : null}
+          <Button variant="outline" size="sm" leadingIcon={<Play />} onClick={() => setRunOpen(true)} disabled={!can('create')}>
+            Test run
+          </Button>
+          {workflow && canEdit ? (
+            <Button
+              variant="outline"
+              size="sm"
+              leadingIcon={<Share2 />}
+              loading={publish.isPending}
+              onClick={async () => {
+                const id = dirty ? await saveNow() : workflow.id;
+                if (id) publish.mutate(id);
               }}
-            />
-            <Background gap={18} size={1} color="currentColor" className="text-border/40" />
-          </ReactFlow>
+            >
+              Publish
+            </Button>
+          ) : null}
+          {canEdit ? (
+            <Button
+              size="sm"
+              leadingIcon={<Save />}
+              loading={create.isPending || update.isPending}
+              disabled={workflow ? !dirty : false}
+              onClick={() => void saveNow()}
+            >
+              {workflow ? (dirty ? 'Save' : 'Saved') : 'Create workflow'}
+            </Button>
+          ) : null}
+        </div>
+      </header>
+
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+        <div role="region" aria-label="Workflow canvas" className="relative h-full min-w-0 flex-1">
+          <RunStatusContext.Provider value={runStatus}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={canEdit ? onNodesChange : undefined}
+              onEdgesChange={canEdit ? onEdgesChange : undefined}
+              onConnect={canEdit ? connect : undefined}
+              nodesDraggable={canEdit}
+              nodesConnectable={canEdit}
+              onNodeClick={(_, node) => setSelectedId(node.id)}
+              onPaneClick={() => {
+                setSelectedId(null);
+                setNodeMenu(null);
+              }}
+              onNodeContextMenu={(event, node) => {
+                event.preventDefault();
+                setNodeMenu({ node, x: event.clientX, y: event.clientY });
+              }}
+              nodeTypes={nodeTypes}
+              fitView
+            >
+              <Controls className="!rounded-lg !border-border !bg-surface !shadow-md" />
+              <MiniMap
+                className="!hidden !rounded-lg !border-border !bg-surface !shadow-md sm:!block"
+                nodeColor={(node) => CATEGORY_STYLE[catalogItem(String(node.type))?.category ?? 'tools'].hex}
+              />
+              <Background gap={18} size={1} color="currentColor" className="text-border/40" />
+            </ReactFlow>
+          </RunStatusContext.Provider>
           <ActionContextMenu
             at={nodeMenu ? { x: nodeMenu.x, y: nodeMenu.y } : null}
             onClose={() => setNodeMenu(null)}
@@ -908,480 +600,557 @@ export function WorkflowCanvasView() {
             scope={nodeMenu ? `workflow-node:${nodeMenu.node.id}` : undefined}
           />
 
-          {/* Floating Palette Button & Popover */}
-          <div className="absolute top-3 left-3 z-30">
-            <Button
-              variant="default"
-              size="sm"
-              leadingIcon={<Plus className="size-4" />}
-              onClick={() => setPaletteOpen(!paletteOpen)}
-              className="shadow-lg"
-            >
-              Add Node
-            </Button>
-
-            {paletteOpen && (
-              <Card className="mt-2 w-[340px] max-h-[500px] flex flex-col p-3 shadow-2xl border-2 border-border bg-surface z-50 rounded-xl animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-center justify-between pb-2 border-b border-border">
-                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                    Node Palette
-                  </span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {filteredCatalog.length} nodes
-                  </Badge>
-                </div>
-
-                {/* Search */}
-                <div className="relative mt-2">
-                  <Search className="size-3.5 text-muted-foreground absolute left-2.5 top-2.5" />
-                  <input
-                    type="text"
-                    value={paletteSearch}
-                    onChange={(e) => setPaletteSearch(e.target.value)}
-                    aria-label="Search 35+ node types"
-                    placeholder="Search 35+ node types..."
-                    className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary"
-                    autoFocus
-                  />
-                </div>
-
-                {/* Categories */}
-                <div role="tablist" aria-label="Node categories" className="flex items-center gap-1 overflow-x-auto py-2 no-scrollbar border-b border-border/60">
-                  {(['all', 'triggers', 'ai', 'knowledge', 'logic', 'tools'] as const).map((cat) => (
-                    <button
-                      key={cat}
-                      role="tab"
-                      aria-selected={paletteCategory === cat}
-                      onClick={() => setPaletteCategory(cat)}
-                      className={cn(
-                        'px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap transition-colors',
-                        paletteCategory === cat
-                          ? 'bg-primary text-primary-foreground font-semibold'
-                          : 'bg-muted/50 text-muted-foreground hover:bg-muted',
-                      )}
-                    >
-                      {cat === 'all' ? 'All' : cat.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Node List */}
-                <div className="overflow-y-auto space-y-1 py-1.5 flex-1 max-h-[320px]">
-                  {filteredCatalog.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.type}
-                        onClick={() => addCatalogNode(item)}
-                        className="w-full text-left p-2 rounded-lg hover:bg-muted/70 flex items-start gap-2.5 transition-colors group"
-                      >
-                        <div className="p-1.5 rounded-md bg-muted group-hover:bg-primary/10 group-hover:text-primary transition-colors shrink-0">
-                          <Icon className="size-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-foreground truncate">
-                              {item.label}
-                            </span>
-                            <span className="text-[9px] uppercase font-mono px-1 rounded bg-muted/60 text-muted-foreground">
-                              {item.category}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
-                            {item.description}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Card>
-            )}
-          </div>
-
-          {/* Quick Stats Pill */}
-          <div className="absolute bottom-3 left-16 z-20">
-            <Badge variant="outline" className="bg-surface/80 backdrop-blur font-mono text-[11px] shadow-sm">
-              {nodes.length} Nodes · {edges.length} Edges
-            </Badge>
-          </div>
+          {canEdit ? (
+            // On a phone the step settings cover the canvas; don't float over them.
+            <div className={cn('absolute left-3 top-3 z-30', selected && 'max-md:hidden')}>
+              <Button size="sm" leadingIcon={<Plus />} onClick={() => setPaletteOpen(!paletteOpen)} aria-expanded={paletteOpen} className="shadow-lg">
+                Add step
+              </Button>
+              {paletteOpen ? (
+                <StepPalette
+                  onPick={(item) => addStep(item, selected ?? undefined)}
+                  hasTrigger={Boolean(triggerNode)}
+                  onClose={() => setPaletteOpen(false)}
+                />
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
-        {/* Right Inspector Panel */}
-        <Panel className="w-80 flex flex-col h-full shrink-0 border-l border-border bg-surface shadow-md">
-          {selectedNode ? (
-            <div className="flex flex-col h-full min-h-0">
-              {/* Inspector Header */}
-              <div className="p-3 border-b border-border flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="size-6 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <Zap className="size-3.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-xs font-bold text-foreground truncate">
-                      {String(selectedNode.data.label || selectedNode.type)}
-                    </h3>
-                    <p className="text-[10px] font-mono text-muted-foreground truncate">
-                      ID: {selectedNode.id}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={deleteSelectedNode}
-                  aria-label="Delete selected node"
-                  className="text-destructive hover:bg-destructive/10 shrink-0"
-                >
-                  <Trash2 className="size-3.5" aria-hidden="true" />
-                </Button>
-              </div>
-
-              {/* Tabs: Config / Variables / Test */}
-              <div role="tablist" aria-label="Inspector tabs" className="flex border-b border-border text-xs shrink-0">
-                <button
-                  role="tab"
-                  aria-selected={inspectorTab === 'config'}
-                  onClick={() => setInspectorTab('config')}
-                  className={cn(
-                    'flex-1 py-2 font-medium text-center border-b-2 transition-colors',
-                    inspectorTab === 'config'
-                      ? 'border-primary text-primary font-semibold'
-                      : 'border-transparent text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  Config
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={inspectorTab === 'variables'}
-                  onClick={() => setInspectorTab('variables')}
-                  className={cn(
-                    'flex-1 py-2 font-medium text-center border-b-2 transition-colors',
-                    inspectorTab === 'variables'
-                      ? 'border-primary text-primary font-semibold'
-                      : 'border-transparent text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  Variables
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={inspectorTab === 'test'}
-                  onClick={() => setInspectorTab('test')}
-                  className={cn(
-                    'flex-1 py-2 font-medium text-center border-b-2 transition-colors',
-                    inspectorTab === 'test'
-                      ? 'border-primary text-primary font-semibold'
-                      : 'border-transparent text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  Test Run
-                </button>
-              </div>
-
-              {/* Tab Contents */}
-              <div className="p-3 overflow-y-auto flex-1 space-y-3">
-                {inspectorTab === 'config' && (
-                  <div className="space-y-3">
-                    {/* Common fields: Label & Subtitle */}
-                    <div>
-                      <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        Node Label
-                      </label>
-                      <input
-                        type="text"
-                        value={String(selectedNode.data.label || '')}
-                        onChange={(e) => updateNodeData('label', e.target.value)}
-                        className="w-full text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                        Summary / Subtitle
-                      </label>
-                      <input
-                        type="text"
-                        value={String(selectedNode.data.subtitle || '')}
-                        onChange={(e) => updateNodeData('subtitle', e.target.value)}
-                        className="w-full text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary font-mono text-[11px]"
-                      />
-                    </div>
-
-                    {/* Node-Specific Config */}
-                    {selectedNode.type === 'LLM' && (
-                      <>
-                        <div>
-                          <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                            Model Selection
-                          </label>
-                          <select
-                            value={String(selectedNode.data.model || 'claude-3-5-sonnet')}
-                            onChange={(e) => {
-                              updateNodeData('model', e.target.value);
-                              updateNodeData('subtitle', `${e.target.value} · Temp ${selectedNode.data.temperature || 0.7}`);
-                            }}
-                            className="w-full text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary"
-                          >
-                            <option value="claude-3-5-sonnet">Claude 3.5 Sonnet (Anthropic)</option>
-                            <option value="gpt-4o">GPT-4o (OpenAI)</option>
-                            <option value="deepseek-r1">DeepSeek R1 (Reasoning)</option>
-                            <option value="llama-3.3-70b">Llama 3.3 70B (Meta)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                            Prompt Template
-                          </label>
-                          <textarea
-                            rows={4}
-                            value={String(selectedNode.data.prompt || '')}
-                            onChange={(e) => updateNodeData('prompt', e.target.value)}
-                            placeholder="Use {{input.query}} to reference inputs..."
-                            className="w-full text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary font-mono"
-                          />
-                        </div>
-                        <div>
-                          <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
-                            <span>Temperature</span>
-                            <span>{String(selectedNode.data.temperature || '0.7')}</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.1"
-                            value={Number(selectedNode.data.temperature ?? 0.7)}
-                            onChange={(e) => updateNodeData('temperature', parseFloat(e.target.value))}
-                            className="w-full accent-primary"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {selectedNode.type === 'HUMAN_APPROVAL' && (
-                      <>
-                        <div>
-                          <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                            Required Role
-                          </label>
-                          <select
-                            value={String(selectedNode.data.requiredRole || 'ADMIN')}
-                            onChange={(e) => updateNodeData('requiredRole', e.target.value)}
-                            className="w-full text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary"
-                          >
-                            <option value="ADMIN">Workspace Admin</option>
-                            <option value="OWNER">Workspace Owner</option>
-                            <option value="MEMBER">Any Team Member</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                            Approval Prompt / Instruction
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={String(selectedNode.data.instruction || '')}
-                            onChange={(e) => updateNodeData('instruction', e.target.value)}
-                            placeholder="Explain why this action requires human sign-off..."
-                            className="w-full text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {selectedNode.type === 'CONDITION' && (
-                      <div>
-                        <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                          Branch Expression
-                        </label>
-                        <input
-                          type="text"
-                          value={String(selectedNode.data.expression || '')}
-                          onChange={(e) => updateNodeData('expression', e.target.value)}
-                          placeholder="{{input.amount}} > 100"
-                          className="w-full text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary font-mono"
-                        />
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          Evaluates to True (left output) or False (right output).
-                        </p>
-                      </div>
-                    )}
-
-                    {selectedNode.type === 'HTTP_REQUEST' && (
-                      <>
-                        <div className="flex gap-2">
-                          <select
-                            value={String(selectedNode.data.method || 'POST')}
-                            onChange={(e) => updateNodeData('method', e.target.value)}
-                            className="text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary w-24"
-                          >
-                            <option value="GET">GET</option>
-                            <option value="POST">POST</option>
-                            <option value="PUT">PUT</option>
-                            <option value="DELETE">DELETE</option>
-                          </select>
-                          <input
-                            type="text"
-                            value={String(selectedNode.data.url || '')}
-                            onChange={(e) => updateNodeData('url', e.target.value)}
-                            placeholder="https://api.example.com/endpoint"
-                            className="flex-1 text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary font-mono"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {selectedNode.type === 'CODE' && (
-                      <div>
-                        <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                          JavaScript / Node.js Code
-                        </label>
-                        <textarea
-                          rows={6}
-                          value={String(selectedNode.data.code || '')}
-                          onChange={(e) => updateNodeData('code', e.target.value)}
-                          placeholder="// Access input variables with `input`\nreturn { result: input.data };"
-                          className="w-full text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary font-mono"
-                        />
-                      </div>
-                    )}
-
-                    {selectedNode.type === 'KNOWLEDGE_RETRIEVAL' && (
-                      <div>
-                        <label className="text-[11px] font-medium text-muted-foreground block mb-1">
-                          Top K Results
-                        </label>
-                        <input
-                          type="number"
-                          value={Number(selectedNode.data.topK || 4)}
-                          onChange={(e) => updateNodeData('topK', parseInt(e.target.value, 10))}
-                          className="w-full text-xs p-2 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {inspectorTab === 'variables' && (
-                  <div className="space-y-3">
-                    <p className="text-[11px] text-muted-foreground">
-                      Available upstream variables you can copy and reference with syntax <code className="bg-muted px-1 rounded text-primary">{'{{variable}}'}</code>:
-                    </p>
-                    <div className="space-y-2">
-                      <div className="p-2 rounded-lg border border-border bg-background/50 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-mono font-semibold text-foreground">
-                            {'{{input.query}}'}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">Initial user prompt / input query</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => {
-                            navigator.clipboard.writeText('{{input.query}}');
-                            toast.success('Copied variable reference');
-                          }}
-                        >
-                          <VariableIcon className="size-3.5" />
-                        </Button>
-                      </div>
-
-                      <div className="p-2 rounded-lg border border-border bg-background/50 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-mono font-semibold text-foreground">
-                            {'{{workspace.id}}'}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">Current workspace identifier</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => {
-                            navigator.clipboard.writeText('{{workspace.id}}');
-                            toast.success('Copied variable reference');
-                          }}
-                        >
-                          <VariableIcon className="size-3.5" />
-                        </Button>
-                      </div>
-
-                      {nodes
-                        .filter((n) => n.id !== selectedNode.id)
-                        .map((n) => (
-                          <div key={n.id} className="p-2 rounded-lg border border-border bg-background/50 flex items-center justify-between">
-                            <div className="min-w-0">
-                              <p className="text-xs font-mono font-semibold text-foreground truncate">
-                                {`{{nodes.${n.id}.output}}`}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground truncate">
-                                Output of {String(n.data.label || n.type)}
-                              </p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              onClick={() => {
-                                navigator.clipboard.writeText(`{{nodes.${n.id}.output}}`);
-                                toast.success('Copied node output variable');
-                              }}
-                            >
-                              <VariableIcon className="size-3.5" />
-                            </Button>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
-                {inspectorTab === 'test' && (
-                  <div className="space-y-3">
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      variant="outline"
-                      leadingIcon={isRunning ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5 text-accent-green" />}
-                      onClick={handleTestRun}
-                      disabled={isRunning}
-                    >
-                      {isRunning ? 'Executing Graph...' : 'Dry Run Workflow'}
-                    </Button>
-
-                    {executionResult ? (
-                      <div className="p-2 rounded-lg border border-border bg-background text-[11px] font-mono overflow-x-auto max-h-[260px]">
-                        <p className="text-accent-green font-semibold mb-1 flex items-center gap-1">
-                          <CheckCircle className="size-3" /> Execution Payload
-                        </p>
-                        <pre className="text-muted-foreground">
-                          {JSON.stringify(executionResult, null, 2)}
-                        </pre>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic text-center py-4">
-                        Click dry run to test variable resolution and node step execution.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+        <aside
+          aria-label="Step settings"
+          className={cn(
+            'z-20 flex h-full w-full max-w-sm shrink-0 flex-col border-l border-border bg-surface',
+            'absolute inset-y-0 right-0 md:static md:w-80',
+            !selected && 'hidden md:flex',
+          )}
+        >
+          {selected ? (
+            <StepInspector
+              node={selected}
+              nodes={nodes}
+              edges={edges}
+              readOnly={!canEdit}
+              onChange={(patch) => updateNodeData(selected.id, patch)}
+              onDelete={() => removeNode(selected)}
+              onClose={() => setSelectedId(null)}
+            />
           ) : (
-            <div className="p-6 text-center text-muted-foreground space-y-3 m-auto">
-              <div className="size-10 rounded-full bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto">
-                <Workflow className="size-5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-foreground">No Node Selected</h4>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Click on any node in the canvas to inspect settings, configure AI prompts, bind variables, or run dry-run tests.
-                </p>
-              </div>
+            <div className="m-auto max-w-xs space-y-2 p-6 text-center">
+              <Workflow className="mx-auto size-6 text-muted-foreground" aria-hidden />
+              <p className="text-sm font-semibold text-foreground">Select a step to set it up</p>
+              <p className="text-xs text-muted-foreground">
+                Steps run top to bottom from the trigger. Drag from a step’s bottom dot to connect the next one; a
+                condition or classifier sends the run down only the branch it picks.
+              </p>
             </div>
           )}
-        </Panel>
+        </aside>
+      </div>
+
+      <RunDialog
+        open={runOpen}
+        onOpenChange={setRunOpen}
+        triggerData={(triggerNode?.data as Record<string, unknown>) ?? {}}
+        running={trigger.isPending || create.isPending || update.isPending}
+        dirty={dirty || !workflow}
+        runsPath={aiPath(slug, 'runs')}
+        onRun={runWith}
+      />
+      {workflow ? (
+        <VersionsDialog
+          open={versionsOpen}
+          onOpenChange={setVersionsOpen}
+          workspaceId={workspaceId as string}
+          workflowId={workflow.id}
+          canEdit={canEdit}
+          dirty={dirty}
+          onRestored={() => {
+            void refresh();
+            onReload();
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function StepPalette({
+  onPick,
+  hasTrigger,
+  onClose,
+}: {
+  onPick: (item: NodeCatalogItem) => void;
+  hasTrigger: boolean;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+  const items = PALETTE.filter((item) => !(hasTrigger && item.type === 'TRIGGER')).filter(
+    (item) => !needle || item.label.toLowerCase().includes(needle) || item.description.toLowerCase().includes(needle),
+  );
+  const groups: Array<[NodeCategory, string]> = [
+    ['triggers', 'Start, finish and approvals'],
+    ['ai', 'AI'],
+    ['knowledge', 'Knowledge and web'],
+    ['logic', 'Logic'],
+    ['tools', 'Tools'],
+  ];
+  return (
+    <Card
+      className="mt-2 flex max-h-[70vh] w-[320px] flex-col rounded-xl border-2 border-border bg-surface p-2 shadow-2xl"
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+    >
+      <Input
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Find a step"
+        aria-label="Find a step"
+        className="h-8 text-xs"
+      />
+      <div className="mt-2 overflow-y-auto">
+        {groups.map(([category, title]) => {
+          const inGroup = items.filter((i) => i.category === category);
+          if (!inGroup.length) return null;
+          return (
+            <div key={category} className="mb-2">
+              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+              {inGroup.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.type}
+                    type="button"
+                    onClick={() => onPick(item)}
+                    className="flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors hover:bg-muted/70 focus-visible:bg-muted/70 focus-visible:outline-none"
+                  >
+                    <span className="shrink-0 rounded-md bg-muted p-1.5">
+                      <Icon className="size-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-semibold text-foreground">{item.label}</span>
+                      <span className="block text-[11px] text-muted-foreground">{item.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/** The `{{…}}` references a step can use: what the steps before it produce. */
+function upstreamVariables(nodeId: string, nodes: Node[], edges: Edge[]) {
+  const before = new Set<string>();
+  const queue = [nodeId];
+  while (queue.length) {
+    const current = queue.shift() as string;
+    for (const e of edges) {
+      if (e.target === current && !before.has(e.source)) {
+        before.add(e.source);
+        queue.push(e.source);
+      }
+    }
+  }
+  const vars: Array<{ ref: string; from: string }> = [];
+  for (const n of nodes) {
+    if (!before.has(n.id)) continue;
+    const data = n.data as Record<string, unknown>;
+    const item = catalogItem(String(n.type));
+    const label = String(data['label'] ?? item?.label ?? n.type);
+    if (n.type === 'TRIGGER' || n.type === 'START') {
+      const kind = String(data['triggerKind'] ?? 'MANUAL');
+      if (kind === 'EVENT' && String(data['event']).startsWith('task.')) {
+        vars.push({ ref: '{{title}}', from: 'the task' }, { ref: '{{taskId}}', from: 'the task' });
+      } else {
+        vars.push({ ref: '{{input.text}}', from: 'the run’s input' });
+      }
+      continue;
+    }
+    if (n.type === 'VARIABLE' && data['name']) vars.push({ ref: `{{${String(data['name'])}}}`, from: label });
+    for (const key of item?.outputs ?? []) vars.push({ ref: `{{${n.id}.${key}}}`, from: label });
+  }
+  return vars;
+}
+
+function StepInspector({
+  node,
+  nodes,
+  edges,
+  readOnly,
+  onChange,
+  onDelete,
+  onClose,
+}: {
+  node: Node;
+  nodes: Node[];
+  edges: Edge[];
+  readOnly: boolean;
+  onChange: (patch: Record<string, unknown>) => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const data = node.data as Record<string, unknown>;
+  const item = catalogItem(String(node.type));
+  const vars = useMemo(() => upstreamVariables(node.id, nodes, edges), [node.id, nodes, edges]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{item?.label ?? node.type}</p>
+          <p className="truncate font-mono text-[10px] text-muted-foreground">id: {node.id}</p>
+        </div>
+        <div className="flex gap-1">
+          {!readOnly ? (
+            <Hint label="Delete step">
+              <Button variant="ghost" size="icon-sm" aria-label="Delete step" onClick={onDelete}>
+                <Trash2 className="size-3.5" />
+              </Button>
+            </Hint>
+          ) : null}
+          <Button variant="ghost" size="sm" className="md:hidden" onClick={onClose}>
+            Done
+          </Button>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+        {item?.legacy ? (
+          <p className="rounded-md bg-warning/10 p-2 text-xs text-warning-text">{item.description}</p>
+        ) : null}
+        <fieldset disabled={readOnly} className="m-0 min-w-0 space-y-3 border-0 p-0">
+          <Field label="Name">
+            <Input value={String(data['label'] ?? '')} onChange={(e) => onChange({ label: e.target.value })} />
+          </Field>
+          {(item?.fields ?? [])
+            .filter((field) => isFieldShown(field, data))
+            .map((field) => (
+              <StepField key={`${node.id}-${field.key}`} field={field} data={data} onChange={onChange} />
+            ))}
+        </fieldset>
+
+        {vars.length > 0 ? (
+          <section aria-labelledby="step-vars" className="border-t border-border pt-3">
+            <h3 id="step-vars" className="mb-1 text-xs font-semibold text-foreground">
+              Values you can use here
+            </h3>
+            <p className="mb-2 text-[11px] text-muted-foreground">Click to copy, then paste into a field.</p>
+            <ul className="space-y-1">
+              {vars.map((v) => (
+                <li key={v.ref}>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(v.ref, 'Reference')}
+                    className="flex w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-2 py-1 text-left hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <code className="truncate font-mono text-[11px] text-foreground">{v.ref}</code>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">{v.from}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+function StepField({
+  field,
+  data,
+  onChange,
+}: {
+  field: WorkflowField;
+  data: Record<string, unknown>;
+  onChange: (patch: Record<string, unknown>) => void;
+}) {
+  const raw = data[field.key];
+  const value = Array.isArray(raw) ? raw.join(', ') : raw === undefined || raw === null ? '' : String(raw);
+  const invalidJson = useMemo(() => {
+    if (field.kind !== 'json' || !value.trim()) return false;
+    try {
+      JSON.parse(value.replace(/\{\{[^}]+\}\}/g, '0'));
+      return false;
+    } catch {
+      return true;
+    }
+  }, [field.kind, value]);
+
+  return (
+    <Field
+      label={field.label}
+      required={field.required}
+      hint={field.hint}
+      error={invalidJson ? 'Not valid JSON yet.' : undefined}
+    >
+      {field.kind === 'textarea' || field.kind === 'json' ? (
+        <Textarea
+          rows={field.kind === 'json' ? 5 : 4}
+          value={value}
+          placeholder={field.placeholder}
+          onChange={(e) => onChange({ [field.key]: e.target.value })}
+          className="font-mono text-xs"
+        />
+      ) : field.kind === 'number' ? (
+        <Input
+          type="number"
+          inputMode="decimal"
+          min={field.min}
+          max={field.max}
+          step={field.step}
+          value={value}
+          onChange={(e) => onChange({ [field.key]: e.target.value === '' ? '' : Number(e.target.value) })}
+        />
+      ) : field.kind === 'select' ? (
+        <Select value={value} onValueChange={(v) => onChange({ [field.key]: v })}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(field.options ?? []).map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : field.kind === 'source' && field.source ? (
+        <BuilderOptionSelect
+          source={field.source}
+          value={value}
+          savedLabel={String(data[`${field.key}Label`] ?? '')}
+          filterValue={field.filterBy ? String(data[field.filterBy] ?? '') : undefined}
+          onChange={(next, label) =>
+            onChange({
+              [field.key]: next,
+              [`${field.key}Label`]: label,
+              // Clearing a provider's model keeps the pair consistent.
+              ...(field.key === 'provider' ? { model: '' } : {}),
+            })
+          }
+        />
+      ) : (
+        <Input
+          value={value}
+          placeholder={field.placeholder}
+          onChange={(e) => onChange({ [field.key]: e.target.value })}
+          className={field.mono ? 'font-mono text-xs' : undefined}
+        />
+      )}
+    </Field>
+  );
+}
+
+function samplePayload(trigger: Record<string, unknown>): string {
+  if (trigger['triggerKind'] === 'EVENT') {
+    const event = String(trigger['event'] ?? 'task.created');
+    if (event.startsWith('task.')) return JSON.stringify({ title: 'Example task', taskId: 'task_123', projectId: null }, null, 2);
+    return JSON.stringify({ trigger: event }, null, 2);
+  }
+  return JSON.stringify({ input: { text: '' } }, null, 2);
+}
+
+function RunDialog({
+  open,
+  onOpenChange,
+  triggerData,
+  running,
+  dirty,
+  runsPath,
+  onRun,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  triggerData: Record<string, unknown>;
+  running: boolean;
+  dirty: boolean;
+  runsPath: string;
+  onRun: (payload: Record<string, unknown>) => Promise<{ runId: string; status: string; results: Array<{ stepId: string; status: string; output: unknown }> } | null>;
+}) {
+  const [text, setText] = useState(() => samplePayload(triggerData));
+  const [result, setResult] = useState<Awaited<ReturnType<typeof onRun>>>(null);
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    const value = JSON.parse(text) as unknown;
+    parsed = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  } catch {
+    parsed = null;
+  }
+  const failed = result?.results.find((r) => r.status === 'FAILED');
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Test run</DialogTitle>
+          <DialogDescription>
+            Runs the workflow for real with this input and records it in Runs.
+            {dirty ? ' Your changes are saved first.' : ''}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 px-5 py-2">
+          <Field label="Input (JSON)" error={parsed ? undefined : 'Enter a JSON object.'}>
+            <Textarea rows={7} value={text} onChange={(e) => setText(e.target.value)} className="font-mono text-xs" />
+          </Field>
+          {result ? (
+            <div role="status" className="space-y-2 rounded-lg border border-border p-3 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <Badge
+                  variant={result.status === 'SUCCESS' ? 'success' : result.status === 'FAILED' ? 'destructive' : 'warning'}
+                >
+                  {result.status === 'SUCCESS' ? 'Completed' : result.status === 'FAILED' ? 'Failed' : 'Waiting for approval'}
+                </Badge>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to={`${runsPath}?run=${result.runId}`}>
+                    Open run <ExternalLink className="size-3.5" />
+                  </Link>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {result.results.length} step{result.results.length === 1 ? '' : 's'} ran. Steps on the canvas are outlined green,
+                red or amber by how they went.
+              </p>
+              {failed ? (
+                <p className="rounded-md bg-destructive/5 p-2 font-mono text-xs text-destructive">
+                  {failed.stepId}: {String((failed.output as { error?: string } | null)?.error ?? 'failed')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button
+            leadingIcon={<Play />}
+            loading={running}
+            disabled={!parsed}
+            onClick={async () => setResult(await onRun(parsed as Record<string, unknown>))}
+          >
+            Run
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function VersionsDialog({
+  open,
+  onOpenChange,
+  workspaceId,
+  workflowId,
+  canEdit,
+  dirty,
+  onRestored,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  workspaceId: string;
+  workflowId: string;
+  canEdit: boolean;
+  dirty: boolean;
+  onRestored: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [summary, setSummary] = useState('');
+  const versions = useQuery({
+    queryKey: queryKeys.automations.versions(workspaceId, workflowId),
+    queryFn: () => automationsApi.versions(workspaceId, workflowId),
+    enabled: open,
+  });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.automations.versions(workspaceId, workflowId) });
+  const snapshot = useMutation({
+    mutationFn: () => automationsApi.createVersion(workspaceId, workflowId, summary.trim() || undefined),
+    onSuccess: () => {
+      toast.success('Version saved');
+      setSummary('');
+      void refresh();
+    },
+    onError: () => toast.error('Could not save a version'),
+  });
+  const restore = useMutation({
+    mutationFn: (version: number) => automationsApi.restoreVersion(workspaceId, workflowId, version),
+    onSuccess: (_row, version) => {
+      toast.success(`Restored v${version}`);
+      onOpenChange(false);
+      onRestored();
+    },
+    onError: () => toast.error('Could not restore that version'),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Versions</DialogTitle>
+          <DialogDescription>Publishing saves a version too. Restoring replaces the canvas with that version.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 px-5 pt-2 pb-5">
+          {canEdit ? (
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                snapshot.mutate();
+              }}
+            >
+              <Input value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="What changed?" aria-label="Version note" />
+              <Button type="submit" variant="outline" loading={snapshot.isPending}>
+                Save version
+              </Button>
+            </form>
+          ) : null}
+          {dirty ? <p className="text-xs text-warning-text">Unsaved canvas changes aren’t part of a version — save first.</p> : null}
+          {versions.isLoading ? (
+            <LoadingState label="Loading versions…" />
+          ) : (versions.data ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No versions yet.</p>
+          ) : (
+            <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-lg border border-border">
+              {(versions.data ?? []).map((v) => (
+                <li key={v.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-semibold text-foreground">v{v.versionNumber}</span>
+                      {v.isPublished ? (
+                        <Badge variant="success" className="text-[10px]">
+                          Published
+                        </Badge>
+                      ) : null}
+                      <span className="text-xs text-muted-foreground">{formatRelative(v.createdAt)}</span>
+                    </div>
+                    {v.changeSummary ? <p className="truncate text-xs text-muted-foreground">{v.changeSummary}</p> : null}
+                  </div>
+                  {canEdit ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      leadingIcon={<RotateCcw />}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `Restore v${v.versionNumber}?`,
+                          description: 'The current canvas is replaced. Save a version first if you may want it back.',
+                          confirmLabel: 'Restore',
+                        });
+                        if (ok) restore.mutate(v.versionNumber);
+                      }}
+                    >
+                      Restore
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

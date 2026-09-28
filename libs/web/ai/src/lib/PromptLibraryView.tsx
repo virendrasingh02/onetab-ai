@@ -16,6 +16,7 @@ import {
   LoadingState,
   Page,
   PageHeader,
+  PageSection,
   Textarea,
   usePromptDialog,
 } from '@org/ui';
@@ -26,7 +27,15 @@ import {
   usePromptTemplates,
 } from './use-ai.js';
 
-export function PromptLibraryView() {
+export interface PromptLibraryViewProps {
+  /**
+   * Rendered as a section inside the AI Workspace rather than as its own page,
+   * which would add a second page heading.
+   */
+  embedded?: boolean;
+}
+
+export function PromptLibraryView({ embedded = false }: PromptLibraryViewProps = {}) {
   const query = usePromptTemplates();
   const { create, remove } = usePromptTemplateMutations();
   const promptDialog = usePromptDialog();
@@ -75,97 +84,91 @@ export function PromptLibraryView() {
 
   const prompts: PromptTemplate[] = query.data ?? [];
 
-  return (
-    <Page>
-      <PageHeader
-        title="Prompt library"
-        description="Pre-built and custom prompt templates for your team."
-        icon={<BookOpen />}
-        accent="blue"
-        actions={
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button leadingIcon={<Plus />}>New template</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New prompt template</DialogTitle>
-              </DialogHeader>
+  const createDialog = (
+    <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+      <DialogTrigger asChild>
+        <Button leadingIcon={<Plus />}>New template</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New prompt template</DialogTitle>
+        </DialogHeader>
 
-              <div className="gap-4 flex flex-col">
-                <div className="space-y-1.5">
-                  <Label htmlFor="prompt-title">Title</Label>
-                  <Input
-                    id="prompt-title"
-                    value={draft.title}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        title: event.target.value,
-                      }))
-                    }
-                    placeholder="Sprint review summary generator"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="prompt-category">
-                    Category{' '}
-                    <span className="text-muted-foreground">(optional)</span>
-                  </Label>
-                  <Input
-                    id="prompt-category"
-                    value={draft.category}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        category: event.target.value,
-                      }))
-                    }
-                    placeholder="Project management"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="prompt-text">Prompt</Label>
-                  <Textarea
-                    id="prompt-text"
-                    value={draft.promptText}
-                    onChange={(event) =>
-                      setDraft((current) => ({
-                        ...current,
-                        promptText: event.target.value,
-                      }))
-                    }
-                    rows={6}
-                    placeholder="Analyze the following tasks and generate a 3-bullet summary for stakeholders:"
-                    className="font-mono text-xs"
-                  />
-                </div>
-              </div>
+        <div className="gap-4 flex flex-col">
+          <div className="space-y-1.5">
+            <Label htmlFor="prompt-title">Title</Label>
+            <Input
+              id="prompt-title"
+              value={draft.title}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  title: event.target.value,
+                }))
+              }
+              placeholder="Sprint review summary generator"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="prompt-category">
+              Category{' '}
+              <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="prompt-category"
+              value={draft.category}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  category: event.target.value,
+                }))
+              }
+              placeholder="Project management"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="prompt-text">Prompt</Label>
+            <Textarea
+              id="prompt-text"
+              value={draft.promptText}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  promptText: event.target.value,
+                }))
+              }
+              rows={6}
+              placeholder="Analyze the following tasks and generate a 3-bullet summary for stakeholders:"
+              className="font-mono text-xs"
+            />
+          </div>
+        </div>
 
-              <DialogFooter>
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsCreateOpen(false)}
-                  disabled={create.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => void submit()}
-                  disabled={
-                    !draft.title.trim() ||
-                    !draft.promptText.trim() ||
-                    create.isPending
-                  }
-                >
-                  {create.isPending ? 'Saving…' : 'Save template'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        }
-      />
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setIsCreateOpen(false)}
+            disabled={create.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => void submit()}
+            disabled={
+              !draft.title.trim() ||
+              !draft.promptText.trim() ||
+              create.isPending
+            }
+          >
+            {create.isPending ? 'Saving…' : 'Save template'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
+  const content = (
+    <>
       {/* The copy result is announced rather than only shown on the button. */}
       <p aria-live="polite" className="sr-only">
         {copiedId ? 'Prompt copied to clipboard' : ''}
@@ -248,6 +251,32 @@ export function PromptLibraryView() {
         </ul>
       )}
 
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <PageSection
+        title="Prompt templates"
+        description="Reusable prompts for the AI Assistant, agents' instructions and workflow LLM steps."
+        actions={createDialog}
+      >
+        {content}
+        {promptDialog.dialog}
+      </PageSection>
+    );
+  }
+
+  return (
+    <Page>
+      <PageHeader
+        title="Prompt library"
+        description="Pre-built and custom prompt templates for your team."
+        icon={<BookOpen />}
+        accent="blue"
+        actions={createDialog}
+      />
+      {content}
       {promptDialog.dialog}
     </Page>
   );

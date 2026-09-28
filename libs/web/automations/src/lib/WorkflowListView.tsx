@@ -1,469 +1,200 @@
 import type { AutomationWorkflowDetail } from '@org/types';
 import {
+  ActionDropdownMenu,
   Badge,
   Button,
   Card,
-  confirm,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   EmptyState,
+  EntityContextMenu,
   ErrorState,
   LoadingState,
   PageSection,
-  Tabs,
-  TabsTrigger,
-  ResponsiveTabsList,
   toast,
-  ActionDropdownMenu,
-  EntityContextMenu,
   type EntityAction,
 } from '@org/ui';
-import { useCurrentWorkspace } from '@org/web-workspace';
-import {
-  Activity,
-  Check,
-  Clock,
-  MoreHorizontal,
-  Play,
-  Plus,
-  SlidersHorizontal,
-  Webhook,
-  Workflow,
-  Zap,
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { buildWorkflowActions, downloadWorkflowConfig } from './workflow-actions.js';
+import { formatRelative } from '@org/utils';
+import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import { CalendarClock, Hand, MoreHorizontal, Play, Plus, Workflow, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useWorkflowMutations, useWorkflows } from './use-automations.js';
+import { WORKFLOW_EVENTS } from './workflow-catalog.js';
+import { buildWorkflowActions, downloadWorkflowConfig } from './workflow-actions.js';
+import { WORKFLOW_TEMPLATES, type WorkflowTemplate } from './workflow-templates.js';
 
 /**
  * Kept as an alias so existing importers of `WorkflowItem` keep working. The
- * list now comes straight from the workspace's `AutomationWorkflow` rows, the
- * same source the sidebar reads, so the two cannot drift.
+ * list comes straight from the workspace's `AutomationWorkflow` rows, the same
+ * source the sidebar reads, so the two cannot drift.
  */
 export type WorkflowItem = AutomationWorkflowDetail;
 
-type TriggerType = 'WEBHOOK' | 'CRON' | 'EVENT';
+function aiPath(slug: string | undefined, ...rest: string[]) {
+  return [`/w/${slug ?? ''}/ai`, ...rest].join('/');
+}
 
-interface WorkflowTemplate {
-  id: string;
-  name: string;
-  description: string;
-  triggerType: TriggerType;
-  /** Icon name — informational only; the card resolves its own icon by trigger. */
-  icon: string;
-  /** The shape of the automation, in the order it runs. */
-  steps: string[];
+/** How a workflow starts, in words. */
+export function describeTrigger(triggerType: string): { label: string; icon: typeof Zap } {
+  if (triggerType === 'CRON') return { label: 'On a schedule', icon: CalendarClock };
+  const event = WORKFLOW_EVENTS.find((e) => e.value === triggerType);
+  if (event) return { label: event.label, icon: Zap };
+  return { label: 'On request', icon: Hand };
 }
 
 /**
- * The pre-built catalogue. "Use template" writes a real, disabled workflow into
- * the workspace with a starter React Flow graph, so it shows up in the sidebar
- * and opens in the canvas like any other.
+ * AI Workspace → Workflows: the workspace's workflows and ready-made ones to
+ * start from. A workflow opens in the canvas editor.
  */
-const workflowTemplates: WorkflowTemplate[] = [
-  {
-    id: 'tpl_pr_review',
-    name: 'Pull request → AI review → channel alert',
-    description:
-      'Reviews every incoming pull request and posts the summary where the team is watching.',
-    triggerType: 'WEBHOOK',
-    icon: 'Plug',
-    steps: ['GitHub webhook', 'AI code review', 'Post to channel'],
-  },
-  {
-    id: 'tpl_standup',
-    name: 'Daily standup digest',
-    description:
-      'Collects yesterday’s task activity each morning and posts a per-person digest.',
-    triggerType: 'CRON',
-    icon: 'Clock',
-    steps: ['Every weekday 09:00', 'Summarise activity', 'Post digest'],
-  },
-  {
-    id: 'tpl_overdue',
-    name: 'Overdue task escalation',
-    description:
-      'Watches task due dates and nudges the assignee, then their lead if it stays overdue.',
-    triggerType: 'EVENT',
-    icon: 'Zap',
-    steps: ['Task overdue', 'Notify assignee', 'Escalate after 24h'],
-  },
-  {
-    id: 'tpl_meeting_notes',
-    name: 'Meeting recap → doc',
-    description:
-      'Turns a finished meeting into a summary document with the action items pulled out.',
-    triggerType: 'EVENT',
-    icon: 'FileText',
-    steps: ['Meeting ended', 'Summarise transcript', 'Create doc'],
-  },
-  {
-    id: 'tpl_inbox_triage',
-    name: 'Inbox triage & routing',
-    description:
-      'Classifies new inbox items hourly and routes each one to the right channel or owner.',
-    triggerType: 'CRON',
-    icon: 'Inbox',
-    steps: ['Hourly sweep', 'Classify items', 'Route to owner'],
-  },
-];
-
-const TRIGGER_ICON: Record<string, typeof Webhook> = {
-  WEBHOOK: Webhook,
-  CRON: Clock,
-  EVENT: Zap,
-};
-
-const TRIGGER_LABEL: Record<string, string> = {
-  WEBHOOK: 'Webhook',
-  CRON: 'Cron',
-  EVENT: 'Event',
-};
-
-/**
- * Turn a template into a React Flow graph the canvas can open: a trigger node
- * followed by one action node per step, wired in a line.
- */
-function templateToGraph(template: WorkflowTemplate): {
-  nodesJson: string;
-  edgesJson: string;
-} {
-  const nodes = [
-    {
-      id: 'node-trigger',
-      type: 'TRIGGER',
-      position: { x: 120, y: 80 },
-      data: { label: `${TRIGGER_LABEL[template.triggerType]} trigger`, subtitle: template.steps[0] ?? '' },
-    },
-    ...template.steps.slice(1).map((step, i) => ({
-      id: `node-step-${i}`,
-      type: 'ACTION',
-      position: { x: 120, y: 220 + i * 140 },
-      data: { label: step, subtitle: '' },
-    })),
-  ];
-  const edges = nodes.slice(0, -1).map((n, i) => ({
-    id: `edge-${i}`,
-    source: n.id,
-    target: nodes[i + 1].id,
-    animated: true,
-  }));
-  return { nodesJson: JSON.stringify(nodes), edgesJson: JSON.stringify(edges) };
-}
-
-type WorkflowTab = 'all' | 'prebuilt' | 'mine';
-
 export function WorkflowListView() {
-  const { workspaceId } = useCurrentWorkspace();
+  const navigate = useNavigate();
+  const { workspaceId, slug } = useCurrentWorkspace();
+  const { can } = useWorkspacePermission();
   const workflowsQuery = useWorkflows(workspaceId);
   const { create, update, remove, trigger } = useWorkflowMutations(workspaceId);
-
   const workflows = workflowsQuery.data ?? [];
 
-  const [searchParams] = useSearchParams();
-  const urlTab = searchParams.get('tab') as WorkflowTab | null;
-  const [tab, setTab] = useState<WorkflowTab>(urlTab ?? 'all');
-  const navigate = useNavigate();
+  const open = (id?: string) => navigate(aiPath(slug, 'workflows', id ?? 'new'));
 
-  useEffect(() => {
-    if (urlTab) setTab(urlTab);
-  }, [urlTab]);
+  const runNow = (workflow: AutomationWorkflowDetail) =>
+    trigger.mutate(
+      { workflowId: workflow.id },
+      {
+        onSuccess: (result) =>
+          toast[result.status === 'FAILED' ? 'error' : 'success'](
+            result.status === 'FAILED'
+              ? `“${workflow.name}” failed`
+              : result.status === 'WAITING_APPROVAL'
+                ? `“${workflow.name}” is waiting for approval`
+                : `“${workflow.name}” ran`,
+            {
+              action: {
+                label: 'Open run',
+                onClick: () => navigate(`${aiPath(slug, 'runs')}?run=${result.runId}`),
+              },
+            },
+          ),
+        onError: (err) =>
+          toast.error(`Could not run “${workflow.name}”`, {
+            description: err instanceof Error ? err.message : undefined,
+          }),
+      },
+    );
 
-  const openBuilder = (workflowId?: string) =>
-    navigate(workflowId ? `builder?id=${workflowId}` : 'builder');
-
-  /*
-   * A saved workflow's contextual actions — the card's right-click menu, its
-   * "⋯" menu and the touch sheet all render this.
-   */
-  const workflowActions = (workflow: AutomationWorkflowDetail) =>
+  const actionsFor = (workflow: AutomationWorkflowDetail): EntityAction[] =>
     buildWorkflowActions({
       workflow,
-      path: `${window.location.pathname.replace(/\/$/, '')}/builder?id=${workflow.id}`,
-      onOpen: () => openBuilder(workflow.id),
-      onRun: () => runNow(workflow),
-      onSetActive: (isActive) =>
-        update.mutateAsync({ workflowId: workflow.id, input: { isActive } }),
-      onViewHistory: () => navigate(`logs?workflow=${workflow.id}`),
-      onDuplicate: async () => {
-        const copy = await create.mutateAsync({
-          name: `${workflow.name} (copy)`,
-          description: workflow.description ?? undefined,
-          triggerType: workflow.triggerType,
-          nodesJson: workflow.nodesJson,
-          edgesJson: workflow.edgesJson,
-        });
-        toast.success(`Duplicated “${workflow.name}”`, {
-          description: 'The copy starts disabled.',
-          action: { label: 'Open', onClick: () => openBuilder(copy.id) },
-        });
-      },
+      path: aiPath(slug, 'workflows', workflow.id),
+      onOpen: () => open(workflow.id),
+      onRun: can('create') ? () => runNow(workflow) : undefined,
+      onSetActive: (isActive) => update.mutateAsync({ workflowId: workflow.id, input: { isActive } }),
+      onViewHistory: () => navigate(`${aiPath(slug, 'runs')}?type=WORKFLOW&entity=${workflow.id}`),
+      onDuplicate: can('create')
+        ? async () => {
+            const copy = await create.mutateAsync({
+              name: `${workflow.name} (copy)`,
+              description: workflow.description ?? undefined,
+              triggerType: workflow.triggerType,
+              nodesJson: workflow.nodesJson,
+              edgesJson: workflow.edgesJson,
+              isActive: false,
+            });
+            toast.success(`Duplicated “${workflow.name}”`, {
+              description: 'The copy starts paused.',
+              action: { label: 'Open', onClick: () => open(copy.id) },
+            });
+          }
+        : undefined,
       onExport: () => downloadWorkflowConfig(workflow),
       onDelete: () => remove.mutateAsync(workflow.id),
     });
 
-  const runNow = (workflow: AutomationWorkflowDetail) => {
-    trigger.mutate(
-      { workflowId: workflow.id },
-      {
-        onSuccess: () =>
-          toast.success(`Triggered "${workflow.name}"`, {
-            description: 'A run was queued — check the execution logs.',
-          }),
-        onError: () =>
-          toast.error(`Could not trigger "${workflow.name}"`),
-      },
-    );
-  };
-
-  /**
-   * Adding and removing are the same action: the workflow that carries the
-   * template's name is the one a second click takes back out.
-   */
-  const toggleTemplate = (template: WorkflowTemplate) => {
-    if (!workspaceId) return;
-    const existing = workflows.find((w) => w.name === template.name);
-    if (existing) {
-      void confirm({
-        title: `Remove the “${template.name}” automation?`,
-        description:
-          'The workflow and any steps you wired up are deleted for the whole workspace. This cannot be undone.',
-        confirmLabel: 'Remove automation',
-        destructive: true,
-      }).then((ok) => {
-        if (ok)
-          remove.mutate(existing.id, {
-            onSuccess: () => toast.info(`Removed "${template.name}"`),
-          });
-      });
-      return;
-    }
-    const graph = templateToGraph(template);
+  /** Always a new, paused workflow — a template can be used more than once. */
+  const startFromTemplate = (template: WorkflowTemplate) => {
+    const graph = template.build();
+    const taken = new Set(workflows.map((w) => w.name));
+    let name = template.name;
+    for (let n = 2; taken.has(name); n++) name = `${template.name} (${n})`;
     create.mutate(
       {
-        name: template.name,
+        name,
         description: template.description,
-        triggerType: template.triggerType,
-        nodesJson: graph.nodesJson,
-        edgesJson: graph.edgesJson,
+        triggerType: graph.triggerType,
+        nodesJson: JSON.stringify(graph.nodes),
+        edgesJson: JSON.stringify(graph.edges),
+        isActive: false,
       },
       {
         onSuccess: (wf) => {
-          toast.success(`Added "${template.name}"`, {
-            description: 'Disabled until you open it and wire up the steps.',
-          });
-          setTab('all');
-          navigate(`builder?id=${wf.id}`);
+          toast.success(`Created “${name}”`, { description: 'It starts paused. Check each step, test it, then publish.' });
+          open(wf.id);
         },
-        onError: () => toast.error(`Could not add "${template.name}"`),
+        onError: () => toast.error(`Could not create “${template.name}”`),
       },
     );
   };
 
-  if (workflowsQuery.isLoading) {
-    return (
-      <div className="min-h-0 flex flex-1 flex-col p-6">
-        <LoadingState label="Loading automations…" />
-      </div>
-    );
-  }
-
+  if (workflowsQuery.isLoading) return <LoadingState label="Loading workflows…" />;
   if (workflowsQuery.isError) {
-    return (
-      <div className="min-h-0 flex flex-1 flex-col p-6">
-        <ErrorState
-          title="Couldn’t load automations"
-          description="The workflow list failed to load."
-          onRetry={() => workflowsQuery.refetch()}
-        />
-      </div>
-    );
+    return <ErrorState title="Couldn’t load workflows" onRetry={() => workflowsQuery.refetch()} />;
   }
-
-  const templateIsAdded = (template: WorkflowTemplate) =>
-    workflows.some((w) => w.name === template.name);
 
   return (
-    <div className="min-h-0 flex flex-1 flex-col">
-      {/* Channel-style Header */}
-      <div className="border-b border-border bg-background">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
-          <div className="min-w-0 gap-2 flex items-center">
-            <div className="min-w-0 gap-1.5 flex items-center">
-              <Zap
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-                Automations
-              </h2>
-              <Badge
-                variant="neutral"
-                className="px-1.5 py-0 h-4.5 text-[11px]"
-              >
-                {workflows.length} workflows
-              </Badge>
-            </div>
-          </div>
-
-          <div className="gap-2 flex items-center">
-            <Button
-              onClick={() => openBuilder()}
-              size="sm"
-              className="h-7 text-xs gap-1"
-              leadingIcon={<Plus className="size-3.5" />}
-            >
-              New Workflow
+    <div className="space-y-8">
+      <PageSection
+        title={`Workflows (${workflows.length})`}
+        actions={
+          can('create') ? (
+            <Button size="sm" leadingIcon={<Plus />} onClick={() => open()}>
+              New workflow
             </Button>
-
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-7 text-muted-foreground hover:text-foreground"
-                  aria-label="More automation options"
-                >
-                  <MoreHorizontal className="size-4" />
+          ) : undefined
+        }
+      >
+        {workflows.length === 0 ? (
+          <EmptyState
+            icon={<Workflow />}
+            title="No workflows yet"
+            description="A workflow runs steps in order when its trigger fires — ask an agent, search knowledge, branch on a condition, wait for approval. Start from a template below or build one."
+            action={
+              can('create') ? (
+                <Button leadingIcon={<Plus />} onClick={() => open()}>
+                  Build a workflow
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  onSelect={() => openBuilder()}
-                  className="gap-2 text-xs"
-                >
-                  <Plus className="size-3.5 text-muted-foreground" />
-                  <span>Create new workflow</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => navigate('logs')}
-                  className="gap-2 text-xs"
-                >
-                  <Activity className="size-3.5 text-muted-foreground" />
-                  <span>Execution logs</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setTab('prebuilt')}
-                  className="gap-2 text-xs"
-                >
-                  <Workflow className="size-3.5 text-muted-foreground" />
-                  <span>Browse templates</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+              ) : undefined
+            }
+          />
+        ) : (
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {workflows.map((workflow) => (
+              <li key={workflow.id}>
+                <WorkflowCard
+                  workflow={workflow}
+                  onOpen={() => open(workflow.id)}
+                  onRun={can('create') ? () => runNow(workflow) : undefined}
+                  running={trigger.isPending && trigger.variables?.workflowId === workflow.id}
+                  actions={() => actionsFor(workflow)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </PageSection>
 
-        {/* Tab Navigation */}
-        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
-          <Tabs
-            value={tab}
-            onValueChange={(next) => setTab(next as WorkflowTab)}
-          >
-            <ResponsiveTabsList variant="underline" size="sm" className="border-b-0 min-w-0 w-full">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="prebuilt">Templates</TabsTrigger>
-              <TabsTrigger value="mine">Managed by you</TabsTrigger>
-            </ResponsiveTabsList>
-          </Tabs>
-        </div>
-      </div>
-
-      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto">
-          {tab === 'all' ? (
-            <>
-              {workflows.length > 0 ? (
-                <PageSection title={`Managed by you (${workflows.length})`}>
-                  <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
-                    {workflows.map((workflow) => (
-                      <li key={workflow.id}>
-                        <SavedWorkflowCard
-                          workflow={workflow}
-                          onOpen={() => openBuilder(workflow.id)}
-                          onRun={() => runNow(workflow)}
-                          running={trigger.isPending}
-                          actions={() => workflowActions(workflow)}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </PageSection>
-              ) : null}
-
-              <PageSection title={`Templates (${workflowTemplates.length})`}>
-                <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
-                  {workflowTemplates.map((template) => (
-                    <li key={template.id}>
-                      <TemplateCard
-                        template={template}
-                        added={templateIsAdded(template)}
-                        busy={create.isPending || remove.isPending}
-                        onToggle={() => toggleTemplate(template)}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </PageSection>
-            </>
-          ) : tab === 'mine' ? (
-            workflows.length === 0 ? (
-              <EmptyState
-                icon={<Workflow />}
-                title="No workflows yet"
-                description="Build one on the canvas, or add a pre-built automation and edit it from there."
-                action={
-                  <Button leadingIcon={<Plus />} onClick={() => openBuilder()}>
-                    Create workflow
-                  </Button>
-                }
-                secondaryAction={
-                  <Button variant="ghost" onClick={() => setTab('prebuilt')}>
-                    Browse pre-built workflows
-                  </Button>
-                }
-              />
-            ) : (
-              <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
-                {workflows.map((workflow) => (
-                  <li key={workflow.id}>
-                    <SavedWorkflowCard
-                      workflow={workflow}
-                      onOpen={() => openBuilder(workflow.id)}
-                      onRun={() => runNow(workflow)}
-                      running={trigger.isPending}
-                      actions={() => workflowActions(workflow)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )
-          ) : (
-            <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
-              {workflowTemplates.map((template) => (
-                <li key={template.id}>
-                  <TemplateCard
-                    template={template}
-                    added={templateIsAdded(template)}
-                    busy={create.isPending || remove.isPending}
-                    onToggle={() => toggleTemplate(template)}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      {can('create') ? (
+        <PageSection title="Start from a template" description="Each creates a new workflow, paused until you publish it.">
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {WORKFLOW_TEMPLATES.map((template) => (
+              <li key={template.id}>
+                <TemplateCard template={template} busy={create.isPending} onUse={() => startFromTemplate(template)} />
+              </li>
+            ))}
+          </ul>
+        </PageSection>
+      ) : null}
     </div>
   );
 }
 
-/* --------------------------------------------------------------- parts ---- */
-
-function SavedWorkflowCard({
+function WorkflowCard({
   workflow,
   onOpen,
   onRun,
@@ -472,150 +203,82 @@ function SavedWorkflowCard({
 }: {
   workflow: AutomationWorkflowDetail;
   onOpen: () => void;
-  onRun: () => void;
+  onRun?: () => void;
   running: boolean;
   actions: () => EntityAction[];
 }) {
-  const TriggerIcon = TRIGGER_ICON[workflow.triggerType] ?? Zap;
-
+  const trigger = describeTrigger(workflow.triggerType);
+  const TriggerIcon = trigger.icon;
   return (
-    <EntityContextMenu
-      actions={actions}
-      scope={`workflow:${workflow.id}`}
-      entityType="workflow"
-      entity={workflow}
-      label={workflow.name}
-    >
-    <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
-      <div>
-        <div className="mb-3 gap-2 flex items-center justify-between">
-          <Badge variant="warning" className="font-mono uppercase">
-            <TriggerIcon aria-hidden />
-            {workflow.triggerType}
+    <EntityContextMenu actions={actions} scope={`workflow:${workflow.id}`} entityType="workflow" entity={workflow} label={workflow.name}>
+      <Card className="flex h-full flex-col gap-3 p-4 transition-colors hover:border-border-strong">
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant="neutral" className="gap-1 text-[10px]">
+            <TriggerIcon className="size-3" aria-hidden />
+            {trigger.label}
           </Badge>
-          <Badge variant={workflow.isActive ? 'success' : 'neutral'}>
-            {workflow.isActive ? 'Active' : 'Disabled'}
+          <Badge variant={workflow.isActive ? 'success' : 'neutral'} className="text-[10px]">
+            {workflow.isActive ? 'On' : 'Paused'}
           </Badge>
         </div>
-
-        <h2 className="mb-2 text-sm font-semibold text-foreground">
-          {workflow.name}
-        </h2>
-
-        <dl className="mb-4 gap-4 text-xs flex items-center text-muted-foreground">
-          <div className="gap-1 flex">
-            <dt>Runs:</dt>
-            <dd className="font-medium text-foreground tabular-nums">
-              {workflow._count?.executions ?? 0}
-            </dd>
-          </div>
-          <div className="gap-1 flex">
-            <dt>Updated:</dt>
-            <dd className="font-medium text-foreground">
-              {new Date(workflow.updatedAt).toLocaleDateString()}
-            </dd>
-          </div>
-        </dl>
-      </div>
-
-      <div className="gap-2 flex">
-        <Button
-          variant="secondary"
-          size="sm"
-          className="flex-1"
-          onClick={onRun}
-          disabled={running}
-          leadingIcon={<Play className="text-success" />}
-        >
-          Run now
-          <span className="sr-only"> — {workflow.name}</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
+        <button
+          type="button"
           onClick={onOpen}
-          title={`Edit ${workflow.name}`}
+          className="text-left text-sm font-semibold text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <SlidersHorizontal aria-hidden />
-          <span className="sr-only">Edit {workflow.name}</span>
-        </Button>
-        <ActionDropdownMenu
-          actions={actions}
-          scope={`workflow:${workflow.id}`}
-          entityType="workflow"
-          entity={workflow}
-          trigger={
-            <Button variant="ghost" size="icon-sm" title={`More actions for ${workflow.name}`}>
-              <MoreHorizontal aria-hidden />
-              <span className="sr-only">More actions for {workflow.name}</span>
+          {workflow.name}
+        </button>
+        {workflow.description ? <p className="line-clamp-2 text-xs text-muted-foreground">{workflow.description}</p> : null}
+        <p className="mt-auto text-[11px] text-muted-foreground">
+          {workflow._count?.executions ?? 0} runs · updated {formatRelative(workflow.updatedAt)}
+        </p>
+        <div className="flex gap-2">
+          {onRun ? (
+            <Button variant="secondary" size="sm" className="flex-1" onClick={onRun} loading={running} leadingIcon={<Play />}>
+              Run now<span className="sr-only"> — {workflow.name}</span>
             </Button>
-          }
-        />
-      </div>
-    </Card>
+          ) : null}
+          <Button variant="outline" size="sm" className="flex-1" onClick={onOpen}>
+            Open<span className="sr-only"> {workflow.name}</span>
+          </Button>
+          <ActionDropdownMenu
+            actions={actions}
+            scope={`workflow:${workflow.id}`}
+            entityType="workflow"
+            entity={workflow}
+            trigger={
+              <Button variant="ghost" size="icon-sm" aria-label={`More actions for ${workflow.name}`}>
+                <MoreHorizontal aria-hidden />
+              </Button>
+            }
+          />
+        </div>
+      </Card>
     </EntityContextMenu>
   );
 }
 
-function TemplateCard({
-  template,
-  added,
-  busy,
-  onToggle,
-}: {
-  template: WorkflowTemplate;
-  added: boolean;
-  busy: boolean;
-  onToggle: () => void;
-}) {
-  const TriggerIcon = TRIGGER_ICON[template.triggerType];
-
+function TemplateCard({ template, busy, onUse }: { template: WorkflowTemplate; busy: boolean; onUse: () => void }) {
+  const trigger = describeTrigger(template.trigger === 'EVENT' ? 'task.created' : template.trigger);
+  const TriggerIcon = trigger.icon;
   return (
-    <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
-      <div>
-        <div className="mb-3 gap-2 flex items-center justify-between">
-          <Badge variant="warning" className="font-mono uppercase">
-            <TriggerIcon aria-hidden />
-            {template.triggerType}
-          </Badge>
-          {added ? <Badge variant="success">Added</Badge> : null}
-        </div>
-
-        <h2 className="mb-2 text-sm font-semibold text-foreground">
-          {template.name}
-        </h2>
-
-        <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-          {template.description}
-        </p>
-
-        {/* The steps read as a sequence, so they are chevron-separated rather
-            than a bag of badges like an agent's tools. */}
-        <ol
-          aria-label={`Steps in ${template.name}`}
-          className="mb-4 gap-1 flex flex-wrap items-center text-[11px] text-muted-foreground"
-        >
-          {template.steps.map((step, index) => (
-            <li key={step} className="gap-1 flex items-center">
-              {index > 0 ? <span aria-hidden>→</span> : null}
-              <span className="px-1.5 py-0.5 rounded-md border bg-surface-inset">
-                {step}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <Button
-        variant={added ? 'outline' : 'primary'}
-        size="sm"
-        className="w-full"
-        onClick={onToggle}
-        disabled={busy}
-        leadingIcon={added ? <Check className="text-success" /> : <Plus />}
-      >
-        {added ? 'Added' : 'Use template'}
-        <span className="sr-only"> — {template.name}</span>
+    <Card className="flex h-full flex-col gap-3 p-4">
+      <Badge variant="neutral" className="w-fit gap-1 text-[10px]">
+        <TriggerIcon className="size-3" aria-hidden />
+        {trigger.label}
+      </Badge>
+      <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>
+      <p className="text-xs leading-relaxed text-muted-foreground">{template.description}</p>
+      <ol aria-label={`Steps in ${template.name}`} className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+        {template.steps.map((step, index) => (
+          <li key={step} className="flex items-center gap-1">
+            {index > 0 ? <span aria-hidden>→</span> : null}
+            <span className="rounded-md border bg-surface-inset px-1.5 py-0.5">{step}</span>
+          </li>
+        ))}
+      </ol>
+      <Button variant="outline" size="sm" className="mt-auto" onClick={onUse} disabled={busy} leadingIcon={<Plus />}>
+        Use template<span className="sr-only"> — {template.name}</span>
       </Button>
     </Card>
   );

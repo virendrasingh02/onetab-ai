@@ -4,6 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { CacheService } from '@org/api-cache';
+import { isPrivateOrReservedIp, publicOnlyLookup } from '@org/api-common';
 import type {
   LinkPreview,
   LinkPreviewStatus,
@@ -101,82 +102,12 @@ export class LinkPreviewService {
   }
 
   /**
-   * Checks whether an IP address is a private, loopback, link-local, or reserved address.
+   * Checks whether an IP address is a private, loopback, link-local, or
+   * reserved address — the shared SSRF classifier in `@org/api-common`.
    */
   isPrivateOrBlockedIp(ip: string): boolean {
     if (!ip) return true;
-
-    // IPv4-mapped IPv6 address (e.g. ::ffff:192.168.1.1)
-    if (ip.toLowerCase().startsWith('::ffff:')) {
-      const v4Part = ip.slice(7);
-      if (net.isIPv4(v4Part)) {
-        return this.isPrivateOrBlockedIp(v4Part);
-      }
-    }
-
-    if (net.isIPv4(ip)) {
-      const parts = ip.split('.').map(Number);
-      if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) {
-        return true;
-      }
-      const [a, b] = parts;
-
-      // 0.0.0.0/8 (Current network)
-      if (a === 0) return true;
-      // 10.0.0.0/8 (Private)
-      if (a === 10) return true;
-      // 100.64.0.0/10 (Carrier-grade NAT 100.64.0.0 - 100.127.255.255)
-      if (a === 100 && b >= 64 && b <= 127) return true;
-      // 127.0.0.0/8 (Loopback)
-      if (a === 127) return true;
-      // 169.254.0.0/16 (Link-local / AWS / GCP metadata)
-      if (a === 169 && b === 254) return true;
-      // 172.16.0.0/12 (Private 172.16.0.0 - 172.31.255.255)
-      if (a === 172 && b >= 16 && b <= 31) return true;
-      // 192.0.0.0/24 (IETF Protocol Assignments)
-      if (a === 192 && b === 0 && parts[2] === 0) return true;
-      // 192.0.2.0/24 (TEST-NET-1)
-      if (a === 192 && b === 0 && parts[2] === 2) return true;
-      // 192.168.0.0/16 (Private)
-      if (a === 192 && b === 168) return true;
-      // 198.18.0.0/15 (Network benchmark tests)
-      if (a === 198 && (b === 18 || b === 19)) return true;
-      // 198.51.100.0/24 (TEST-NET-2)
-      if (a === 198 && b === 51 && parts[2] === 100) return true;
-      // 203.0.113.0/24 (TEST-NET-3)
-      if (a === 203 && b === 0 && parts[2] === 113) return true;
-      // 224.0.0.0/4 (Multicast 224.0.0.0 - 239.255.255.255)
-      if (a >= 224 && a <= 239) return true;
-      // 240.0.0.0/4 (Reserved 240.0.0.0 - 255.255.255.254)
-      if (a >= 240) return true;
-      // 255.255.255.255 (Broadcast)
-      if (ip === '255.255.255.255') return true;
-
-      return false;
-    }
-
-    if (net.isIPv6(ip)) {
-      const lower = ip.toLowerCase();
-      // ::1 (Loopback)
-      if (lower === '::1') return true;
-      // :: (Unspecified)
-      if (lower === '::') return true;
-      // fc00::/7 (Unique Local Address fc00... / fd00...)
-      if (lower.startsWith('fc') || lower.startsWith('fd')) return true;
-      // fe80::/10 (Link-Local Address fe8... / fe9... / fea... / feb...)
-      if (
-        lower.startsWith('fe8') ||
-        lower.startsWith('fe9') ||
-        lower.startsWith('fea') ||
-        lower.startsWith('feb')
-      ) {
-        return true;
-      }
-
-      return false;
-    }
-
-    return true;
+    return isPrivateOrReservedIp(ip);
   }
 
   /**
@@ -256,27 +187,13 @@ export class LinkPreviewService {
    * by verifying the resolved IP on every socket connection.
    */
   private createSafeAgent(protocol: string) {
-    const isHttps = protocol === 'https:';
-    const AgentClass = isHttps ? https.Agent : http.Agent;
-
+    const AgentClass = protocol === 'https:' ? https.Agent : http.Agent;
+    // `publicOnlyLookup` re-checks the resolved address when the socket opens,
+    // so a DNS answer that changes after validation cannot reach a private IP.
     return new AgentClass({
       keepAlive: false,
       timeout: REQUEST_TIMEOUT_MS,
-      lookup: (hostname, options, callback) => {
-        dns.lookup(hostname, options, (err, address, family) => {
-          if (err) return callback(err, address, family);
-          if (typeof address === 'string' && this.isPrivateOrBlockedIp(address)) {
-            return callback(
-              new Error(
-                `DNS rebinding blocked: resolved to private IP "${address}"`,
-              ),
-              address,
-              family,
-            );
-          }
-          callback(null, address, family);
-        });
-      },
+      lookup: publicOnlyLookup,
     });
   }
 

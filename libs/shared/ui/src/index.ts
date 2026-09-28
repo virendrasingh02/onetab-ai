@@ -722,6 +722,8 @@ export {
   type AIExecutionStepStatus,
 } from './lib/components/ai-execution-timeline.js';
 
+export { AIRunStatusBadge, toTimelineSteps } from './lib/components/ai-run-status.js';
+
 export {
   AIThinkingState,
   type AIThinkingStateProps,

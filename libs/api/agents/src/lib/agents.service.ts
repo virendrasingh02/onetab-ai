@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppEvent } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import type { AgentToolExecution } from '@org/types';
+import { deriveAgentFromGraph, type AgentToolExecution } from '@org/types';
 import { AIEntitiesService } from './ai-entities.service.js';
 import { AIRuntimeService } from './ai-runtime.service.js';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
@@ -104,6 +104,12 @@ export class AgentsService {
   // AI Agent Studio: Validation, Versioning, Publishing & Workflow Execution
   // -------------------------------------------------------------------------
 
+  /**
+   * Checks a graph before it is published. A builder graph is judged by what
+   * it will run with (`deriveAgentFromGraph`) — the same mapping the save path
+   * applies. A graph the former Agent Studio wrote is flagged for conversion:
+   * it cannot be published as-is, because nothing executes that shape any more.
+   */
   validateGraph(graphJson?: string | null): {
     valid: boolean;
     errors: string[];
@@ -113,71 +119,51 @@ export class AgentsService {
     const warnings: string[] = [];
 
     if (!graphJson) {
-      return { valid: false, errors: ['Workflow canvas is empty.'], warnings: [] };
+      return { valid: false, errors: ['The canvas is empty.'], warnings: [] };
     }
 
-    try {
-      const parsed = JSON.parse(graphJson);
-      const nodes: any[] = Array.isArray(parsed?.nodes)
-        ? parsed.nodes
-        : Array.isArray(parsed)
-        ? parsed
-        : [];
-      const edges: any[] = Array.isArray(parsed?.edges) ? parsed.edges : [];
-
-      if (nodes.length === 0) {
-        errors.push('No nodes present on the workflow canvas.');
-        return { valid: false, errors, warnings };
+    const derived = deriveAgentFromGraph(graphJson);
+    if (!derived) {
+      let parsed = false;
+      try {
+        JSON.parse(graphJson);
+        parsed = true;
+      } catch {
+        /* reported below */
       }
-
-      const hasStart = nodes.some(
-        (n) => (n.type || '').toUpperCase() === 'START' || (n.type || '').toUpperCase() === 'TRIGGER',
-      );
-      if (!hasStart) {
-        errors.push('Missing Start node. Every workflow requires a Start entrypoint.');
-      }
-
-      const hasEnd = nodes.some(
-        (n) => (n.type || '').toUpperCase() === 'END' || (n.type || '').toUpperCase() === 'OUTPUT',
-      );
-      if (!hasEnd) {
-        warnings.push('No explicit End node defined. Workflow will terminate at terminal branch.');
-      }
-
-      // Validate node configurations
-      for (const node of nodes) {
-        const type = (node.type || '').toUpperCase();
-        const cfg = node.data?.config || node.data || {};
-        const label = node.data?.label || node.id;
-
-        if (type === 'AGENT') {
-          if (!cfg.instructions && !cfg.prompt && !cfg.systemPrompt) {
-            warnings.push(`Agent node "${label}" has no custom instructions configured.`);
-          }
-        } else if (type === 'TOOL' || type === 'MCP' || type === 'MCP_TOOL') {
-          if (!cfg.toolName && !cfg.tool) {
-            errors.push(`Tool node "${label}" does not specify an MCP tool.`);
-          }
-        } else if (type === 'CONDITION' || type === 'IF_ELSE') {
-          if (!cfg.variable && !cfg.path) {
-            warnings.push(`Condition node "${label}" missing comparison variable.`);
-          }
-        }
-      }
-
-      // Check for disconnected nodes (if more than 1 node)
-      if (nodes.length > 1 && edges.length === 0) {
-        warnings.push('Canvas nodes are disconnected. Connect nodes with edges to establish execution flow.');
-      }
-    } catch {
-      errors.push('Invalid workflow JSON graph format.');
+      return {
+        valid: false,
+        errors: [
+          parsed
+            ? 'This graph uses the old Agent Studio format. Open it in the AI Workspace builder to convert it, then publish.'
+            : 'The graph is not valid JSON.',
+        ],
+        warnings: [],
+      };
     }
 
-    return {
-      valid: errors.length === 0,
-      errors,
-      warnings,
-    };
+    if (!derived.name) errors.push('Give the agent a name on its Agent core node.');
+    if (!derived.systemPrompt) {
+      errors.push('Add an Instructions node with a system prompt.');
+    }
+    if (!derived.model) {
+      warnings.push('No Model node — the agent will use the workspace default model.');
+    }
+
+    const known = new Set(this.mcpRegistry.getToolDefinitions().map((t: { name: string }) => t.name));
+    for (const tool of derived.tools) {
+      if (!tool.startsWith('mcp') && !known.has(tool)) {
+        errors.push(`Tool '${tool}' does not exist. Pick one from the tool list.`);
+      }
+    }
+    if (derived.tools.length === 0) {
+      warnings.push('No tools — the agent can only answer from its instructions and knowledge.');
+    }
+    if (derived.runtime.outputs.length > 0 && derived.runtime.schedules.length === 0) {
+      warnings.push('Outputs only apply to scheduled runs; add a schedule trigger or remove them.');
+    }
+
+    return { valid: errors.length === 0, errors, warnings };
   }
 
   async publishAgent(
@@ -346,14 +332,22 @@ export class AgentsService {
     const target = versions.find((v) => v.version === versionNumber);
     if (!target) throw new NotFoundException(`Version ${versionNumber} not found.`);
 
+    // A builder graph is restored through the normal save path so everything
+    // derived from it (instructions, tools, runtime settings, schedules) is
+    // restored with it, not just the canvas.
+    if (target.graphJson) {
+      await this.entitiesService.updateEntity(workspaceId, agent.id, {
+        graphJson: target.graphJson,
+      });
+    }
+    const fresh = await this.prisma.aIAgent.findUniqueOrThrow({ where: { id: agent.id } });
     const updated = await this.prisma.aIAgent.update({
       where: { id: agent.id },
       data: {
-        ...(target.graphJson ? { graphJson: target.graphJson } : {}),
         ...(target.model ? { model: target.model } : {}),
         ...(target.provider ? { provider: target.provider } : {}),
         configuration: {
-          ...currentConfig,
+          ...((fresh.configuration as Record<string, any>) || currentConfig),
           restoredFromVersion: versionNumber,
         },
       },
@@ -362,295 +356,96 @@ export class AgentsService {
     return { success: true, agent: updated, restoredVersion: target };
   }
 
+  /**
+   * A test run from the builder: one real turn through `AIRuntimeService`, with
+   * the agent's saved configuration, recorded like any other run. Returned as
+   * a trace (one step per tool call, then the answer) for the test console.
+   *
+   * This replaces a separate graph interpreter that re-implemented a subset of
+   * the workflow engine (and fetched scrape URLs without the SSRF guard): an
+   * agent now behaves the same in a test as it does in chat.
+   */
   async testRunWorkflow(
     workspaceId: string,
     agentId: string,
     payload: Record<string, unknown> = {},
-    userId?: string,
+    _userId?: string,
   ) {
     const agent = await this.prisma.aIAgent.findFirst({
       where: { id: agentId, workspaceId, type: 'agent' },
+      select: { id: true, name: true },
     });
     if (!agent) throw new NotFoundException('Agent not found.');
 
-    const startTime = Date.now();
-    let totalTokens = 0;
-    const stepsTrace: any[] = [];
-    let overallStatus: 'SUCCESS' | 'WAITING_APPROVAL' | 'FAILED' = 'SUCCESS';
-    let outputData: unknown = {};
+    const prompt =
+      [payload['message'], payload['input'], payload['prompt']].find(
+        (v): v is string => typeof v === 'string' && v.trim().length > 0,
+      ) ?? 'Introduce yourself and describe what you can do.';
 
-    // 1. Create AIExecution record
-    const aiExecution = await this.prisma.aIExecution.create({
-      data: {
-        workspaceId,
-        userId: userId ?? null,
-        entityType: 'AGENT',
-        entityId: agent.id,
-        agentId: agent.id,
-        version: ((agent.configuration as any)?.currentVersion as number) || 1,
-        status: 'RUNNING',
-        stateJson: payload as any,
-        model: agent.model,
-      },
-    });
-
-    // 2. Parse nodes and edges from agent graph
-    let nodes: any[] = [];
-    let edges: any[] = [];
-    if (agent.graphJson) {
-      try {
-        const parsed = JSON.parse(agent.graphJson);
-        nodes = Array.isArray(parsed?.nodes) ? parsed.nodes : Array.isArray(parsed) ? parsed : [];
-        edges = Array.isArray(parsed?.edges) ? parsed.edges : [];
-      } catch {
-        nodes = [];
-      }
-    }
-
-    const context: Record<string, unknown> = {
-      ...payload,
-      workspaceId,
-      agentId: agent.id,
-      executionId: aiExecution.id,
-      input: payload['message'] || payload['input'] || payload['prompt'] || 'Run agent test',
-    };
-
-    // If no nodes, execute simple turn
-    if (nodes.length === 0) {
-      const prompt = String(context['input']);
-      const run = await this.runtimeService.executeTurn(workspaceId, agent.id, prompt, {});
-      const duration = Date.now() - startTime;
-      // Flat per-turn estimate until the runtime reports real usage.
-      const turnTokens = 250;
-
-      await this.prisma.aIExecutionStep.create({
-        data: {
-          executionId: aiExecution.id,
-          stepId: 'agent-turn',
+    const startedAt = Date.now();
+    try {
+      const run = await this.runtimeService.executeTurn(workspaceId, agentId, prompt, {});
+      const waiting = run.tools.some(
+        (t) => (t.output as { pendingApproval?: boolean } | undefined)?.pendingApproval,
+      );
+      const steps = [
+        ...run.tools.map((tool) => ({
+          stepId: tool.id,
+          nodeType: 'TOOL',
+          label: tool.name,
+          status:
+            (tool.output as { pendingApproval?: boolean } | undefined)?.pendingApproval
+              ? 'WAITING'
+              : tool.status === 'failed'
+                ? 'FAILED'
+                : 'SUCCESS',
+          output: tool.error ? { error: tool.error } : tool.output,
+          latencyMs: tool.durationMs ?? 0,
+          tokensUsed: 0,
+        })),
+        {
+          stepId: 'answer',
           nodeType: 'AGENT',
+          label: agent.name,
           status: 'SUCCESS',
-          inputJson: { prompt } as any,
-          outputJson: { result: run.result, tools: run.tools } as any,
-          latencyMs: duration,
-          tokensUsed: turnTokens,
+          output: run.result,
+          latencyMs: Date.now() - startedAt,
+          tokensUsed: run.tokensUsed,
         },
-      });
-
-      await this.prisma.aIExecution.update({
-        where: { id: aiExecution.id },
-        data: {
-          status: 'COMPLETED',
-          finishedAt: new Date(),
-          latencyMs: duration,
-          tokensUsed: turnTokens,
-          totalCost: Number((turnTokens * 0.000002).toFixed(5)),
-        },
-      });
-
+      ];
       return {
-        executionId: aiExecution.id,
-        status: 'SUCCESS',
+        executionId: run.executionId ?? null,
+        status: waiting ? 'WAITING_APPROVAL' : 'SUCCESS',
+        steps,
+        output: run.result,
+        notices: run.notices ?? [],
+        duration: Date.now() - startedAt,
+        tokensUsed: run.tokensUsed,
+        credits: Math.max(1, Math.ceil(run.tokensUsed / 500)),
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        executionId: null,
+        status: 'FAILED',
         steps: [
           {
-            stepId: 'agent-turn',
+            stepId: 'answer',
             nodeType: 'AGENT',
             label: agent.name,
-            status: 'SUCCESS',
-            output: run.result,
-            latencyMs: duration,
-            tokensUsed: turnTokens,
+            status: 'FAILED',
+            output: { error: message },
+            latencyMs: Date.now() - startedAt,
+            tokensUsed: 0,
           },
         ],
-        output: run.result,
-        duration,
-        tokensUsed: turnTokens,
-        credits: 1,
+        output: message,
+        notices: [],
+        duration: Date.now() - startedAt,
+        tokensUsed: 0,
+        credits: 0,
       };
     }
-
-    // Graph Execution: find Start node or first node
-    const startNode =
-      nodes.find(
-        (n) => (n.type || '').toUpperCase() === 'START' || (n.type || '').toUpperCase() === 'TRIGGER',
-      ) || nodes[0];
-
-    const queue: string[] = [startNode.id];
-    const visited = new Set<string>();
-
-    while (queue.length > 0) {
-      const currentId = queue.shift()!;
-      if (visited.has(currentId)) continue;
-      visited.add(currentId);
-
-      const node = nodes.find((n) => n.id === currentId);
-      if (!node) continue;
-
-      const stepStart = Date.now();
-      const nodeType = (node.type || '').toUpperCase();
-      const cfg = node.data?.config || node.data || {};
-      const label = node.data?.label || node.id;
-      let stepStatus: 'SUCCESS' | 'FAILED' | 'WAITING' = 'SUCCESS';
-      let stepOutput: unknown;
-      let tokensUsed = 0;
-
-      try {
-        switch (nodeType) {
-          case 'START':
-          case 'TRIGGER':
-            stepOutput = { ...context };
-            break;
-
-          case 'AGENT': {
-            const agentPrompt = String(cfg['instructions'] || cfg['prompt'] || context['input'] || 'Perform assigned task');
-            const run = await this.runtimeService.executeTurn(workspaceId, agent.id, agentPrompt, {});
-            tokensUsed = 320;
-            stepOutput = { result: run.result, tools: run.tools };
-            context['agentOutput'] = run.result;
-            outputData = run.result;
-            break;
-          }
-
-          case 'TOOL':
-          case 'MCP':
-          case 'MCP_TOOL': {
-            const toolName = String(cfg['toolName'] || cfg['tool'] || 'search_docs');
-            const toolInput = cfg['input'] || { query: String(context['input'] || '') };
-            const toolRes = await this.mcpRegistry.executeTool(toolName, toolInput, {
-              workspaceId,
-              actingUserId: userId ?? null,
-            });
-            stepOutput = { toolResult: toolRes };
-            context['toolResult'] = toolRes;
-            break;
-          }
-
-          case 'FIRECRAWL_SEARCH': {
-            const query = String(cfg['query'] || context['input'] || 'AI agents');
-            const searchRes = await this.mcpRegistry.executeTool('firecrawl_search', { query, limit: Number(cfg['limit']) || 5 }, {
-              workspaceId,
-              actingUserId: userId ?? null,
-            });
-            stepOutput = { searchResult: searchRes };
-            context['searchResults'] = searchRes;
-            break;
-          }
-
-          case 'FIRECRAWL_SCRAPE': {
-            const url = String(cfg['url'] || 'https://news.ycombinator.com');
-            const scrapeRes = await this.mcpRegistry.executeTool('firecrawl_scrape', { url }, {
-              workspaceId,
-              actingUserId: userId ?? null,
-            });
-            stepOutput = { scrapeResult: scrapeRes };
-            context['scrapedContent'] = scrapeRes;
-            break;
-          }
-
-          case 'TRANSFORM':
-          case 'CODE': {
-            const template = String(cfg['template'] || cfg['code'] || 'Transform result');
-            stepOutput = { transformed: `${template}: ${JSON.stringify(context['agentOutput'] || context['toolResult'] || 'OK')}` };
-            break;
-          }
-
-          case 'USER_APPROVAL':
-          case 'HUMAN_APPROVAL': {
-            await this.prisma.approvalRequest.create({
-              data: {
-                workspaceId,
-                entityType: 'AGENT',
-                entityId: agent.id,
-                executionId: aiExecution.id,
-                stepId: node.id,
-                actionType: String(cfg['action'] || 'Human approval required for agent execution'),
-                proposedPayload: context as any,
-                state: 'PENDING',
-              },
-            });
-            stepStatus = 'WAITING';
-            stepOutput = { waitingForApproval: true, message: 'Execution paused awaiting operator approval' };
-            overallStatus = 'WAITING_APPROVAL';
-            break;
-          }
-
-          case 'END':
-          case 'OUTPUT':
-            stepOutput = { completed: true, finalOutput: outputData || context['agentOutput'] || context };
-            break;
-
-          default:
-            stepOutput = { executed: true };
-            break;
-        }
-      } catch (err) {
-        stepStatus = 'FAILED';
-        stepOutput = { error: err instanceof Error ? err.message : String(err) };
-        overallStatus = 'FAILED';
-      }
-
-      const stepLatency = Date.now() - stepStart;
-      totalTokens += tokensUsed;
-
-      // Save step to database
-      await this.prisma.aIExecutionStep.create({
-        data: {
-          executionId: aiExecution.id,
-          stepId: node.id,
-          nodeType,
-          status: stepStatus,
-          inputJson: cfg as any,
-          outputJson: (stepOutput ?? {}) as any,
-          latencyMs: stepLatency,
-          tokensUsed,
-          errorMessage: (stepOutput as any)?.error,
-        },
-      });
-
-      stepsTrace.push({
-        stepId: node.id,
-        nodeType,
-        label,
-        status: stepStatus,
-        output: stepOutput,
-        latencyMs: stepLatency,
-        tokensUsed,
-      });
-
-      if (stepStatus === 'WAITING' || stepStatus === 'FAILED') {
-        break;
-      }
-
-      // Add downstream targets to queue
-      for (const edge of edges) {
-        if (edge.source === currentId) {
-          queue.push(edge.target);
-        }
-      }
-    }
-
-    const duration = Date.now() - startTime;
-
-    // Update execution status
-    await this.prisma.aIExecution.update({
-      where: { id: aiExecution.id },
-      data: {
-        status: overallStatus === 'WAITING_APPROVAL' ? 'WAITING_APPROVAL' : overallStatus === 'SUCCESS' ? 'COMPLETED' : 'FAILED',
-        finishedAt: overallStatus === 'WAITING_APPROVAL' ? null : new Date(),
-        latencyMs: duration,
-        tokensUsed: totalTokens,
-        totalCost: Number((totalTokens * 0.000002).toFixed(5)),
-      },
-    });
-
-    return {
-      executionId: aiExecution.id,
-      status: overallStatus,
-      steps: stepsTrace,
-      output: outputData || context['agentOutput'] || 'Execution completed',
-      duration,
-      tokensUsed: totalTokens,
-      credits: Math.max(1, Math.ceil(totalTokens / 500)),
-    };
   }
 
   listMcpTools() {

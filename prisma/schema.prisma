@@ -2168,8 +2168,12 @@ model AgentSchedule {
   id             String   @id @default(cuid())
   agentId        String
   cronExpression String   @default("0 9 * * *")
+  /// The instruction the agent runs with when this schedule fires.
   description    String?
   isActive       Boolean  @default(true)
+  /// 'builder' rows mirror schedule triggers on the Agent Builder canvas and
+  /// are replaced whenever it is saved; 'api' rows are managed directly.
+  source         String   @default("api")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   agent          AIAgent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -3645,9 +3649,14 @@ model MCPConnection {
   name                String
   serverUrl           String
   transport           String    @default("HTTP")
-  status              String    @default("CONNECTED")
+  /// CONNECTED only after a real initialize + tools/list succeeded.
+  status              String    @default("DISCONNECTED")
+  /// `{ encryptedToken, maskedToken }` — never returned by the API.
   authConfig          Json      @default("{}")
   discoveredToolsJson Json      @default("[]")
+  /// Why the last handshake failed, in words a member can act on.
+  lastError           String?
+  lastSyncedAt        DateTime?
   isEnabled           Boolean   @default(true)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt

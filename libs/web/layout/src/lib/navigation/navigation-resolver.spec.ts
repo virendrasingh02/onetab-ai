@@ -53,10 +53,10 @@ describe('Navigation Resolver', () => {
       workspaceSlug: 'test-workspace',
     });
 
-    // New items like "agents", "automations", "whiteboards" should automatically appear with their defaults
-    const agents = allItems.find((i) => i.id === 'agents');
-    expect(agents).toBeDefined();
-    expect(agents?.isVisible).toBe(true);
+    // New items like the AI Workspace should automatically appear with their defaults
+    const aiWorkspace = allItems.find((i) => i.id === 'ai-workspace');
+    expect(aiWorkspace).toBeDefined();
+    expect(aiWorkspace?.isVisible).toBe(true);
   });
 
   it('injects dynamic unread badges for inbox', () => {
@@ -90,9 +90,15 @@ describe('Route Matcher', () => {
     expect(isRouteActive('docs', '/w/acme/notes', 'acme')).toBe(true);
   });
 
-  it('matches agents and automations', () => {
-    expect(isRouteActive('agents', '/w/acme/agents', 'acme')).toBe(true);
-    expect(isRouteActive('agents', '/w/acme/agents/bot-1/chat', 'acme')).toBe(true);
-    expect(isRouteActive('automations', '/w/acme/automations/builder', 'acme')).toBe(true);
+  it('matches the AI Workspace, its editors and the entry points it replaced', () => {
+    expect(isRouteActive('ai', '/w/acme/ai', 'acme')).toBe(true);
+    expect(isRouteActive('ai', '/w/acme/ai/runs', 'acme')).toBe(true);
+    expect(isRouteActive('ai', '/w/acme/ai/agents/bot-1', 'acme')).toBe(true);
+    expect(isRouteActive('ai', '/w/acme/ai/workflows/new', 'acme')).toBe(true);
+    expect(isRouteActive('ai', '/w/acme/automations/builder', 'acme')).toBe(true);
+    expect(isRouteActive('ai', '/w/acme/agents/builder', 'acme')).toBe(true);
+    // Talking to an agent is chat, not the builder.
+    expect(isRouteActive('ai', '/w/acme/agents/bot-1/chat', 'acme')).toBe(false);
+    expect(isRouteActive('ai', '/w/acme/ai-chat', 'acme')).toBe(false);
   });
 });

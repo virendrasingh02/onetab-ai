@@ -11,12 +11,22 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  zodBody,
 } from '@org/api-common';
+import {
+  createAgentScheduleSchema,
+  createAIEntitySchema,
+  executeAIEntitySchema,
+  updateAgentScheduleSchema,
+  updateAIEntitySchema,
+  type ExecuteAIEntityInput,
+} from '@org/validation';
 import { WorkspacePermission } from '@org/types';
 import type { AIEntityType } from '@org/types';
 import {
@@ -25,6 +35,7 @@ import {
   type UpdateEntityDto,
 } from './ai-entities.service.js';
 import { AIRuntimeService } from './ai-runtime.service.js';
+import { CanManageAIEntity } from './ai-entity-access.guard.js';
 
 /**
  * Unified controller for all AI Entities (AI Agents and AI Coworkers).
@@ -68,23 +79,25 @@ export class AIEntitiesController {
   createEntity(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: CreateEntityDto,
+    @Body(zodBody(createAIEntitySchema)) body: CreateEntityDto,
   ) {
     return this.entitiesService.createEntity(workspaceId, userId, body);
   }
 
   @Patch(':id')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('id')
   updateEntity(
     @WorkspaceId() workspaceId: string,
     @Param('id') entityId: string,
-    @Body() body: UpdateEntityDto,
+    @Body(zodBody(updateAIEntitySchema)) body: UpdateEntityDto,
   ) {
     return this.entitiesService.updateEntity(workspaceId, entityId, body);
   }
 
   @Delete(':id')
-  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteEntity(
     @WorkspaceId() workspaceId: string,
@@ -94,17 +107,14 @@ export class AIEntitiesController {
   }
 
   @Post(':id/execute')
+  // Running an agent spends workspace credits and can act through its
+  // linked apps; a read-only guest could previously call this.
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   executeEntity(
     @WorkspaceId() workspaceId: string,
     @Param('id') entityId: string,
-    @Body()
-    body: {
-      promptText: string;
-      channelId?: string;
-      channelName?: string;
-      projectId?: string;
-      projectName?: string;
-    },
+    @Body(zodBody(executeAIEntitySchema)) body: ExecuteAIEntityInput,
   ) {
     return this.runtimeService.executeTurn(
       workspaceId,
@@ -129,27 +139,31 @@ export class AIEntitiesController {
 
   @Post(':id/schedules')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('id')
   createSchedule(
     @WorkspaceId() workspaceId: string,
     @Param('id') entityId: string,
-    @Body() body: { cronExpression: string; description?: string },
+    @Body(zodBody(createAgentScheduleSchema)) body: { cronExpression: string; description?: string },
   ) {
     return this.entitiesService.createSchedule(workspaceId, entityId, body);
   }
 
   @Patch(':id/schedules/:scheduleId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('id')
   updateSchedule(
     @WorkspaceId() workspaceId: string,
     @Param('id') entityId: string,
     @Param('scheduleId') scheduleId: string,
-    @Body() body: { cronExpression?: string; description?: string; isActive?: boolean },
+    @Body(zodBody(updateAgentScheduleSchema))
+    body: { cronExpression?: string; description?: string; isActive?: boolean },
   ) {
     return this.entitiesService.updateSchedule(workspaceId, entityId, scheduleId, body);
   }
 
   @Delete(':id/schedules/:scheduleId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteSchedule(
     @WorkspaceId() workspaceId: string,

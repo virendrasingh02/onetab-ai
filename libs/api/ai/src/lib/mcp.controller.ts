@@ -14,9 +14,11 @@ import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
 import type { CreateMCPConnectionInput } from '@org/types';
+import { createMCPConnectionSchema } from '@org/validation';
 import { MCPService } from './mcp.service.js';
 
 @Controller({ path: 'workspaces/:workspaceId/mcp-connections', version: '1' })
@@ -30,18 +32,18 @@ export class MCPController {
   }
 
   @Post()
-  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   create(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: CreateMCPConnectionInput,
+    @Body(zodBody(createMCPConnectionSchema)) body: CreateMCPConnectionInput,
   ) {
     return this.mcpService.createConnection(workspaceId, userId, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   delete(
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,
@@ -50,7 +52,7 @@ export class MCPController {
   }
 
   @Post(':id/sync')
-  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   sync(
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,

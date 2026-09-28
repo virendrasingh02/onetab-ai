@@ -13,14 +13,21 @@ import { Throttle } from '@nestjs/throttler';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   CurrentUser,
+  RequireWorkspacePermissions,
   WorkspaceId,
+  zodBody,
   type AuthenticatedUser,
 } from '@org/api-common';
-import type {
-  AIProvider,
-  SaveProviderCredentialInput,
-  UpdateModelSettingsInput,
+import {
+  WorkspacePermission,
+  type AIProvider,
+  type SaveProviderCredentialInput,
+  type UpdateModelSettingsInput,
 } from '@org/types';
+import {
+  saveProviderCredentialSchema,
+  updateModelSettingsSchema,
+} from '@org/validation';
 import type { Response } from 'express';
 import { AICredentialService } from './ai-credential.service.js';
 import {
@@ -58,10 +65,13 @@ export class AIPlatformController {
   }
 
   @Post('providers/:provider/credentials')
+  // Workspace AI credentials decide where every prompt in the workspace is
+  // sent and who pays for it; a guest could previously replace or delete them.
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   saveCredential(
     @WorkspaceId() workspaceId: string,
     @Param('provider') provider: AIProvider,
-    @Body() body: SaveProviderCredentialInput,
+    @Body(zodBody(saveProviderCredentialSchema)) body: SaveProviderCredentialInput,
     @CurrentUser() user?: AuthenticatedUser
   ) {
     return this.credentialService.saveCredential(
@@ -73,10 +83,11 @@ export class AIPlatformController {
   }
 
   @Patch('providers/:provider/credentials')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   updateCredential(
     @WorkspaceId() workspaceId: string,
     @Param('provider') provider: AIProvider,
-    @Body() body: SaveProviderCredentialInput,
+    @Body(zodBody(saveProviderCredentialSchema)) body: SaveProviderCredentialInput,
     @CurrentUser() user?: AuthenticatedUser
   ) {
     return this.credentialService.saveCredential(
@@ -88,6 +99,7 @@ export class AIPlatformController {
   }
 
   @Delete('providers/:provider/credentials')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   deleteCredential(
     @WorkspaceId() workspaceId: string,
     @Param('provider') provider: AIProvider,
@@ -101,6 +113,7 @@ export class AIPlatformController {
   }
 
   @Post('providers/:provider/test')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   testProvider(
     @WorkspaceId() workspaceId: string,
     @Param('provider') provider: AIProvider,
@@ -114,10 +127,11 @@ export class AIPlatformController {
   }
 
   @Patch('models/:model')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   updateModelSetting(
     @WorkspaceId() workspaceId: string,
     @Param('model') model: string,
-    @Body() body: UpdateModelSettingsInput
+    @Body(zodBody(updateModelSettingsSchema)) body: UpdateModelSettingsInput
   ) {
     return this.credentialService.updateModelSettings(
       workspaceId,
@@ -132,6 +146,7 @@ export class AIPlatformController {
   }
 
   @Post('test-connection')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   testConnection(
     @WorkspaceId() workspaceId: string,
     @Body() body: { provider: AIProvider; model?: string }

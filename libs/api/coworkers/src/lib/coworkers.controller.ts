@@ -12,15 +12,29 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
+import { Throttle } from '@nestjs/throttler';
 import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
   WorkspaceMemberRole,
   WorkspacePolicies,
+  zodBody,
 } from '@org/api-common';
-import type { CoworkerPermissions, WorkspacePolicy, WorkspaceRole } from '@org/types';
+import {
+  createCoworkerSchema,
+  executeAIEntitySchema,
+  linkAgentSchema,
+  linkCoworkerSchema,
+  linkIntegrationSchema,
+  setEnabledSchema,
+  updateCoworkerSchema,
+  type CreateCoworkerInput,
+  type UpdateCoworkerInput,
+} from '@org/validation';
+import type { WorkspacePolicy, WorkspaceRole } from '@org/types';
 import { isPolicyRoleAllowed, WorkspacePermission } from '@org/types';
+import { CanManageAIEntity } from '@org/api-agents';
 import { CoworkerRuntimeService } from './coworker-runtime.service.js';
 import { CoworkersService } from './coworkers.service.js';
 
@@ -66,22 +80,7 @@ export class CoworkersController {
     @CurrentUser('id') userId: string,
     @WorkspaceMemberRole() role: WorkspaceRole | undefined,
     @WorkspacePolicies() policies: WorkspacePolicy | undefined,
-    @Body()
-    body: {
-      name: string;
-      role?: string;
-      description?: string;
-      avatarUrl?: string | null;
-      personality?: string;
-      welcomeMessage?: string;
-      systemInstructions?: string;
-      provider?: string;
-      model?: string;
-      permissions?: CoworkerPermissions;
-      configuration?: Record<string, unknown>;
-      agentIds?: string[];
-      integrationIds?: string[];
-    },
+    @Body(zodBody(createCoworkerSchema)) body: CreateCoworkerInput,
   ) {
     // Settings → Permissions & Policies → "Who can create AI Coworkers".
     if (policies && !isPolicyRoleAllowed(role, policies.whoCanCreateCoworkers)) {
@@ -94,30 +93,18 @@ export class CoworkersController {
 
   @Patch(':coworkerId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
   updateCoworker(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
-    @Body()
-    body: {
-      name?: string;
-      role?: string;
-      description?: string;
-      avatarUrl?: string | null;
-      personality?: string;
-      welcomeMessage?: string;
-      systemInstructions?: string;
-      provider?: string;
-      model?: string;
-      isActive?: boolean;
-      permissions?: CoworkerPermissions;
-      configuration?: Record<string, unknown>;
-    },
+    @Body(zodBody(updateCoworkerSchema)) body: UpdateCoworkerInput,
   ) {
     return this.coworkersService.updateCoworker(workspaceId, coworkerId, body);
   }
 
   @Delete(':coworkerId')
-  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteCoworker(
     @WorkspaceId() workspaceId: string,
@@ -128,10 +115,12 @@ export class CoworkersController {
 
   @Post(':coworkerId/execute')
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   async executeCoworker(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
-    @Body() body: { promptText: string; channelId?: string; projectId?: string },
+    @Body(zodBody(executeAIEntitySchema))
+    body: { promptText: string; channelId?: string; projectId?: string },
   ) {
     const result = await this.runtime.executeTurn(
       workspaceId,
@@ -161,16 +150,18 @@ export class CoworkersController {
 
   @Post(':coworkerId/agents')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
   linkAgent(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
-    @Body() body: { agentId: string },
+    @Body(zodBody(linkAgentSchema)) body: { agentId: string },
   ) {
     return this.coworkersService.linkAgent(workspaceId, coworkerId, body.agentId);
   }
 
   @Delete(':coworkerId/agents/:agentId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
   unlinkAgent(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
@@ -181,16 +172,18 @@ export class CoworkersController {
 
   @Post(':coworkerId/apps')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
   linkApp(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
-    @Body() body: { integrationId: string },
+    @Body(zodBody(linkIntegrationSchema)) body: { integrationId: string },
   ) {
     return this.coworkersService.linkApp(workspaceId, coworkerId, body.integrationId);
   }
 
   @Delete(':coworkerId/apps/:integrationId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
   unlinkApp(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
@@ -228,7 +221,7 @@ export class ChannelCoworkersController {
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
     @Param('channelId') channelId: string,
-    @Body() body: { coworkerId: string },
+    @Body(zodBody(linkCoworkerSchema)) body: { coworkerId: string },
   ) {
     return this.coworkersService.addChannelCoworker(
       workspaceId,
@@ -245,7 +238,7 @@ export class ChannelCoworkersController {
     @CurrentUser('id') userId: string,
     @Param('channelId') channelId: string,
     @Param('coworkerId') coworkerId: string,
-    @Body() body: { isEnabled: boolean },
+    @Body(zodBody(setEnabledSchema)) body: { isEnabled: boolean },
   ) {
     return this.coworkersService.setChannelCoworkerEnabled(
       workspaceId,
@@ -297,7 +290,7 @@ export class ProjectCoworkersController {
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
     @Param('projectId') projectId: string,
-    @Body() body: { coworkerId: string },
+    @Body(zodBody(linkCoworkerSchema)) body: { coworkerId: string },
   ) {
     return this.coworkersService.addProjectCoworker(
       workspaceId,

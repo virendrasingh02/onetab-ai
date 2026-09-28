@@ -6,9 +6,11 @@ import { AIInfrastructureModule } from '@org/api-ai';
 import { AgentsModule } from '@org/api-agents';
 import { IntegrationsModule } from '@org/api-integrations';
 import { AutomationTriggerListener } from './automation-trigger.listener.js';
+import { AIRunsController } from './ai-runs.controller.js';
 import { AutomationsController } from './automations.controller.js';
 import { AutomationsService } from './automations.service.js';
 import { WorkflowEngineService } from './workflow-engine.service.js';
+import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
 
 @Module({
   imports: [
@@ -19,11 +21,12 @@ import { WorkflowEngineService } from './workflow-engine.service.js';
     AgentsModule,
     IntegrationsModule,
   ],
-  controllers: [AutomationsController],
+  controllers: [AutomationsController, AIRunsController],
   providers: [
     AutomationsService,
     WorkflowEngineService,
     AutomationTriggerListener,
+    WorkflowScheduleListener,
   ],
   exports: [AutomationsService, WorkflowEngineService],
 })

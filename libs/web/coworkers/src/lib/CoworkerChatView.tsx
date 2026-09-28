@@ -92,7 +92,7 @@ function CoworkerMessageHeader({
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/w/${slug}/coworkers?coworkerId=${coworker.id}`;
+    const url = `${window.location.origin}/w/${slug}/coworkers/${coworker.id}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success('Link copied', {
@@ -122,7 +122,7 @@ function CoworkerMessageHeader({
     try {
       await mutations.remove.mutateAsync(coworker.id);
       toast.success(`Deleted coworker ${coworker.name}`);
-      navigate(`/w/${slug}/coworkers`);
+      navigate(`/w/${slug}/ai/agents?type=coworker`);
     } catch {
       toast.error('Failed to delete coworker');
     }
@@ -368,7 +368,7 @@ export const CoworkerChatView: FC<CoworkerChatViewProps> = ({
           variant="outline"
           size="sm"
           className="mt-4 gap-2"
-          onClick={() => navigate(`/w/${workspaceSlug}/coworkers`)}
+          onClick={() => navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)}
         >
           <ArrowLeft className="h-4 w-4" />
           Back to AI Coworkers Directory

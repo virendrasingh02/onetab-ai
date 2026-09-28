@@ -69,7 +69,11 @@ describe('resolvePageTitle — static routes', () => {
     ['/w/acme/whiteboards', 'Whiteboards'],
     ['/w/acme/integrations', 'Integration Hub'],
     ['/w/acme/apps', 'Apps'],
-    ['/w/acme/automations/builder', 'Automations & Workflows'],
+    ['/w/acme/ai', 'AI Workspace'],
+    ['/w/acme/ai/runs', 'Runs'],
+    ['/w/acme/ai/agents/new', 'New agent'],
+    ['/w/acme/ai/workflows/new', 'New workflow'],
+    ['/w/acme/marketplace', 'Marketplace'],
   ])('resolves %s to %s', (path, title) => {
     expect(resolvePageTitle(path).title).toBe(title);
   });
@@ -157,6 +161,17 @@ describe('resolvePageTitle — dynamic routes', () => {
         .title,
     ).toBe('Researcher');
     expect(resolvePageTitle('/w/acme/agents/a_1/chat').title).toBe('AI Agent');
+    expect(
+      resolvePageTitle('/w/acme/ai/agents/a_1', { agentName: 'Researcher' }),
+    ).toEqual({ title: 'Researcher', isPending: false });
+    expect(resolvePageTitle('/w/acme/ai/agents/a_1')).toEqual({
+      title: 'Agent',
+      isPending: true,
+    });
+    expect(
+      resolvePageTitle('/w/acme/ai/workflows/w_1', { workflowName: 'Triage' })
+        .title,
+    ).toBe('Triage');
   });
 
   it('resolves an app chat', () => {
@@ -181,9 +196,8 @@ describe('resolvePageTitle — dynamic routes', () => {
       'Create a channel',
     );
     expect(resolvePageTitle('/w/acme/agents/chat').title).toBe('AI Agents');
-    expect(resolvePageTitle('/w/acme/agents/builder').title).toBe(
-      'Agent Builder',
-    );
+    expect(resolvePageTitle('/w/acme/ai/agents').title).toBe('Agents');
+    expect(resolvePageTitle('/w/acme/ai/workflows').title).toBe('Workflows');
   });
 
   it('falls back to the workspace name for an unknown sub-route', () => {
