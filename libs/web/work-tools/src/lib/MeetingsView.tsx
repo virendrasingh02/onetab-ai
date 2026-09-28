@@ -10,8 +10,8 @@ import {
   SkeletonList,
   Tabs,
   TabsContent,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   toast,
   UserAvatarGroup,
   ActionDropdownMenu,
@@ -652,7 +652,7 @@ export function MeetingsView() {
 
         <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList variant="underline" size="sm" className="border-b-0">
+            <ResponsiveTabsList variant="underline" size="sm" className="border-b-0 min-w-0 w-full">
               <TabsTrigger
                 value="upcoming"
                 icon={<CalendarClock className="size-3.5" />}
@@ -681,7 +681,7 @@ export function MeetingsView() {
               >
                 Meeting apps
               </TabsTrigger>
-            </TabsList>
+            </ResponsiveTabsList>
           </Tabs>
         </div>
       </div>

@@ -3,7 +3,10 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import {
   createContext,
   forwardRef,
+  useCallback,
   useContext,
+  useMemo,
+  useState,
   type ComponentPropsWithoutRef,
   type ElementRef,
   type ReactNode,
@@ -16,17 +19,22 @@ import {
 export type TabsVariant = 'pill' | 'underline' | 'c-tabs-7' | 'segmented';
 export type TabsSize = 'sm' | 'md' | 'lg';
 
-interface TabsContextValue {
+export interface TabsContextValue {
   variant: TabsVariant;
   size: TabsSize;
   layoutId?: string;
-  activeTab?: string;
+  /** The selected tab — live for controlled *and* uncontrolled `<Tabs>`. */
+  value?: string;
+  /** Selects a tab; set by `<Tabs>`, so overflow menus can switch tabs too. */
+  onValueChange?: (val: string) => void;
 }
 
-const TabsContext = createContext<TabsContextValue>({
+export const TabsContext = createContext<TabsContextValue>({
   variant: 'pill',
   size: 'md',
 });
+
+export const useTabsContext = () => useContext(TabsContext);
 
 /* -------------------------------------------------------------------------- */
 /* Tabs Root                                                                  */
@@ -35,14 +43,51 @@ const TabsContext = createContext<TabsContextValue>({
 export type TabsProps = ComponentPropsWithoutRef<typeof TabsPrimitive.Root>;
 
 export const Tabs = forwardRef<ElementRef<typeof TabsPrimitive.Root>, TabsProps>(
-  ({ className, ...props }, ref) => {
+  (
+    { className, value: valueProp, defaultValue, onValueChange, children, ...props },
+    ref,
+  ) => {
+    /*
+     * The selection is owned here (not left to Radix) so the context always
+     * carries the live value: a `ResponsiveTabsList` needs it to mark the active
+     * tab and to switch tabs from its "More" menu, and an uncontrolled
+     * `defaultValue` would otherwise freeze at the initial tab.
+     */
+    const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue);
+    const isControlled = valueProp !== undefined;
+    const value = isControlled ? valueProp : uncontrolledValue;
+
+    const handleValueChange = useCallback(
+      (next: string) => {
+        if (!isControlled) setUncontrolledValue(next);
+        onValueChange?.(next);
+      },
+      [isControlled, onValueChange],
+    );
+
+    const context = useMemo<TabsContextValue>(
+      () => ({
+        variant: 'pill',
+        size: 'md',
+        value,
+        onValueChange: handleValueChange,
+      }),
+      [value, handleValueChange],
+    );
+
     return (
-      <TabsPrimitive.Root
-        ref={ref}
-        data-slot="tabs"
-        className={cn('flex flex-col gap-2', className)}
-        {...props}
-      />
+      <TabsContext.Provider value={context}>
+        <TabsPrimitive.Root
+          ref={ref}
+          value={value ?? ''}
+          onValueChange={handleValueChange}
+          data-slot="tabs"
+          className={cn('flex flex-col gap-2', className)}
+          {...props}
+        >
+          {children}
+        </TabsPrimitive.Root>
+      </TabsContext.Provider>
     );
   },
 );
@@ -73,8 +118,17 @@ export const TabsList = forwardRef<ElementRef<typeof TabsPrimitive.List>, TabsLi
     },
     ref,
   ) => {
+    const parentContext = useContext(TabsContext);
+
     return (
-      <TabsContext.Provider value={{ variant, size, layoutId }}>
+      <TabsContext.Provider
+        value={{
+          ...parentContext,
+          variant,
+          size,
+          layoutId,
+        }}
+      >
         <TabsPrimitive.List
           ref={ref}
           data-slot="tabs-list"
@@ -153,84 +207,110 @@ export const TabsTrigger = forwardRef<
         data-slot="tabs-trigger"
         data-variant={variant}
         data-size={size}
-        className={cn(
-          'group relative inline-flex items-center justify-center whitespace-nowrap font-medium outline-none cursor-pointer',
-          'transition-colors duration-(--duration-fast) ease-standard',
-          'focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
-          'disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed',
-          "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-
-          // Size padding
-          size === 'sm' && 'gap-1.5 px-2.5 py-1 text-xs',
-          size === 'md' && 'gap-2 px-3 py-1.5 text-xs',
-          size === 'lg' && 'gap-2.5 px-4 py-2 text-sm',
-
-          // Variant: pill / c-tabs-7 — a transparent trigger that lifts into a
-          // rounded raised chip when active. The always-present transparent
-          // border keeps the row from shifting 1px when the active outline
-          // appears.
-          (variant === 'pill' || variant === 'c-tabs-7') && [
-            'rounded-md border border-transparent text-muted-foreground',
-            'hover:text-foreground',
-            'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold',
-            'data-[state=active]:border-border/60 data-[state=active]:shadow-xs',
-            'dark:data-[state=active]:bg-surface-raised',
-          ],
-
-          // Variant: segmented (matches the SegmentedControl sibling — a lifted
-          // active chip, no border, so selection doesn't nudge the row 1px)
-          variant === 'segmented' && [
-            'rounded-md text-muted-foreground',
-            'hover:text-foreground',
-            'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs',
-          ],
-
-          // Variant: underline (page level header strip)
-          variant === 'underline' && [
-            'rounded-t-sm border-b-2 border-transparent text-muted-foreground',
-            'hover:text-foreground',
-            'data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold',
-            size === 'sm' && 'pb-2',
-            size === 'md' && 'pb-2.5',
-            size === 'lg' && 'pb-3',
-          ],
-
-          className,
-        )}
+        className={cn(tabsTriggerClassName(variant, size), className)}
         {...props}
       >
-        {/* Leading Icon */}
-        {icon && (
-          <span className="shrink-0 text-muted-foreground transition-colors group-hover:text-foreground group-data-[state=active]:text-foreground flex items-center justify-center">
-            {icon}
-          </span>
-        )}
-
-        {/* Tab Label */}
-        <span className="truncate">{children}</span>
-
-        {/* Optional Count / Badge */}
-        {count !== undefined && (
-          <span
-            data-slot="tabs-count"
-            className={cn(
-              'inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight transition-colors',
-              'bg-muted-foreground/15 text-muted-foreground',
-              'group-hover:bg-muted-foreground/25 group-hover:text-foreground',
-              'group-data-[state=active]:bg-primary/15 group-data-[state=active]:text-primary',
-            )}
-          >
-            {count}
-          </span>
-        )}
-
-        {badge && <span className="inline-flex items-center shrink-0">{badge}</span>}
+        <TabsTriggerContent icon={icon} badge={badge} count={count}>
+          {children}
+        </TabsTriggerContent>
       </TabsPrimitive.Trigger>
     );
   },
 );
 
 TabsTrigger.displayName = 'TabsTrigger';
+
+/**
+ * A trigger's look for a variant + size. Shared by `TabsTrigger` and the
+ * look-alike elements a `ResponsiveTabsList` renders (its "More" button and the
+ * off-screen copies it measures), so all three stay pixel-identical. Active
+ * styling keys off `data-state="active"`.
+ */
+export function tabsTriggerClassName(variant: TabsVariant, size: TabsSize) {
+  return cn(
+    'group relative inline-flex items-center justify-center whitespace-nowrap font-medium outline-none cursor-pointer',
+    'transition-colors duration-(--duration-fast) ease-standard',
+    'focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
+    'disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed',
+    "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+
+    // Size padding
+    size === 'sm' && 'gap-1.5 px-2.5 py-1 text-xs',
+    size === 'md' && 'gap-2 px-3 py-1.5 text-xs',
+    size === 'lg' && 'gap-2.5 px-4 py-2 text-sm',
+
+    // Variant: pill / c-tabs-7 — a transparent trigger that lifts into a
+    // rounded raised chip when active. The always-present transparent
+    // border keeps the row from shifting 1px when the active outline
+    // appears.
+    (variant === 'pill' || variant === 'c-tabs-7') && [
+      'rounded-md border border-transparent text-muted-foreground',
+      'hover:text-foreground',
+      'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold',
+      'data-[state=active]:border-border/60 data-[state=active]:shadow-xs',
+      'dark:data-[state=active]:bg-surface-raised',
+    ],
+
+    // Variant: segmented (matches the SegmentedControl sibling — a lifted
+    // active chip, no border, so selection doesn't nudge the row 1px)
+    variant === 'segmented' && [
+      'rounded-md text-muted-foreground',
+      'hover:text-foreground',
+      'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs',
+    ],
+
+    // Variant: underline (page level header strip)
+    variant === 'underline' && [
+      'rounded-t-sm border-b-2 border-transparent text-muted-foreground',
+      'hover:text-foreground',
+      'data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold',
+      size === 'sm' && 'pb-2',
+      size === 'md' && 'pb-2.5',
+      size === 'lg' && 'pb-3',
+    ],
+  );
+}
+
+/** A trigger's inner layout: leading icon, label, count pill, trailing badge. */
+export function TabsTriggerContent({
+  icon,
+  badge,
+  count,
+  children,
+}: {
+  icon?: ReactNode;
+  badge?: ReactNode;
+  count?: number | string;
+  children?: ReactNode;
+}) {
+  return (
+    <>
+      {icon && (
+        <span className="shrink-0 text-muted-foreground transition-colors group-hover:text-foreground group-data-[state=active]:text-foreground flex items-center justify-center">
+          {icon}
+        </span>
+      )}
+
+      <span className="truncate">{children}</span>
+
+      {count !== undefined && (
+        <span
+          data-slot="tabs-count"
+          className={cn(
+            'inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight transition-colors',
+            'bg-muted-foreground/15 text-muted-foreground',
+            'group-hover:bg-muted-foreground/25 group-hover:text-foreground',
+            'group-data-[state=active]:bg-primary/15 group-data-[state=active]:text-primary',
+          )}
+        >
+          {count}
+        </span>
+      )}
+
+      {badge && <span className="inline-flex items-center shrink-0">{badge}</span>}
+    </>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* Tabs Content                                                               */

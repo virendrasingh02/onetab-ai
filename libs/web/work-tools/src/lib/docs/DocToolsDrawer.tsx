@@ -16,8 +16,8 @@ import {
   SheetTrigger,
   Tabs,
   TabsContent,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -193,14 +193,14 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
           </SheetHeader>
 
           <Tabs defaultValue="outline" className="mt-4 flex-1 flex flex-col">
-            <TabsList className="grid grid-cols-2 w-full h-8">
+            <ResponsiveTabsList fullWidth className="h-8">
               <TabsTrigger value="outline" className="text-xs">
                 Outline ({headingBlocks.length})
               </TabsTrigger>
               <TabsTrigger value="comments" className="text-xs">
                 Comments ({doc.comments ? doc.comments.length : 0})
               </TabsTrigger>
-            </TabsList>
+            </ResponsiveTabsList>
 
             {/* Document Table of Contents Outline */}
             <TabsContent value="outline" className="py-3 space-y-2">

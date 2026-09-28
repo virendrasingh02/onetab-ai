@@ -11,8 +11,8 @@ import {
   Panel,
   SkeletonList,
   Tabs,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   usePromptDialog,
 } from '@org/ui';
 import { useCurrentUser } from '@org/auth';
@@ -356,11 +356,11 @@ export function DocumentEditor() {
 
         {/* Underline tab strip */}
         <Tabs value={tab} onValueChange={(next) => setTab(next as DocTab)}>
-          <TabsList variant="underline" size="sm" className="border-b-0">
+          <ResponsiveTabsList variant="underline" size="sm" className="border-b-0 min-w-0 w-full">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="mine">Managed by you</TabsTrigger>
-          </TabsList>
+          </ResponsiveTabsList>
         </Tabs>
       </div>
 

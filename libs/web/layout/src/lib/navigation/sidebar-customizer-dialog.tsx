@@ -28,6 +28,7 @@ import {
   ScrollArea,
   Switch,
   useSidebarCustomizerStore,
+  ResponsiveTabs,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -597,55 +598,34 @@ export function SidebarCustomizerDialog({
           </DialogDescription>
 
           {/* Segmented Tab Switcher */}
-          <div className="flex items-center gap-1.5 p-1 mt-3 rounded-xl bg-surface-raised border border-border">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('sections');
+          <div className="mt-3 min-w-0">
+            <ResponsiveTabs
+              value={activeTab}
+              onValueChange={(val) => {
+                setActiveTab(val as 'sections' | 'items' | 'indicators');
                 setSearch('');
               }}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg text-xs font-medium transition-all duration-150',
-                activeTab === 'sections'
-                  ? 'bg-background text-foreground shadow-sm font-semibold'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Layers className="size-3.5" />
-              <span>Sections</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('items');
-                setSearch('');
-              }}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg text-xs font-medium transition-all duration-150',
-                activeTab === 'items'
-                  ? 'bg-background text-foreground shadow-sm font-semibold'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Navigation className="size-3.5" />
-              <span>Navigation</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('indicators');
-                setSearch('');
-              }}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg text-xs font-medium transition-all duration-150',
-                activeTab === 'indicators'
-                  ? 'bg-background text-foreground shadow-sm font-semibold'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Bell className="size-3.5" />
-              <span>Activity Indicators</span>
-            </button>
+              variant="segmented"
+              size="sm"
+              fullWidth
+              items={[
+                {
+                  value: 'sections',
+                  label: 'Sections',
+                  icon: <Layers className="size-3.5" />,
+                },
+                {
+                  value: 'items',
+                  label: 'Navigation',
+                  icon: <Navigation className="size-3.5" />,
+                },
+                {
+                  value: 'indicators',
+                  label: 'Activity Indicators',
+                  icon: <Bell className="size-3.5" />,
+                },
+              ]}
+            />
           </div>
 
           {/* Search bar — not used by the Indicators tab */}

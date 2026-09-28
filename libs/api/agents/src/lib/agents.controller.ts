@@ -226,6 +226,18 @@ export class AgentsController {
   ) {
     return this.agentsService.testMcpTool(body.toolName, body.params, workspaceId, userId);
   }
+
+  /**
+   * One agent, for the Agent Studio editor. Declared last so the literal
+   * single-segment routes above (`logs`) keep winning over this parameter.
+   */
+  @Get(':agentId')
+  getAgent(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.agentsService.getAgent(workspaceId, agentId);
+  }
 }
 
 /**

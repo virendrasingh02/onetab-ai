@@ -14,6 +14,7 @@ import {
   SkeletonList,
   StatCard,
   UserAvatar,
+  ResponsiveTabs,
 } from '@org/ui';
 import {
   formatBytes,
@@ -257,45 +258,26 @@ export function DashboardPage() {
         </div>
 
         {/* Tab Switcher: Home Experience vs Analytics */}
-        <div
-          role="tablist"
-          aria-label="Dashboard view"
-          className="flex items-center gap-2 bg-muted/60 p-1 rounded-lg border border-border shrink-0 self-start sm:self-auto"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'home'}
-            onClick={() => setActiveTab('home')}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-              activeTab === 'home'
-                ? 'bg-surface text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Compass className="size-3.5 text-primary" />
-            <span>Overview &amp; Action</span>
-            {attentionItems.length > 0 ? (
-              <Badge variant="primary" className="text-[10px] px-1 py-0 h-4">
-                {attentionItems.length}
-              </Badge>
-            ) : null}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'analytics'}
-            onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-              activeTab === 'analytics'
-                ? 'bg-surface text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <BarChart3 className="size-3.5" />
-            <span>Analytics &amp; Metrics</span>
-          </button>
-        </div>
+        <ResponsiveTabs
+          value={activeTab}
+          onValueChange={(val) => setActiveTab(val as 'home' | 'analytics')}
+          variant="segmented"
+          size="sm"
+          className="min-w-0 max-w-full self-start sm:self-auto sm:shrink-0"
+          items={[
+            {
+              value: 'home',
+              label: 'Overview & Action',
+              icon: <Compass className="size-3.5 text-primary" />,
+              count: attentionItems.length > 0 ? attentionItems.length : undefined,
+            },
+            {
+              value: 'analytics',
+              label: 'Analytics & Metrics',
+              icon: <BarChart3 className="size-3.5" />,
+            },
+          ]}
+        />
       </div>
 
       {activeTab === 'home' ? (

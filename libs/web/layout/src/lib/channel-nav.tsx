@@ -109,6 +109,7 @@ import { DocNavRow, DocsTreeSection } from './docs-section.js';
 import {
   FavoriteToggle,
   IconOnlyNavRow,
+  isOnPath,
   navActionClass,
   navIconClass,
   navRowClass,
@@ -118,6 +119,11 @@ import {
   Section,
   type NavEntry,
 } from './nav-primitives.js';
+import {
+  InactiveItemsDropdown,
+  type InactiveDropdownItem,
+} from './inactive-items-dropdown.js';
+import { partitionChannelsByInactivity } from './inactivity-utils.js';
 import { ChannelOrganizationMenu } from './navigation/channel-organization-menu.js';
 import { resolveNavigation } from './navigation/navigation-resolver.js';
 import {
@@ -644,6 +650,13 @@ export interface ChannelNavProps {
   channelActivity?: Record<string, ActivityIndicator>;
   /** ISO timestamp of the last known activity per channel id — feeds sorting. */
   channelLastActivity?: Record<string, string>;
+  /** Epoch ms of the last message in each DM, by peer user id. */
+  directMessageLastActivity?: Record<string, number>;
+  /**
+   * Whether live room activity has loaded. Until then no conversation is
+   * folded into "Inactive", so rows don't jump around on start-up.
+   */
+  activityReady?: boolean;
   onCreateChannel: () => void;
   onBrowseChannels: () => void;
   /** Whether sidebar is in collapsed icon rail mode */
@@ -658,6 +671,8 @@ export function ChannelNav({
   inboxUnread = 0,
   channelActivity,
   channelLastActivity,
+  directMessageLastActivity,
+  activityReady = false,
   onCreateChannel,
   onBrowseChannels,
   isCollapsed = false,
@@ -844,6 +859,98 @@ export function ChannelNav({
       }),
     [sortedJoinedChannels, sectionDefs, channelSignals],
   );
+
+  /*
+   * Channels quiet for 30+ days fold into the section's "Inactive" menu. The
+   * one you have open always stays in the list, so the sidebar never loses
+   * your place.
+   */
+  const {
+    active: activeUnsectionedChannels,
+    inactive: inactiveChannels,
+    lastActiveAt: inactiveChannelLastActive,
+  } = useMemo(
+    () =>
+      partitionChannelsByInactivity({
+        channels: sidebarLayout.unsectioned,
+        signals: channelSignals,
+        activity: channelActivity,
+        lastActivityAt: channelLastActivity,
+        ready: activityReady,
+        keepActive: (id) => {
+          const channel = sidebarLayout.unsectioned.find((c) => c.id === id);
+          return (
+            !!channel &&
+            isOnPath(location.pathname, `/w/${workspaceSlug}/c/${channel.slug}`)
+          );
+        },
+      }),
+    [
+      sidebarLayout.unsectioned,
+      channelSignals,
+      channelActivity,
+      channelLastActivity,
+      activityReady,
+      location.pathname,
+      workspaceSlug,
+    ],
+  );
+
+  const inactiveChannelItems: InactiveDropdownItem[] = useMemo(() => {
+    return inactiveChannels.map((channel) => {
+      const isFavorite = channel.membership?.isFavorite ?? false;
+      const isMuted = channel.membership?.isMuted ?? false;
+      const channelPath = `/w/${workspaceSlug}/c/${channel.slug}`;
+      const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
+
+      return {
+        id: channel.id,
+        name: channel.name,
+        to: channelPath,
+        lastActiveAt: inactiveChannelLastActive[channel.id],
+        icon: (
+          <Icon className="size-4 text-muted-foreground shrink-0" aria-hidden />
+        ),
+        actions: channel.membership
+          ? [
+              {
+                id: 'favorite',
+                group: 'organize',
+                label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                icon: Star,
+                shortcut: 'F',
+                run: () => toggleFavorite(channel),
+              },
+              {
+                id: 'mute',
+                group: 'organize',
+                label: isMuted ? 'Unmute channel' : 'Mute channel',
+                icon: isMuted ? Bell : BellOff,
+                shortcut: 'M',
+                run: () => toggleMute(channel),
+              },
+              {
+                id: 'copy-link',
+                group: 'share',
+                label: 'Copy link',
+                icon: Link2,
+                shortcut: 'C',
+                run: () => copyToClipboard(entityUrl(channelPath)),
+              },
+            ]
+          : undefined,
+        scope: `channel:${channel.id}`,
+        entityType: 'channel',
+        entity: channel,
+      };
+    });
+  }, [
+    inactiveChannels,
+    inactiveChannelLastActive,
+    workspaceSlug,
+    toggleFavorite,
+    toggleMute,
+  ]);
 
   /* Manual sections the channel-row menu can file a channel under. */
   const manualSections = useMemo(
@@ -1551,11 +1658,22 @@ export function ChannelNav({
 
                       <Section
                         title="Channels"
-                        count={sidebarLayout.unsectioned.length}
+                        count={activeUnsectionedChannels.length}
+                        inactiveTrigger={
+                          inactiveChannelItems.length > 0 ? (
+                            <InactiveItemsDropdown
+                              category="channels"
+                              categoryLabel="channels"
+                              items={inactiveChannelItems}
+                            />
+                          ) : undefined
+                        }
                         emptyLabel={
                           groups.joined.length === 0
                             ? 'You have not joined any channels yet.'
-                            : 'Every joined channel is filed in a section above.'
+                            : inactiveChannels.length > 0
+                              ? 'No recent activity — quieter channels are under Inactive.'
+                              : 'Every joined channel is filed in a section above.'
                         }
                         action={
                           <div className="gap-0.5 flex items-center">
@@ -1589,10 +1707,10 @@ export function ChannelNav({
                             onDragEnd={handleChannelDragEnd}
                           >
                             <SortableContext
-                              items={sidebarLayout.unsectioned.map((c) => c.id)}
+                              items={activeUnsectionedChannels.map((c) => c.id)}
                               strategy={verticalListSortingStrategy}
                             >
-                              {sidebarLayout.unsectioned.map((channel) => (
+                              {activeUnsectionedChannels.map((channel) => (
                                 <SortableChannelRow
                                   key={channel.id}
                                   channel={channel}
@@ -1604,7 +1722,7 @@ export function ChannelNav({
                             </SortableContext>
                           </DndContext>
                         ) : (
-                          sidebarLayout.unsectioned.map((channel) => (
+                          activeUnsectionedChannels.map((channel) => (
                             <ChannelRow
                               key={channel.id}
                               channel={channel}
@@ -1634,6 +1752,8 @@ export function ChannelNav({
                     <DirectMessagesSection
                       key="dms"
                       workspaceSlug={workspaceSlug}
+                      lastMessageAt={directMessageLastActivity}
+                      activityReady={activityReady}
                     />
                   );
 

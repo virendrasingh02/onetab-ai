@@ -1,19 +1,11 @@
-import { agentsApi, aiExecutionsApi } from '@org/api-client';
+import { agentsApi } from '@org/api-client';
 import { Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle, LoadingState } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
-  AlertCircle,
-  ArrowRight,
-  Bot,
-  CheckCircle2,
-  Clock,
-  Coins,
-  Copy,
   Eye,
   RefreshCw,
   Search,
-  UserCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
@@ -40,8 +32,8 @@ export function ExecutionsPage() {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
-      (item.agentName || '').toLowerCase().includes(q) ||
-      (item.promptPreview || '').toLowerCase().includes(q)
+      item.agent.name.toLowerCase().includes(q) ||
+      (item.promptText || '').toLowerCase().includes(q)
     );
   });
 
@@ -140,16 +132,16 @@ export function ExecutionsPage() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 font-semibold text-foreground">
-                    {log.agentName || 'Agent'}
+                    {log.agent?.name || 'Agent'}
                   </td>
                   <td className="max-w-[280px] px-4 py-3 text-muted-foreground truncate font-mono text-[11px]">
-                    {log.promptPreview || 'Test execution turn'}
+                    {log.promptText || 'Test execution turn'}
                   </td>
                   <td className="px-4 py-3 font-mono text-muted-foreground">
-                    {log.durationMs}ms
+                    {log.tokensUsed.toLocaleString()} tokens
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-[11px]">
-                    {new Date(log.createdAt).toLocaleString()}
+                    {new Date(log.executedAt).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Button

@@ -20,8 +20,8 @@ import {
   DateRangeFilter,
   Tabs,
   TabsContent,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   toast,
 } from '@org/ui';
 import { formatDateRangeSpan, getDateRangeLabel, resolveDateRange } from '@org/utils';
@@ -131,7 +131,7 @@ export function WorkspaceCompanyAnalytics({
       </div>
 
       <Tabs value={tab} onValueChange={(value) => setTab(value as AnalyticsTab)}>
-        <TabsList variant="underline" size="sm" className="max-w-full overflow-x-auto">
+        <ResponsiveTabsList variant="underline" size="sm" className="max-w-full min-w-0">
           <TabsTrigger value="overview">
             <BarChart3 className="size-3.5" aria-hidden />
             Overview
@@ -152,7 +152,7 @@ export function WorkspaceCompanyAnalytics({
             <FileSpreadsheet className="size-3.5" aria-hidden />
             Export Reports
           </TabsTrigger>
-        </TabsList>
+        </ResponsiveTabsList>
 
         {/* Overview */}
         <TabsContent value="overview" className="pt-4">

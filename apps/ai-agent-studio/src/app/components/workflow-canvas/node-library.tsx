@@ -1,11 +1,8 @@
 import { cn } from '@org/utils';
 import {
-  Activity,
   Bot,
-  Brain,
   Code2,
   Cpu,
-  Database,
   Flame,
   GitBranch,
   Globe,
@@ -13,7 +10,6 @@ import {
   Play,
   Repeat,
   Search,
-  ShieldAlert,
   Sparkles,
   StopCircle,
   Timer,

@@ -22,8 +22,8 @@ import {
   Switch,
   Tabs,
   TabsContent,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   Textarea,
   toast,
 } from '@org/ui';
@@ -85,7 +85,7 @@ export function AgentInspector({
     >
       <Tabs defaultValue="node" className="flex min-h-0 flex-1 flex-col">
         <div className="px-3 pt-3 pb-2 border-b">
-          <TabsList className="w-full">
+          <ResponsiveTabsList className="w-full">
             <TabsTrigger value="node">Node</TabsTrigger>
             <TabsTrigger value="agent">Agent</TabsTrigger>
             <TabsTrigger value="issues">
@@ -99,7 +99,7 @@ export function AgentInspector({
                 </Badge>
               ) : null}
             </TabsTrigger>
-          </TabsList>
+          </ResponsiveTabsList>
         </div>
 
         <TabsContent value="node" className="min-h-0">

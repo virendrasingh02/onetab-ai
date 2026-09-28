@@ -16,8 +16,8 @@ import {
   SelectValue,
   Tabs,
   TabsContent,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
 } from '@org/ui';
 import {
   Eye,
@@ -113,7 +113,7 @@ export function PropertiesPanel({
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex flex-col flex-1 overflow-hidden">
-        <TabsList className="w-full justify-start rounded-none border-b border-border/60 bg-surface-raised p-1 gap-1">
+        <ResponsiveTabsList className="w-full justify-start rounded-none border-b border-border/60 bg-surface-raised p-1 gap-1 min-w-0">
           <TabsTrigger value="props" className="text-xs py-1 px-2.5 h-7">
             <Type className="size-3 mr-1" />
             Props
@@ -126,7 +126,7 @@ export function PropertiesPanel({
             <Eye className="size-3 mr-1" />
             Rules
           </TabsTrigger>
-        </TabsList>
+        </ResponsiveTabsList>
 
         {/* Tab 1: Component Properties */}
         <TabsContent value="props" className="flex-1 overflow-y-auto p-3 space-y-3 mt-0">

@@ -1,4 +1,4 @@
-import { agentsApi, aiExecutionsApi } from '@org/api-client';
+import { agentsApi } from '@org/api-client';
 import { Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input, LoadingState, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -22,31 +22,19 @@ import {
   AlertCircle,
   ArrowLeft,
   Bot,
-  Brain,
   Check,
-  CheckCircle2,
   Clock,
   Code2,
   Copy,
-  ExternalLink,
-  Flame,
   GitBranch,
-  Layers,
   Play,
   RotateCcw,
   Save,
-  Send,
   Settings,
   Share2,
   ShieldCheck,
-  Sparkles,
-  Terminal,
-  Trash2,
-  UserCheck,
-  Wrench,
-  Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useStudioSession } from '../session-guard.js';
@@ -96,6 +84,36 @@ const INITIAL_EDGES: Edge[] = [
   { id: 'e1-2', source: 'start-1', target: 'agent-1', animated: true },
   { id: 'e2-3', source: 'agent-1', target: 'end-1' },
 ];
+
+/** The canvas graph as the API stores it: JSON in `graphJson`. */
+function parseGraph(graphJson: string | null | undefined): { nodes: Node[]; edges: Edge[] } | null {
+  if (!graphJson) return null;
+  try {
+    const graph = JSON.parse(graphJson) as { nodes?: unknown; edges?: unknown };
+    if (!Array.isArray(graph.nodes) || graph.nodes.length === 0) return null;
+    return {
+      nodes: graph.nodes as Node[],
+      edges: Array.isArray(graph.edges) ? (graph.edges as Edge[]) : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** A published snapshot, as `GET /agents/:id/versions` returns it. */
+interface AgentVersion {
+  version: number;
+  versionTag?: string;
+  publishedAt?: string;
+  changeSummary?: string;
+  status?: 'PUBLISHED' | 'DRAFT' | string;
+}
+
+interface AgentSettingsDraft {
+  name: string;
+  description: string;
+  model: string;
+}
 
 function WorkflowCanvasInner({
   nodes,
@@ -209,8 +227,10 @@ export function AgentDetailPage() {
   const [validationResult, setValidationResult] = useState<any | null>(null);
   const [isTestDrawerOpen, setIsTestDrawerOpen] = useState(false);
   const [isSnapshotDialogOpen, setIsSnapshotDialogOpen] = useState(false);
-  const [snapshotTag, setSnapshotTag] = useState('');
   const [snapshotChangelog, setSnapshotChangelog] = useState('');
+  const [settingsDraft, setSettingsDraft] = useState<AgentSettingsDraft | null>(null);
+
+  const agentQueryKey = ['agent-detail', activeWorkspace.id, agentId];
 
   // Fetch Agent Details
   const {
@@ -218,7 +238,7 @@ export function AgentDetailPage() {
     isLoading: isAgentLoading,
     refetch: refetchAgent,
   } = useQuery({
-    queryKey: ['agent-detail', activeWorkspace.id, agentId],
+    queryKey: agentQueryKey,
     queryFn: async () => {
       if (!agentId) throw new Error('Agent ID required');
       return agentsApi.get(activeWorkspace.id, agentId);
@@ -229,114 +249,141 @@ export function AgentDetailPage() {
   // Fetch Agent Executions
   const { data: executions = [] } = useQuery({
     queryKey: ['agent-executions', activeWorkspace.id, agentId],
-    queryFn: async () => {
-      if (!agentId) return [];
-      const logs = await agentsApi.workspaceLogs(activeWorkspace.id);
-      return logs.filter((log: any) => log.agentId === agentId);
-    },
+    queryFn: async () => (agentId ? agentsApi.logs(activeWorkspace.id, agentId) : []),
     enabled: activeTab === 'executions' && !!agentId,
   });
 
   // Fetch Agent Versions
   const { data: versions = [], refetch: refetchVersions } = useQuery({
     queryKey: ['agent-versions', activeWorkspace.id, agentId],
-    queryFn: async () => {
-      if (!agentId) return [];
-      return agentsApi.getVersions(activeWorkspace.id, agentId);
-    },
+    queryFn: async (): Promise<AgentVersion[]> =>
+      agentId ? agentsApi.getVersions(activeWorkspace.id, agentId) : [],
     enabled: activeTab === 'versions' && !!agentId,
   });
 
-  // Hydrate canvas nodes & edges when agent loads
+  const isPublished =
+    (agent?.configuration as { status?: string } | undefined)?.status === 'published';
+
+  // Hydrate the canvas and the settings form whenever the stored agent changes.
   useEffect(() => {
-    if (agent?.workflowGraph) {
-      const graph = agent.workflowGraph as any;
-      if (Array.isArray(graph.nodes) && graph.nodes.length > 0) {
-        setNodes(graph.nodes);
-        setEdges(Array.isArray(graph.edges) ? graph.edges : []);
-        setIsDirty(false);
-      }
+    if (!agent) return;
+    const graph = parseGraph(agent.graphJson);
+    if (graph) {
+      setNodes(graph.nodes);
+      setEdges(graph.edges);
     }
+    setSettingsDraft({
+      name: agent.name,
+      description: agent.description ?? '',
+      model: agent.model || 'gpt-4o',
+    });
+    setIsDirty(false);
   }, [agent]);
+
+  const updateSettings = (patch: Partial<AgentSettingsDraft>) => {
+    setSettingsDraft((draft) => (draft ? { ...draft, ...patch } : draft));
+    setIsDirty(true);
+  };
+
+  /** Persists the canvas and the settings form in one request. */
+  const persistAgent = async () => {
+    if (!agentId) return;
+    await agentsApi.update(activeWorkspace.id, agentId, {
+      graphJson: JSON.stringify({ nodes, edges }),
+      ...(settingsDraft
+        ? {
+            name: settingsDraft.name.trim() || agent?.name,
+            description: settingsDraft.description,
+            model: settingsDraft.model,
+          }
+        : {}),
+    });
+    setIsDirty(false);
+  };
+
+  const errorMessage = (err: unknown, fallback: string) =>
+    err instanceof Error && err.message ? err.message : fallback;
 
   // Mutations
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!agentId) return;
-      return agentsApi.update(activeWorkspace.id, agentId, {
-        workflowGraph: { nodes, edges },
-      });
-    },
+    mutationFn: persistAgent,
     onSuccess: () => {
-      setIsDirty(false);
-      toast.success('Workflow saved successfully');
-      queryClient.invalidateQueries({ queryKey: ['agent-detail', activeWorkspace.id, agentId] });
+      toast.success('Agent saved');
+      queryClient.invalidateQueries({ queryKey: agentQueryKey });
     },
-    onError: (err: any) => {
-      toast.error(err?.message || 'Failed to save workflow');
+    onError: (err) => {
+      toast.error(errorMessage(err, 'Failed to save the agent'));
     },
   });
 
   const publishMutation = useMutation({
     mutationFn: async () => {
       if (!agentId) return;
-      if (agent?.isPublished) {
-        return agentsApi.unpublish(activeWorkspace.id, agentId);
-      } else {
-        return agentsApi.publish(activeWorkspace.id, agentId);
-      }
+      if (isPublished) return agentsApi.unpublish(activeWorkspace.id, agentId);
+      // Publishing validates and snapshots the *stored* graph — save first.
+      if (isDirty) await persistAgent();
+      return agentsApi.publish(activeWorkspace.id, agentId);
     },
-    onSuccess: (data) => {
-      toast.success(agent?.isPublished ? 'Agent unpublished' : 'Agent published successfully');
-      queryClient.invalidateQueries({ queryKey: ['agent-detail', activeWorkspace.id, agentId] });
+    onSuccess: () => {
+      toast.success(isPublished ? 'Agent unpublished' : 'Agent published');
+      queryClient.invalidateQueries({ queryKey: agentQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['agent-versions', activeWorkspace.id, agentId] });
       queryClient.invalidateQueries({ queryKey: ['workspace-agents'] });
+    },
+    onError: (err) => {
+      toast.error(errorMessage(err, isPublished ? 'Failed to unpublish' : 'Failed to publish'));
     },
   });
 
   const createSnapshotMutation = useMutation({
     mutationFn: async () => {
       if (!agentId) return;
-      return agentsApi.createVersion(activeWorkspace.id, agentId, {
-        version: snapshotTag || `v1.${versions.length + 1}.0`,
-        changelog: snapshotChangelog || 'Workflow iteration snapshot',
-        workflowGraph: { nodes, edges },
-      });
+      // A snapshot captures the stored graph, so include unsaved edits.
+      if (isDirty) await persistAgent();
+      return agentsApi.createVersion(
+        activeWorkspace.id,
+        agentId,
+        snapshotChangelog.trim() || 'Workflow iteration snapshot',
+      );
     },
     onSuccess: () => {
       toast.success('Version snapshot created');
       setIsSnapshotDialogOpen(false);
-      setSnapshotTag('');
       setSnapshotChangelog('');
       refetchVersions();
+    },
+    onError: (err) => {
+      toast.error(errorMessage(err, 'Failed to create a snapshot'));
     },
   });
 
   const restoreVersionMutation = useMutation({
-    mutationFn: async (versionNumber: string) => {
+    mutationFn: async (versionNumber: number) => {
       if (!agentId) return;
       return agentsApi.restoreVersion(activeWorkspace.id, agentId, versionNumber);
     },
     onSuccess: () => {
-      toast.success('Restored version successfully');
+      toast.success('Version restored');
       refetchAgent();
+    },
+    onError: (err) => {
+      toast.error(errorMessage(err, 'Failed to restore that version'));
     },
   });
 
   // ReactFlow Event Handlers
+  // React Flow also reports selection and measured sizes as "changes"; only
+  // real edits (move, add, remove…) should light the unsaved indicator.
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    setNodes((nds) => {
-      const updated = applyNodeChanges(changes, nds);
+    setNodes((nds) => applyNodeChanges(changes, nds));
+    if (changes.some((c) => c.type !== 'select' && c.type !== 'dimensions')) {
       setIsDirty(true);
-      return updated;
-    });
+    }
   }, []);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
-    setEdges((eds) => {
-      const updated = applyEdgeChanges(changes, eds);
-      setIsDirty(true);
-      return updated;
-    });
+    setEdges((eds) => applyEdgeChanges(changes, eds));
+    if (changes.some((c) => c.type !== 'select')) setIsDirty(true);
   }, []);
 
   const onConnect = useCallback((connection: Connection) => {
@@ -391,18 +438,23 @@ export function AgentDetailPage() {
   const handleValidateGraph = async () => {
     if (!agentId) return;
     try {
-      const res = await agentsApi.validateGraph(activeWorkspace.id, agentId, { nodes, edges });
+      // Validates what is on the canvas now, saved or not.
+      const res = await agentsApi.validate(
+        activeWorkspace.id,
+        agentId,
+        JSON.stringify({ nodes, edges }),
+      );
       setValidationResult(res);
       setIsValidationOpen(true);
-    } catch (e: any) {
-      toast.error(e?.message || 'Validation failed');
+    } catch (e) {
+      toast.error(errorMessage(e, 'Validation failed'));
     }
   };
 
   if (isAgentLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <LoadingState message="Loading agent workspace..." />
+        <LoadingState label="Loading agent workspace…" />
       </div>
     );
   }
@@ -441,12 +493,12 @@ export function AgentDetailPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-foreground">{agent.name}</span>
-                {agent.isPublished ? (
-                  <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] px-1.5 py-0.2">
+                {isPublished ? (
+                  <Badge variant="success" className="text-[10px] px-1.5 py-0.5">
                     Published
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[10px] text-muted-foreground px-1.5 py-0.2">
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground px-1.5 py-0.5">
                     Draft
                   </Badge>
                 )}
@@ -532,7 +584,7 @@ export function AgentDetailPage() {
             className="h-8 gap-1.5 text-xs"
           >
             <Share2 className="h-3.5 w-3.5" />
-            {agent.isPublished ? 'Unpublish' : 'Publish'}
+            {isPublished ? 'Unpublish' : 'Publish'}
           </Button>
 
           <Button
@@ -601,8 +653,15 @@ export function AgentDetailPage() {
                       <span className="font-semibold text-foreground">{edges.length}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Auto-Save:</span>
-                      <span className="text-emerald-500 font-semibold">Active</span>
+                      <span className="text-muted-foreground">Changes:</span>
+                      <span
+                        className={cn(
+                          'font-semibold',
+                          isDirty ? 'text-amber-500' : 'text-emerald-500',
+                        )}
+                      >
+                        {isDirty ? 'Unsaved' : 'Saved'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -662,12 +721,12 @@ export function AgentDetailPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {executions.map((exec: any) => (
+                {executions.map((exec) => (
                   <div
                     key={exec.id}
-                    className="flex items-center justify-between rounded-xl border border-border bg-card p-3.5 hover:border-primary/40 transition-colors"
+                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-3.5 hover:border-primary/40 transition-colors"
                   >
-                    <div className="space-y-1">
+                    <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-semibold text-foreground">
                           {exec.id.slice(0, 8)}
@@ -675,10 +734,10 @@ export function AgentDetailPage() {
                         <Badge
                           variant={
                             exec.status === 'SUCCESS' || exec.status === 'COMPLETED'
-                              ? 'default'
+                              ? 'success'
                               : exec.status === 'FAILED'
-                              ? 'destructive'
-                              : 'outline'
+                                ? 'destructive'
+                                : 'outline'
                           }
                           className="text-[10px]"
                         >
@@ -686,13 +745,13 @@ export function AgentDetailPage() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-1">
-                        {exec.promptPreview || 'Executed workflow task'}
+                        {exec.promptText || 'Executed workflow task'}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>{new Date(exec.createdAt).toLocaleString()}</span>
-                      <span>{exec.durationMs || 0}ms</span>
+                    <div className="flex shrink-0 items-center gap-4 text-xs text-muted-foreground">
+                      <span>{new Date(exec.executedAt).toLocaleString()}</span>
+                      <span>{exec.tokensUsed.toLocaleString()} tokens</span>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -739,22 +798,32 @@ export function AgentDetailPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {versions.map((ver: any) => (
+                {versions.map((ver) => (
                   <div
-                    key={ver.id}
+                    key={ver.version}
                     className="flex items-center justify-between rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
-                          {ver.version}
+                          {ver.versionTag ?? `v${ver.version}`}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(ver.createdAt).toLocaleString()}
-                        </span>
+                        {ver.status ? (
+                          <Badge
+                            variant={ver.status === 'PUBLISHED' ? 'success' : 'outline'}
+                            className="text-[10px]"
+                          >
+                            {ver.status === 'PUBLISHED' ? 'Published' : 'Snapshot'}
+                          </Badge>
+                        ) : null}
+                        {ver.publishedAt ? (
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(ver.publishedAt).toLocaleString()}
+                          </span>
+                        ) : null}
                       </div>
                       <p className="text-xs text-foreground font-medium">
-                        {ver.changelog || 'No description provided'}
+                        {ver.changeSummary || 'No description provided'}
                       </p>
                     </div>
 
@@ -789,37 +858,37 @@ export function AgentDetailPage() {
               <h3 className="text-xs font-bold text-foreground">General Properties</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">Agent Name</label>
+                  <label htmlFor="agent-settings-name" className="text-xs font-semibold text-foreground block mb-1">
+                    Agent Name
+                  </label>
                   <Input
-                    defaultValue={agent.name}
+                    id="agent-settings-name"
+                    value={settingsDraft?.name ?? agent.name}
                     className="text-xs"
-                    onChange={(e) => {
-                      agent.name = e.target.value;
-                      setIsDirty(true);
-                    }}
+                    onChange={(e) => updateSettings({ name: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">Description</label>
+                  <label htmlFor="agent-settings-description" className="text-xs font-semibold text-foreground block mb-1">
+                    Description
+                  </label>
                   <Input
-                    defaultValue={agent.description || ''}
+                    id="agent-settings-description"
+                    value={settingsDraft?.description ?? agent.description ?? ''}
                     className="text-xs"
-                    onChange={(e) => {
-                      agent.description = e.target.value;
-                      setIsDirty(true);
-                    }}
+                    onChange={(e) => updateSettings({ description: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-foreground block mb-1">Default Model</label>
+                  <label htmlFor="agent-settings-model" className="text-xs font-semibold text-foreground block mb-1">
+                    Default Model
+                  </label>
                   <select
-                    defaultValue={agent.model || 'gpt-4o'}
-                    onChange={(e) => {
-                      agent.model = e.target.value;
-                      setIsDirty(true);
-                    }}
+                    id="agent-settings-model"
+                    value={settingsDraft?.model ?? agent.model ?? 'gpt-4o'}
+                    onChange={(e) => updateSettings({ model: e.target.value })}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground"
                   >
                     <option value="gpt-4o">OpenAI GPT-4o (Omni multimodal)</option>
@@ -896,18 +965,16 @@ export function AgentDetailPage() {
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-xs">
+            <p className="text-muted-foreground">
+              Snapshots are numbered automatically
+              {isDirty ? ' — unsaved changes are saved first' : ''}.
+            </p>
             <div>
-              <label className="font-semibold text-foreground block mb-1">Version Tag</label>
+              <label htmlFor="agent-snapshot-notes" className="font-semibold text-foreground block mb-1">
+                Changelog / Notes
+              </label>
               <Input
-                placeholder={`v1.${versions.length + 1}.0`}
-                value={snapshotTag}
-                onChange={(e) => setSnapshotTag(e.target.value)}
-                className="text-xs"
-              />
-            </div>
-            <div>
-              <label className="font-semibold text-foreground block mb-1">Changelog / Notes</label>
-              <Input
+                id="agent-snapshot-notes"
                 placeholder="What changed in this workflow graph?"
                 value={snapshotChangelog}
                 onChange={(e) => setSnapshotChangelog(e.target.value)}

@@ -18,8 +18,8 @@ import {
   SkeletonList,
   Tabs,
   TabsContent,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   toast,
   UserAvatar,
   useRightPanelStore,
@@ -814,7 +814,7 @@ export function ChannelPage() {
         className="min-h-0 gap-0 flex flex-1 flex-col"
       >
         <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
-          <TabsList className="scrollbar-none overflow-x-auto">
+          <ResponsiveTabsList className="min-w-0">
             <TabsTrigger value="chat" className="gap-1.5">
               <MessageSquare className="size-4 inline" /> Messages
             </TabsTrigger>
@@ -851,7 +851,7 @@ export function ChannelPage() {
                 </Badge>
               ) : null}
             </TabsTrigger>
-          </TabsList>
+          </ResponsiveTabsList>
 
           {/* 3-dots Workflow, Templates, and AI Agents dropdown menu placed immediately after the tabs */}
           <DropdownMenu>

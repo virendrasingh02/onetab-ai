@@ -2303,6 +2303,11 @@ export const agentsApi = {
   list: (workspaceId: string) =>
     request<AIAgentDetail[]>(http.get(`/workspaces/${workspaceId}/agents`)),
 
+  get: (workspaceId: string, agentId: string) =>
+    request<AIAgentDetail>(
+      http.get(`/workspaces/${workspaceId}/agents/${agentId}`),
+    ),
+
   create: (
     workspaceId: string,
     input: {

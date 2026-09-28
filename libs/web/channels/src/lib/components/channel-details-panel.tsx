@@ -17,8 +17,7 @@ import {
   SkeletonList,
   Tabs,
   TabsContent,
-  TabsList,
-  TabsTrigger,
+  ResponsiveTabsList,
   toast,
   UserAvatar,
   usePromptDialog,
@@ -191,26 +190,25 @@ export function ChannelDetailsPanel({
         }
         className="min-h-0 flex flex-1 flex-col"
       >
-        <div className="px-3 shrink-0 scrollbar-none overflow-x-auto border-b border-border">
-          <TabsList>
-            <TabsTrigger value="about">About</TabsTrigger>
-            <TabsTrigger value="members" className="gap-1.5">
-              Members
-              <span className="text-muted-foreground">
-                {memberList.length || channel.memberCount}
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="coworkers" className="gap-1.5">
-              Coworkers
-              {channelCoworkers.data?.length ? (
-                <span className="text-muted-foreground">
-                  {channelCoworkers.data.length}
-                </span>
-              ) : null}
-            </TabsTrigger>
-            <TabsTrigger value="apps">Agents &amp; apps</TabsTrigger>
-            <TabsTrigger value="automations">Automations</TabsTrigger>
-          </TabsList>
+        <div className="px-3 shrink-0 border-b border-border">
+          <ResponsiveTabsList
+            variant="pill"
+            items={[
+              { value: 'about', label: 'About' },
+              {
+                value: 'members',
+                label: 'Members',
+                count: memberList.length || channel.memberCount,
+              },
+              {
+                value: 'coworkers',
+                label: 'Coworkers',
+                count: channelCoworkers.data?.length || undefined,
+              },
+              { value: 'apps', label: 'Agents & apps' },
+              { value: 'automations', label: 'Automations' },
+            ]}
+          />
         </div>
 
         <TabsContent value="about" className="min-h-0 flex flex-1 flex-col">

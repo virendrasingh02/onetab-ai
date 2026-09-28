@@ -8,8 +8,8 @@ import {
   SkeletonList,
   Tabs,
   TabsContent,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
 } from '@org/ui';
 import { formatBytes } from '@org/utils';
 import { FiledFilesSection, type UploadTarget } from '@org/web-upload';
@@ -281,14 +281,14 @@ export function ConversationTabsShell({
       className="min-h-0 gap-0 flex flex-1 flex-col"
     >
       <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
-        <TabsList className="scrollbar-none overflow-x-auto">
+        <ResponsiveTabsList className="min-w-0">
           <TabsTrigger value="chat" className="gap-1.5">
             <MessageSquare className="size-4 inline" /> Messages
           </TabsTrigger>
           <TabsTrigger value="files-media" className="gap-1.5">
             <FolderOpen className="size-4 inline" /> Files &amp; Media
           </TabsTrigger>
-        </TabsList>
+        </ResponsiveTabsList>
       </div>
 
       <TabsContent

@@ -687,6 +687,7 @@ export {
 
 export {
   ResizablePanels,
+  ResizablePanelLayout,
   type ResizablePanelsProps,
 } from './lib/components/resizable-panels.js';
 
@@ -861,3 +862,35 @@ export {
   type FocusManagementOptions,
   type KeyboardNavigationOptions,
 } from './lib/utils/a11y.js';
+
+export {
+  ResponsiveOverflow,
+  type ResponsiveOverflowProps,
+  type ResponsiveOverflowItem,
+} from './lib/components/responsive-overflow.js';
+
+export {
+  ResponsiveTabs,
+  ResponsiveTabsList,
+  type ResponsiveTabsProps,
+  type ResponsiveTabsListProps,
+  type TabItem,
+} from './lib/components/responsive-tabs.js';
+
+export {
+  ResponsiveToolbar,
+  type ResponsiveToolbarProps,
+  type ToolbarItem,
+} from './lib/components/responsive-toolbar.js';
+
+export {
+  ResponsiveNavigation,
+  type ResponsiveNavigationProps,
+  type NavItem,
+} from './lib/components/responsive-navigation.js';
+
+export {
+  AdaptiveLayout,
+  type AdaptiveLayoutProps,
+} from './lib/components/adaptive-layout.js';
+

@@ -13,8 +13,8 @@ import {
   LoadingState,
   PageSection,
   Tabs,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   toast,
   ActionDropdownMenu,
   EntityContextMenu,
@@ -363,11 +363,11 @@ export function WorkflowListView() {
             value={tab}
             onValueChange={(next) => setTab(next as WorkflowTab)}
           >
-            <TabsList variant="underline" size="sm" className="border-b-0">
+            <ResponsiveTabsList variant="underline" size="sm" className="border-b-0 min-w-0 w-full">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="prebuilt">Templates</TabsTrigger>
               <TabsTrigger value="mine">Managed by you</TabsTrigger>
-            </TabsList>
+            </ResponsiveTabsList>
           </Tabs>
         </div>
       </div>

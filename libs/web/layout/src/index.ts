@@ -75,4 +75,27 @@ export {
 
 export { SidebarCustomizerDialog } from './lib/navigation/sidebar-customizer-dialog.js';
 
+export {
+  InactiveItemsDropdown,
+  type InactiveDropdownItem,
+  type InactiveItemsDropdownProps,
+} from './lib/inactive-items-dropdown.js';
+
+export {
+  THIRTY_DAYS_MS,
+  toEpoch,
+  is30DaysInactive,
+  partitionChannelsByInactivity,
+  partitionMembersByInactivity,
+  partitionGroupDMsByInactivity,
+  partitionAgentsByInactivity,
+  partitionCoworkersByInactivity,
+  partitionAppsByInactivity,
+  partitionByInactivity,
+  type ChannelInactivityInput,
+  type DmInactivityInput,
+  type InactivityPartition,
+  type PartitionOptions,
+} from './lib/inactivity-utils.js';
+
 

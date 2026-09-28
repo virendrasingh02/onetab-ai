@@ -73,6 +73,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   Timeline,
   ToggleGroup,
   ToggleGroupItem,
@@ -469,7 +470,7 @@ export function DesignSystemStudio() {
       <main className="flex-1 px-6 py-6 max-w-7xl mx-auto w-full space-y-6">
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-9 bg-surface-raised border border-border">
+          <ResponsiveTabsList fullWidth className="h-9 bg-surface-raised border border-border">
             <TabsTrigger value="foundations" className="text-xs gap-1.5">
               <Palette className="size-3.5" />
               Foundations
@@ -490,7 +491,7 @@ export function DesignSystemStudio() {
               <Layers className="size-3.5" />
               Cards &amp; Blocks
             </TabsTrigger>
-          </TabsList>
+          </ResponsiveTabsList>
 
           {/* ========================================================================= */}
           {/* 1. FOUNDATIONS */}

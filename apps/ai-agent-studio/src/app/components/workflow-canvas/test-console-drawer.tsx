@@ -4,24 +4,16 @@ import { cn } from '@org/utils';
 import {
   Activity,
   AlertCircle,
-  ArrowRight,
-  Bot,
   Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Clock,
   Coins,
   Copy,
-  Flame,
   Loader2,
   Play,
-  RotateCcw,
   ShieldAlert,
-  StopCircle,
   Terminal,
   UserCheck,
-  Wrench,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -32,7 +24,6 @@ interface TestConsoleDrawerProps {
   agentName: string;
   isOpen: boolean;
   onClose: () => void;
-  onNodeHighlight?: (nodeId: string, status: 'running' | 'success' | 'failed' | 'waiting') => void;
 }
 
 export function TestConsoleDrawer({
@@ -40,7 +31,6 @@ export function TestConsoleDrawer({
   agentName,
   isOpen,
   onClose,
-  onNodeHighlight,
 }: TestConsoleDrawerProps) {
   const { activeWorkspace } = useStudioSession();
   const [prompt, setPrompt] = useState('Research current AI development frameworks and summarize findings');

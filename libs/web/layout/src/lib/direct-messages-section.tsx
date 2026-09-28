@@ -65,13 +65,15 @@ import {
   UserRound,
 } from 'lucide-react';
 import {
+  useCallback,
   useEffect,
   useId,
   useMemo,
 } from 'react';
-import { NavLink, useMatch, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useMatch, useNavigate } from 'react-router-dom';
 import {
   FavoriteToggle,
+  isOnPath,
   navActionClass,
   navIconClass,
   navRowClass,
@@ -79,6 +81,14 @@ import {
   NavRowMenuButton,
   Section,
 } from './nav-primitives.js';
+import {
+  InactiveItemsDropdown,
+  type InactiveDropdownItem,
+} from './inactive-items-dropdown.js';
+import {
+  partitionMembersByInactivity,
+  partitionGroupDMsByInactivity,
+} from './inactivity-utils.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
 
 /**
@@ -496,9 +506,16 @@ function GroupDmRow({
  */
 export function DirectMessagesSection({
   workspaceSlug,
+  lastMessageAt,
+  activityReady = false,
 }: {
   workspaceSlug: string;
+  /** Epoch ms of the last message in each 1:1 DM, by peer user id. */
+  lastMessageAt?: Record<string, number>;
+  /** Whether DM activity has loaded; nothing is folded away until it has. */
+  activityReady?: boolean;
 }) {
+  const { pathname } = useLocation();
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
@@ -597,6 +614,172 @@ export function DirectMessagesSection({
     return result;
   }, [rawPeople, customOrder]);
 
+  const presenceMap = useUserPresenceMap();
+
+  /*
+   * Conversations with no message for 30+ days fold into "Inactive" — except
+   * favorites and whichever conversation is open right now.
+   */
+  const keepDmActive = useCallback(
+    (id: string, to: string) =>
+      favoriteIds.includes(id) || isOnPath(pathname, to),
+    [favoriteIds, pathname],
+  );
+
+  const {
+    active: activePeople,
+    inactive: inactivePeople,
+    lastActiveAt: inactivePeopleLastActive,
+  } = useMemo(
+    () =>
+      partitionMembersByInactivity({
+        members: people,
+        activity: dmActivity,
+        lastMessageAt,
+        ready: activityReady,
+        keepActive: (id) => keepDmActive(id, `/w/${workspaceSlug}/dms/${id}`),
+      }),
+    [people, dmActivity, lastMessageAt, activityReady, keepDmActive, workspaceSlug],
+  );
+
+  const {
+    active: activeGroups,
+    inactive: inactiveGroups,
+    lastActiveAt: inactiveGroupsLastActive,
+  } = useMemo(
+    () =>
+      partitionGroupDMsByInactivity(filteredGroups, {
+        keepActive: (roomId) =>
+          keepDmActive(roomId, `/w/${workspaceSlug}/dms/g/${roomId}`),
+      }),
+    [filteredGroups, keepDmActive, workspaceSlug],
+  );
+
+  const inactiveDmItems: InactiveDropdownItem[] = useMemo(() => {
+    const memberItems: InactiveDropdownItem[] = inactivePeople.map((member) => {
+      const name = member.user.displayName ?? member.user.name;
+      const livePresence = presenceMap[member.user.id];
+      const presence =
+        livePresence?.status ?? toPresenceStatus(member.user.presence);
+      const to = `/w/${workspaceSlug}/dms/${member.user.id}`;
+      const isFavorite = favoriteIds.includes(member.user.id);
+      const isMuted = mutedIds.includes(member.user.id);
+
+      return {
+        id: member.user.id,
+        name,
+        to,
+        lastActiveAt: inactivePeopleLastActive[member.user.id],
+        icon: (
+          <UserAvatar
+            name={name}
+            src={member.user.avatarUrl}
+            seed={member.user.id}
+            size="xs"
+            presence={presence}
+            statusEmoji={member.user.statusEmoji}
+            statusText={member.user.statusText}
+            className="size-4 shrink-0"
+          />
+        ),
+        actions: [
+          {
+            id: 'favorite',
+            group: 'state',
+            label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+            icon: Star,
+            shortcut: 'F',
+            run: () => preferences.toggleFavorite(member.user.id),
+          },
+          {
+            id: 'mute',
+            group: 'state',
+            label: isMuted ? 'Unmute conversation' : 'Mute conversation',
+            icon: isMuted ? Bell : BellOff,
+            shortcut: 'M',
+            run: () => preferences.toggleMuted(member.user.id),
+          },
+          {
+            id: 'copy-link',
+            group: 'share',
+            label: 'Copy link',
+            icon: Link2,
+            shortcut: 'C',
+            run: () => copyToClipboard(entityUrl(to)),
+          },
+        ],
+        scope: `dm:${member.user.id}`,
+        entityType: 'direct-message',
+        entity: member,
+      };
+    });
+
+    const groupItems: InactiveDropdownItem[] = inactiveGroups.map((group) => {
+      const to = `/w/${workspaceSlug}/dms/g/${group.roomId}`;
+      const isFavorite = favoriteIds.includes(group.roomId);
+      const isMuted = mutedIds.includes(group.roomId);
+
+      return {
+        id: group.roomId,
+        name: group.name,
+        to,
+        lastActiveAt: inactiveGroupsLastActive[group.roomId],
+        icon: (
+          <GroupAvatar
+            name={group.name}
+            members={group.avatarMembers}
+            size="xs"
+            className="size-4 shrink-0"
+          />
+        ),
+        actions: [
+          {
+            id: 'favorite',
+            group: 'state',
+            label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+            icon: Star,
+            shortcut: 'F',
+            run: () => preferences.toggleFavorite(group.roomId),
+          },
+          {
+            id: 'mute',
+            group: 'state',
+            label: isMuted ? 'Unmute conversation' : 'Mute conversation',
+            icon: isMuted ? Bell : BellOff,
+            shortcut: 'M',
+            run: () => preferences.toggleMuted(group.roomId),
+          },
+          {
+            id: 'copy-link',
+            group: 'share',
+            label: 'Copy link',
+            icon: Link2,
+            shortcut: 'C',
+            run: () => copyToClipboard(entityUrl(to)),
+          },
+        ],
+        scope: `group-dm:${group.roomId}`,
+        entityType: 'group-direct-message',
+        entity: group,
+      };
+    });
+
+    // One list, most recently active first, people and groups interleaved.
+    return [...memberItems, ...groupItems].sort(
+      (a, b) => (b.lastActiveAt ?? 0) - (a.lastActiveAt ?? 0),
+    );
+  }, [
+    inactivePeople,
+    inactivePeopleLastActive,
+    inactiveGroups,
+    inactiveGroupsLastActive,
+    presenceMap,
+    workspaceSlug,
+    favoriteIds,
+    mutedIds,
+    preferences,
+  ]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -617,7 +800,7 @@ export function DirectMessagesSection({
       'dms',
       active.id as string,
       over.id as string,
-      people.map((p) => p.user.id),
+      activePeople.map((p) => p.user.id),
     );
   };
 
@@ -627,7 +810,16 @@ export function DirectMessagesSection({
   return (
     <Section
       title="Direct Messages"
-      count={people.length + filteredGroups.length + (selfMember ? 1 : 0)}
+      count={activePeople.length + activeGroups.length + (selfMember ? 1 : 0)}
+      inactiveTrigger={
+        inactiveDmItems.length > 0 ? (
+          <InactiveItemsDropdown
+            category="dms"
+            categoryLabel="direct messages"
+            items={inactiveDmItems}
+          />
+        ) : undefined
+      }
       action={
         <Hint label="New direct message">
           <Button
@@ -652,7 +844,7 @@ export function DirectMessagesSection({
             <SelfDmRow member={selfMember} workspaceSlug={workspaceSlug} />
           ) : null}
 
-          {filteredGroups.map((group) => (
+          {activeGroups.map((group) => (
             <GroupDmRow
               key={group.roomId}
               group={group}
@@ -671,10 +863,10 @@ export function DirectMessagesSection({
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={people.map((p) => p.user.id)}
+              items={activePeople.map((p) => p.user.id)}
               strategy={verticalListSortingStrategy}
             >
-              {people.map((member) => (
+              {activePeople.map((member) => (
                 <SortableDirectMessageRow
                   key={member.user.id}
                   member={member}

@@ -2,14 +2,10 @@ import { approvalsApi } from '@org/api-client';
 import { Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle, LoadingState } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertTriangle,
-  ArrowRight,
-  Bot,
   CheckCircle2,
   Clock,
   Eye,
   RefreshCw,
-  Search,
   ShieldAlert,
   ThumbsDown,
   ThumbsUp,
@@ -38,7 +34,7 @@ export function ApprovalsPage() {
 
   const decideMutation = useMutation({
     mutationFn: async ({ id, decision, reason }: { id: string; decision: 'APPROVED' | 'REJECTED'; reason?: string }) => {
-      return approvalsApi.decide(activeWorkspace.id, id, { decision, reason });
+      return approvalsApi.decide(activeWorkspace.id, id, { decision, comment: reason });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspace-approvals'] });
@@ -126,7 +122,7 @@ export function ApprovalsPage() {
       {/* Content */}
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
-          <LoadingState message="Loading approval requests..." />
+          <LoadingState label="Loading approval requests..." />
         </div>
       ) : approvals.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">

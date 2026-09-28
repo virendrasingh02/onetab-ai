@@ -1,26 +1,31 @@
-import { agentsApi, aiExecutionsApi } from '@org/api-client';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, LoadingState } from '@org/ui';
+import { agentsApi } from '@org/api-client';
+import { Badge, Button, LoadingState } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
   ArrowRight,
   Bot,
   CheckCircle2,
-  Clock,
-  ExternalLink,
-  Flame,
   Layers,
-  Play,
   Plus,
-  Search,
-  ShieldAlert,
   Sparkles,
   Zap,
 } from 'lucide-react';
-import { useState } from 'react';
+
 import { Link, useNavigate } from 'react-router-dom';
 import { STUDIO_TEMPLATES } from '../data/templates.js';
 import { useStudioSession } from '../session-guard.js';
+
+/** Tools are stored as a JSON array of names; tolerate anything else. */
+function countTools(tools: string | null | undefined): number {
+  if (!tools) return 0;
+  try {
+    const parsed: unknown = JSON.parse(tools);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
 
 export function OverviewPage() {
   const { activeWorkspace } = useStudioSession();
@@ -185,7 +190,7 @@ export function OverviewPage() {
                 const config = (agent.configuration as any) || {};
                 const isPublished = config.status === 'published';
                 const version = config.currentVersion ? `v${config.currentVersion}.0.0` : 'v1.0.0-draft';
-                const toolsCount = (agent.tools ? JSON.parse(agent.tools) : []).length;
+                const toolsCount = countTools(agent.tools);
 
                 return (
                   <div
@@ -224,7 +229,9 @@ export function OverviewPage() {
 
                     <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] text-muted-foreground font-mono">
                       <span>{version}</span>
-                      <span>{agent.model || 'llama3'}</span>
+                      <span>
+                        {toolsCount} {toolsCount === 1 ? 'tool' : 'tools'} · {agent.model || 'llama3'}
+                      </span>
                     </div>
                   </div>
                 );
@@ -249,7 +256,11 @@ export function OverviewPage() {
               </Link>
             </div>
 
-            {logs.length === 0 ? (
+            {isLoadingLogs ? (
+              <div className="py-6 text-center text-xs text-muted-foreground">
+                Loading recent executions…
+              </div>
+            ) : logs.length === 0 ? (
               <div className="py-6 text-center text-xs text-muted-foreground">
                 No execution logs recorded yet. Run a test turn to populate telemetry.
               </div>
@@ -269,12 +280,12 @@ export function OverviewPage() {
                         }`}
                       />
                       <span className="font-semibold text-foreground truncate">
-                        {log.agentName || 'Agent Run'}
+                        {log.agent?.name || 'Agent Run'}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono">
-                      <span>{log.durationMs}ms</span>
+                      <span>{log.tokensUsed.toLocaleString()} tokens</span>
                       <Badge
                         variant={log.status === 'SUCCESS' ? 'success' : 'destructive'}
                         className="text-[10px]"

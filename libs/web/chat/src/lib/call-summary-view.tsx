@@ -19,8 +19,8 @@ import {
   Input,
   Spinner,
   Tabs,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   Textarea,
   UserAvatar,
   toast,
@@ -482,7 +482,7 @@ export function CallSummaryView({
       {/* Tabs */}
       <div className="px-4 pt-2 border-b border-border">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Tab)}>
-          <TabsList className="grid grid-cols-5 h-8 text-xs">
+          <ResponsiveTabsList fullWidth className="h-8 text-xs">
             <TabsTrigger value="summary">Summary</TabsTrigger>
             <TabsTrigger value="notes" className="gap-1">
               Notes
@@ -505,7 +505,7 @@ export function CallSummaryView({
               )}
             </TabsTrigger>
             <TabsTrigger value="transcript">Transcript</TabsTrigger>
-          </TabsList>
+          </ResponsiveTabsList>
         </Tabs>
       </div>
 

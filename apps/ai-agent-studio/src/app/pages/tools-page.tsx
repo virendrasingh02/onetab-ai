@@ -2,22 +2,11 @@ import { agentsApi } from '@org/api-client';
 import { Badge, Button, Input, LoadingState, toast } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BookOpen,
-  Bot,
-  CheckCircle2,
   Copy,
-  Cpu,
-  Database,
   Flame,
-  Globe,
-  Layers,
   Loader2,
   Play,
-  Search,
-  Sparkles,
-  Terminal,
   Wrench,
-  Zap,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';

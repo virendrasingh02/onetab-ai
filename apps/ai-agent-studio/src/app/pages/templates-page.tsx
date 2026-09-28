@@ -1,22 +1,15 @@
 import { agentsApi } from '@org/api-client';
-import { Badge, Button, Input, LoadingState, toast } from '@org/ui';
+import { Badge, Button, toast } from '@org/ui';
+import { cn } from '@org/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight,
   Bot,
-  Briefcase,
-  Check,
-  Cpu,
   Flame,
-  Globe,
-  Layers,
   Search,
-  Sparkles,
   Users,
-  Wrench,
-  Zap,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { STUDIO_TEMPLATES, type StudioTemplate } from '../data/templates.js';
 import { useStudioSession } from '../session-guard.js';
@@ -29,10 +22,14 @@ export function TemplatesPage() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const [activeTemplate, setActiveTemplate] = useState<StudioTemplate | null>(() => {
-    const preselect = searchParams.get('use');
-    return STUDIO_TEMPLATES.find((t) => t.id === preselect) || null;
-  });
+  // `?use=<templateId>` (from the overview's quick-start links) highlights a template.
+  const preselectedId = searchParams.get('use');
+  useEffect(() => {
+    if (!preselectedId) return;
+    document
+      .getElementById(`template-${preselectedId}`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [preselectedId]);
 
   const createFromTemplateMutation = useMutation({
     mutationFn: (template: StudioTemplate) =>
@@ -130,10 +127,18 @@ export function TemplatesPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredTemplates.map((template) => {
           const isFirecrawl = template.tags.includes('Firecrawl');
+          const isPreselected = template.id === preselectedId;
+          const isCreating =
+            createFromTemplateMutation.isPending &&
+            createFromTemplateMutation.variables?.id === template.id;
           return (
             <div
               key={template.id}
-              className="group flex flex-col justify-between rounded-xl border border-border bg-surface p-5 transition-all hover:border-primary/50 hover:shadow-md"
+              id={`template-${template.id}`}
+              className={cn(
+                'group flex flex-col justify-between rounded-xl border border-border bg-surface p-5 transition-all hover:border-primary/50 hover:shadow-md',
+                isPreselected && 'border-primary ring-2 ring-primary/30',
+              )}
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
@@ -189,7 +194,8 @@ export function TemplatesPage() {
                 <Button
                   size="xs"
                   onClick={() => createFromTemplateMutation.mutate(template)}
-                  loading={createFromTemplateMutation.isPending}
+                  loading={isCreating}
+                  disabled={createFromTemplateMutation.isPending && !isCreating}
                   className="gap-1 font-semibold"
                 >
                   <span>Use Template</span>

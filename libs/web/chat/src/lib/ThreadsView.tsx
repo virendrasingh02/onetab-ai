@@ -19,8 +19,8 @@ import {
   EmptyState,
   LoadingState,
   Tabs,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   toast,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
@@ -791,8 +791,8 @@ export function ThreadsView() {
             </Badge>
           </div>
 
-          <Tabs value={tab} onValueChange={setTab} className="h-7">
-            <TabsList className="h-7 p-0.5">
+          <Tabs value={tab} onValueChange={setTab} className="h-7 min-w-0">
+            <ResponsiveTabsList className="h-7 p-0.5 min-w-0">
               <TabsTrigger value="all" className="h-6 px-2.5 text-xs">
                 All
               </TabsTrigger>
@@ -810,7 +810,7 @@ export function ThreadsView() {
                   </Badge>
                 ) : null}
               </TabsTrigger>
-            </TabsList>
+            </ResponsiveTabsList>
           </Tabs>
         </div>
       </div>

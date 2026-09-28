@@ -66,6 +66,15 @@ import {
   Section,
   type NavDepth,
 } from './nav-primitives.js';
+import {
+  InactiveItemsDropdown,
+  type InactiveDropdownItem,
+} from './inactive-items-dropdown.js';
+import {
+  partitionAgentsByInactivity,
+  partitionCoworkersByInactivity,
+  partitionAppsByInactivity,
+} from './inactivity-utils.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
 
@@ -800,16 +809,35 @@ export function CoworkersSection({
   const resourceOrders = useSidebarStore((s) => s.resourceOrders);
   const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
 
-  const coworkerList = coworkers.data ?? [];
+  const coworkerList = useMemo(() => coworkers.data ?? [], [coworkers.data]);
 
-  const rawItems = coworkerList.map((cw) => ({
-    id: cw.id,
-    name: cw.name,
-    icon: 'UserCheck',
-    detail: cw.role,
-    avatarUrl: cw.avatarUrl,
-    status: cw.status,
-  }));
+  // Quiet 30+ days → "Inactive", unless favorited or open right now.
+  const {
+    active: activeCoworkers,
+    inactive: inactiveCoworkers,
+    lastActiveAt: inactiveCoworkerLastActive,
+  } = useMemo(
+    () =>
+      partitionCoworkersByInactivity(coworkerList, {
+        keepActive: (id) =>
+          isFavorite('coworker', id) ||
+          location.pathname.includes(`/coworkers/${id}`),
+      }),
+    [coworkerList, isFavorite, location.pathname],
+  );
+
+  const rawItems = useMemo(
+    () =>
+      activeCoworkers.map((cw) => ({
+        id: cw.id,
+        name: cw.name,
+        icon: 'UserCheck',
+        detail: cw.role,
+        avatarUrl: cw.avatarUrl,
+        status: cw.status,
+      })),
+    [activeCoworkers],
+  );
 
   const customOrder = workspaceId
     ? resourceOrders[workspaceId]?.coworkers
@@ -836,6 +864,58 @@ export function CoworkersSection({
 
     return result;
   }, [rawItems, customOrder]);
+
+  const inactiveCoworkerItems: InactiveDropdownItem[] = useMemo(() => {
+    return inactiveCoworkers.map((cw) => {
+      const path = `/w/${workspaceSlug}/coworkers/${cw.id}`;
+      const isFav = isFavorite('coworker', cw.id);
+
+      return {
+        id: cw.id,
+        name: cw.name,
+        to: path,
+        lastActiveAt: inactiveCoworkerLastActive[cw.id],
+        icon: cw.avatarUrl ? (
+          <CoworkerAvatar
+            avatarUrl={cw.avatarUrl}
+            name={cw.name}
+            size="xs"
+            status={cw.status}
+            className="size-4 shrink-0"
+          />
+        ) : (
+          <UserCheck className="size-4 text-muted-foreground shrink-0" aria-hidden />
+        ),
+        actions: [
+          {
+            id: 'favorite',
+            group: 'organize',
+            label: isFav ? 'Remove from favorites' : 'Add to favorites',
+            icon: Star,
+            shortcut: 'F',
+            run: () => toggleFavorite('coworker', cw.id),
+          },
+          {
+            id: 'copy-link',
+            group: 'organize',
+            label: 'Copy link',
+            icon: Link2,
+            shortcut: 'C',
+            run: () => copyToClipboard(entityUrl(path)),
+          },
+        ],
+        scope: `coworker:${cw.id}`,
+        entityType: 'coworker',
+        entity: cw,
+      };
+    });
+  }, [
+    inactiveCoworkers,
+    inactiveCoworkerLastActive,
+    workspaceSlug,
+    isFavorite,
+    toggleFavorite,
+  ]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -882,7 +962,20 @@ export function CoworkersSection({
     <Section
       title="AI Coworkers"
       count={items.length}
-      emptyLabel="No coworkers active yet."
+      inactiveTrigger={
+        inactiveCoworkerItems.length > 0 ? (
+          <InactiveItemsDropdown
+            category="coworkers"
+            categoryLabel="coworkers"
+            items={inactiveCoworkerItems}
+          />
+        ) : undefined
+      }
+      emptyLabel={
+        inactiveCoworkerItems.length > 0
+          ? 'No recent activity — quieter coworkers are under Inactive.'
+          : 'No coworkers active yet.'
+      }
       action={
         <Hint label="Add coworker">
           <Button
@@ -965,24 +1058,46 @@ export function AgentsSection({
   const resourceOrders = useSidebarStore((s) => s.resourceOrders);
   const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
 
-  const agentList = agents.data ?? [];
+  const agentList = useMemo(() => agents.data ?? [], [agents.data]);
 
-  const rawItems: ResourceItemData[] = agentList.map((agent) => ({
-    id: agent.id,
-    name: agent.name,
-    icon: 'Bot',
-    detail: agent.role,
-  }));
+  // Quiet 30+ days → "Inactive", unless favorited or open right now.
+  const {
+    active: activeAgents,
+    inactive: inactiveAgents,
+    lastActiveAt: inactiveAgentLastActive,
+  } = useMemo(
+    () =>
+      partitionAgentsByInactivity(agentList, {
+        keepActive: (id) =>
+          isFavorite('agent', id) ||
+          (location.pathname.includes('/agents') &&
+            new URLSearchParams(location.search).get('id') === id),
+      }),
+    [agentList, isFavorite, location.pathname, location.search],
+  );
+
+  const rawActiveItems: ResourceItemData[] = useMemo(
+    () =>
+      activeAgents.map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        icon: 'Bot',
+        detail: agent.role,
+      })),
+    [activeAgents],
+  );
 
   const customOrder = workspaceId
     ? resourceOrders[workspaceId]?.agents
     : undefined;
 
-  const items = useMemo(() => {
+  const items = useMemo<ResourceItemData[]>(() => {
     if (!customOrder || customOrder.length === 0) {
-      return rawItems;
+      return rawActiveItems;
     }
-    const map = new Map(rawItems.map((a) => [a.id, a]));
+    const map = new Map<string, ResourceItemData>(
+      rawActiveItems.map((a) => [a.id, a]),
+    );
     const result: ResourceItemData[] = [];
 
     for (const id of customOrder) {
@@ -998,7 +1113,51 @@ export function AgentsSection({
     }
 
     return result;
-  }, [rawItems, customOrder]);
+  }, [rawActiveItems, customOrder]);
+
+  const inactiveAgentItems: InactiveDropdownItem[] = useMemo(() => {
+    return inactiveAgents.map((agent) => {
+      const chatPath = `/w/${workspaceSlug}/agents/chat?id=${agent.id}`;
+      const isFav = isFavorite('agent', agent.id);
+
+      return {
+        id: agent.id,
+        name: agent.name,
+        to: chatPath,
+        lastActiveAt: inactiveAgentLastActive[agent.id],
+        icon: (
+          <Bot className="size-4 text-muted-foreground shrink-0" aria-hidden />
+        ),
+        actions: [
+          {
+            id: 'favorite',
+            group: 'organize',
+            label: isFav ? 'Remove from favorites' : 'Add to favorites',
+            icon: Star,
+            shortcut: 'F',
+            run: () => toggleFavorite('agent', agent.id),
+          },
+          {
+            id: 'copy-link',
+            group: 'organize',
+            label: 'Copy link',
+            icon: Link2,
+            shortcut: 'C',
+            run: () => copyToClipboard(entityUrl(chatPath)),
+          },
+        ],
+        scope: `agent:${agent.id}`,
+        entityType: 'agent',
+        entity: agent,
+      };
+    });
+  }, [
+    inactiveAgents,
+    inactiveAgentLastActive,
+    workspaceSlug,
+    isFavorite,
+    toggleFavorite,
+  ]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1045,7 +1204,20 @@ export function AgentsSection({
     <Section
       title="AI Agents"
       count={items.length}
-      emptyLabel="No agents deployed yet."
+      inactiveTrigger={
+        inactiveAgentItems.length > 0 ? (
+          <InactiveItemsDropdown
+            category="agents"
+            categoryLabel="AI agents"
+            items={inactiveAgentItems}
+          />
+        ) : undefined
+      }
+      emptyLabel={
+        inactiveAgentItems.length > 0
+          ? 'No recent activity — quieter agents are under Inactive.'
+          : 'No agents deployed yet.'
+      }
       action={
         <Hint label="Add agent">
           <Button
@@ -1130,27 +1302,49 @@ export function AppsSection({
   const resourceOrders = useSidebarStore((s) => s.resourceOrders);
   const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
 
-  const integrationList = (integrations.data ?? []).filter(
-    (i) => i.status === 'CONNECTED',
+  const integrationList = useMemo(
+    () => (integrations.data ?? []).filter((i) => i.status === 'CONNECTED'),
+    [integrations.data],
   );
 
-  const rawItems: ResourceItemData[] = integrationList.map((integration) => ({
-    id: integration.provider,
-    resourceId: integration.id,
-    name: titleCaseProvider(integration.provider),
-    icon: PROVIDER_ICON[integration.provider] ?? 'Plug',
-    detail: 'Connected',
-  }));
+  // Unused 30+ days → "Inactive", unless favorited or open right now.
+  const {
+    active: activeIntegrations,
+    inactive: inactiveIntegrations,
+    lastActiveAt: inactiveAppLastActive,
+  } = useMemo(
+    () =>
+      partitionAppsByInactivity(integrationList, {
+        keepActive: (provider) =>
+          isFavorite('app', provider) ||
+          new URLSearchParams(location.search).get('app') === provider,
+      }),
+    [integrationList, isFavorite, location.search],
+  );
+
+  const rawActiveItems: ResourceItemData[] = useMemo(
+    () =>
+      activeIntegrations.map((integration) => ({
+        id: integration.provider,
+        resourceId: integration.id,
+        name: titleCaseProvider(integration.provider),
+        icon: PROVIDER_ICON[integration.provider] ?? 'Plug',
+        detail: 'Connected',
+      })),
+    [activeIntegrations],
+  );
 
   const customOrder = workspaceId
     ? resourceOrders[workspaceId]?.apps
     : undefined;
 
-  const items = useMemo(() => {
+  const items = useMemo<ResourceItemData[]>(() => {
     if (!customOrder || customOrder.length === 0) {
-      return rawItems;
+      return rawActiveItems;
     }
-    const map = new Map(rawItems.map((a) => [a.id, a]));
+    const map = new Map<string, ResourceItemData>(
+      rawActiveItems.map((a) => [a.id, a]),
+    );
     const result: ResourceItemData[] = [];
 
     for (const id of customOrder) {
@@ -1166,7 +1360,56 @@ export function AppsSection({
     }
 
     return result;
-  }, [rawItems, customOrder]);
+  }, [rawActiveItems, customOrder]);
+
+  const inactiveAppItems: InactiveDropdownItem[] = useMemo(() => {
+    return inactiveIntegrations.map((integration) => {
+      const appPath = `/w/${workspaceSlug}/integrations?app=${integration.provider}`;
+      const isFav = isFavorite('app', integration.provider);
+
+      return {
+        id: integration.provider,
+        name: titleCaseProvider(integration.provider),
+        to: appPath,
+        lastActiveAt: inactiveAppLastActive[integration.provider],
+        icon: (
+          <AppLogo
+            providerId={integration.provider}
+            name={titleCaseProvider(integration.provider)}
+            className="size-4 rounded-xs shrink-0"
+            sizeClassName="size-4"
+          />
+        ),
+        actions: [
+          {
+            id: 'favorite',
+            group: 'organize',
+            label: isFav ? 'Remove from favorites' : 'Add to favorites',
+            icon: Star,
+            shortcut: 'F',
+            run: () => toggleFavorite('app', integration.provider),
+          },
+          {
+            id: 'copy-link',
+            group: 'organize',
+            label: 'Copy link',
+            icon: Link2,
+            shortcut: 'C',
+            run: () => copyToClipboard(entityUrl(appPath)),
+          },
+        ],
+        scope: `app:${integration.provider}`,
+        entityType: 'app',
+        entity: integration,
+      };
+    });
+  }, [
+    inactiveIntegrations,
+    inactiveAppLastActive,
+    workspaceSlug,
+    isFavorite,
+    toggleFavorite,
+  ]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1214,7 +1457,20 @@ export function AppsSection({
     <Section
       title="Apps"
       count={items.length}
-      emptyLabel="No apps connected yet."
+      inactiveTrigger={
+        inactiveAppItems.length > 0 ? (
+          <InactiveItemsDropdown
+            category="apps"
+            categoryLabel="apps"
+            items={inactiveAppItems}
+          />
+        ) : undefined
+      }
+      emptyLabel={
+        inactiveAppItems.length > 0
+          ? 'No recent activity — unused apps are under Inactive.'
+          : 'No apps connected yet.'
+      }
       action={
         <Hint label="Add app">
           <Button

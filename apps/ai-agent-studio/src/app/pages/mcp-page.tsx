@@ -1,4 +1,5 @@
 import { mcpApi } from '@org/api-client';
+import type { MCPTransport } from '@org/types';
 import {
   Badge,
   Button,
@@ -14,16 +15,11 @@ import {
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Check,
-  CheckCircle2,
-  ExternalLink,
-  Layers,
   Plug,
   Plus,
   RefreshCw,
   Server,
   Trash2,
-  Wrench,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
@@ -35,8 +31,7 @@ export function McpPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [serverName, setServerName] = useState('');
   const [serverUrl, setServerUrl] = useState('');
-  const [transport, setTransport] = useState<'SSE' | 'STDIO' | 'STREAM'>('SSE');
-  const [description, setDescription] = useState('');
+  const [transport, setTransport] = useState<MCPTransport>('SSE');
 
   // Load MCP connections
   const {
@@ -46,24 +41,22 @@ export function McpPage() {
     isRefetching,
   } = useQuery({
     queryKey: ['mcp-connections', activeWorkspace.id],
-    queryFn: () => mcpApi.list(activeWorkspace.id),
+    queryFn: () => mcpApi.listConnections(activeWorkspace.id),
   });
 
   // Create connection mutation
   const createMutation = useMutation({
     mutationFn: () =>
-      mcpApi.create(activeWorkspace.id, {
+      mcpApi.createConnection(activeWorkspace.id, {
         name: serverName.trim(),
         serverUrl: serverUrl.trim(),
         transport,
-        description: description.trim() || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mcp-connections', activeWorkspace.id] });
       setIsAddOpen(false);
       setServerName('');
       setServerUrl('');
-      setDescription('');
       toast.success('MCP server connected!');
     },
     onError: (err: any) => {
@@ -73,7 +66,7 @@ export function McpPage() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => mcpApi.delete(activeWorkspace.id, id),
+    mutationFn: (id: string) => mcpApi.deleteConnection(activeWorkspace.id, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mcp-connections', activeWorkspace.id] });
       toast.success('MCP server removed');
@@ -82,7 +75,7 @@ export function McpPage() {
 
   // Sync mutation
   const syncMutation = useMutation({
-    mutationFn: (id: string) => mcpApi.sync(activeWorkspace.id, id),
+    mutationFn: (id: string) => mcpApi.syncTools(activeWorkspace.id, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mcp-connections', activeWorkspace.id] });
       toast.success('MCP tools synced from server');
@@ -207,12 +200,6 @@ export function McpPage() {
                       {conn.transport}
                     </Badge>
                   </div>
-
-                  {conn.description && (
-                    <p className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
-                      {conn.description}
-                    </p>
-                  )}
                 </div>
 
                 <div className="flex items-center justify-between border-t border-border/60 pt-2.5">
@@ -299,25 +286,13 @@ export function McpPage() {
                 </label>
                 <select
                   value={transport}
-                  onChange={(e) => setTransport(e.target.value as any)}
+                  onChange={(e) => setTransport(e.target.value as MCPTransport)}
                   className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="SSE">Server-Sent Events (SSE)</option>
                   <option value="STDIO">Local stdio (Subprocess)</option>
-                  <option value="STREAM">Streaming WebSocket</option>
+                  <option value="HTTP">Streamable HTTP</option>
                 </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-foreground">
-                  Description (Optional)
-                </label>
-                <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="What tools does this server provide?"
-                  className="h-8 text-xs"
-                />
               </div>
             </div>
 

@@ -33,7 +33,12 @@ import {
   useWorkspaceActivity,
   type ActivityIndicator,
 } from '@org/notifications';
-import { NotificationSoundBridge, useLiveRoomActivity } from '@org/web-chat';
+import {
+  NotificationSoundBridge,
+  useLiveRoomActivity,
+  type LiveRoomActivity,
+  type RoomActivityEntry,
+} from '@org/web-chat';
 import { useChatNotificationSoundGate } from './notifications/chat-sound-gate.js';
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { GlobalInviteMembersDialog } from '@org/web-invitations';
@@ -73,6 +78,20 @@ import { ResizeHandle } from './resize-handle.js';
 import { RightPanel } from './right-panel.js';
 import { useResizableLayout } from './use-resizable-layout.js';
 import { WorkspaceMenu } from './workspace-switcher.js';
+
+/**
+ * The live Matrix room behind a channel — matched by name, the way rooms are
+ * provisioned, with the room id as a fallback when the API supplies one.
+ */
+function liveRoomForChannel(
+  live: LiveRoomActivity,
+  channel: { name: string },
+): RoomActivityEntry | undefined {
+  const byName = live.byChannelName.get(channel.name.toLowerCase().trim());
+  if (byName) return byName;
+  const roomId = (channel as { matrixRoomId?: unknown }).matrixRoomId;
+  return typeof roomId === 'string' ? live.byRoomId.get(roomId) : undefined;
+}
 
 export function AppShell() {
   const user = useCurrentUser();
@@ -179,13 +198,7 @@ export function AppShell() {
   const channelActivity = useMemo(() => {
     const merged: Record<string, ActivityIndicator> = { ...feedChannelActivity };
     for (const channel of channelsQuery.data ?? []) {
-      const live =
-        liveRoomActivity.byChannelName.get(
-          channel.name.toLowerCase().trim(),
-        ) ??
-        ('matrixRoomId' in channel && typeof (channel as Record<string, unknown>).matrixRoomId === 'string'
-          ? liveRoomActivity.byRoomId.get((channel as Record<string, unknown>).matrixRoomId as string)
-          : undefined);
+      const live = liveRoomForChannel(liveRoomActivity, channel);
       if (!live) continue;
       merged[channel.id] = mergeActivityIndicators(
         feedChannelActivity[channel.id],
@@ -214,8 +227,28 @@ export function AppShell() {
         latest[channelId] = item.occurredAt;
       }
     }
+    /*
+     * The feed only records what concerned *you*; the Matrix room knows when
+     * anyone last posted. Take whichever is newer, so a busy channel you're
+     * never mentioned in still sorts as active and never reads as "inactive".
+     */
+    for (const channel of channelsQuery.data ?? []) {
+      const liveAt = liveRoomForChannel(liveRoomActivity, channel)?.lastActivityAt;
+      if (!liveAt) continue;
+      const feedAt = latest[channel.id] ? Date.parse(latest[channel.id]) : 0;
+      if (liveAt > feedAt) latest[channel.id] = new Date(liveAt).toISOString();
+    }
     return latest;
-  }, [notificationFeed.data]);
+  }, [notificationFeed.data, channelsQuery.data, liveRoomActivity]);
+
+  /** When each DM conversation last had a message, by peer user id (epoch ms). */
+  const directMessageLastActivity = useMemo(() => {
+    const latest: Record<string, number> = {};
+    for (const [peerId, entry] of liveRoomActivity.byDirectPeerId) {
+      if (entry.lastActivityAt) latest[peerId] = entry.lastActivityAt;
+    }
+    return latest;
+  }, [liveRoomActivity]);
 
   /*
    * Every workspace's feed, not just this one's — the switcher has to say
@@ -390,6 +423,8 @@ export function AppShell() {
       inboxUnread={unread.count}
       channelActivity={channelActivity}
       channelLastActivity={channelLastActivity}
+      directMessageLastActivity={directMessageLastActivity}
+      activityReady={liveRoomActivity.ready}
       onCreateChannel={() => setCreateChannelOpen(true)}
       onBrowseChannels={() => navigate(`/w/${slug}/channels`)}
       isCollapsed={isSidebarCollapsed && !isMobile}

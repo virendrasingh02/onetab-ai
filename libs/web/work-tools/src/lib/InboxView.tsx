@@ -10,8 +10,8 @@ import {
   SkeletonList,
   Tabs,
   TabsContent,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   UserAvatar,
 } from '@org/ui';
 import { cn, formatDate, formatRelative } from '@org/utils';
@@ -672,7 +672,7 @@ export function InboxView() {
         {/* Tab Navigation directly below header */}
         <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList variant="underline" size="sm" className="border-b-0">
+            <ResponsiveTabsList variant="underline" size="sm" className="border-b-0 min-w-0 w-full">
               <TabsTrigger
                 value="notifications"
                 icon={<Bell className="size-3.5" />}
@@ -703,7 +703,7 @@ export function InboxView() {
               >
                 Assigned to you
               </TabsTrigger>
-            </TabsList>
+            </ResponsiveTabsList>
           </Tabs>
         </div>
       </div>

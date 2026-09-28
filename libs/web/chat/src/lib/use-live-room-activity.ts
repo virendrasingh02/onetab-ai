@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { normalizeAvatarSeed } from '@org/design-system';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 
 export interface MessagePreview {
@@ -13,6 +14,11 @@ export interface RoomActivityEntry {
   mentionCount: number;
   latestPreview?: MessagePreview;
   typingUserIds?: string[];
+  /**
+   * Epoch ms of the room's last message (falling back to its last event when
+   * no message is in the synced window). Absent when the room has no events.
+   */
+  lastActivityAt?: number;
 }
 
 export interface LiveRoomActivity {
@@ -20,13 +26,26 @@ export interface LiveRoomActivity {
   byChannelName: Map<string, RoomActivityEntry>;
   /** `direct` (1:1) rooms, keyed by the peer's Matrix user id. */
   byDirectUserId: Map<string, RoomActivityEntry>;
+  /**
+   * The same `direct` rooms keyed by the peer's *workspace* user id — the id
+   * the DM rows and `/dms/:userId` routes use.
+   */
+  byDirectPeerId: Map<string, RoomActivityEntry>;
   /** All rooms keyed by Matrix room id. */
   byRoomId: Map<string, RoomActivityEntry>;
+  /**
+   * True once the client has finished its first sync, so an absent room means
+   * "no such room" rather than "not loaded yet". Stays true through reconnects.
+   */
+  ready: boolean;
 }
 
-const EMPTY: LiveRoomActivity = {
+type RoomIndex = Omit<LiveRoomActivity, 'ready'>;
+
+const EMPTY: RoomIndex = {
   byChannelName: new Map(),
   byDirectUserId: new Map(),
+  byDirectPeerId: new Map(),
   byRoomId: new Map(),
 };
 
@@ -37,10 +56,17 @@ const EMPTY: LiveRoomActivity = {
  * reflect instant updates the moment an event lands.
  */
 export function useLiveRoomActivity(): LiveRoomActivity {
-  const { client } = useMatrix();
-  const [activity, setActivity] = useState<LiveRoomActivity>(EMPTY);
+  const { client, status } = useMatrix();
+  const [activity, setActivity] = useState<RoomIndex>(EMPTY);
   const frame = useRef<number | null>(null);
   const typingByRoom = useRef<Map<string, string[]>>(new Map());
+
+  // Sticky per client: a later reconnect doesn't make the data "unknown" again.
+  const [syncedClient, setSyncedClient] = useState<typeof client>(null);
+  useEffect(() => {
+    if (client && status.state === 'connected') setSyncedClient(client);
+  }, [client, status.state]);
+  const ready = client !== null && syncedClient === client;
 
   useEffect(() => {
     if (!client) {
@@ -53,6 +79,7 @@ export function useLiveRoomActivity(): LiveRoomActivity {
       try {
         const byChannelName = new Map<string, RoomActivityEntry>();
         const byDirectUserId = new Map<string, RoomActivityEntry>();
+        const byDirectPeerId = new Map<string, RoomActivityEntry>();
         const byRoomId = new Map<string, RoomActivityEntry>();
 
         for (const room of client.getRooms()) {
@@ -81,19 +108,28 @@ export function useLiveRoomActivity(): LiveRoomActivity {
             // Ignored if timeline cannot be read yet
           }
 
+          const lastActivityAt =
+            entry.latestPreview?.timestamp ?? room.lastActivityAt;
+          // matrix-js-sdk reports MIN_SAFE_INTEGER for a room with no events.
+          if (lastActivityAt !== undefined && lastActivityAt > 0) {
+            entry.lastActivityAt = lastActivityAt;
+          }
+
           byRoomId.set(room.id, entry);
 
           if (room.kind === 'channel') {
             const key = room.name.toLowerCase().trim();
             if (key && !byChannelName.has(key)) byChannelName.set(key, entry);
           } else if (room.kind === 'direct' && room.directUserId) {
+            // Rooms come newest first, so a duplicate DM keeps the live one.
             if (!byDirectUserId.has(room.directUserId)) {
               byDirectUserId.set(room.directUserId, entry);
+              byDirectPeerId.set(normalizeAvatarSeed(room.directUserId), entry);
             }
           }
         }
 
-        setActivity({ byChannelName, byDirectUserId, byRoomId });
+        setActivity({ byChannelName, byDirectUserId, byDirectPeerId, byRoomId });
       } catch {
         // Client present but not synced yet — reading rooms throws through
         // `require()`. Keep the last good snapshot until the next event.
@@ -134,7 +170,8 @@ export function useLiveRoomActivity(): LiveRoomActivity {
         frame.current = null;
       }
     };
-  }, [client]);
+    // `ready` re-runs the snapshot once the first sync lands.
+  }, [client, ready]);
 
-  return activity;
+  return useMemo(() => ({ ...activity, ready }), [activity, ready]);
 }

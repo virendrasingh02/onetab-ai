@@ -4,7 +4,6 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +37,7 @@ export function StudioHeader() {
   // Load credits for active workspace
   const { data: creditAccount } = useQuery({
     queryKey: ['workspace-credits', activeWorkspace.id],
-    queryFn: () => billingApi.getAccount(activeWorkspace.id),
+    queryFn: () => billingApi.getCredits(activeWorkspace.id),
     staleTime: 30_000,
   });
 

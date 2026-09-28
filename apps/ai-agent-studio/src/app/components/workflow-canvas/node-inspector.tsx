@@ -1,25 +1,14 @@
-import { Badge, Button, Input, Switch, toast } from '@org/ui';
+import { Button, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Node } from '@xyflow/react';
 import {
   Bot,
-  Brain,
-  Check,
-  Code2,
   Cpu,
   Flame,
   GitBranch,
-  Globe,
-  HelpCircle,
-  Play,
-  Repeat,
   Sliders,
-  Sparkles,
-  StopCircle,
   Trash2,
   UserCheck,
-  Variable,
-  Wrench,
   X,
 } from 'lucide-react';
 import { useState } from 'react';

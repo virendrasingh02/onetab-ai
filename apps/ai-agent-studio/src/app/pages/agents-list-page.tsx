@@ -22,20 +22,28 @@ import {
   Bot,
   Copy,
   Edit2,
-  ExternalLink,
-  Flame,
   Layers,
   MoreVertical,
   Play,
   Plus,
   Search,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { STUDIO_TEMPLATES } from '../data/templates.js';
+
 import { useStudioSession } from '../session-guard.js';
+
+/** Tools are stored as a JSON array of names; tolerate anything else. */
+function countTools(tools: string | null | undefined): number {
+  if (!tools) return 0;
+  try {
+    const parsed: unknown = JSON.parse(tools);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
 
 export function AgentsListPage() {
   const { activeWorkspace } = useStudioSession();
@@ -281,12 +289,7 @@ export function AgentsListPage() {
             const version = config.currentVersion
               ? `v${config.currentVersion}.0.0`
               : 'v1.0.0-draft';
-            let toolsCount = 0;
-            try {
-              toolsCount = agent.tools ? JSON.parse(agent.tools).length : 0;
-            } catch {
-              toolsCount = 0;
-            }
+            const toolsCount = countTools(agent.tools);
 
             return (
               <div

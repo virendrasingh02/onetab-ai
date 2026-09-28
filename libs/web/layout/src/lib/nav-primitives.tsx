@@ -284,6 +284,15 @@ export function IconOnlyNavRow({
   );
 }
 
+/**
+ * Whether `pathname` is the page at `path` or somewhere beneath it — segment
+ * aware, so `/c/dev` doesn't match `/c/dev-ops`. Any `?query` on `path` is
+ * ignored.
+ */
+export function isOnPath(pathname: string, path: string): boolean {
+  const base = path.split('?')[0];
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
 
 /**
  * Section container. Wraps a titled group of rows (Favorites, Channels, DMs,
@@ -294,6 +303,7 @@ export function Section({
   count,
   emptyLabel,
   action,
+  inactiveTrigger,
   defaultOpen = true,
   open: openProp,
   onOpenChange,
@@ -303,6 +313,7 @@ export function Section({
   count?: number;
   emptyLabel?: string;
   action?: ReactNode;
+  inactiveTrigger?: ReactNode;
   defaultOpen?: boolean;
   /** Controlled open state — when set, the caller owns collapse (and its persistence). */
   open?: boolean;
@@ -331,25 +342,28 @@ export function Section({
     >
       <section aria-label={title}>
         <div className="group/section gap-1.5 px-2.5 py-1 flex items-center justify-between select-none">
-          <CollapsibleTrigger
-            aria-label={`Toggle ${title} section`}
-            className={cn(
-              'group/trigger gap-1 flex items-center rounded-md',
-              'font-semibold tracking-wide text-[11px] text-foreground/75 uppercase',
-              'transition-colors duration-(--duration-fast) hover:text-foreground',
-              'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
-            )}
-          >
-            <span>{title}</span>
-            <ChevronDown
+          <div className="flex items-center gap-1.5 min-w-0">
+            <CollapsibleTrigger
+              aria-label={`Toggle ${title} section`}
               className={cn(
-                'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150',
-                'group-focus-within/section:opacity-100 group-hover/section:opacity-100 pointer-coarse:opacity-100',
-                !open && '-rotate-90',
+                'group/trigger gap-1 flex items-center rounded-md',
+                'font-semibold tracking-wide text-[11px] text-foreground/75 uppercase',
+                'transition-colors duration-(--duration-fast) hover:text-foreground',
+                'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
               )}
-              aria-hidden
-            />
-          </CollapsibleTrigger>
+            >
+              <span>{title}</span>
+              <ChevronDown
+                className={cn(
+                  'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150',
+                  'group-focus-within/section:opacity-100 group-hover/section:opacity-100 pointer-coarse:opacity-100',
+                  !open && '-rotate-90',
+                )}
+                aria-hidden
+              />
+            </CollapsibleTrigger>
+            {inactiveTrigger}
+          </div>
           {action}
         </div>
 

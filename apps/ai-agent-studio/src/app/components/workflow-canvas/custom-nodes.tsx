@@ -1,34 +1,15 @@
 import { cn } from '@org/utils';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import {
-  Activity,
-  AlertCircle,
-  ArrowRight,
   Bot,
-  Brain,
   CheckCircle2,
-  Clock,
   Code2,
-  Cpu,
-  FileCode,
   Flame,
   GitBranch,
-  Globe,
-  Layers,
-  Link as LinkIcon,
-  Loader2,
-  Lock,
-  PauseCircle,
   Play,
   Repeat,
-  Search,
-  ShieldAlert,
-  Sparkles,
-  StopCircle,
   UserCheck,
-  Variable,
   Wrench,
-  Zap,
 } from 'lucide-react';
 import { memo } from 'react';
 

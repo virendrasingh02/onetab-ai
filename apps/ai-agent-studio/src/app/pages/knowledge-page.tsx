@@ -1,5 +1,5 @@
 import { knowledgeApi } from '@org/api-client';
-import { Badge, Button, LoadingState } from '@org/ui';
+import { Badge, Button, LoadingState, SearchInput } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
   BookOpen,
@@ -7,9 +7,7 @@ import {
   ExternalLink,
   FileText,
   FolderOpen,
-  Plus,
   RefreshCw,
-  Search,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
@@ -124,12 +122,27 @@ export function KnowledgePage() {
 
       {/* Collections List */}
       <div className="space-y-3">
-        <h2 className="text-sm font-bold text-foreground">
-          Knowledge Collections ({knowledgeBases.length})
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-foreground">
+            Knowledge Collections ({knowledgeBases.length})
+          </h2>
+          {knowledgeBases.length > 0 ? (
+            <SearchInput
+              value={search}
+              onValueChange={setSearch}
+              placeholder="Filter collections"
+              wrapperClassName="w-full sm:w-64"
+              className="h-8 text-xs"
+            />
+          ) : null}
+        </div>
 
         {isLoading ? (
           <LoadingState label="Loading workspace knowledge collections…" />
+        ) : knowledgeBases.length > 0 && filteredBases.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border bg-surface/50 p-8 text-center text-xs text-muted-foreground">
+            No collections match “{search.trim()}”.
+          </p>
         ) : filteredBases.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 p-10 text-center text-muted-foreground">
             <BookOpen className="size-10 text-muted-foreground/30 mb-2" />
@@ -158,7 +171,7 @@ export function KnowledgePage() {
                           {kb.name}
                         </span>
                         <div className="text-[10px] text-muted-foreground font-mono">
-                          {kb.documentCount || 0} documents indexed
+                          {kb._count?.documents ?? 0} documents indexed
                         </div>
                       </div>
                     </div>

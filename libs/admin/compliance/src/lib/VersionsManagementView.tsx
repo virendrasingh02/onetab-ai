@@ -41,8 +41,8 @@ import {
   TableRow,
   Tabs,
   TabsContent,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   Textarea,
 } from '@org/ui';
 import {
@@ -548,7 +548,7 @@ export function VersionsManagementView() {
         onValueChange={(val) => setActiveTab(val as any)}
         className="mt-6 space-y-4"
       >
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
+        <ResponsiveTabsList fullWidth className="max-w-md">
           <TabsTrigger value="overview" className="gap-1.5 text-xs">
             <Layers className="size-3.5" />
             History & Table
@@ -561,7 +561,7 @@ export function VersionsManagementView() {
             <History className="size-3.5" />
             Audit Ledger
           </TabsTrigger>
-        </TabsList>
+        </ResponsiveTabsList>
 
         {/* TAB 1: HISTORY TABLE & MANAGEMENT */}
         <TabsContent value="overview" className="space-y-4">

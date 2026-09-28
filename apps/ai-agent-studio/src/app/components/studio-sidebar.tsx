@@ -3,18 +3,12 @@ import {
   Activity,
   BookOpen,
   Bot,
-  CheckCircle2,
-  Cpu,
-  FileCode,
   Flame,
-  Globe,
   Layers,
   LayoutDashboard,
   Plug,
   ShieldAlert,
   Sparkles,
-  Wrench,
-  Zap,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 

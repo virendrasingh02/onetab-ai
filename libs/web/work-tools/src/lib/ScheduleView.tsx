@@ -14,6 +14,7 @@ import {
   toast,
   usePromptDialog,
   UserAvatar,
+  ResponsiveTabs,
 } from '@org/ui';
 import { cn, formatDateTime, formatRelative } from '@org/utils';
 import {
@@ -122,49 +123,24 @@ export function ScheduleView() {
             </div>
 
             {/* View Switcher: Scheduled Messages vs Calendar Events */}
-            <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg text-xs">
-              <button
-                type="button"
-                onClick={() => setActiveTab('messages')}
-                className={cn(
-                  'px-2.5 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5',
-                  activeTab === 'messages'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <span>Scheduled Messages</span>
-                {pendingCount > 0 ? (
-                  <Badge
-                    variant="primary"
-                    className="text-[10px] px-1.5 py-0 h-4 min-w-4 justify-center"
-                  >
-                    {pendingCount}
-                  </Badge>
-                ) : null}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('events')}
-                className={cn(
-                  'px-2.5 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5',
-                  activeTab === 'events'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <span>Calendar Events</span>
-                {(events.data?.length ?? 0) > 0 ? (
-                  <Badge
-                    variant="neutral"
-                    className="text-[10px] px-1.5 py-0 h-4 min-w-4 justify-center"
-                  >
-                    {events.data?.length}
-                  </Badge>
-                ) : null}
-              </button>
-            </div>
+            <ResponsiveTabs
+              value={activeTab}
+              onValueChange={(val) => setActiveTab(val as 'messages' | 'events')}
+              variant="segmented"
+              size="sm"
+              items={[
+                {
+                  value: 'messages',
+                  label: 'Scheduled Messages',
+                  count: pendingCount > 0 ? pendingCount : undefined,
+                },
+                {
+                  value: 'events',
+                  label: 'Calendar Events',
+                  count: (events.data?.length ?? 0) > 0 ? events.data?.length : undefined,
+                },
+              ]}
+            />
           </div>
 
           <div className="gap-2 flex items-center">

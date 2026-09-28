@@ -13,6 +13,7 @@ import {
   Skeleton,
   SkeletonAvatar,
   SkeletonText,
+  ResponsiveTabs,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCreationPolicies, useCurrentWorkspace } from '@org/web-workspace';
@@ -112,27 +113,25 @@ export const CoworkerDirectoryView: FC = () => {
             </div>
 
             {/* Top Actions */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center rounded-lg border border-border p-0.5 bg-muted/40">
-                <Button
-                  variant={activeTab === 'roster' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
-                  onClick={() => setActiveTab('roster')}
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  Team Roster
-                </Button>
-                <Button
-                  variant={activeTab === 'activity' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
-                  onClick={() => setActiveTab('activity')}
-                >
-                  <Activity className="h-3.5 w-3.5" />
-                  Live Activity
-                </Button>
-              </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <ResponsiveTabs
+                value={activeTab}
+                onValueChange={(val) => setActiveTab(val as 'roster' | 'activity')}
+                variant="segmented"
+                size="sm"
+                items={[
+                  {
+                    value: 'roster',
+                    label: 'Team Roster',
+                    icon: <Users className="h-3.5 w-3.5" />,
+                  },
+                  {
+                    value: 'activity',
+                    label: 'Live Activity',
+                    icon: <Activity className="h-3.5 w-3.5" />,
+                  },
+                ]}
+              />
 
               {(() => {
                 const addCoworkerButton = (

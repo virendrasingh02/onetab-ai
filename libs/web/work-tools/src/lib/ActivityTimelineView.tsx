@@ -9,8 +9,8 @@ import {
   SearchInput,
   SkeletonList,
   Tabs,
-  TabsList,
   TabsTrigger,
+  ResponsiveTabsList,
   UserAvatar,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
@@ -186,13 +186,13 @@ export function ActivityTimelineView() {
             value={activeTab}
             onValueChange={(next) => setActiveTab(next as ActivityTab)}
           >
-            <TabsList variant="underline" size="sm" className="border-b-0">
+            <ResponsiveTabsList variant="underline" size="sm" className="border-b-0 min-w-0 w-full">
               {TABS.map((tab) => (
                 <TabsTrigger key={tab.id} value={tab.id}>
                   {tab.label}
                 </TabsTrigger>
               ))}
-            </TabsList>
+            </ResponsiveTabsList>
           </Tabs>
         </div>
       </div>
