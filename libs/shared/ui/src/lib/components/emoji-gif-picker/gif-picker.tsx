@@ -1,6 +1,6 @@
 import { cn } from '@org/utils';
 import { Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CURATED_GIFS,
   useGifSource,
@@ -8,6 +8,7 @@ import {
 } from './gif-source-context.js';
 import { PickerEmptyState, PickerErrorState } from './picker-empty-state.js';
 import { PickerSearch } from './picker-search.js';
+import { PickerSectionLabel } from './picker-section-label.js';
 import { PickerSkeleton } from './picker-skeleton.js';
 import { usePickerRecents } from './use-picker-recents.js';
 
@@ -17,6 +18,9 @@ import { usePickerRecents } from './use-picker-recents.js';
  * Live search when a {@link GifSource} is provided (see `<GifSourceProvider>`),
  * otherwise the bundled {@link CURATED_GIFS} filtered by title. Presentational:
  * `onGifSelect` out, the source injected via context.
+ *
+ * With no query it shows a compact "Recent" strip above the full, infinitely
+ * scrolling trending feed; a query swaps both for the search results.
  */
 
 export interface GifPickerProps {
@@ -47,34 +51,18 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
   const pushGif = usePickerRecents((s) => s.pushGif);
 
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<string | null>(null);
-  const [categories, setCategories] = useState<string[]>([]);
   const [items, setItems] = useState<GifItem[]>([]);
   const [next, setNext] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const debouncedQuery = useDebouncedValue(query);
-  const effectiveQuery = (debouncedQuery.trim() || category || '').trim();
+  const effectiveQuery = useDebouncedValue(query).trim();
   const requestId = useRef(0);
 
   const handleSelect = (gif: GifItem) => {
     pushGif(gif);
     onGifSelect(gif);
   };
-
-  // Category chips (source-backed only).
-  useEffect(() => {
-    if (!source) return;
-    let alive = true;
-    void source
-      .categories()
-      .then((cats) => alive && setCategories(cats.slice(0, 12)))
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [source]);
 
   const loadData = useCallback(() => {
     const id = ++requestId.current;
@@ -144,12 +132,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
     return () => observer.disconnect();
   }, [next, loadMore]);
 
-  const showRecentsStrip =
-    !effectiveQuery && recentGifs.length > 0;
-  const displayItems = useMemo(
-    () => (showRecentsStrip ? recentGifs : items),
-    [showRecentsStrip, recentGifs, items],
-  );
+  const showRecents = !effectiveQuery && recentGifs.length > 0;
 
   return (
     <div
@@ -158,99 +141,96 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
         className,
       )}
     >
-      <div className="flex flex-col gap-2 border-b border-border p-3">
+      <div className="border-b border-border p-3">
+        {/* The placeholder doubles as the attribution GIPHY's API terms
+          require wherever its content is shown. */}
         <PickerSearch
           tab="gifs"
+          placeholder={source ? 'Search GIPHY…' : undefined}
           value={query}
-          onChange={(val) => {
-            setQuery(val);
-            setCategory(null);
-          }}
+          onChange={setQuery}
           autoFocus={autoFocus}
-          onClear={() => {
-            setQuery('');
-            setCategory(null);
-          }}
         />
-
-        {categories.length > 0 && !query ? (
-          <div className="flex flex-wrap gap-1">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setCategory((c) => (c === cat ? null : cat))}
-                className={cn(
-                  'rounded-full px-2.5 py-1 text-[11px] font-medium capitalize transition-colors',
-                  category === cat
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-surface-inset text-muted-foreground hover:bg-accent hover:text-foreground',
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-subtle p-3">
-        {showRecentsStrip ? (
-          <p className="px-0.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            Recent
-          </p>
-        ) : null}
-
-        {error ? (
-          <div className="mb-2">
-            <PickerErrorState message={error} onRetry={loadData} />
-          </div>
-        ) : null}
-
-        {loading && displayItems.length === 0 ? (
-          <PickerSkeleton count={6} />
-        ) : displayItems.length === 0 && !loading ? (
-          <PickerEmptyState
-            title={effectiveQuery ? `No GIFs for “${effectiveQuery}”` : 'No GIFs'}
-            description={effectiveQuery ? 'Try another search term or browse trending tags.' : undefined}
-          />
-        ) : (
-          <div className="columns-2 gap-2 [column-fill:_balance]">
-            {displayItems.map((gif) => (
-              <button
-                key={gif.id}
-                type="button"
-                onClick={() => handleSelect(gif)}
-                title={gif.title}
-                className="group relative mb-2 block w-full overflow-hidden rounded-lg border border-border bg-surface-inset transition-transform hover:z-10 hover:scale-[1.02] hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <img
-                  src={gif.previewUrl}
-                  alt={gif.title}
-                  loading="lazy"
-                  className="w-full object-cover"
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-subtle px-3 pb-3">
+        {showRecents ? (
+          <section>
+            <PickerSectionLabel>Recent</PickerSectionLabel>
+            <div className="-mx-3 flex gap-2 overflow-x-auto scrollbar-none px-3 pb-1">
+              {recentGifs.map((gif) => (
+                <button
+                  key={gif.id}
+                  type="button"
+                  onClick={() => handleSelect(gif)}
+                  title={gif.title}
+                  aria-label={gif.title}
+                  className="h-18 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-inset transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   style={{ aspectRatio: `${gif.width} / ${gif.height}` }}
-                />
-                <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent p-1.5 text-left text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-                  {gif.title}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {loading && displayItems.length > 0 ? (
-          <div className="flex items-center justify-center py-3 text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-          </div>
+                >
+                  <img
+                    src={gif.previewUrl}
+                    alt=""
+                    loading="lazy"
+                    className="size-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          </section>
         ) : null}
 
-        {next ? <div ref={sentinelRef} className="h-px w-full" /> : null}
-      </div>
+        <section>
+          <PickerSectionLabel>
+            {effectiveQuery ? 'Results' : source ? 'Trending' : 'All GIFs'}
+          </PickerSectionLabel>
 
-      <div className="flex h-8 shrink-0 items-center justify-between border-t border-border bg-surface-inset/50 px-3 text-[10px] text-muted-foreground">
-        <span>{displayItems.length} GIFs</span>
-        <span className="text-subtle">{source ? 'Powered by GIPHY' : 'Curated collection'}</span>
+          {error ? (
+            <div className="mb-2">
+              <PickerErrorState message={error} onRetry={loadData} />
+            </div>
+          ) : null}
+
+          {loading && items.length === 0 ? (
+            <PickerSkeleton count={6} />
+          ) : items.length === 0 && !loading ? (
+            <PickerEmptyState
+              title={effectiveQuery ? `No GIFs for “${effectiveQuery}”` : 'No GIFs'}
+              description={effectiveQuery ? 'Try another search term.' : undefined}
+            />
+          ) : (
+            <div className="columns-2 gap-2 [column-fill:_balance]">
+              {items.map((gif) => (
+                <button
+                  key={gif.id}
+                  type="button"
+                  onClick={() => handleSelect(gif)}
+                  title={gif.title}
+                  className="group relative mb-2 block w-full overflow-hidden rounded-lg border border-border bg-surface-inset transition-transform hover:z-10 hover:scale-[1.02] hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <img
+                    src={gif.previewUrl}
+                    alt={gif.title}
+                    loading="lazy"
+                    className="w-full object-cover"
+                    style={{ aspectRatio: `${gif.width} / ${gif.height}` }}
+                  />
+                  <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent p-1.5 text-left text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    {gif.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {loading && items.length > 0 ? (
+            <div className="flex items-center justify-center py-3 text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+            </div>
+          ) : null}
+
+          {next ? <div ref={sentinelRef} className="h-px w-full" /> : null}
+        </section>
       </div>
     </div>
   );

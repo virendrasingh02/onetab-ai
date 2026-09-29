@@ -1,7 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { StickerSourceProvider, type StickerSource } from './sticker-source-context.js';
+import {
+  CURATED_STICKER_PACKS,
+  StickerSourceProvider,
+  type StickerSource,
+} from './sticker-source-context.js';
 import { GifSourceProvider, type GifSource } from './gif-source-context.js';
 import { UnifiedEmojiPicker } from './unified-emoji-picker.js';
 import { UnifiedEmojiPickerPopover } from './unified-emoji-picker-popover.js';
@@ -124,7 +128,7 @@ describe('UnifiedEmojiPicker', () => {
 
     // Switch to GIFs tab
     await user.click(screen.getByRole('tab', { name: /gifs/i }));
-    expect(await screen.findByPlaceholderText('Search GIFs…')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('Search GIPHY…')).toBeInTheDocument();
     expect(await screen.findByTitle('trending cat')).toBeInTheDocument();
 
     // Switch to Stickers tab
@@ -195,6 +199,23 @@ describe('UnifiedEmojiPicker', () => {
     const partyVibesElements = await screen.findAllByText('Party Vibes');
     expect(partyVibesElements.length).toBeGreaterThan(0);
     expect(screen.getByTitle('Celebrate')).toBeInTheDocument();
+  });
+
+  it('lists every pack at once, with no pack switcher or footer', async () => {
+    render(
+      <UnifiedEmojiPicker
+        defaultTab="stickers"
+        onEmojiSelect={vi.fn()}
+        onGifSelect={vi.fn()}
+        onStickerSelect={vi.fn()}
+      />,
+    );
+
+    for (const pack of CURATED_STICKER_PACKS) {
+      expect(await screen.findByRole('region', { name: pack.name })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: pack.name })).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText(/\d+ stickers/)).not.toBeInTheDocument();
   });
 
   it('searches stickers across packs', async () => {

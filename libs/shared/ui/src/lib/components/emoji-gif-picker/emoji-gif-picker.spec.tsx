@@ -90,7 +90,7 @@ describe('GifPicker', () => {
       </GifSourceProvider>,
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Search GIFs…'), {
+    fireEvent.change(screen.getByPlaceholderText('Search GIPHY…'), {
       target: { value: 'cat' },
     });
 
@@ -102,7 +102,36 @@ describe('GifPicker', () => {
     render(<GifPicker onGifSelect={vi.fn()} />);
     // CURATED_GIFS titles include "Thumbs up"
     expect(await screen.findByTitle('Thumbs up')).toBeInTheDocument();
-    expect(screen.queryByText('Powered by GIPHY')).not.toBeInTheDocument();
+    // No GIPHY content, so no GIPHY attribution either.
+    expect(screen.getByPlaceholderText('Search GIFs…')).toBeInTheDocument();
+  });
+
+  it('keeps the full trending feed visible alongside recent GIFs', async () => {
+    usePickerRecents.setState({ gifs: [gif('r1', 'recent one')] });
+    const source = makeSource();
+    render(
+      <GifSourceProvider value={source}>
+        <GifPicker onGifSelect={vi.fn()} />
+      </GifSourceProvider>,
+    );
+
+    expect(await screen.findByTitle('recent one')).toBeInTheDocument();
+    expect(await screen.findByTitle('trending one')).toBeInTheDocument();
+    expect(await screen.findByTitle('trending two')).toBeInTheDocument();
+  });
+
+  it('shows no category chips or footer', async () => {
+    const source = makeSource();
+    render(
+      <GifSourceProvider value={source}>
+        <GifPicker onGifSelect={vi.fn()} />
+      </GifSourceProvider>,
+    );
+
+    await screen.findByTitle('trending one');
+    expect(source.categories).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'cats' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+ GIFs/)).not.toBeInTheDocument();
   });
 });
 

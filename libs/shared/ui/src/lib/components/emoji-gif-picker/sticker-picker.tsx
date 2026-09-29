@@ -1,14 +1,24 @@
 import { cn } from '@org/utils';
 import type { StickerItem, StickerPack } from '@org/types';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PickerEmptyState, PickerErrorState } from './picker-empty-state.js';
 import { PickerSearch } from './picker-search.js';
+import { PickerSectionLabel } from './picker-section-label.js';
 import { StickerSkeletonGrid } from './picker-skeleton.js';
 import {
   CURATED_STICKER_PACKS,
   useStickerSource,
 } from './sticker-source-context.js';
 import { usePickerRecents } from './use-picker-recents.js';
+
+/**
+ * The Stickers tab.
+ *
+ * Every pack is laid out as its own section in one scrolling list (recents
+ * first), so browsing needs no pack switcher; a query searches across all
+ * packs — through the {@link StickerSource} when one is provided, otherwise
+ * over {@link CURATED_STICKER_PACKS}' names, alt text and tags.
+ */
 
 export interface StickerPickerProps {
   onStickerSelect: (sticker: StickerItem) => void;
@@ -25,6 +35,45 @@ function useDebouncedValue<T>(value: T, delayMs = 250): T {
   return debounced;
 }
 
+function matchesQuery(sticker: StickerItem, query: string): boolean {
+  const q = query.toLowerCase();
+  return (
+    sticker.name.toLowerCase().includes(q) ||
+    sticker.alt.toLowerCase().includes(q) ||
+    Boolean(sticker.tags?.some((tag) => tag.toLowerCase().includes(q)))
+  );
+}
+
+function StickerGrid({
+  stickers,
+  onSelect,
+}: {
+  stickers: StickerItem[];
+  onSelect: (sticker: StickerItem) => void;
+}) {
+  return (
+    <div className="grid grid-cols-4 gap-1.5 pb-1">
+      {stickers.map((sticker) => (
+        <button
+          key={sticker.id}
+          type="button"
+          onClick={() => onSelect(sticker)}
+          title={sticker.name || sticker.alt}
+          aria-label={sticker.name || sticker.alt}
+          className="flex aspect-square w-full items-center justify-center rounded-xl p-2 transition-all hover:scale-105 hover:bg-accent/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <img
+            src={sticker.thumbnail || sticker.url}
+            alt={sticker.alt}
+            loading="lazy"
+            className="pointer-events-none size-full object-contain drop-shadow-xs"
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function StickerPicker({
   onStickerSelect,
   className,
@@ -35,11 +84,12 @@ export function StickerPicker({
   const pushSticker = usePickerRecents((s) => s.pushSticker);
 
   const [packs, setPacks] = useState<StickerPack[]>(CURATED_STICKER_PACKS);
-  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [packsLoading, setPacksLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<StickerItem[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchAttempt, setSearchAttempt] = useState(0);
 
   const debouncedQuery = useDebouncedValue(query.trim());
   const searchReqId = useRef(0);
@@ -49,59 +99,39 @@ export function StickerPicker({
       setPacks(CURATED_STICKER_PACKS);
       return;
     }
-    setLoading(true);
-    setError(null);
+    setPacksLoading(true);
     source
       .getPacks()
-      .then((p) => {
-        setPacks(p.length > 0 ? p : CURATED_STICKER_PACKS);
-        if (!selectedPackId && p.length > 0) {
-          setSelectedPackId(p[0].id);
-        }
-      })
+      .then((p) => setPacks(p.length > 0 ? p : CURATED_STICKER_PACKS))
       .catch((err) => {
         console.warn('Failed to load sticker packs, falling back to curated set', err);
         setPacks(CURATED_STICKER_PACKS);
       })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [source, selectedPackId]);
+      .finally(() => setPacksLoading(false));
+  }, [source]);
 
   useEffect(() => {
     loadPacks();
   }, [loadPacks]);
 
-  // Set default pack when packs load
-  useEffect(() => {
-    if (!selectedPackId && packs.length > 0) {
-      setSelectedPackId(packs[0].id);
-    }
-  }, [packs, selectedPackId]);
-
-  // Handle Search
   useEffect(() => {
     const req = ++searchReqId.current;
     if (!debouncedQuery) {
       setSearchResults(null);
-      setError(null);
+      setSearchError(null);
+      setSearching(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    setSearching(true);
+    setSearchError(null);
 
     const doSearch = source
       ? source.search(debouncedQuery)
       : Promise.resolve(
-          packs.flatMap((p) => p.stickers).filter((s) => {
-            const q = debouncedQuery.toLowerCase();
-            return (
-              s.name.toLowerCase().includes(q) ||
-              s.alt.toLowerCase().includes(q) ||
-              s.tags?.some((t) => t.toLowerCase().includes(q))
-            );
-          }),
+          packs
+            .flatMap((pack) => pack.stickers)
+            .filter((sticker) => matchesQuery(sticker, debouncedQuery)),
         );
 
     doSearch
@@ -112,29 +142,98 @@ export function StickerPicker({
       .catch((err) => {
         if (searchReqId.current !== req) return;
         console.warn('Sticker search error:', err);
-        setError('Unable to search stickers');
+        setSearchError('Unable to search stickers');
       })
       .finally(() => {
-        if (searchReqId.current === req) setLoading(false);
+        if (searchReqId.current === req) setSearching(false);
       });
-  }, [debouncedQuery, source, packs]);
+  }, [debouncedQuery, source, packs, searchAttempt]);
 
   const handleSelect = (sticker: StickerItem) => {
     pushSticker(sticker);
     onStickerSelect(sticker);
   };
 
-  const activePack = useMemo(() => {
-    return packs.find((p) => p.id === selectedPackId) ?? packs[0];
-  }, [packs, selectedPackId]);
+  const packsWithStickers = packs.filter((pack) => pack.stickers.length > 0);
 
-  const showRecentsStrip =
-    !debouncedQuery && recentStickers.length > 0;
+  const renderSearch = () => {
+    if (searching && searchResults === null) {
+      return (
+        <div className="pt-3">
+          <StickerSkeletonGrid count={8} />
+        </div>
+      );
+    }
+    if (searchError) {
+      return (
+        <div className="pt-3">
+          <PickerErrorState
+            message={searchError}
+            onRetry={() => setSearchAttempt((n) => n + 1)}
+          />
+        </div>
+      );
+    }
+    if (!searchResults || searchResults.length === 0) {
+      return (
+        <div className="pt-3">
+          <PickerEmptyState
+            title={`No stickers for “${debouncedQuery}”`}
+            description="Try another keyword."
+          />
+        </div>
+      );
+    }
+    return (
+      <section>
+        <PickerSectionLabel>Results</PickerSectionLabel>
+        <StickerGrid stickers={searchResults} onSelect={handleSelect} />
+      </section>
+    );
+  };
 
-  const displayStickers = useMemo(() => {
-    if (searchResults !== null) return searchResults;
-    return activePack?.stickers ?? [];
-  }, [searchResults, activePack]);
+  const renderBrowse = () => {
+    if (packsLoading && packsWithStickers.length === 0) {
+      return (
+        <div className="pt-3">
+          <StickerSkeletonGrid count={8} />
+        </div>
+      );
+    }
+    if (packsWithStickers.length === 0 && recentStickers.length === 0) {
+      return (
+        <div className="pt-3">
+          <PickerEmptyState title="No stickers" />
+        </div>
+      );
+    }
+    return (
+      <>
+        {recentStickers.length > 0 ? (
+          <section>
+            <PickerSectionLabel>Recent</PickerSectionLabel>
+            <StickerGrid
+              stickers={recentStickers.slice(0, 8)}
+              onSelect={handleSelect}
+            />
+          </section>
+        ) : null}
+        {packsWithStickers.map((pack) => (
+          <section key={pack.id} aria-label={pack.name}>
+            <PickerSectionLabel>
+              {pack.icon ? (
+                <span aria-hidden className="text-xs normal-case leading-none">
+                  {pack.icon}
+                </span>
+              ) : null}
+              {pack.name}
+            </PickerSectionLabel>
+            <StickerGrid stickers={pack.stickers} onSelect={handleSelect} />
+          </section>
+        ))}
+      </>
+    );
+  };
 
   return (
     <div
@@ -143,111 +242,17 @@ export function StickerPicker({
         className,
       )}
     >
-      <div className="flex flex-col gap-2 border-b border-border p-3">
+      <div className="border-b border-border p-3">
         <PickerSearch
           tab="stickers"
           value={query}
           onChange={setQuery}
           autoFocus={autoFocus}
-          onClear={() => setQuery('')}
         />
-
-        {!debouncedQuery && packs.length > 0 ? (
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
-            {packs.map((pack) => {
-              const isActive = pack.id === activePack?.id;
-              return (
-                <button
-                  key={pack.id}
-                  type="button"
-                  onClick={() => setSelectedPackId(pack.id)}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap shrink-0',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-xs'
-                      : 'bg-surface-inset text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                  title={pack.name}
-                >
-                  {pack.icon ? <span className="text-xs leading-none">{pack.icon}</span> : null}
-                  <span>{pack.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-subtle p-3">
-        {showRecentsStrip ? (
-          <div className="mb-3">
-            <p className="px-0.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Recent Stickers
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              {recentStickers.slice(0, 8).map((sticker) => (
-                <button
-                  key={sticker.id}
-                  type="button"
-                  onClick={() => handleSelect(sticker)}
-                  title={sticker.name || sticker.alt}
-                  aria-label={sticker.name || sticker.alt}
-                  className="group relative flex size-18 items-center justify-center rounded-xl p-1.5 transition-all hover:scale-110 hover:bg-accent/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  <img
-                    src={sticker.thumbnail || sticker.url}
-                    alt={sticker.alt}
-                    loading="lazy"
-                    className="size-full object-contain pointer-events-none drop-shadow-xs"
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {loading ? (
-          <StickerSkeletonGrid count={8} />
-        ) : error ? (
-          <PickerErrorState message={error} onRetry={loadPacks} />
-        ) : displayStickers.length === 0 ? (
-          <PickerEmptyState
-            title={debouncedQuery ? `No stickers for “${debouncedQuery}”` : 'No stickers'}
-            description={debouncedQuery ? 'Try another keyword or browse sticker packs.' : undefined}
-          />
-        ) : (
-          <div>
-            {!debouncedQuery && activePack ? (
-              <p className="px-0.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                {activePack.name}
-              </p>
-            ) : null}
-            <div className="grid grid-cols-4 gap-2">
-              {displayStickers.map((sticker) => (
-                <button
-                  key={sticker.id}
-                  type="button"
-                  onClick={() => handleSelect(sticker)}
-                  title={sticker.name || sticker.alt}
-                  aria-label={sticker.name || sticker.alt}
-                  className="group relative flex size-18 items-center justify-center rounded-xl p-1.5 transition-all hover:scale-110 hover:bg-accent/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  <img
-                    src={sticker.thumbnail || sticker.url}
-                    alt={sticker.alt}
-                    loading="lazy"
-                    className="size-full object-contain pointer-events-none drop-shadow-xs"
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex h-8 shrink-0 items-center justify-between border-t border-border bg-surface-inset/50 px-3 text-[10px] text-muted-foreground">
-        <span>{displayStickers.length} stickers</span>
-        <span className="text-subtle">Click sticker to send</span>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-subtle px-3 pb-3">
+        {debouncedQuery ? renderSearch() : renderBrowse()}
       </div>
     </div>
   );

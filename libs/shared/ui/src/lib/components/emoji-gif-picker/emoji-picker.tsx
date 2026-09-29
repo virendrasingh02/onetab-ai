@@ -1,7 +1,7 @@
 import { cn } from '@org/utils';
 import { EmojiPicker as Frimousse } from 'frimousse';
 import { Search, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { usePickerRecents } from './use-picker-recents.js';
 
 /**
@@ -10,7 +10,8 @@ import { usePickerRecents } from './use-picker-recents.js';
  * A thin, tokenised shell around {@link https://frimousse.liveblocks.io | frimousse}
  * (headless, built on the same primitives as the rest of our Radix UI): full
  * Unicode set, fuzzy search, skin-tone selector, virtualised grid. Adds a
- * "Frequently used" strip, category quick-jump buttons, and a live preview, all platform-styled.
+ * one-row "Frequently used" strip and a live preview, all platform-styled;
+ * the grid's own sticky category headers do the wayfinding.
  */
 
 export interface EmojiSelection {
@@ -31,7 +32,6 @@ export interface EmojiPickerProps {
   showRecents?: boolean;
   showPreview?: boolean;
   showSkinToneSelector?: boolean;
-  showCategoryNavigation?: boolean;
   autoFocus?: boolean;
   className?: string;
 }
@@ -43,18 +43,6 @@ export function setEmojiPickerBaseUrl(url: string): void {
   defaultEmojibaseUrl = url;
 }
 
-const EMOJI_CATEGORY_NAV = [
-  { id: 'smileys', icon: '😀', label: 'Smileys & Emotion' },
-  { id: 'people', icon: '👋', label: 'People & Body' },
-  { id: 'animals', icon: '🐻', label: 'Animals & Nature' },
-  { id: 'food', icon: '🍔', label: 'Food & Drink' },
-  { id: 'travel', icon: '🚀', label: 'Travel & Places' },
-  { id: 'activities', icon: '⚽', label: 'Activities' },
-  { id: 'objects', icon: '💡', label: 'Objects' },
-  { id: 'symbols', icon: '🔣', label: 'Symbols' },
-  { id: 'flags', icon: '🚩', label: 'Flags' },
-];
-
 export function EmojiPicker({
   onEmojiSelect,
   emojibaseUrl,
@@ -62,37 +50,22 @@ export function EmojiPicker({
   showRecents = true,
   showPreview = true,
   showSkinToneSelector = true,
-  showCategoryNavigation = true,
   autoFocus = true,
   className,
 }: EmojiPickerProps) {
   const [search, setSearch] = useState('');
   const recents = usePickerRecents((s) => s.emojis);
   const pushEmoji = usePickerRecents((s) => s.pushEmoji);
-  const rootRef = useRef<HTMLDivElement>(null);
 
   const handleSelect = (selection: EmojiSelection) => {
     pushEmoji(selection.emoji);
     onEmojiSelect(selection);
   };
 
-  const scrollToCategory = (categoryLabel: string) => {
-    setSearch('');
-    const viewport = rootRef.current?.querySelector('[frimousse-viewport]');
-    if (!viewport) return;
-    const headers = viewport.querySelectorAll('[data-category-label]');
-    for (const header of Array.from(headers)) {
-      if (header.getAttribute('data-category-label')?.toLowerCase().includes(categoryLabel.toLowerCase())) {
-        header.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        break;
-      }
-    }
-  };
-
   const showRecentsStrip = showRecents && !search.trim() && recents.length > 0;
 
   return (
-    <div ref={rootRef} className="h-full w-full">
+    <div className="h-full w-full">
       <Frimousse.Root
         onEmojiSelect={handleSelect}
         columns={columns}
@@ -126,35 +99,23 @@ export function EmojiPicker({
             ) : null}
           </div>
 
-          {showCategoryNavigation && !search ? (
-            <div className="flex items-center justify-between gap-1 overflow-x-auto scrollbar-none px-0.5">
-              {EMOJI_CATEGORY_NAV.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => scrollToCategory(cat.label)}
-                  title={cat.label}
-                  aria-label={cat.label}
-                  className="flex size-7 items-center justify-center rounded-md text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground shrink-0"
-                >
-                  <span aria-hidden>{cat.icon}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
           {showRecentsStrip ? (
             <div>
               <p className="px-0.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 Frequently used
               </p>
-              <div className="flex flex-wrap gap-0.5">
-                {recents.slice(0, columns * 2).map((emoji) => (
+              {/* One row only, sized to the grid's columns — a second row
+                would push the emoji grid below the fold. */}
+              <div
+                className="grid gap-0.5"
+                style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+              >
+                {recents.slice(0, columns).map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
                     onClick={() => handleSelect({ emoji, label: emoji })}
-                    className="flex size-9 items-center justify-center rounded-lg text-[22px] transition-transform hover:scale-110 hover:bg-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                    className="flex h-9 w-full items-center justify-center rounded-lg text-[22px] transition-transform hover:scale-110 hover:bg-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   >
                     {emoji}
                   </button>
