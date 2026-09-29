@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -83,7 +84,7 @@ export function AddBookmarkDialog({
             </div>
           </DialogHeader>
 
-          <div className="space-y-4 px-6 py-4">
+          <DialogBody className="space-y-4">
             {/* Title / Label */}
             <div className="space-y-1.5">
               <label
@@ -129,7 +130,7 @@ export function AddBookmarkDialog({
                 </div>
               </div>
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button

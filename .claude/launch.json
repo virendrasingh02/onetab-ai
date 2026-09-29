@@ -18,6 +18,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["exec", "nx", "--", "run", "@org/admin:serve"],
       "port": 4201
+    },
+    {
+      "name": "studio",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["exec", "nx", "--", "run", "@org/ai-agent-studio:serve"],
+      "port": 4202
     }
   ]
 }

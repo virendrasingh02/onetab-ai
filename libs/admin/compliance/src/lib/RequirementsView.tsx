@@ -16,6 +16,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -256,7 +257,7 @@ export function RequirementsView() {
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-4 py-4">
+                <DialogBody className="grid gap-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="code" className="text-xs">
@@ -419,7 +420,7 @@ export function RequirementsView() {
                       Block release if unresolved (Strict Release Gate)
                     </Label>
                   </div>
-                </div>
+                </DialogBody>
 
                 <DialogFooter>
                   <Button
@@ -682,7 +683,7 @@ export function RequirementsView() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-4 py-4">
+              <DialogBody className="grid gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Title</Label>
                   <Input
@@ -778,7 +779,7 @@ export function RequirementsView() {
                     Block release if unresolved (Strict Release Gate)
                   </Label>
                 </div>
-              </div>
+              </DialogBody>
 
               <DialogFooter>
                 <Button

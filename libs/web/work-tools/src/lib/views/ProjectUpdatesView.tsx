@@ -7,6 +7,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -226,7 +227,7 @@ export function ProjectUpdatesView({
           <DialogHeader>
             <DialogTitle>Publish Status Update</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+          <DialogBody className="flex flex-col gap-3">
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2">
                 <label className="text-xs font-semibold mb-1 block">Update Title</label>
@@ -315,7 +316,7 @@ export function ProjectUpdatesView({
                 />
               </div>
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPublishOpen(false)}>
               Cancel

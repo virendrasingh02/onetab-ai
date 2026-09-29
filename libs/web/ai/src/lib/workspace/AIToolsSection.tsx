@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   EmptyState,
@@ -365,7 +366,7 @@ function ConnectMcpDialog({
               We connect right away to list its tools. The token is encrypted and never shown again.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 px-5 py-4">
+          <DialogBody className="space-y-3">
             <Field label="Name" required>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Docs search" />
             </Field>
@@ -380,7 +381,7 @@ function ConnectMcpDialog({
             <Field label="Bearer token" optional>
               <Input value={token} onChange={(e) => setToken(e.target.value)} type="password" autoComplete="off" />
             </Field>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

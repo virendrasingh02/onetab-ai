@@ -7,6 +7,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -332,7 +333,7 @@ export function CyclesPlanningView({
           <DialogHeader>
             <DialogTitle>New Planning Cycle</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+          <DialogBody className="flex flex-col gap-3">
             <div>
               <label className="text-xs font-semibold mb-1 block">Cycle Name</label>
               <Input
@@ -367,7 +368,7 @@ export function CyclesPlanningView({
                 />
               </div>
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
               Cancel

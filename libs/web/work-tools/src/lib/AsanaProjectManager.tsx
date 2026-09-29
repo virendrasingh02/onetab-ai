@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DropdownMenu,
@@ -1280,7 +1281,7 @@ function ProjectDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="gap-4 py-4 flex flex-col">
+          <DialogBody className="gap-4 flex flex-col">
             <div className="gap-3 flex items-end">
               <div className="gap-1.5 flex flex-col">
                 <label className="text-xs font-semibold">Icon</label>
@@ -1462,7 +1463,7 @@ function ProjectDialog({
                 </Select>
               </div>
             ) : null}
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button

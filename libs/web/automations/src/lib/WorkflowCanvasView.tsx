@@ -22,6 +22,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   EmptyState,
@@ -993,7 +994,7 @@ function RunDialog({
             {dirty ? ' Your changes are saved first.' : ''}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 px-5 py-2">
+        <DialogBody className="space-y-3">
           <Field label="Input (JSON)" error={parsed ? undefined : 'Enter a JSON object.'}>
             <Textarea rows={7} value={text} onChange={(e) => setText(e.target.value)} className="font-mono text-xs" />
           </Field>
@@ -1022,7 +1023,7 @@ function RunDialog({
               ) : null}
             </div>
           ) : null}
-        </div>
+        </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
@@ -1092,7 +1093,7 @@ function VersionsDialog({
           <DialogTitle>Versions</DialogTitle>
           <DialogDescription>Publishing saves a version too. Restoring replaces the canvas with that version.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 px-5 pt-2 pb-5">
+        <DialogBody className="space-y-3">
           {canEdit ? (
             <form
               className="flex gap-2"
@@ -1149,7 +1150,7 @@ function VersionsDialog({
               ))}
             </ul>
           )}
-        </div>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );

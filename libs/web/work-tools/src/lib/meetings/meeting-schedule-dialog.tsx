@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Form,
@@ -196,7 +197,7 @@ export function MeetingScheduleDialog({
           </DialogHeader>
 
           <Form {...form}>
-            <div className="space-y-4 px-6 py-4 max-h-[60vh] overflow-y-auto">
+            <DialogBody className="space-y-4 max-h-[60vh] overflow-y-auto">
               <FormError
                 error={formErrorMessage(create.error ?? update.error)}
               />
@@ -387,7 +388,7 @@ export function MeetingScheduleDialog({
                   />
                 </>
               )}
-            </div>
+            </DialogBody>
           </Form>
 
           <DialogFooter>

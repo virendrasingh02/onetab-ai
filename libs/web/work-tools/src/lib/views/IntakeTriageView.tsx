@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -277,7 +278,7 @@ export function IntakeTriageView({
           <DialogHeader>
             <DialogTitle>Convert to Work Item</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+          <DialogBody className="flex flex-col gap-3">
             <div>
               <label className="text-xs font-semibold mb-1 block">Destination Project</label>
               <Select
@@ -358,7 +359,7 @@ export function IntakeTriageView({
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsConvertOpen(false)}>
               Cancel
@@ -376,7 +377,7 @@ export function IntakeTriageView({
           <DialogHeader>
             <DialogTitle>File Intake Request</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+          <DialogBody className="flex flex-col gap-3">
             <div>
               <label className="text-xs font-semibold mb-1 block">Title</label>
               <Input
@@ -422,7 +423,7 @@ export function IntakeTriageView({
                 </Select>
               </div>
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
               Cancel

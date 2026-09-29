@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Form,
@@ -117,7 +118,7 @@ export function CreateChannelDialog({
           </DialogHeader>
 
           <Form {...form}>
-            <div className="space-y-4 px-6 py-4">
+            <DialogBody className="space-y-4">
               <FormError error={formErrorMessage(createChannel.error)} />
 
               <FormField
@@ -233,7 +234,7 @@ export function CreateChannelDialog({
                   </FormItem>
                 )}
               />
-            </div>
+            </DialogBody>
           </Form>
 
           <DialogFooter>

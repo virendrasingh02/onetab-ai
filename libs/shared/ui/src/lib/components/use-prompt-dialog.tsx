@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
 } from './dialog.js';
@@ -116,7 +117,7 @@ export function usePromptDialog(): PromptDialog {
           </DialogHeader>
 
           {request?.kind === 'text' ? (
-            <div className="space-y-1.5 px-5 py-2">
+            <DialogBody className="space-y-1.5">
               <Label htmlFor={fieldId} className="text-xs">
                 {request.label}
               </Label>
@@ -129,7 +130,7 @@ export function usePromptDialog(): PromptDialog {
                 /* Native prompt() selected the existing text; keep that. */
                 onFocus={(event) => event.currentTarget.select()}
               />
-            </div>
+            </DialogBody>
           ) : null}
 
           <DialogFooter>

@@ -629,7 +629,6 @@ export function ChannelPage() {
   const closeHosted = useRightPanelStore((s) => s.closeHosted);
   const markChannelSeen = useMarkChannelSeen(workspaceId);
 
-  /* Bumped to ask the conversation to start a huddle — see `ChatSurface`. */
   const [huddleRequest, setHuddleRequest] = useState(0);
   const [detailsPanelOpen, setDetailsPanelOpen] = useState(false);
   const [detailsTab, setDetailsTab] = useState<
@@ -637,6 +636,14 @@ export function ChannelPage() {
   >('about');
 
   const closeDetailsPanel = useCallback(() => setDetailsPanelOpen(false), []);
+
+  const handleUploadFile = useCallback(() => {
+    toast.info('Select a file from your device to upload');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = () => toast.success('File uploaded to channel');
+    input.click();
+  }, []);
 
   /*
    * Claims the rail while the details panel is open, and gives it back on close
@@ -813,45 +820,43 @@ export function ChannelPage() {
         onValueChange={setActiveTab}
         className="min-h-0 gap-0 flex flex-1 flex-col"
       >
-        <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
-          <ResponsiveTabsList className="min-w-0">
-            <TabsTrigger value="chat" className="gap-1.5">
-              <MessageSquare className="size-4 inline" /> Messages
-            </TabsTrigger>
-            <TabsTrigger value="files-media" className="gap-1.5">
-              <FolderOpen className="size-4 inline" /> Files &amp; Media
-              {mediaFiles.length + documentFiles.length > 0 ? (
-                <Badge
-                  variant="neutral"
-                  className="ml-0.5 px-1 py-0 text-[10px]"
-                >
-                  {mediaFiles.length + documentFiles.length}
-                </Badge>
-              ) : null}
-            </TabsTrigger>
-            <TabsTrigger value="bookmarks" className="gap-1.5">
-              <Bookmark className="size-4 inline" /> Bookmarks
-              {bookmarks.length > 0 ? (
-                <Badge
-                  variant="neutral"
-                  className="ml-0.5 px-1 py-0 text-[10px]"
-                >
-                  {bookmarks.length}
-                </Badge>
-              ) : null}
-            </TabsTrigger>
-            <TabsTrigger value="pins" className="gap-1.5">
-              <Pin className="size-4 inline" /> Pins
-              {(pins.data?.length ?? 0) > 0 ? (
-                <Badge
-                  variant="neutral"
-                  className="ml-0.5 px-1 py-0 text-[10px]"
-                >
-                  {pins.data?.length}
-                </Badge>
-              ) : null}
-            </TabsTrigger>
-          </ResponsiveTabsList>
+        <div className="px-3 sm:px-6 py-1 gap-2 flex items-center justify-between border-b border-border bg-background">
+          <div className="flex items-center gap-1 min-w-0">
+            <ResponsiveTabsList className="min-w-0">
+              <TabsTrigger
+                value="chat"
+                icon={<MessageSquare className="size-4" />}
+              >
+                Messages
+              </TabsTrigger>
+              <TabsTrigger
+                value="files-media"
+                icon={<FolderOpen className="size-4" />}
+                count={
+                  mediaFiles.length + documentFiles.length > 0
+                    ? mediaFiles.length + documentFiles.length
+                    : undefined
+                }
+              >
+                Files &amp; Media
+              </TabsTrigger>
+              <TabsTrigger
+                value="bookmarks"
+                icon={<Bookmark className="size-4" />}
+                count={bookmarks.length > 0 ? bookmarks.length : undefined}
+              >
+                Bookmarks
+              </TabsTrigger>
+              <TabsTrigger
+                value="pins"
+                icon={<Pin className="size-4" />}
+                count={
+                  (pins.data?.length ?? 0) > 0 ? pins.data?.length : undefined
+                }
+              >
+                Pins
+              </TabsTrigger>
+            </ResponsiveTabsList>
 
           {/* 3-dots Workflow, Templates, and AI Agents dropdown menu placed immediately after the tabs */}
           <DropdownMenu>
@@ -972,6 +977,31 @@ export function ChannelPage() {
           </DropdownMenu>
         </div>
 
+        {/* Inline Right Actions for active tab */}
+        <div className="flex items-center gap-2 shrink-0">
+          {activeTab === 'files-media' && (
+            <Button
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              onClick={handleUploadFile}
+            >
+              <Upload className="size-3.5" />
+              <span>Upload File</span>
+            </Button>
+          )}
+          {activeTab === 'bookmarks' && (
+            <Button
+              size="sm"
+              onClick={() => setAddBookmarkOpen(true)}
+              className="gap-1.5 text-xs h-7"
+            >
+              <Plus className="size-3.5" />
+              <span>Add Bookmark</span>
+            </Button>
+          )}
+        </div>
+      </div>
+
         <TabsContent
           value="chat"
           className="min-h-0 mt-0 flex flex-1 flex-col overflow-hidden"
@@ -1037,54 +1067,50 @@ export function ChannelPage() {
         >
           <ScrollArea
             className="min-h-0 flex-1"
-            contentClassName="px-4 sm:px-6 py-4 space-y-6"
+            contentClassName="px-4 sm:px-6 py-3 space-y-4"
           >
-            {/* Top Toolbar: Filter pills & Actions */}
-            <div className="gap-3 pb-3 flex flex-wrap items-center justify-between border-b border-border/60">
-              <div className="gap-1.5 flex flex-wrap items-center">
-                <Button
-                  size="sm"
-                  variant={filesFilter === 'all' ? 'primary' : 'outline'}
+            {/* Top Toolbar: Filter pills */}
+            <div className="gap-2 pb-2.5 flex flex-wrap items-center justify-between border-b border-border/40">
+              <div className="p-0.5 gap-1 inline-flex items-center rounded-lg bg-muted/60 border border-border/40">
+                <button
+                  type="button"
                   onClick={() => setFilesFilter('all')}
-                  className="h-7 text-xs px-2.5"
+                  className={cn(
+                    'h-6 px-2.5 rounded-md text-xs font-medium transition-colors cursor-pointer',
+                    filesFilter === 'all'
+                      ? 'bg-background text-foreground font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
                 >
                   All ({mediaFiles.length + documentFiles.length})
-                </Button>
-                <Button
-                  size="sm"
-                  variant={filesFilter === 'files' ? 'primary' : 'outline'}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setFilesFilter('files')}
-                  className="h-7 text-xs px-2.5 gap-1.5"
+                  className={cn(
+                    'h-6 px-2.5 rounded-md text-xs font-medium transition-colors inline-flex items-center gap-1.5 cursor-pointer',
+                    filesFilter === 'files'
+                      ? 'bg-background text-foreground font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
                 >
-                  <FileText className="size-3.5" />
+                  <FileText className="size-3" />
                   <span>Documents ({documentFiles.length})</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant={filesFilter === 'media' ? 'primary' : 'outline'}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setFilesFilter('media')}
-                  className="h-7 text-xs px-2.5 gap-1.5"
+                  className={cn(
+                    'h-6 px-2.5 rounded-md text-xs font-medium transition-colors inline-flex items-center gap-1.5 cursor-pointer',
+                    filesFilter === 'media'
+                      ? 'bg-background text-foreground font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
                 >
-                  <ImageIcon className="size-3.5" />
+                  <ImageIcon className="size-3" />
                   <span>Media ({mediaFiles.length})</span>
-                </Button>
+                </button>
               </div>
-
-              <Button
-                size="sm"
-                className="h-7 text-xs gap-1.5"
-                onClick={() => {
-                  toast.info('Select a file from your device to upload');
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.onchange = () =>
-                    toast.success('File uploaded to channel');
-                  input.click();
-                }}
-              >
-                <Upload className="size-3.5" />
-                <span>Upload File</span>
-              </Button>
             </div>
 
             {mediaFiles.length + documentFiles.length === 0 ? (
@@ -1095,12 +1121,7 @@ export function ChannelPage() {
                 action={
                   <Button
                     size="sm"
-                    onClick={() => {
-                      const input = document.createElement('input');
-                      input.type = 'file';
-                      input.onchange = () => toast.success('File uploaded');
-                      input.click();
-                    }}
+                    onClick={handleUploadFile}
                   >
                     Upload file
                   </Button>
@@ -1187,27 +1208,18 @@ export function ChannelPage() {
         <TabsContent value="bookmarks" className="min-h-0 flex flex-1 flex-col">
           <ScrollArea
             className="min-h-0 flex-1"
-            contentClassName="px-4 sm:px-6 py-4 space-y-4"
+            contentClassName="px-4 sm:px-6 py-3 space-y-4"
           >
-            <div className="pb-3 flex items-center justify-between border-b border-border/60">
-              <div>
-                <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
-                  <Bookmark className="size-4 text-primary" />
-                  <span>My Bookmarks</span>
-                </h3>
-                <p className="text-xs mt-0.5 text-muted-foreground">
-                  Links and resources you've saved from #{channel.name} — only
-                  visible to you, on this device.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => setAddBookmarkOpen(true)}
-                className="gap-1.5 text-xs h-7"
-              >
-                <Plus className="size-3.5" />
-                <span>Add bookmark</span>
-              </Button>
+            {/* "Add bookmark" lives in the tab bar, beside the tabs. */}
+            <div className="pb-2.5 border-b border-border/40">
+              <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
+                <Bookmark className="size-4 text-primary" />
+                <span>My Bookmarks</span>
+              </h3>
+              <p className="text-xs mt-0.5 text-muted-foreground">
+                Links and resources you've saved from #{channel.name} — only
+                visible to you, on this device.
+              </p>
             </div>
 
             {bookmarks.length === 0 ? (

@@ -7,6 +7,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -204,7 +205,7 @@ export function InitiativesView({
           <DialogHeader>
             <DialogTitle>New Strategic Initiative</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+          <DialogBody className="flex flex-col gap-3">
             <div>
               <label className="text-xs font-semibold mb-1 block">Initiative Name</label>
               <Input
@@ -263,7 +264,7 @@ export function InitiativesView({
                 })}
               </div>
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
               Cancel

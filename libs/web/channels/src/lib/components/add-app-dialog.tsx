@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   EmptyState,
@@ -104,7 +105,7 @@ export function AddAppDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-3 px-6 py-2">
+        <DialogBody className="space-y-3">
           {connectedIntegrations.length > 0 ? (
             <div className="relative">
               <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -200,9 +201,9 @@ export function AddAppDialog({
               </div>
             </ScrollArea>
           )}
-        </div>
+        </DialogBody>
 
-        <DialogFooter className="px-6 py-3 border-t border-border">
+        <DialogFooter className="py-3 border-t border-border">
           <Button
             type="button"
             variant="outline"

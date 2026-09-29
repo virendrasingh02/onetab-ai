@@ -5,6 +5,7 @@ import {
   ConnectionList,
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DropdownMenu,
@@ -983,10 +984,12 @@ export function IntegrationHubView() {
             ? (() => {
                 const info = integrationMap.get(logsCard.id.toUpperCase());
                 return info ? (
-                  <IntegrationLogsView
-                    workspaceId={workspaceId}
-                    integrations={[info]}
-                  />
+                  <DialogBody>
+                    <IntegrationLogsView
+                      workspaceId={workspaceId}
+                      integrations={[info]}
+                    />
+                  </DialogBody>
                 ) : null;
               })()
             : null}

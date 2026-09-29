@@ -264,9 +264,9 @@ export function tabsTriggerClassName(variant: TabsVariant, size: TabsSize) {
       'rounded-t-sm border-b-2 border-transparent text-muted-foreground',
       'hover:text-foreground',
       'data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold',
-      size === 'sm' && 'pb-2',
-      size === 'md' && 'pb-2.5',
-      size === 'lg' && 'pb-3',
+      size === 'sm' && 'pb-2 gap-1.5',
+      size === 'md' && 'pb-2.5 gap-2',
+      size === 'lg' && 'pb-3 gap-2.5',
     ],
   );
 }
@@ -284,14 +284,16 @@ export function TabsTriggerContent({
   children?: ReactNode;
 }) {
   return (
-    <>
+    <span className="inline-flex items-center gap-1.5 min-w-0">
       {icon && (
-        <span className="shrink-0 text-muted-foreground transition-colors group-hover:text-foreground group-data-[state=active]:text-foreground flex items-center justify-center">
+        <span className="shrink-0 text-muted-foreground transition-colors group-hover:text-foreground group-data-[state=active]:text-foreground inline-flex items-center justify-center">
           {icon}
         </span>
       )}
 
-      <span className="truncate">{children}</span>
+      <span className="inline-flex items-center gap-1.5 truncate [&_svg]:shrink-0 [&_svg]:inline-block">
+        {children}
+      </span>
 
       {count !== undefined && (
         <span
@@ -308,7 +310,7 @@ export function TabsTriggerContent({
       )}
 
       {badge && <span className="inline-flex items-center shrink-0">{badge}</span>}
-    </>
+    </span>
   );
 }
 

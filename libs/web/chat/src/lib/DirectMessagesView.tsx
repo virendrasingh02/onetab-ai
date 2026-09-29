@@ -263,29 +263,45 @@ function DirectConversation({
         onValueChange={setActiveTab}
         className="min-h-0 gap-0 flex flex-1 flex-col"
       >
-        <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
+        <div className="px-3 sm:px-6 py-1 gap-2 flex items-center justify-between border-b border-border bg-background">
           <TabsList className="scrollbar-none overflow-x-auto">
-            <TabsTrigger value="chat" className="gap-1.5">
-              <MessageSquare className="size-4 inline" /> Messages
+            <TabsTrigger
+              value="chat"
+              icon={<MessageSquare className="size-4" />}
+            >
+              Messages
             </TabsTrigger>
-            <TabsTrigger value="files-media" className="gap-1.5">
-              <FolderOpen className="size-4 inline" /> Files &amp; Media
+            <TabsTrigger
+              value="files-media"
+              icon={<FolderOpen className="size-4" />}
+            >
+              Files &amp; Media
             </TabsTrigger>
-            <TabsTrigger value="bookmarks" className="gap-1.5">
-              <Bookmark className="size-4 inline" /> Bookmarks
-              {bookmarks.length > 0 ? (
-                <Badge
-                  variant="neutral"
-                  className="ml-0.5 px-1 py-0 text-[10px]"
-                >
-                  {bookmarks.length}
-                </Badge>
-              ) : null}
+            <TabsTrigger
+              value="bookmarks"
+              icon={<Bookmark className="size-4" />}
+              count={bookmarks.length > 0 ? bookmarks.length : undefined}
+            >
+              Bookmarks
             </TabsTrigger>
-            <TabsTrigger value="pins" className="gap-1.5">
-              <Pin className="size-4 inline" /> Pins
+            <TabsTrigger
+              value="pins"
+              icon={<Pin className="size-4" />}
+            >
+              Pins
             </TabsTrigger>
           </TabsList>
+
+          {activeTab === 'bookmarks' && (
+            <Button
+              size="sm"
+              onClick={() => setAddBookmarkOpen(true)}
+              className="gap-1.5 text-xs h-7 shrink-0"
+            >
+              <Plus className="size-3.5" />
+              <span>Add Bookmark</span>
+            </Button>
+          )}
         </div>
 
         <TabsContent
@@ -344,28 +360,19 @@ function DirectConversation({
         <TabsContent value="bookmarks" className="min-h-0 flex flex-1 flex-col">
           <ScrollArea
             className="min-h-0 flex-1"
-            contentClassName="px-4 sm:px-6 py-4 space-y-4"
+            contentClassName="px-4 sm:px-6 py-3 space-y-4"
           >
-            <div className="pb-3 flex items-center justify-between border-b border-border/60">
-              <div>
-                <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
-                  <Bookmark className="size-4 text-primary" />
-                  <span>{isSelf ? 'Saved links' : 'My Bookmarks'}</span>
-                </h3>
-                <p className="text-xs mt-0.5 text-muted-foreground">
-                  {isSelf
-                    ? 'Links and resources you keep in your personal space — only visible to you, on this device.'
-                    : `Links and resources you've saved from your conversation with ${name} — only visible to you, on this device.`}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => setAddBookmarkOpen(true)}
-                className="gap-1.5 text-xs h-7"
-              >
-                <Plus className="size-3.5" />
-                <span>Add bookmark</span>
-              </Button>
+            {/* "Add bookmark" lives in the tab bar, beside the tabs. */}
+            <div className="pb-2.5 border-b border-border/40">
+              <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
+                <Bookmark className="size-4 text-primary" />
+                <span>{isSelf ? 'Saved links' : 'My Bookmarks'}</span>
+              </h3>
+              <p className="text-xs mt-0.5 text-muted-foreground">
+                {isSelf
+                  ? 'Links and resources you keep in your personal space — only visible to you, on this device.'
+                  : `Links and resources you've saved from your conversation with ${name} — only visible to you, on this device.`}
+              </p>
             </div>
 
             {bookmarks.length === 0 ? (

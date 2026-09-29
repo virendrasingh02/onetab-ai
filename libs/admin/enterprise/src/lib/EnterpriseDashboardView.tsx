@@ -7,6 +7,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -194,7 +195,7 @@ function OrganizationPanel({
               <DialogTitle>Add a department to {organization.name}</DialogTitle>
             </DialogHeader>
 
-            <div className="gap-4 flex flex-col">
+            <DialogBody className="gap-4 flex flex-col">
               <div className="space-y-1.5">
                 <Label htmlFor={`dept-name-${organization.id}`}>Name</Label>
                 <Input
@@ -216,7 +217,7 @@ function OrganizationPanel({
                   className="font-mono"
                 />
               </div>
-            </div>
+            </DialogBody>
 
             <DialogFooter>
               <Button

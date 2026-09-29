@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   EmptyState,
@@ -1200,7 +1201,7 @@ export function VersionsManagementView() {
           </DialogHeader>
 
           {detailsRelease && (
-            <div className="space-y-4 py-2 text-xs">
+            <DialogBody className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-2 bg-muted/40 p-3 rounded-md">
                 <div>
                   <span className="text-muted-foreground">Status:</span>{' '}
@@ -1256,7 +1257,7 @@ export function VersionsManagementView() {
                   </div>
                 </div>
               )}
-            </div>
+            </DialogBody>
           )}
 
           <DialogFooter>
@@ -1284,7 +1285,7 @@ export function VersionsManagementView() {
           </DialogHeader>
 
           {releaseToPromote && (
-            <div className="space-y-3 py-2 text-xs">
+            <DialogBody className="space-y-3 text-xs">
               <div className="p-3 bg-muted/40 rounded-md space-y-1.5">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Platform:</span>
@@ -1317,7 +1318,7 @@ export function VersionsManagementView() {
                   className="text-xs"
                 />
               </div>
-            </div>
+            </DialogBody>
           )}
 
           <DialogFooter>
@@ -1366,7 +1367,7 @@ export function VersionsManagementView() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
+          <DialogBody className="space-y-3 text-xs">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Target Launch Date & Time</Label>
               <Input
@@ -1389,7 +1390,7 @@ export function VersionsManagementView() {
                 className="text-xs"
               />
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setReleaseToSchedule(null)}>
@@ -1433,7 +1434,7 @@ export function VersionsManagementView() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <DialogBody className="space-y-4">
             <div className="text-center space-y-1">
               <span className="text-3xl font-extrabold text-foreground tabular-nums">
                 {newRolloutPercent}%
@@ -1457,7 +1458,7 @@ export function VersionsManagementView() {
                 </Button>
               ))}
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setReleaseToRollout(null)}>
@@ -1498,7 +1499,7 @@ export function VersionsManagementView() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
+          <DialogBody className="space-y-3 text-xs">
             <div className="p-3 bg-warning/10 border border-warning/20 rounded-md space-y-1">
               <div className="font-semibold text-warning">Currently Active:</div>
               <div>
@@ -1541,7 +1542,7 @@ export function VersionsManagementView() {
                 required
               />
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setReleaseToRollback(null)}>
@@ -1591,7 +1592,7 @@ export function VersionsManagementView() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
+          <DialogBody className="space-y-3 text-xs">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Download URL</Label>
               <Input
@@ -1629,7 +1630,7 @@ export function VersionsManagementView() {
                 Mandatory Update
               </Label>
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setEditRelease(null)}>

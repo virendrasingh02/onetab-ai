@@ -1,5 +1,6 @@
 import { agentsApi } from '@org/api-client';
-import { Badge, Button, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input, LoadingState, toast } from '@org/ui';
+import { Badge, Button, Dialog, DialogContent, DialogFooter, DialogBody,
+  DialogHeader, DialogTitle, Input, LoadingState, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   addEdge,
@@ -964,7 +965,7 @@ export function AgentDetailPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3 py-2 text-xs">
+          <DialogBody className="space-y-3 text-xs">
             <p className="text-muted-foreground">
               Snapshots are numbered automatically
               {isDirty ? ' — unsaved changes are saved first' : ''}.
@@ -981,7 +982,7 @@ export function AgentDetailPage() {
                 className="text-xs"
               />
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIsSnapshotDialogOpen(false)}>

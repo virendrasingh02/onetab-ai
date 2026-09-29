@@ -12,6 +12,8 @@ import {
   Checkbox,
   Dialog,
   DialogContent,
+  DialogBody,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   Input,
@@ -641,10 +643,12 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
                 <span>{confirmationAction.confirmationTitle || 'Confirm Action'}</span>
               </DialogTitle>
             </DialogHeader>
-            <p className="text-xs text-muted-foreground">
-              {confirmationAction.confirmationMessage || `Are you sure you want to execute "${confirmationAction.label}"?`}
-            </p>
-            <div className="flex justify-end gap-2 mt-4">
+            <DialogBody>
+              <p className="text-xs text-muted-foreground">
+                {confirmationAction.confirmationMessage || `Are you sure you want to execute "${confirmationAction.label}"?`}
+              </p>
+            </DialogBody>
+            <DialogFooter>
               <Button size="sm" variant="outline" onClick={() => setConfirmationAction(null)}>
                 Cancel
               </Button>
@@ -659,7 +663,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
               >
                 Confirm &amp; Execute
               </Button>
-            </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

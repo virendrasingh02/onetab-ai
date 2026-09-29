@@ -213,8 +213,13 @@ function ThreadDetail({
     if (thread.hasUnread) markRead();
   }, [markRead, thread.hasUnread]);
 
+  // Deleted replies are dropped, not shown as placeholders — same as the
+  // channel's own thread panel.
   const replies = useMemo(
-    () => messages.filter((message) => message.id !== thread.id),
+    () =>
+      messages.filter(
+        (message) => message.id !== thread.id && !message.isRedacted,
+      ),
     [messages, thread.id],
   );
 

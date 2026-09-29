@@ -6,7 +6,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Page,
-  PageHeader,
   ResponsiveTabsList,
   Tabs,
   TabsTrigger,
@@ -27,6 +26,10 @@ import {
  * section, with the section rendered below. Editors (an agent's canvas, a
  * workflow's canvas) are sibling routes outside this frame so they get the
  * whole viewport.
+ *
+ * The header is the same compact, sticky, channel-style bar as Inbox, Files,
+ * Meetings and the other top-level views — a 48px title row with actions,
+ * then an edge-to-edge tab strip — rather than a page-hero `PageHeader`.
  */
 export function AIWorkspaceLayout() {
   const { slug, workspaceId } = useCurrentWorkspace();
@@ -43,41 +46,58 @@ export function AIWorkspaceLayout() {
   const mine = pending.filter((a) => a.canDecide).length;
 
   return (
-    <Page>
-      <PageHeader
-        title="AI Workspace"
-        description="Build agents and workflows, test them, and see everything they do."
-        icon={<Sparkles />}
-        accent="violet"
-        actions={<NewAIResourceMenu slug={slug} workspaceId={workspaceId} />}
-        toolbar={
+    <div className="min-h-0 flex flex-1 flex-col">
+      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
+        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-1.5 flex items-center">
+            <Sparkles
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <h1 className="text-sm font-semibold tracking-tight truncate text-foreground">
+              AI Workspace
+            </h1>
+          </div>
+
+          <div className="gap-2 flex items-center">
+            <NewAIResourceMenu slug={slug} workspaceId={workspaceId} />
+          </div>
+        </div>
+
+        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
           <Tabs
             value={section}
             onValueChange={(next) =>
               navigate(aiWorkspacePath(slug, next === 'overview' ? '' : (next as AIWorkspaceSection)))
             }
           >
-            <ResponsiveTabsList variant="underline" aria-label="AI Workspace sections">
+            <ResponsiveTabsList
+              variant="underline"
+              size="sm"
+              className="border-b-0 min-w-0 w-full"
+              aria-label="AI Workspace sections"
+            >
               {AI_WORKSPACE_SECTIONS.map(({ id, label, icon: Icon }) => (
-                <TabsTrigger key={id} value={id}>
-                  <Icon className="size-4" aria-hidden />
+                <TabsTrigger
+                  key={id}
+                  value={id}
+                  icon={<Icon className="size-3.5" aria-hidden />}
+                  count={id === 'approvals' && mine > 0 ? mine : undefined}
+                >
                   {label}
-                  {id === 'approvals' && mine > 0 ? (
-                    <span
-                      className="ml-1 rounded-full bg-warning/15 px-1.5 text-[10px] font-semibold tabular-nums text-warning"
-                      aria-label={`${mine} waiting for you`}
-                    >
-                      {mine}
-                    </span>
-                  ) : null}
                 </TabsTrigger>
               ))}
             </ResponsiveTabsList>
           </Tabs>
-        }
-      />
-      <Outlet />
-    </Page>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <Page padding="none" className="p-3 sm:p-6">
+          <Outlet />
+        </Page>
+      </div>
+    </div>
   );
 }
 
@@ -97,7 +117,12 @@ export function NewAIResourceMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button leadingIcon={<Plus />} trailingIcon={<ChevronDown />}>
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          leadingIcon={<Plus />}
+          trailingIcon={<ChevronDown />}
+        >
           New
         </Button>
       </DropdownMenuTrigger>

@@ -10,12 +10,15 @@ export interface ChannelMention {
   trigger: string;
 }
 
-/** Groups a timeline's threaded replies by the message they hang off. */
+/**
+ * Groups a timeline's threaded replies by the message they hang off. Deleted
+ * replies are left out, so they neither render nor count towards "N replies".
+ */
 export function groupReplies(messages: Message[]): Map<string, Message[]> {
   const grouped = new Map<string, Message[]>();
 
   for (const message of messages) {
-    if (!message.threadRootId) continue;
+    if (!message.threadRootId || message.isRedacted) continue;
     const existing = grouped.get(message.threadRootId);
     if (existing) existing.push(message);
     else grouped.set(message.threadRootId, [message]);

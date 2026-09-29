@@ -291,6 +291,79 @@ function StickerMessage({ url, alt }: { url: string; alt: string }) {
 
 /** One-tap reactions offered in the message menu / action sheet. */
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '👀', '✅'] as const;
+const SENDING_INDICATOR_DELAY_MS = 600;
+
+function ThreadRepliesButton({
+  count,
+  hasUnread,
+  participants,
+  lastReplyAt,
+  onOpen,
+}: {
+  count: number;
+  hasUnread?: boolean;
+  participants?: RoomMember[];
+  lastReplyAt?: number;
+  onOpen?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cn(
+        'mt-1.5 gap-2 px-2.5 py-1 text-xs font-semibold flex items-center rounded-md bg-surface text-info-text transition-colors hover:bg-accent hover:underline',
+        hasUnread && 'ring-1 ring-info-text/30',
+      )}
+    >
+      {hasUnread ? (
+        <span
+          className="size-1.5 shrink-0 rounded-full bg-info-text"
+          aria-label="Unread replies"
+        />
+      ) : null}
+      {participants && participants.length > 0 ? (
+        <span className="-space-x-1.5 flex items-center">
+          {participants.slice(0, 3).map((participant) => (
+            <UserAvatar
+              key={participant.userId}
+              name={participant.displayName}
+              src={participant.avatarUrl}
+              seed={participant.userId}
+              size="xs"
+              className="ring-2 ring-surface"
+            />
+          ))}
+        </span>
+      ) : null}
+      <span>
+        {count} {count === 1 ? 'reply' : 'replies'}
+      </span>
+      {lastReplyAt ? (
+        <Hint label={formatFullTimestamp(lastReplyAt)}>
+          <span className="text-[10px] text-muted-foreground">
+            Last reply {formatShortTimestamp(lastReplyAt)}
+          </span>
+        </Hint>
+      ) : null}
+    </button>
+  );
+}
+
+function SendingIndicator({ className }: { className?: string }) {
+  return (
+    <Hint label="Sending…">
+      <span
+        className={cn(
+          'inline-flex items-center text-muted-foreground animate-in fade-in-0 duration-300',
+          className,
+        )}
+      >
+        <Clock className="size-3 animate-pulse" aria-hidden />
+        <span className="sr-only">Sending</span>
+      </span>
+    </Hint>
+  );
+}
 
 export function ChatBubble({
   message,
@@ -423,15 +496,51 @@ export function ChatBubble({
     };
   }, [actionsPinned, isMenuOpen, isReactionOpen]);
 
+  /*
+   * Most sends are confirmed within a few hundred ms, so the pending state is
+   * only surfaced once it lingers — a normal send appears without a flicker.
+   * The indicator itself lives in the header / time gutter, never below the
+   * body, so it can't push the row taller and then collapse it again.
+   */
+  const isSending = message.sendState === 'sending';
+  const [showSending, setShowSending] = useState(false);
+  useEffect(() => {
+    if (!isSending) {
+      setShowSending(false);
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setShowSending(true),
+      SENDING_INDICATOR_DELAY_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [isSending]);
+
+  /*
+   * Hosts drop deleted messages from the timeline. One only reaches here as
+   * the root of a thread that still has replies, so it stays a slim marker —
+   * aligned with message text — that keeps the way into those replies.
+   */
   if (message.isRedacted) {
     return (
       <div
         className={cn(
-          'py-1 text-xs text-muted-foreground italic',
-          density === 'compact' ? 'px-3 pl-11' : 'px-4 pl-14',
+          'pb-0.5',
+          density === 'compact' ? 'pr-3 pl-13.5' : 'pr-4 pl-18',
         )}
       >
-        <p>This message was deleted.</p>
+        <p className="py-0.5 text-xs text-muted-foreground italic select-none">
+          This message was deleted.
+        </p>
+        {threadReplyCount && threadReplyCount > 0 ? (
+          <ThreadRepliesButton
+            count={threadReplyCount}
+            hasUnread={threadHasUnread}
+            participants={threadParticipants}
+            lastReplyAt={lastReplyAt}
+            onOpen={onOpenThread}
+          />
+        ) : null}
       </div>
     );
   }
@@ -784,7 +893,7 @@ export function ChatBubble({
       aria-label={`Message from ${message.senderName}, ${formatFullTimestamp(message.timestamp)}`}
       ref={articleRef}
       className={cn(
-        'group/message relative flex transition-colors hover:bg-accent',
+        'group/message relative flex transition-[background-color,opacity] hover:bg-accent',
         actionsPinned && 'bg-accent',
         isCompact
           ? cn(
@@ -797,13 +906,17 @@ export function ChatBubble({
             ),
         isPinned && 'border-l-2 border-l-warning',
         (isHighlighted || isMentioned) && 'border-l-2 border-l-primary',
-        message.sendState === 'sending' && 'opacity-70',
+        showSending && 'opacity-70',
         message.sendState === 'failed' && 'bg-destructive/5',
       )}
     >
       {/* Avatar / Left Column with Profile Popover & Modal */}
       <div className={cn(isCompact ? 'w-8' : 'w-10', 'shrink-0')}>
-        {isGrouped ? (
+        {isGrouped && showSending ? (
+          <SendingIndicator
+            className={cn('w-full justify-center', isCompact ? 'mt-0.5' : 'mt-1')}
+          />
+        ) : isGrouped ? (
           <Hint label={formatFullTimestamp(message.timestamp)}>
             <time
               dateTime={new Date(message.timestamp).toISOString()}
@@ -881,6 +994,8 @@ export function ChatBubble({
               </time>
             </Hint>
 
+            {showSending ? <SendingIndicator className="self-center" /> : null}
+
             {message.isEncrypted ? (
               <Hint label="End-to-end encrypted">
                 <Lock className="size-3 text-muted-foreground" aria-hidden />
@@ -921,12 +1036,7 @@ export function ChatBubble({
                 (edited)
               </span>
             ) : null}
-            {message.sendState === 'sending' ? (
-              <span className="ml-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground select-none">
-                <Clock className="size-3 animate-spin" />
-                <span>sending…</span>
-              </span>
-            ) : message.sendState === 'failed' ? (
+            {message.sendState === 'failed' ? (
               <span className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
                 <AlertTriangle className="size-3.5" />
                 <span>Failed to send.</span>
@@ -1104,45 +1214,13 @@ export function ChatBubble({
 
         {/* Thread replies summary */}
         {threadReplyCount && threadReplyCount > 0 ? (
-          <button
-            type="button"
-            onClick={onOpenThread}
-            className={cn(
-              'mt-1.5 gap-2 px-2.5 py-1 text-xs font-semibold flex items-center rounded-md bg-surface text-info-text transition-colors hover:bg-accent hover:underline',
-              threadHasUnread && 'ring-1 ring-info-text/30',
-            )}
-          >
-            {threadHasUnread ? (
-              <span
-                className="size-1.5 shrink-0 rounded-full bg-info-text"
-                aria-label="Unread replies"
-              />
-            ) : null}
-            {threadParticipants && threadParticipants.length > 0 ? (
-              <span className="-space-x-1.5 flex items-center">
-                {threadParticipants.slice(0, 3).map((participant) => (
-                  <UserAvatar
-                    key={participant.userId}
-                    name={participant.displayName}
-                    src={participant.avatarUrl}
-                    seed={participant.userId}
-                    size="xs"
-                    className="ring-2 ring-surface"
-                  />
-                ))}
-              </span>
-            ) : null}
-            <span>
-              {threadReplyCount} {threadReplyCount === 1 ? 'reply' : 'replies'}
-            </span>
-            {lastReplyAt ? (
-              <Hint label={formatFullTimestamp(lastReplyAt)}>
-                <span className="text-[10px] text-muted-foreground">
-                  Last reply {formatShortTimestamp(lastReplyAt)}
-                </span>
-              </Hint>
-            ) : null}
-          </button>
+          <ThreadRepliesButton
+            count={threadReplyCount}
+            hasUnread={threadHasUnread}
+            participants={threadParticipants}
+            lastReplyAt={lastReplyAt}
+            onOpen={onOpenThread}
+          />
         ) : null}
 
         {/* Seen By / Read Receipts */}
@@ -1154,12 +1232,6 @@ export function ChatBubble({
               isOwn={isOwn}
             />
           </div>
-        ) : null}
-
-        {message.sendState === 'failed' ? (
-          <Badge variant="destructive" className="mt-1">
-            Failed to send
-          </Badge>
         ) : null}
       </div>
 

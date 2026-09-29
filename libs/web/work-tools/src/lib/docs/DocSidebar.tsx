@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -167,7 +168,7 @@ export function DocSidebar({
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-2.5 py-2">
+              <DialogBody className="space-y-2.5">
                 <button
                   type="button"
                   onClick={() => {
@@ -209,7 +210,7 @@ export function DocSidebar({
                     </p>
                   </div>
                 </button>
-              </div>
+              </DialogBody>
             </DialogContent>
           </Dialog>
 

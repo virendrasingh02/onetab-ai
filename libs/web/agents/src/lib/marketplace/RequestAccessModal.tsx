@@ -3,6 +3,7 @@ import type { MarketplaceListing } from '@org/types';
 import {
   Button,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -45,7 +46,7 @@ export const RequestAccessModal: React.FC<RequestAccessModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md p-6 bg-surface border-border rounded-2xl">
+      <DialogContent className="max-w-md bg-surface border-border rounded-2xl">
         <DialogHeader className="space-y-2">
           <div className="flex items-center gap-3">
             {renderEntityIcon(listing.iconUrl ?? undefined, listing.kind, 'size-10')}
@@ -60,7 +61,8 @@ export const RequestAccessModal: React.FC<RequestAccessModalProps> = ({
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-3">
+        <form onSubmit={handleSubmit}>
+          <DialogBody className="space-y-4">
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-start gap-2.5">
             <Lock className="size-4 text-amber-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-relaxed">
@@ -81,8 +83,9 @@ export const RequestAccessModal: React.FC<RequestAccessModalProps> = ({
               className="mt-1.5 text-xs"
             />
           </div>
+          </DialogBody>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"

@@ -314,6 +314,12 @@ export function toMessage(
   const senderId = event.getSender();
   if (!id || !roomId || !senderId) return null;
 
+  // Redactions, reactions and other non-message events reach here through the
+  // SDK's local-echo and decryption callbacks. Mapped, they would become empty
+  // bubbles — a delete used to leave a blank row where the redaction's own
+  // echo landed — so apply the same type filter the timeline load does.
+  if (!isRenderableMessageType(event.getType())) return null;
+
   const content = event.getContent<MessageContentShape>();
   const relation = content['m.relates_to'];
 

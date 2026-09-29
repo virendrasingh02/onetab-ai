@@ -40,7 +40,7 @@ const VARIANT_GAP: Record<TabsVariant, number> = {
   pill: 4,
   'c-tabs-7': 4,
   segmented: 2,
-  underline: 24,
+  underline: 16,
 };
 
 /* -------------------------------------------------------------------------- */

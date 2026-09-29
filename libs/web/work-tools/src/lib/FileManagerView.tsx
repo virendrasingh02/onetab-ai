@@ -11,6 +11,7 @@ import {
   Button,
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DropdownMenu,
@@ -574,28 +575,30 @@ export function FileManagerView() {
                 </DialogTitle>
               </DialogHeader>
 
-              <Field
-                label="Destination"
-                htmlFor="upload-destination"
-                hint="Where this file is filed. Everyone with access to that place can see it."
-              >
-                <AppSelect
-                  value={destination}
-                  onValueChange={setDestination}
-                  options={destinationGroups}
-                  searchable
-                  loading={destsLoading}
-                  searchPlaceholder="Search channels, projects, people…"
-                  placeholder="Choose a destination"
-                />
-              </Field>
+              <DialogBody className="space-y-4">
+                <Field
+                  label="Destination"
+                  htmlFor="upload-destination"
+                  hint="Where this file is filed. Everyone with access to that place can see it."
+                >
+                  <AppSelect
+                    value={destination}
+                    onValueChange={setDestination}
+                    options={destinationGroups}
+                    searchable
+                    loading={destsLoading}
+                    searchPlaceholder="Search channels, projects, people…"
+                    placeholder="Choose a destination"
+                  />
+                </Field>
 
-              <FileDropzone
-                workspaceId={workspaceId}
-                target={parseDestinationValue(destination) as UploadTarget}
-                label="Add files to this workspace"
-                onUploaded={() => void uploads.refetch()}
-              />
+                <FileDropzone
+                  workspaceId={workspaceId}
+                  target={parseDestinationValue(destination) as UploadTarget}
+                  label="Add files to this workspace"
+                  onUploaded={() => void uploads.refetch()}
+                />
+              </DialogBody>
             </DialogContent>
           </Dialog>
 

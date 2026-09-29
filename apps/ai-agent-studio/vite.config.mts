@@ -74,6 +74,7 @@ export default defineConfig(() => ({
   cacheDir: '../../node_modules/.vite/apps/ai-agent-studio',
   server: {
     port: 4202,
+    strictPort: true,
     host: true,
     allowedHosts: TUNNEL_HOSTS,
     proxy: API_PROXY,
@@ -84,6 +85,7 @@ export default defineConfig(() => ({
   },
   preview: {
     port: 4202,
+    strictPort: true,
     host: true,
     allowedHosts: TUNNEL_HOSTS,
     proxy: API_PROXY,

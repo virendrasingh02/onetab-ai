@@ -1,5 +1,6 @@
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -52,7 +53,7 @@ export function LinearShortcutsDialog({
 }: LinearShortcutsDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="p-6 max-w-2xl overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl">
+      <DialogContent className="max-w-2xl overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
             <Keyboard className="size-4 text-primary" />
@@ -60,7 +61,7 @@ export function LinearShortcutsDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+        <DialogBody className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {SHORTCUT_GROUPS.map((group) => (
             <div key={group.title} className="space-y-2.5">
               <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -81,7 +82,7 @@ export function LinearShortcutsDialog({
               </div>
             </div>
           ))}
-        </div>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );

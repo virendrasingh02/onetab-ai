@@ -3,6 +3,7 @@ import type { MarketplaceInstallation } from '@org/types';
 import {
   Button,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -69,7 +70,7 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md p-6 bg-surface border-border rounded-2xl">
+      <DialogContent className="max-w-md bg-surface border-border rounded-2xl">
         <DialogHeader className="space-y-2">
           <div className="flex items-center gap-3">
             {renderEntityIcon(installation.iconUrl ?? undefined, installation.kind, 'size-10')}
@@ -84,7 +85,8 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSave} className="space-y-4 mt-3">
+        <form onSubmit={handleSave}>
+          <DialogBody className="space-y-4">
           {/* Notification channel */}
           <div>
             <Label className="text-xs font-semibold text-foreground">
@@ -150,8 +152,9 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
               </div>
             </div>
           )}
+          </DialogBody>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"

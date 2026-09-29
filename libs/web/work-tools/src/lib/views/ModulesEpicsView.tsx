@@ -8,6 +8,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -337,7 +338,7 @@ export function ModulesEpicsView({
           <DialogHeader>
             <DialogTitle>New Epic</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+          <DialogBody className="flex flex-col gap-3">
             <div>
               <label className="text-xs font-semibold mb-1 block">Epic Name</label>
               <Input
@@ -355,7 +356,7 @@ export function ModulesEpicsView({
                 onChange={(e) => setEpicDesc(e.target.value)}
               />
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEpicOpen(false)}>
               Cancel
@@ -373,7 +374,7 @@ export function ModulesEpicsView({
           <DialogHeader>
             <DialogTitle>New Module</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+          <DialogBody className="flex flex-col gap-3">
             <div>
               <label className="text-xs font-semibold mb-1 block">Module Name</label>
               <Input
@@ -406,7 +407,7 @@ export function ModulesEpicsView({
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsModuleOpen(false)}>
               Cancel

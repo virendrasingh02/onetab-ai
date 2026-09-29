@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -167,7 +168,7 @@ export function VersionsView() {
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-4 py-4">
+                <DialogBody className="grid gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Platform *</Label>
                     <Select
@@ -229,7 +230,7 @@ export function VersionsView() {
                       onChange={(e) => setNewReleaseNotes(e.target.value)}
                     />
                   </div>
-                </div>
+                </DialogBody>
 
                 <DialogFooter>
                   <Button

@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -253,7 +254,7 @@ export function McpPage() {
               </div>
             </DialogHeader>
 
-            <div className="space-y-3.5 py-4 text-xs">
+            <DialogBody className="space-y-3.5 text-xs">
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-foreground">
                   Server Name *
@@ -294,7 +295,7 @@ export function McpPage() {
                   <option value="HTTP">Streamable HTTP</option>
                 </select>
               </div>
-            </div>
+            </DialogBody>
 
             <DialogFooter className="gap-2 sm:gap-0">
               <Button

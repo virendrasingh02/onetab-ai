@@ -9,6 +9,7 @@ import {
   Button,
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DropdownMenu,
@@ -961,9 +962,11 @@ export function AgentMessageCard({
                 <span>Raw Event Payload: {message.id}</span>
               </DialogTitle>
             </DialogHeader>
-            <div className="max-h-[60vh] overflow-y-auto p-3 rounded-lg bg-surface-inset font-mono text-xs text-foreground">
-              <pre>{JSON.stringify(event, null, 2)}</pre>
-            </div>
+            <DialogBody>
+              <div className="max-h-[60vh] overflow-y-auto p-3 rounded-lg bg-surface-inset font-mono text-xs text-foreground">
+                <pre>{JSON.stringify(event, null, 2)}</pre>
+              </div>
+            </DialogBody>
           </DialogContent>
         </Dialog>
       )}

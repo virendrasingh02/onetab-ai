@@ -534,9 +534,19 @@ export function ChatSurface({
     [members],
   );
 
+  /*
+   * A deleted message leaves the timeline outright — no "This message was
+   * deleted." row. The one exception is a thread root that still has replies:
+   * it stays as a slim marker, or those replies would have no way in.
+   */
   const rootMessages = useMemo(
-    () => messages.filter((message) => !message.threadRootId),
-    [messages],
+    () =>
+      messages.filter(
+        (message) =>
+          !message.threadRootId &&
+          (!message.isRedacted || repliesByRoot.has(message.id)),
+      ),
+    [messages, repliesByRoot],
   );
 
   /**

@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -94,7 +95,7 @@ export function PromptLibraryView({ embedded = false }: PromptLibraryViewProps =
           <DialogTitle>New prompt template</DialogTitle>
         </DialogHeader>
 
-        <div className="gap-4 flex flex-col">
+        <DialogBody className="gap-4 flex flex-col">
           <div className="space-y-1.5">
             <Label htmlFor="prompt-title">Title</Label>
             <Input
@@ -142,7 +143,7 @@ export function PromptLibraryView({ embedded = false }: PromptLibraryViewProps =
               className="font-mono text-xs"
             />
           </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <Button

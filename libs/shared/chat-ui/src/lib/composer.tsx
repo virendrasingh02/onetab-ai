@@ -986,7 +986,10 @@ export function Composer({
 
   return (
     <div
-      className={cn('bottom-0 sticky z-20 w-full shrink-0', className)}
+      className={cn(
+        'bottom-0 px-3 pt-2.5 sm:px-4 sm:pt-3 sticky z-20 w-full shrink-0 bg-background',
+        className,
+      )}
       style={{ paddingBottom: composerPadBottom }}
     >
       {contextSlot}

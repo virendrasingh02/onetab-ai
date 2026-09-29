@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DropdownMenu,
@@ -113,7 +114,7 @@ export function JoinChannelControl({
                 You will be removed automatically when the time is up.
               </DialogDescription>
             </DialogHeader>
-            <div className="gap-2 px-6 py-4 flex items-center">
+            <DialogBody className="gap-2 flex items-center">
               <Input
                 type="number"
                 min={1}
@@ -139,7 +140,7 @@ export function JoinChannelControl({
                   </button>
                 ))}
               </div>
-            </div>
+            </DialogBody>
             <DialogFooter>
               <Button
                 type="button"

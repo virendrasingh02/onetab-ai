@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -249,7 +250,7 @@ export function ChecklistView() {
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-4 py-4">
+                <DialogBody className="grid gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Target Platform *</Label>
                     <Select
@@ -297,7 +298,7 @@ export function ChecklistView() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                </DialogBody>
 
                 <DialogFooter>
                   <Button
@@ -628,7 +629,7 @@ export function ChecklistView() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4 py-4">
+            <DialogBody className="grid gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs">Evidence Title *</Label>
                 <Input
@@ -659,7 +660,7 @@ export function ChecklistView() {
                   onChange={(e) => setEvidenceNotes(e.target.value)}
                 />
               </div>
-            </div>
+            </DialogBody>
 
             <DialogFooter>
               <Button

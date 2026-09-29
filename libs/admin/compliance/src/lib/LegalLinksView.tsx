@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -143,7 +144,7 @@ export function LegalLinksView() {
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-4 py-4">
+                <DialogBody className="grid gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Document Type *</Label>
                     <Select value={newType} onValueChange={setNewType}>
@@ -205,7 +206,7 @@ export function LegalLinksView() {
                       />
                     </div>
                   </div>
-                </div>
+                </DialogBody>
 
                 <DialogFooter>
                   <Button

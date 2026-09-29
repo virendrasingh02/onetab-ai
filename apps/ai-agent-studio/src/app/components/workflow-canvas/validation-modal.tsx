@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
 } from '@org/ui';
@@ -61,7 +62,7 @@ export function ValidationModal({
           </div>
         </DialogHeader>
 
-        <div className="space-y-3 py-2 text-xs">
+        <DialogBody className="space-y-3 text-xs">
           {/* Checks summary */}
           <div className="rounded-lg border border-border bg-surface-raised/50 p-3 space-y-2">
             <div className="flex items-center gap-2 text-foreground font-medium">
@@ -115,7 +116,7 @@ export function ValidationModal({
               </ul>
             </div>
           )}
-        </div>
+        </DialogBody>
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" size="sm" onClick={onClose}>

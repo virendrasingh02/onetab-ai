@@ -1,5 +1,6 @@
 import { approvalsApi } from '@org/api-client';
-import { Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle, LoadingState } from '@org/ui';
+import { Badge, Button, Dialog, DialogContent, DialogBody,
+  DialogHeader, DialogTitle, LoadingState } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle2,
@@ -219,7 +220,7 @@ export function ApprovalsPage() {
           </DialogHeader>
 
           {selectedApproval && (
-            <div className="space-y-4 text-xs">
+            <DialogBody className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3 p-3 bg-accent/30 rounded-lg border border-border">
                 <div>
                   <div className="text-muted-foreground">Action</div>
@@ -290,7 +291,7 @@ export function ApprovalsPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </DialogBody>
           )}
         </DialogContent>
       </Dialog>

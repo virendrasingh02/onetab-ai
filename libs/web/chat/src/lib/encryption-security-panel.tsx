@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -648,6 +649,7 @@ export function EncryptionSecurityPanel() {
             </DialogDescription>
           </DialogHeader>
 
+          <DialogBody>
           <div className="p-3 bg-muted/60 rounded-xl border border-border space-y-2">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               Secret Recovery Key
@@ -676,6 +678,7 @@ export function EncryptionSecurityPanel() {
               </Button>
             </div>
           </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button onClick={() => setSetupBackupOpen(false)} className="text-xs">
@@ -696,7 +699,7 @@ export function EncryptionSecurityPanel() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
+          <DialogBody className="space-y-3">
             <Input
               type="password"
               placeholder="Enter recovery key or passphrase…"
@@ -704,7 +707,7 @@ export function EncryptionSecurityPanel() {
               onChange={(e) => setRestoreKeyInput(e.target.value)}
               className="text-xs font-mono"
             />
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button

@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -503,7 +504,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
           </DialogHeader>
 
           {selectedProvider && (
-            <div className="space-y-4 py-2">
+            <DialogBody className="space-y-4">
               {/* Stored Key Indicator */}
               {selectedProvider.maskedKey ? (
                 <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface-inset text-xs">
@@ -641,7 +642,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                   </div>
                 )}
               </div>
-            </div>
+            </DialogBody>
           )}
 
           <DialogFooter className="gap-2 sm:gap-0">

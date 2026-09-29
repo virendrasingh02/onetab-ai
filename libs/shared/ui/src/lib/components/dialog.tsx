@@ -132,6 +132,27 @@ export function DialogHeader({ className, ...props }: ComponentProps<'div'>) {
   );
 }
 
+/**
+ * The padded middle of a standard dialog, between `DialogHeader` and
+ * `DialogFooter`.
+ *
+ * `DialogContent` has no padding of its own so custom layouts can run edge to
+ * edge, which left every hand-rolled body to remember its own — and dozens
+ * didn't, so their fields sat flush against the card while the title and
+ * buttons above and below were inset. This carries the same 20px sides as the
+ * header and footer; when nothing follows it, it takes the footer's bottom
+ * padding too.
+ */
+export function DialogBody({ className, ...props }: ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="dialog-body"
+      className={cn('px-5 py-2 last:pb-5', className)}
+      {...props}
+    />
+  );
+}
+
 export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div

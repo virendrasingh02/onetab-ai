@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   EmptyState,
@@ -347,7 +348,7 @@ function CreateKnowledgeBaseDialog({
             <DialogTitle>New knowledge base</DialogTitle>
             <DialogDescription>A collection of documents agents can retrieve from.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 px-5 py-4">
+          <DialogBody className="space-y-3">
             <Field label="Name" required>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Support handbook" />
             </Field>
@@ -359,7 +360,7 @@ function CreateKnowledgeBaseDialog({
                 placeholder="What does it cover?"
               />
             </Field>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
@@ -418,7 +419,7 @@ function IngestDocumentDialog({
             <DialogTitle>Add a document to {base.name}</DialogTitle>
             <DialogDescription>Paste text or Markdown. It is split into passages and indexed.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 px-5 py-4">
+          <DialogBody className="space-y-3">
             <Field label="Title" required>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Refund policy" />
             </Field>
@@ -431,7 +432,7 @@ function IngestDocumentDialog({
                 placeholder="Paste the document here…"
               />
             </Field>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

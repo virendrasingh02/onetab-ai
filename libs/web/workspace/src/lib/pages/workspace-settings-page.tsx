@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Form,
@@ -3984,7 +3985,8 @@ export function WorkspaceSettingsPage({
           </DialogHeader>
 
           <Form {...passwordForm}>
-            <form onSubmit={onPasswordSubmit} className="space-y-4 pt-2">
+            <form onSubmit={onPasswordSubmit}>
+              <DialogBody className="space-y-4">
               <FormError error={formErrorMessage(changePassword.error)} />
 
               <FormField
@@ -4049,8 +4051,9 @@ export function WorkspaceSettingsPage({
                   </FormItem>
                 )}
               />
+              </DialogBody>
 
-              <DialogFooter className="pt-3">
+              <DialogFooter>
                 <DialogClose asChild>
                   <Button
                     type="button"
@@ -4088,7 +4091,7 @@ export function WorkspaceSettingsPage({
           </DialogHeader>
 
           {totpBackupCodes ? (
-            <div className="space-y-4 pt-2">
+            <DialogBody className="space-y-4">
               <div className="p-3 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 text-xs rounded-lg border">
                 Two-factor authentication is now active! Please save these
                 emergency recovery codes in a safe place.
@@ -4126,9 +4129,9 @@ export function WorkspaceSettingsPage({
                   Done
                 </Button>
               </DialogFooter>
-            </div>
+            </DialogBody>
           ) : (
-            <div className="space-y-4 pt-2">
+            <DialogBody className="space-y-4">
               <div className="p-3 space-y-2 rounded-xl border border-border bg-muted/40">
                 <p className="text-xs text-muted-foreground">
                   Manual secret key:
@@ -4198,7 +4201,7 @@ export function WorkspaceSettingsPage({
                   Verify and Enable
                 </Button>
               </DialogFooter>
-            </div>
+            </DialogBody>
           )}
         </DialogContent>
       </Dialog>
@@ -4217,7 +4220,7 @@ export function WorkspaceSettingsPage({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
+          <DialogBody className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium block text-foreground">
                 Current Password
@@ -4252,7 +4255,7 @@ export function WorkspaceSettingsPage({
                 Disable 2FA
               </Button>
             </DialogFooter>
-          </div>
+          </DialogBody>
         </DialogContent>
       </Dialog>
 
@@ -4269,7 +4272,7 @@ export function WorkspaceSettingsPage({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
+          <DialogBody className="space-y-4">
             <div className="gap-2 p-3 text-xs grid grid-cols-2 rounded-xl border border-border bg-muted/40 text-center font-mono">
               {recoveryCodesList.map((code, idx) => (
                 <div
@@ -4304,7 +4307,7 @@ export function WorkspaceSettingsPage({
                 Done
               </Button>
             </DialogFooter>
-          </div>
+          </DialogBody>
         </DialogContent>
       </Dialog>
 
@@ -4319,7 +4322,7 @@ export function WorkspaceSettingsPage({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
+          <DialogBody className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium block text-foreground">
                 Device / Key Name
@@ -4352,7 +4355,7 @@ export function WorkspaceSettingsPage({
                 Register Passkey
               </Button>
             </DialogFooter>
-          </div>
+          </DialogBody>
         </DialogContent>
       </Dialog>
 

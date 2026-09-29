@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   EmptyState,
@@ -438,7 +439,7 @@ export function ScheduleView() {
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-3 py-2">
+                <DialogBody className="space-y-3">
                   <div className="p-2.5 rounded bg-muted/60 text-xs text-foreground line-clamp-3">
                     {reschedulingMessage.body}
                   </div>
@@ -455,7 +456,7 @@ export function ScheduleView() {
                       className="w-full px-2.5 py-1.5 text-xs rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
-                </div>
+                </DialogBody>
 
                 <DialogFooter className="gap-2">
                   <Button

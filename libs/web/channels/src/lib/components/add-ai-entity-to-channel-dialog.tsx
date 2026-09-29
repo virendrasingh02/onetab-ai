@@ -5,6 +5,7 @@ import type { ChannelSummary } from '@org/types';
 import {
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -214,7 +215,7 @@ export function AddAiEntityToChannelDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-3 px-6 py-2">
+        <DialogBody className="space-y-3">
           <Tabs
             value={tab}
             onValueChange={(v) => {
@@ -325,9 +326,9 @@ export function AddAiEntityToChannelDialog({
               })}
             </div>
           </ScrollArea>
-        </div>
+        </DialogBody>
 
-        <DialogFooter className="px-6 py-3 border-t border-border">
+        <DialogFooter className="py-3 border-t border-border">
           <Button
             type="button"
             variant="outline"

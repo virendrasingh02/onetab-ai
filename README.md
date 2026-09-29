@@ -47,11 +47,12 @@ and note what that costs for end-to-end encryption.
 Set `MATRIX_ENABLED="false"` to run without a homeserver — the app is fully
 functional and reports chat as unavailable.
 
-| App   | URL                            |
-| ----- | ------------------------------ |
-| web   | `http://localhost:4200`        |
-| admin | `http://localhost:4201`        |
-| API   | `http://localhost:3000/api/v1` |
+| App    | URL                            | Run alone            |
+| ------ | ------------------------------ | -------------------- |
+| web    | `http://localhost:4200`        | `npm run dev:web`    |
+| admin  | `http://localhost:4201`        | `npm run dev:admin`  |
+| studio | `http://localhost:4202`        | `npm run dev:studio` |
+| API    | `http://localhost:3000/api/v1` | `npm run dev:api`    |
 
 `GET /api/v1/health` reports process and database health.
 
@@ -63,6 +64,8 @@ functional and reports chat as unavailable.
 apps/
   web/        React 19 + Vite 8 client
   admin/      internal admin console
+  ai-agent-studio/  standalone agent builder
+  desktop/    Electron shell around the web app
   api/        NestJS 11 API (webpack + SWC)
   api-e2e/    API end-to-end tests (Vitest)
 libs/
@@ -102,19 +105,28 @@ Projects are tagged and the rules are enforced by
 
 ## Scripts
 
-| Command              | Purpose                                    |
-| -------------------- | ------------------------------------------ |
-| `npm run dev`        | API + web in watch mode                    |
-| `npm run dev:all`    | API + web + admin                          |
-| `npm run validate`   | lint, typecheck, test and build everything |
-| `npm run affected`   | the same, limited to affected projects     |
-| `npm test`           | unit tests (Vitest)                        |
-| `npm run e2e`        | API end-to-end tests                       |
-| `npm run graph`      | interactive project graph                  |
-| `npm run db:migrate` | create and apply a migration               |
-| `npm run db:studio`  | Prisma Studio                              |
-| `npm run start:chat` | Synapse + admin grant + API and web        |
-| `npm run matrix:*`   | `start`, `setup`, `logs`, `stop`, `reset`  |
+| Command                   | Purpose                                    |
+| ------------------------- | ------------------------------------------ |
+| `npm run dev`             | API + web in watch mode                    |
+| `npm run dev:all`         | API + web + admin + studio                 |
+| `npm run dev:all:desktop` | all of the above plus the Electron shell   |
+| `npm run dev:desktop`     | API + web + Electron                       |
+| `npm run dev -- <apps>`   | any mix, e.g. `npm run dev -- api admin`   |
+| `npm run validate`        | lint, typecheck, test and build everything |
+| `npm run affected`        | the same, limited to affected projects     |
+| `npm test`                | unit tests (Vitest)                        |
+| `npm run e2e`             | API end-to-end tests                       |
+| `npm run graph`           | interactive project graph                  |
+| `npm run db:migrate`      | create and apply a migration               |
+| `npm run db:studio`       | Prisma Studio                              |
+| `npm run start:chat`      | Synapse + admin grant + API and web        |
+| `npm run matrix:*`        | `start`, `setup`, `logs`, `stop`, `reset`  |
+
+Every `dev*` script goes through [scripts/dev.mjs](scripts/dev.mjs)
+(`npm run dev -- --help` lists the apps). An app whose port is already taken is
+reused rather than started twice, so `npm run dev:all` next to an API you
+already have running just adds the rest. Nx flags pass straight through:
+`npm run dev -- all --tui=false`.
 
 ---
 

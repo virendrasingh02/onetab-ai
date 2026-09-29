@@ -3,6 +3,8 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogBody,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   Field,
@@ -67,7 +69,7 @@ export function TrelloConnectModal({ workspaceId, isOpen, onClose }: TrelloConne
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <DialogBody className="space-y-3">
           <Field label="API key" required hint="From trello.com/app-key, while signed in to Trello.">
             <Input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste your Trello API key" />
           </Field>
@@ -91,16 +93,16 @@ export function TrelloConnectModal({ workspaceId, isOpen, onClose }: TrelloConne
               placeholder="Paste your Trello token"
             />
           </Field>
-        </div>
+        </DialogBody>
 
-        <div className="pt-2 flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button onClick={handleConnect} disabled={connect.isPending}>
             {connect.isPending ? <Spinner className="size-3.5" /> : 'Connect'}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

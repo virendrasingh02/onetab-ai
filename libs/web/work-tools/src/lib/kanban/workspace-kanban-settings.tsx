@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -580,7 +581,7 @@ export function WorkspaceKanbanSettings() {
             <DialogHeader>
               <DialogTitle className="text-sm font-bold">Add Custom Status</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <DialogBody className="space-y-4">
               <div>
                 <label className="text-xs font-semibold mb-1 block">Status Name</label>
                 <Input
@@ -608,7 +609,7 @@ export function WorkspaceKanbanSettings() {
                   onChange={setStatusColor}
                 />
               </div>
-            </div>
+            </DialogBody>
             <DialogFooter>
               <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddStatusOpen(false)}>
                 Cancel
@@ -628,7 +629,7 @@ export function WorkspaceKanbanSettings() {
             <DialogHeader>
               <DialogTitle className="text-sm font-bold">Add Custom Priority</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <DialogBody className="space-y-4">
               <div>
                 <label className="text-xs font-semibold mb-1 block">Priority Name</label>
                 <Input
@@ -654,7 +655,7 @@ export function WorkspaceKanbanSettings() {
                 value={priorityColor}
                 onChange={setPriorityColor}
               />
-            </div>
+            </DialogBody>
             <DialogFooter>
               <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddPriorityOpen(false)}>
                 Cancel
@@ -674,7 +675,7 @@ export function WorkspaceKanbanSettings() {
             <DialogHeader>
               <DialogTitle className="text-sm font-bold">Add Label / Tag</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <DialogBody className="space-y-4">
               <div>
                 <label className="text-xs font-semibold mb-1 block">Label Name</label>
                 <Input
@@ -690,7 +691,7 @@ export function WorkspaceKanbanSettings() {
                 value={labelColor}
                 onChange={setLabelColor}
               />
-            </div>
+            </DialogBody>
             <DialogFooter>
               <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddLabelOpen(false)}>
                 Cancel
@@ -710,7 +711,7 @@ export function WorkspaceKanbanSettings() {
             <DialogHeader>
               <DialogTitle className="text-sm font-bold">Add Team Link</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <DialogBody className="space-y-4">
               <div>
                 <label className="text-xs font-semibold mb-1 block">Team Name</label>
                 <Input
@@ -721,7 +722,7 @@ export function WorkspaceKanbanSettings() {
                   className="h-9 text-xs"
                 />
               </div>
-            </div>
+            </DialogBody>
             <DialogFooter>
               <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddTeamOpen(false)}>
                 Cancel
@@ -741,7 +742,7 @@ export function WorkspaceKanbanSettings() {
             <DialogHeader>
               <DialogTitle className="text-sm font-bold">Add Slack Channel Link</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <DialogBody className="space-y-4">
               <div>
                 <label className="text-xs font-semibold mb-1 block">Channel Name</label>
                 <Input
@@ -752,7 +753,7 @@ export function WorkspaceKanbanSettings() {
                   className="h-9 text-xs"
                 />
               </div>
-            </div>
+            </DialogBody>
             <DialogFooter>
               <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddSlackOpen(false)}>
                 Cancel

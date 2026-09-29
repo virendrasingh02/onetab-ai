@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -519,7 +520,7 @@ export function EditChannelDetailsDialog({
             </div>
           </DialogHeader>
 
-          <div className="space-y-4 px-6 py-4">
+          <DialogBody className="space-y-4">
             <div className="space-y-1.5">
               <label
                 htmlFor="channel-topic"
@@ -576,7 +577,7 @@ export function EditChannelDetailsDialog({
                 {welcomeMessage.length}/300
               </p>
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button
@@ -926,7 +927,7 @@ export function ChannelPostingDialog({
             </div>
           </DialogHeader>
 
-          <div className="space-y-4 px-6 py-4">
+          <DialogBody className="space-y-4">
             {/* Mode */}
             <div
               role="radiogroup"
@@ -1075,7 +1076,7 @@ export function ChannelPostingDialog({
               workspaceId={workspaceId}
               channelId={channel.id}
             />
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button
@@ -1202,7 +1203,7 @@ export function AddAgentToChannelDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-3 px-6 py-2">
+        <DialogBody className="space-y-3">
           <div className="relative">
             <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -1289,9 +1290,9 @@ export function AddAgentToChannelDialog({
               })}
             </div>
           </ScrollArea>
-        </div>
+        </DialogBody>
 
-        <DialogFooter className="px-6 py-3 border-t border-border">
+        <DialogFooter className="py-3 border-t border-border">
           <Button
             type="button"
             variant="outline"
@@ -1429,7 +1430,7 @@ export function ChannelTemplatesDialog({
           </div>
         </DialogHeader>
 
-        <div className="grid sm:grid-cols-2 gap-3 px-6 py-2">
+        <DialogBody className="grid sm:grid-cols-2 gap-3">
           {CHANNEL_TEMPLATES.map((tpl) => {
             const isSelected = selectedTemplateId === tpl.id;
             return (
@@ -1466,9 +1467,9 @@ export function ChannelTemplatesDialog({
               </button>
             );
           })}
-        </div>
+        </DialogBody>
 
-        <DialogFooter className="px-6 py-3 border-t border-border">
+        <DialogFooter className="py-3 border-t border-border">
           <Button
             type="button"
             variant="outline"
@@ -1578,7 +1579,7 @@ export function ChannelWorkflowsDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-2.5 px-6 py-2">
+        <DialogBody className="space-y-2.5">
           {workflows.map((wf) => (
             <div
               key={wf.id}
@@ -1620,9 +1621,9 @@ export function ChannelWorkflowsDialog({
               </div>
             </div>
           ))}
-        </div>
+        </DialogBody>
 
-        <DialogFooter className="px-6 py-3 border-t border-border">
+        <DialogFooter className="py-3 border-t border-border">
           <Button
             type="button"
             variant="outline"

@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   EmptyState,
@@ -287,7 +288,7 @@ export function AuditLogView() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="py-4 space-y-3">
+              <DialogBody className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-muted-foreground">Action:</span>{' '}
@@ -328,7 +329,7 @@ export function AuditLogView() {
                     )}
                   </pre>
                 </div>
-              </div>
+              </DialogBody>
             </div>
           )}
         </DialogContent>

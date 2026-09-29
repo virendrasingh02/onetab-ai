@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DropdownMenu,
@@ -361,9 +362,9 @@ export function CardRegistryView() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="py-4 flex justify-center">
+            <DialogBody className="flex justify-center">
               <UniversalCardRenderer cardDefinition={previewCard} data={previewCard.sampleData} />
-            </div>
+            </DialogBody>
 
             <DialogFooter>
               <Button size="sm" variant="outline" onClick={() => setPreviewCard(null)} className="text-xs">
@@ -400,13 +401,15 @@ export function CardRegistryView() {
               </DialogDescription>
             </DialogHeader>
 
-            <textarea
-              value={importJsonText}
-              onChange={(e) => setImportJsonText(e.target.value)}
-              placeholder="Paste card JSON schema here…"
-              rows={12}
-              className="w-full p-3 font-mono text-xs bg-surface-inset text-foreground rounded-xl border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+            <DialogBody>
+              <textarea
+                value={importJsonText}
+                onChange={(e) => setImportJsonText(e.target.value)}
+                placeholder="Paste card JSON schema here…"
+                rows={12}
+                className="w-full p-3 font-mono text-xs bg-surface-inset text-foreground rounded-xl border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </DialogBody>
 
             <DialogFooter>
               <Button size="sm" variant="outline" onClick={() => setImportOpen(false)} className="text-xs">

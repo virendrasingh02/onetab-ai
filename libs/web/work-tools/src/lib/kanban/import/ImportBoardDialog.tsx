@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   ScrollArea,
@@ -230,7 +231,7 @@ export function ImportBoardDialog({
 
         {/* ---------------------------------------------- step 1: the file */}
         {!text ? (
-          <div className="space-y-3 py-1">
+          <DialogBody className="space-y-3">
             <div
               onDragOver={(event) => {
                 event.preventDefault();
@@ -329,10 +330,12 @@ export function ImportBoardDialog({
                 ))}
               </dl>
             </div>
-          </div>
+          </DialogBody>
         ) : (
           /* ------------------------------------------- step 2: the preview */
-          <ScrollArea className="max-h-[60vh]" contentClassName="space-y-3 py-1 pr-1">
+          // Padded like `DialogBody`, so the rows line up with step 1 and the
+          // scrollbar still hugs the dialog's edge.
+          <ScrollArea className="max-h-[60vh]" contentClassName="space-y-3 px-5 py-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 <Button

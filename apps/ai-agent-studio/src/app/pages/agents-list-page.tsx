@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DropdownMenu,
@@ -408,7 +409,7 @@ export function AgentsListPage() {
               </div>
             </DialogHeader>
 
-            <div className="space-y-3.5 py-4 text-xs">
+            <DialogBody className="space-y-3.5 text-xs">
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-foreground">
                   Agent Name *
@@ -474,7 +475,7 @@ export function AgentsListPage() {
                   <option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
                 </select>
               </div>
-            </div>
+            </DialogBody>
 
             <DialogFooter className="gap-2 sm:gap-0">
               <Button

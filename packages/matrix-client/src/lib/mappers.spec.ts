@@ -133,6 +133,22 @@ describe('toMessage', () => {
     });
   });
 
+  it('skips non-message events, so a redaction echo is not an empty bubble', () => {
+    const redaction = Object.assign(
+      fakeEvent({ type: 'm.room.redaction', content: {} }),
+      { status: 'sending' },
+    );
+    const reaction = fakeEvent({
+      type: 'm.reaction',
+      content: {
+        'm.relates_to': { rel_type: 'm.annotation', event_id: '$x', key: '👍' },
+      },
+    });
+
+    expect(toMessage(client, redaction, room)).toBeNull();
+    expect(toMessage(client, reaction, room)).toBeNull();
+  });
+
   it('maps sendState and transactionId for local echoes', () => {
     const sendingEvent = Object.assign(
       fakeEvent({ content: { msgtype: 'm.text', body: 'sending...' } }),

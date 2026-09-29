@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Label,
@@ -33,7 +34,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2 text-xs">
+        <DialogBody className="space-y-4 text-xs">
           {/* Card Density */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-foreground">Card Density Mode</Label>
@@ -158,7 +159,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
               />
             </div>
           </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter className="flex items-center justify-between sm:justify-between border-t border-border pt-3">
           <Button

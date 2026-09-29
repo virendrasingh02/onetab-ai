@@ -25,7 +25,10 @@ import SimpleBar from 'simplebar-react';
  *
  *  - Padding belongs in `contentClassName`, not `className`. SimpleBar's mask
  *    is absolutely positioned against the root's *padding box*, so padding on
- *    the root is painted over rather than respected.
+ *    the root is painted over rather than respected. `contentClassName` lands
+ *    on a wrapper *inside* SimpleBar's content node, because SimpleBar writes
+ *    an inline `padding` onto that node on every recalculate (a mirror of the
+ *    root's, i.e. `0px`), which silently beat any padding class put there.
  *  - The element that scrolls is not the root. Reach it with `viewportRef`
  *    (`scrollTop`, `scrollTo`) or `viewportProps` (`onScroll`).
  */
@@ -95,12 +98,21 @@ export function ScrollArea({
           }}
         >
           <div
-            className={cn(contentNodeProps.className, contentClassName)}
+            className={cn(
+              contentNodeProps.className,
+              // A full-height column, so a `min-h-full` layout in
+              // `contentClassName` still fills the viewport via `flex-1`.
+              contentClassName && 'flex min-h-full flex-col',
+            )}
             ref={(node) => {
               contentNodeProps.ref.current = node ?? undefined;
             }}
           >
-            {children}
+            {contentClassName ? (
+              <div className={cn('flex-1', contentClassName)}>{children}</div>
+            ) : (
+              children
+            )}
           </div>
         </div>
       )}

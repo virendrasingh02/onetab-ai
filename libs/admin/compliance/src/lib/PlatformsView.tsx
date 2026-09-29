@@ -10,6 +10,7 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -145,7 +146,7 @@ export function PlatformsView() {
                 <DialogHeader>
                   <DialogTitle>Register New Platform</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 py-3">
+                <DialogBody className="space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="plat-code">Platform Identifier</Label>
                     <Input
@@ -189,7 +190,7 @@ export function PlatformsView() {
                       onChange={(e) => setNewVersion(e.target.value)}
                     />
                   </div>
-                </div>
+                </DialogBody>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsAddOpen(false)}>
                     Cancel
@@ -319,7 +320,7 @@ export function PlatformsView() {
             <DialogHeader>
               <DialogTitle>Configure {editingPlatform.name}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-3">
+            <DialogBody className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="edit-curr-ver">Current Production Version</Label>
                 <Input
@@ -336,7 +337,7 @@ export function PlatformsView() {
                   onChange={(e) => setEditMinVersion(e.target.value)}
                 />
               </div>
-            </div>
+            </DialogBody>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditingPlatform(null)}>
                 Cancel

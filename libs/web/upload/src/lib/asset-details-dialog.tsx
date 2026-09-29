@@ -6,6 +6,7 @@ import {
   Button,
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   Input,
@@ -147,7 +148,7 @@ export function AssetDetailsDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <DialogBody className="space-y-4">
           {thumb ? (
             <button
               type="button"
@@ -411,7 +412,7 @@ export function AssetDetailsDialog({
               </>
             ) : null}
           </div>
-        </div>
+        </DialogBody>
 
         {prompts.dialog}
       </DialogContent>

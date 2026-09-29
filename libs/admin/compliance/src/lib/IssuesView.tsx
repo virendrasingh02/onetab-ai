@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -228,7 +229,7 @@ export function IssuesView() {
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-4 py-4">
+                <DialogBody className="grid gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Issue Title *</Label>
                     <Input
@@ -357,7 +358,7 @@ export function IssuesView() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                </DialogBody>
 
                 <DialogFooter>
                   <Button
@@ -628,7 +629,7 @@ export function IssuesView() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-4 py-4">
+              <DialogBody className="grid gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Issue Status *</Label>
                   <Select
@@ -659,7 +660,7 @@ export function IssuesView() {
                     onChange={(e) => setEditResolution(e.target.value)}
                   />
                 </div>
-              </div>
+              </DialogBody>
 
               <DialogFooter>
                 <Button

@@ -1,4 +1,5 @@
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Progress } from '@org/ui';
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogBody,
+  DialogHeader, DialogTitle, Progress } from '@org/ui';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -94,7 +95,7 @@ export function DesktopUpdateDialog({
           </div>
         </DialogHeader>
 
-        <div className="space-y-3 py-2 text-xs">
+        <DialogBody className="space-y-3 text-xs">
           {isMandatory && (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive space-y-1">
               <div className="font-semibold flex items-center gap-1.5">
@@ -148,7 +149,7 @@ export function DesktopUpdateDialog({
               </div>
             </div>
           )}
-        </div>
+        </DialogBody>
 
         <DialogFooter className="gap-2">
           {!isMandatory && !isDownloading && (

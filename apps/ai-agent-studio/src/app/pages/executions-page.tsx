@@ -1,5 +1,6 @@
 import { agentsApi } from '@org/api-client';
-import { Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle, LoadingState } from '@org/ui';
+import { Badge, Button, Dialog, DialogContent, DialogBody,
+  DialogHeader, DialogTitle, LoadingState } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
@@ -174,7 +175,7 @@ export function ExecutionsPage() {
           </DialogHeader>
 
           {inspectExecution && (
-            <div className="space-y-3 py-2 text-xs">
+            <DialogBody className="space-y-3 text-xs">
               <div className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-surface-raised p-3 text-center">
                 <div>
                   <div className="text-[10px] text-muted-foreground uppercase">
@@ -217,7 +218,7 @@ export function ExecutionsPage() {
                   {inspectExecution.responsePreview || 'Execution completed.'}
                 </pre>
               </div>
-            </div>
+            </DialogBody>
           )}
         </DialogContent>
       </Dialog>

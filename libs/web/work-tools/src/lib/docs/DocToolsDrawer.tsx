@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogBody,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -138,7 +139,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
               Download your Notion page into Markdown, HTML, or raw JSON format.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-3 gap-3 py-3">
+          <DialogBody className="grid grid-cols-3 gap-3">
             <button
               type="button"
               onClick={() => handleDownload('markdown')}
@@ -169,7 +170,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
                 {downloadedFormat === 'json' ? 'Downloaded!' : 'JSON (.json)'}
               </span>
             </button>
-          </div>
+          </DialogBody>
         </DialogContent>
       </Dialog>
 
