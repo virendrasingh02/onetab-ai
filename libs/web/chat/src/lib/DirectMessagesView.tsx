@@ -537,6 +537,8 @@ function DirectRoom({
       headerActionsSlot={headerActionsSlot}
       showMembers={false}
       showEncryptedBadge={false}
+      // A huddle with yourself has no one to talk to.
+      huddlesEnabled={!isSelf}
       composerContext={composerContext}
       welcome={{
         kind: isSelf ? 'self' : 'direct',

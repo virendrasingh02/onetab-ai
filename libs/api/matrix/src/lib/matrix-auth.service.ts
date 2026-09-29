@@ -245,7 +245,11 @@ export class MatrixAuthService {
       return this.resolveAppIdentity(callerUserId, peerId.slice(4));
     }
 
-    if (callerUserId === peerId) return null;
+    // Your own id is a note-to-self DM. The client creates that room with no
+    // invite (`getOrCreateDirectMessage`), so all it needs back is the
+    // caller's own Matrix identity. Returning null here used to 404 every
+    // self-DM before the browser ever got to open it.
+    if (callerUserId === peerId) return this.ensureIdentity(callerUserId);
 
     // Both ends must be *active* members of a shared workspace — a suspended
     // member keeps their row but must not be able to resolve peers or mint

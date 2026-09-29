@@ -749,12 +749,22 @@ export class OneTabMatrixClient {
    * single member (you), so it is created with no invite: the homeserver
    * rejects inviting yourself to a room you just made, and you are joined to it
    * already. It is still tagged in `m.direct` so it groups as a DM everywhere.
+   *
+   * A new room is encrypted only when this session can encrypt. With crypto
+   * off (`MATRIX_ENCRYPTION=false`, where sessions come from the admin API and
+   * have no device) or failed to start, an encrypted room refuses every send
+   * — "your client does not support encryption". Your own notes have nobody
+   * else in them, so an encrypted notes room you can no longer write to is
+   * replaced rather than reused; a 1:1 with someone else is never forked.
    */
   async getOrCreateDirectMessage(userId: string): Promise<RoomId> {
     const sdk = this.require();
     const isSelf = userId === sdk.getUserId();
+    const canEncrypt = Boolean(sdk.getCrypto());
 
-    const existing = resolveDirectMessageRoom(sdk, userId);
+    const existing = resolveDirectMessageRoom(sdk, userId, {
+      skipEncrypted: isSelf && !canEncrypt,
+    });
     if (existing) {
       // A room found by the fallback scan is not in `m.direct` yet; recording
       // it now means the next lookup — and `toRoomKind` — trust the map.
@@ -765,11 +775,12 @@ export class OneTabMatrixClient {
     const roomId = await this.createRoom({
       name: '',
       isPrivate: true,
-      encrypted: true,
+      encrypted: canEncrypt,
       inviteUserIds: isSelf ? [] : [userId],
     });
 
-    await this.recordDirectMessage(sdk, userId, roomId);
+    // First in the list, so a replaced notes room never wins a later lookup.
+    await this.recordDirectMessage(sdk, userId, roomId, { preferred: true });
     return roomId;
   }
 
@@ -813,7 +824,8 @@ export class OneTabMatrixClient {
     const roomId = await this.createRoom({
       name: name?.trim() ?? '',
       isPrivate: true,
-      encrypted: true,
+      // Same rule as a 1:1: only encrypt what this session can send into.
+      encrypted: Boolean(sdk.getCrypto()),
       inviteUserIds: peers,
     });
 
@@ -878,6 +890,7 @@ export class OneTabMatrixClient {
     sdk: SdkClient,
     userIds: string | string[],
     roomId: RoomId,
+    options: { preferred?: boolean } = {},
   ): Promise<void> {
     const ids = Array.isArray(userIds) ? userIds : [userIds];
     const direct = readDirectMap(sdk);
@@ -886,6 +899,13 @@ export class OneTabMatrixClient {
 
     for (const id of ids) {
       const forUser = next[id] ?? [];
+      if (options.preferred) {
+        // Lookups take the first open room, so the preferred one leads.
+        if (forUser[0] === roomId) continue;
+        next[id] = [roomId, ...forUser.filter((existing) => existing !== roomId)];
+        changed = true;
+        continue;
+      }
       if (forUser.includes(roomId)) continue;
       next[id] = [...forUser, roomId];
       changed = true;

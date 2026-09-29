@@ -518,6 +518,8 @@ interface FakeDmRoomInput {
   members?: Array<{ userId: string; membership?: string }>;
   /** Defaults to the count of joined `members`, or 2. */
   joinedCount?: number;
+  /** Adds an `m.room.encryption` state event. */
+  encrypted?: boolean;
 }
 
 function fakeDmRoom(input: FakeDmRoomInput): SdkRoom {
@@ -532,7 +534,9 @@ function fakeDmRoom(input: FakeDmRoomInput): SdkRoom {
       getStateEvents: (type: string) =>
         type === 'm.room.name' && input.name
           ? ({ getContent: () => ({ name: input.name }) } as unknown)
-          : null,
+          : type === 'm.room.encryption' && input.encrypted
+            ? ({ getContent: () => ({ algorithm: 'm.megolm.v1.aes-sha2' }) } as unknown)
+            : null,
     },
     getMembers: () =>
       (input.members ?? []).map((member) => ({
@@ -665,6 +669,73 @@ describe('resolveDirectMessageRoom', () => {
 
   it('returns null when nothing matches', () => {
     expect(resolveDirectMessageRoom(fakeDmClient({ rooms: [] }), peer)).toBeNull();
+  });
+
+  describe('note-to-self', () => {
+    it('finds the untagged room only the caller has ever been in', () => {
+      const client = fakeDmClient({
+        rooms: [
+          fakeDmRoom({ roomId: '!notes:example.org', members: [{ userId: me }] }),
+        ],
+      });
+      expect(resolveDirectMessageRoom(client, me)).toBe('!notes:example.org');
+    });
+
+    it('prefers the room recorded in m.direct under the caller', () => {
+      const client = fakeDmClient({
+        direct: { [me]: ['!notes:example.org'] },
+        rooms: [
+          fakeDmRoom({ roomId: '!notes:example.org', members: [{ userId: me }] }),
+        ],
+      });
+      expect(resolveDirectMessageRoom(client, me)).toBe('!notes:example.org');
+    });
+
+    it('with skipEncrypted, passes over an encrypted notes room for a plain one', () => {
+      const client = fakeDmClient({
+        direct: { [me]: ['!old-encrypted:example.org', '!plain:example.org'] },
+        rooms: [
+          fakeDmRoom({
+            roomId: '!old-encrypted:example.org',
+            members: [{ userId: me }],
+            encrypted: true,
+          }),
+          fakeDmRoom({ roomId: '!plain:example.org', members: [{ userId: me }] }),
+        ],
+      });
+      expect(resolveDirectMessageRoom(client, me)).toBe('!old-encrypted:example.org');
+      expect(
+        resolveDirectMessageRoom(client, me, { skipEncrypted: true }),
+      ).toBe('!plain:example.org');
+    });
+
+    it('with skipEncrypted and only an encrypted room, finds nothing — so a new one is made', () => {
+      const client = fakeDmClient({
+        direct: { [me]: ['!old-encrypted:example.org'] },
+        rooms: [
+          fakeDmRoom({
+            roomId: '!old-encrypted:example.org',
+            members: [{ userId: me }],
+            encrypted: true,
+          }),
+        ],
+      });
+      expect(
+        resolveDirectMessageRoom(client, me, { skipEncrypted: true }),
+      ).toBeNull();
+    });
+
+    it('never mistakes a 1:1 the other person left for your notes', () => {
+      const client = fakeDmClient({
+        rooms: [
+          fakeDmRoom({
+            roomId: '!abandoned:example.org',
+            members: [{ userId: me }, { userId: peer, membership: 'leave' }],
+          }),
+        ],
+      });
+      expect(resolveDirectMessageRoom(client, me)).toBeNull();
+    });
   });
 });
 

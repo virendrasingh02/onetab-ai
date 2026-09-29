@@ -1575,6 +1575,9 @@ export function ChatSurface({
           <Composer
             conversationId={conversationId}
             targetName={title}
+            placeholder={
+              welcome?.kind === 'self' ? 'Jot something down…' : undefined
+            }
             workspaceId={composerContext?.workspaceId}
             members={members}
             currentUserId={myUserId}

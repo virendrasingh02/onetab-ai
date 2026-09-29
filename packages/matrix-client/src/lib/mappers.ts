@@ -519,13 +519,27 @@ const OPEN_MEMBERSHIPS = new Set(['join', 'invite']);
 export function resolveDirectMessageRoom(
   client: SdkClient,
   peerUserId: string,
+  options: {
+    /**
+     * Pass over end-to-end encrypted rooms — for a session that cannot
+     * encrypt, looking for a room it can actually send into.
+     */
+    skipEncrypted?: boolean;
+  } = {},
 ): string | null {
   const directMap = readDirectMap(client);
   const myUserId = client.getUserId();
+  const usable = (room: SdkRoom) =>
+    !options.skipEncrypted ||
+    !room.currentState.getStateEvents('m.room.encryption', '');
 
   for (const roomId of directMap[peerUserId] ?? []) {
     const room = client.getRoom(roomId);
-    if (room && OPEN_MEMBERSHIPS.has(room.getMyMembership() ?? '')) {
+    if (
+      room &&
+      OPEN_MEMBERSHIPS.has(room.getMyMembership() ?? '') &&
+      usable(room)
+    ) {
       return roomId;
     }
   }
@@ -539,6 +553,7 @@ export function resolveDirectMessageRoom(
   for (const room of client.getRooms()) {
     if (taggedForSomeoneElse.has(room.roomId)) continue;
     if (!OPEN_MEMBERSHIPS.has(room.getMyMembership() ?? '')) continue;
+    if (!usable(room)) continue;
     // A DM is created without a name; a named room is a channel or a group.
     if (room.currentState.getStateEvents('m.room.name', '')) continue;
 
@@ -555,11 +570,14 @@ export function resolveDirectMessageRoom(
       return room.roomId;
     }
 
-    // A note-to-self DM: the caller is the peer, and the only party is them.
+    // A note-to-self DM: the caller is the peer, and nobody else has *ever*
+    // been in the room — not just "is in it now", or an untagged 1:1 whose
+    // other side left would be picked up as your notes.
     if (
       peerUserId === myUserId &&
       parties.length === 1 &&
-      parties[0] === myUserId
+      parties[0] === myUserId &&
+      room.getMembers().every((member) => member.userId === myUserId)
     ) {
       return room.roomId;
     }
