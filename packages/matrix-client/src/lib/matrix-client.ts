@@ -1,6 +1,7 @@
 import {
   ClientEvent,
   Direction,
+  HttpApiEvent,
   MatrixEventEvent,
   NotificationCountType,
   ReceiptType,
@@ -442,7 +443,25 @@ export class OneTabMatrixClient {
   }
 
   private attachListeners(sdk: SdkClient): void {
+    /*
+     * The homeserver refused our token — device deleted, token revoked, user
+     * deactivated. The SDK stops syncing for good on its own and then reports
+     * a plain sync *error*, which below would read as a blip it is retrying:
+     * a timeline stuck on "Reconnecting…" forever. The stored session can
+     * never be resumed either, so drop it and say `expired`, which the owner
+     * answers by minting a fresh session.
+     */
+    sdk.on(HttpApiEvent.SessionLoggedOut, () => {
+      if (this.sdk !== sdk) return;
+      sdk.stopClient();
+      void this.sessionStore.clear();
+      this.setStatus('expired');
+    });
+
     sdk.on(ClientEvent.Sync, (state: SyncState) => {
+      // Sync states from a replaced client, or trailing the logout above,
+      // describe nothing the caller can act on.
+      if (this.sdk !== sdk || this.status.state === 'expired') return;
       switch (state) {
         case SyncState.Prepared:
         case SyncState.Syncing:

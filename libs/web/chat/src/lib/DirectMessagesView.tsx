@@ -157,7 +157,7 @@ function DirectConversation({
 }) {
   const { workspaceId } = useCurrentWorkspace();
   const members = useMembers(workspaceId);
-  const { enabled, configStatus } = useMatrix();
+  const { configStatus } = useMatrix();
   const currentUser = useCurrentUser();
   const openProfile = useRightPanelStore((s) => s.openProfile);
 
@@ -350,7 +350,6 @@ function DirectConversation({
             context={{ type: 'DIRECT', id: peerId }}
             roomId={roomId}
             workspaceId={workspaceId}
-            enabled={enabled}
             currentUserId={currentUser?.id}
           />
         </TabsContent>

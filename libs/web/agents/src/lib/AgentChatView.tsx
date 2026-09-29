@@ -489,7 +489,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
  */
 function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
   const { workspaceId } = useCurrentWorkspace();
-  const { enabled } = useMatrix();
+  const { configStatus } = useMatrix();
   const currentUser = useCurrentUser();
   const { roomId, error } = useDirectRoom(`agent-${agent.id}`);
 
@@ -504,7 +504,7 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
     [workspaceId, roomId, agent.id],
   );
 
-  if (!enabled) {
+  if (configStatus === 'disabled') {
     return (
       <EmptyState
         size="lg"
@@ -529,7 +529,6 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
       filesContext={{ type: 'AGENT', id: agent.id }}
       roomId={roomId}
       workspaceId={workspaceId}
-      enabled={enabled}
       currentUserId={currentUser?.id}
     >
       <ChatPanel

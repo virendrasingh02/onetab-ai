@@ -141,7 +141,7 @@ export function GroupConversation({
   roomId,
   extraPeers,
 }: GroupConversationProps) {
-  const { enabled, configStatus, client } = useMatrix();
+  const { configStatus, client } = useMatrix();
   const { workspaceId, slug } = useCurrentWorkspace();
   const membersQuery = useMembers(workspaceId);
   const { room, members } = useRoomSummary(roomId);
@@ -251,7 +251,6 @@ export function GroupConversation({
             filesContext={{ type: 'DIRECT', id: roomId }}
             roomId={roomId}
             workspaceId={workspaceId}
-            enabled={enabled}
             currentUserId={myUserId ?? undefined}
           >
             <ChatPanel

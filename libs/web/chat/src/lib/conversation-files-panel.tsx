@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMatrix } from './matrix-provider.js';
 import { useRoom, useRoomSummary } from './use-chat.js';
 
 export interface ConversationFilesPanelProps {
@@ -32,8 +33,6 @@ export interface ConversationFilesPanelProps {
   /** The Matrix room whose timeline supplies the "Shared in chat" section. */
   roomId: string | null;
   workspaceId: string | undefined;
-  /** True when Matrix is configured for this deployment. */
-  enabled: boolean;
   /** Current user id, so "you" is marked on their own uploads. */
   currentUserId?: string;
 }
@@ -68,10 +67,10 @@ export function ConversationFilesPanel({
   context,
   roomId,
   workspaceId,
-  enabled,
   currentUserId,
 }: ConversationFilesPanelProps) {
   const navigate = useNavigate();
+  const { configStatus } = useMatrix();
   const { slug } = useCurrentWorkspace();
   const { openPreview } = useMediaPreview();
 
@@ -131,7 +130,7 @@ export function ConversationFilesPanel({
       />
 
       {/* Shared in chat — Matrix timeline attachments. */}
-      {!enabled ? (
+      {configStatus === 'disabled' ? (
         <EmptyState
           size="lg"
           icon={<MessageSquareOff />}
@@ -268,7 +267,6 @@ export function ConversationTabsShell({
   filesContext,
   roomId,
   workspaceId,
-  enabled,
   currentUserId,
   children,
 }: ConversationTabsShellProps) {
@@ -303,7 +301,6 @@ export function ConversationTabsShell({
           context={filesContext}
           roomId={roomId}
           workspaceId={workspaceId}
-          enabled={enabled}
           currentUserId={currentUserId}
         />
       </TabsContent>

@@ -171,7 +171,7 @@ export function ChatPanel({
   composerContext,
 }: ChatPanelProps) {
 
-  const { client, status, configStatus, error } = useMatrix();
+  const { client, status, configStatus, error, retry } = useMatrix();
   const readReceiptsEnabled = useReadReceipts();
 
   // Workspace policy gates for message actions — one fetch behind every
@@ -797,16 +797,19 @@ export function ChatPanel({
     );
   }
 
+  // Chat *is* configured here — the connection attempt failed and the
+  // provider is already retrying on a backoff; the button just skips the wait.
   if (error) {
+    const retrying = status.state === 'connecting';
     return (
       <EmptyState
         size="lg"
         icon={<MessageSquareOff />}
-        title="Could not connect to chat"
-        description={error}
+        title="Can't reach chat right now"
+        description={`${error} Retrying automatically…`}
         action={
-          <Button variant="outline" onClick={() => window.location.reload()}>
-            Reload
+          <Button variant="outline" onClick={retry} disabled={retrying}>
+            {retrying ? 'Connecting…' : 'Try again'}
           </Button>
         }
       />

@@ -253,7 +253,7 @@ function CoworkerConversationPanel({
   coworker: AICoworkerDetail;
   workspaceId: string;
 }) {
-  const { enabled } = useMatrix();
+  const { configStatus } = useMatrix();
   const currentUser = useCurrentUser();
   const peerId = coworker.matrixUserId || `coworker-${coworker.id}`;
   const { roomId, error } = useDirectRoom(peerId);
@@ -269,7 +269,7 @@ function CoworkerConversationPanel({
     [workspaceId, roomId, peerId],
   );
 
-  if (!enabled) {
+  if (configStatus === 'disabled') {
     return (
       <EmptyState
         size="lg"
@@ -294,7 +294,6 @@ function CoworkerConversationPanel({
       filesContext={{ type: 'AGENT', id: coworker.id }}
       roomId={roomId}
       workspaceId={workspaceId}
-      enabled={enabled}
       currentUserId={currentUser?.id}
     >
       <ChatPanel

@@ -887,7 +887,7 @@ function AppConversationPanel({
   integrationId: string;
 }) {
   const { workspaceId } = useCurrentWorkspace();
-  const { enabled } = useMatrix();
+  const { configStatus } = useMatrix();
   const currentUser = useCurrentUser();
   const { roomId, error } = useDirectRoom(`app-${integrationId}`);
 
@@ -902,7 +902,7 @@ function AppConversationPanel({
     [workspaceId, roomId, integrationId],
   );
 
-  if (!enabled) {
+  if (configStatus === 'disabled') {
     return (
       <EmptyState
         size="lg"
@@ -927,7 +927,6 @@ function AppConversationPanel({
       filesContext={{ type: 'APP', id: integrationId }}
       roomId={roomId}
       workspaceId={workspaceId}
-      enabled={enabled}
       currentUserId={currentUser?.id}
     >
       <ChatPanel
