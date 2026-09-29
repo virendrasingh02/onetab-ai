@@ -2318,7 +2318,7 @@ export function LexicalComposerInput({
         {showToolbar ? <LexicalToolbar toolbarSlot={toolbarSlot} /> : null}
         <FloatingSelectionToolbar />
 
-        <div className="px-3.5 py-2.5 relative flex-1">
+        <div className="px-4 pt-3 pb-2 relative flex-1">
           <RichTextPlugin
             contentEditable={
               <ContentEditable
@@ -2329,7 +2329,7 @@ export function LexicalComposerInput({
                 aria-label="Message composer input"
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="left-3.5 top-2.5 text-message pointer-events-none absolute select-none text-subtle">
+                  <div className="left-4 top-3 text-message pointer-events-none absolute select-none text-subtle">
                     {placeholder}
                   </div>
                 }

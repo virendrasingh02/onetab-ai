@@ -287,6 +287,19 @@ function StagedAttachmentChip({
   );
 }
 
+/** Every icon control in the action row shares one footprint and hover; only
+ *  the active tint differs, so the row reads as a single quiet toolbar. */
+const ACTION_BUTTON_CLASS =
+  'size-8 flex touch-target shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40';
+const ACTION_BUTTON_ACTIVE_CLASS =
+  'bg-primary/15 text-primary-text hover:bg-primary/20 hover:text-primary-text';
+
+function ActionDivider() {
+  return (
+    <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-border" />
+  );
+}
+
 export interface ComposerProps {
   onSend: (body: string, meta?: ComposerMessageMeta) => void | Promise<void>;
   onSchedule?: (body: string, scheduledFor: string) => void | Promise<void>;
@@ -976,7 +989,7 @@ export function Composer({
         style={{ paddingBottom: composerPadBottom }}
       >
         {contextSlot}
-        <div className="gap-2.5 px-4 py-3 text-xs flex items-center rounded-xl border border-border bg-surface text-muted-foreground">
+        <div className="gap-2.5 px-4 py-3.5 text-xs flex items-center rounded-2xl border border-dashed border-border-strong bg-surface-muted text-muted-foreground">
           <Lock className="size-4 shrink-0" aria-hidden />
           <span>{readOnlyMessage}</span>
         </div>
@@ -995,8 +1008,8 @@ export function Composer({
       {contextSlot}
 
       {anon && anonAllowed ? (
-        <div className="gap-1.5 mb-1.5 px-2.5 py-1 flex items-center rounded-md bg-primary/10 text-[11px] text-primary-text">
-          <VenetianMask className="size-3" />
+        <div className="gap-1.5 mb-2 px-3 py-1.5 font-medium flex items-center rounded-lg border border-primary/20 bg-primary/10 text-[11px] text-primary-text">
+          <VenetianMask className="size-3.5" />
           This message will be posted as “Anonymous Participant”.
         </div>
       ) : null}
@@ -1010,8 +1023,10 @@ export function Composer({
       ) : (
         <div
           className={cn(
-            'relative flex flex-col rounded-xl border border-border bg-surface transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
-            isDraggingOver && 'border-primary ring-2 ring-primary/40',
+            // Raised card with a soft primary halo on focus, so the composer
+            // reads as the page's main input rather than one more bordered box.
+            'relative flex flex-col rounded-2xl border border-border-strong bg-surface shadow-elevated transition-[border-color,box-shadow] duration-200 hover:border-primary/40 focus-within:border-primary/70 focus-within:ring-4 focus-within:ring-primary/15',
+            isDraggingOver && 'border-primary ring-4 ring-primary/25',
             disabled && 'pointer-events-none opacity-60',
           )}
           onDragOver={(event) => {
@@ -1032,13 +1047,14 @@ export function Composer({
           }}
         >
           {isDraggingOver ? (
-            <div className="inset-0 text-xs font-semibold pointer-events-none absolute z-10 flex items-center justify-center rounded-xl bg-primary/5 text-primary-text">
+            <div className="inset-1.5 gap-2 text-xs font-semibold pointer-events-none absolute z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary/50 bg-primary/10 text-primary-text backdrop-blur-[1px]">
+              <Plus className="size-4" aria-hidden="true" />
               Drop to attach
             </div>
           ) : null}
 
           {attachments.length > 0 ? (
-            <div className="gap-2 px-3 py-2.5 flex scrollbar-none items-start overflow-x-auto border-b border-border">
+            <div className="gap-2 px-3.5 pt-3 pb-2.5 flex scrollbar-none items-start overflow-x-auto border-b border-border">
               {attachments.map((attachment) => (
                 <StagedAttachmentChip
                   key={attachment.id}
@@ -1112,8 +1128,8 @@ export function Composer({
             GIF lives in the emoji picker's second tab — leaving a row of full
             44px targets that fits a 320px screen. The left cluster scrolls
             horizontally as a backstop rather than wrapping or clipping. */}
-          <div className="px-2.5 py-1.5 flex items-center justify-between rounded-b-xl bg-surface">
-            <div className="gap-1 min-w-0 no-scrollbar flex flex-1 items-center overflow-x-auto">
+          <div className="gap-2 px-2 pb-2 pt-0.5 flex items-center justify-between">
+            <div className="gap-0.5 min-w-0 no-scrollbar flex flex-1 items-center overflow-x-auto">
               {/* Same "no prop, no control" convention as the huddle and mic
                 buttons below — a surface with nowhere to send an upload (AI
                 chat) shouldn't offer to stage one that then silently vanishes
@@ -1127,7 +1143,7 @@ export function Composer({
                       onClick={() =>
                         document.getElementById(fileInputId)?.click()
                       }
-                      className="size-7 flex touch-target shrink-0 items-center justify-center rounded-full bg-accent text-foreground transition-colors hover:bg-selected"
+                      className="size-8 flex touch-target shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary-text transition-colors hover:border-primary/40 hover:bg-primary/20 active:scale-95"
                     >
                       <Plus className="size-4" aria-hidden="true" />
                     </button>
@@ -1142,6 +1158,7 @@ export function Composer({
                       event.target.value = '';
                     }}
                   />
+                  <ActionDivider />
                 </>
               ) : null}
 
@@ -1167,8 +1184,8 @@ export function Composer({
                   title="Emoji, GIFs & Stickers"
                   aria-label="Insert emoji, GIF, or sticker"
                   className={cn(
-                    'size-7 flex touch-target shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                    pickerState.open && 'bg-primary text-primary-foreground',
+                    ACTION_BUTTON_CLASS,
+                    pickerState.open && ACTION_BUTTON_ACTIVE_CLASS,
                   )}
                 >
                   <Smile className="size-4" aria-hidden="true" />
@@ -1185,7 +1202,7 @@ export function Composer({
                     onClick={startRecording}
                     disabled={!canStartVoiceAction}
                     aria-label="Record voice message"
-                    className="size-7 flex touch-target shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    className={ACTION_BUTTON_CLASS}
                   >
                     <Mic className="size-4" aria-hidden="true" />
                   </button>
@@ -1198,7 +1215,7 @@ export function Composer({
                     type="button"
                     aria-label="Start voice huddle"
                     onClick={onStartHuddle}
-                    className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className={cn(ACTION_BUTTON_CLASS, 'max-sm:hidden')}
                   >
                     <Video className="size-4" aria-hidden="true" />
                   </button>
@@ -1226,13 +1243,11 @@ export function Composer({
                     aria-label="Toggle anonymous posting"
                     onClick={() => setAnon((v) => !v)}
                     className={cn(
-                      'size-7 flex touch-target items-center justify-center rounded-md transition-colors',
-                      anon
-                        ? 'bg-primary/15 text-primary'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                      ACTION_BUTTON_CLASS,
+                      anon && ACTION_BUTTON_ACTIVE_CLASS,
                     )}
                   >
-                    <VenetianMask className="size-3.5" />
+                    <VenetianMask className="size-4" />
                   </button>
                 </Hint>
               ) : null}
@@ -1257,10 +1272,10 @@ export function Composer({
                     }
                     aria-pressed={speech.listening}
                     className={cn(
-                      'size-7 flex touch-target shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
-                      speech.listening
-                        ? 'motion-safe:animate-pulse bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                      ACTION_BUTTON_CLASS,
+                      // Stays solid (not the soft active tint) — it's a live mic.
+                      speech.listening &&
+                        'motion-safe:animate-pulse bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground',
                     )}
                   >
                     <Speech className="size-4" />
@@ -1280,10 +1295,8 @@ export function Composer({
                           aria-label="Schedule message"
                           disabled={disabled}
                           className={cn(
-                            'size-7 flex touch-target shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
-                            scheduleOpen
-                              ? 'bg-primary text-primary-foreground'
-                              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                            ACTION_BUTTON_CLASS,
+                            scheduleOpen && ACTION_BUTTON_ACTIVE_CLASS,
                           )}
                         >
                           <CalendarClock className="size-4" />
@@ -1399,6 +1412,8 @@ export function Composer({
                 </Popover>
               ) : null}
 
+              <ActionDivider />
+
               <Hint label={edit ? 'Save changes' : 'Send message'}>
                 <button
                   type="button"
@@ -1406,16 +1421,16 @@ export function Composer({
                   disabled={disabled || !canSend}
                   aria-label={edit ? 'Save changes' : 'Send message'}
                   className={cn(
-                    'size-7 flex touch-target shrink-0 items-center justify-center rounded-full transition-colors',
+                    'size-8 flex touch-target shrink-0 items-center justify-center rounded-lg transition-[background-color,color,box-shadow,transform] duration-150',
                     canSend && !disabled
-                      ? 'bg-primary text-primary-foreground hover:bg-primary-hover active:scale-95'
-                      : 'bg-transparent text-muted-foreground/40',
+                      ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover active:scale-95'
+                      : 'bg-surface-inset text-muted-foreground/50',
                   )}
                 >
                   {edit ? (
-                    <Check className="size-3.5" />
+                    <Check className="size-4" />
                   ) : (
-                    <Send className="size-3.5" />
+                    <Send className="size-4" />
                   )}
                 </button>
               </Hint>

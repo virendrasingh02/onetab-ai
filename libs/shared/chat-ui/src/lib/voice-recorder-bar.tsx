@@ -153,7 +153,7 @@ export function VoiceRecorderBar({
   };
 
   const baseClass = cn(
-    'flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5',
+    'flex items-center gap-2 rounded-2xl border border-primary/50 bg-surface px-3 py-2.5 shadow-elevated ring-4 ring-primary/10',
     className,
   );
 
