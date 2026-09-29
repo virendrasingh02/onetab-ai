@@ -42,9 +42,13 @@ function MarkdownImage({ src, alt }: { src: string; alt: string }) {
 }
 
 const INLINE_PATTERN_SOURCE = [
+    // A backslash-escaped punctuation mark is that mark, literally. Text pasted
+    // from other markdown tools arrives like `ERR\_CONNECTION\_REFUSED`.
+    '(?<escape>\\\\[\\\\`*_{}\\[\\]()#+\\-.!|~=<>@])',
     '(?<code>`[^`\\n]+`)',
     '(?<image>!\\[[^\\]]*\\]\\([^\\s)]+\\))',
-    '(?<link>\\[[^\\]]*\\]\\([^\\s)]+\\))',
+    // The target may be empty (`[label]()`) — pastes carry those too.
+    '(?<link>\\[[^\\]]*\\]\\([^\\s)]*\\))',
     '(?<bolditalic>\\*\\*\\*[^*\\n]+\\*\\*\\*)',
     '(?<bold>\\*\\*[^*\\n]+\\*\\*|__[^_\\n]+__)',
     '(?<italic>\\*[^*\\n]+\\*|_[^_\\n]+_)',
@@ -113,11 +117,13 @@ function renderInline(
     }
     lastIndex = match.index + token.length;
 
-    if (groups['code']) {
+    if (groups['escape']) {
+      nodes.push(token.slice(1));
+    } else if (groups['code']) {
       nodes.push(
         <code
           key={key}
-          className="rounded bg-surface-inset px-1.5 py-0.5 font-mono text-xs text-info-text"
+          className="rounded bg-surface-inset px-1.5 py-0.5 font-mono text-[0.875em] text-info-text"
         >
           {token.slice(1, -1)}
         </code>,
@@ -137,8 +143,9 @@ function renderInline(
         ),
       );
     } else if (groups['link']) {
-      const parsed = /^\[([^\]]*)\]\(([^\s)]+)\)$/.exec(token);
+      const parsed = /^\[([^\]]*)\]\(([^\s)]*)\)$/.exec(token);
       const href = parsed ? safeUrl(parsed[2]) : null;
+      const label = parsed?.[1] ?? '';
       nodes.push(
         href ? (
           <a
@@ -148,10 +155,14 @@ function renderInline(
             rel="noreferrer noopener"
             className="text-primary-text underline underline-offset-2 hover:text-primary"
           >
-            {parsed?.[1] || href}
+            {label || href}
           </a>
         ) : (
-          <Fragment key={key}>{token}</Fragment>
+          // Nowhere safe to go (empty, relative, `javascript:`…): keep the
+          // words, drop the link syntax.
+          <Fragment key={key}>
+            {label ? renderInline(label, key, options, depth + 1) : token}
+          </Fragment>
         ),
       );
     } else if (groups['bolditalic']) {
@@ -242,14 +253,12 @@ function renderInline(
   return nodes;
 }
 
-const HEADING_CLASS: Record<number, string> = {
-  1: 'mt-2 mb-1 text-lg font-bold leading-tight text-foreground',
-  2: 'mt-2 mb-1 text-base font-bold leading-tight text-foreground',
-  3: 'mt-1.5 mb-1 text-sm font-bold leading-tight text-foreground',
-  4: 'mt-1.5 mb-1 text-sm font-semibold text-foreground',
-  5: 'mt-1 mb-0.5 text-xs font-semibold text-foreground',
-  6: 'mt-1 mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
-};
+/**
+ * Every heading level renders at the message size — weight carries the
+ * structure, not size. Otherwise a web page pasted into chat (its title
+ * arrives as `# …`) shouts over everything around it.
+ */
+const HEADING_CLASS = 'mt-1.5 font-bold text-foreground';
 
 const TASK_PATTERN = /^(?:[-*+]\s+)?\[([ xX])\]\s+(.*)$/;
 const BULLET_PATTERN = /^[-*+•]\s+(.*)$/;
@@ -304,7 +313,7 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
           key={`code-${index}`}
           className="my-1.5 overflow-x-auto rounded-lg border border-border bg-surface-inset p-2.5"
         >
-          <code className="font-mono text-xs text-success-text">
+          <code className="font-mono text-[0.875em] text-success-text">
             {body.join('\n')}
           </code>
         </pre>,
@@ -323,7 +332,7 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
       const level = heading[1].length;
       const Tag = `h${level}` as 'h1';
       blocks.push(
-        <Tag key={`h-${index}`} className={HEADING_CLASS[level]}>
+        <Tag key={`h-${index}`} className={HEADING_CLASS}>
           {renderInline(heading[2], `h-${index}`, options)}
         </Tag>,
       );
@@ -346,7 +355,7 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
       }
       blocks.push(
         <div key={`table-${index}`} className="my-1.5 overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
+          <table className="w-full border-collapse">
             <thead>
               <tr>
                 {header.map((cell, cellIndex) => (
@@ -393,9 +402,9 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
           {items.map((item, itemIndex) => (
             <li key={itemIndex} className="flex items-start gap-2">
               {item.checked ? (
-                <CheckSquare className="mt-0.5 size-3.5 shrink-0 text-success-text" />
+                <CheckSquare className="mt-1 size-3.5 shrink-0 text-success-text" />
               ) : (
-                <Square className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                <Square className="mt-1 size-3.5 shrink-0 text-muted-foreground" />
               )}
               <span
                 className={cn(item.checked && 'text-muted-foreground line-through')}
@@ -532,7 +541,7 @@ export function MarkdownMessage({
   return (
     <div
       className={cn(
-        'space-y-1 text-sm leading-relaxed text-foreground break-words',
+        'space-y-1 text-message text-foreground break-words',
         className,
       )}
     >

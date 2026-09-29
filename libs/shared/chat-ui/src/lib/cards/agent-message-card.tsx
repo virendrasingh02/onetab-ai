@@ -630,7 +630,10 @@ export function AgentMessageCard({
       {/* 7. MAIN AGENT RESPONSE BODY */}
       {(event.responseText || event.summary || message.body) && (
         <div className="mt-3 text-xs sm:text-sm text-foreground leading-relaxed">
-          <MarkdownMessage text={event.responseText || event.summary || message.body} />
+          <MarkdownMessage
+            text={event.responseText || event.summary || message.body}
+            className="text-sm leading-relaxed"
+          />
         </div>
       )}
 

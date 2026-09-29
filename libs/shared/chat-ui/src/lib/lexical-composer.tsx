@@ -151,15 +151,16 @@ const EDITOR_THEME = {
     underline: 'underline underline-offset-2',
     underlineStrikethrough: 'underline line-through underline-offset-2',
     highlight: 'rounded bg-warning/25 px-0.5 text-foreground',
-    code: 'rounded bg-surface-inset px-1.5 py-0.5 font-mono text-xs text-info-text',
+    code: 'rounded bg-surface-inset px-1.5 py-0.5 font-mono text-[0.875em] text-info-text',
   },
+  // Same as a sent message: every level at the message size, weight only.
   heading: {
-    h1: 'mt-1 mb-1 text-lg font-bold leading-tight text-foreground',
-    h2: 'mt-1 mb-1 text-base font-bold leading-tight text-foreground',
-    h3: 'mt-1 mb-1 text-sm font-bold leading-tight text-foreground',
-    h4: 'mt-1 mb-1 text-sm font-semibold text-foreground',
-    h5: 'mt-1 mb-1 text-xs font-semibold text-foreground',
-    h6: 'mt-1 mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
+    h1: 'mt-1 mb-1 font-bold text-foreground',
+    h2: 'mt-1 mb-1 font-bold text-foreground',
+    h3: 'mt-1 mb-1 font-bold text-foreground',
+    h4: 'mt-1 mb-1 font-bold text-foreground',
+    h5: 'mt-1 mb-1 font-bold text-foreground',
+    h6: 'mt-1 mb-1 font-bold text-foreground',
   },
   list: {
     ul: 'list-disc pl-5 my-1 text-foreground',
@@ -2328,11 +2329,11 @@ export function LexicalComposerInput({
                 aria-label="Message composer input"
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="left-3.5 top-2.5 text-sm pointer-events-none absolute select-none text-subtle">
+                  <div className="left-3.5 top-2.5 text-message pointer-events-none absolute select-none text-subtle">
                     {placeholder}
                   </div>
                 }
-                className="min-h-6 max-h-[46vh] w-full resize-none overflow-y-auto overscroll-contain scrollbar-thin text-sm font-normal text-foreground outline-none"
+                className="min-h-6 max-h-[46vh] w-full resize-none overflow-y-auto overscroll-contain scrollbar-thin text-message font-normal text-foreground outline-none"
               />
             }
             ErrorBoundary={LexicalErrorBoundary}

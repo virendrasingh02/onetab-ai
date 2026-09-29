@@ -749,7 +749,10 @@ export function PinnedMessageCard({
             This message was deleted.
           </p>
         ) : (
-          <MarkdownMessage text={message.body} />
+          <MarkdownMessage
+            text={message.body}
+            className="text-sm leading-relaxed"
+          />
         )}
       </div>
 

@@ -192,6 +192,16 @@
   --font-sans: var(--font-sans-stack);
   --font-mono: var(--font-mono-stack);
 
+  /*
+   * Chat message type (`text-message`). One size for every line of a message —
+   * the sender's name, the body, and whatever structure a paste brings with it
+   * (headings, lists, quotes, tables) — so pasted content never renders larger
+   * than a typed reply. The composer uses it too, so it previews the message.
+   * `cn()` knows this is a font size (see `@org/utils` cn.ts).
+   */
+  --text-message: 15px;
+  --text-message--line-height: 1.5;
+
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.08);

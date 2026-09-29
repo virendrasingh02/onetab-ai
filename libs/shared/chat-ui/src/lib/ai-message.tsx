@@ -69,7 +69,10 @@ export function AIMessage({
       </div>
       <MarkdownMessage
         text={message.content}
-        className={cn(isUser && 'text-primary-foreground [&_a]:text-primary-foreground')}
+        className={cn(
+          'text-sm leading-relaxed',
+          isUser && 'text-primary-foreground [&_a]:text-primary-foreground',
+        )}
       />
     </div>
   );

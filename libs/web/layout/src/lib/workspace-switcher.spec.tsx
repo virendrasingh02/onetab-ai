@@ -121,7 +121,9 @@ describe('WorkspaceMenu / Switcher', () => {
     expect(screen.getByText('virendra@gmail.com')).toBeInTheDocument();
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
     expect(screen.getByText('Personal Space')).toBeInTheDocument();
-    expect(screen.getByText('Plans & Billing')).toBeInTheDocument();
+    // Plan/billing lives in Settings, not the switcher.
+    expect(screen.queryByText('Plans & Billing')).toBeNull();
+    expect(screen.queryByText(/Micro-Agents/)).toBeNull();
 
     // Test search filter
     const searchInput = screen.getByPlaceholderText(

@@ -411,7 +411,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
         const content = evaluateTemplate(props['content'] || props['text'], localData, context);
         return (
           <div key={node.id} style={inlineStyle} className="text-xs text-foreground leading-relaxed">
-            <MarkdownMessage text={content} />
+            <MarkdownMessage text={content} className="text-sm leading-relaxed" />
           </div>
         );
       }

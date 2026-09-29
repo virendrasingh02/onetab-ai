@@ -974,7 +974,7 @@ export function ChatBubble({
               name={message.senderName}
               avatarUrl={message.senderAvatarUrl}
             >
-              <span className="text-sm font-bold tracking-wide cursor-pointer text-foreground hover:underline">
+              <span className="text-message font-bold cursor-pointer text-foreground hover:underline">
                 {message.senderName}
               </span>
             </UserProfileCard>
@@ -1013,7 +1013,7 @@ export function ChatBubble({
         ) : null}
 
         {message.decryptionError ? (
-          <p className="gap-1.5 py-0.5 text-sm flex items-center text-warning-text italic">
+          <p className="gap-1.5 py-0.5 text-message flex items-center text-warning-text italic">
             <AlertTriangle className="size-3.5 shrink-0 text-warning-text" />
             {message.decryptionError}
           </p>
