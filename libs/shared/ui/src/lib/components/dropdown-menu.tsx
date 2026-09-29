@@ -173,6 +173,42 @@ export function DropdownMenuLabel({
   );
 }
 
+/**
+ * A menu row for content rendered *into* an open menu from a different React
+ * tree — a slot filled with `createPortal`, like the conversation's own
+ * entries in a channel header's "⋯" menu. A portal keeps the context of where
+ * it was rendered, not where it lands, so a `DropdownMenuItem` there has no
+ * Radix Menu around it and throws. This looks identical; selecting it runs
+ * `onSelect` and then closes the menu the way Escape would. It sits outside
+ * the menu's arrow-key roving but is reachable with Tab.
+ */
+export function DetachedMenuItem({
+  className,
+  onSelect,
+  onClick,
+  ...props
+}: ComponentProps<'button'> & { onSelect?: () => void }) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      data-slot="dropdown-menu-item"
+      className={cn(menuItemClasses, 'w-full text-left', className)}
+      onClick={(event) => {
+        onClick?.(event);
+        if (event.defaultPrevented) return;
+        onSelect?.();
+        // Radix dismisses the open menu on an Escape keydown seen by the
+        // document, which is where this bubbles to.
+        event.currentTarget.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+        );
+      }}
+      {...props}
+    />
+  );
+}
+
 export function DropdownMenuSeparator({
   className,
   ...props

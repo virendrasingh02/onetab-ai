@@ -12,7 +12,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
@@ -315,16 +314,6 @@ export function WorkspaceMenu({
           sideOffset={6}
           className="w-72 sm:w-80 p-1.5 shadow-2xl space-y-1.5 rounded-xl border border-border bg-popover text-foreground select-none"
         >
-          {/* Header Label */}
-          <div className="px-2 py-1 flex items-center justify-between">
-            <DropdownMenuLabel className="p-0 font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
-              Accounts
-            </DropdownMenuLabel>
-            <span className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px] text-muted-foreground">
-              {linkedWorkspaceCount}
-            </span>
-          </div>
-
           {/* Quick Search when 3 or more workspaces exist */}
           {linkedWorkspaceCount >= 3 && (
             <div className="px-1.5 py-1" onKeyDown={(e) => e.stopPropagation()}>

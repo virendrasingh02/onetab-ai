@@ -49,7 +49,7 @@ import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import {
   Badge,
   Button,
-  DropdownMenuItem,
+  DetachedMenuItem,
   Hint,
   toast,
   useRightPanelStore,
@@ -203,6 +203,13 @@ export interface ChatSurfaceProps {
    * beside the bar that renders it.
    */
   huddleRequest?: number;
+  /**
+   * False when the channel has switched huddles off — hides the header button
+   * and the welcome block's shortcut, and ignores `huddleRequest`. The server
+   * refuses a start/join regardless; this just stops offering one. A huddle
+   * already running keeps its bar.
+   */
+  huddlesEnabled?: boolean;
 
   pinnedIds?: string[];
   /** Pinned messages older than the loaded timeline, fetched on their own. */
@@ -357,6 +364,7 @@ export function ChatSurface({
   showMembers = true,
   welcome,
   huddleRequest = 0,
+  huddlesEnabled = true,
   pinnedIds = [],
   pinnedOutsideTimeline,
   savedIds = [],
@@ -431,14 +439,20 @@ export function ChatSurface({
   const huddle = useHuddleSession(workspaceId, conversationId);
   const { startOrJoin: startOrJoinHuddle, joined: huddleJoined } = huddle;
 
-  /* Zero is the initial value, not a request — see `huddleRequest`. */
+  /*
+   * Zero is the initial value, not a request — see `huddleRequest`. A request
+   * waits for the room: one made on a cold load (a copied huddle link) arrives
+   * before the conversation resolves, and `startOrJoin` quietly does nothing
+   * without a room, so handling it early would drop it.
+   */
   const handledHuddleRequest = useRef(0);
   useEffect(() => {
+    if (!huddlesEnabled || !conversationId) return;
     if (huddleRequest > 0 && huddleRequest !== handledHuddleRequest.current) {
       handledHuddleRequest.current = huddleRequest;
       startOrJoinHuddle();
     }
-  }, [huddleRequest, startOrJoinHuddle]);
+  }, [huddleRequest, huddlesEnabled, conversationId, startOrJoinHuddle]);
 
   /*
    * Which thread the URL currently points at, as last reconciled here. Guards
@@ -1175,7 +1189,7 @@ export function ChatSurface({
 
   const headerActions = (
     <>
-      {!huddle.huddle && !huddleJoined ? (
+      {huddlesEnabled && !huddle.huddle && !huddleJoined ? (
         <Hint label="Start a huddle">
           <Button
             variant="ghost"
@@ -1216,8 +1230,10 @@ export function ChatSurface({
    * still take part in keyboard navigation — which is what makes this work
    * rather than needing a second dropdown of our own.
    */
+  // Portaled into the host's own menu from this tree, so it can't be a
+  // `DropdownMenuItem` — see `DetachedMenuItem`.
   const headerMenuItems = (
-    <DropdownMenuItem
+    <DetachedMenuItem
       className="justify-between"
       onSelect={() => toggle('pinned')}
     >
@@ -1228,7 +1244,7 @@ export function ChatSurface({
       {pinnedMessages.length > 0 ? (
         <Badge variant="neutral">{pinnedMessages.length}</Badge>
       ) : null}
-    </DropdownMenuItem>
+    </DetachedMenuItem>
   );
 
   return (
@@ -1539,6 +1555,7 @@ export function ChatSurface({
                       : undefined
                   }
                   onStartHuddle={
+                    !huddlesEnabled ||
                     welcome.kind === 'self' ||
                     welcome.peer?.kind === 'agent' ||
                     welcome.peer?.kind === 'app'

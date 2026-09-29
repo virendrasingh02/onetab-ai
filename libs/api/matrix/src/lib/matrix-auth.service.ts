@@ -427,6 +427,31 @@ export class MatrixAuthService {
   }
 
   /**
+   * Removes every listed user from a room, by room id — for a channel that
+   * was just deleted, so `syncChannelMembership` can no longer look it up.
+   * Best-effort per user, like the rest of the mirror.
+   */
+  async removeUsersFromRoom(
+    roomId: string,
+    userIds: readonly string[],
+    reason: string,
+  ): Promise<void> {
+    if (!this.admin.isEnabled) return;
+
+    for (const userId of userIds) {
+      const matrixUserId = await this.ensureIdentity(userId);
+      if (!matrixUserId) continue;
+      try {
+        await this.admin.kickFromRoom(roomId, matrixUserId, reason);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to remove ${matrixUserId} from ${roomId}: ${String(error)}`,
+        );
+      }
+    }
+  }
+
+  /**
    * Mirrors a channel role change into the room's power levels — a channel
    * ADMIN gets PL50, matching the space power-level mapping. The role itself
    * stays ours; this only tracks it so moderation looks right in any Matrix

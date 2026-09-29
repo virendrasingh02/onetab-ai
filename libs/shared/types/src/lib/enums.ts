@@ -63,6 +63,16 @@ export const ChannelMode = {
 } as const;
 export type ChannelMode = (typeof ChannelMode)[keyof typeof ChannelMode];
 
+/** Who may add, remove and reorder a channel's tabs. */
+export const ChannelTabPolicy = {
+  /** Every channel member. */
+  EVERYONE: 'EVERYONE',
+  /** Channel admins and workspace admins only. */
+  MANAGERS: 'MANAGERS',
+} as const;
+export type ChannelTabPolicy =
+  (typeof ChannelTabPolicy)[keyof typeof ChannelTabPolicy];
+
 export const ChannelMembershipType = {
   PERMANENT: 'PERMANENT',
   /** Self-joined a public channel for a set window; removed by a server sweep. */

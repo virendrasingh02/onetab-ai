@@ -514,6 +514,18 @@ model Channel {
   /// Extra user ids allowed to post in an announcement channel, on top of
   /// channel admins + workspace admins + the creator.
   announcementPosterIds String[]                 @default([])
+  /// Off stops anyone starting or joining a huddle here (enforced by
+  /// `HuddleService`); a huddle already running when it is switched off
+  /// carries on for the people in it.
+  huddlesEnabled        Boolean                  @default(true)
+  /// Who may add, remove and reorder the channel's tabs: every member, or
+  /// only channel managers (channel admins + workspace admins).
+  tabManagePolicy       ChannelTabPolicy         @default(EVERYONE)
+  /// The channel's tab strip after "Messages", which is always first. Ids
+  /// missing from `tabOrder` fall back to the default order after it, so a
+  /// tab added later shows up without a backfill.
+  tabOrder              String[]                 @default([])
+  hiddenTabs            String[]                 @default([])
   createdById           String
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
@@ -745,6 +757,9 @@ model ChannelMember {
   membershipType ChannelMembershipType @default(PERMANENT)
   /// When a TEMPORARY membership lapses. Null for PERMANENT members.
   expiresAt      DateTime?
+  /// Per-user: offer to add someone who isn't in the channel when this member
+  /// @mentions them.
+  memberSuggestions Boolean            @default(true)
   channel        Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
   user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2701,6 +2716,11 @@ enum ChannelVisibility {
 enum ChannelMode {
   STANDARD
   ANNOUNCEMENT
+}
+
+enum ChannelTabPolicy {
+  EVERYONE
+  MANAGERS
 }
 
 enum ChannelMembershipType {

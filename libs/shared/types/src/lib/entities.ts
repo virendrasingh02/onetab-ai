@@ -1,6 +1,7 @@
 import type {
   ChannelMembershipType,
   ChannelMode,
+  ChannelTabPolicy,
   ChannelRole,
   ChannelVisibility,
   InvitationStatus,
@@ -317,6 +318,13 @@ export interface Channel {
   allowFileUploads: boolean;
   /** Extra user ids allowed to post in an announcement channel. */
   announcementPosterIds: string[];
+  /** Whether members may start and join huddles here. */
+  huddlesEnabled: boolean;
+  /** Who may add, remove and reorder the tab strip. */
+  tabManagePolicy: ChannelTabPolicy;
+  /** Tab strip after "Messages" — see `resolveChannelTabs`. */
+  tabOrder: string[];
+  hiddenTabs: string[];
   createdById: string;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
@@ -335,6 +343,8 @@ export interface ChannelSummary extends Channel {
     membershipType: ChannelMembershipType;
     /** When a TEMPORARY membership lapses; null for PERMANENT. */
     expiresAt: IsoDateString | null;
+    /** Offer to add people who aren't in the channel when the viewer @mentions them. */
+    memberSuggestions: boolean;
   } | null;
   /**
    * Whether the viewer may post here right now — derived server-side from

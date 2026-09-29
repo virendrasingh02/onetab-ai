@@ -1,4 +1,9 @@
-import { WorkspacePermission } from '@org/types';
+import {
+  WorkspacePermission,
+  canManageChannelTabs,
+  resolveChannelTabs,
+  type ChannelTabId,
+} from '@org/types';
 import type { ChannelMember, ChannelSummary } from '@org/types';
 import {
   Badge,
@@ -53,11 +58,12 @@ import {
   Megaphone,
   MessageSquare,
   MoreHorizontal,
+  PanelsTopLeft,
   Pencil,
   Pin,
   Plus,
   RefreshCw,
-  Share2,
+  Settings,
   ShieldAlert,
   Star,
   Trash2,
@@ -67,9 +73,16 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCurrentUser } from '@org/auth';
-import { ChannelDetailsPanel } from '../components/channel-details-panel.js';
+import {
+  ChannelDetailsPanel,
+  type ChannelDetailsTab,
+} from '../components/channel-details-panel.js';
+import {
+  CHANNEL_TAB_META,
+  CustomizeChannelTabsDialog,
+} from '../components/channel-tabs.js';
 import { AddAppDialog } from '../components/add-app-dialog.js';
 import { JoinChannelControl } from '../components/join-channel-control.js';
 import { TemporaryMembershipBanner } from '../components/temporary-membership-banner.js';
@@ -115,6 +128,7 @@ function ChannelHeader({
   onOpenDetails,
   onOpenMembers,
   onOpenPins,
+  onOpenSettings,
   chatActionsRef,
   chatMenuRef,
 }: {
@@ -123,6 +137,8 @@ function ChannelHeader({
   onAddBookmark?: () => void;
   /** Reveals the channel's details in the right rail. */
   onOpenDetails: () => void;
+  /** Reveals the details panel on its Settings tab. */
+  onOpenSettings: () => void;
   /** Reveals the channel's members tab in the right rail. */
   onOpenMembers: () => void;
   /** Switches the page to its Pins tab. */
@@ -420,9 +436,12 @@ function ChannelHeader({
 
                   <DropdownMenuSeparator />
 
-                  <DropdownMenuItem className="gap-2.5">
-                    <Share2 className="size-4" />
-                    <span>Sharing & Permissions</span>
+                  <DropdownMenuItem
+                    onClick={onOpenSettings}
+                    className="gap-2.5"
+                  >
+                    <Settings className="size-4" />
+                    <span>Settings & permissions</span>
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
@@ -631,9 +650,11 @@ export function ChannelPage() {
 
   const [huddleRequest, setHuddleRequest] = useState(0);
   const [detailsPanelOpen, setDetailsPanelOpen] = useState(false);
-  const [detailsTab, setDetailsTab] = useState<
-    'about' | 'members' | 'apps' | 'automations'
-  >('about');
+  const [detailsTab, setDetailsTab] = useState<ChannelDetailsTab>('about');
+  const [tabsDialogOpen, setTabsDialogOpen] = useState(false);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { role: workspaceRole } = useCurrentWorkspace();
 
   const closeDetailsPanel = useCallback(() => setDetailsPanelOpen(false), []);
 
@@ -663,6 +684,40 @@ export function ChannelPage() {
   useEffect(() => {
     setDetailsPanelOpen(false);
   }, [channelSlug]);
+
+  /* A tab hidden (here or by someone else) while it's open falls back to Messages. */
+  const hiddenTabs = channel?.hiddenTabs;
+  useEffect(() => {
+    if (hiddenTabs?.includes(activeTab)) setActiveTab('chat');
+  }, [hiddenTabs, activeTab]);
+
+  /*
+   * A copied huddle link (Settings → Huddles) is this channel's URL with
+   * `?huddle=join`: opening it switches to Messages and asks the conversation
+   * to start or join the huddle — which waits for the room itself. The param
+   * is dropped straight away so a reload doesn't rejoin.
+   */
+  const wantsHuddle = searchParams.get('huddle') === 'join';
+  useEffect(() => {
+    if (!wantsHuddle || !channel) return;
+    setSearchParams(
+      (params) => {
+        params.delete('huddle');
+        return params;
+      },
+      { replace: true },
+    );
+    if (!channel.membership) {
+      toast.info('Join the channel to hop into its huddle.');
+      return;
+    }
+    if (!channel.huddlesEnabled) {
+      toast.info('Huddles are turned off in this channel.');
+      return;
+    }
+    setActiveTab('chat');
+    setHuddleRequest((count) => count + 1);
+  }, [wantsHuddle, channel, setSearchParams]);
 
   /* Opening a channel is what marks it read — see `useChannelActivity`. */
   useEffect(() => {
@@ -694,10 +749,27 @@ export function ChannelPage() {
     ? (creator.user.displayName ?? creator.user.name)
     : undefined;
 
+  const visibleTabs = resolveChannelTabs(
+    channel.tabOrder,
+    channel.hiddenTabs,
+  ).filter((tab) => !tab.hidden);
+  const canManageTabs = canManageChannelTabs(channel.tabManagePolicy, {
+    channelRole: channel.membership?.role ?? null,
+    workspaceRole: workspaceRole ?? null,
+  });
+
   const mediaFiles =
     files.data?.filter((file) => file.mimeType.startsWith('image/')) ?? [];
   const documentFiles =
     files.data?.filter((file) => !file.mimeType.startsWith('image/')) ?? [];
+
+  const fileCount = mediaFiles.length + documentFiles.length;
+  const pinCount = pins.data?.length ?? 0;
+  const tabCounts: Record<ChannelTabId, number | undefined> = {
+    'files-media': fileCount > 0 ? fileCount : undefined,
+    bookmarks: bookmarks.length > 0 ? bookmarks.length : undefined,
+    pins: pinCount > 0 ? pinCount : undefined,
+  };
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
@@ -714,6 +786,10 @@ export function ChannelPage() {
           setDetailsPanelOpen(true);
         }}
         onOpenPins={() => setActiveTab('pins')}
+        onOpenSettings={() => {
+          setDetailsTab('settings');
+          setDetailsPanelOpen(true);
+        }}
         chatActionsRef={setChatActionsSlot}
         chatMenuRef={setChatMenuSlot}
       />
@@ -748,6 +824,14 @@ export function ChannelPage() {
                 setActiveTab('chat');
                 setHuddleRequest((count) => count + 1);
               }}
+              onOpenPosting={
+                canManageChannel ? () => setPostingOpen(true) : undefined
+              }
+              onCustomizeTabs={() => setTabsDialogOpen(true)}
+              onChannelDeleted={() => {
+                setDetailsPanelOpen(false);
+                navigate(`/w/${workspaceSlug ?? ''}`, { replace: true });
+              }}
             />,
             detailsSlot,
           )
@@ -771,6 +855,13 @@ export function ChannelPage() {
       <EditChannelDetailsDialog
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
+        workspaceId={workspaceId}
+        channel={channel}
+      />
+
+      <CustomizeChannelTabsDialog
+        open={tabsDialogOpen}
+        onOpenChange={setTabsDialogOpen}
         workspaceId={workspaceId}
         channel={channel}
       />
@@ -829,33 +920,20 @@ export function ChannelPage() {
               >
                 Messages
               </TabsTrigger>
-              <TabsTrigger
-                value="files-media"
-                icon={<FolderOpen className="size-4" />}
-                count={
-                  mediaFiles.length + documentFiles.length > 0
-                    ? mediaFiles.length + documentFiles.length
-                    : undefined
-                }
-              >
-                Files &amp; Media
-              </TabsTrigger>
-              <TabsTrigger
-                value="bookmarks"
-                icon={<Bookmark className="size-4" />}
-                count={bookmarks.length > 0 ? bookmarks.length : undefined}
-              >
-                Bookmarks
-              </TabsTrigger>
-              <TabsTrigger
-                value="pins"
-                icon={<Pin className="size-4" />}
-                count={
-                  (pins.data?.length ?? 0) > 0 ? pins.data?.length : undefined
-                }
-              >
-                Pins
-              </TabsTrigger>
+              {visibleTabs.map((tab) => {
+                const meta = CHANNEL_TAB_META[tab.id];
+                const TabIcon = meta.icon;
+                return (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    icon={<TabIcon className="size-4" />}
+                    count={tabCounts[tab.id]}
+                  >
+                    {meta.label}
+                  </TabsTrigger>
+                );
+              })}
             </ResponsiveTabsList>
 
           {/* 3-dots Workflow, Templates, and AI Agents dropdown menu placed immediately after the tabs */}
@@ -929,6 +1007,16 @@ export function ChannelPage() {
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
+
+              {canManageTabs ? (
+                <DropdownMenuItem
+                  onClick={() => setTabsDialogOpen(true)}
+                  className="gap-2.5 text-xs cursor-pointer"
+                >
+                  <PanelsTopLeft className="size-4 shrink-0 text-muted-foreground" />
+                  <span>Customize Tabs</span>
+                </DropdownMenuItem>
+              ) : null}
 
               <DropdownMenuItem
                 onClick={() => setAddBookmarkOpen(true)}
@@ -1057,6 +1145,8 @@ export function ChannelPage() {
               onOpenCopilot: openAssistant,
             }}
             canManageConversation={canManageChannel}
+            huddlesEnabled={channel.huddlesEnabled}
+            memberSuggestions={channel.membership?.memberSuggestions}
           />
         </TabsContent>
 

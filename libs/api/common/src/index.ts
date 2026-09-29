@@ -14,6 +14,7 @@ export {
   type DocumentDeletedEvent,
   type ChannelCreatedEvent,
   type ChannelUpdatedEvent,
+  type ChannelDeletedEvent,
   type ChannelMembershipChangedEvent,
   type ChannelAccessExpiredEvent,
   type UserStatusChangedEvent,

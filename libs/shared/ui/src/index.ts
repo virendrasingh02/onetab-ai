@@ -149,6 +149,7 @@ export {
 } from './lib/components/sheet.js';
 
 export {
+  DetachedMenuItem,
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,

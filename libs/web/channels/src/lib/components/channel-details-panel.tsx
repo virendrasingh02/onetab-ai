@@ -71,6 +71,15 @@ import {
 } from '../use-channels.js';
 import { useChannelAgents, useChannelAgentMutations } from '../use-channel-agents.js';
 import { useChannelApps, useChannelAppMutations } from '../use-channel-apps.js';
+import { ChannelSettingsTab } from './channel-settings-tab.js';
+
+export type ChannelDetailsTab =
+  | 'about'
+  | 'members'
+  | 'coworkers'
+  | 'apps'
+  | 'automations'
+  | 'settings';
 
 export interface ChannelDetailsPanelProps {
   channel: ChannelSummary;
@@ -80,7 +89,7 @@ export interface ChannelDetailsPanelProps {
   currentUserId: string;
   /** Name of whoever created the channel, when they are still a member. */
   createdByName?: string;
-  initialTab?: 'about' | 'members' | 'coworkers' | 'apps' | 'automations';
+  initialTab?: ChannelDetailsTab;
   onClose: () => void;
   onEditDetails: () => void;
   onAddPeople: () => void;
@@ -88,6 +97,12 @@ export interface ChannelDetailsPanelProps {
   onAddApp?: () => void;
   onOpenWorkflows?: () => void;
   onStartHuddle: () => void;
+  /** Opens the posting-permissions dialog (Settings tab). */
+  onOpenPosting?: () => void;
+  /** Opens the tab-customization dialog (Settings tab). */
+  onCustomizeTabs: () => void;
+  /** After the channel is deleted from the Settings tab. */
+  onChannelDeleted: () => void;
 }
 
 /**
@@ -113,6 +128,9 @@ export function ChannelDetailsPanel({
   onAddApp,
   onOpenWorkflows,
   onStartHuddle,
+  onOpenPosting,
+  onCustomizeTabs,
+  onChannelDeleted,
 }: ChannelDetailsPanelProps) {
   const members = useChannelMembers(workspaceId, channel.id);
   const memberList = members.data ?? [];
@@ -123,7 +141,7 @@ export function ChannelDetailsPanel({
   const channelCoworkers = useChannelCoworkers(workspaceId, channel.id);
 
   const [activeTab, setActiveTab] = useState<
-    'about' | 'members' | 'coworkers' | 'apps' | 'automations'
+    ChannelDetailsTab
   >(initialTab);
 
   useEffect(() => {
@@ -170,22 +188,24 @@ export function ChannelDetailsPanel({
           workspaceId={workspaceId}
           workspaceSlug={workspaceSlug}
         />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onStartHuddle}
-          className="h-7 gap-1.5 text-xs"
-        >
-          <Headphones className="size-3.5" />
-          <span>Huddle</span>
-        </Button>
+        {channel.huddlesEnabled ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onStartHuddle}
+            className="h-7 gap-1.5 text-xs"
+          >
+            <Headphones className="size-3.5" />
+            <span>Huddle</span>
+          </Button>
+        ) : null}
       </div>
 
       <Tabs
         value={activeTab}
         onValueChange={(val) =>
           setActiveTab(
-            val as 'about' | 'members' | 'coworkers' | 'apps' | 'automations',
+            val as ChannelDetailsTab,
           )
         }
         className="min-h-0 flex flex-1 flex-col"
@@ -207,6 +227,7 @@ export function ChannelDetailsPanel({
               },
               { value: 'apps', label: 'Agents & apps' },
               { value: 'automations', label: 'Automations' },
+              { value: 'settings', label: 'Settings' },
             ]}
           />
         </div>
@@ -218,6 +239,18 @@ export function ChannelDetailsPanel({
             currentUserId={currentUserId}
             createdByName={createdByName}
             onEditDetails={onEditDetails}
+          />
+        </TabsContent>
+
+        <TabsContent value="settings" className="min-h-0 flex flex-1 flex-col">
+          <ChannelSettingsTab
+            channel={channel}
+            workspaceId={workspaceId}
+            workspaceSlug={workspaceSlug}
+            onStartHuddle={onStartHuddle}
+            onOpenPosting={onOpenPosting}
+            onCustomizeTabs={onCustomizeTabs}
+            onDeleted={onChannelDeleted}
           />
         </TabsContent>
 

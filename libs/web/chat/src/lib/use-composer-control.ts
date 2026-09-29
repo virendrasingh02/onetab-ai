@@ -190,6 +190,12 @@ export function useComposerControl(
       });
 
       if (!evaluation.reachable) {
+        if (
+          mention.kind === 'user' &&
+          context.suggestMissingMembers === false
+        ) {
+          continue;
+        }
         list.push({
           id: mention.id,
           name: mention.displayName || mention.id,

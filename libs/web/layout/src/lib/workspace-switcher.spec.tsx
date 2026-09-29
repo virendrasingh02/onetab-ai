@@ -117,7 +117,9 @@ describe('WorkspaceMenu / Switcher', () => {
     // One account section (keyed by the signed-in identity) with every
     // workspace it can reach listed beneath it. "Mie Team" also shows in the
     // trigger, so assert on the dropdown-only rows.
-    expect(screen.getByText('Accounts')).toBeInTheDocument();
+    // No "Accounts N" header row — the email heading already says whose
+    // workspaces these are.
+    expect(screen.queryByText('Accounts')).toBeNull();
     expect(screen.getByText('virendra@gmail.com')).toBeInTheDocument();
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
     expect(screen.getByText('Personal Space')).toBeInTheDocument();

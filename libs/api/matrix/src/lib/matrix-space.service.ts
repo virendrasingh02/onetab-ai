@@ -161,6 +161,28 @@ export class MatrixSpaceService {
     }
   }
 
+  /**
+   * Unlinks a room from its workspace's space — for a channel that is being
+   * deleted, whose row (and so `nestChannelRoom`'s lookup) is already gone.
+   */
+  async unlinkRoom(workspaceId: string, roomId: string): Promise<void> {
+    if (!this.admin.isEnabled) return;
+
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { matrixSpaceId: true },
+    });
+    if (!workspace?.matrixSpaceId) return;
+
+    try {
+      await this.admin.removeRoomFromSpace(workspace.matrixSpaceId, roomId);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to unlink room ${roomId} from space ${workspace.matrixSpaceId}: ${String(error)}`,
+      );
+    }
+  }
+
   /** Mirrors a workspace membership change into the space room. */
   async syncSpaceMembership(
     workspaceId: string,

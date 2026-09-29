@@ -252,6 +252,23 @@ export interface ChannelUpdatedEvent extends BaseEvent {
     allowReplies: boolean;
     allowFileUploads: boolean;
   };
+  /**
+   * Present when this update switched the channel between public and private
+   * — the Matrix bridge re-flags the room's `suggested` link in the space.
+   */
+  visibility?: 'PUBLIC' | 'PRIVATE';
+}
+
+/**
+ * A channel was permanently deleted. The row (and everything cascading from
+ * it) is already gone, so this carries what listeners still need: the Matrix
+ * room to wind down and the people who were in it.
+ */
+export interface ChannelDeletedEvent extends BaseEvent {
+  channelId: string;
+  channelName: string;
+  matrixRoomId: string | null;
+  memberIds: string[];
 }
 
 export interface ChannelMembershipChangedEvent extends BaseEvent {
@@ -504,6 +521,7 @@ export interface AppEventPayloads {
   [AppEvent.DocumentDeleted]: DocumentDeletedEvent;
   [AppEvent.ChannelCreated]: ChannelCreatedEvent;
   [AppEvent.ChannelUpdated]: ChannelUpdatedEvent;
+  [AppEvent.ChannelDeleted]: ChannelDeletedEvent;
   [AppEvent.ChannelMembershipChanged]: ChannelMembershipChangedEvent;
   [AppEvent.ChannelAccessExpired]: ChannelAccessExpiredEvent;
   [AppEvent.UserStatusChanged]: UserStatusChangedEvent;

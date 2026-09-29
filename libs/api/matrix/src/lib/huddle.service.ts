@@ -95,9 +95,10 @@ export class HuddleService {
     if (input.channelId) {
       const channel = await this.prisma.channel.findFirst({
         where: { id: input.channelId, workspaceId },
-        select: { matrixRoomId: true },
+        select: { matrixRoomId: true, huddlesEnabled: true },
       });
       if (!channel) throw new NotFoundException('Channel not found.');
+      if (!channel.huddlesEnabled) throw huddlesOffError();
       const member = await this.prisma.channelMember.findUnique({
         where: {
           channelId_userId: { channelId: input.channelId, userId },
@@ -155,6 +156,8 @@ export class HuddleService {
       userId,
       input,
     );
+    // A DM-shaped request can still name a channel's room directly.
+    await this.assertHuddlesAllowedInRoom(matrixRoomId);
 
     const existing = await this.prisma.huddle.findFirst({
       where: { matrixRoomId, status: 'ACTIVE' },
@@ -210,6 +213,7 @@ export class HuddleService {
     if (huddle.status !== 'ACTIVE') {
       throw new ConflictException('This huddle has ended.');
     }
+    await this.assertHuddlesAllowedInRoom(huddle.matrixRoomId);
     await this.prisma.huddleParticipant.upsert({
       where: { huddleId_userId: { huddleId, userId } },
       create: { huddleId, userId },
@@ -279,6 +283,20 @@ export class HuddleService {
     }
   }
 
+  /**
+   * A channel can switch huddles off (Settings → Huddles). Checked by room so
+   * it holds however the request names the conversation. People already in a
+   * running huddle when it is switched off stay until they leave; nobody new
+   * gets in.
+   */
+  private async assertHuddlesAllowedInRoom(matrixRoomId: string) {
+    const channel = await this.prisma.channel.findUnique({
+      where: { matrixRoomId },
+      select: { huddlesEnabled: true },
+    });
+    if (channel && !channel.huddlesEnabled) throw huddlesOffError();
+  }
+
   private async assertHuddle(workspaceId: string, huddleId: string) {
     const huddle = await this.prisma.huddle.findFirst({
       where: { id: huddleId, workspaceId },
@@ -293,4 +311,8 @@ export class HuddleService {
     if (!huddle) throw new NotFoundException('Huddle not found.');
     return huddle;
   }
+}
+
+function huddlesOffError(): ForbiddenException {
+  return new ForbiddenException('Huddles are turned off in this channel.');
 }

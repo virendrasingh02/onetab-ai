@@ -1,6 +1,7 @@
 export {
   ChannelMembershipType,
   ChannelMode,
+  ChannelTabPolicy,
   ChannelRole,
   ChannelVisibility,
   ScheduledStatusRecurrence,
@@ -169,6 +170,19 @@ export type {
   ChannelPostingContext,
   ChannelViewer,
 } from './lib/channel-policy.js';
+export {
+  CHANNEL_TAB_IDS,
+  canChangeChannelVisibility,
+  canDeleteChannel,
+  canManageChannelTabs,
+  isChannelTabId,
+  normalizeChannelTabLayout,
+  resolveChannelTabs,
+} from './lib/channel-settings.js';
+export type {
+  ChannelTabId,
+  ResolvedChannelTab,
+} from './lib/channel-settings.js';
 
 export {
   mergeFederatedResults,

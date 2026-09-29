@@ -270,6 +270,7 @@ import type {
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
+  ChannelTabsInput,
   CreateScheduledMessageInput,
   UpdateScheduledMessageInput,
   PostAnonymousMessageInput,
@@ -837,6 +838,25 @@ export const channelApi = {
       http.post(
         `/workspaces/${workspaceId}/channels/${channelId}/make-private`,
       ),
+    ),
+
+  /** Workspace admins/owners only. */
+  makePublic: (workspaceId: string, channelId: string) =>
+    request<Channel>(
+      http.post(
+        `/workspaces/${workspaceId}/channels/${channelId}/make-public`,
+      ),
+    ),
+
+  /** Permanent. Workspace admins/owners only. */
+  remove: (workspaceId: string, channelId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/channels/${channelId}`),
+    ),
+
+  setTabs: (workspaceId: string, channelId: string, input: ChannelTabsInput) =>
+    request<Channel>(
+      http.put(`/workspaces/${workspaceId}/channels/${channelId}/tabs`, input),
     ),
 
   join: (

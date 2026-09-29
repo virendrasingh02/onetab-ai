@@ -125,6 +125,8 @@ export interface ChatPanelProps {
   welcome?: ChatSurfaceWelcome;
   /** Starts a huddle when it changes. See `ChatSurface`. */
   huddleRequest?: number;
+  /** Off hides every "start a huddle" affordance. See `ChatSurface`. */
+  huddlesEnabled?: boolean;
   onCreateTask?: (message: Message) => void;
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
@@ -161,6 +163,7 @@ export function ChatPanel({
   showEncryptedBadge = true,
   welcome,
   huddleRequest,
+  huddlesEnabled,
   onCreateTask,
   onCreateDoc,
   onAskAI,
@@ -838,6 +841,7 @@ export function ChatPanel({
       showMembers={showMembers}
       welcome={welcome}
       huddleRequest={huddleRequest}
+      huddlesEnabled={huddlesEnabled}
       isEncrypted={
         showEncryptedBadge &&
         !!client &&

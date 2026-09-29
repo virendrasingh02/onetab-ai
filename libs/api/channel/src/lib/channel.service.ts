@@ -20,12 +20,17 @@ import {
   ChannelRole,
   ChannelVisibility,
   WorkspaceRole,
+  type ChannelTabPolicy,
   can,
+  canChangeChannelVisibility,
+  canDeleteChannel,
   canManageChannelMembers,
+  canManageChannelTabs,
   canPostInChannel,
   canReplyInChannel,
   clampTempMembershipHours,
   extendedTemporaryExpiry,
+  normalizeChannelTabLayout,
   resolveWorkspacePolicy,
   temporaryExpiryFrom,
   type Channel,
@@ -38,6 +43,7 @@ import {
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
+  ChannelTabsInput,
   CreateChannelInput,
   CreatePinInput,
   ExtendMembershipInput,
@@ -83,6 +89,7 @@ export class ChannelService {
               lastReadAt: true,
               membershipType: true,
               expiresAt: true,
+              memberSuggestions: true,
             },
           },
         },
@@ -114,6 +121,7 @@ export class ChannelService {
               lastReadAt: true,
               membershipType: true,
               expiresAt: true,
+              memberSuggestions: true,
             },
           },
         },
@@ -156,6 +164,7 @@ export class ChannelService {
         lastReadAt: Date | null;
         membershipType: string;
         expiresAt: Date | null;
+        memberSuggestions: boolean;
       }[];
     },
     userId: string,
@@ -177,6 +186,7 @@ export class ChannelService {
             membershipType:
               membershipRow.membershipType as ChannelMembershipType,
             expiresAt: membershipRow.expiresAt?.toISOString() ?? null,
+            memberSuggestions: membershipRow.memberSuggestions,
           }
         : null,
       canPost: canPostInChannel(
@@ -349,6 +359,12 @@ export class ChannelService {
         ...(posterIds !== undefined
           ? { announcementPosterIds: posterIds }
           : {}),
+        ...(input.huddlesEnabled !== undefined
+          ? { huddlesEnabled: input.huddlesEnabled }
+          : {}),
+        ...(input.tabManagePolicy !== undefined
+          ? { tabManagePolicy: input.tabManagePolicy }
+          : {}),
       },
     });
 
@@ -413,31 +429,165 @@ export class ChannelService {
   }
 
   /**
-   * Converts a public channel to private.
+   * Switches a channel between public and private.
    *
-   * The reverse is deliberately unsupported: making a private channel public
-   * would retroactively expose its history to people who never had access.
+   * Public -> private is a channel manager's call. Private -> public is held
+   * back for workspace admins and owners (`canChangeChannelVisibility`): it
+   * hands the channel's entire history to everyone in the workspace, including
+   * people who were deliberately left out, so it is not something a channel
+   * admin should be able to do on their own. The client also makes the caller
+   * type the channel name first.
    */
-  async makePrivate(
+  async setVisibility(
     workspaceId: string,
     channelId: string,
     userId: string,
+    visibility: ChannelVisibility,
   ): Promise<Channel> {
-    await this.assertCanManage(workspaceId, channelId, userId);
+    const viewer = await this.viewerRoles(workspaceId, channelId, userId);
+    if (!canChangeChannelVisibility(visibility, viewer)) {
+      throw new ForbiddenException(
+        visibility === ChannelVisibility.PUBLIC
+          ? 'Only workspace admins and owners can make a private channel public.'
+          : 'You do not have permission to manage this channel.',
+      );
+    }
 
     const channel = await this.prisma.channel.findUniqueOrThrow({
       where: { id: channelId },
-      select: { visibility: true },
+      select: { visibility: true, slug: true },
     });
-    if (channel.visibility === ChannelVisibility.PRIVATE) {
-      throw new ConflictException('This channel is already private.');
+    if (channel.visibility === visibility) {
+      throw new ConflictException(
+        visibility === ChannelVisibility.PUBLIC
+          ? 'This channel is already public.'
+          : 'This channel is already private.',
+      );
+    }
+    if (channel.slug === 'general' && visibility === ChannelVisibility.PRIVATE) {
+      throw new ConflictException('The #general channel must stay public.');
     }
 
     const updated = await this.prisma.channel.update({
       where: { id: channelId },
-      data: { visibility: ChannelVisibility.PRIVATE },
+      data: { visibility },
     });
-    return toChannel(updated);
+    const result = toChannel(updated);
+
+    // Sidebars redraw the lock/hash icon off this, and the Matrix bridge
+    // re-flags the room's `suggested` link in the workspace space.
+    this.events.emit(AppEvent.ChannelUpdated, {
+      workspaceId,
+      actorId: userId,
+      channelId,
+      name: result.name,
+      slug: result.slug,
+      nameChanged: false,
+      visibility,
+    });
+
+    return result;
+  }
+
+  /** The original one-way route, kept for existing callers. */
+  makePrivate(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ): Promise<Channel> {
+    return this.setVisibility(
+      workspaceId,
+      channelId,
+      userId,
+      ChannelVisibility.PRIVATE,
+    );
+  }
+
+  /**
+   * Saves the channel's tab strip. Who may do it follows the channel's own
+   * `tabManagePolicy` rather than channel management, which is why this is
+   * not part of `update`.
+   */
+  async setTabs(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+    input: ChannelTabsInput,
+  ): Promise<Channel> {
+    const viewer = await this.viewerRoles(workspaceId, channelId, userId);
+    const channel = await this.prisma.channel.findUniqueOrThrow({
+      where: { id: channelId },
+      select: { tabManagePolicy: true },
+    });
+    if (
+      !canManageChannelTabs(channel.tabManagePolicy as ChannelTabPolicy, viewer)
+    ) {
+      throw new ForbiddenException(
+        'Only channel managers can change the tabs in this channel.',
+      );
+    }
+
+    const updated = await this.prisma.channel.update({
+      where: { id: channelId },
+      data: normalizeChannelTabLayout(input.order, input.hidden),
+    });
+    const result = toChannel(updated);
+
+    this.events.emit(AppEvent.ChannelUpdated, {
+      workspaceId,
+      actorId: userId,
+      channelId,
+      name: result.name,
+      slug: result.slug,
+      nameChanged: false,
+    });
+
+    return result;
+  }
+
+  /**
+   * Permanently deletes a channel — workspace admins and owners only.
+   *
+   * Everything hanging off the row cascades (members, pins, huddles, email
+   * routing, ...); uploads survive, detached, in the workspace's Files. The
+   * messages live in the Matrix room, which `MatrixMembershipListener` winds
+   * down off the emitted event: unlinked from the space and emptied.
+   */
+  async remove(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ): Promise<void> {
+    const viewer = await this.viewerRoles(workspaceId, channelId, userId);
+    if (!canDeleteChannel(viewer)) {
+      throw new ForbiddenException(
+        'Only workspace admins and owners can delete a channel.',
+      );
+    }
+
+    const channel = await this.prisma.channel.findUniqueOrThrow({
+      where: { id: channelId },
+      select: {
+        name: true,
+        slug: true,
+        matrixRoomId: true,
+        members: { select: { userId: true } },
+      },
+    });
+    if (channel.slug === 'general') {
+      throw new ConflictException('The #general channel cannot be deleted.');
+    }
+
+    await this.prisma.channel.delete({ where: { id: channelId } });
+
+    this.events.emit(AppEvent.ChannelDeleted, {
+      workspaceId,
+      actorId: userId,
+      channelId,
+      channelName: channel.name,
+      matrixRoomId: channel.matrixRoomId,
+      memberIds: channel.members.map((member) => member.userId),
+    });
   }
 
   // --- membership ---------------------------------------------------------
@@ -714,6 +864,9 @@ export class ChannelService {
           ? { isFavorite: input.isFavorite }
           : {}),
         ...(input.isMuted !== undefined ? { isMuted: input.isMuted } : {}),
+        ...(input.memberSuggestions !== undefined
+          ? { memberSuggestions: input.memberSuggestions }
+          : {}),
       },
     });
   }
@@ -814,15 +967,15 @@ export class ChannelService {
     if (!channel) throw new NotFoundException('Channel not found.');
   }
 
-  /**
-   * A channel may be managed by its own channel-admins, or by anyone with
-   * workspace ADMIN and above.
-   */
-  private async assertCanManage(
+  /** The caller's channel and workspace roles, once the channel is bound to the workspace. */
+  private async viewerRoles(
     workspaceId: string,
     channelId: string,
     userId: string,
-  ): Promise<void> {
+  ): Promise<{
+    channelRole: ChannelRole | null;
+    workspaceRole: WorkspaceRole | null;
+  }> {
     // Before any role is weighed: a workspace admin is an admin of *their*
     // channels, and without this the role check would happily authorise them
     // against a channel belonging to another workspace entirely.
@@ -839,16 +992,26 @@ export class ChannelService {
       }),
     ]);
 
-    const canManage = canManageChannelMembers({
+    return {
       channelRole: (channelMembership?.role as ChannelRole) ?? null,
       workspaceRole: (workspaceMembership?.role as WorkspaceRole) ?? null,
-    });
+    };
+  }
 
-    if (!canManage) {
+  /**
+   * A channel may be managed by its own channel-admins, or by anyone with
+   * workspace ADMIN and above.
+   */
+  private async assertCanManage(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ): Promise<void> {
+    const viewer = await this.viewerRoles(workspaceId, channelId, userId);
+    if (!canManageChannelMembers(viewer)) {
       throw new ForbiddenException(
         'You do not have permission to manage this channel.',
       );
     }
-
   }
 }

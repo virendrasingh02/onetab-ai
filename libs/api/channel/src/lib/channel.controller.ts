@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -18,10 +19,11 @@ import {
   WorkspaceId,
   zodBody,
 } from '@org/api-common';
-import { WorkspacePermission } from '@org/types';
+import { ChannelVisibility, WorkspacePermission } from '@org/types';
 import {
   addChannelMembersSchema,
   channelPreferencesSchema,
+  channelTabsSchema,
   createChannelSchema,
   createPinSchema,
   extendMembershipSchema,
@@ -29,6 +31,7 @@ import {
   updateChannelSchema,
   type AddChannelMembersInput,
   type ChannelPreferencesInput,
+  type ChannelTabsInput,
   type CreateChannelInput,
   type CreatePinInput,
   type ExtendMembershipInput,
@@ -111,6 +114,48 @@ export class ChannelController {
     @CurrentUser('id') userId: string,
   ) {
     return this.channels.makePrivate(workspaceId, channelId, userId);
+  }
+
+  /** Workspace admins/owners only — enforced in the service. */
+  @Post(':channelId/make-public')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  makePublic(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.channels.setVisibility(
+      workspaceId,
+      channelId,
+      userId,
+      ChannelVisibility.PUBLIC,
+    );
+  }
+
+  /**
+   * The tab strip. No workspace-permission gate: the channel's own
+   * `tabManagePolicy` decides, checked in the service.
+   */
+  @Put(':channelId/tabs')
+  setTabs(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(channelTabsSchema)) body: ChannelTabsInput,
+  ) {
+    return this.channels.setTabs(workspaceId, channelId, userId, body);
+  }
+
+  /** Permanent. Workspace admins/owners only — enforced in the service. */
+  @Delete(':channelId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  remove(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
+  ): Promise<void> {
+    return this.channels.remove(workspaceId, channelId, userId);
   }
 
   // --- membership ---------------------------------------------------------

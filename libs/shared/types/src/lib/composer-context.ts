@@ -21,6 +21,12 @@ export interface ComposerContext {
   isThread?: boolean;
   threadRootId?: string;
   canManage?: boolean;
+  /**
+   * False when the viewer has switched off this channel's member suggestions
+   * (channel Settings) — @mentioning someone who isn't in the channel then no
+   * longer offers to add them. Agents/apps are unaffected. Default on.
+   */
+  suggestMissingMembers?: boolean;
 }
 
 export interface ComposerMentionMeta {

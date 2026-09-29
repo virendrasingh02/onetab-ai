@@ -112,6 +112,11 @@ interface ChannelRow {
   allowReplies: boolean;
   allowFileUploads: boolean;
   announcementPosterIds: string[];
+  /** Optional so a narrow `select` elsewhere still maps; defaults match the schema. */
+  huddlesEnabled?: boolean;
+  tabManagePolicy?: string;
+  tabOrder?: string[];
+  hiddenTabs?: string[];
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
@@ -134,6 +139,11 @@ export function toChannel(channel: ChannelRow): Channel {
     allowReplies: channel.allowReplies,
     allowFileUploads: channel.allowFileUploads,
     announcementPosterIds: channel.announcementPosterIds ?? [],
+    huddlesEnabled: channel.huddlesEnabled ?? true,
+    tabManagePolicy: (channel.tabManagePolicy ??
+      'EVERYONE') as Channel['tabManagePolicy'],
+    tabOrder: channel.tabOrder ?? [],
+    hiddenTabs: channel.hiddenTabs ?? [],
     createdById: channel.createdById,
     createdAt: channel.createdAt.toISOString(),
     updatedAt: channel.updatedAt.toISOString(),

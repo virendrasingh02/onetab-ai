@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   AppEvent,
+  type ChannelDeletedEvent,
   type ChannelMembershipChangedEvent,
   type ChannelUpdatedEvent,
   type WorkspaceMembershipChangedEvent,
@@ -56,6 +57,18 @@ export class MatrixMembershipListener {
 
   @OnEvent(AppEvent.ChannelUpdated)
   async onChannelUpdated(event: ChannelUpdatedEvent): Promise<void> {
+    // A visibility switch re-puts the space link, whose `suggested` flag
+    // follows public/private.
+    if (event.visibility) {
+      try {
+        await this.space.nestChannelRoom(event.channelId);
+      } catch (error) {
+        this.logger.warn(
+          `Channel visibility mirror failed for ${event.channelId}: ${String(error)}`,
+        );
+      }
+    }
+
     // Only a posting-policy change needs a power-level reconcile.
     if (!event.posting) return;
     try {
@@ -65,6 +78,29 @@ export class MatrixMembershipListener {
         `Channel posting-policy mirror failed for ${event.channelId}: ${String(
           error,
         )}`,
+      );
+    }
+  }
+
+  /**
+   * A deleted channel's room is unlinked from the workspace space first —
+   * while its powered members can still write the `m.space.parent` side —
+   * then emptied, so it drops out of every client instead of lingering as an
+   * orphaned conversation.
+   */
+  @OnEvent(AppEvent.ChannelDeleted)
+  async onChannelDeleted(event: ChannelDeletedEvent): Promise<void> {
+    if (!event.matrixRoomId) return;
+    try {
+      await this.space.unlinkRoom(event.workspaceId, event.matrixRoomId);
+      await this.auth.removeUsersFromRoom(
+        event.matrixRoomId,
+        event.memberIds,
+        `#${event.channelName} was deleted`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Channel delete mirror failed for ${event.channelId}: ${String(error)}`,
       );
     }
   }

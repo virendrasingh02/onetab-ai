@@ -1,4 +1,10 @@
-import { ChannelMode, ChannelRole, ChannelVisibility } from '@org/types';
+import {
+  CHANNEL_TAB_IDS,
+  ChannelMode,
+  ChannelRole,
+  ChannelTabPolicy,
+  ChannelVisibility,
+} from '@org/types';
 import { z } from 'zod';
 
 export const channelNameSchema = z
@@ -39,6 +45,23 @@ export const updateChannelSchema = z.object({
   allowFileUploads: z.boolean().optional(),
   /** Extra user ids allowed to post while in announcement mode. */
   announcementPosterIds: z.array(z.string()).max(200).optional(),
+  /** Whether members may start and join huddles here. */
+  huddlesEnabled: z.boolean().optional(),
+  /** Who may add, remove and reorder the channel's tabs. */
+  tabManagePolicy: z
+    .enum([ChannelTabPolicy.EVERYONE, ChannelTabPolicy.MANAGERS])
+    .optional(),
+});
+
+/**
+ * Body for `PUT channels/:id/tabs` — the tab strip after "Messages". Its own
+ * route rather than part of the update body because who may send it depends
+ * on the channel's `tabManagePolicy`, not on managing the channel.
+ */
+const channelTabIdSchema = z.enum(CHANNEL_TAB_IDS);
+export const channelTabsSchema = z.object({
+  order: z.array(channelTabIdSchema).max(CHANNEL_TAB_IDS.length),
+  hidden: z.array(channelTabIdSchema).max(CHANNEL_TAB_IDS.length),
 });
 
 export const changeVisibilitySchema = z.object({
@@ -55,6 +78,8 @@ export const addChannelMembersSchema = z.object({
 export const channelPreferencesSchema = z.object({
   isFavorite: z.boolean().optional(),
   isMuted: z.boolean().optional(),
+  /** Offer to add people who aren't in the channel when you @mention them. */
+  memberSuggestions: z.boolean().optional(),
 });
 
 /**
@@ -81,6 +106,7 @@ export type CreateChannelInput = z.infer<typeof createChannelSchema>;
 export type UpdateChannelInput = z.infer<typeof updateChannelSchema>;
 export type AddChannelMembersInput = z.infer<typeof addChannelMembersSchema>;
 export type ChannelPreferencesInput = z.infer<typeof channelPreferencesSchema>;
+export type ChannelTabsInput = z.infer<typeof channelTabsSchema>;
 export type JoinChannelInput = z.infer<typeof joinChannelSchema>;
 export type ExtendMembershipInput = z.infer<typeof extendMembershipSchema>;
 export type CreatePinInput = z.infer<typeof createPinSchema>;

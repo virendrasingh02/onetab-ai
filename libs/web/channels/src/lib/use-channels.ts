@@ -11,6 +11,7 @@ import { toast } from '@org/ui';
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
+  ChannelTabsInput,
   CreateChannelInput,
   CreateDocumentInput,
   CreatePinInput,
@@ -381,6 +382,125 @@ export function useMakeChannelPrivate(workspaceId: string | undefined) {
       channelApi.makePrivate(workspaceId as string, channelId),
     onSuccess: () => {
       toast.success('Channel visibility set to private');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+  });
+}
+
+/**
+ * Public ↔ private. Making a channel public is a workspace admin/owner action
+ * (the server enforces it); the caller confirms first.
+ */
+export function useSetChannelVisibility(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      channelId,
+      visibility,
+    }: {
+      channelId: string;
+      visibility: ChannelSummary['visibility'];
+    }) =>
+      visibility === 'PUBLIC'
+        ? channelApi.makePublic(workspaceId as string, channelId)
+        : channelApi.makePrivate(workspaceId as string, channelId),
+    onSuccess: (_data, { visibility }) => {
+      toast.success(
+        visibility === 'PUBLIC'
+          ? 'Channel is now public'
+          : 'Channel is now private',
+      );
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Could not change the channel’s visibility.',
+      ),
+  });
+}
+
+/** Permanently deletes a channel (workspace admins/owners). */
+export function useDeleteChannel(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (channelId: string) =>
+      channelApi.remove(workspaceId as string, channelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : 'Could not delete the channel.',
+      ),
+  });
+}
+
+/**
+ * Saves the tab strip, optimistically: the tabs reorder the moment the dialog
+ * closes, and roll back if the server refuses.
+ */
+export function useSetChannelTabs(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      channelId,
+      input,
+    }: {
+      channelId: string;
+      input: ChannelTabsInput;
+    }) => channelApi.setTabs(workspaceId as string, channelId, input),
+
+    onMutate: async ({ channelId, input }) => {
+      // Only the channel list(s) and the open channel's detail — the
+      // `channels.all` prefix also covers members, pins and files.
+      const listKey = ['channels', workspaceId ?? '', 'list'];
+      const detailKey = ['channels', workspaceId ?? '', 'detail'];
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: listKey }),
+        queryClient.cancelQueries({ queryKey: detailKey }),
+      ]);
+      const previous = [
+        ...queryClient.getQueriesData<ChannelSummary[]>({ queryKey: listKey }),
+        ...queryClient.getQueriesData<ChannelSummary>({ queryKey: detailKey }),
+      ];
+
+      const patch = (channel: ChannelSummary): ChannelSummary =>
+        channel.id === channelId
+          ? { ...channel, tabOrder: input.order, hiddenTabs: input.hidden }
+          : channel;
+      queryClient.setQueriesData<ChannelSummary[]>(
+        { queryKey: listKey },
+        (current) => current?.map(patch),
+      );
+      queryClient.setQueriesData<ChannelSummary>(
+        { queryKey: detailKey },
+        (current) => (current ? patch(current) : current),
+      );
+
+      return { previous };
+    },
+
+    onError: (error, _variables, context) => {
+      for (const [queryKey, data] of context?.previous ?? []) {
+        queryClient.setQueryData(queryKey, data);
+      }
+      toast.error(
+        error instanceof Error ? error.message : 'Could not save the tabs.',
+      );
+    },
+
+    onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.channels.all(workspaceId ?? ''),
       });

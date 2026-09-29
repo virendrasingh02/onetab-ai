@@ -54,6 +54,13 @@ export interface ChannelChatProps {
   };
   /** Whether the caller may manage this channel — see `ChatSurface`. */
   canManageConversation?: boolean;
+  /** Off hides every "start a huddle" affordance — see `ChatSurface`. */
+  huddlesEnabled?: boolean;
+  /**
+   * The viewer's own "Channel member suggestions" switch: off stops the
+   * composer offering to add people who aren't in the channel.
+   */
+  memberSuggestions?: boolean;
 }
 
 /**
@@ -82,6 +89,8 @@ export function ChannelChat({
   threadComposerReadOnlyMessage,
   anonymousPosting,
   canManageConversation,
+  huddlesEnabled,
+  memberSuggestions,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, error } = useChannelRoom(channelId);
@@ -93,8 +102,9 @@ export function ChannelChat({
       roomId,
       channelId,
       canManage: canManageConversation,
+      suggestMissingMembers: memberSuggestions,
     }),
-    [workspaceId, roomId, channelId, canManageConversation],
+    [workspaceId, roomId, channelId, canManageConversation, memberSuggestions],
   );
 
   // `ChatPanel` renders the "chat is not configured" state itself.
@@ -143,6 +153,7 @@ export function ChannelChat({
       showMembers={showMembers}
       welcome={welcome}
       huddleRequest={huddleRequest}
+      huddlesEnabled={huddlesEnabled}
       composerReadOnlyMessage={composerReadOnlyMessage}
       threadComposerReadOnlyMessage={threadComposerReadOnlyMessage}
       anonymousPosting={anonymousPosting}
