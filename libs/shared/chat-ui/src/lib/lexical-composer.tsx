@@ -125,6 +125,7 @@ import { createPortal } from 'react-dom';
 import { searchEmojiShortcodes, useEmojiShortcodeIndex } from '@org/ui';
 import type { DetectedMention, MentionKind } from '@org/types';
 import { CHAT_TRANSFORMERS } from './lexical-markdown.js';
+import { sanitizePasteDom } from './paste-sanitizer.js';
 import {
   $createCommandNode,
   $createMentionNode,
@@ -134,7 +135,6 @@ import {
   MentionNode,
 } from './lexical-nodes.js';
 import type { SlashCommand } from './slash-commands.js';
-
 
 /**
  * Classes the editor hangs on the DOM it renders.
@@ -222,7 +222,6 @@ const TYPING_REFRESH_MS = 3500;
 const DRAFT_DEBOUNCE_MS = 500;
 /** Coalesce the live mention extraction this long. */
 const MENTIONS_DEBOUNCE_MS = 300;
-
 
 /** Someone (or something) a `@` mention can point at. */
 export interface MentionCandidate {
@@ -422,7 +421,11 @@ function EditorApiPlugin({
 
       insertMention: (candidate) =>
         insertNodesAtCaret(() => [
-          $createMentionNode(candidate.name, candidate.id, candidate.kind ?? 'user'),
+          $createMentionNode(
+            candidate.name,
+            candidate.id,
+            candidate.kind ?? 'user',
+          ),
           $createTextNode(' '),
         ]),
 
@@ -449,7 +452,6 @@ function EditorApiPlugin({
           ]);
         });
       },
-
 
       setMarkdown: (markdown) => {
         editor.update(
@@ -752,102 +754,6 @@ function FormattingShortcutsPlugin() {
 /* -------------------------------------------------------------------------- */
 /* Paste normalization                                                        */
 /* -------------------------------------------------------------------------- */
-
-/** Tags the sanitizer keeps. Anything else is unwrapped — its text survives,
- *  the wrapper doesn't — which is what flattens layout `<div>`s, `<span>`s,
- *  `<font>` tags and table markup (`table/tr/td/…` aren't here) alike. */
-const PASTE_ALLOWED_TAGS = new Set([
-  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
-  'a', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'br',
-]);
-
-/** Never kept, never unwrapped — dropped along with their contents. */
-const PASTE_DROPPED_TAGS = new Set([
-  'script', 'style', 'meta', 'link', 'head', 'title',
-  'iframe', 'object', 'embed', 'noscript', 'img', 'svg', 'video', 'audio',
-]);
-
-/** Only http(s)/mailto survive on a pasted `<a href>` — anything else
- *  (`javascript:`, `data:`, …) is a script-injection vector, not a link. */
-function isSafePasteHref(href: string): boolean {
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(href)) return true; // relative URL
-  return /^(https?|mailto):/i.test(href);
-}
-
-/**
- * Google Docs, Word and Notion encode bold/italic/underline/strikethrough as
- * inline `style` (`font-weight:700`, not `<b>`) rather than semantic tags —
- * so before attributes get stripped below, real emphasis is promoted into a
- * `<strong>/<em>/<u>/<s>` wrapper that survives. Everything else in `style`
- * (color, font-family, font-size, margins, line-height, background) is purely
- * decorative and is simply dropped with the rest of the attributes.
- */
-function wrapPasteSemanticStyle(doc: Document, element: HTMLElement): void {
-  const style = element.style;
-  const weight = style.fontWeight;
-  const isBold =
-    weight === 'bold' ||
-    weight === 'bolder' ||
-    (/^\d+$/.test(weight) && Number(weight) >= 600);
-  const isItalic = style.fontStyle === 'italic';
-  const decoration = `${style.textDecorationLine || ''} ${style.textDecoration || ''}`;
-  const isUnderline = decoration.includes('underline');
-  const isStrike = decoration.includes('line-through');
-
-  const tag = element.tagName.toLowerCase();
-  let target = element;
-  const wrap = (wrapperTag: string) => {
-    const wrapper = doc.createElement(wrapperTag);
-    while (target.firstChild) wrapper.appendChild(target.firstChild);
-    target.appendChild(wrapper);
-    target = wrapper;
-  };
-
-  if (isBold && tag !== 'strong' && tag !== 'b') wrap('strong');
-  if (isItalic && tag !== 'em' && tag !== 'i') wrap('em');
-  if (isUnderline && tag !== 'u') wrap('u');
-  if (isStrike && tag !== 's' && tag !== 'strike' && tag !== 'del') wrap('s');
-}
-
-/**
- * Recursively strips pasted HTML down to what the composer actually
- * understands: promotes real inline-style emphasis into semantic tags (see
- * above), strips every attribute except `href` on links (and only a safe
- * one), and unwraps — keeping the text, dropping the wrapper — anything
- * outside {@link PASTE_ALLOWED_TAGS}. What's left maps directly onto nodes
- * already registered in {@link EDITOR_NODES}; nothing new to register.
- */
-function sanitizePasteDom(doc: Document, node: Node): void {
-  for (const child of Array.from(node.childNodes)) {
-    if (child.nodeType === Node.COMMENT_NODE) {
-      node.removeChild(child);
-      continue;
-    }
-    if (!(child instanceof HTMLElement)) continue;
-
-    const tag = child.tagName.toLowerCase();
-    if (PASTE_DROPPED_TAGS.has(tag)) {
-      node.removeChild(child);
-      continue;
-    }
-
-    wrapPasteSemanticStyle(doc, child);
-    // Recurse first so nested disallowed content is already cleaned up
-    // whether this element ends up kept or unwrapped.
-    sanitizePasteDom(doc, child);
-
-    if (!PASTE_ALLOWED_TAGS.has(tag)) {
-      while (child.firstChild) node.insertBefore(child.firstChild, child);
-      node.removeChild(child);
-      continue;
-    }
-
-    const href = tag === 'a' ? child.getAttribute('href') : null;
-    for (const attr of Array.from(child.attributes)) child.removeAttribute(attr.name);
-    if (href && isSafePasteHref(href)) child.setAttribute('href', href);
-  }
-}
 
 /**
  * Rich HTML paste from a website, Google Docs, Word or Notion must not carry
@@ -1177,7 +1083,9 @@ function MentionsPlugin({
 
         const groups = options.filter((o) => o.candidate.kind === 'group');
         const agents = options.filter((o) => o.candidate.kind === 'agent');
-        const coworkers = options.filter((o) => o.candidate.kind === 'coworker');
+        const coworkers = options.filter(
+          (o) => o.candidate.kind === 'coworker',
+        );
         const apps = options.filter((o) => o.candidate.kind === 'app');
         const people = options.filter(
           (o) => !o.candidate.kind || o.candidate.kind === 'user',
@@ -1208,7 +1116,7 @@ function MentionsPlugin({
                   <Bot className="size-3.5" />
                 </span>
               ) : isCoworker ? (
-                <span className="size-6 flex shrink-0 items-center justify-center rounded-full border border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                <span className="size-6 border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400 flex shrink-0 items-center justify-center rounded-full border">
                   <Sparkles className="size-3.5" />
                 </span>
               ) : isApp ? (
@@ -1229,7 +1137,7 @@ function MentionsPlugin({
                 <span className="gap-1.5 font-semibold flex items-center text-foreground">
                   <span className="truncate">@{option.candidate.name}</span>
                   {option.candidate.isSelf ? (
-                    <span className="px-1 py-0 font-bold tracking-wider text-[9px] shrink-0 rounded bg-muted text-muted-foreground uppercase">
+                    <span className="px-1 py-0 font-bold tracking-wider rounded shrink-0 bg-muted text-[9px] text-muted-foreground uppercase">
                       You
                     </span>
                   ) : null}
@@ -1243,7 +1151,7 @@ function MentionsPlugin({
                   ) : isCoworker ? (
                     <Badge
                       variant="neutral"
-                      className="py-0 h-3.5 font-bold tracking-wider border-purple-500/20 bg-purple-500/10 text-[9px] text-purple-600 dark:text-purple-400 uppercase"
+                      className="py-0 h-3.5 font-bold tracking-wider border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[9px] uppercase"
                     >
                       COWORKER
                     </Badge>
@@ -1273,7 +1181,7 @@ function MentionsPlugin({
             icon={<AtSign className="size-3.5" />}
           >
             {options.length === 0 ? (
-              <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+              <li className="px-3 py-4 text-xs text-center text-muted-foreground">
                 No matching members found
               </li>
             ) : (
@@ -1300,7 +1208,7 @@ function MentionsPlugin({
                 {agents.map(renderOption)}
 
                 {coworkers.length > 0 ? (
-                  <li className="mt-1 px-2 py-1 font-bold text-[10px] text-purple-600 dark:text-purple-400 uppercase">
+                  <li className="mt-1 px-2 py-1 font-bold text-purple-600 dark:text-purple-400 text-[10px] uppercase">
                     AI Coworkers — {coworkers.length}
                   </li>
                 ) : null}
@@ -1407,7 +1315,7 @@ function ChannelMentionsPlugin({
             icon={<Hash className="size-3.5" />}
           >
             {options.length === 0 ? (
-              <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+              <li className="px-3 py-4 text-xs text-center text-muted-foreground">
                 No matching channels found
               </li>
             ) : (
@@ -1547,7 +1455,7 @@ function SlashCommandsPlugin({
             icon={<Slash className="size-3.5" />}
           >
             {options.length === 0 ? (
-              <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+              <li className="px-3 py-4 text-xs text-center text-muted-foreground">
                 No matching commands found
               </li>
             ) : (
@@ -1690,7 +1598,6 @@ function EmojiPickerPlugin({
 
 type BlockType =
   'paragraph' | 'h1' | 'h2' | 'h3' | 'quote' | 'code' | 'ul' | 'ol' | 'check';
-
 
 /**
  * The formatting bar.
@@ -1869,7 +1776,7 @@ export function ToolbarContent({
     <div
       role="toolbar"
       aria-label="Formatting tools"
-      className="inline-flex items-center gap-0.5 rounded-2xl bg-[#2a2a2c] text-neutral-200 p-1 shadow-xl shadow-black/30 border border-white/10 select-none whitespace-nowrap"
+      className="gap-0.5 text-neutral-200 p-1 shadow-xl shadow-black/30 border-white/10 inline-flex items-center rounded-2xl border bg-[#2a2a2c] whitespace-nowrap select-none"
     >
       {/* Link Button & Popover */}
       <div ref={linkContainerRef} className="relative">
@@ -1901,8 +1808,8 @@ export function ToolbarContent({
         </button>
 
         {linkDraft !== null ? (
-          <div className="left-0 mt-1.5 absolute top-full z-50 flex items-center gap-1.5 rounded-xl bg-[#242426] p-1.5 shadow-2xl border border-white/10">
-            <Link2 className="size-3.5 shrink-0 text-neutral-400 ml-1" />
+          <div className="left-0 mt-1.5 gap-1.5 p-1.5 shadow-2xl border-white/10 absolute top-full z-50 flex items-center rounded-xl border bg-[#242426]">
+            <Link2 className="size-3.5 text-neutral-400 ml-1 shrink-0" />
             <input
               ref={linkInputRef}
               type="url"
@@ -1920,13 +1827,13 @@ export function ToolbarContent({
                   editor.focus();
                 }
               }}
-              className="w-48 text-xs bg-neutral-800/90 text-white placeholder:text-neutral-500 rounded-lg px-2.5 py-1 outline-none border border-neutral-700/60 focus:border-primary transition-colors"
+              className="w-48 text-xs bg-neutral-800/90 text-white placeholder:text-neutral-500 px-2.5 py-1 border-neutral-700/60 rounded-lg border transition-colors outline-none focus:border-primary"
             />
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={applyLink}
-              className="size-6 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="size-6 flex items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
               aria-label="Apply link"
             >
               <Check className="size-3.5" />
@@ -1938,7 +1845,7 @@ export function ToolbarContent({
                 setLinkDraft(null);
                 editor.focus();
               }}
-              className="size-6 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="size-6 text-neutral-400 hover:text-white hover:bg-white/10 flex items-center justify-center rounded-lg transition-colors"
               aria-label="Cancel link"
             >
               <X className="size-3.5" />
@@ -1980,7 +1887,9 @@ export function ToolbarContent({
             : 'text-neutral-300 hover:bg-white/10 hover:text-white',
         )}
       >
-        <span className="font-serif italic font-semibold text-sm leading-none">I</span>
+        <span className="font-serif font-semibold text-sm leading-none italic">
+          I
+        </span>
       </button>
 
       {/* Strikethrough Button */}
@@ -2021,7 +1930,7 @@ export function ToolbarContent({
         <Code className="size-3.5" />
       </button>
 
-      <span className="mx-0.5 h-3.5 w-px bg-white/10 shrink-0" />
+      <span className="mx-0.5 h-3.5 bg-white/10 w-px shrink-0" />
 
       {/* Bulleted List Button */}
       <button
@@ -2059,7 +1968,7 @@ export function ToolbarContent({
         <ListOrdered className="size-3.5" />
       </button>
 
-      <span className="mx-0.5 h-3.5 w-px bg-white/10 shrink-0" />
+      <span className="mx-0.5 h-3.5 bg-white/10 w-px shrink-0" />
 
       {/* Quote Button */}
       <button
@@ -2099,7 +2008,7 @@ export function ToolbarContent({
 
       {toolbarSlot ? (
         <>
-          <span className="mx-0.5 h-3.5 w-px bg-white/10 shrink-0" />
+          <span className="mx-0.5 h-3.5 bg-white/10 w-px shrink-0" />
           {toolbarSlot}
         </>
       ) : null}
@@ -2109,7 +2018,7 @@ export function ToolbarContent({
 
 export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
   return (
-    <div className="relative px-3 pt-2 pb-1 flex items-center">
+    <div className="px-3 pt-2 pb-1 relative flex items-center">
       <ToolbarContent toolbarSlot={toolbarSlot} />
     </div>
   );
@@ -2118,7 +2027,9 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
 export function FloatingSelectionToolbar() {
   const [editor] = useLexicalComposerContext();
   const [isVisible, setIsVisible] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(
+    null,
+  );
   const isInteractingRef = useRef(false);
 
   const updatePosition = useCallback(() => {
@@ -2218,7 +2129,7 @@ export function FloatingSelectionToolbar() {
         transform: 'translateX(-50%)',
         zIndex: 9999,
       }}
-      className="pointer-events-auto select-none animate-in fade-in-0 zoom-in-95 duration-100"
+      className="animate-in fade-in-0 zoom-in-95 pointer-events-auto duration-100 select-none"
     >
       <ToolbarContent
         onInteractionChange={(interacting) => {
@@ -2329,11 +2240,11 @@ export function LexicalComposerInput({
                 aria-label="Message composer input"
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="left-4 top-3 text-message pointer-events-none absolute select-none text-subtle">
+                  <div className="left-4 top-3 pointer-events-none absolute text-message text-subtle select-none">
                     {placeholder}
                   </div>
                 }
-                className="min-h-6 max-h-[46vh] w-full resize-none overflow-y-auto overscroll-contain scrollbar-thin text-message font-normal text-foreground outline-none"
+                className="min-h-6 font-normal max-h-[46vh] w-full resize-none scrollbar-thin overflow-y-auto overscroll-contain text-message text-foreground outline-none"
               />
             }
             ErrorBoundary={LexicalErrorBoundary}
