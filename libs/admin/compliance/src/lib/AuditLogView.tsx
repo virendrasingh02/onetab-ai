@@ -6,6 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CodeBlock,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -314,8 +315,8 @@ export function AuditLogView() {
 
                 <div>
                   <Label className="text-xs mb-1 block">Audit Changes & Metadata</Label>
-                  <pre className="p-3 bg-muted rounded-md font-mono text-[11px] overflow-x-auto max-h-60">
-                    {JSON.stringify(
+                  <CodeBlock
+                    code={JSON.stringify(
                       {
                         previousValue: inspectLog.previousValue,
                         newValue: inspectLog.newValue,
@@ -327,7 +328,10 @@ export function AuditLogView() {
                       null,
                       2,
                     )}
-                  </pre>
+                    language="json"
+                    variant="compact"
+                    maxHeight="240px"
+                  />
                 </div>
               </DialogBody>
             </div>

@@ -2,6 +2,7 @@ import { agentsApi } from '@org/api-client';
 import {
   Badge,
   Button,
+  CodeBlock,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -2666,34 +2667,18 @@ export function AgentDetailPage() {
 
             {/* 5. API Trigger Snippet (Module 14.2 & 21.1) */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                  <Code2 className="h-4 w-4 text-primary" />
-                  REST API Execution Endpoint
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const snippet = `curl -X POST "https://api.onetab.ai/v1/workspaces/${activeWorkspace.id}/agents/${agent.id}/execute" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{"prompt": "Execute task"}'`;
-                    navigator.clipboard.writeText(snippet);
-                    toast.success('Copied cURL snippet to clipboard');
-                  }}
-                  className="h-7 text-xs gap-1"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  Copy cURL
-                </Button>
-              </div>
-              <pre className="rounded-lg border border-border bg-zinc-950 p-3 font-mono text-[11px] text-zinc-100 overflow-x-auto">
-{`curl -X POST "https://api.onetab.ai/v1/workspaces/${activeWorkspace.id}/agents/${agent.id}/execute" \\
+              <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
+                <Code2 className="h-4 w-4 text-primary" />
+                REST API Execution Endpoint
+              </h3>
+              <CodeBlock
+                language="bash"
+                filename="curl-execute.sh"
+                code={`curl -X POST "https://api.onetab.ai/v1/workspaces/${activeWorkspace.id}/agents/${agent.id}/execute" \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"prompt": "Research AI developments and summarize"}'`}
-              </pre>
+              />
             </div>
 
             {/* Save Settings Bar */}

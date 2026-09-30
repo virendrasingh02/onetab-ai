@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, Input, toast } from '@org/ui';
+import { Badge, Button, CodeBlock, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Code2,
@@ -168,20 +168,11 @@ for event in response.iter_events():
             </div>
           </div>
 
-          <div className="relative rounded-lg border border-border/80 bg-zinc-950 p-3.5 font-mono text-[11px] text-emerald-400 overflow-x-auto">
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={() => {
-                navigator.clipboard.writeText(snippets[selectedLang]);
-                toast.success('Snippet copied');
-              }}
-              className="absolute right-2 top-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-            >
-              <Copy className="size-3.5" />
-            </Button>
-            <pre className="whitespace-pre-wrap leading-relaxed">{snippets[selectedLang]}</pre>
-          </div>
+          <CodeBlock
+            code={snippets[selectedLang]}
+            language={selectedLang === 'node' ? 'javascript' : selectedLang}
+            showLineNumbers={false}
+          />
         </div>
 
         {/* Right: Interactive Sandbox Runner */}
@@ -220,9 +211,11 @@ for event in response.iter_events():
                   HTTP {testResponse.statusCode} {testResponse.latencyMs ? `(${testResponse.latencyMs}ms)` : ''}
                 </span>
               </div>
-              <pre className="rounded-lg border border-border bg-zinc-950 p-3 font-mono text-[11px] text-zinc-300 overflow-x-auto max-h-48">
-                {JSON.stringify(testResponse, null, 2)}
-              </pre>
+              <CodeBlock
+                variant="compact"
+                language="json"
+                code={JSON.stringify(testResponse, null, 2)}
+              />
             </div>
           )}
         </div>

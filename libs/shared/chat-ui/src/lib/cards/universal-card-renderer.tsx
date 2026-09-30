@@ -10,6 +10,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  CodeBlock,
   Dialog,
   DialogContent,
   DialogBody,
@@ -259,9 +260,11 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
           <span>Universal Card: {cardId || 'Unknown'} {version ? `(v${version})` : ''}</span>
         </div>
         <p className="text-muted-foreground mb-2">Card definition unavailable in local registry. Raw structured data payload:</p>
-        <pre className="p-3 rounded-lg bg-surface-inset text-foreground/90 overflow-x-auto text-[11px]">
-          {JSON.stringify(data, null, 2)}
-        </pre>
+        <CodeBlock
+          variant="compact"
+          language="json"
+          code={JSON.stringify(data, null, 2)}
+        />
       </article>
     );
   }

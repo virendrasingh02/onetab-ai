@@ -5,6 +5,7 @@ import {
   AIRunStatusBadge,
   Button,
   Card,
+  CodeBlock,
   EmptyState,
   ErrorState,
   Hint,
@@ -321,9 +322,11 @@ function RunInput({ state }: { state: Record<string, unknown> }) {
           {prompt}
         </p>
       ) : (
-        <pre className="max-h-48 overflow-auto rounded-lg border border-border bg-surface-inset p-3 font-mono text-xs text-foreground">
-          {JSON.stringify(payload, null, 2)}
-        </pre>
+        <CodeBlock
+          variant="compact"
+          language="json"
+          code={JSON.stringify(payload, null, 2)}
+        />
       )}
     </section>
   );

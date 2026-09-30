@@ -1,6 +1,6 @@
 import type { ErrorGroup } from '@org/types';
 import { AlertOctagon, Bug, Layers, Trash2 } from 'lucide-react';
-import { Button, confirm, SegmentedControl } from '@org/ui';
+import { Button, CodeBlock, confirm, SegmentedControl } from '@org/ui';
 import { useState } from 'react';
 import {
   Breakdown,
@@ -217,13 +217,14 @@ export function ErrorTrackingView() {
                       </button>
 
                       {expanded === group.fingerprint ? (
-                        <pre
-                          id={`error-detail-${group.fingerprint}`}
-                          className="scrollbar-subtle p-3 overflow-x-auto border-t bg-background font-mono text-[10px] whitespace-pre-wrap text-muted-foreground"
-                        >
-                          {group.sample.stack ??
-                            'No stack trace was captured for this error.'}
-                        </pre>
+                        <div id={`error-detail-${group.fingerprint}`} className="border-t">
+                          <CodeBlock
+                            code={group.sample.stack ?? 'No stack trace was captured for this error.'}
+                            language="text"
+                            variant="terminal"
+                            maxHeight="220px"
+                          />
+                        </div>
                       ) : null}
                     </div>
                   ))}

@@ -898,3 +898,5 @@ export {
   type AdaptiveLayoutProps,
 } from './lib/components/adaptive-layout.js';
 
+export * from './lib/code-block/index.js';
+

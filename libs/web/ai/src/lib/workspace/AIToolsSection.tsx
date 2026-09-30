@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  CodeBlock,
   confirm,
   Dialog,
   DialogContent,
@@ -156,9 +157,11 @@ function BuiltinToolsPanel({ canRun }: { canRun: boolean }) {
                   <p className="text-xs text-muted-foreground">Guests can't run tools.</p>
                 )}
                 {result !== undefined ? (
-                  <pre className="max-h-64 overflow-auto rounded-lg border border-border bg-surface-inset p-3 font-mono text-xs text-foreground">
-                    {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
-                  </pre>
+                  <CodeBlock
+                    variant="compact"
+                    language="json"
+                    code={typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
+                  />
                 ) : null}
               </form>
             )}

@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
+import { CodeBlock } from '../code-block/index.js';
 import { StatCard } from './stat-card.js';
 
 import { UniversalCard, type UniversalCardConfig } from './universal-card-registry.js';
@@ -126,26 +127,11 @@ export function BlockRenderer({ block }: { block: PageBlockConfig }) {
     case 'code-sample': {
       const codeSnippet = block.data?.code ?? '// Example code';
       return (
-        <div className="rounded-card border border-border bg-surface-raised overflow-hidden shadow-xs">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface text-xs">
-            <span className="font-mono text-[11px] text-muted-foreground">{block.data?.filename ?? 'snippet.ts'}</span>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => {
-                navigator.clipboard.writeText(codeSnippet);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
-              leadingIcon={copied ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-            >
-              {copied ? 'Copied' : 'Copy'}
-            </Button>
-          </div>
-          <pre className="p-4 font-mono text-xs text-foreground/90 overflow-x-auto leading-relaxed">
-            {codeSnippet}
-          </pre>
-        </div>
+        <CodeBlock
+          code={codeSnippet}
+          filename={block.data?.filename ?? 'snippet.ts'}
+          language={block.data?.language}
+        />
       );
     }
 

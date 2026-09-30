@@ -1,4 +1,5 @@
 import { useAuthenticatedMediaSrc } from '@org/hooks';
+import { CodeBlock } from '@org/ui';
 import { cn } from '@org/utils';
 import { CheckSquare, Square } from 'lucide-react';
 import { Fragment, useMemo, type ReactNode } from 'react';
@@ -121,12 +122,11 @@ function renderInline(
       nodes.push(token.slice(1));
     } else if (groups['code']) {
       nodes.push(
-        <code
+        <CodeBlock
           key={key}
-          className="rounded bg-surface-inset px-1.5 py-0.5 font-mono text-[0.875em] text-info-text"
-        >
-          {token.slice(1, -1)}
-        </code>,
+          variant="inline"
+          code={token.slice(1, -1)}
+        />,
       );
     } else if (groups['image']) {
       const parsed = /^!\[([^\]]*)\]\(([^\s)]+)\)$/.exec(token);
@@ -298,25 +298,37 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
       continue;
     }
 
-    // Fenced code block — taken first, so nothing inside it is interpreted.
-    const fence = /^```(\w+)?\s*$/.exec(trimmed);
+    // Fenced code block — handles optional language, filename metadata, and unclosed streaming blocks.
+    const fence = /^```([A-Za-z0-9_#+.-]+)?(?:\s+(?:filename=|title=)?["']?([^"'\n]+)["']?)?\s*$/.exec(trimmed);
     if (fence) {
+      let rawLang = fence[1] || '';
+      let filename = fence[2] || undefined;
+      if (rawLang.includes(':')) {
+        const parts = rawLang.split(':');
+        rawLang = parts[0];
+        if (!filename && parts[1]) filename = parts[1];
+      }
       const body: string[] = [];
       index += 1;
-      while (index < lines.length && !/^```\s*$/.test(lines[index].trim())) {
+      let closed = false;
+      while (index < lines.length) {
+        if (/^```\s*$/.test(lines[index].trim())) {
+          closed = true;
+          break;
+        }
         body.push(lines[index]);
         index += 1;
       }
-      index += 1; // closing fence
+      if (closed) {
+        index += 1; // closing fence
+      }
       blocks.push(
-        <pre
+        <CodeBlock
           key={`code-${index}`}
-          className="my-1.5 overflow-x-auto rounded-lg border border-border bg-surface-inset p-2.5"
-        >
-          <code className="font-mono text-[0.875em] text-success-text">
-            {body.join('\n')}
-          </code>
-        </pre>,
+          code={body.join('\n')}
+          language={rawLang || undefined}
+          filename={filename}
+        />,
       );
       continue;
     }

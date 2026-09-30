@@ -1,5 +1,5 @@
 import { agentsApi, aiExecutionsApi } from '@org/api-client';
-import { Badge, Button, Dialog, DialogContent, DialogBody,
+import { Badge, Button, CodeBlock, Dialog, DialogContent, DialogBody,
   DialogHeader, DialogTitle, LoadingState, toast } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -348,9 +348,11 @@ export function ExecutionsPage() {
                 <div className="text-[11px] font-semibold text-foreground mb-1">
                   Raw Turn Response
                 </div>
-                <pre className="max-h-48 overflow-y-auto rounded-lg border border-border bg-surface p-2.5 font-mono text-[11px] whitespace-pre-wrap">
-                  {inspectExecution.responseText || inspectExecution.responsePreview || 'Execution completed successfully.'}
-                </pre>
+                <CodeBlock
+                  variant="compact"
+                  language="json"
+                  code={inspectExecution.responseText || inspectExecution.responsePreview || 'Execution completed successfully.'}
+                />
               </div>
             </DialogBody>
           )}

@@ -2,6 +2,7 @@ import type { Message, WorkflowMessageContent } from '@org/types';
 import {
   Badge,
   Button,
+  CodeBlock,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -186,27 +187,35 @@ export function WorkflowCard({
 
           {Boolean(selectedStep.input) && (
             <div className="mb-2">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
                 Input
               </span>
-              <pre className="p-2 rounded bg-surface text-foreground/90 overflow-x-auto mt-0.5">
-                {typeof selectedStep.input === 'string'
-                  ? selectedStep.input
-                  : JSON.stringify(selectedStep.input, null, 2)}
-              </pre>
+              <CodeBlock
+                variant="compact"
+                language="json"
+                code={
+                  typeof selectedStep.input === 'string'
+                    ? selectedStep.input
+                    : JSON.stringify(selectedStep.input, null, 2)
+                }
+              />
             </div>
           )}
 
           {Boolean(selectedStep.output) && (
             <div className="mb-2">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
                 Output
               </span>
-              <pre className="p-2 rounded bg-surface text-success-text overflow-x-auto mt-0.5">
-                {typeof selectedStep.output === 'string'
-                  ? selectedStep.output
-                  : JSON.stringify(selectedStep.output, null, 2)}
-              </pre>
+              <CodeBlock
+                variant="compact"
+                language="json"
+                code={
+                  typeof selectedStep.output === 'string'
+                    ? selectedStep.output
+                    : JSON.stringify(selectedStep.output, null, 2)
+                }
+              />
             </div>
           )}
 

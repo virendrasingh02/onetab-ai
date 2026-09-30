@@ -1,4 +1,4 @@
-import { Button, Input, toast } from '@org/ui';
+import { Button, CodeBlock, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Node } from '@xyflow/react';
 import {
@@ -804,14 +804,16 @@ export function NodeInspector({
           </div>
 
           {testResult && (
-            <div className="rounded-lg border border-border bg-zinc-950 p-2.5 space-y-1.5 font-mono text-[10px]">
-              <div className="flex items-center justify-between text-muted-foreground border-b border-zinc-800 pb-1">
-                <span className="text-emerald-400 font-bold">{testResult.status}</span>
+            <div className="space-y-1 font-mono text-[10px]">
+              <div className="flex items-center justify-between text-muted-foreground pb-1">
+                <span className="text-emerald-500 font-bold">{testResult.status}</span>
                 <span>{testResult.latencyMs}ms</span>
               </div>
-              <pre className="text-zinc-300 max-h-36 overflow-y-auto whitespace-pre-wrap">
-                {JSON.stringify(testResult.output, null, 2)}
-              </pre>
+              <CodeBlock
+                variant="compact"
+                language="json"
+                code={JSON.stringify(testResult.output, null, 2)}
+              />
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { agentsApi } from '@org/api-client';
-import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogBody, DialogHeader, DialogTitle, Input, LoadingState, toast } from '@org/ui';
+import { Badge, Button, CodeBlock, Dialog, DialogContent, DialogDescription, DialogFooter, DialogBody, DialogHeader, DialogTitle, Input, LoadingState, toast } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AppWindow,
@@ -382,18 +382,12 @@ export function ToolsPage() {
                   <span className="text-[11px] font-bold text-foreground">
                     Execution Output
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={copyResult}
-                    className="gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <Copy className="size-3" /> Copy JSON
-                  </Button>
                 </div>
-                <pre className="max-h-56 overflow-y-auto rounded-lg bg-surface-raised p-2.5 font-mono text-[11px] text-foreground whitespace-pre-wrap">
-                  {JSON.stringify(testResult, null, 2)}
-                </pre>
+                <CodeBlock
+                  variant="compact"
+                  language="json"
+                  code={JSON.stringify(testResult, null, 2)}
+                />
               </div>
             )}
           </div>
@@ -663,9 +657,11 @@ export function ToolsPage() {
                   Dismiss
                 </Button>
               </div>
-              <pre className="max-h-48 overflow-y-auto rounded-lg bg-surface-raised p-2.5 font-mono text-[11px] text-foreground whitespace-pre-wrap">
-                {JSON.stringify(customTestResult, null, 2)}
-              </pre>
+              <CodeBlock
+                variant="compact"
+                language="json"
+                code={JSON.stringify(customTestResult, null, 2)}
+              />
             </div>
           )}
         </div>

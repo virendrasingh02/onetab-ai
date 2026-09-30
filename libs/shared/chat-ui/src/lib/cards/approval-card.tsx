@@ -2,6 +2,7 @@ import type { ApprovalMessageContent, Message, StructuredMessageAction } from '@
 import {
   Badge,
   Button,
+  CodeBlock,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -158,43 +159,27 @@ export function ApprovalCard({
 
       {/* Proposed Action */}
       {event.proposedAction && (
-        <div className="mt-3 rounded-xl bg-surface-raised p-3 border border-border/60 text-xs font-mono text-foreground">
+        <div className="mt-3">
           <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
             Proposed Command / Action
           </span>
-          <pre className="overflow-x-auto whitespace-pre-wrap">{event.proposedAction}</pre>
+          <CodeBlock
+            variant="terminal"
+            code={event.proposedAction}
+            showLineNumbers={false}
+          />
         </div>
       )}
 
       {/* Diff Preview */}
       {event.diffPreview && (
-        <div className="mt-3 rounded-xl border border-border bg-surface-inset text-foreground font-mono text-xs overflow-hidden shadow-xs">
-          <div className="px-3 py-1.5 bg-surface-raised border-b border-border flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground flex items-center gap-1.5">
-              <FileDiff className="size-3.5 text-primary" />
-              <span>{event.diffPreview.filename || 'Diff Preview'}</span>
-            </span>
-          </div>
-          <div className="p-3 overflow-x-auto">
-            <pre className="leading-relaxed">
-              {event.diffPreview.diff.split('\n').map((line, idx) => {
-                const isAdd = line.startsWith('+');
-                const isRem = line.startsWith('-');
-                return (
-                  <div
-                    key={idx}
-                    className={cn(
-                      'px-1 rounded',
-                      isAdd && 'bg-success/20 text-success-text font-semibold',
-                      isRem && 'bg-destructive/20 text-destructive-text line-through opacity-80',
-                    )}
-                  >
-                    {line}
-                  </div>
-                );
-              })}
-            </pre>
-          </div>
+        <div className="mt-3">
+          <CodeBlock
+            variant="diff"
+            filename={event.diffPreview.filename || 'Diff Preview'}
+            originalCode=""
+            modifiedCode={event.diffPreview.diff}
+          />
         </div>
       )}
 

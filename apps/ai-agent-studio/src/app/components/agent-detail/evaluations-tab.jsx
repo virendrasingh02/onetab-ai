@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input, toast } from '@org/ui';
+import { Badge, Button, CodeBlock, Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import { agentsApi } from '@org/api-client';
 import {
@@ -441,9 +441,11 @@ export function EvaluationsTab({ agent, onUpdate }) {
 
               <div>
                 <div className="text-[11px] font-semibold text-foreground mb-1">Actual Agent Output</div>
-                <pre className="max-h-40 overflow-y-auto rounded-lg border border-border bg-surface p-2.5 font-mono text-[11px] whitespace-pre-wrap">
-                  {inspectCase.actual}
-                </pre>
+                <CodeBlock
+                  code={inspectCase.actual || ''}
+                  variant="compact"
+                  maxHeight="160px"
+                />
               </div>
 
               <div>

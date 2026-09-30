@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, Input, toast } from '@org/ui';
+import { Badge, Button, CodeBlock, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Activity,
@@ -214,15 +214,17 @@ export function TestDebuggerDrawer({
 
             {/* Step Payload Inspector */}
             {selectedStep && selectedStep.output && (
-              <div className="rounded-xl border border-border bg-zinc-950 p-4 space-y-2 font-mono text-[11px]">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-2 text-zinc-400">
+              <div className="space-y-1 font-mono text-[11px]">
+                <div className="flex items-center justify-between pb-1 text-muted-foreground">
                   <span>Step Payload: {selectedStep.nodeName}</span>
-                  <span className="text-emerald-400">{selectedStep.status}</span>
+                  <span className="text-emerald-500 font-bold">{selectedStep.status}</span>
                 </div>
 
-                <pre className="text-zinc-300 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                  {JSON.stringify(selectedStep.output, null, 2)}
-                </pre>
+                <CodeBlock
+                  variant="compact"
+                  language="json"
+                  code={JSON.stringify(selectedStep.output, null, 2)}
+                />
               </div>
             )}
           </div>

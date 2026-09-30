@@ -45,4 +45,33 @@ describe('MarkdownMessage', () => {
       'https://example.com/docs',
     );
   });
+
+  it('renders fenced code blocks with unified CodeBlock and language header', () => {
+    render(
+      <MarkdownMessage
+        text={'```typescript filename="config.ts"\nconst port: number = 8080;\n```'}
+      />,
+    );
+
+    expect(screen.getByText('config.ts')).toBeInTheDocument();
+    expect(screen.getByText(/8080/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Copy code to clipboard')).toBeInTheDocument();
+  });
+
+  it('handles unclosed streaming code blocks gracefully', () => {
+    render(
+      <MarkdownMessage
+        text={'```python\ndef streaming_func():\n  print("in progress")'}
+      />,
+    );
+
+    expect(screen.getByText('Python')).toBeInTheDocument();
+    expect(screen.getByText(/streaming_func/)).toBeInTheDocument();
+  });
+
+  it('renders inline code using unified CodeBlock', () => {
+    render(<MarkdownMessage text={'Run `pnpm test` to verify'} />);
+    const inlineElem = screen.getByText('pnpm test');
+    expect(inlineElem.tagName.toLowerCase()).toBe('code');
+  });
 });

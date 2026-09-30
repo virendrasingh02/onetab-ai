@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  CodeBlock,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -156,9 +157,13 @@ function ApprovalCard({
             <ChevronDown className="size-3.5" /> What it will do with
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <pre className="mt-2 max-h-56 overflow-auto rounded-lg border border-border bg-surface-inset p-3 font-mono text-xs text-foreground">
-              {JSON.stringify(input, null, 2)}
-            </pre>
+            <div className="mt-2">
+              <CodeBlock
+                variant="compact"
+                language="json"
+                code={JSON.stringify(input, null, 2)}
+              />
+            </div>
           </CollapsibleContent>
         </Collapsible>
       ) : null}

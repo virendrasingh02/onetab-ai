@@ -7,6 +7,7 @@ import type {
 import {
   Badge,
   Button,
+  CodeBlock,
   Dialog,
   DialogContent,
   DialogBody,
@@ -725,27 +726,35 @@ export function AgentMessageCard({
                       <div className="mt-2 pt-2 border-t border-border/60 space-y-2 text-[11px]">
                         {Boolean(tool.input) && (
                           <div>
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
                               Input
                             </span>
-                            <pre className="p-2 rounded bg-surface-inset text-foreground/90 overflow-x-auto mt-0.5">
-                              {typeof tool.input === 'string'
-                                ? tool.input
-                                : JSON.stringify(tool.input, null, 2)}
-                            </pre>
+                            <CodeBlock
+                              variant="compact"
+                              language="json"
+                              code={
+                                typeof tool.input === 'string'
+                                  ? tool.input
+                                  : JSON.stringify(tool.input, null, 2)
+                              }
+                            />
                           </div>
                         )}
 
                         {Boolean(tool.output) && (
                           <div>
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
                               Output
                             </span>
-                            <pre className="p-2 rounded bg-surface-inset text-success-text overflow-x-auto mt-0.5">
-                              {typeof tool.output === 'string'
-                                ? tool.output
-                                : JSON.stringify(tool.output, null, 2)}
-                            </pre>
+                            <CodeBlock
+                              variant="compact"
+                              language="json"
+                              code={
+                                typeof tool.output === 'string'
+                                  ? tool.output
+                                  : JSON.stringify(tool.output, null, 2)
+                              }
+                            />
                           </div>
                         )}
 
@@ -966,8 +975,12 @@ export function AgentMessageCard({
               </DialogTitle>
             </DialogHeader>
             <DialogBody>
-              <div className="max-h-[60vh] overflow-y-auto p-3 rounded-lg bg-surface-inset font-mono text-xs text-foreground">
-                <pre>{JSON.stringify(event, null, 2)}</pre>
+              <div className="max-h-[60vh] overflow-y-auto">
+                <CodeBlock
+                  language="json"
+                  filename={`event-${message.id}.json`}
+                  code={JSON.stringify(event, null, 2)}
+                />
               </div>
             </DialogBody>
           </DialogContent>

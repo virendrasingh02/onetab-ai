@@ -1,4 +1,4 @@
-import { Badge, Button } from '@org/ui';
+import { Badge, Button, CodeBlock } from '@org/ui';
 import { CheckCircle2, ChevronDown, ChevronUp, Clock, Terminal, Trash2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
@@ -83,9 +83,16 @@ export function TestConsoleDrawer({ logs, onClearLogs }: TestConsoleDrawerProps)
                       </span>
                     </div>
                     {log.message && <p className="text-muted-foreground text-[10px]">{log.message}</p>}
-                    <pre className="mt-1 p-1.5 rounded bg-surface-inset text-foreground/80 text-[10px] max-h-24 overflow-x-auto">
-                      {JSON.stringify(log.payload, null, 2)}
-                    </pre>
+                    {log.payload && (
+                      <div className="mt-1">
+                        <CodeBlock
+                          code={typeof log.payload === 'string' ? log.payload : JSON.stringify(log.payload, null, 2)}
+                          language="json"
+                          variant="compact"
+                          maxHeight="120px"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

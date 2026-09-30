@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button, Input, toast } from '@org/ui';
+import { Badge, Button, CodeBlock, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Bot,
@@ -149,24 +149,13 @@ export function WidgetBuilder({ agent, onUpdate }) {
 
           {/* Embed Script Snippet Card */}
           <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground">HTML Embed Code</span>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => {
-                  navigator.clipboard.writeText(embedSnippet);
-                  toast.success('Embed script copied to clipboard');
-                }}
-                className="gap-1 text-[11px]"
-              >
-                <Copy className="size-3" />
-                Copy Snippet
-              </Button>
-            </div>
-            <pre className="rounded-lg border border-border bg-zinc-950 p-3 font-mono text-[10px] text-zinc-300 overflow-x-auto whitespace-pre-wrap">
-              {embedSnippet}
-            </pre>
+            <span className="text-xs font-bold text-foreground">HTML Embed Code</span>
+            <CodeBlock
+              code={embedSnippet}
+              language="html"
+              filename="widget-embed.html"
+              maxHeight="220px"
+            />
             <p className="text-[10px] text-muted-foreground">
               Paste this tag directly before the closing &lt;/body&gt; tag on your landing pages or SaaS portal.
             </p>

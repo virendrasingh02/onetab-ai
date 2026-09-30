@@ -17,6 +17,7 @@ import {
   useState,
 } from 'react';
 import { Badge } from './badge.js';
+import { CodeBlock } from '../code-block/index.js';
 
 
 export type AIExecutionStepType =
@@ -195,21 +196,29 @@ export function AIExecutionTimeline({
                         {step.inputPayload && (
                           <div>
                             <div className="text-[10px] font-bold uppercase text-subtle mb-0.5">Input:</div>
-                            <pre className="rounded-sm bg-surface p-2 font-mono text-[10px] text-foreground/90 overflow-x-auto border border-border">
-                              {typeof step.inputPayload === 'string'
-                                ? step.inputPayload
-                                : JSON.stringify(step.inputPayload, null, 2)}
-                            </pre>
+                            <CodeBlock
+                              variant="compact"
+                              language="json"
+                              code={
+                                typeof step.inputPayload === 'string'
+                                  ? step.inputPayload
+                                  : JSON.stringify(step.inputPayload, null, 2)
+                              }
+                            />
                           </div>
                         )}
                         {step.outputPayload && (
                           <div>
                             <div className="text-[10px] font-bold uppercase text-subtle mb-0.5">Output:</div>
-                            <pre className="rounded-sm bg-surface p-2 font-mono text-[10px] text-foreground/90 overflow-x-auto border border-border">
-                              {typeof step.outputPayload === 'string'
-                                ? step.outputPayload
-                                : JSON.stringify(step.outputPayload, null, 2)}
-                            </pre>
+                            <CodeBlock
+                              variant="compact"
+                              language="json"
+                              code={
+                                typeof step.outputPayload === 'string'
+                                  ? step.outputPayload
+                                  : JSON.stringify(step.outputPayload, null, 2)
+                              }
+                            />
                           </div>
                         )}
                       </div>

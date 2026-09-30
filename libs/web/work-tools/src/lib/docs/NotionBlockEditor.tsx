@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  CodeBlock,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -477,36 +478,14 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
 
               {/* Code Snippet */}
               {block.type === 'code' && (
-                <div className="rounded-lg border border-border bg-background p-3 space-y-2 font-mono text-xs">
-                  <div className="flex items-center justify-between border-b border-border pb-2">
-                    <Badge variant="outline" className="text-[10px] uppercase text-accent-cyan border-accent-cyan/30">
-                      {block.language || 'typescript'}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopyCode(block.id, block.content)}
-                      className="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1 px-2"
-                    >
-                      {copiedBlockId === block.id ? (
-                        <>
-                          <Check className="size-3 text-accent-green" />
-                          <span className="text-accent-green">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="size-3" />
-                          <span>Copy</span>
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <Textarea
-                    value={block.content}
-                    onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
-                    placeholder="// Write code snippet here..."
-                    rows={3}
-                    className="font-mono text-xs bg-transparent border-none text-accent-cyan focus-visible:ring-0 p-0 shadow-none resize-none leading-relaxed"
+                <div className="w-full my-1">
+                  <CodeBlock
+                    code={block.content || '// Write code snippet here...'}
+                    language={block.language || 'typescript'}
+                    editable={true}
+                    showLineNumbers={true}
+                    onSave={(newCode) => handleBlockChange(block.id, { content: newCode })}
+                    onEdit={(newCode) => handleBlockChange(block.id, { content: newCode })}
                   />
                 </div>
               )}

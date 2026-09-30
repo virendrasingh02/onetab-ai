@@ -1,5 +1,5 @@
 import { agentsApi, approvalsApi } from '@org/api-client';
-import { Badge, Button, Input, toast } from '@org/ui';
+import { Badge, Button, CodeBlock, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Activity,
@@ -304,17 +304,25 @@ export function TestConsoleDrawer({
                 <span>Executing agent graph and tools…</span>
               </div>
             ) : selectedStep ? (
-              <pre className="font-mono text-[11px] text-foreground leading-relaxed whitespace-pre-wrap bg-surface p-2.5 rounded-lg border border-border overflow-x-auto">
-                {typeof selectedStep.output === 'object'
-                  ? JSON.stringify(selectedStep.output, null, 2)
-                  : String(selectedStep.output || 'No output data')}
-              </pre>
+              <CodeBlock
+                variant="compact"
+                language="json"
+                code={
+                  typeof selectedStep.output === 'object'
+                    ? JSON.stringify(selectedStep.output, null, 2)
+                    : String(selectedStep.output || 'No output data')
+                }
+              />
             ) : executionResult ? (
-              <pre className="font-mono text-[11px] text-foreground leading-relaxed whitespace-pre-wrap bg-surface p-2.5 rounded-lg border border-border overflow-x-auto">
-                {typeof executionResult.output === 'object'
-                  ? JSON.stringify(executionResult.output, null, 2)
-                  : String(executionResult.output || 'Execution complete')}
-              </pre>
+              <CodeBlock
+                variant="compact"
+                language="json"
+                code={
+                  typeof executionResult.output === 'object'
+                    ? JSON.stringify(executionResult.output, null, 2)
+                    : String(executionResult.output || 'Execution complete')
+                }
+              />
             ) : (
               <div className="flex h-full flex-col items-center justify-center text-xs text-muted-foreground">
                 <Terminal className="size-6 text-muted-foreground/30 mb-1" />

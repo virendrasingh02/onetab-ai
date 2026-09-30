@@ -1,5 +1,5 @@
 import { approvalsApi } from '@org/api-client';
-import { Badge, Button, Dialog, DialogContent, DialogBody,
+import { Badge, Button, CodeBlock, Dialog, DialogContent, DialogBody,
   DialogHeader, DialogTitle, LoadingState, toast } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -271,9 +271,11 @@ export function ApprovalsPage() {
                 <label className="text-xs font-semibold text-foreground block mb-1">
                   Proposed Payload / Parameters
                 </label>
-                <pre className="max-h-60 overflow-y-auto rounded-lg border border-border bg-muted/50 p-3 font-mono text-[11px] text-foreground">
-                  {JSON.stringify(selectedApproval.proposedPayload || {}, null, 2)}
-                </pre>
+                <CodeBlock
+                  variant="compact"
+                  language="json"
+                  code={JSON.stringify(selectedApproval.proposedPayload || {}, null, 2)}
+                />
               </div>
 
               {selectedApproval.state === 'PENDING' && (
