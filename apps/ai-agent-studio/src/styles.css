@@ -2,6 +2,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import '@org/design-system/styles/theme.css';
+@import '@xyflow/react/dist/style.css';
 
 /* Register library sources explicitly for Tailwind v4 scanner */
 @source '../../../libs/shared/ui/src';
@@ -9,4 +10,10 @@
 @source '../../../libs/web/agents/src';
 @source '../../../libs/web/automations/src';
 @source '../../../libs/web/workspace/src';
-@source './**/*.{ts,tsx}';
+@source './**/*.{ts,tsx,js,jsx}';
+
+/* Ensure quick-add dropdown on workflow nodes always renders above all other canvas nodes */
+.react-flow__node.quick-add-open,
+.react-flow__node:has(.quick-add-open) {
+  z-index: 99999 !important;
+}

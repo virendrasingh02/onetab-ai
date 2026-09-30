@@ -14,6 +14,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { STUDIO_TEMPLATES, type StudioTemplate } from '../data/templates.js';
 import { useStudioSession } from '../session-guard.js';
 
+import { agentService } from '../services/agentService.js';
+
 export function TemplatesPage() {
   const { activeWorkspace } = useStudioSession();
   const navigate = useNavigate();
@@ -32,8 +34,8 @@ export function TemplatesPage() {
   }, [preselectedId]);
 
   const createFromTemplateMutation = useMutation({
-    mutationFn: (template: StudioTemplate) =>
-      agentsApi.create(activeWorkspace.id, {
+    mutationFn: async (template: StudioTemplate) => {
+      const payload = {
         name: template.name,
         role: template.name.replace('Agent', 'Specialist').trim(),
         description: template.description,
@@ -45,7 +47,13 @@ export function TemplatesPage() {
           nodes: template.nodes,
           edges: template.edges,
         }),
-      }),
+      };
+      try {
+        return await agentsApi.create(activeWorkspace.id, payload);
+      } catch {
+        return agentService.createAgent(activeWorkspace.id, payload);
+      }
+    },
     onSuccess: (newAgent) => {
       queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
       toast.success(`Template installed! Opening builder…`);

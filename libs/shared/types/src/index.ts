@@ -469,3 +469,7 @@ export {
   type DerivedAgentConfig,
   type LegacyGraphConversion,
 } from './lib/agent-config.js';
+
+export * from './lib/agent-studio-feature-flags.js';
+export * from './lib/workflow-schema.js';
+export * from './lib/agent-spec.js';

@@ -53,6 +53,7 @@ export {
   bookmarksApi,
   linkPreviewApi,
   aiStudioApi,
+  agentStudioAiModeApi,
   knowledgeApi,
   aiAppsApi,
   approvalsApi,

@@ -6,12 +6,14 @@ import {
   Cpu,
   Flame,
   GitBranch,
+  Shield,
   Sliders,
   Trash2,
   UserCheck,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
+import { workflowService } from '../../services/workflowService.js';
 
 const COMMON_VARIABLES = [
   '{{input.message}}',
@@ -41,6 +43,8 @@ export function NodeInspector({
 }: NodeInspectorProps) {
   const [showVariablePicker, setShowVariablePicker] = useState(false);
   const [targetField, setTargetField] = useState<string | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<any | null>(null);
 
   if (!selectedNode) {
     return (
@@ -107,6 +111,8 @@ export function NodeInspector({
               <Flame className="size-3.5 text-amber-500" />
             ) : nodeType === 'USER_APPROVAL' ? (
               <UserCheck className="size-3.5 text-rose-500" />
+            ) : nodeType === 'AI_GUARDRAIL' ? (
+              <Shield className="size-3.5 text-emerald-500" />
             ) : nodeType === 'IF_ELSE' ? (
               <GitBranch className="size-3.5 text-violet-500" />
             ) : (
@@ -490,8 +496,82 @@ export function NodeInspector({
           </div>
         )}
 
+        {/* 5b. AI GUARDRAIL PROPERTIES */}
+        {nodeType === 'AI_GUARDRAIL' && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-600 dark:text-emerald-400">
+              <div className="font-semibold flex items-center gap-1.5">
+                <Shield className="size-3.5 text-emerald-500" /> Security & Guardrail Filter
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                Applies automated PII redaction, token budgets, and prompt injection defenses to protect outputs.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">
+                Guardrail Mode
+              </label>
+              <select
+                value={config.policy || 'pii-redaction'}
+                onChange={(e) => updateConfig('policy', e.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="pii-redaction">PII Redaction & Sanitization</option>
+                <option value="cost-cap">Cost & Token Budget Cap</option>
+                <option value="prompt-injection">Prompt Injection Defense</option>
+                <option value="content-safety">Content Safety & Toxicity Filter</option>
+              </select>
+            </div>
+
+            {config.policy !== 'cost-cap' ? (
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-foreground">
+                  Policy Enforcement Action
+                </label>
+                <select
+                  value={config.action || 'redact'}
+                  onChange={(e) => updateConfig('action', e.target.value)}
+                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="redact">Redact (Replace sensitive tokens with [redacted])</option>
+                  <option value="block">Block (Halt execution on policy violation)</option>
+                  <option value="warn">Warn (Record finding in audit trace without modifying payload)</option>
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-foreground">
+                  Max Tokens Cap Per Run: {config.maxTokens || 4096}
+                </label>
+                <Input
+                  type="number"
+                  min={100}
+                  max={64000}
+                  value={config.maxTokens || 4096}
+                  onChange={(e) => updateConfig('maxTokens', parseInt(e.target.value, 10) || 4096)}
+                  className="h-8 text-xs font-mono"
+                />
+                <span className="text-[10px] text-muted-foreground">Hard cap applied by execution engine</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">
+                Custom Banned Words / RegEx (Optional)
+              </label>
+              <Input
+                value={config.bannedPhrases || ''}
+                onChange={(e) => updateConfig('bannedPhrases', e.target.value)}
+                placeholder="secret_key, internal_ip, password"
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+          </div>
+        )}
+
         {/* 6. TRANSFORM / TEMPLATE PROPERTIES */}
-        {nodeType === 'TRANSFORM' && (
+        {(nodeType === 'TRANSFORM' || nodeType === 'PROMPT_TEMPLATE') && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -520,35 +600,221 @@ export function NodeInspector({
           </div>
         )}
 
-        {/* Variable Picker Modal */}
-        {showVariablePicker && (
-          <div className="rounded-xl border border-primary/30 bg-surface-raised p-3 shadow-md space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground">
-                Select Variable
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowVariablePicker(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3" />
-              </button>
+        {/* 7. TRIGGER CONFIGURATION */}
+        {nodeType.startsWith('TRIGGER') && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+              Event Trigger Configuration
             </div>
-            <div className="grid grid-cols-1 gap-1">
-              {COMMON_VARIABLES.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => insertVariable(v)}
-                  className="rounded px-2 py-1 text-left font-mono text-[11px] text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+            {nodeType === 'TRIGGER_SCHEDULE' && (
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-foreground">Cron Expression</label>
+                <Input
+                  value={config.cron || '0 9 * * 1-5'}
+                  onChange={(e) => updateConfig('cron', e.target.value)}
+                  placeholder="0 9 * * 1-5"
+                  className="h-8 text-xs font-mono"
+                />
+                <span className="text-[10px] text-muted-foreground">Every weekday at 09:00 UTC</span>
+              </div>
+            )}
+            {nodeType === 'TRIGGER_WEBHOOK' && (
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-foreground">HTTP Method</label>
+                <select
+                  value={config.httpMethod || 'POST'}
+                  onChange={(e) => updateConfig('httpMethod', e.target.value)}
+                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground"
                 >
-                  {v}
-                </button>
-              ))}
+                  <option value="POST">POST (Recommended)</option>
+                  <option value="GET">GET</option>
+                  <option value="PUT">PUT</option>
+                </select>
+              </div>
+            )}
+            {nodeType === 'TRIGGER_CHAT' && (
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-foreground">Welcome Greeting</label>
+                <Input
+                  value={config.welcomeGreeting || 'Hi! How can I assist you today?'}
+                  onChange={(e) => updateConfig('welcomeGreeting', e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 8. KNOWLEDGE & RETRIEVAL CONFIGURATION */}
+        {(nodeType === 'KB_SEARCH' || nodeType === 'VECTOR_SEARCH' || nodeType === 'KNOWLEDGE_RETRIEVAL') && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Knowledge Base</label>
+              <select
+                value={config.knowledgeBaseId || 'kb-support-docs'}
+                onChange={(e) => updateConfig('knowledgeBaseId', e.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground"
+              >
+                <option value="kb-support-docs">Product Documentation & FAQs</option>
+                <option value="kb-api-reference">API Contracts & SDK Guides</option>
+                <option value="kb-legal-terms">Compliance & Terms of Service</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Top Chunks (Top-K): {config.topK || 4}</label>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={config.topK || 4}
+                onChange={(e) => updateConfig('topK', parseInt(e.target.value, 10))}
+                className="w-full accent-primary"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Min Similarity Score: {config.minScore || 0.75}</label>
+              <input
+                type="range"
+                min="0.5"
+                max="0.95"
+                step="0.05"
+                value={config.minScore || 0.75}
+                onChange={(e) => updateConfig('minScore', parseFloat(e.target.value))}
+                className="w-full accent-primary"
+              />
             </div>
           </div>
         )}
+
+        {/* 9. CODE EXECUTION CONFIGURATION */}
+        {(nodeType === 'CODE_JAVASCRIPT' || nodeType === 'CODE' || nodeType === 'CODE_PYTHON') && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Sandboxed Code</label>
+              <textarea
+                rows={8}
+                value={config.code || '// Custom transformation\nreturn input;'}
+                onChange={(e) => updateConfig('code', e.target.value)}
+                className="w-full font-mono rounded-md border border-border bg-zinc-950 text-zinc-100 p-2.5 text-xs focus:border-primary focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 10. HTTP REQUEST & DATABASE */}
+        {nodeType === 'HTTP_REQUEST' && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">HTTP Method</label>
+              <select
+                value={config.method || 'GET'}
+                onChange={(e) => updateConfig('method', e.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground"
+              >
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Endpoint URL</label>
+              <Input
+                value={config.url || ''}
+                onChange={(e) => updateConfig('url', e.target.value)}
+                placeholder="https://api.example.com/data"
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+          </div>
+        )}
+
+        {nodeType === 'DB_QUERY' && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">SQL Query</label>
+              <textarea
+                rows={4}
+                value={config.query || 'SELECT * FROM records LIMIT 20;'}
+                onChange={(e) => updateConfig('query', e.target.value)}
+                className="w-full font-mono rounded-md border border-border bg-zinc-950 text-zinc-100 p-2.5 text-xs"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 11. ANNOTATIONS: STICKY NOTE & GROUP */}
+        {(nodeType === 'STICKY_NOTE' || nodeType === 'NOTE') && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Note Content</label>
+              <textarea
+                rows={6}
+                value={config.note || ''}
+                onChange={(e) => updateConfig('note', e.target.value)}
+                placeholder="Document your architecture or steps here…"
+                className="w-full rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-2.5 text-xs text-foreground"
+              />
+            </div>
+          </div>
+        )}
+
+        {nodeType === 'GROUP' && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Stage Title</label>
+              <Input
+                value={config.label || ''}
+                onChange={(e) => updateConfig('label', e.target.value)}
+                placeholder="e.g. Data Ingestion Stage"
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Test Node Action & Simulation Preview */}
+        <div className="pt-4 border-t border-border space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+              Node Execution Sandbox
+            </span>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={async () => {
+                setIsTesting(true);
+                setTestResult(null);
+                try {
+                  const res = await workflowService.simulateTestNode(selectedNode, config);
+                  setTestResult(res);
+                  toast.success(`Node "${selectedNode.data?.label || selectedNode.id}" executed successfully`);
+                } catch {
+                  toast.error('Node test failed');
+                } finally {
+                  setIsTesting(false);
+                }
+              }}
+              loading={isTesting}
+              className="gap-1 text-xs"
+            >
+              <Cpu className="size-3 text-emerald-500" />
+              Test Node
+            </Button>
+          </div>
+
+          {testResult && (
+            <div className="rounded-lg border border-border bg-zinc-950 p-2.5 space-y-1.5 font-mono text-[10px]">
+              <div className="flex items-center justify-between text-muted-foreground border-b border-zinc-800 pb-1">
+                <span className="text-emerald-400 font-bold">{testResult.status}</span>
+                <span>{testResult.latencyMs}ms</span>
+              </div>
+              <pre className="text-zinc-300 max-h-36 overflow-y-auto whitespace-pre-wrap">
+                {JSON.stringify(testResult.output, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

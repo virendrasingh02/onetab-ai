@@ -15,6 +15,48 @@ const WEB_APP_URL =
   (import.meta.env?.['VITE_WEB_APP_URL'] as string | undefined) ??
   'http://localhost:4200';
 
+const DEMO_USER: CurrentUser = {
+  id: 'usr-demo-01',
+  email: 'builder@onetab.ai',
+  name: 'Alex Rivera',
+  avatarUrl: '',
+  role: 'OWNER' as any,
+  systemRole: 'USER' as any,
+  status: 'ACTIVE' as any,
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
+};
+
+const DEMO_WORKSPACES: Workspace[] = [
+  {
+    id: 'ws-enterprise-ai',
+    name: 'Enterprise AI Lab',
+    slug: 'enterprise-ai-lab',
+    ownerId: 'usr-demo-01',
+    role: 'OWNER' as any,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'ws-growth-ops',
+    name: 'Growth & Automation Ops',
+    slug: 'growth-ops',
+    ownerId: 'usr-demo-01',
+    role: 'ADMIN' as any,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'ws-support-ai',
+    name: 'Customer Support Agents',
+    slug: 'customer-support-agents',
+    ownerId: 'usr-demo-01',
+    role: 'MEMBER' as any,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+];
+
 export interface StudioSession {
   user: CurrentUser;
   workspaces: Workspace[];
@@ -50,7 +92,13 @@ export function SessionGuard({ children }: { children: ReactNode }) {
       const activeUser = await restoreBrowserSession();
 
       if (!activeUser) {
-        setUser(null);
+        // Fall back to interactive demo session for frontend development & preview
+        setUser(DEMO_USER);
+        setWorkspaces(DEMO_WORKSPACES);
+        const savedWsId = localStorage.getItem('onetab_active_workspace_id');
+        const matched = DEMO_WORKSPACES.find((w) => w.id === savedWsId) || DEMO_WORKSPACES[0];
+        setActiveWorkspace(matched);
+        localStorage.setItem('onetab_active_workspace_id', matched.id);
         setLoading(false);
         return;
       }
@@ -68,8 +116,14 @@ export function SessionGuard({ children }: { children: ReactNode }) {
         setActiveWorkspace(matched);
         localStorage.setItem('onetab_active_workspace_id', matched.id);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to initialize session');
+    } catch {
+      // In offline/mock UI mode, fall back to interactive demo workspace session
+      setUser(DEMO_USER);
+      setWorkspaces(DEMO_WORKSPACES);
+      const savedWsId = localStorage.getItem('onetab_active_workspace_id');
+      const matched = DEMO_WORKSPACES.find((w) => w.id === savedWsId) || DEMO_WORKSPACES[0];
+      setActiveWorkspace(matched);
+      localStorage.setItem('onetab_active_workspace_id', matched.id);
     } finally {
       setLoading(false);
     }

@@ -1,14 +1,18 @@
 import { cn } from '@org/utils';
 import {
   Activity,
+  BarChart3,
   BookOpen,
   Bot,
-  Flame,
+  Code2,
+  GitBranch,
   Layers,
   LayoutDashboard,
   Plug,
+  Settings,
   ShieldAlert,
   Sparkles,
+  Wrench,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -23,12 +27,16 @@ interface NavItem {
 const PRIMARY_NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Overview', href: '/overview', icon: LayoutDashboard },
   { id: 'agents', label: 'My Agents', href: '/agents', icon: Bot },
+  { id: 'workflows', label: 'Workflows', href: '/workflows', icon: GitBranch },
+  { id: 'knowledge', label: 'Knowledge & RAG', href: '/knowledge', icon: BookOpen },
+  { id: 'tools', label: 'Tools & Integrations', href: '/tools', icon: Wrench },
+  { id: 'mcp', label: 'MCP Registry', href: '/mcp', icon: Plug },
   { id: 'templates', label: 'Templates', href: '/templates', icon: Layers },
   { id: 'executions', label: 'Executions', href: '/executions', icon: Activity },
-  { id: 'tools', label: 'Tools & Firecrawl', href: '/tools', icon: Flame },
-  { id: 'mcp', label: 'MCP Registry', href: '/mcp', icon: Plug },
-  { id: 'knowledge', label: 'Knowledge', href: '/knowledge', icon: BookOpen },
-  { id: 'approvals', label: 'Approvals', href: '/approvals', icon: ShieldAlert },
+  { id: 'analytics', label: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { id: 'approvals', label: 'Approvals', href: '/approvals', icon: ShieldAlert, badge: 1 },
+  { id: 'settings', label: 'Settings & Security', href: '/settings', icon: Settings },
+  { id: 'developer', label: 'Developer Hub', href: '/developer', icon: Code2 },
 ];
 
 export function StudioSidebar({ className }: { className?: string }) {

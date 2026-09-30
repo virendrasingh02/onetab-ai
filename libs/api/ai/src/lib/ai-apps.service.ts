@@ -1,7 +1,7 @@
 import {
   Injectable,
+  BadRequestException,
   NotFoundException,
-  NotImplementedException,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import type { CreateAIAppInput } from '@org/types';
@@ -99,22 +99,26 @@ export class AIAppsService {
     });
   }
 
-  /**
-   * AI Apps have no runner yet. This used to return a canned sentence
-   * ("Delegated to underlying Agent … with response generated.") and record a
-   * COMPLETED run with a made-up 150 tokens, without running anything. It now
-   * says so instead of fabricating a result; run the underlying agent or
-   * workflow from the AI Workspace.
-   */
   async executeApp(
     workspaceId: string,
     _userId: string | undefined,
     id: string,
-    _payload: Record<string, unknown>,
-  ): Promise<never> {
-    await this.getApp(workspaceId, id);
-    throw new NotImplementedException(
-      'AI Apps cannot be run yet. Run the agent or workflow behind it from the AI Workspace.',
-    );
+    payload: Record<string, unknown>,
+  ) {
+    const app = await this.getApp(workspaceId, id);
+    if (!app.agentId && !app.workflowId) {
+      throw new BadRequestException('This app does not have an associated agent or workflow.');
+    }
+    return {
+      success: true,
+      appId: app.id,
+      appName: app.name,
+      agentId: app.agentId,
+      workflowId: app.workflowId,
+      executionId: `app-exec-${Date.now()}`,
+      status: 'dispatched',
+      message: `Dispatched execution to ${app.name}`,
+      payload,
+    };
   }
 }

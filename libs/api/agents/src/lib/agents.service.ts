@@ -39,6 +39,7 @@ export class AgentsService {
       tools?: string[];
       isMarketplace?: boolean;
       graphJson?: string;
+      configuration?: Record<string, any>;
     },
   ) {
     return this.entitiesService.createEntity(workspaceId, creatorId, {
@@ -62,6 +63,7 @@ export class AgentsService {
       tools?: string[];
       isActive?: boolean;
       graphJson?: string;
+      configuration?: Record<string, any>;
     },
   ) {
     return this.entitiesService.updateEntity(workspaceId, agentId, data);

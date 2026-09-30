@@ -17,3 +17,4 @@ export * from './lib/calls.schema.js';
 export * from './lib/reminders.schema.js';
 
 export * from './lib/ai-workspace.schema.js';
+export * from './lib/agent-spec.schema.js';

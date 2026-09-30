@@ -48,6 +48,7 @@ export const createAgentSchema = z.object({
   tools: agentFields.tools.optional(),
   graphJson: agentFields.graphJson.optional(),
   isMarketplace: z.boolean().optional(),
+  configuration: record.optional(),
 });
 
 export const updateAgentSchema = createAgentSchema
@@ -346,3 +347,84 @@ export type UpdateAIEntityInput = z.infer<typeof updateAIEntitySchema>;
 export type ExecuteAIEntityInput = z.infer<typeof executeAIEntitySchema>;
 export type CreateWorkflowInput = z.infer<typeof createWorkflowSchema>;
 export type UpdateWorkflowInput = z.infer<typeof updateWorkflowSchema>;
+
+/* ------------------------------------------------- universal graph schema -- */
+
+export const workflowVariableSchema = z.object({
+  name: text(120).min(1),
+  type: z.enum([
+    'string',
+    'number',
+    'boolean',
+    'object',
+    'array',
+    'file',
+    'image',
+    'audio',
+    'json',
+    'secret',
+  ]),
+  value: z.unknown().optional(),
+  source: z.string().max(80).optional(),
+  description: text(500).optional(),
+  required: z.boolean().optional(),
+});
+
+export const workflowNodeDataSchema = z
+  .object({
+    label: text(120).optional(),
+    category: text(80).optional(),
+    description: text(1_000).optional(),
+    icon: text(60).optional(),
+    config: record.default({}),
+    inputs: z.array(workflowVariableSchema).optional(),
+    outputs: z.array(workflowVariableSchema).optional(),
+    isEnabled: z.boolean().optional(),
+  })
+  .passthrough();
+
+export const workflowNodeInstanceSchema = z.object({
+  id: id,
+  type: z.string().min(1).max(80),
+  position: z.object({
+    x: z.number(),
+    y: z.number(),
+  }),
+  data: workflowNodeDataSchema,
+  width: z.number().optional(),
+  height: z.number().optional(),
+  selected: z.boolean().optional(),
+  parentId: id.optional(),
+});
+
+export const workflowEdgeInstanceSchema = z.object({
+  id: id,
+  source: id,
+  target: id,
+  sourceHandle: z.string().max(80).nullable().optional(),
+  targetHandle: z.string().max(80).nullable().optional(),
+  label: text(120).optional(),
+  type: z.string().max(80).optional(),
+  animated: z.boolean().optional(),
+  data: record.optional(),
+});
+
+export const workflowGraphSchema = z.object({
+  schemaVersion: z.literal('1.0.0').default('1.0.0'),
+  name: text(160).optional(),
+  description: text(2_000).optional(),
+  viewport: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      zoom: z.number(),
+    })
+    .optional(),
+  nodes: z.array(workflowNodeInstanceSchema).default([]),
+  edges: z.array(workflowEdgeInstanceSchema).default([]),
+  variables: z.array(workflowVariableSchema).default([]),
+  environment: z.record(z.string(), z.string()).optional(),
+  metadata: record.optional(),
+});
+
+export type WorkflowGraphInput = z.infer<typeof workflowGraphSchema>;

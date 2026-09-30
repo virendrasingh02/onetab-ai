@@ -15,9 +15,11 @@ import {
   ChannelAgentsController,
 } from './agents.controller.js';
 import { AIEntitiesController } from './ai-entities.controller.js';
+import { AgentStudioAiModeController } from './agent-studio-ai-mode.controller.js';
 import { AgentsService } from './agents.service.js';
 import { AIEntitiesService } from './ai-entities.service.js';
 import { AIRuntimeService } from './ai-runtime.service.js';
+import { AgentStudioAiModeService } from './agent-studio-ai-mode.service.js';
 import { IntegrationToolBridgeService } from './integration-tool-bridge.service.js';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
 import { FirecrawlService } from './firecrawl.service.js';
@@ -39,11 +41,13 @@ import { AgentOutputDeliveryService } from './agent-output-delivery.service.js';
     AgentsController,
     ChannelAgentsController,
     AIEntitiesController,
+    AgentStudioAiModeController,
   ],
   providers: [
     AgentsService,
     AIEntitiesService,
     AIRuntimeService,
+    AgentStudioAiModeService,
     MCPToolRegistryService,
     FirecrawlService,
     IntegrationToolBridgeService,
@@ -58,6 +62,7 @@ import { AgentOutputDeliveryService } from './agent-output-delivery.service.js';
     AgentsService,
     AIEntitiesService,
     AIRuntimeService,
+    AgentStudioAiModeService,
     MCPToolRegistryService,
     FirecrawlService,
   ],
