@@ -1,5 +1,5 @@
 import { aiApi } from '@org/api-client';
-import type { AIProvider, AIProviderMetadata } from '@org/types';
+import type { AIProvider } from '@org/types';
 import {
   Badge,
   Button,
@@ -10,38 +10,25 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
-  LoadingState,
+  Page,
+  PageHeader,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Activity,
-  AlertCircle,
-  Bot,
-  Brain,
-  Check,
   CheckCircle2,
-  Clock,
   Coins,
   Copy,
   Cpu,
   Key,
-  Lock,
   Plus,
   RefreshCw,
-  Search,
-  Server,
   Settings,
   Shield,
-  ShieldAlert,
-  ShieldCheck,
-  Sliders,
-  Sparkles,
   Trash2,
   UserPlus,
   Users,
-  Wand2,
   Zap,
 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -295,16 +282,14 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-          Workspace Settings & Model Providers
-        </h1>
-        <p className="text-xs text-muted-foreground">
-          Configure LLM credentials, access tokens, team permissions, and guardrails for {activeWorkspace.name}.
-        </p>
-      </div>
+    <Page width="wide" padding="none" className="space-y-6">
+      {/* Header matching Admin */}
+      <PageHeader
+        title="Workspace Settings & Model Providers"
+        description={`Configure LLM credentials, access tokens, team permissions, and guardrails for ${activeWorkspace.name}.`}
+        icon={<Settings className="size-5" />}
+        accent="violet"
+      />
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-border text-xs">
@@ -367,7 +352,7 @@ export function SettingsPage() {
                   className={cn(
                     'rounded-xl border p-4 transition-all flex flex-col justify-between bg-surface',
                     isConfigured
-                      ? 'border-emerald-500/30 bg-emerald-500/5'
+                      ? 'border-success/30 bg-success/5'
                       : 'border-border hover:border-border-hover',
                   )}
                 >
@@ -432,7 +417,7 @@ export function SettingsPage() {
                           className="text-xs text-muted-foreground hover:text-foreground"
                           title="Test Connection"
                         >
-                          <Zap className="size-3.5 text-amber-400 mr-1" />
+                          <Zap className="size-3.5 text-warning mr-1" />
                           Test
                         </Button>
                         <Button
@@ -506,8 +491,8 @@ export function SettingsPage() {
                         : 'Builder (Create, Edit, Test)'}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-500 font-medium">
-                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                      <span className="inline-flex items-center gap-1 text-[11px] text-success font-medium">
+                        <span className="size-1.5 rounded-full bg-success" />
                         {m.status}
                       </span>
                     </td>
@@ -727,7 +712,7 @@ export function SettingsPage() {
             <div className="rounded-xl border border-border bg-surface p-4 space-y-1">
               <div className="text-xs text-muted-foreground">Estimated Monthly Cost</div>
               <div className="text-xl font-bold text-foreground">$1.28</div>
-              <div className="text-[10px] text-emerald-500 flex items-center gap-1 mt-2">
+              <div className="text-[10px] text-success flex items-center gap-1 mt-2">
                 <CheckCircle2 className="size-3" /> Well within monthly budget cap ($50.00)
               </div>
             </div>
@@ -882,6 +867,6 @@ export function SettingsPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   );
 }

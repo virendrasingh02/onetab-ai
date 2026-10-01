@@ -63,10 +63,13 @@ import {
 } from 'date-fns';
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import { detectLinks, normalizeUrl } from './link-detector.js';
 import { LinkPreviewCard } from './link-preview-card.js';
@@ -93,6 +96,12 @@ export interface ChatBubbleProps {
   editWindowMinutes?: number | null;
   onOpenThread?: () => void;
   threadReplyCount?: number;
+  /**
+   * Draws the curved line joining the avatar to the "N replies" summary.
+   * Only the main message list wants it; inside a thread or the Threads inbox
+   * the replies are already right there.
+   */
+  showThreadConnector?: boolean;
   /** True when the thread has replies the reader has not caught up to. */
   threadHasUnread?: boolean;
   attachmentSlot?: ReactNode;
@@ -293,6 +302,58 @@ function StickerMessage({ url, alt }: { url: string; alt: string }) {
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '👀', '✅'] as const;
 const SENDING_INDICATOR_DELAY_MS = 600;
 
+/**
+ * Geometry for the curved line joining a thread root's avatar to its
+ * "N replies" summary. Measured rather than hard-coded because the body in
+ * between varies (attachments, link previews, reactions), and re-measured
+ * whenever the message resizes.
+ */
+function useThreadConnector(
+  enabled: boolean,
+  articleRef: RefObject<HTMLElement | null>,
+  avatarRef: RefObject<HTMLElement | null>,
+  summaryRef: RefObject<HTMLElement | null>,
+): CSSProperties | null {
+  const [style, setStyle] = useState<CSSProperties | null>(null);
+
+  useLayoutEffect(() => {
+    const article = articleRef.current;
+    if (!enabled || !article) {
+      setStyle(null);
+      return;
+    }
+
+    const measure = () => {
+      // The ref is the stretched avatar column; the avatar is its first child.
+      const avatar =
+        avatarRef.current?.firstElementChild?.getBoundingClientRect();
+      const summary = summaryRef.current?.getBoundingClientRect();
+      if (!avatar || !summary || avatar.height === 0) {
+        setStyle(null);
+        return;
+      }
+      const origin = article.getBoundingClientRect();
+      const gap = 4;
+      const left = avatar.left + avatar.width / 2 - origin.left;
+      const top = avatar.bottom + gap - origin.top;
+      const bottom = summary.top + summary.height / 2 - origin.top;
+      const width = summary.left - gap - origin.left - left;
+      if (bottom - top < 8 || width < 4) {
+        setStyle(null);
+        return;
+      }
+      setStyle({ left, top, width, height: bottom - top });
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(article);
+    return () => observer.disconnect();
+  }, [enabled, articleRef, avatarRef, summaryRef]);
+
+  return style;
+}
+
 function ThreadRepliesButton({
   count,
   hasUnread,
@@ -379,6 +440,7 @@ export function ChatBubble({
   editWindowMinutes = null,
   onOpenThread,
   threadReplyCount,
+  showThreadConnector = false,
   threadHasUnread = false,
   attachmentSlot,
   isPinned = false,
@@ -475,6 +537,17 @@ export function ChatBubble({
    */
   const [actionsPinned, setActionsPinned] = useState(false);
   const articleRef = useRef<HTMLElement | null>(null);
+  const avatarRef = useRef<HTMLDivElement | null>(null);
+  const threadSummaryRef = useRef<HTMLDivElement | null>(null);
+  const threadConnector = useThreadConnector(
+    showThreadConnector &&
+      !isGrouped &&
+      !!threadReplyCount &&
+      threadReplyCount > 0,
+    articleRef,
+    avatarRef,
+    threadSummaryRef,
+  );
 
   useEffect(() => {
     if (!actionsPinned) return;
@@ -911,7 +984,18 @@ export function ChatBubble({
       )}
     >
       {/* Avatar / Left Column with Profile Popover & Modal */}
-      <div className={cn(isCompact ? 'w-8' : 'w-10', 'shrink-0')}>
+      {threadConnector ? (
+        <span
+          aria-hidden
+          style={threadConnector}
+          className="pointer-events-none absolute rounded-bl-lg border-b-2 border-l-2 border-border"
+        />
+      ) : null}
+
+      <div
+        ref={avatarRef}
+        className={cn(isCompact ? 'w-8' : 'w-10', 'shrink-0')}
+      >
         {isGrouped && showSending ? (
           <SendingIndicator
             className={cn('w-full justify-center', isCompact ? 'mt-0.5' : 'mt-1')}
@@ -1214,13 +1298,15 @@ export function ChatBubble({
 
         {/* Thread replies summary */}
         {threadReplyCount && threadReplyCount > 0 ? (
-          <ThreadRepliesButton
-            count={threadReplyCount}
-            hasUnread={threadHasUnread}
-            participants={threadParticipants}
-            lastReplyAt={lastReplyAt}
-            onOpen={onOpenThread}
-          />
+          <div ref={threadSummaryRef} className="w-fit">
+            <ThreadRepliesButton
+              count={threadReplyCount}
+              hasUnread={threadHasUnread}
+              participants={threadParticipants}
+              lastReplyAt={lastReplyAt}
+              onOpen={onOpenThread}
+            />
+          </div>
         ) : null}
 
         {/* Seen By / Read Receipts */}

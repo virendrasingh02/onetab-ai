@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getBezierPath,
   getSmoothStepPath,
   Position,
 } from '@xyflow/react';
-import { X, Play, Zap } from 'lucide-react';
+import { X } from 'lucide-react';
 
 export function WorkflowEdge({
   id,
@@ -89,9 +88,9 @@ export function WorkflowEdge({
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border shadow-xs transition-transform ${
                 isBranchTrue
-                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                  ? 'bg-success/10 text-success border-success/30'
                   : isBranchFalse
-                  ? 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+                  ? 'bg-destructive/10 text-destructive border-destructive/30'
                   : 'bg-surface text-muted-foreground border-border'
               }`}
             >

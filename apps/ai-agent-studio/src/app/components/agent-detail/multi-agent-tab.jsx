@@ -4,18 +4,12 @@ import { cn } from '@org/utils';
 import { agentsApi } from '@org/api-client';
 import { useQuery } from '@tanstack/react-query';
 import {
-  ArrowRight,
   Bot,
-  CheckCircle2,
   GitBranch,
-  Layers,
   Network,
   Play,
   Plus,
-  RefreshCw,
   Save,
-  Shield,
-  Sparkles,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -274,8 +268,8 @@ export function MultiAgentTab({ agent, onSave }) {
             <h3 className="text-sm font-semibold text-foreground">Supervisor Manager Agent</h3>
             <p className="text-xs text-muted-foreground">Primary orchestrator: {agent.name}</p>
           </div>
-          <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-500 border border-emerald-500/20">
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-0.5 text-[11px] font-semibold text-success border border-success/20">
+            <span className="size-1.5 rounded-full bg-success animate-pulse" />
             Supervisor Active
           </span>
         </div>
@@ -389,7 +383,7 @@ export function MultiAgentTab({ agent, onSave }) {
               </div>
 
               <div className="pt-2 border-t border-border flex items-center justify-between">
-                <span className="text-[10px] text-emerald-500 font-medium">● Ready</span>
+                <span className="text-[10px] text-success font-medium">● Ready</span>
                 <button
                   onClick={() => {
                     setWorkers(workers.filter((w) => w.id !== worker.id));
@@ -419,7 +413,7 @@ export function MultiAgentTab({ agent, onSave }) {
             loading={isSimulating}
             className="gap-1 text-xs"
           >
-            <Play className="size-3 text-emerald-500" />
+            <Play className="size-3 text-success" />
             Simulate Swarm Turn
           </Button>
         </div>
@@ -430,10 +424,10 @@ export function MultiAgentTab({ agent, onSave }) {
               key={i}
               className={cn(
                 log.includes('Supervisor')
-                  ? 'text-indigo-400'
+                  ? 'text-accent-indigo'
                   : log.includes('returned') || log.includes('satisfied') || log.includes('delivered')
-                  ? 'text-emerald-400'
-                  : 'text-zinc-400',
+                  ? 'text-success'
+                  : 'text-muted-foreground',
               )}
             >
               {log}

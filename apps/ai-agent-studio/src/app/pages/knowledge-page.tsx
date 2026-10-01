@@ -12,24 +12,18 @@ import {
   DialogTitle,
   Input,
   LoadingState,
+  Page,
+  PageHeader,
   toast,
 } from '@org/ui';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BookOpen,
-  CheckCircle2,
-  Database,
-  ExternalLink,
   FileText,
-  Filter,
-  Globe,
-  Layers,
   Plus,
   RefreshCw,
   Search,
-  Sliders,
   Sparkles,
-  Trash2,
   Upload,
 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -171,42 +165,35 @@ export function KnowledgePage() {
   }
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <Page width="wide" padding="none" className="space-y-6">
+      {/* Header matching Admin */}
+      <PageHeader
+        title="Knowledge Base & RAG Management"
+        description={`Index PDFs, web pages, Notion workspaces, and databases for hybrid semantic vector search in ${activeWorkspace.name}.`}
+        icon={<BookOpen className="size-5" />}
+        accent="cyan"
+        actions={
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              Knowledge Base & RAG Management
-            </h1>
-            <Badge variant="outline" className="text-xs">
-              {knowledgeBases.length} collections
-            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+              loading={isRefetching}
+              className="gap-1.5 text-xs"
+            >
+              <RefreshCw className="size-3.5" /> Refresh
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setIsCreateKbOpen(true)}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <Plus className="size-4" /> New Knowledge Base
+            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Index PDFs, web pages, Notion workspaces, and databases for hybrid semantic vector search in {activeWorkspace.name}.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void refetch()}
-            loading={isRefetching}
-            className="gap-1.5 text-xs"
-          >
-            <RefreshCw className="size-3.5" /> Refresh
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setIsCreateKbOpen(true)}
-            className="gap-1.5 text-xs font-semibold"
-          >
-            <Plus className="size-4" /> New Knowledge Base
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main Grid: Left Column Collections + Active Collection Detail */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -477,7 +464,7 @@ export function KnowledgePage() {
                               <FileText className="size-3 text-primary" />
                               {chunk.title}
                             </span>
-                            <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-500">
+                            <span className="rounded bg-success/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-success">
                               {(chunk.score * 100).toFixed(1)}% match
                             </span>
                           </div>
@@ -697,6 +684,6 @@ export function KnowledgePage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   );
 }

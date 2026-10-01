@@ -1,3 +1,4 @@
+import { Badge, ScrollArea } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Activity,
@@ -11,103 +12,203 @@ import {
   Plug,
   Settings,
   ShieldAlert,
-  Sparkles,
   Wrench,
 } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import type { ComponentType } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { NavLink } from 'react-router-dom';
+import {
+  fetchWorkspaceApprovals,
+  workspaceApprovalsKey,
+} from '../services/approvals-query.js';
+import { useStudioSession } from '../session-guard.js';
 
 interface NavItem {
-  id: string;
+  to: string;
   label: string;
-  href: string;
-  icon: typeof LayoutDashboard;
-  badge?: string | number;
+  icon: ComponentType<{ className?: string }>;
+  tone: string;
+  end?: boolean;
+  /** Shows the live pending-approval count. */
+  showsPendingApprovals?: boolean;
 }
 
-const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { id: 'overview', label: 'Overview', href: '/overview', icon: LayoutDashboard },
-  { id: 'agents', label: 'My Agents', href: '/agents', icon: Bot },
-  { id: 'workflows', label: 'Workflows', href: '/workflows', icon: GitBranch },
-  { id: 'knowledge', label: 'Knowledge & RAG', href: '/knowledge', icon: BookOpen },
-  { id: 'tools', label: 'Tools & Integrations', href: '/tools', icon: Wrench },
-  { id: 'mcp', label: 'MCP Registry', href: '/mcp', icon: Plug },
-  { id: 'templates', label: 'Templates', href: '/templates', icon: Layers },
-  { id: 'executions', label: 'Executions', href: '/executions', icon: Activity },
-  { id: 'analytics', label: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { id: 'approvals', label: 'Approvals', href: '/approvals', icon: ShieldAlert, badge: 1 },
-  { id: 'settings', label: 'Settings & Security', href: '/settings', icon: Settings },
-  { id: 'developer', label: 'Developer Hub', href: '/developer', icon: Code2 },
+const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+  {
+    title: 'Build & Orchestrate',
+    items: [
+      {
+        to: '/overview',
+        label: 'Studio Overview',
+        icon: LayoutDashboard,
+        tone: 'text-primary',
+        end: true,
+      },
+      {
+        to: '/agents',
+        label: 'My Agents',
+        icon: Bot,
+        tone: 'text-accent-blue',
+      },
+      {
+        to: '/workflows',
+        label: 'Visual Workflows',
+        icon: GitBranch,
+        tone: 'text-accent-cyan',
+      },
+      {
+        to: '/templates',
+        label: 'Agent Templates',
+        icon: Layers,
+        tone: 'text-accent-violet',
+      },
+    ],
+  },
+  {
+    title: 'Intelligence & Tools',
+    items: [
+      {
+        to: '/knowledge',
+        label: 'Knowledge & RAG',
+        icon: BookOpen,
+        tone: 'text-success',
+      },
+      {
+        to: '/tools',
+        label: 'Tools & Integrations',
+        icon: Wrench,
+        tone: 'text-warning',
+      },
+      {
+        to: '/mcp',
+        label: 'MCP Registry',
+        icon: Plug,
+        tone: 'text-accent-pink',
+      },
+    ],
+  },
+  {
+    title: 'Operations & Governance',
+    items: [
+      {
+        to: '/executions',
+        label: 'Executions & Logs',
+        icon: Activity,
+        tone: 'text-accent-cyan',
+      },
+      {
+        to: '/approvals',
+        label: 'Human Approvals',
+        icon: ShieldAlert,
+        tone: 'text-destructive',
+        showsPendingApprovals: true,
+      },
+      {
+        to: '/analytics',
+        label: 'Studio Analytics',
+        icon: BarChart3,
+        tone: 'text-accent-violet',
+      },
+    ],
+  },
+  {
+    title: 'Platform & Config',
+    items: [
+      {
+        to: '/settings',
+        label: 'Settings & Security',
+        icon: Settings,
+        tone: 'text-muted-foreground',
+      },
+      {
+        to: '/developer',
+        label: 'Developer Hub',
+        icon: Code2,
+        tone: 'text-primary',
+      },
+    ],
+  },
 ];
 
-export function StudioSidebar({ className }: { className?: string }) {
-  const location = useLocation();
+export interface StudioSidebarProps {
+  className?: string;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
+}
+
+export function StudioSidebar({
+  className,
+  mobileOpen = false,
+  onCloseMobile,
+}: StudioSidebarProps) {
+  const { activeWorkspace } = useStudioSession();
+  const { data: pendingApprovals = [] } = useQuery({
+    queryKey: workspaceApprovalsKey(activeWorkspace.id, 'PENDING'),
+    queryFn: () => fetchWorkspaceApprovals(activeWorkspace.id, 'PENDING'),
+    staleTime: 30_000,
+  });
+  const pendingCount = pendingApprovals.length;
 
   return (
-    <aside
-      className={cn(
-        'flex w-60 shrink-0 flex-col border-r border-border bg-surface select-none',
-        className,
-      )}
-    >
-      <div className="flex flex-1 flex-col justify-between p-3">
-        <div className="space-y-1">
-          <div className="px-3 py-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-            Agent Studio
-          </div>
+    <>
+      {/* Mobile Backdrop */}
+      {mobileOpen ? (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden"
+          onClick={onCloseMobile}
+          aria-hidden="true"
+        />
+      ) : null}
 
-          <nav className="space-y-0.5">
-            {PRIMARY_NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                item.href === '/overview'
-                  ? location.pathname === '/' || location.pathname === '/overview'
-                  : location.pathname.startsWith(item.href);
-
-              return (
-                <Link
-                  key={item.id}
-                  to={item.href}
-                  className={cn(
-                    'group flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary/10 text-primary font-semibold'
-                      : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground',
-                  )}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon
-                      className={cn(
-                        'size-4 shrink-0 transition-colors',
+      <aside
+        className={cn(
+          'flex flex-col border-r border-sidebar-border bg-sidebar transition-all duration-200 shrink-0 select-none',
+          mobileOpen
+            ? 'fixed inset-y-0 left-0 z-50 w-60 shadow-2xl md:relative md:z-auto md:shadow-none'
+            : 'hidden md:flex md:w-60',
+          className,
+        )}
+      >
+        <ScrollArea className="flex-1">
+          <nav className="px-1 py-2">
+            {NAV_GROUPS.map((group) => (
+              <div
+                key={group.title}
+                className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border last:border-b-0"
+              >
+                <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
+                  {group.title}
+                </div>
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={onCloseMobile}
+                    className={({ isActive }) =>
+                      cn(
+                        'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                        'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
                         isActive
-                          ? 'text-primary'
-                          : 'text-muted-foreground group-hover:text-foreground',
-                      )}
-                    />
-                    <span>{item.label}</span>
-                  </div>
-
-                  {item.badge != null && (
-                    <span className="rounded-full bg-primary/15 px-1.5 py-0.2 text-[10px] font-semibold text-primary">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+                          ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                          : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
+                      )
+                    }
+                  >
+                    <item.icon className={cn('size-3.5 shrink-0', item.tone)} />
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {item.showsPendingApprovals && pendingCount > 0 ? (
+                      <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">
+                        {pendingCount}
+                      </Badge>
+                    ) : null}
+                  </NavLink>
+                ))}
+              </div>
+            ))}
           </nav>
-        </div>
-
-        {/* Bottom Quick Card */}
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs">
-          <div className="flex items-center gap-2 font-semibold text-foreground">
-            <Sparkles className="size-3.5 text-primary" />
-            <span>Firecrawl Enabled</span>
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-            Native web search, scraping, crawl and schema extraction connected to the visual workflow canvas.
-          </p>
-        </div>
-      </div>
-    </aside>
+        </ScrollArea>
+      </aside>
+    </>
   );
 }

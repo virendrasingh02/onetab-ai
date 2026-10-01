@@ -1,18 +1,12 @@
 import { useState } from 'react';
-import { Badge, Button, Input, toast, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, LoadingState } from '@org/ui';
+import { Badge, Button, Input, toast, LoadingState } from '@org/ui';
 import { cn } from '@org/utils';
 import { aiMemoryApi } from '@org/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Brain,
-  Clock,
-  Database,
-  HardDrive,
-  Plus,
   RefreshCw,
   Search,
-  Sliders,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { useStudioSession } from '../../session-guard.js';

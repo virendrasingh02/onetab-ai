@@ -74,4 +74,31 @@ describe('MarkdownMessage', () => {
     const inlineElem = screen.getByText('pnpm test');
     expect(inlineElem.tagName.toLowerCase()).toBe('code');
   });
+
+  it('wraps full multi-word mention names in a single mention chip', () => {
+    const { container } = render(
+      <MarkdownMessage
+        text={'@Code Reviewer & Security Sentinel hi\ngive me list'}
+        mentionNames={['Code Reviewer & Security Sentinel', 'Virendra Singh']}
+      />,
+    );
+
+    const mentionChip = container.querySelector('span[data-mention]');
+    expect(mentionChip).toBeInTheDocument();
+    expect(mentionChip?.getAttribute('data-mention')).toBe('Code Reviewer & Security Sentinel');
+    expect(mentionChip?.textContent).toBe('@Code Reviewer & Security Sentinel');
+    expect(container.textContent).toContain('hi');
+    expect(container.textContent).toContain('give me list');
+  });
+
+  it('automatically recognizes default AI agent names even if mentionNames is omitted', () => {
+    const { container } = render(
+      <MarkdownMessage text={'Hey @Code Reviewer & Security Sentinel please check this PR'} />,
+    );
+
+    const mentionChip = container.querySelector('span[data-mention]');
+    expect(mentionChip).toBeInTheDocument();
+    expect(mentionChip?.getAttribute('data-mention')).toBe('Code Reviewer & Security Sentinel');
+    expect(mentionChip?.textContent).toBe('@Code Reviewer & Security Sentinel');
+  });
 });

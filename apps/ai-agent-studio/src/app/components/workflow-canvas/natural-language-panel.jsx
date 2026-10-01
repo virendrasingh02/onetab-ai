@@ -1,18 +1,12 @@
 import { useState } from 'react';
-import { Badge, Button, Input, toast } from '@org/ui';
+import { Button, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  AlertCircle,
-  Bot,
   Check,
-  ChevronRight,
   GitBranch,
-  Play,
   Plus,
   Send,
   Sparkles,
-  Trash2,
-  Undo2,
   X,
 } from 'lucide-react';
 import { naturalLanguageService } from '../../services/naturalLanguageService.js';
@@ -131,7 +125,7 @@ export function NaturalLanguagePanel({
                       {item.diff.addedNodes.map((n) => (
                         <div
                           key={n.id}
-                          className="flex items-center gap-1.5 rounded bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-500 font-medium border border-emerald-500/20"
+                          className="flex items-center gap-1.5 rounded bg-success/10 px-2 py-1 text-[11px] text-success font-medium border border-success/20"
                         >
                           <Plus className="size-3" />
                           <span>Add: {n.data.label}</span>
@@ -145,7 +139,7 @@ export function NaturalLanguagePanel({
                       {item.diff.modifiedNodes.map((n) => (
                         <div
                           key={n.id}
-                          className="flex items-center gap-1.5 rounded bg-amber-500/10 px-2 py-1 text-[11px] text-amber-500 font-medium border border-amber-500/20"
+                          className="flex items-center gap-1.5 rounded bg-warning/10 px-2 py-1 text-[11px] text-warning font-medium border border-warning/20"
                         >
                           <Sparkles className="size-3" />
                           <span>Update: {n.data.label}</span>

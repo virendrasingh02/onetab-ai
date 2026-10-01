@@ -11,21 +11,16 @@ import {
   DialogFooter,
   DialogBody,
   Input,
+  PageHeader,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Activity,
   Bot,
-  Calendar,
-  CheckCircle2,
   Clock,
   Copy,
   Download,
-  Flame,
   GitBranch,
-  Layers,
-  MoreVertical,
   Play,
   Plus,
   Search,
@@ -133,44 +128,37 @@ export function WorkflowsPage() {
   }, [agents, search]);
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div className="space-y-6 max-w-7xl w-full mx-auto">
+      {/* Header bar matching Admin */}
+      <PageHeader
+        title="Visual Workflows"
+        description="Multi-step graph pipelines, automated triggers, conditional branching, and human approval steps."
+        icon={<GitBranch className="size-5" />}
+        accent="blue"
+        actions={
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              Visual Workflows
-            </h1>
-            <Badge variant="outline" className="text-xs">
-              {agents.length} workflows
-            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAiCreateOpen(true)}
+              className="gap-1.5 text-xs text-primary border-primary/30 bg-primary/5 hover:bg-primary/10"
+            >
+              <Sparkles className="size-3.5" />
+              Build with AI Prompt
+            </Button>
+
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setIsCreateOpen(true)}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <Plus className="size-3.5" />
+              New Workflow
+            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Multi-step graph pipelines, automated triggers, conditional branching, and human approval steps.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAiCreateOpen(true)}
-            className="gap-1.5 text-xs text-primary border-primary/30 bg-primary/5 hover:bg-primary/10"
-          >
-            <Sparkles className="size-3.5" />
-            Build with AI Prompt
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => setIsCreateOpen(true)}
-            className="gap-1.5 text-xs font-semibold"
-          >
-            <Plus className="size-3.5" />
-            New Workflow
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Search & Filter Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -265,7 +253,7 @@ export function WorkflowsPage() {
                       variant={isPub ? 'default' : 'outline'}
                       className={cn(
                         'text-[10px] px-1.5 py-0.2 uppercase tracking-wide',
-                        isPub ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30' : 'text-muted-foreground',
+                        isPub ? 'bg-success/15 text-success border-success/30' : 'text-muted-foreground',
                       )}
                     >
                       {isPub ? 'Published' : 'Draft'}

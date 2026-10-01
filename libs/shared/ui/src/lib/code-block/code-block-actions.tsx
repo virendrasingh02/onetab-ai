@@ -125,7 +125,7 @@ export function CodeBlockActions({
                   variant="ghost"
                   size="icon"
                   onClick={onReset}
-                  className="size-7 text-muted-foreground hover:text-foreground"
+                  className="size-6 text-muted-foreground hover:text-foreground"
                   aria-label="Reset edits"
                 >
                   <RotateCcw className="size-3.5" />
@@ -142,7 +142,7 @@ export function CodeBlockActions({
                   variant="ghost"
                   size="icon"
                   onClick={onCancel}
-                  className="size-7 text-muted-foreground hover:text-foreground"
+                  className="size-6 text-muted-foreground hover:text-foreground"
                   aria-label="Cancel editing"
                 >
                   <X className="size-3.5" />
@@ -159,10 +159,10 @@ export function CodeBlockActions({
                   variant="default"
                   size="sm"
                   onClick={onSave}
-                  className="h-7 px-2.5 text-xs gap-1.5"
+                  className="h-6 px-2 text-[11px] gap-1 rounded-sm"
                   aria-label="Save code"
                 >
-                  <Save className="size-3.5" />
+                  <Save className="size-3" />
                   <span>Save</span>
                 </Button>
               </TooltipTrigger>
@@ -181,10 +181,10 @@ export function CodeBlockActions({
                   size="sm"
                   onClick={onExecute}
                   disabled={isExecuting}
-                  className="h-7 px-2 text-xs gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                  className="h-6 px-2 text-[11px] gap-1 border-primary/30 text-primary hover:bg-primary/10 rounded-sm"
                   aria-label="Run code"
                 >
-                  <Play className={cn('size-3.5 fill-current', isExecuting && 'animate-spin')} />
+                  <Play className={cn('size-3 fill-current', isExecuting && 'animate-spin')} />
                   <span>{isExecuting ? 'Running...' : 'Run'}</span>
                 </Button>
               </TooltipTrigger>
@@ -200,7 +200,7 @@ export function CodeBlockActions({
                   variant={isPreview ? 'secondary' : 'ghost'}
                   size="icon"
                   onClick={onTogglePreview}
-                  className="size-7 text-muted-foreground hover:text-foreground"
+                  className="size-6 text-muted-foreground hover:text-foreground"
                   aria-label={isPreview ? 'Show Code' : 'Show Preview'}
                 >
                   <Eye className="size-3.5" />
@@ -218,7 +218,7 @@ export function CodeBlockActions({
                   variant="ghost"
                   size="icon"
                   onClick={onToggleEdit}
-                  className="size-7 text-muted-foreground hover:text-foreground"
+                  className="size-6 text-muted-foreground hover:text-foreground"
                   aria-label="Edit code"
                 >
                   <Edit3 className="size-3.5" />
@@ -237,7 +237,7 @@ export function CodeBlockActions({
                   size="icon"
                   onClick={handleCopy}
                   className={cn(
-                    'size-7 transition-colors',
+                    'size-6 transition-colors',
                     copied
                       ? 'text-emerald-500 hover:text-emerald-600'
                       : 'text-muted-foreground hover:text-foreground',
@@ -261,7 +261,7 @@ export function CodeBlockActions({
                     variant={isWordWrap ? 'secondary' : 'ghost'}
                     size="icon"
                     onClick={onToggleWrap}
-                    className="size-7 text-muted-foreground hover:text-foreground"
+                    className="size-6 text-muted-foreground hover:text-foreground"
                     aria-label={isWordWrap ? 'Disable word wrap' : 'Enable word wrap'}
                   >
                     <WrapText className="size-3.5" />
@@ -279,7 +279,7 @@ export function CodeBlockActions({
                     variant={showLineNumbers ? 'secondary' : 'ghost'}
                     size="icon"
                     onClick={onToggleLineNumbers}
-                    className="size-7 text-muted-foreground hover:text-foreground"
+                    className="size-6 text-muted-foreground hover:text-foreground"
                     aria-label={showLineNumbers ? 'Hide line numbers' : 'Show line numbers'}
                   >
                     <Hash className="size-3.5" />
@@ -299,7 +299,7 @@ export function CodeBlockActions({
                     variant="ghost"
                     size="icon"
                     onClick={handleDownload}
-                    className="size-7 text-muted-foreground hover:text-foreground"
+                    className="size-6 text-muted-foreground hover:text-foreground"
                     aria-label="Download code file"
                   >
                     <Download className="size-3.5" />
@@ -317,7 +317,7 @@ export function CodeBlockActions({
                     variant="ghost"
                     size="icon"
                     onClick={onToggleExpand}
-                    className="size-7 text-muted-foreground hover:text-foreground"
+                    className="size-6 text-muted-foreground hover:text-foreground"
                     aria-label={isExpanded ? 'Collapse' : 'Expand full screen'}
                   >
                     {isExpanded ? (
@@ -339,7 +339,7 @@ export function CodeBlockActions({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-7 text-muted-foreground hover:text-foreground"
+                  className="size-6 text-muted-foreground hover:text-foreground"
                   aria-label="More actions"
                 >
                   <MoreHorizontal className="size-3.5" />

@@ -9,11 +9,6 @@ import {
   DialogBody,
   DialogHeader,
   DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Input,
   LoadingState,
   Popover,
@@ -86,7 +81,6 @@ import {
   Trash2,
   Undo,
   Upload,
-  User,
   Variable,
   Wand2,
   X,
@@ -1451,7 +1445,7 @@ export function AgentDetailPage() {
                   type="submit"
                   size="sm"
                   variant="ghost"
-                  className="h-7 w-7 p-0 text-emerald-500 hover:text-emerald-400"
+                  className="h-7 w-7 p-0 text-success hover:text-success"
                 >
                   <Check className="h-3.5 w-3.5" />
                 </Button>
@@ -1501,12 +1495,12 @@ export function AgentDetailPage() {
             {/* Auto-saved / Unsaved Status */}
             <div className="hidden xl:flex items-center shrink-0">
               {isDirty ? (
-                <span className="text-[11px] text-amber-500 flex items-center gap-1 font-medium whitespace-nowrap" title="Unsaved changes on canvas">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span className="text-[11px] text-warning flex items-center gap-1 font-medium whitespace-nowrap" title="Unsaved changes on canvas">
+                  <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
                   Unsaved
                 </span>
               ) : (
-                <span className="text-[11px] text-emerald-500/90 flex items-center gap-1 font-medium whitespace-nowrap" title="All changes saved">
+                <span className="text-[11px] text-success/90 flex items-center gap-1 font-medium whitespace-nowrap" title="All changes saved">
                   <Check className="h-3 w-3" />
                   Saved
                 </span>
@@ -1579,10 +1573,10 @@ export function AgentDetailPage() {
             variant="outline"
             size="sm"
             onClick={() => setIsTestDrawerOpen(true)}
-            className="h-8 gap-1.5 text-xs font-medium rounded-lg border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
+            className="h-8 gap-1.5 text-xs font-medium rounded-lg border-success/30 bg-success/10 text-success hover:bg-success/20"
             title="Test run this agent workflow"
           >
-            <Play className="h-3.5 w-3.5 fill-emerald-500" />
+            <Play className="h-3.5 w-3.5 fill-success" />
             <span>Test Run</span>
           </Button>
 
@@ -1595,7 +1589,7 @@ export function AgentDetailPage() {
             className={cn(
               "h-8 gap-1.5 text-xs rounded-lg transition-all",
               isDirty
-                ? "border-amber-500/40 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 font-medium"
+                ? "border-warning/40 text-warning bg-warning/10 hover:bg-warning/20 font-medium"
                 : "border-border/60 text-muted-foreground hover:text-foreground"
             )}
             title={isDirty ? "Save unsaved changes" : "All changes saved"}
@@ -1610,9 +1604,9 @@ export function AgentDetailPage() {
               <button
                 type="button"
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg bg-[#0066ff] hover:bg-[#0055e0] active:bg-[#0047ba]",
-                  "text-white px-3.5 h-8 text-xs font-semibold shadow-xs transition-all duration-150 select-none cursor-pointer focus:outline-hidden",
-                  isPublishPopoverOpen && "ring-2 ring-blue-400/50 bg-[#0055e0]"
+                  "inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary-hover active:bg-primary/90",
+                  "text-primary-foreground px-3.5 h-8 text-xs font-semibold shadow-xs transition-all duration-150 select-none cursor-pointer focus:outline-hidden",
+                  isPublishPopoverOpen && "ring-2 ring-primary/40"
                 )}
               >
                 <span>Publish</span>
@@ -1634,10 +1628,10 @@ export function AgentDetailPage() {
                   <div
                     className={cn(
                       "absolute -left-6 size-3.5 rounded-full border-2 bg-card flex items-center justify-center",
-                      isPublished ? "border-emerald-500 bg-emerald-500/20" : "border-muted-foreground/60"
+                      isPublished ? "border-success bg-success/20" : "border-muted-foreground/60"
                     )}
                   >
-                    {isPublished && <div className="size-1.5 rounded-full bg-emerald-500" />}
+                    {isPublished && <div className="size-1.5 rounded-full bg-success" />}
                   </div>
                   <span className="text-xs text-muted-foreground font-medium">
                     {isPublished ? `Published · ${targetPublishVersion} live` : 'Not published yet'}
@@ -1654,8 +1648,8 @@ export function AgentDetailPage() {
                     }}
                     disabled={publishMutation.isPending}
                     className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-xl bg-[#0066ff] hover:bg-[#0055e0] active:bg-[#0047ba]",
-                      "text-white py-2.5 px-3 text-xs font-semibold shadow-md transition-all select-none cursor-pointer",
+                      "w-full flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-hover active:bg-primary/90",
+                      "text-primary-foreground py-2.5 px-3 text-xs font-semibold shadow-md transition-all select-none cursor-pointer",
                       "disabled:opacity-60 disabled:cursor-not-allowed"
                     )}
                   >
@@ -1682,10 +1676,10 @@ export function AgentDetailPage() {
                   <div
                     className={cn(
                       "absolute -left-6 size-3.5 rounded-full border-2 bg-card flex items-center justify-center",
-                      isDirty ? "border-amber-500 bg-amber-500/20" : "border-emerald-500/80 bg-emerald-500/20"
+                      isDirty ? "border-warning bg-warning/20" : "border-success/80 bg-success/20"
                     )}
                   >
-                    <div className={cn("size-1.5 rounded-full", isDirty ? "bg-amber-500 animate-pulse" : "bg-emerald-500")} />
+                    <div className={cn("size-1.5 rounded-full", isDirty ? "bg-warning animate-pulse" : "bg-success")} />
                   </div>
                   <span className="text-xs text-muted-foreground font-medium">
                     {isDirty ? 'Auto-Saved · unsaved changes' : 'Auto-Saved · in a few seconds'}
@@ -2200,7 +2194,7 @@ export function AgentDetailPage() {
             {/* Visual Branding & Appearance */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
               <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Palette className="size-4 text-emerald-500" />
+                <Palette className="size-4 text-success" />
                 Icon, Custom Avatar & Theme
               </h3>
 
@@ -2343,7 +2337,7 @@ export function AgentDetailPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => updateSettings({ avatar: '' })}
-                          className="text-xs text-rose-500 hover:text-rose-600 h-8"
+                          className="text-xs text-destructive hover:text-destructive/80 h-8"
                         >
                           Clear Custom Image
                         </Button>
@@ -2384,7 +2378,7 @@ export function AgentDetailPage() {
             {/* Categorization, Tags & Ownership */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
               <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Tag className="size-4 text-blue-500" />
+                <Tag className="size-4 text-accent-blue" />
                 Category, Tags & Ownership
               </h3>
 
@@ -2542,7 +2536,7 @@ export function AgentDetailPage() {
             {/* 2. Model & Inference Configuration (Module 5.2) */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
               <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Cpu className="size-4 text-purple-500" />
+                <Cpu className="size-4 text-accent-violet" />
                 Foundation Model & Sampling Configuration
               </h3>
 
@@ -2605,7 +2599,7 @@ export function AgentDetailPage() {
             {/* 3. Planning & Execution Controls (Module 5.4) */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
               <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Network className="size-4 text-emerald-500" />
+                <Network className="size-4 text-success" />
                 Autonomous Planning & Step Limits
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
@@ -2637,7 +2631,7 @@ export function AgentDetailPage() {
             {/* 4. Guardrails & Safety Defenses (Module 18.2) */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-3">
               <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <ShieldCheck className="size-4 text-blue-500" />
+                <ShieldCheck className="size-4 text-accent-blue" />
                 Enterprise Safety & Guardrail Policies
               </h3>
               <div className="space-y-2 text-xs">
@@ -2799,23 +2793,23 @@ export function AgentDetailPage() {
                 <div className="space-y-4">
                   {/* Summary Metric Cards */}
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                      <div className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
+                    <div className="rounded-lg border border-success/20 bg-success/5 p-3">
+                      <div className="text-[10px] uppercase font-bold text-success-text">
                         Added Nodes
                       </div>
-                      <div className="text-xl font-bold text-emerald-500">+{addedNodes.length}</div>
+                      <div className="text-xl font-bold text-success">+{addedNodes.length}</div>
                     </div>
-                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-                      <div className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400">
+                    <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
+                      <div className="text-[10px] uppercase font-bold text-warning-text">
                         Modified Nodes
                       </div>
-                      <div className="text-xl font-bold text-amber-500">~{modifiedNodes.length}</div>
+                      <div className="text-xl font-bold text-warning">~{modifiedNodes.length}</div>
                     </div>
-                    <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3">
-                      <div className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400">
+                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                      <div className="text-[10px] uppercase font-bold text-destructive-text">
                         Removed Nodes
                       </div>
-                      <div className="text-xl font-bold text-rose-500">-{removedNodes.length}</div>
+                      <div className="text-xl font-bold text-destructive">-{removedNodes.length}</div>
                     </div>
                   </div>
 
@@ -2826,9 +2820,9 @@ export function AgentDetailPage() {
                     </div>
                     <div className="divide-y divide-border max-h-60 overflow-y-auto">
                       {addedNodes.map((n) => (
-                        <div key={n.id} className="flex items-center justify-between p-2.5 bg-emerald-500/5">
+                        <div key={n.id} className="flex items-center justify-between p-2.5 bg-success/5">
                           <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full bg-emerald-500" />
+                            <span className="size-2 rounded-full bg-success" />
                             <span className="font-semibold text-foreground">{n.data?.label || n.id}</span>
                             <span className="font-mono text-[10px] text-muted-foreground">({n.type})</span>
                           </div>
@@ -2837,9 +2831,9 @@ export function AgentDetailPage() {
                       ))}
 
                       {modifiedNodes.map((n) => (
-                        <div key={n.id} className="flex items-center justify-between p-2.5 bg-amber-500/5">
+                        <div key={n.id} className="flex items-center justify-between p-2.5 bg-warning/5">
                           <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full bg-amber-500" />
+                            <span className="size-2 rounded-full bg-warning" />
                             <span className="font-semibold text-foreground">{n.data?.label || n.id}</span>
                             <span className="font-mono text-[10px] text-muted-foreground">({n.type})</span>
                           </div>
@@ -2848,9 +2842,9 @@ export function AgentDetailPage() {
                       ))}
 
                       {removedNodes.map((n) => (
-                        <div key={n.id} className="flex items-center justify-between p-2.5 bg-rose-500/5">
+                        <div key={n.id} className="flex items-center justify-between p-2.5 bg-destructive/5">
                           <div className="flex items-center gap-2">
-                            <span className="size-2 rounded-full bg-rose-500" />
+                            <span className="size-2 rounded-full bg-destructive" />
                             <span className="font-semibold text-foreground">{n.data?.label || n.id}</span>
                             <span className="font-mono text-[10px] text-muted-foreground">({n.type})</span>
                           </div>

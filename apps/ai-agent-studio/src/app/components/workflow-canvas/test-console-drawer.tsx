@@ -143,7 +143,7 @@ export function TestConsoleDrawer({
               <span className="flex items-center gap-1">
                 <Activity className="size-3" /> {executionResult.tokensUsed || 0} tokens
               </span>
-              <span className="flex items-center gap-1 text-amber-500 font-semibold">
+              <span className="flex items-center gap-1 text-warning font-semibold">
                 <Coins className="size-3" /> {executionResult.credits || 1} cr
               </span>
             </div>
@@ -195,8 +195,8 @@ export function TestConsoleDrawer({
 
           {/* Pending Approval Banner */}
           {executionResult?.status === 'WAITING_APPROVAL' && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs space-y-2">
-              <div className="flex items-center gap-2 font-bold text-amber-500">
+            <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs space-y-2">
+              <div className="flex items-center gap-2 font-bold text-warning">
                 <ShieldAlert className="size-4" />
                 <span>Human Approval Required</span>
               </div>
@@ -208,7 +208,7 @@ export function TestConsoleDrawer({
                   size="xs"
                   onClick={() => void handleApprove()}
                   loading={isApproving}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                  className="bg-success hover:bg-success/90 text-success-foreground gap-1"
                 >
                   <Check className="size-3" /> Approve Action
                 </Button>
@@ -259,9 +259,9 @@ export function TestConsoleDrawer({
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         {step.status === 'SUCCESS' ? (
-                          <CheckCircle2 className="size-3.5 text-emerald-500" />
+                          <CheckCircle2 className="size-3.5 text-success" />
                         ) : step.status === 'WAITING' ? (
-                          <UserCheck className="size-3.5 text-amber-500" />
+                          <UserCheck className="size-3.5 text-warning" />
                         ) : (
                           <AlertCircle className="size-3.5 text-destructive" />
                         )}

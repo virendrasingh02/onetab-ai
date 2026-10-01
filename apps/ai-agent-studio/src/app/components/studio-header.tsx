@@ -4,6 +4,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -11,28 +12,60 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Hint,
 } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
+  Bot,
   Check,
   ChevronsUpDown,
   Coins,
   ExternalLink,
-  Laptop,
+  Monitor,
   Moon,
-  Sparkles,
   Sun,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useStudioSession } from '../session-guard.js';
 
 const WEB_APP_URL =
   (import.meta.env?.['VITE_WEB_APP_URL'] as string | undefined) ??
   'http://localhost:4200';
 
-export function StudioHeader() {
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const options = [
+    { value: 'light', label: 'Light theme', icon: Sun },
+    { value: 'dark', label: 'Dark theme', icon: Moon },
+    { value: 'system', label: 'System theme', icon: Monitor },
+  ] as const;
+
+  return (
+    <div className="gap-1 flex items-center">
+      {options.map(({ value, label, icon: Icon }) => (
+        <Hint key={value} label={label}>
+          <Button
+            variant={theme === value ? 'secondary' : 'ghost'}
+            size="icon-sm"
+            aria-label={label}
+            aria-pressed={theme === value}
+            onClick={() => setTheme(value)}
+          >
+            <Icon className="size-3.5" />
+          </Button>
+        </Hint>
+      ))}
+    </div>
+  );
+}
+
+export interface StudioHeaderProps {
+  onToggleMobile?: () => void;
+}
+
+export function StudioHeader({ onToggleMobile }: StudioHeaderProps) {
   const { user, workspaces, activeWorkspace, setActiveWorkspace } =
     useStudioSession();
-  const { theme, setTheme } = useTheme();
 
   // Load credits for active workspace
   const { data: creditAccount } = useQuery({
@@ -51,27 +84,32 @@ export function StudioHeader() {
     : 'U';
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border bg-surface/90 px-4 backdrop-blur-md">
-      {/* Left: Branding & Workspace Switcher */}
-      <div className="flex items-center gap-3">
-        <a
-          href="/overview"
-          className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
+    <header className="h-14 gap-2 sm:gap-3 px-3 sm:px-6 flex shrink-0 items-center justify-between border-b border-border bg-background z-30">
+      {/* Left: Mobile trigger, Branding & Workspace Switcher */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onToggleMobile}
+          className="md:hidden shrink-0"
+          aria-label="Toggle studio navigation"
         >
-          <div className="flex size-8 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary shadow-xs">
-            <Sparkles className="size-4" />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold tracking-tight text-foreground">
-              OneTab
-            </span>
-            <span className="text-xs font-semibold text-muted-foreground">
-              Agent Studio
-            </span>
-          </div>
-        </a>
+          <Bot className="size-4" />
+        </Button>
 
-        <div className="h-4 w-px bg-border mx-1" />
+        <Link
+          to="/overview"
+          className="flex items-center gap-2.5 transition-opacity hover:opacity-90 shrink-0"
+        >
+          <span className="size-7 text-xs font-semibold flex items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs">
+            O
+          </span>
+          <h1 className="hidden sm:block text-sm font-semibold truncate">
+            OneTab AI — Agent Studio
+          </h1>
+        </Link>
+
+        <div className="hidden sm:block h-4 w-px bg-border mx-1" />
 
         {/* Workspace Switcher */}
         <DropdownMenu>
@@ -81,13 +119,13 @@ export function StudioHeader() {
               size="sm"
               className="h-8 gap-2 px-2 text-xs font-medium text-foreground hover:bg-surface-raised"
             >
-              <div className="flex size-5 items-center justify-center rounded bg-primary/20 text-[10px] font-bold text-primary">
+              <div className="flex size-5 items-center justify-center rounded bg-primary/20 text-[10px] font-bold text-primary shrink-0">
                 {activeWorkspace.name.slice(0, 1).toUpperCase()}
               </div>
-              <span className="max-w-[120px] truncate sm:max-w-[180px]">
+              <span className="hidden sm:inline max-w-[160px] truncate">
                 {activeWorkspace.name}
               </span>
-              <ChevronsUpDown className="size-3 text-muted-foreground" />
+              <ChevronsUpDown className="size-3 text-muted-foreground shrink-0" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
@@ -116,21 +154,21 @@ export function StudioHeader() {
         </DropdownMenu>
       </div>
 
-      {/* Right: Credits, Theme, Main Platform Link & User Profile */}
-      <div className="flex items-center gap-2">
+      {/* Right: Credits, Main Platform Link, Theme Toggle & User Profile */}
+      <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
         {/* Shared Credits Indicator */}
-        <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-border bg-surface-raised px-2.5 py-1 text-xs font-medium text-foreground shadow-2xs">
-          <Coins className="size-3 text-amber-500" />
-          <span>
-            {creditAccount ? `${creditAccount.balance.toLocaleString()} credits` : 'Active'}
-          </span>
-        </div>
+        {creditAccount ? (
+          <Badge variant="neutral" className="hidden md:inline-flex gap-1">
+            <Coins className="size-3 text-warning" />
+            {creditAccount.balance.toLocaleString()} credits
+          </Badge>
+        ) : null}
 
         {/* Link back to Main Platform */}
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
           asChild
         >
           <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
@@ -139,36 +177,8 @@ export function StudioHeader() {
           </a>
         </Button>
 
-        {/* Theme Toggle */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="size-8 text-muted-foreground hover:text-foreground"
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? (
-                <Moon className="size-4" />
-              ) : theme === 'light' ? (
-                <Sun className="size-4" />
-              ) : (
-                <Laptop className="size-4" />
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-32">
-            <DropdownMenuItem onClick={() => setTheme('light')} className="text-xs gap-2">
-              <Sun className="size-3.5" /> Light
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('dark')} className="text-xs gap-2">
-              <Moon className="size-3.5" /> Dark
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('system')} className="text-xs gap-2">
-              <Laptop className="size-3.5" /> System
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Segmented Theme Toggle matching Admin */}
+        <ThemeToggle />
 
         {/* User Avatar Menu */}
         <DropdownMenu>
@@ -177,6 +187,7 @@ export function StudioHeader() {
               variant="ghost"
               size="icon-sm"
               className="size-8 rounded-full p-0"
+              aria-label="User account"
             >
               <Avatar className="size-7">
                 {user.avatarUrl ? (

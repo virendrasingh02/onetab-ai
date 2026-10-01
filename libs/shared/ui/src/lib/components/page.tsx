@@ -120,7 +120,7 @@ export function PageHeader({
         </div>
 
         {actions ? (
-          <div className="gap-2 flex shrink-0 flex-wrap items-center">
+          <div className="gap-2 flex max-w-full shrink-0 flex-wrap items-center">
             {actions}
           </div>
         ) : null}

@@ -17,30 +17,23 @@ import {
   DropdownMenuTrigger,
   Input,
   LoadingState,
+  PageHeader,
   toast,
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Archive,
-  ArrowRight,
   Bot,
-  Brain,
   CheckCircle2,
   Copy,
   Download,
   Edit2,
-  ExternalLink,
-  Flame,
-  GitBranch,
-  Layers,
   MessageSquare,
   MoreVertical,
   Pause,
-  Play,
   Plus,
   RotateCcw,
   Search,
-  Shield,
   Sparkles,
   Tag,
   Trash2,
@@ -518,46 +511,44 @@ export function AgentsListPage() {
   }
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            Agent Lifecycle Management
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Build, test, deploy, pause, archive, and manage autonomous AI agents across environments in {activeWorkspace.name}.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => setIsAiModeOpen(true)}
-            className="gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-          >
-            <Wand2 className="size-3.5" /> AI Mode (Agent Builder)
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsImportOpen(true)}
-            className="gap-1.5 text-xs"
-          >
-            <Upload className="size-3.5" /> Import JSON
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setCreateMode('scratch');
-              setIsCreateOpen(true);
-            }}
-            className="gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            <Plus className="size-4" /> Create New AI Agent
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-7xl w-full mx-auto">
+      {/* Header bar matching Admin */}
+      <PageHeader
+        title="Agent Lifecycle Management"
+        description={`Build, test, deploy, pause, archive, and manage autonomous AI agents across environments in ${activeWorkspace.name}.`}
+        icon={<Bot className="size-5" />}
+        accent="blue"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setIsAiModeOpen(true)}
+              className="gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+            >
+              <Wand2 className="size-3.5" /> AI Mode (Agent Builder)
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImportOpen(true)}
+              className="gap-1.5 text-xs"
+            >
+              <Upload className="size-3.5" /> Import JSON
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                setCreateMode('scratch');
+                setIsCreateOpen(true);
+              }}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <Plus className="size-4" /> Create New AI Agent
+            </Button>
+          </div>
+        }
+      />
 
       {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
@@ -663,7 +654,7 @@ export function AgentsListPage() {
             <Button
               size="sm"
               onClick={() => setIsCreateOpen(true)}
-              className="mt-4 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="mt-4 gap-1.5 bg-success hover:bg-success/90 text-success-foreground"
             >
               <Plus className="size-3.5" /> Create New AI Agent
             </Button>
@@ -693,21 +684,21 @@ export function AgentsListPage() {
               }
               if (status === 'testing') {
                 return (
-                  <Badge className="bg-amber-500/15 text-amber-500 border border-amber-500/30 text-[10px] gap-1">
+                  <Badge className="bg-warning/15 text-warning border border-warning/30 text-[10px] gap-1">
                     <Zap className="size-2.5" /> TESTING
                   </Badge>
                 );
               }
               if (status === 'paused') {
                 return (
-                  <Badge className="bg-blue-500/15 text-blue-500 border border-blue-500/30 text-[10px] gap-1">
+                  <Badge className="bg-accent-blue/15 text-accent-blue border border-accent-blue/30 text-[10px] gap-1">
                     <Pause className="size-2.5" /> PAUSED
                   </Badge>
                 );
               }
               if (status === 'archived') {
                 return (
-                  <Badge className="bg-zinc-500/15 text-zinc-400 border border-zinc-500/30 text-[10px] gap-1">
+                  <Badge className="bg-muted-foreground/15 text-muted-foreground border border-muted-foreground/30 text-[10px] gap-1">
                     <Archive className="size-2.5" /> ARCHIVED
                   </Badge>
                 );
@@ -784,7 +775,7 @@ export function AgentsListPage() {
                                 <Edit2 className="size-3.5 mr-2 text-primary" /> Open Canvas Builder
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => navigate(`/chat/${agent.id}`)}>
-                                <MessageSquare className="size-3.5 mr-2 text-sky-500" /> Open Chat Interface
+                                <MessageSquare className="size-3.5 mr-2 text-accent-blue" /> Open Chat Interface
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
@@ -843,7 +834,7 @@ export function AgentsListPage() {
                           ) : (
                             <>
                               <DropdownMenuItem onClick={() => restoreMutation.mutate(agent.id)}>
-                                <RotateCcw className="size-3.5 mr-2 text-emerald-500" /> Restore Agent
+                                <RotateCcw className="size-3.5 mr-2 text-success" /> Restore Agent
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => permanentDeleteMutation.mutate(agent.id)}
@@ -907,7 +898,7 @@ export function AgentsListPage() {
                         size="xs"
                         variant="outline"
                         onClick={() => restoreMutation.mutate(agent.id)}
-                        className="text-xs text-emerald-500 hover:text-emerald-600 gap-1"
+                        className="text-xs text-success hover:text-success/80 gap-1"
                       >
                         <RotateCcw className="size-3" /> Restore
                       </Button>
@@ -922,32 +913,42 @@ export function AgentsListPage() {
 
       {/* CREATE NEW AI AGENT MODAL: Matching Image 1 Pixel-for-Pixel + Image 2 Lifecycle Spec */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-lg bg-[#141415] border-[#27272a] text-[#f4f4f5] shadow-2xl p-6 rounded-2xl">
+        <DialogContent
+          className="sm:max-w-lg"
+          // Focus without scrolling: a mount-time autoFocus fires before the
+          // dialog has settled and scrolls its header out of view.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            (e.currentTarget as HTMLElement)
+              .querySelector<HTMLElement>('[data-initial-focus]')
+              ?.focus({ preventScroll: true });
+          }}
+        >
           <form onSubmit={handleCreateSubmit}>
             <DialogHeader className="space-y-1 pb-2">
               <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-success/15 text-success border border-success/30">
                   <Bot className="size-5" />
                 </div>
                 <div>
-                  <DialogTitle className="text-base font-bold text-white tracking-tight">
+                  <DialogTitle className="text-base font-bold text-foreground tracking-tight">
                     Create New AI Agent
                   </DialogTitle>
-                  <DialogDescription className="text-xs text-[#a1a1aa] mt-0.5">
+                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                     Choose your creation method: blank canvas, natural language prompt, or pre-built template.
                   </DialogDescription>
                 </div>
               </div>
 
               {/* Mode Switcher Tabs (Matching Image 1 Pill Switcher) */}
-              <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl bg-[#1f1f23] p-1 text-xs border border-[#2e2e33]">
+              <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl bg-background p-1 text-xs border border-border">
                 <button
                   type="button"
                   onClick={() => setCreateMode('scratch')}
                   className={`rounded-lg py-1.5 font-medium transition-all text-center ${
                     createMode === 'scratch'
-                      ? 'bg-[#27272e] text-white shadow-xs font-semibold'
-                      : 'text-[#a1a1aa] hover:text-white'
+                      ? 'bg-muted text-foreground shadow-xs font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   Blank Canvas
@@ -957,11 +958,11 @@ export function AgentsListPage() {
                   onClick={() => setCreateMode('prompt')}
                   className={`rounded-lg py-1.5 font-medium transition-all flex items-center justify-center gap-1.5 ${
                     createMode === 'prompt'
-                      ? 'bg-[#27272e] text-white shadow-xs font-semibold'
-                      : 'text-[#a1a1aa] hover:text-white'
+                      ? 'bg-muted text-foreground shadow-xs font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <Wand2 className="size-3.5 text-emerald-400" />
+                  <Wand2 className="size-3.5 text-success" />
                   <span>Natural Language</span>
                 </button>
                 <button
@@ -969,8 +970,8 @@ export function AgentsListPage() {
                   onClick={() => setCreateMode('template')}
                   className={`rounded-lg py-1.5 font-medium transition-all text-center ${
                     createMode === 'template'
-                      ? 'bg-[#27272e] text-white shadow-xs font-semibold'
-                      : 'text-[#a1a1aa] hover:text-white'
+                      ? 'bg-muted text-foreground shadow-xs font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   From Template
@@ -984,7 +985,7 @@ export function AgentsListPage() {
                 <>
                   {/* Agent Name * */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                    <label className="text-[11px] font-semibold text-foreground">
                       Agent Name *
                     </label>
                     <Input
@@ -992,33 +993,33 @@ export function AgentsListPage() {
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="e.g. Sales Qualification Specialist"
-                      className="h-9 text-xs bg-[#1a1a1d] border-[#2e2e33] text-white placeholder:text-[#71717a] focus:border-emerald-500 rounded-lg"
-                      autoFocus
+                      className="h-9 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-success rounded-lg"
+                      data-initial-focus
                     />
                   </div>
 
                   {/* 2-Column: Role / Title + Category */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                      <label className="text-[11px] font-semibold text-foreground">
                         Role / Title
                       </label>
                       <Input
                         value={newRole}
                         onChange={(e) => setNewRole(e.target.value)}
                         placeholder="Assistant"
-                        className="h-9 text-xs bg-[#1a1a1d] border-[#2e2e33] text-white placeholder:text-[#71717a] focus:border-emerald-500 rounded-lg"
+                        className="h-9 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-success rounded-lg"
                       />
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                        <label className="text-[11px] font-semibold text-foreground">
                           Category
                         </label>
                         <button
                           type="button"
                           onClick={() => setIsCreatingCustomCategory(!isCreatingCustomCategory)}
-                          className="text-[10px] text-emerald-400 hover:underline"
+                          className="text-[10px] text-success hover:underline"
                         >
                           {isCreatingCustomCategory ? 'Choose Existing' : '+ New Category'}
                         </button>
@@ -1029,7 +1030,7 @@ export function AgentsListPage() {
                             value={customCategoryInput}
                             onChange={(e) => setCustomCategoryInput(e.target.value)}
                             placeholder="Enter category name…"
-                            className="h-9 text-xs bg-[#1a1a1d] border-[#2e2e33] text-white focus:border-emerald-500 rounded-lg flex-1"
+                            className="h-9 text-xs bg-background border-border text-foreground focus:border-success rounded-lg flex-1"
                             autoFocus
                           />
                           <Button
@@ -1042,7 +1043,7 @@ export function AgentsListPage() {
                               setIsCreatingCustomCategory(false);
                               toast.success(`Category "${customCategoryInput.trim()}" selected`);
                             }}
-                            className="h-9 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="h-9 px-3 text-xs bg-success hover:bg-success/90 text-success-foreground"
                           >
                             Set
                           </Button>
@@ -1057,7 +1058,7 @@ export function AgentsListPage() {
                               setNewCategory(e.target.value);
                             }
                           }}
-                          className="h-9 w-full rounded-lg border border-[#2e2e33] bg-[#1a1a1d] px-3 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                          className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
                         >
                           {availableCategories.map((cat) => (
                             <option key={cat} value={cat}>
@@ -1072,30 +1073,30 @@ export function AgentsListPage() {
 
                   {/* Description */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                    <label className="text-[11px] font-semibold text-foreground">
                       Description
                     </label>
                     <Input
                       value={newDesc}
                       onChange={(e) => setNewDesc(e.target.value)}
                       placeholder="Briefly describe what task this agent performs..."
-                      className="h-9 text-xs bg-[#1a1a1d] border-[#2e2e33] text-white placeholder:text-[#71717a] focus:border-emerald-500 rounded-lg"
+                      className="h-9 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-success rounded-lg"
                     />
                   </div>
 
                   {/* Agent Icon, Custom Avatar & Theme (Module 1.2 Specs) */}
-                  <div className="rounded-xl border border-[#2e2e33] bg-[#161619] p-3 space-y-3">
+                  <div className="rounded-xl border border-border bg-background p-3 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-[#f4f4f5]">
+                      <span className="text-[11px] font-semibold text-foreground">
                         Agent Icon, Avatar & Theme
                       </span>
                       {/* Avatar Mode switcher: Icon vs Custom Image */}
-                      <div className="flex rounded-lg bg-[#222227] p-0.5 text-[10px]">
+                      <div className="flex rounded-lg bg-muted p-0.5 text-[10px]">
                         <button
                           type="button"
                           onClick={() => setAvatarMode('icon')}
                           className={`px-2 py-0.5 rounded-md font-medium transition-all ${
-                            avatarMode === 'icon' ? 'bg-[#2e2e38] text-white shadow-xs' : 'text-[#a1a1aa] hover:text-white'
+                            avatarMode === 'icon' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Icon Library
@@ -1104,7 +1105,7 @@ export function AgentsListPage() {
                           type="button"
                           onClick={() => setAvatarMode('upload')}
                           className={`px-2 py-0.5 rounded-md font-medium transition-all ${
-                            avatarMode === 'upload' ? 'bg-[#2e2e38] text-white shadow-xs' : 'text-[#a1a1aa] hover:text-white'
+                            avatarMode === 'upload' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Upload File
@@ -1113,7 +1114,7 @@ export function AgentsListPage() {
                           type="button"
                           onClick={() => setAvatarMode('url')}
                           className={`px-2 py-0.5 rounded-md font-medium transition-all ${
-                            avatarMode === 'url' ? 'bg-[#2e2e38] text-white shadow-xs' : 'text-[#a1a1aa] hover:text-white'
+                            avatarMode === 'url' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Image URL
@@ -1130,14 +1131,14 @@ export function AgentsListPage() {
                           theme={newTheme}
                           size="lg"
                         />
-                        <span className="text-[10px] text-[#71717a] font-mono">Live Preview</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">Live Preview</span>
                       </div>
 
                       <div className="flex-1 space-y-2.5">
                         {/* Icon Picker Mode */}
                         {avatarMode === 'icon' && (
                           <div>
-                            <label className="text-[10px] text-[#a1a1aa] block mb-1">
+                            <label className="text-[10px] text-muted-foreground block mb-1">
                               Choose Built-in Icon:
                             </label>
                             <div className="grid grid-cols-10 gap-1.5 max-h-24 overflow-y-auto pr-1">
@@ -1155,8 +1156,8 @@ export function AgentsListPage() {
                                     title={item.label}
                                     className={`size-7 rounded-lg flex items-center justify-center border transition-all ${
                                       isSelected
-                                        ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500'
-                                        : 'border-[#2e2e33] bg-[#1a1a1d] text-[#a1a1aa] hover:text-white hover:border-[#3f3f46]'
+                                        ? 'border-success bg-success/20 text-success ring-1 ring-success'
+                                        : 'border-border bg-background text-muted-foreground hover:text-foreground hover:border-border-strong'
                                     }`}
                                   >
                                     <IconComp className="size-3.5" />
@@ -1170,7 +1171,7 @@ export function AgentsListPage() {
                         {/* File Upload Mode */}
                         {avatarMode === 'upload' && (
                           <div className="space-y-1.5">
-                            <label className="text-[10px] text-[#a1a1aa] block">
+                            <label className="text-[10px] text-muted-foreground block">
                               Upload custom avatar image (PNG, JPG, SVG):
                             </label>
                             <div className="flex items-center gap-2">
@@ -1198,9 +1199,9 @@ export function AgentsListPage() {
                               />
                               <label
                                 htmlFor="agent-avatar-file-upload"
-                                className="h-8 px-3 rounded-lg border border-[#2e2e33] bg-[#222227] hover:bg-[#2a2a32] text-white text-xs flex items-center gap-1.5 cursor-pointer font-medium transition-colors"
+                                className="h-8 px-3 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground text-xs flex items-center gap-1.5 cursor-pointer font-medium transition-colors"
                               >
-                                <Upload className="size-3.5 text-emerald-400" />
+                                <Upload className="size-3.5 text-success" />
                                 <span>Choose Image…</span>
                               </label>
                               {newAvatarUrl && (
@@ -1209,7 +1210,7 @@ export function AgentsListPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setNewAvatarUrl('')}
-                                  className="h-8 text-xs text-rose-400 hover:text-rose-300"
+                                  className="h-8 text-xs text-destructive hover:text-destructive"
                                 >
                                   Clear Avatar
                                 </Button>
@@ -1221,7 +1222,7 @@ export function AgentsListPage() {
                         {/* URL Mode */}
                         {avatarMode === 'url' && (
                           <div className="space-y-1">
-                            <label className="text-[10px] text-[#a1a1aa] block">
+                            <label className="text-[10px] text-muted-foreground block">
                               Avatar Image URL:
                             </label>
                             <div className="flex items-center gap-1.5">
@@ -1229,7 +1230,7 @@ export function AgentsListPage() {
                                 value={newAvatarUrl}
                                 onChange={(e) => setNewAvatarUrl(e.target.value)}
                                 placeholder="https://example.com/avatar.png"
-                                className="h-8 text-xs bg-[#1a1a1d] border-[#2e2e33] text-white"
+                                className="h-8 text-xs bg-background border-border text-foreground"
                               />
                               {newAvatarUrl && (
                                 <Button
@@ -1237,7 +1238,7 @@ export function AgentsListPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setNewAvatarUrl('')}
-                                  className="h-8 text-xs text-rose-400 hover:text-rose-300"
+                                  className="h-8 text-xs text-destructive hover:text-destructive"
                                 >
                                   Clear
                                 </Button>
@@ -1248,7 +1249,7 @@ export function AgentsListPage() {
 
                         {/* Theme Color Row */}
                         <div className="pt-1 flex items-center justify-between">
-                          <span className="text-[10px] text-[#a1a1aa] font-medium">Theme Color:</span>
+                          <span className="text-[10px] text-muted-foreground font-medium">Theme Color:</span>
                           <div className="flex items-center gap-1.5">
                             {Object.keys(THEME_COLORS).map((color) => {
                               const item = THEME_COLORS[color];
@@ -1273,27 +1274,27 @@ export function AgentsListPage() {
 
                   {/* System Instructions */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                    <label className="text-[11px] font-semibold text-foreground">
                       System Instructions
                     </label>
                     <textarea
                       rows={3}
                       value={newPrompt}
                       onChange={(e) => setNewPrompt(e.target.value)}
-                      className="w-full rounded-lg border border-[#2e2e33] bg-[#1a1a1d] p-3 text-xs text-white placeholder:text-[#71717a] focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-border bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-success focus:outline-none"
                     />
                   </div>
 
                   {/* 2-Column: Reasoning Model + Target Environment */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                      <label className="text-[11px] font-semibold text-foreground">
                         Reasoning Model
                       </label>
                       <select
                         value={newModel}
                         onChange={(e) => setNewModel(e.target.value)}
-                        className="h-9 w-full rounded-lg border border-[#2e2e33] bg-[#1a1a1d] px-3 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                        className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
                       >
                         <option value="OpenAI GPT-4o">OpenAI GPT-4o</option>
                         <option value="OpenAI GPT-4o Mini">OpenAI GPT-4o Mini</option>
@@ -1304,13 +1305,13 @@ export function AgentsListPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                      <label className="text-[11px] font-semibold text-foreground">
                         Target Environment
                       </label>
                       <select
                         value={newEnvironment}
                         onChange={(e) => setNewEnvironment(e.target.value as any)}
-                        className="h-9 w-full rounded-lg border border-[#2e2e33] bg-[#1a1a1d] px-3 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                        className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
                       >
                         <option value="development">Development</option>
                         <option value="staging">Staging</option>
@@ -1322,39 +1323,39 @@ export function AgentsListPage() {
                   {/* Owner & Tags */}
                   <div className="grid grid-cols-2 gap-3 pt-1">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                      <label className="text-[11px] font-semibold text-foreground">
                         Owner / Lead Name
                       </label>
                       <Input
                         value={newOwnerName}
                         onChange={(e) => setNewOwnerName(e.target.value)}
                         placeholder="e.g. Jane Doe"
-                        className="h-9 text-xs bg-[#1a1a1d] border-[#2e2e33] text-white"
+                        className="h-9 text-xs bg-background border-border text-foreground"
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                      <label className="text-[11px] font-semibold text-foreground">
                         Owner Email
                       </label>
                       <Input
                         value={newOwnerEmail}
                         onChange={(e) => setNewOwnerEmail(e.target.value)}
                         placeholder="owner@onetab.ai"
-                        className="h-9 text-xs bg-[#1a1a1d] border-[#2e2e33] text-white"
+                        className="h-9 text-xs bg-background border-border text-foreground"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-[#f4f4f5]">
+                    <label className="text-[11px] font-semibold text-foreground">
                       Tags (comma-separated)
                     </label>
                     <Input
                       value={newTags}
                       onChange={(e) => setNewTags(e.target.value)}
                       placeholder="support, autonomous, gpt-4o"
-                      className="h-9 text-xs bg-[#1a1a1d] border-[#2e2e33] text-white"
+                      className="h-9 text-xs bg-background border-border text-foreground"
                     />
                   </div>
                 </>
@@ -1386,7 +1387,7 @@ export function AgentsListPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-white">
+                    <label className="text-[11px] font-semibold text-foreground">
                       Or quick-create with directive:
                     </label>
                     <textarea
@@ -1394,18 +1395,18 @@ export function AgentsListPage() {
                       value={nlPrompt}
                       onChange={(e) => setNlPrompt(e.target.value)}
                       placeholder="e.g. Build an autonomous Gmail agent that checks for urgent emails and drafts replies..."
-                      className="w-full rounded-lg border border-[#2e2e33] bg-[#1a1a1d] p-3 text-xs text-white placeholder:text-[#71717a] focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-border bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-success focus:outline-none"
                       autoFocus
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#f4f4f5]">Reasoning Model</label>
+                      <label className="text-[11px] font-semibold text-foreground">Reasoning Model</label>
                       <select
                         value={newModel}
                         onChange={(e) => setNewModel(e.target.value)}
-                        className="h-8 w-full rounded-lg border border-[#2e2e33] bg-[#1a1a1d] px-2.5 text-xs text-white"
+                        className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-xs text-foreground"
                       >
                         <option value="OpenAI GPT-4o">OpenAI GPT-4o</option>
                         <option value="Anthropic Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
@@ -1414,11 +1415,11 @@ export function AgentsListPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-[#f4f4f5]">Environment</label>
+                      <label className="text-[11px] font-semibold text-foreground">Environment</label>
                       <select
                         value={newEnvironment}
                         onChange={(e) => setNewEnvironment(e.target.value as any)}
-                        className="h-8 w-full rounded-lg border border-[#2e2e33] bg-[#1a1a1d] px-2.5 text-xs text-white"
+                        className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-xs text-foreground"
                       >
                         <option value="development">Development</option>
                         <option value="staging">Staging</option>
@@ -1432,7 +1433,7 @@ export function AgentsListPage() {
               {/* TAB 3: FROM STARTER TEMPLATE */}
               {createMode === 'template' && (
                 <div className="space-y-2">
-                  <label className="text-[11px] font-semibold text-white">
+                  <label className="text-[11px] font-semibold text-foreground">
                     Select a Template to Instantiate:
                   </label>
                   <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
@@ -1442,15 +1443,15 @@ export function AgentsListPage() {
                         onClick={() => setSelectedTemplateId(tpl.id)}
                         className={`cursor-pointer rounded-xl border p-3 transition-all ${
                           selectedTemplateId === tpl.id
-                            ? 'border-emerald-500 bg-emerald-500/10'
-                            : 'border-[#2e2e33] bg-[#1a1a1d] hover:border-emerald-500/40'
+                            ? 'border-success bg-success/10'
+                            : 'border-border bg-background hover:border-success/40'
                         }`}
                       >
-                        <div className="flex items-center justify-between text-xs font-semibold text-white">
+                        <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                           <span>{tpl.name}</span>
-                          <span className="text-[10px] text-[#a1a1aa] font-mono">{tpl.nodes.length} nodes</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">{tpl.nodes.length} nodes</span>
                         </div>
-                        <p className="mt-1 text-[11px] text-[#a1a1aa] line-clamp-1">
+                        <p className="mt-1 text-[11px] text-muted-foreground line-clamp-1">
                           {tpl.description}
                         </p>
                       </div>
@@ -1461,12 +1462,12 @@ export function AgentsListPage() {
             </DialogBody>
 
             {/* Modal Footer (Exact Image 1 Buttons) */}
-            <DialogFooter className="flex items-center justify-end gap-2 pt-3 border-t border-[#27272a]">
+            <DialogFooter className="flex items-center justify-end gap-2 pt-3 border-t border-border">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => setIsCreateOpen(false)}
-                className="bg-[#27272a] hover:bg-[#323236] text-[#e4e4e7] h-9 px-4 rounded-lg text-xs font-medium"
+                className="bg-muted hover:bg-muted/70 text-foreground h-9 px-4 rounded-lg text-xs font-medium"
               >
                 Cancel
               </Button>
@@ -1474,7 +1475,7 @@ export function AgentsListPage() {
                 type="submit"
                 loading={createMutation.isPending}
                 disabled={createMode === 'scratch' ? !newName.trim() : createMode === 'prompt' ? !nlPrompt.trim() : false}
-                className="bg-[#10b981] hover:bg-[#059669] text-white font-semibold h-9 px-4 rounded-lg text-xs shadow-md transition-colors"
+                className="bg-success hover:bg-success/90 text-success-foreground font-semibold h-9 px-4 rounded-lg text-xs shadow-md transition-colors"
               >
                 Create & Open Canvas
               </Button>

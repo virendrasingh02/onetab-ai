@@ -62,6 +62,26 @@ const INLINE_PATTERN_SOURCE = [
 
 const GROUP_MENTIONS = new Set(['@here', '@channel', '@everyone']);
 
+const DEFAULT_FALLBACK_MENTIONS = [
+  'here',
+  'channel',
+  'everyone',
+  'Code Reviewer & Security Sentinel',
+  'OneTab Copilot',
+  'copilot',
+  'codereview',
+  'triage',
+  'standup',
+  'docs',
+  'data',
+  'alex',
+  'sarah',
+  'marcus',
+  'github-app',
+  'linear-bot',
+  'sentry-bot',
+];
+
 /** `snake_case` and `a*b` are not emphasis; real emphasis stands on a boundary. */
 function isWordCharacter(character: string | undefined): boolean {
   return character !== undefined && /[A-Za-z0-9]/.test(character);
@@ -216,9 +236,12 @@ function renderInline(
       // Prefer a known display name over the word-shaped fallback, so a
       // mention that spans a space stays a single chip.
       const rest = text.slice(match.index + 1);
-      const known = options.mentionNames.find((name) =>
-        rest.toLowerCase().startsWith(name.toLowerCase()),
-      );
+      const known = options.mentionNames.find((name) => {
+        if (!rest.toLowerCase().startsWith(name.toLowerCase())) return false;
+        if (name.length < token.length - 1) return false;
+        const nextChar = rest[name.length];
+        return !isWordCharacter(nextChar);
+      });
       const mention = known ? `@${rest.slice(0, known.length)}` : token;
       if (known) {
         lastIndex = match.index + mention.length;
@@ -542,13 +565,23 @@ export function MarkdownMessage({
   mentionNames,
   className,
 }: MarkdownMessageProps) {
-  const options = useMemo<InlineOptions>(
-    () => ({
-      // Longest first, so "@Ana Ruiz" wins over a colleague simply called "Ana".
-      mentionNames: [...(mentionNames ?? [])].sort((a, b) => b.length - a.length),
-    }),
-    [mentionNames],
-  );
+  const options = useMemo<InlineOptions>(() => {
+    const rawNames = [
+      ...DEFAULT_FALLBACK_MENTIONS,
+      ...(mentionNames ?? []),
+    ];
+    const cleaned = Array.from(
+      new Set(
+        rawNames
+          .filter(Boolean)
+          .map((n) => n.trim().replace(/^@/, ''))
+          .filter((n) => n.length > 0),
+      ),
+    );
+    // Longest first, so "@Ana Ruiz" wins over a colleague simply called "Ana".
+    cleaned.sort((a, b) => b.length - a.length);
+    return { mentionNames: cleaned };
+  }, [mentionNames]);
 
   return (
     <div

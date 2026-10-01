@@ -42,12 +42,13 @@ export function CodeBlockHeader({
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-b border-border/70 bg-surface-raised/80 px-3.5 py-2 text-xs backdrop-blur-xs select-none',
+        'flex items-center justify-between border-b border-border/70 bg-surface-raised/80 px-3 text-xs backdrop-blur-xs select-none',
+        variant === 'compact' ? 'h-7 px-2.5' : 'h-8 px-3',
         className,
       )}
     >
       {/* Left side: Terminal dots or Language / Filename Info */}
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center gap-2 min-w-0">
         {isTerminal ? (
           <div className="flex items-center gap-1.5 mr-1" aria-hidden="true">
             <span className="size-2.5 rounded-full bg-rose-500/80 inline-block" />

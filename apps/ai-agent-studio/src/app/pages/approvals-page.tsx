@@ -1,6 +1,22 @@
 import { approvalsApi } from '@org/api-client';
-import { Badge, Button, CodeBlock, Dialog, DialogContent, DialogBody,
-  DialogHeader, DialogTitle, LoadingState, toast } from '@org/ui';
+import {
+  Badge,
+  Button,
+  CodeBlock,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  EmptyState,
+  Input,
+  LoadingState,
+  Page,
+  PageHeader,
+  Panel,
+  toast,
+} from '@org/ui';
+import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle2,
@@ -14,9 +30,12 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useStudioSession } from '../session-guard.js';
-
 import { approvalService } from '../services/approvalService.js';
+import {
+  fetchWorkspaceApprovals,
+  workspaceApprovalsKey,
+} from '../services/approvals-query.js';
+import { useStudioSession } from '../session-guard.js';
 
 export function ApprovalsPage() {
   const { activeWorkspace } = useStudioSession();
@@ -31,34 +50,25 @@ export function ApprovalsPage() {
     refetch,
     isRefetching,
   } = useQuery({
-    queryKey: ['workspace-approvals', activeWorkspace.id, filterState],
-    queryFn: async () => {
-      try {
-        const live = await approvalsApi.list(activeWorkspace.id, filterState === 'ALL' ? undefined : filterState);
-        if (live && live.length > 0) return live;
-      } catch {
-        // Fallback
-      }
-      const mockList = await approvalService.getApprovals(filterState);
-      return mockList.map((m: any) => ({
-        id: m.id,
-        state: m.status || m.state,
-        actionType: m.category || m.title,
-        entityType: m.agentName || 'Agent Workflow',
-        entityId: m.agentId || 'agent-001',
-        executionId: m.executionId,
-        createdAt: m.createdAt,
-        requester: { name: m.requestedBy || 'Supervisor Agent' },
-        comment: m.decisionComment,
-        proposedPayload: m.proposedPayload,
-      }));
-    },
+    queryKey: workspaceApprovalsKey(activeWorkspace.id, filterState),
+    queryFn: () => fetchWorkspaceApprovals(activeWorkspace.id, filterState),
   });
 
   const decideMutation = useMutation({
-    mutationFn: async ({ id, decision, reason }: { id: string; decision: 'APPROVED' | 'REJECTED'; reason?: string }) => {
+    mutationFn: async ({
+      id,
+      decision,
+      reason,
+    }: {
+      id: string;
+      decision: 'APPROVED' | 'REJECTED';
+      reason?: string;
+    }) => {
       try {
-        return await approvalsApi.decide(activeWorkspace.id, id, { decision, comment: reason });
+        return await approvalsApi.decide(activeWorkspace.id, id, {
+          decision,
+          comment: reason,
+        });
       } catch {
         return approvalService.decideApproval(id, decision, reason);
       }
@@ -75,29 +85,29 @@ export function ApprovalsPage() {
     switch (state) {
       case 'APPROVED':
         return (
-          <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 gap-1 text-[11px]">
-            <CheckCircle2 className="h-3 w-3" />
+          <Badge variant="success" className="gap-1 font-mono text-[11px]">
+            <CheckCircle2 className="size-3" />
             Approved
           </Badge>
         );
       case 'REJECTED':
         return (
-          <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/20 gap-1 text-[11px]">
-            <XCircle className="h-3 w-3" />
+          <Badge variant="destructive" className="gap-1 font-mono text-[11px]">
+            <XCircle className="size-3" />
             Rejected
           </Badge>
         );
       case 'EXPIRED':
         return (
-          <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 gap-1 text-[11px]">
-            <Clock className="h-3 w-3" />
+          <Badge variant="warning" className="gap-1 font-mono text-[11px]">
+            <Clock className="size-3" />
             Expired
           </Badge>
         );
       default:
         return (
-          <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 gap-1 text-[11px] animate-pulse">
-            <Clock className="h-3 w-3" />
+          <Badge variant="primary" className="gap-1 font-mono text-[11px]">
+            <Clock className="size-3" />
             Pending Review
           </Badge>
         );
@@ -105,153 +115,166 @@ export function ApprovalsPage() {
   };
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl flex items-center gap-2">
-            <UserCheck className="h-6 w-6 text-primary" />
-            Human-in-the-Loop Approvals
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Review and govern sensitive agent operations, external writes, and critical workflow pauses in {activeWorkspace.name}.
-          </p>
-        </div>
+    <Page width="wide" padding="none" className="space-y-6">
+      {/* Admin standard PageHeader */}
+      <PageHeader
+        title="Human-in-the-Loop Approvals"
+        description={`Review and govern sensitive agent operations, external writes, and critical workflow pauses in ${activeWorkspace.name}.`}
+        icon={<UserCheck className="size-5" />}
+        accent="blue"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="gap-2 text-xs"
+          >
+            <RefreshCw
+              className={cn('size-3.5', isRefetching && 'animate-spin')}
+            />
+            Refresh
+          </Button>
+        }
+      />
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isRefetching}
-          className="gap-2 self-start sm:self-auto"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-border pb-2">
+      {/* Filter Tabs Toolbar */}
+      <div className="flex items-center gap-1.5 border-b border-border pb-3">
         {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map((tab) => (
-          <button
+          <Button
             key={tab}
+            variant={filterState === tab ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setFilterState(tab)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              filterState === tab
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-            }`}
+            className="text-xs h-8"
           >
             {tab.charAt(0) + tab.slice(1).toLowerCase()}
-          </button>
+          </Button>
         ))}
       </div>
 
-      {/* Content */}
+      {/* Content Area */}
       {isLoading ? (
-        <div className="flex h-64 items-center justify-center">
-          <LoadingState label="Loading approval requests..." />
-        </div>
+        <LoadingState label="Loading approval requests..." />
       ) : approvals.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <UserCheck className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h3 className="mt-4 text-sm font-semibold text-foreground">No approval requests found</h3>
-          <p className="mt-1 text-xs text-muted-foreground max-w-sm">
-            {filterState === 'PENDING'
+        <EmptyState
+          icon={<UserCheck className="size-8 text-muted-foreground" />}
+          title="No approval requests found"
+          description={
+            filterState === 'PENDING'
               ? 'No agent executions are currently blocked waiting for approval.'
-              : `No approvals match the current filter (${filterState}).`}
-          </p>
-        </div>
+              : `No approvals match the current filter (${filterState.toLowerCase()}).`
+          }
+        />
       ) : (
         <div className="space-y-3">
           {approvals.map((req) => (
-            <div
-              key={req.id}
-              className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 md:flex-row md:items-center md:justify-between"
-            >
-              <div className="space-y-1.5 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {getStatusBadge(req.state)}
-                  <span className="text-xs font-mono font-medium text-foreground bg-accent/50 px-2 py-0.5 rounded">
-                    {req.actionType || 'GENERIC_ACTION'}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    Target: {req.entityType} ({req.entityId?.slice(0, 8)}...)
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-3">
-                  <span>Created: {new Date(req.createdAt).toLocaleString()}</span>
-                  {req.executionId && (
-                    <span className="font-mono text-[11px]">Exec: {req.executionId.slice(0, 8)}</span>
+            <Panel key={req.id} className="p-4 transition-all hover:border-primary/40">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {getStatusBadge(req.state)}
+                    <span className="text-xs font-mono font-medium text-foreground bg-surface-raised px-2 py-0.5 rounded border border-border">
+                      {req.actionType || 'GENERIC_ACTION'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Target: {req.entityType} ({req.entityId?.slice(0, 8)}...)
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-3">
+                    <span>
+                      Created: {new Date(req.createdAt).toLocaleString()}
+                    </span>
+                    {req.executionId && (
+                      <span className="font-mono text-[11px]">
+                        Exec: {req.executionId.slice(0, 8)}
+                      </span>
+                    )}
+                    {req.requester?.name && (
+                      <span>By: {req.requester.name}</span>
+                    )}
+                  </div>
+                  {req.comment && (
+                    <p className="text-xs italic text-muted-foreground bg-surface-raised p-2 rounded border border-border">
+                      Decision note: &quot;{req.comment}&quot;
+                    </p>
                   )}
-                  {req.requester?.name && (
-                    <span>By: {req.requester.name}</span>
-                  )}
                 </div>
-                {req.comment && (
-                  <p className="text-xs italic text-muted-foreground bg-muted/30 p-2 rounded border border-border/50">
-                    Decision note: &quot;{req.comment}&quot;
-                  </p>
-                )}
-              </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedApproval(req)}
-                  className="gap-1.5 text-xs"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  Inspect Payload
-                </Button>
-                {req.state === 'PENDING' && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="gap-1.5 text-xs"
-                      onClick={() => decideMutation.mutate({ id: req.id, decision: 'REJECTED', reason: 'Rejected via studio' })}
-                      disabled={decideMutation.isPending}
-                    >
-                      <ThumbsDown className="h-3.5 w-3.5" />
-                      Reject
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={() => decideMutation.mutate({ id: req.id, decision: 'APPROVED', reason: 'Approved via studio' })}
-                      disabled={decideMutation.isPending}
-                    >
-                      <ThumbsUp className="h-3.5 w-3.5" />
-                      Approve
-                    </Button>
-                  </>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedApproval(req)}
+                    className="gap-1.5 text-xs"
+                  >
+                    <Eye className="size-3.5" />
+                    Inspect Payload
+                  </Button>
+                  {req.state === 'PENDING' && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="gap-1.5 text-xs"
+                        onClick={() =>
+                          decideMutation.mutate({
+                            id: req.id,
+                            decision: 'REJECTED',
+                            reason: 'Rejected via studio',
+                          })
+                        }
+                        disabled={decideMutation.isPending}
+                      >
+                        <ThumbsDown className="size-3.5" />
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        className="gap-1.5 text-xs"
+                        onClick={() =>
+                          decideMutation.mutate({
+                            id: req.id,
+                            decision: 'APPROVED',
+                            reason: 'Approved via studio',
+                          })
+                        }
+                        disabled={decideMutation.isPending}
+                      >
+                        <ThumbsUp className="size-3.5" />
+                        Approve
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            </Panel>
           ))}
         </div>
       )}
 
       {/* Inspector / Decision Dialog */}
-      <Dialog open={!!selectedApproval} onOpenChange={(open) => !open && setSelectedApproval(null)}>
+      <Dialog
+        open={!!selectedApproval}
+        onOpenChange={(open) => !open && setSelectedApproval(null)}
+      >
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-amber-500" />
+              <ShieldAlert className="size-5 text-warning" />
               Approval Request Details
             </DialogTitle>
           </DialogHeader>
 
           {selectedApproval && (
             <DialogBody className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3 p-3 bg-accent/30 rounded-lg border border-border">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-surface-raised rounded-lg border border-border">
                 <div>
                   <div className="text-muted-foreground">Action</div>
-                  <div className="font-semibold text-foreground">{selectedApproval.actionType}</div>
+                  <div className="font-semibold text-foreground">
+                    {selectedApproval.actionType}
+                  </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground">Status</div>
@@ -259,11 +282,15 @@ export function ApprovalsPage() {
                 </div>
                 <div>
                   <div className="text-muted-foreground">Entity</div>
-                  <div className="font-mono">{selectedApproval.entityType}: {selectedApproval.entityId}</div>
+                  <div className="font-mono">
+                    {selectedApproval.entityType}: {selectedApproval.entityId}
+                  </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground">Execution ID</div>
-                  <div className="font-mono">{selectedApproval.executionId || 'N/A'}</div>
+                  <div className="font-mono">
+                    {selectedApproval.executionId || 'N/A'}
+                  </div>
                 </div>
               </div>
 
@@ -274,7 +301,11 @@ export function ApprovalsPage() {
                 <CodeBlock
                   variant="compact"
                   language="json"
-                  code={JSON.stringify(selectedApproval.proposedPayload || {}, null, 2)}
+                  code={JSON.stringify(
+                    selectedApproval.proposedPayload || {},
+                    null,
+                    2,
+                  )}
                 />
               </div>
 
@@ -283,38 +314,42 @@ export function ApprovalsPage() {
                   <label className="text-xs font-semibold text-foreground block">
                     Decision Reason / Comment (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={decisionReason}
                     onChange={(e) => setDecisionReason(e.target.value)}
                     placeholder="Provide rationale for approval or rejection..."
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="text-xs"
                   />
                   <div className="flex justify-end gap-2 pt-2">
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => decideMutation.mutate({
-                        id: selectedApproval.id,
-                        decision: 'REJECTED',
-                        reason: decisionReason || 'Rejected by user',
-                      })}
+                      onClick={() =>
+                        decideMutation.mutate({
+                          id: selectedApproval.id,
+                          decision: 'REJECTED',
+                          reason: decisionReason || 'Rejected by user',
+                        })
+                      }
                       disabled={decideMutation.isPending}
                     >
-                      <ThumbsDown className="mr-1.5 h-3.5 w-3.5" />
+                      <ThumbsDown className="mr-1.5 size-3.5" />
                       Reject Execution
                     </Button>
                     <Button
                       size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={() => decideMutation.mutate({
-                        id: selectedApproval.id,
-                        decision: 'APPROVED',
-                        reason: decisionReason || 'Approved by user',
-                      })}
+                      variant="primary"
+                      onClick={() =>
+                        decideMutation.mutate({
+                          id: selectedApproval.id,
+                          decision: 'APPROVED',
+                          reason: decisionReason || 'Approved by user',
+                        })
+                      }
                       disabled={decideMutation.isPending}
                     >
-                      <ThumbsUp className="mr-1.5 h-3.5 w-3.5" />
+                      <ThumbsUp className="mr-1.5 size-3.5" />
                       Approve & Resume
                     </Button>
                   </div>
@@ -324,6 +359,6 @@ export function ApprovalsPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   );
 }

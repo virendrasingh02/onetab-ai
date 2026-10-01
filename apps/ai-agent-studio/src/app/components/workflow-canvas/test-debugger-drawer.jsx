@@ -1,22 +1,15 @@
 import { useState } from 'react';
-import { Badge, Button, CodeBlock, Input, toast } from '@org/ui';
+import { Badge, Button, CodeBlock, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Activity,
   CheckCircle2,
   Clock,
   Coins,
-  Cpu,
   Eye,
   EyeOff,
-  Flame,
   Play,
   RefreshCw,
-  RotateCcw,
-  Sparkles,
-  UserCheck,
   X,
-  XCircle,
 } from 'lucide-react';
 import { executionService } from '../../services/executionService.js';
 
@@ -67,8 +60,8 @@ export function TestDebuggerDrawer({
       {/* Header */}
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 font-bold">
-            <Play className="size-4 fill-emerald-500" />
+          <div className="flex size-8 items-center justify-center rounded-lg bg-success/10 text-success font-bold">
+            <Play className="size-4 fill-success" />
           </div>
           <div>
             <div className="text-sm font-bold text-foreground">Interactive Workflow Debugger</div>
@@ -162,7 +155,7 @@ export function TestDebuggerDrawer({
                   <span>{currentExecution.durationMs ? `${currentExecution.durationMs}ms` : 'running...'}</span>
                 </div>
                 <div className="flex items-center gap-1 text-muted-foreground">
-                  <Coins className="size-3.5 text-emerald-500" />
+                  <Coins className="size-3.5 text-success" />
                   <span>{currentExecution.costEstimated || '$0.00'}</span>
                 </div>
               </div>
@@ -202,7 +195,7 @@ export function TestDebuggerDrawer({
                           {step.durationMs ? `${step.durationMs}ms` : ''}
                         </span>
 
-                        {isSuccess && <CheckCircle2 className="size-4 text-emerald-500" />}
+                        {isSuccess && <CheckCircle2 className="size-4 text-success" />}
                         {isRunningStep && <RefreshCw className="size-4 text-primary animate-spin" />}
                         {step.status === 'IDLE' && <span className="size-2 rounded-full bg-muted" />}
                       </div>
@@ -217,7 +210,7 @@ export function TestDebuggerDrawer({
               <div className="space-y-1 font-mono text-[11px]">
                 <div className="flex items-center justify-between pb-1 text-muted-foreground">
                   <span>Step Payload: {selectedStep.nodeName}</span>
-                  <span className="text-emerald-500 font-bold">{selectedStep.status}</span>
+                  <span className="text-success font-bold">{selectedStep.status}</span>
                 </div>
 
                 <CodeBlock

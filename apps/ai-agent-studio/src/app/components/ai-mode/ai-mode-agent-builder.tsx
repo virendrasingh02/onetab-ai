@@ -59,37 +59,37 @@ const INTAKE_EXAMPLES = [
     title: 'Gmail Agent',
     prompt: 'Create a Gmail agent that summarizes unread emails, drafts replies and lets me send them.',
     icon: Mail,
-    color: 'text-red-500 bg-red-500/10 border-red-500/20',
+    color: 'text-destructive bg-destructive/10 border-destructive/20',
   },
   {
     title: 'GitHub Agent',
     prompt: 'Create a GitHub agent that monitors repository activity, reviews open PRs, and summarizes diffs.',
     icon: GitPullRequest,
-    color: 'text-purple-500 bg-purple-500/10 border-purple-500/20',
+    color: 'text-accent-violet bg-accent-violet/10 border-accent-violet/20',
   },
   {
     title: 'Sales CRM Agent',
     prompt: 'Create an AI employee for sales that checks incoming leads, analyzes prospect fit, and drafts follow-up notes.',
     icon: Zap,
-    color: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+    color: 'text-warning bg-warning/10 border-warning/20',
   },
   {
     title: 'Deep Research Agent',
     prompt: 'Create a research agent that performs structured web research, synthesizes sources, and compiles reports.',
     icon: Search,
-    color: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
+    color: 'text-accent-blue bg-accent-blue/10 border-accent-blue/20',
   },
   {
     title: 'Customer Support Agent',
     prompt: 'Create a customer-support agent that categorizes user requests, queries policy docs, and drafts replies.',
     icon: ShieldCheck,
-    color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
+    color: 'text-success bg-success/10 border-success/20',
   },
   {
     title: 'Project Management Agent',
     prompt: 'Create a project-management agent that tracks tasks, sprint milestones, and alerts on blockers.',
     icon: Layers,
-    color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20',
+    color: 'text-accent-indigo bg-accent-indigo/10 border-accent-indigo/20',
   },
 ];
 
@@ -594,7 +594,7 @@ export function AIModeAgentBuilder({
                                 <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                                   <span>{opt.label}</span>
                                   {opt.isRecommended && (
-                                    <span className="text-[9px] text-emerald-500 font-bold uppercase">
+                                    <span className="text-[9px] text-success font-bold uppercase">
                                       (Recommended)
                                     </span>
                                   )}
@@ -642,7 +642,7 @@ export function AIModeAgentBuilder({
                                 <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                                   <span>{opt.label}</span>
                                   {opt.isRecommended && (
-                                    <span className="text-[9px] text-emerald-500 font-bold uppercase">
+                                    <span className="text-[9px] text-success font-bold uppercase">
                                       (Recommended)
                                     </span>
                                   )}
@@ -764,7 +764,7 @@ export function AIModeAgentBuilder({
                         isCurrent
                           ? 'border-primary bg-primary/5 text-foreground'
                           : isDone
-                          ? 'border-emerald-500/20 bg-emerald-500/5 text-foreground'
+                          ? 'border-success/20 bg-success/5 text-foreground'
                           : isFailed
                           ? 'border-destructive/30 bg-destructive/5 text-destructive'
                           : 'border-border/60 bg-surface/50 text-muted-foreground opacity-60',
@@ -775,7 +775,7 @@ export function AIModeAgentBuilder({
                           {isCurrent ? (
                             <Loader2 className="size-4 animate-spin text-primary" />
                           ) : isDone ? (
-                            <CheckCircle2 className="size-4 text-emerald-500" />
+                            <CheckCircle2 className="size-4 text-success" />
                           ) : isFailed ? (
                             <AlertCircle className="size-4 text-destructive" />
                           ) : (
@@ -809,7 +809,7 @@ export function AIModeAgentBuilder({
                   </div>
                   {events.slice(-4).map((ev, i) => (
                     <div key={`${ev.runId}-${ev.timestamp}-${i}`} className="flex items-center gap-2 text-muted-foreground">
-                      <span className="text-emerald-500 font-bold">[{ev.type}]</span>
+                      <span className="text-success font-bold">[{ev.type}]</span>
                       <span className="truncate">{String(ev.payload?.message || ev.payload?.title || ev.type)}</span>
                     </div>
                   ))}
@@ -823,9 +823,9 @@ export function AIModeAgentBuilder({
           {/* ========================================================= */}
           {state === 'PREVIEW' && agentSpec && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-success/10 border border-success/20">
                 <div className="flex items-center gap-3">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-500 text-white font-bold">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-success text-white font-bold">
                     <Check className="size-5 stroke-3" />
                   </div>
                   <div>
@@ -850,7 +850,7 @@ export function AIModeAgentBuilder({
                     Autonomy & Safety
                   </div>
                   <div className="text-xs font-bold text-foreground mt-1 flex items-center gap-1.5">
-                    <ShieldCheck className="size-3.5 text-emerald-500" />
+                    <ShieldCheck className="size-3.5 text-success" />
                     <span>Human Approval Required</span>
                   </div>
                 </div>
@@ -868,7 +868,7 @@ export function AIModeAgentBuilder({
                     Foundation Model
                   </div>
                   <div className="text-xs font-bold text-foreground mt-1 flex items-center gap-1.5">
-                    <Bot className="size-3.5 text-purple-500" />
+                    <Bot className="size-3.5 text-accent-violet" />
                     <span>{agentSpec.model.model}</span>
                   </div>
                 </div>
@@ -1075,9 +1075,9 @@ export function AIModeAgentBuilder({
                           className={cn(
                             'p-2 rounded text-xs flex items-center justify-between border',
                             ch.type === 'added'
-                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                              ? 'bg-success/10 border-success/20 text-success-text'
                               : ch.type === 'modified'
-                              ? 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400'
+                              ? 'bg-warning/10 border-warning/20 text-warning-text'
                               : 'bg-muted/40 border-border text-muted-foreground',
                           )}
                         >

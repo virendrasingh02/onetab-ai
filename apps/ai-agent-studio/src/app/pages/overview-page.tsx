@@ -11,36 +11,32 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Input,
   LoadingState,
+  Page,
+  PageHeader,
+  PageSection,
+  StatCard,
   toast,
 } from '@org/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   ArrowRight,
   Bot,
   CheckCircle2,
-  Clock,
   Coins,
-  Copy,
   DollarSign,
-  Download,
-  FileCode,
-  Filter,
   Grid,
-  Heart,
   Layers,
+  LayoutDashboard,
   LayoutList,
   Pin,
-  Play,
   Plus,
   Search,
   Sparkles,
   Upload,
   Wand2,
   Wrench,
-  Zap,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -219,35 +215,29 @@ export function OverviewPage() {
   }
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-linear-to-r from-primary/10 via-primary/5 to-transparent p-6 shadow-xs">
-        <div className="max-w-3xl space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-            <Sparkles className="size-3.5" />
-            <span>AI Agent Studio — Enterprise Orchestration & Visual Builder</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Build, Test & Deploy Intelligent Autonomous Agents
-          </h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Construct visual node workflows, attach Firecrawl web extraction and MCP tools, implement human approval checkpoints, and publish immutable agent versions to <strong>{activeWorkspace.name}</strong>.
-          </p>
-          <div className="flex flex-wrap items-center gap-2.5 pt-3">
+    <Page width="wide" padding="none" className="space-y-6">
+      <PageHeader
+        title="Studio Overview"
+        description={
+          <>
+            Build, test and publish autonomous agents for{' '}
+            <span className="font-medium text-foreground">
+              {activeWorkspace.name}
+            </span>
+            .
+          </>
+        }
+        icon={<LayoutDashboard />}
+        accent="green"
+        actions={
+          <>
             <Button
+              variant="ghost"
               size="sm"
-              onClick={() => navigate('/agents?create=blank')}
-              className="gap-1.5 font-semibold"
+              onClick={() => navigate('/templates')}
+              className="gap-1.5"
             >
-              <Plus className="size-4" /> Create Blank Agent
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsPromptModalOpen(true)}
-              className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-            >
-              <Wand2 className="size-4" /> Build with AI Prompt
+              <Layers className="size-3.5" /> Templates
             </Button>
             <Button
               variant="outline"
@@ -255,78 +245,60 @@ export function OverviewPage() {
               onClick={() => setIsImportModalOpen(true)}
               className="gap-1.5"
             >
-              <Upload className="size-4" /> Import Workflow JSON
+              <Upload className="size-3.5" /> Import JSON
             </Button>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => navigate('/templates')}
-              className="gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={() => setIsPromptModalOpen(true)}
+              className="gap-1.5"
             >
-              <Layers className="size-4" /> Explore 14+ Templates
+              <Wand2 className="size-3.5" /> Build with AI
             </Button>
-          </div>
-        </div>
-      </div>
+            <Button
+              size="sm"
+              onClick={() => navigate('/agents?create=blank')}
+              className="gap-1.5"
+            >
+              <Plus className="size-3.5" /> New Agent
+            </Button>
+          </>
+        }
+      />
 
-      {/* Metrics Row: 4 key KPI cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {/* Total Agents */}
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium">Total Agents</span>
-            <Bot className="size-4 text-primary" />
-          </div>
-          <div className="mt-2 text-2xl font-bold text-foreground">
-            {agents.length}
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {publishedAgents.length} published · {draftAgents.length} drafts
-          </div>
+      <PageSection title="Studio KPIs">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <StatCard
+            label="Total agents"
+            value={agents.length}
+            icon={Bot}
+            accent="green"
+            hint={`${publishedAgents.length} published · ${draftAgents.length} drafts`}
+          />
+          <StatCard
+            label="Success rate"
+            value={`${successRate}%`}
+            icon={Activity}
+            accent="blue"
+            hint={`${successfulRuns} succeeded · ${failedRuns} failed of ${logs.length}`}
+          />
+          <StatCard
+            label="Tokens used"
+            value={totalTokens}
+            format={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))}
+            icon={Coins}
+            accent="violet"
+            hint="Across recorded runs"
+          />
+          <StatCard
+            label="Est. cost"
+            value={`$${estimatedCost}`}
+            icon={DollarSign}
+            accent="amber"
+            hint={`Avg response ${avgLatencyMs} ms`}
+          />
         </div>
-
-        {/* Executions & Success Rate */}
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium">Runs & Success Rate</span>
-            <Activity className="size-4 text-emerald-500" />
-          </div>
-          <div className="mt-2 text-2xl font-bold text-foreground">
-            {successRate}%
-          </div>
-          <div className="mt-1 text-[11px] text-emerald-500 font-medium">
-            {successfulRuns} succeeded · {failedRuns} failed ({logs.length} total)
-          </div>
-        </div>
-
-        {/* Token Consumption */}
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium">Token Usage</span>
-            <Coins className="size-4 text-sky-500" />
-          </div>
-          <div className="mt-2 text-2xl font-bold text-foreground">
-            {totalTokens > 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens}
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            Tokens processed this month
-          </div>
-        </div>
-
-        {/* Cost & Latency */}
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-medium">Est. Cost & Latency</span>
-            <DollarSign className="size-4 text-amber-500" />
-          </div>
-          <div className="mt-2 text-2xl font-bold text-foreground">
-            ${estimatedCost}
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            Avg response time: {avgLatencyMs}ms
-          </div>
-        </div>
-      </div>
+      </PageSection>
 
       {/* Main Grid: Agents Section (2 cols) + Templates / Quick Help (1 col) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -428,7 +400,7 @@ export function OverviewPage() {
                             <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
                               <span>{agent.name}</span>
                               {isPinned && (
-                                <Pin className="size-3 text-amber-500 fill-amber-500" />
+                                <Pin className="size-3 text-warning fill-warning" />
                               )}
                             </div>
                             <div className="text-[11px] text-muted-foreground">
@@ -443,7 +415,7 @@ export function OverviewPage() {
                             onClick={(e) => togglePinAgent(agent.id, e)}
                             title={isPinned ? 'Unpin' : 'Pin to top'}
                             className={`size-6 rounded-md p-1 transition-colors ${
-                              isPinned ? 'text-amber-500 hover:bg-amber-500/10' : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground opacity-0 group-hover:opacity-100'
+                              isPinned ? 'text-warning hover:bg-warning/10' : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground opacity-0 group-hover:opacity-100'
                             }`}
                           >
                             <Pin className="size-3.5" />
@@ -501,7 +473,7 @@ export function OverviewPage() {
                           <div className="font-semibold text-foreground flex items-center gap-1.5">
                             <span>{agent.name}</span>
                             {pinnedAgentIds.includes(agent.id) && (
-                              <Pin className="size-3 text-amber-500 fill-amber-500" />
+                              <Pin className="size-3 text-warning fill-warning" />
                             )}
                           </div>
                           <div className="text-[11px] text-muted-foreground truncate max-w-xs">
@@ -544,7 +516,7 @@ export function OverviewPage() {
           <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Activity className="size-4 text-sky-500" />
+                <Activity className="size-4 text-accent-blue" />
                 <h3 className="text-xs font-bold text-foreground">
                   Recent Executions Telemetry
                 </h3>
@@ -575,7 +547,7 @@ export function OverviewPage() {
                     <div className="flex items-center gap-2.5 truncate">
                       <div
                         className={`size-2 rounded-full ${
-                          log.status === 'SUCCESS' ? 'bg-emerald-500' : 'bg-destructive'
+                          log.status === 'SUCCESS' ? 'bg-success' : 'bg-destructive'
                         }`}
                       />
                       <span className="font-semibold text-foreground truncate">
@@ -607,7 +579,7 @@ export function OverviewPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Layers className="size-4 text-amber-500" />
+              <Layers className="size-4 text-warning" />
               <h2 className="text-sm font-bold text-foreground">
                 Featured Templates
               </h2>
@@ -779,6 +751,6 @@ export function OverviewPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   );
 }

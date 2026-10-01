@@ -1,21 +1,40 @@
 import { agentsApi, aiExecutionsApi } from '@org/api-client';
-import { Badge, Button, CodeBlock, Dialog, DialogContent, DialogBody,
-  DialogHeader, DialogTitle, LoadingState, toast } from '@org/ui';
+import {
+  Badge,
+  Button,
+  CodeBlock,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  EmptyState,
+  Input,
+  LoadingState,
+  Page,
+  PageHeader,
+  Panel,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@org/ui';
+import { cn } from '@org/utils';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
   CheckCircle2,
-  Clock,
   Eye,
   Layers,
   RefreshCw,
   Search,
   XCircle,
-  Zap,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useStudioSession } from '../session-guard.js';
 import { executionService } from '../services/executionService.js';
+import { useStudioSession } from '../session-guard.js';
 
 export function ExecutionsPage() {
   const { activeWorkspace } = useStudioSession();
@@ -43,12 +62,20 @@ export function ExecutionsPage() {
         if (agentLogs.status === 'fulfilled' && Array.isArray(agentLogs.value)) {
           results.push(...agentLogs.value);
         }
-        if (engineRuns.status === 'fulfilled' && Array.isArray(engineRuns.value)) {
+        if (
+          engineRuns.status === 'fulfilled' &&
+          Array.isArray(engineRuns.value)
+        ) {
           const mappedRuns = engineRuns.value.map((r: any) => ({
             id: r.id,
             status: r.status,
-            agentName: r.entityType === 'AGENT' ? `Agent (${r.entityId?.slice(0, 8)})` : 'Workflow Run',
-            promptText: r.metadata?.promptText || `Triggered by ${r.user?.name || 'Automation'}`,
+            agentName:
+              r.entityType === 'AGENT'
+                ? `Agent (${r.entityId?.slice(0, 8)})`
+                : 'Workflow Run',
+            promptText:
+              r.metadata?.promptText ||
+              `Triggered by ${r.user?.name || 'Automation'}`,
             responseText: r.metadata?.responseText || r.status,
             tokensUsed: r.tokensUsed || 0,
             durationMs: r.durationMs || 0,
@@ -98,146 +125,172 @@ export function ExecutionsPage() {
 
   const filteredLogs = executions.filter((item: any) => {
     if (filterStatus !== 'ALL') {
-      const st = (item.status || '').toUpperCase();
-      if (filterStatus === 'SUCCESS' && st !== 'SUCCESS' && st !== 'COMPLETED') return false;
-      if (filterStatus === 'FAILED' && st !== 'FAILED' && st !== 'ERROR') return false;
-      if (filterStatus === 'RUNNING' && st !== 'RUNNING' && st !== 'WAITING_APPROVAL') return false;
+      const itemStatus = (item.status || 'SUCCESS').toUpperCase();
+      if (itemStatus !== filterStatus) return false;
     }
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    const name = item.agent?.name || item.agentName || 'Agent';
-    const prompt = item.promptText || item.promptPreview || '';
-    return name.toLowerCase().includes(q) || prompt.toLowerCase().includes(q);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const matchAgent = (item.agent?.name || item.agentName || '')
+        .toLowerCase()
+        .includes(q);
+      const matchPrompt = (item.promptText || item.promptPreview || '')
+        .toLowerCase()
+        .includes(q);
+      return matchAgent || matchPrompt;
+    }
+    return true;
   });
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            Execution Logs & Traces
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Observe runtime traces, step-by-step waterfall latency, model invocations and token telemetry across {activeWorkspace.name}.
-          </p>
-        </div>
+    <Page width="wide" padding="none" className="space-y-6">
+      {/* Header matching Admin PageHeader */}
+      <PageHeader
+        title="Executions & Telemetry Logs"
+        description={`Observe runtime traces, step-by-step waterfall latency, model invocations and token telemetry across ${activeWorkspace.name}.`}
+        icon={<Activity className="size-5" />}
+        accent="blue"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void refetch()}
+            loading={isRefetching}
+            className="gap-1.5 text-xs"
+          >
+            <RefreshCw
+              className={cn('size-3.5', isRefetching && 'animate-spin')}
+            />{' '}
+            Refresh Runs
+          </Button>
+        }
+      />
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void refetch()}
-          loading={isRefetching}
-          className="gap-1.5 text-xs"
-        >
-          <RefreshCw className="size-3.5" /> Refresh Runs
-        </Button>
-      </div>
-
-      {/* Filter and Search */}
+      {/* Filter and Search Bar matching Admin toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center rounded-lg border border-border bg-surface p-1">
+        <div className="flex items-center gap-1.5 border-b sm:border-b-0 pb-2 sm:pb-0">
           {['ALL', 'SUCCESS', 'FAILED', 'RUNNING'].map((st) => (
-            <button
+            <Button
               key={st}
+              variant={filterStatus === st ? 'secondary' : 'ghost'}
+              size="sm"
               onClick={() => setFilterStatus(st)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                filterStatus === st
-                  ? 'bg-primary/10 text-primary font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className="text-xs h-8"
             >
               {st}
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-          <input
+          <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground pointer-events-none" />
+          <Input
             type="text"
             placeholder="Search by agent or prompt…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 w-full rounded-md border border-border bg-surface pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="h-8 pl-8 text-xs"
           />
         </div>
       </div>
 
-      {/* Executions Table */}
-      {isLoading ? (
-        <LoadingState label="Loading execution telemetry…" />
-      ) : filteredLogs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 p-12 text-center text-muted-foreground">
-          <Activity className="size-10 text-muted-foreground/30 mb-2" />
-          <div className="text-sm font-semibold text-foreground">
-            No Executions Recorded
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Run a turn from the Agent Builder Test tab or API to generate execution traces.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-2xs">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-border bg-surface-raised/50 text-[11px] font-semibold text-muted-foreground uppercase">
-              <tr>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Agent / Workflow</th>
-                <th className="px-4 py-3">Input / Prompt</th>
-                <th className="px-4 py-3">Duration & Tokens</th>
-                <th className="px-4 py-3">Timestamp</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
+      {/* Executions Table inside Panel flush */}
+      <Panel flush>
+        {isLoading ? (
+          <LoadingState label="Loading execution telemetry…" />
+        ) : filteredLogs.length === 0 ? (
+          <EmptyState
+            icon={<Activity className="size-8 text-muted-foreground" />}
+            title="No Executions Recorded"
+            description={
+              search.trim() || filterStatus !== 'ALL'
+                ? 'No execution records match the selected filters.'
+                : 'Run a turn from the Agent Builder Test tab or API to generate execution traces.'
+            }
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Status</TableHead>
+                <TableHead>Agent / Workflow</TableHead>
+                <TableHead>Input / Prompt</TableHead>
+                <TableHead>Duration & Tokens</TableHead>
+                <TableHead>Timestamp</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filteredLogs.map((log) => {
                 const status = (log.status || 'SUCCESS').toUpperCase();
-                const isSuccess = status === 'SUCCESS' || status === 'COMPLETED';
+                const isSuccess =
+                  status === 'SUCCESS' || status === 'COMPLETED';
                 const isFail = status === 'FAILED' || status === 'ERROR';
                 return (
-                  <tr
+                  <TableRow
                     key={log.id}
-                    className="transition-colors hover:bg-surface-raised/40"
+                    className="cursor-pointer hover:bg-surface-raised/50"
+                    onClick={() => handleInspect(log)}
                   >
-                    <td className="px-4 py-3">
+                    <TableCell>
                       <Badge
-                        variant={isSuccess ? 'success' : isFail ? 'destructive' : 'outline'}
-                        className="text-[10px]"
+                        variant={
+                          isSuccess
+                            ? 'success'
+                            : isFail
+                            ? 'destructive'
+                            : 'warning'
+                        }
+                        className="text-[10px] font-mono gap-1"
                       >
+                        {isSuccess ? (
+                          <CheckCircle2 className="size-3" />
+                        ) : isFail ? (
+                          <XCircle className="size-3" />
+                        ) : null}
                         {status}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-foreground">
+                    </TableCell>
+                    <TableCell className="font-semibold text-foreground text-xs">
                       {log.agent?.name || log.agentName || 'Agent'}
-                    </td>
-                    <td className="max-w-[280px] px-4 py-3 text-muted-foreground truncate font-mono text-[11px]">
-                      {log.promptText || log.promptPreview || 'Test execution turn'}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-muted-foreground text-[11px]">
-                      <div>{log.durationMs ? `${log.durationMs}ms` : '320ms'}</div>
-                      <div className="text-[10px] text-muted-foreground/80">{(log.tokensUsed || 320).toLocaleString()} tokens</div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-[11px]">
-                      {new Date(log.executedAt || log.startedAt || Date.now()).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="max-w-[280px] text-muted-foreground truncate font-mono text-[11px]">
+                      {log.promptText ||
+                        log.promptPreview ||
+                        'Test execution turn'}
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground text-[11px]">
+                      <div>
+                        {log.durationMs ? `${log.durationMs}ms` : '320ms'}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground/80">
+                        {(log.tokensUsed || 320).toLocaleString()} tokens
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-[11px]">
+                      {new Date(
+                        log.executedAt || log.startedAt || Date.now(),
+                      ).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right">
                       <Button
                         variant="ghost"
                         size="xs"
-                        onClick={() => handleInspect(log)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleInspect(log);
+                        }}
                         className="gap-1 text-xs text-primary"
                       >
                         <Eye className="size-3" /> Inspect Trace
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </TableBody>
+          </Table>
+        )}
+      </Panel>
 
       {/* Inspect Trace Modal with Waterfall Timeline */}
       <Dialog
@@ -248,7 +301,12 @@ export function ExecutionsPage() {
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-2">
               <Activity className="size-4 text-primary" />
-              <span>Execution Trace: {inspectExecution?.agent?.name || inspectExecution?.agentName || 'Agent'}</span>
+              <span>
+                Execution Trace:{' '}
+                {inspectExecution?.agent?.name ||
+                  inspectExecution?.agentName ||
+                  'Agent'}
+              </span>
             </DialogTitle>
           </DialogHeader>
 
@@ -259,7 +317,9 @@ export function ExecutionsPage() {
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold">
                     Status
                   </div>
-                  <div className="mt-0.5 font-bold uppercase">{inspectExecution.status}</div>
+                  <div className="mt-0.5 font-bold uppercase font-mono">
+                    {inspectExecution.status}
+                  </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold">
@@ -281,7 +341,7 @@ export function ExecutionsPage() {
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold">
                     Estimated Cost
                   </div>
-                  <div className="mt-0.5 font-bold font-mono text-emerald-500">
+                  <div className="mt-0.5 font-bold font-mono text-success">
                     {inspectExecution.costEstimated || '$0.002'}
                   </div>
                 </div>
@@ -294,31 +354,47 @@ export function ExecutionsPage() {
                     <Layers className="size-3.5 text-primary" />
                     <span>Execution Steps Waterfall</span>
                   </div>
-                  {isLoadingSteps && <span className="text-[10px] text-muted-foreground">Loading steps…</span>}
+                  {isLoadingSteps && (
+                    <span className="text-[10px] text-muted-foreground">
+                      Loading steps…
+                    </span>
+                  )}
                 </div>
 
                 <div className="rounded-lg border border-border bg-surface divide-y divide-border overflow-hidden">
-                  {inspectExecution.steps && inspectExecution.steps.length > 0 ? (
+                  {inspectExecution.steps &&
+                  inspectExecution.steps.length > 0 ? (
                     inspectExecution.steps.map((st: any, idx: number) => {
-                      const isStepOk = st.status === 'SUCCESS' || st.status === 'COMPLETED';
+                      const isStepOk =
+                        st.status === 'SUCCESS' || st.status === 'COMPLETED';
                       return (
-                        <div key={st.id || idx} className="p-2.5 flex items-center justify-between gap-3 text-[11px]">
+                        <div
+                          key={st.id || idx}
+                          className="p-2.5 flex items-center justify-between gap-3 text-[11px]"
+                        >
                           <div className="flex items-center gap-2">
                             <span className="flex size-5 items-center justify-center rounded-full bg-surface-raised font-mono text-[10px] text-muted-foreground">
                               {idx + 1}
                             </span>
                             {isStepOk ? (
-                              <CheckCircle2 className="size-3.5 text-emerald-500" />
+                              <CheckCircle2 className="size-3.5 text-success" />
                             ) : st.status === 'RUNNING' ? (
                               <RefreshCw className="size-3.5 text-primary animate-spin" />
                             ) : (
-                              <XCircle className="size-3.5 text-rose-500" />
+                              <XCircle className="size-3.5 text-destructive" />
                             )}
-                            <span className="font-semibold text-foreground">{st.nodeName || st.stepName || `Step ${idx + 1}`}</span>
+                            <span className="font-semibold text-foreground">
+                              {st.nodeName || st.stepName || `Step ${idx + 1}`}
+                            </span>
                           </div>
                           <div className="flex items-center gap-3 font-mono text-[10px] text-muted-foreground">
-                            <span>{st.durationMs ? `${st.durationMs}ms` : '35ms'}</span>
-                            <Badge variant={isStepOk ? 'success' : 'outline'} className="text-[9px] py-0">
+                            <span>
+                              {st.durationMs ? `${st.durationMs}ms` : '35ms'}
+                            </span>
+                            <Badge
+                              variant={isStepOk ? 'success' : 'outline'}
+                              className="text-[9px] py-0"
+                            >
                               {st.status}
                             </Badge>
                           </div>
@@ -327,7 +403,8 @@ export function ExecutionsPage() {
                     })
                   ) : (
                     <div className="p-3 text-[11px] text-muted-foreground">
-                      Single-turn direct model execution trace (no multi-step branch recorded).
+                      Single-turn direct model execution trace (no multi-step
+                      branch recorded).
                     </div>
                   )}
                 </div>
@@ -339,7 +416,9 @@ export function ExecutionsPage() {
                   Prompt Input
                 </div>
                 <div className="rounded-lg border border-border bg-surface-raised p-2.5 font-mono text-[11px] break-words">
-                  {inspectExecution.promptText || inspectExecution.promptPreview || 'Standard test turn'}
+                  {inspectExecution.promptText ||
+                    inspectExecution.promptPreview ||
+                    'Standard test turn'}
                 </div>
               </div>
 
@@ -351,13 +430,17 @@ export function ExecutionsPage() {
                 <CodeBlock
                   variant="compact"
                   language="json"
-                  code={inspectExecution.responseText || inspectExecution.responsePreview || 'Execution completed successfully.'}
+                  code={
+                    inspectExecution.responseText ||
+                    inspectExecution.responsePreview ||
+                    'Execution completed successfully.'
+                  }
                 />
               </div>
             </DialogBody>
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   );
 }

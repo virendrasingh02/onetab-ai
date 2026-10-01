@@ -184,27 +184,35 @@ export function ThreadPanel({
 
   return (
     <div className="min-h-0 flex h-full flex-col bg-surface relative">
-      <div className="border-b border-border pb-2 shrink-0">{rootSlot}</div>
-
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-surface-raised text-xs font-bold uppercase tracking-wider text-muted-foreground shrink-0">
-        <span>
-          {replyCount === 0
-            ? 'No replies yet'
-            : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
-        </span>
-      </div>
-
       <div className="min-h-0 relative flex flex-1 flex-col">
+        {/* The root scrolls with its replies rather than staying pinned. The
+            top padding leaves room for the root's hover toolbar, which floats
+            above the message and was otherwise clipped by the panel header. */}
         <ScrollArea
-          className="min-h-0 flex-1 bg-background"
+          className="min-h-0 flex-1"
+          contentClassName="pt-5 pb-2"
           viewportRef={viewportRef}
         >
+          {rootSlot}
+
+          <div
+            role="separator"
+            className="my-2 px-4 gap-3 flex items-center text-xs font-medium text-muted-foreground"
+          >
+            <span className="shrink-0">
+              {replyCount === 0
+                ? 'No replies yet'
+                : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
+            </span>
+            <span aria-hidden className="h-px flex-1 bg-border" />
+          </div>
+
           {repliesSlot}
         </ScrollArea>
         {overlaySlot}
       </div>
 
-      <div className="shrink-0 sticky bottom-0 z-20 w-full bg-surface border-t border-border">
+      <div className="shrink-0 sticky bottom-0 z-20 w-full">
         {composerSlot}
       </div>
     </div>

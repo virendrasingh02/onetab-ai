@@ -109,7 +109,7 @@ export function CodeBlockContent({
         role="region"
         aria-label={`${language} code snippet`}
       >
-        <pre className="m-0 py-3 px-3.5 bg-transparent float-left min-w-full">
+        <pre className="m-0 py-2 px-3.5 bg-transparent float-left min-w-full">
           <code className="block">
             {tokens.map((lineTokens, lineIndex) => {
               const currentLineNumber = startLineNumber + lineIndex;

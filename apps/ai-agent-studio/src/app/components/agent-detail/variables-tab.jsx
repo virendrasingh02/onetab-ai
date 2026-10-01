@@ -14,13 +14,11 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Code,
   Copy,
   Eye,
   EyeOff,
   Lock,
   Plus,
-  Sliders,
   Trash2,
   Variable,
   Wand2,
@@ -145,7 +143,7 @@ export function VariablesTab() {
                 <tr key={v.id} className="hover:bg-surface-raised transition-colors">
                   <td className="px-4 py-3 font-mono font-semibold text-foreground">
                     <div className="flex items-center gap-2">
-                      {v.isSecret && <Lock className="size-3 text-amber-500" />}
+                      {v.isSecret && <Lock className="size-3 text-warning" />}
                       <span>{v.key}</span>
                     </div>
                   </td>
@@ -223,7 +221,7 @@ export function VariablesTab() {
         {evaluatedResult && (
           <div className="rounded-lg border border-border bg-surface-raised p-3 text-xs space-y-1">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase">Evaluated Output:</div>
-            <div className="font-mono text-emerald-500 font-semibold">{evaluatedResult}</div>
+            <div className="font-mono text-success font-semibold">{evaluatedResult}</div>
           </div>
         )}
 

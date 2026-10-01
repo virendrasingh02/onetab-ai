@@ -3,17 +3,22 @@ import type { MCPTransport } from '@org/types';
 import {
   Badge,
   Button,
+  Card,
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogBody,
   DialogHeader,
   DialogTitle,
+  EmptyState,
   Input,
   LoadingState,
+  Page,
+  PageHeader,
   toast,
 } from '@org/ui';
+import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plug,
@@ -23,9 +28,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useStudioSession } from '../session-guard.js';
-
 import { integrationService } from '../services/integrationService.js';
+import { useStudioSession } from '../session-guard.js';
 
 export function McpPage() {
   const { activeWorkspace } = useStudioSession();
@@ -62,26 +66,27 @@ export function McpPage() {
     },
   });
 
-  // Create connection mutation
+  // Create mutation
   const createMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
-        name: serverName.trim(),
-        serverUrl: serverUrl.trim(),
-        transport,
-      };
       try {
-        return await mcpApi.createConnection(activeWorkspace.id, payload);
+        return await mcpApi.createConnection(activeWorkspace.id, {
+          name: serverName.trim(),
+          serverUrl: serverUrl.trim(),
+          transport,
+        });
       } catch {
         return integrationService.addMcpServer({
-          name: payload.name,
-          url: payload.serverUrl,
-          transport: payload.transport,
+          name: serverName.trim(),
+          url: serverUrl.trim(),
+          transport,
         });
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mcp-connections', activeWorkspace.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['mcp-connections', activeWorkspace.id],
+      });
       setIsAddOpen(false);
       setServerName('');
       setServerUrl('');
@@ -102,7 +107,9 @@ export function McpPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mcp-connections', activeWorkspace.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['mcp-connections', activeWorkspace.id],
+      });
       toast.success('MCP server removed');
     },
   });
@@ -118,54 +125,52 @@ export function McpPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mcp-connections', activeWorkspace.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['mcp-connections', activeWorkspace.id],
+      });
       toast.success('MCP tools synced from server');
     },
   });
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <Page width="wide" padding="none" className="space-y-6">
+      {/* Header matching Admin PageHeader */}
+      <PageHeader
+        title="Model Context Protocol (MCP) Registry"
+        description="Connect standard MCP servers over SSE or stdio to discover external tools, databases, and APIs."
+        icon={<Plug className="size-5" />}
+        accent="pink"
+        actions={
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              Model Context Protocol (MCP) Registry
-            </h1>
-            <Badge variant="outline" className="text-xs">
-              {connections.length} servers
-            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+              loading={isRefetching}
+              className="gap-1.5 text-xs"
+            >
+              <RefreshCw
+                className={cn('size-3.5', isRefetching && 'animate-spin')}
+              />{' '}
+              Refresh
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setIsAddOpen(true)}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <Plus className="size-4" /> Connect MCP Server
+            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Connect standard MCP servers over SSE or stdio to discover external tools, databases, and APIs.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void refetch()}
-            loading={isRefetching}
-            className="gap-1.5 text-xs"
-          >
-            <RefreshCw className="size-3.5" /> Refresh
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setIsAddOpen(true)}
-            className="gap-1.5 text-xs font-semibold"
-          >
-            <Plus className="size-4" /> Connect MCP Server
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Built-in MCP Server Card */}
-      <div className="rounded-xl border border-primary/25 bg-surface p-4 shadow-2xs space-y-3">
+      <Card className="border-primary/25 p-4 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary font-bold">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary font-bold shrink-0">
               <Server className="size-4" />
             </div>
             <div>
@@ -187,44 +192,43 @@ export function McpPage() {
             Transport: in-process
           </span>
         </div>
-      </div>
+      </Card>
 
       {/* External MCP Servers */}
       {isLoading ? (
         <LoadingState label="Loading MCP servers…" />
       ) : connections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 p-10 text-center text-muted-foreground">
-          <Plug className="size-10 text-muted-foreground/30 mb-2" />
-          <div className="text-sm font-semibold text-foreground">
-            No External MCP Servers Connected
-          </div>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            Connect an external MCP server (such as GitHub, Postgres, Slack, or filesystem) to expose tools to your agents.
-          </p>
-          <Button
-            size="sm"
-            onClick={() => setIsAddOpen(true)}
-            className="mt-4 gap-1.5"
-          >
-            <Plus className="size-3.5" /> Connect Server
-          </Button>
-        </div>
+        <EmptyState
+          icon={<Plug className="size-8 text-muted-foreground" />}
+          title="No External MCP Servers Connected"
+          description="Connect an external MCP server (such as GitHub, Postgres, Slack, or filesystem) to expose tools to your agents."
+          action={
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setIsAddOpen(true)}
+              className="gap-1.5 text-xs"
+            >
+              <Plus className="size-3.5" /> Connect Server
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-3">
-          <h2 className="text-sm font-bold text-foreground">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Connected Servers ({connections.length})
           </h2>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {connections.map((conn) => (
-              <div
+              <Card
                 key={conn.id}
-                className="flex flex-col justify-between rounded-xl border border-border bg-surface p-4 shadow-2xs space-y-3"
+                className="flex flex-col justify-between p-4 shadow-2xs space-y-3"
               >
                 <div>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="flex size-7 items-center justify-center rounded-lg bg-surface-raised border border-border text-primary font-bold">
+                      <div className="flex size-7 items-center justify-center rounded-lg bg-surface-raised border border-border text-primary font-bold shrink-0">
                         <Plug className="size-3.5" />
                       </div>
                       <div>
@@ -242,24 +246,25 @@ export function McpPage() {
                     </Badge>
                   </div>
 
-                  {Array.isArray((conn as any).tools) && (conn as any).tools.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase">
-                        Discovered Tools ({(conn as any).tools.length})
+                  {Array.isArray((conn as any).tools) &&
+                    (conn as any).tools.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase">
+                          Discovered Tools ({(conn as any).tools.length})
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {(conn as any).tools.map((t: any) => (
+                            <span
+                              key={t.name}
+                              title={t.description}
+                              className="rounded bg-surface-raised border border-border px-1.5 py-0.5 font-mono text-[9px] text-foreground"
+                            >
+                              {t.name}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        {(conn as any).tools.map((t: any) => (
-                          <span
-                            key={t.name}
-                            title={t.description}
-                            className="rounded bg-surface-raised border border-border px-1.5 py-0.5 font-mono text-[9px] text-foreground"
-                          >
-                            {t.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    )}
                 </div>
 
                 <div className="flex items-center justify-between border-t border-border/60 pt-2.5">
@@ -282,7 +287,7 @@ export function McpPage() {
                     <Trash2 className="size-3 mr-1" /> Remove
                   </Button>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>
@@ -368,6 +373,7 @@ export function McpPage() {
               <Button
                 type="submit"
                 size="sm"
+                variant="primary"
                 loading={createMutation.isPending}
                 disabled={!serverName.trim() || !serverUrl.trim()}
               >
@@ -377,6 +383,6 @@ export function McpPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   );
 }

@@ -11,7 +11,6 @@ import {
   LifeBuoy,
   RefreshCw,
   Send,
-  Sparkles,
   ThumbsDown,
   ThumbsUp,
   User,
@@ -149,13 +148,13 @@ export function UserChatPage() {
               variant="outline"
               size="sm"
               onClick={handleEscalateToHuman}
-              className="gap-1.5 text-xs text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
+              className="gap-1.5 text-xs text-warning border-warning/30 hover:bg-warning/10"
             >
               <LifeBuoy className="size-3.5" />
               Human Takeover
             </Button>
           ) : (
-            <Badge variant="outline" className="text-xs text-amber-500 border-amber-500/30">
+            <Badge variant="outline" className="text-xs text-warning border-warning/30">
               Human In Loop Active
             </Badge>
           )}
@@ -190,7 +189,7 @@ export function UserChatPage() {
             return (
               <div
                 key={msg.id}
-                className="my-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-center text-xs text-amber-500 font-medium"
+                className="my-3 rounded-lg border border-warning/30 bg-warning/10 p-3 text-center text-xs text-warning font-medium"
               >
                 {msg.content}
               </div>
@@ -260,14 +259,14 @@ export function UserChatPage() {
                       </button>
                       <button
                         onClick={() => toast.success('Thanks for your feedback!')}
-                        className="p-1 hover:text-emerald-500"
+                        className="p-1 hover:text-success"
                         title="Helpful"
                       >
                         <ThumbsUp className="size-3" />
                       </button>
                       <button
                         onClick={() => toast.info('Feedback recorded for agent prompt tuning')}
-                        className="p-1 hover:text-rose-500"
+                        className="p-1 hover:text-destructive"
                         title="Not helpful"
                       >
                         <ThumbsDown className="size-3" />

@@ -31,6 +31,8 @@ export interface MessageRendererProps {
   density?: 'comfy' | 'compact';
   mentionNames?: string[];
   threadReplyCount?: number;
+  /** Curved line from the avatar to the replies summary — see `ChatBubble`. */
+  showThreadConnector?: boolean;
   threadHasUnread?: boolean;
   threadParticipants?: RoomMember[];
   lastReplyAt?: number;

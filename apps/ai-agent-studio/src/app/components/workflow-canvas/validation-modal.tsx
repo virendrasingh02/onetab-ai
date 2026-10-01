@@ -39,7 +39,7 @@ export function ValidationModal({
             <div
               className={`flex size-8 items-center justify-center rounded-lg ${
                 valid
-                  ? 'bg-emerald-500/15 text-emerald-500'
+                  ? 'bg-success/15 text-success'
                   : 'bg-destructive/15 text-destructive'
               }`}
             >
@@ -66,14 +66,14 @@ export function ValidationModal({
           {/* Checks summary */}
           <div className="rounded-lg border border-border bg-surface-raised/50 p-3 space-y-2">
             <div className="flex items-center gap-2 text-foreground font-medium">
-              <CheckCircle2 className="size-3.5 text-emerald-500" />
+              <CheckCircle2 className="size-3.5 text-success" />
               <span>Canvas Graph Topology</span>
             </div>
             <div className="flex items-center gap-2 text-foreground font-medium">
               {errors.some((e) => e.includes('Start')) ? (
                 <AlertCircle className="size-3.5 text-destructive" />
               ) : (
-                <CheckCircle2 className="size-3.5 text-emerald-500" />
+                <CheckCircle2 className="size-3.5 text-success" />
               )}
               <span>Start Node Entrypoint</span>
             </div>
@@ -81,7 +81,7 @@ export function ValidationModal({
               {errors.some((e) => e.includes('Tool')) ? (
                 <AlertCircle className="size-3.5 text-destructive" />
               ) : (
-                <CheckCircle2 className="size-3.5 text-emerald-500" />
+                <CheckCircle2 className="size-3.5 text-success" />
               )}
               <span>Tool & Model Attachments</span>
             </div>
@@ -104,7 +104,7 @@ export function ValidationModal({
 
           {/* Warnings list */}
           {warnings.length > 0 && (
-            <div className="space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-500">
+            <div className="space-y-1.5 rounded-lg border border-warning/30 bg-warning/10 p-3 text-warning">
               <div className="font-semibold flex items-center gap-1.5 text-xs">
                 <AlertTriangle className="size-3.5" />
                 <span>Warnings ({warnings.length})</span>

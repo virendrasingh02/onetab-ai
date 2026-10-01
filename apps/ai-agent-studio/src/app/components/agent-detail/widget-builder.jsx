@@ -4,14 +4,9 @@ import { Badge, Button, CodeBlock, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Bot,
-  Copy,
   ExternalLink,
-  Globe,
   MessageSquare,
-  Palette,
-  Play,
   Send,
-  Sparkles,
 } from 'lucide-react';
 import { deploymentService } from '../../services/deploymentService.js';
 

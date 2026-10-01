@@ -6,8 +6,6 @@ import {
   Plus,
   Trash2,
   Wand2,
-  Layers,
-  Sparkles,
   Info,
 } from 'lucide-react';
 

@@ -1,14 +1,11 @@
 import { useState } from 'react';
-import { Badge, Button, CodeBlock, Input, toast } from '@org/ui';
+import { Badge, Button, Card, CodeBlock, Page, PageHeader, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Code2,
-  Copy,
-  ExternalLink,
   Globe,
   Play,
   Terminal,
-  Webhook,
   Zap,
 } from 'lucide-react';
 import { useStudioSession } from '../session-guard.js';
@@ -92,25 +89,23 @@ for event in response.iter_events():
   };
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            Developer Hub & API Sandbox
-          </h1>
-          <Badge variant="outline" className="text-xs">
+    <Page width="wide" padding="none" className="space-y-6">
+      {/* Header matching Admin */}
+      <PageHeader
+        title="Developer Hub & API Sandbox"
+        description="Integrate autonomous workflows and published agents into external applications, CI/CD pipelines, and microservices."
+        icon={<Code2 className="size-5" />}
+        accent="blue"
+        actions={
+          <Badge variant="outline" className="text-xs font-mono">
             v1 REST & SDK
           </Badge>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Integrate autonomous workflows and published agents into external applications, CI/CD pipelines, and microservices.
-        </p>
-      </div>
+        }
+      />
 
       {/* Quick Specs Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <Card className="p-4 shadow-2xs hover:border-primary/40 transition-colors">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">REST API Base URL</span>
             <Globe className="size-4 text-primary" />
@@ -119,9 +114,9 @@ for event in response.iter_events():
             https://api.onetab.ai/v1
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">Bearer token authenticated</p>
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <Card className="p-4 shadow-2xs hover:border-primary/40 transition-colors">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Active Workspace ID</span>
             <Terminal className="size-4 text-primary" />
@@ -130,18 +125,18 @@ for event in response.iter_events():
             {activeWorkspace.id}
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">Include in X-Workspace-Id header</p>
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <Card className="p-4 shadow-2xs hover:border-primary/40 transition-colors">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Rate Limits</span>
-            <Zap className="size-4 text-emerald-500" />
+            <Zap className="size-4 text-success" />
           </div>
           <div className="mt-2 text-xs font-bold text-foreground">
             600 req/min • 50 concurrent
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">Enterprise burst tier</p>
-        </div>
+        </Card>
       </div>
 
       {/* Interactive Sandbox & Code Snippets */}
@@ -207,7 +202,7 @@ for event in response.iter_events():
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase">
                 <span>Response Body</span>
-                <span className={cn('font-bold', testResponse.statusCode === 200 ? 'text-emerald-500' : 'text-rose-500')}>
+                <span className={cn('font-bold', testResponse.statusCode === 200 ? 'text-success' : 'text-destructive')}>
                   HTTP {testResponse.statusCode} {testResponse.latencyMs ? `(${testResponse.latencyMs}ms)` : ''}
                 </span>
               </div>
@@ -220,6 +215,6 @@ for event in response.iter_events():
           )}
         </div>
       </div>
-    </div>
+    </Page>
   );
 }

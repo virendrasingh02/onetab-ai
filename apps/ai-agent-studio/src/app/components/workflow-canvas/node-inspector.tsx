@@ -108,13 +108,13 @@ export function NodeInspector({
             {nodeType === 'AGENT' ? (
               <Bot className="size-3.5" />
             ) : nodeType.startsWith('FIRECRAWL') ? (
-              <Flame className="size-3.5 text-amber-500" />
+              <Flame className="size-3.5 text-warning" />
             ) : nodeType === 'USER_APPROVAL' ? (
-              <UserCheck className="size-3.5 text-rose-500" />
+              <UserCheck className="size-3.5 text-destructive" />
             ) : nodeType === 'AI_GUARDRAIL' ? (
-              <Shield className="size-3.5 text-emerald-500" />
+              <Shield className="size-3.5 text-success" />
             ) : nodeType === 'IF_ELSE' ? (
-              <GitBranch className="size-3.5 text-violet-500" />
+              <GitBranch className="size-3.5 text-accent-violet" />
             ) : (
               <Cpu className="size-3.5" />
             )}
@@ -272,7 +272,7 @@ export function NodeInspector({
         {/* 2. FIRECRAWL PROPERTIES */}
         {nodeType.startsWith('FIRECRAWL') && (
           <div className="space-y-3 pt-2 border-t border-border">
-            <div className="rounded-lg bg-amber-500/10 p-2.5 text-xs text-amber-500">
+            <div className="rounded-lg bg-warning/10 p-2.5 text-xs text-warning">
               <div className="font-semibold flex items-center gap-1.5">
                 <Flame className="size-3.5" /> Firecrawl Web Integration
               </div>
@@ -499,9 +499,9 @@ export function NodeInspector({
         {/* 5b. AI GUARDRAIL PROPERTIES */}
         {nodeType === 'AI_GUARDRAIL' && (
           <div className="space-y-3 pt-2 border-t border-border">
-            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-600 dark:text-emerald-400">
+            <div className="rounded-lg bg-success/10 p-2.5 text-xs text-success-text">
               <div className="font-semibold flex items-center gap-1.5">
-                <Shield className="size-3.5 text-emerald-500" /> Security & Guardrail Filter
+                <Shield className="size-3.5 text-success" /> Security & Guardrail Filter
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
                 Applies automated PII redaction, token budgets, and prompt injection defenses to protect outputs.
@@ -603,7 +603,7 @@ export function NodeInspector({
         {/* 7. TRIGGER CONFIGURATION */}
         {nodeType.startsWith('TRIGGER') && (
           <div className="space-y-3 pt-2 border-t border-border">
-            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+            <div className="rounded-lg bg-success/10 p-2.5 text-xs text-success-text font-semibold">
               Event Trigger Configuration
             </div>
             {nodeType === 'TRIGGER_SCHEDULE' && (
@@ -753,7 +753,7 @@ export function NodeInspector({
                 value={config.note || ''}
                 onChange={(e) => updateConfig('note', e.target.value)}
                 placeholder="Document your architecture or steps here…"
-                className="w-full rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-2.5 text-xs text-foreground"
+                className="w-full rounded-md border border-warning bg-amber-50 dark:bg-amber-950/20 p-2.5 text-xs text-foreground"
               />
             </div>
           </div>
@@ -798,7 +798,7 @@ export function NodeInspector({
               loading={isTesting}
               className="gap-1 text-xs"
             >
-              <Cpu className="size-3 text-emerald-500" />
+              <Cpu className="size-3 text-success" />
               Test Node
             </Button>
           </div>
@@ -806,7 +806,7 @@ export function NodeInspector({
           {testResult && (
             <div className="space-y-1 font-mono text-[10px]">
               <div className="flex items-center justify-between text-muted-foreground pb-1">
-                <span className="text-emerald-500 font-bold">{testResult.status}</span>
+                <span className="text-success font-bold">{testResult.status}</span>
                 <span>{testResult.latencyMs}ms</span>
               </div>
               <CodeBlock

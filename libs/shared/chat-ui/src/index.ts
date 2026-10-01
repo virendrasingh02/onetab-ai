@@ -33,7 +33,14 @@ export {
   type UserProfileCardProps,
 } from './lib/user-profile-card.js';
 
-export { Composer, type ComposerProps } from './lib/composer.js';
+export {
+  Composer,
+  GROUP_MENTIONS,
+  DEFAULT_AI_AGENT_MENTIONS,
+  DEFAULT_COWORKER_MENTIONS,
+  DEFAULT_APP_MENTIONS,
+  type ComposerProps,
+} from './lib/composer.js';
 export {
   useDraftsStore,
   type ConversationDraft,

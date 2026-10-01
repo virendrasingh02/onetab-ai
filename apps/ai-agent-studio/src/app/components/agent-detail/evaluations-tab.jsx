@@ -1,29 +1,18 @@
 import { useState } from 'react';
-import { Badge, Button, CodeBlock, Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input, toast } from '@org/ui';
+import { Badge, Button, CodeBlock, Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import { agentsApi } from '@org/api-client';
 import {
-  AlertTriangle,
   Award,
-  BarChart3,
-  Bot,
   CheckCircle2,
   Clock,
-  Coins,
-  Cpu,
   Eye,
-  Filter,
-  Layers,
   Play,
   Plus,
   RefreshCw,
-  Search,
-  Shield,
   ShieldCheck,
-  Sparkles,
   Target,
   Trash2,
-  XCircle,
 } from 'lucide-react';
 import { useStudioSession } from '../../session-guard.js';
 
@@ -201,11 +190,11 @@ export function EvaluationsTab({ agent, onUpdate }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-success/15 text-success">
               <Award className="size-4" />
             </div>
             <h2 className="text-lg font-bold text-foreground">Evaluation, Testing & Benchmarks</h2>
-            <Badge variant="outline" className="text-xs text-emerald-500 border-emerald-500/30">
+            <Badge variant="outline" className="text-xs text-success border-success/30">
               LLM-as-a-Judge
             </Badge>
           </div>
@@ -229,7 +218,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
             size="sm"
             onClick={handleRunEvaluation}
             loading={isRunningEval}
-            className="gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="gap-1.5 text-xs font-semibold bg-success hover:bg-success/90 text-success-foreground"
           >
             <Play className="size-3.5" />
             Run Benchmark Suite
@@ -249,7 +238,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-surface-raised">
             <div
-              className="h-full bg-emerald-500 transition-all duration-300"
+              className="h-full bg-success transition-all duration-300"
               style={{ width: `${evalProgress}%` }}
             />
           </div>
@@ -261,12 +250,12 @@ export function EvaluationsTab({ agent, onUpdate }) {
         <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Evaluation Score</span>
-            <Target className="size-4 text-emerald-500" />
+            <Target className="size-4 text-success" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {avgScore}/100
           </div>
-          <div className="mt-1 text-[11px] text-emerald-500 font-medium">
+          <div className="mt-1 text-[11px] text-success font-medium">
             High Confidence
           </div>
         </div>
@@ -287,7 +276,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
         <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Mean Turn Latency</span>
-            <Clock className="size-4 text-amber-500" />
+            <Clock className="size-4 text-warning" />
           </div>
           <div className="mt-2 text-2xl font-bold font-mono text-foreground">
             {avgLatency}ms
@@ -300,12 +289,12 @@ export function EvaluationsTab({ agent, onUpdate }) {
         <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Safety & Guardrails</span>
-            <ShieldCheck className="size-4 text-emerald-500" />
+            <ShieldCheck className="size-4 text-success" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             100%
           </div>
-          <div className="mt-1 text-[11px] text-emerald-500 font-medium">
+          <div className="mt-1 text-[11px] text-success font-medium">
             Zero PII leaks detected
           </div>
         </div>
@@ -403,7 +392,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-2">
-              <Award className="size-4 text-emerald-500" />
+              <Award className="size-4 text-success" />
               <span>Benchmark Test Detail</span>
             </DialogTitle>
           </DialogHeader>
@@ -417,7 +406,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
                 </div>
                 <div>
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold">Judge Score</div>
-                  <div className="mt-0.5 font-bold font-mono text-emerald-500">{inspectCase.score}/100</div>
+                  <div className="mt-0.5 font-bold font-mono text-success">{inspectCase.score}/100</div>
                 </div>
                 <div>
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold">Latency</div>
@@ -450,7 +439,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
 
               <div>
                 <div className="text-[11px] font-semibold text-foreground mb-1">LLM Judge Explanation</div>
-                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+                <div className="rounded-lg border border-success/20 bg-success/10 p-2.5 text-[11px] text-success-text">
                   {inspectCase.judgeReasoning}
                 </div>
               </div>

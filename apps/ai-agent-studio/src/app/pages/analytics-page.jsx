@@ -1,28 +1,20 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Badge, Button, LoadingState } from '@org/ui';
-import { cn } from '@org/utils';
+import { Badge, Button, Card, LoadingState, Page, PageHeader } from '@org/ui';
 import {
   Activity,
   AlertTriangle,
   ArrowUpRight,
   BarChart3,
-  Calendar,
   CheckCircle2,
   Clock,
   Coins,
-  DollarSign,
-  Download,
-  Filter,
   RefreshCw,
-  TrendingUp,
   Zap,
 } from 'lucide-react';
 import {
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -31,7 +23,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from 'recharts';
 import { analyticsService } from '../services/analyticsService.js';
 import { useStudioSession } from '../session-guard.js';
@@ -54,75 +45,68 @@ export function AnalyticsPage() {
   const { summary, timeSeries, modelsBreakdown, latencyPercentiles } = analytics;
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <Page width="wide" padding="none" className="space-y-6">
+      {/* Header matching Admin */}
+      <PageHeader
+        title="Telemetry & Observability"
+        description={`Monitor workflow execution success rates, token usage, latency distribution, and cost telemetry for ${activeWorkspace.name}.`}
+        icon={<BarChart3 className="size-5" />}
+        accent="violet"
+        actions={
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              Telemetry & Observability
-            </h1>
-            <Badge variant="outline" className="text-xs">
-              Live Metrics
-            </Badge>
+            {/* Date Range Selector */}
+            <div className="flex items-center gap-1 border-b sm:border-b-0 pb-1 sm:pb-0">
+              {['24H', '7D', '30D', '90D'].map((range) => (
+                <Button
+                  key={range}
+                  variant={dateRange === range ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setDateRange(range)}
+                  className="text-xs h-7 px-2.5"
+                >
+                  {range}
+                </Button>
+              ))}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+              loading={isRefetching}
+              className="gap-1.5 text-xs h-8"
+            >
+              <RefreshCw className="size-3.5" />
+              Refresh
+            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Monitor workflow execution success rates, token usage, latency distribution, and cost telemetry for {activeWorkspace.name}.
-          </p>
-        </div>
+        }
+      />
 
-        <div className="flex items-center gap-2">
-          {/* Date Range Selector */}
-          <div className="flex items-center rounded-lg border border-border bg-surface p-1 text-xs">
-            {['24H', '7D', '30D', '90D'].map((range) => (
-              <button
-                key={range}
-                onClick={() => setDateRange(range)}
-                className={cn(
-                  'rounded px-2.5 py-1 font-medium transition-colors',
-                  dateRange === range
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {range}
-              </button>
-            ))}
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void refetch()}
-            loading={isRefetching}
-            className="gap-1.5 text-xs"
-          >
-            <RefreshCw className="size-3.5" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* KPI Cards Row */}
+      {/* KPI Cards Row matching Admin ExecutiveKpiGrid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
+        <Card className="p-4 sm:p-5 flex flex-col justify-between hover:border-primary/40 transition-colors shadow-2xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Total Invocations</span>
-            <Activity className="size-4 text-primary" />
+            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Activity className="size-4" />
+            </div>
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {summary.totalExecutions.toLocaleString()}
           </div>
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-500 font-medium">
+          <div className="mt-1 flex items-center gap-1 text-[11px] text-success font-medium">
             <ArrowUpRight className="size-3" />
             <span>+14.2% vs previous period</span>
           </div>
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
+        <Card className="p-4 sm:p-5 flex flex-col justify-between hover:border-primary/40 transition-colors shadow-2xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Success Rate</span>
-            <CheckCircle2 className="size-4 text-emerald-500" />
+            <div className="size-8 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
+              <CheckCircle2 className="size-4" />
+            </div>
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {summary.successRate}%
@@ -130,12 +114,14 @@ export function AnalyticsPage() {
           <div className="mt-1 text-[11px] text-muted-foreground">
             {summary.failedExecutions} failed runs
           </div>
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
+        <Card className="p-4 sm:p-5 flex flex-col justify-between hover:border-primary/40 transition-colors shadow-2xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Token Consumption</span>
-            <Zap className="size-4 text-amber-500" />
+            <div className="size-8 rounded-lg bg-warning/10 text-warning flex items-center justify-center shrink-0">
+              <Zap className="size-4" />
+            </div>
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {summary.totalTokens}
@@ -143,12 +129,14 @@ export function AnalyticsPage() {
           <div className="mt-1 text-[11px] text-muted-foreground">
             Across 5 foundation models
           </div>
-        </div>
+        </Card>
 
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
+        <Card className="p-4 sm:p-5 flex flex-col justify-between hover:border-primary/40 transition-colors shadow-2xs">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Estimated Cost</span>
-            <Coins className="size-4 text-emerald-500" />
+            <div className="size-8 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
+              <Coins className="size-4" />
+            </div>
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {summary.totalCost}
@@ -156,7 +144,7 @@ export function AnalyticsPage() {
           <div className="mt-1 text-[11px] text-muted-foreground">
             Budget cap: $250.00/mo
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Main Charts Row */}
@@ -174,7 +162,7 @@ export function AnalyticsPage() {
                 Successful Runs
               </span>
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="size-2.5 rounded-full bg-rose-500" />
+                <span className="size-2.5 rounded-full bg-destructive" />
                 Failed Runs
               </span>
             </div>
@@ -281,7 +269,7 @@ export function AnalyticsPage() {
             </div>
             <div className="rounded-lg border border-border bg-surface-raised p-3">
               <div className="text-[11px] text-muted-foreground">99th Percentile</div>
-              <div className="mt-1 text-lg font-bold text-amber-500">{latencyPercentiles.p99}</div>
+              <div className="mt-1 text-lg font-bold text-warning">{latencyPercentiles.p99}</div>
             </div>
           </div>
           <p className="mt-3 text-[11px] text-muted-foreground">
@@ -292,7 +280,7 @@ export function AnalyticsPage() {
         <div className="rounded-xl border border-border bg-surface p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground">Active Health & Alert Rules</h3>
-            <AlertTriangle className="size-4 text-emerald-500" />
+            <AlertTriangle className="size-4 text-success" />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-lg border border-border/80 bg-surface-raised px-3 py-2 text-xs">
@@ -307,7 +295,7 @@ export function AnalyticsPage() {
                 <div className="font-medium text-foreground">Monthly Budget Cap</div>
                 <div className="text-[10px] text-muted-foreground">Warning at 80% ($200.00) usage threshold</div>
               </div>
-              <Badge variant="outline" className="text-[10px] text-emerald-500">23.5% Used</Badge>
+              <Badge variant="outline" className="text-[10px] text-success">23.5% Used</Badge>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border/80 bg-surface-raised px-3 py-2 text-xs">
               <div>
@@ -319,6 +307,6 @@ export function AnalyticsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </Page>
   );
 }

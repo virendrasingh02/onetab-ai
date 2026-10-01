@@ -37,9 +37,9 @@ export interface WorkflowNodePayload {
 const statusBorderClasses: Record<string, string> = {
   idle: 'border-border',
   running: 'border-primary ring-2 ring-primary/40 animate-pulse',
-  success: 'border-emerald-500/80 ring-2 ring-emerald-500/20',
+  success: 'border-success/80 ring-2 ring-success/20',
   failed: 'border-destructive ring-2 ring-destructive/30',
-  waiting: 'border-amber-500 ring-2 ring-amber-500/30',
+  waiting: 'border-warning ring-2 ring-warning/30',
 };
 
 const CATEGORIES: { id: NodeCategory; label: string }[] = [
@@ -414,8 +414,8 @@ export const StartNode = memo(({ data, selected }: NodeProps) => {
       )}
     >
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500">
-          <Play className="size-4 fill-emerald-500" />
+        <div className="flex size-8 items-center justify-center rounded-lg bg-success/15 text-success">
+          <Play className="size-4 fill-success" />
         </div>
         <div>
           <div className="text-xs font-bold text-foreground">
@@ -430,7 +430,7 @@ export const StartNode = memo(({ data, selected }: NodeProps) => {
       <SourceHandleWithQuickAdd
         position={Position.Right}
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-emerald-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-success"
       />
     </div>
   );
@@ -506,19 +506,19 @@ export const FirecrawlNode = memo(({ data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[230px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-amber-500 border-amber-500 shadow-md' : 'hover:border-amber-500/50',
+        selected ? 'ring-2 ring-warning border-warning shadow-md' : 'hover:border-warning/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-amber-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-warning"
       />
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-500">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-warning/15 text-warning">
             <Flame className="size-4" />
           </div>
           <div>
@@ -531,7 +531,7 @@ export const FirecrawlNode = memo(({ data, selected }: NodeProps) => {
           </div>
         </div>
 
-        <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-500">
+        <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning">
           Firecrawl
         </span>
       </div>
@@ -545,7 +545,7 @@ export const FirecrawlNode = memo(({ data, selected }: NodeProps) => {
       <SourceHandleWithQuickAdd
         position={Position.Right}
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-amber-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-warning"
       />
     </div>
   );
@@ -560,18 +560,18 @@ export const MCPToolNode = memo(({ data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[220px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-indigo-500 border-indigo-500 shadow-md' : 'hover:border-indigo-500/50',
+        selected ? 'ring-2 ring-accent-indigo border-accent-indigo shadow-md' : 'hover:border-accent-indigo/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-indigo-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-indigo"
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-500">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-indigo/15 text-accent-indigo">
           <Wrench className="size-4" />
         </div>
         <div>
@@ -587,7 +587,7 @@ export const MCPToolNode = memo(({ data, selected }: NodeProps) => {
       <SourceHandleWithQuickAdd
         position={Position.Right}
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-indigo-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-indigo"
       />
     </div>
   );
@@ -601,18 +601,18 @@ export const TransformNode = memo(({ data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[210px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-sky-500 border-sky-500 shadow-md' : 'hover:border-sky-500/50',
+        selected ? 'ring-2 ring-accent-blue border-accent-blue shadow-md' : 'hover:border-accent-blue/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-sky-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-blue"
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-sky-500/15 text-sky-500">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-blue/15 text-accent-blue">
           <Code2 className="size-4" />
         </div>
         <div>
@@ -628,7 +628,7 @@ export const TransformNode = memo(({ data, selected }: NodeProps) => {
       <SourceHandleWithQuickAdd
         position={Position.Right}
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-sky-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-blue"
       />
     </div>
   );
@@ -643,18 +643,18 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[220px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-violet-500 border-violet-500 shadow-md' : 'hover:border-violet-500/50',
+        selected ? 'ring-2 ring-accent-violet border-accent-violet shadow-md' : 'hover:border-accent-violet/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-violet-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-violet-500/15 text-violet-500">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-violet/15 text-accent-violet">
           <GitBranch className="size-4" />
         </div>
         <div>
@@ -668,26 +668,26 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
       </div>
 
       {/* True Handle (Top Right) */}
-      <div className="mt-3 flex items-center justify-between text-[10px] font-semibold text-emerald-500">
+      <div className="mt-3 flex items-center justify-between text-[10px] font-semibold text-success">
         <span>True</span>
         <SourceHandleWithQuickAdd
           id="true"
           position={Position.Right}
           style={{ top: '42%' }}
           onConnectNext={nodeData.onConnectNext}
-          className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-emerald-500"
+          className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-success"
         />
       </div>
 
       {/* False Handle (Bottom Right) */}
-      <div className="flex items-center justify-between text-[10px] font-semibold text-rose-500">
+      <div className="flex items-center justify-between text-[10px] font-semibold text-destructive">
         <span>False</span>
         <SourceHandleWithQuickAdd
           id="false"
           position={Position.Right}
           style={{ top: '78%' }}
           onConnectNext={nodeData.onConnectNext}
-          className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-rose-500"
+          className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-destructive"
         />
       </div>
     </div>
@@ -702,18 +702,18 @@ export const WhileLoopNode = memo(({ data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[210px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-purple-500 border-purple-500 shadow-md' : 'hover:border-purple-500/50',
+        selected ? 'ring-2 ring-accent-violet border-accent-violet shadow-md' : 'hover:border-accent-violet/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-purple-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-purple-500/15 text-purple-500">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-violet/15 text-accent-violet">
           <Repeat className="size-4" />
         </div>
         <div>
@@ -729,7 +729,7 @@ export const WhileLoopNode = memo(({ data, selected }: NodeProps) => {
       <SourceHandleWithQuickAdd
         position={Position.Right}
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-purple-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
       />
     </div>
   );
@@ -744,19 +744,19 @@ export const UserApprovalNode = memo(({ data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[230px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-rose-500 border-rose-500 shadow-md' : 'hover:border-rose-500/50',
+        selected ? 'ring-2 ring-destructive border-destructive shadow-md' : 'hover:border-destructive/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-rose-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-destructive"
       />
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-rose-500/15 text-rose-500">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-destructive/15 text-destructive">
             <UserCheck className="size-4" />
           </div>
           <div>
@@ -769,7 +769,7 @@ export const UserApprovalNode = memo(({ data, selected }: NodeProps) => {
           </div>
         </div>
 
-        <span className="rounded-full bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-rose-500">
+        <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive">
           Pause Flow
         </span>
       </div>
@@ -783,7 +783,7 @@ export const UserApprovalNode = memo(({ data, selected }: NodeProps) => {
       <SourceHandleWithQuickAdd
         position={Position.Right}
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-rose-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-destructive"
       />
     </div>
   );
@@ -797,18 +797,18 @@ export const EndNode = memo(({ data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[200px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-emerald-500 border-emerald-500 shadow-md' : 'hover:border-emerald-500/50',
+        selected ? 'ring-2 ring-success border-success shadow-md' : 'hover:border-success/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-emerald-500"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-success"
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-success/15 text-success">
           <CheckCircle2 className="size-4" />
         </div>
         <div>
@@ -886,10 +886,10 @@ export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
   const color = nodeData.color || 'yellow';
 
   const colorStyles: Record<string, string> = {
-    yellow: 'bg-amber-500/10 border-amber-500/30 text-amber-950 dark:text-amber-200',
-    blue: 'bg-sky-500/10 border-sky-500/30 text-sky-950 dark:text-sky-200',
-    purple: 'bg-purple-500/10 border-purple-500/30 text-purple-950 dark:text-purple-200',
-    green: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200',
+    yellow: 'bg-warning/10 border-warning/30 text-amber-950 dark:text-amber-200',
+    blue: 'bg-accent-blue/10 border-accent-blue/30 text-sky-950 dark:text-sky-200',
+    purple: 'bg-accent-violet/10 border-accent-violet/30 text-purple-950 dark:text-purple-200',
+    green: 'bg-success/10 border-success/30 text-emerald-950 dark:text-emerald-200',
   };
 
   return (

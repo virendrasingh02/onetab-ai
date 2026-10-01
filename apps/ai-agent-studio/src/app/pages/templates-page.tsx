@@ -1,20 +1,20 @@
 import { agentsApi } from '@org/api-client';
-import { Badge, Button, toast } from '@org/ui';
+import { Badge, Button, Card, Input, Page, PageHeader, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight,
   Bot,
   Flame,
+  Layers,
   Search,
   Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { STUDIO_TEMPLATES, type StudioTemplate } from '../data/templates.js';
-import { useStudioSession } from '../session-guard.js';
-
 import { agentService } from '../services/agentService.js';
+import { useStudioSession } from '../session-guard.js';
 
 export function TemplatesPage() {
   const { activeWorkspace } = useStudioSession();
@@ -55,7 +55,9 @@ export function TemplatesPage() {
       }
     },
     onSuccess: (newAgent) => {
-      queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['agents', activeWorkspace.id],
+      });
       toast.success(`Template installed! Opening builder…`);
       navigate(`/agents/${newAgent.id}`);
     },
@@ -84,54 +86,43 @@ export function TemplatesPage() {
   });
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              Workflow Templates
-            </h1>
-            <Badge variant="outline" className="text-xs">
-              {STUDIO_TEMPLATES.length} pre-built
-            </Badge>
+    <Page width="wide" padding="none" className="space-y-6">
+      {/* Header bar matching Admin */}
+      <PageHeader
+        title="Workflow Templates"
+        description="Production-tested workflows inspired by Firecrawl Open Agent Builder concepts with web search, scraping, RAG, and approvals."
+        icon={<Layers className="size-5" />}
+        accent="violet"
+        actions={
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Search templates & tags…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 pl-8 text-xs"
+            />
           </div>
-          <p className="text-xs text-muted-foreground">
-            Production-tested workflows inspired by Firecrawl Open Agent Builder concepts with web search, scraping, RAG, and approvals.
-          </p>
-        </div>
+        }
+      />
 
-        {/* Search */}
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search templates & tags…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-8 w-full rounded-md border border-border bg-surface pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </div>
-      </div>
-
-      {/* Category Tabs */}
+      {/* Category Tabs Toolbar matching Admin */}
       <div className="flex gap-1.5 overflow-x-auto border-b border-border pb-2.5 scrollbar-none">
         {categories.map((cat) => (
-          <button
+          <Button
             key={cat.id}
+            variant={selectedCategory === cat.id ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setSelectedCategory(cat.id)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
-              selectedCategory === cat.id
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-surface text-muted-foreground hover:bg-surface-raised hover:text-foreground'
-            }`}
+            className="text-xs h-8 whitespace-nowrap"
           >
             {cat.label}
-          </button>
+          </Button>
         ))}
       </div>
 
-      {/* Templates Grid */}
+      {/* Templates Grid using standard Card */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredTemplates.map((template) => {
           const isFirecrawl = template.tags.includes('Firecrawl');
@@ -140,11 +131,11 @@ export function TemplatesPage() {
             createFromTemplateMutation.isPending &&
             createFromTemplateMutation.variables?.id === template.id;
           return (
-            <div
+            <Card
               key={template.id}
               id={`template-${template.id}`}
               className={cn(
-                'group flex flex-col justify-between rounded-xl border border-border bg-surface p-5 transition-all hover:border-primary/50 hover:shadow-md',
+                'group flex flex-col justify-between p-5 transition-all hover:border-primary/50 hover:shadow-md',
                 isPreselected && 'border-primary ring-2 ring-primary/30',
               )}
             >
@@ -152,9 +143,9 @@ export function TemplatesPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <div
-                      className={`flex size-9 items-center justify-center rounded-xl font-bold ${
+                      className={`flex size-9 items-center justify-center rounded-xl font-bold shrink-0 ${
                         isFirecrawl
-                          ? 'bg-amber-500/15 text-amber-500'
+                          ? 'bg-warning/15 text-warning'
                           : 'bg-primary/10 text-primary'
                       }`}
                     >
@@ -171,7 +162,8 @@ export function TemplatesPage() {
                         {template.name}
                       </h3>
                       <span className="text-[10px] text-muted-foreground font-mono">
-                        {template.nodes.length} nodes · {template.edges.length} connections
+                        {template.nodes.length} nodes ·{' '}
+                        {template.edges.length} connections
                       </span>
                     </div>
                   </div>
@@ -184,12 +176,13 @@ export function TemplatesPage() {
                 {/* Tags */}
                 <div className="mt-3.5 flex flex-wrap gap-1">
                   {template.tags.map((tag) => (
-                    <span
+                    <Badge
                       key={tag}
-                      className="rounded bg-surface-raised px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground border border-border"
+                      variant="outline"
+                      className="text-[10px] py-0 font-normal"
                     >
                       {tag}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               </div>
@@ -201,6 +194,7 @@ export function TemplatesPage() {
 
                 <Button
                   size="xs"
+                  variant="primary"
                   onClick={() => createFromTemplateMutation.mutate(template)}
                   loading={isCreating}
                   disabled={createFromTemplateMutation.isPending && !isCreating}
@@ -210,10 +204,10 @@ export function TemplatesPage() {
                   <ArrowRight className="size-3" />
                 </Button>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
-    </div>
+    </Page>
   );
 }

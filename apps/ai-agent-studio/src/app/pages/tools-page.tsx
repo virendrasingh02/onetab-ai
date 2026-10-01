@@ -1,18 +1,30 @@
 import { agentsApi } from '@org/api-client';
-import { Badge, Button, CodeBlock, Dialog, DialogContent, DialogDescription, DialogFooter, DialogBody, DialogHeader, DialogTitle, Input, LoadingState, toast } from '@org/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Badge,
+  Button,
+  CodeBlock,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogBody,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  LoadingState,
+  Page,
+  PageHeader,
+  toast,
+} from '@org/ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AppWindow,
   CheckCircle2,
   Code2,
-  Copy,
-  ExternalLink,
   Flame,
-  Globe,
   Loader2,
   Play,
   Plus,
-  RefreshCw,
   Search,
   Trash2,
   Wrench,
@@ -226,27 +238,18 @@ export function ToolsPage() {
   });
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              Tools & Integrations Hub
-            </h1>
-            <Badge variant="outline" className="text-xs">
-              {tools.length} built-in · {integrations.filter((i: any) => i.status === 'connected').length} connected
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Modular capabilities callable by autonomous agents: Firecrawl web scrapers, SaaS connectors, and custom REST API endpoints.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {activeTab === 'custom' && (
+    <Page width="wide" padding="none" className="space-y-6">
+      {/* Header matching Admin */}
+      <PageHeader
+        title="Tools & Integrations Hub"
+        description="Modular capabilities callable by autonomous agents: Firecrawl web scrapers, SaaS connectors, and custom REST API endpoints."
+        icon={<Wrench className="size-5" />}
+        accent="amber"
+        actions={
+          activeTab === 'custom' ? (
             <Button
               size="sm"
+              variant="primary"
               onClick={() => {
                 setEditingTool(null);
                 setToolName('');
@@ -258,60 +261,54 @@ export function ToolsPage() {
             >
               <Plus className="size-3.5" /> Create API Tool
             </Button>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
-      {/* Navigation Tabs */}
-      <div className="flex gap-2 border-b border-border pb-2">
-        <button
+      {/* Navigation Tabs Toolbar matching Admin */}
+      <div className="flex gap-1.5 overflow-x-auto border-b border-border pb-2.5">
+        <Button
+          variant={activeTab === 'catalog' ? 'secondary' : 'ghost'}
+          size="sm"
           onClick={() => setActiveTab('catalog')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-            activeTab === 'catalog'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground'
-          }`}
+          className="gap-1.5 text-xs h-8"
         >
           <Flame className="size-3.5" />
           <span>Tool Catalog & Sandbox</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant={activeTab === 'marketplace' ? 'secondary' : 'ghost'}
+          size="sm"
           onClick={() => setActiveTab('marketplace')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-            activeTab === 'marketplace'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground'
-          }`}
+          className="gap-1.5 text-xs h-8"
         >
           <AppWindow className="size-3.5" />
           <span>Marketplace Integrations ({integrations.length})</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant={activeTab === 'custom' ? 'secondary' : 'ghost'}
+          size="sm"
           onClick={() => setActiveTab('custom')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-            activeTab === 'custom'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground'
-          }`}
+          className="gap-1.5 text-xs h-8"
         >
           <Code2 className="size-3.5" />
           <span>Custom API Tools ({customTools.length})</span>
-        </button>
+        </Button>
       </div>
 
       {/* TAB 1: TOOL CATALOG & SANDBOX */}
       {activeTab === 'catalog' && (
         <div className="space-y-6">
           {/* Interactive Firecrawl Playground Banner */}
-          <div className="rounded-2xl border border-amber-500/30 bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent p-5 shadow-xs space-y-4">
+          <div className="rounded-xl border bg-surface p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-                <Flame className="size-4 text-amber-500" />
+                <Flame className="size-4 text-warning" />
                 <span>Interactive Tool & Firecrawl Tester</span>
               </div>
-              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-500">
+              <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">
                 Live Sandbox
               </span>
             </div>
@@ -363,7 +360,7 @@ export function ToolsPage() {
                   size="sm"
                   onClick={() => void handleTestExecute()}
                   disabled={isExecuting || !testParam.trim()}
-                  className="h-8 w-full gap-1.5 font-semibold bg-amber-600 hover:bg-amber-700 text-white"
+                  className="h-8 w-full gap-1.5"
                 >
                   {isExecuting ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -414,7 +411,7 @@ export function ToolsPage() {
                           <div
                             className={`flex size-7 items-center justify-center rounded-lg ${
                               isFirecrawl
-                                ? 'bg-amber-500/15 text-amber-500'
+                                ? 'bg-warning/15 text-warning'
                                 : 'bg-primary/10 text-primary'
                             }`}
                           >
@@ -517,7 +514,7 @@ export function ToolsPage() {
                     </p>
 
                     {isConnected && item.connectedAccount && (
-                      <div className="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                      <div className="rounded bg-success/10 border border-success/20 px-2 py-1 text-[10px] text-success-text flex items-center gap-1.5">
                         <CheckCircle2 className="size-3" />
                         <span className="truncate">{item.connectedAccount}</span>
                       </div>
@@ -645,7 +642,7 @@ export function ToolsPage() {
             <div className="rounded-xl border border-primary/30 bg-surface p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <CheckCircle2 className="size-3.5 text-emerald-500" />
+                  <CheckCircle2 className="size-3.5 text-success" />
                   Custom API Sandbox Output ({customTestResult.status} {customTestResult.statusText})
                 </span>
                 <Button
@@ -808,6 +805,6 @@ export function ToolsPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   );
 }

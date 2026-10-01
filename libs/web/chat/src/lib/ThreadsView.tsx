@@ -5,6 +5,9 @@ import {
   AttachmentRenderer,
   Composer,
   ComposerWarning,
+  DEFAULT_AI_AGENT_MENTIONS,
+  DEFAULT_COWORKER_MENTIONS,
+  DEFAULT_APP_MENTIONS,
   MessageRenderer,
 } from '@org/chat-ui';
 import type { ComposerContext } from '@org/types';
@@ -233,6 +236,48 @@ function ThreadDetail({
 
   const { chat } = useChatPreferences();
 
+  const effectiveMentionNames = useMemo(() => {
+    const names = new Set<string>();
+    names.add('here');
+    names.add('channel');
+    names.add('everyone');
+    for (const n of mentionNames ?? []) {
+      if (n) names.add(n.trim());
+    }
+    for (const m of members) {
+      if (m.displayName) names.add(m.displayName.trim());
+    }
+    for (const m of composerControl.workspaceMembers ?? []) {
+      if (m.displayName) names.add(m.displayName.trim());
+    }
+    for (const a of composerControl.agentMentions ?? []) {
+      if (a.name) names.add(a.name.trim());
+    }
+    for (const c of composerControl.coworkerMentions ?? []) {
+      if (c.name) names.add(c.name.trim());
+    }
+    for (const app of composerControl.appMentions ?? []) {
+      if (app.name) names.add(app.name.trim());
+    }
+    for (const a of DEFAULT_AI_AGENT_MENTIONS) {
+      if (a.name) names.add(a.name.trim());
+    }
+    for (const c of DEFAULT_COWORKER_MENTIONS) {
+      if (c.name) names.add(c.name.trim());
+    }
+    for (const app of DEFAULT_APP_MENTIONS) {
+      if (app.name) names.add(app.name.trim());
+    }
+    return Array.from(names);
+  }, [
+    mentionNames,
+    members,
+    composerControl.workspaceMembers,
+    composerControl.agentMentions,
+    composerControl.coworkerMentions,
+    composerControl.appMentions,
+  ]);
+
   return (
     <div className="border-t border-border bg-muted/20">
       <div className="flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium text-muted-foreground">
@@ -259,7 +304,7 @@ function ThreadDetail({
                 message={reply}
                 isOwn={reply.senderId === myUserId}
                 density={density}
-                mentionNames={mentionNames}
+                mentionNames={effectiveMentionNames}
                 threadParticipants={[]}
                 onReact={
                   canReact

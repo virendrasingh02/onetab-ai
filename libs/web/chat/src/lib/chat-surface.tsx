@@ -24,6 +24,9 @@ import {
   TypingIndicator,
   UnreadMentionsPill,
   ComposerWarning,
+  DEFAULT_AI_AGENT_MENTIONS,
+  DEFAULT_COWORKER_MENTIONS,
+  DEFAULT_APP_MENTIONS,
   insertIntoComposer,
   quoteMarkdown,
 } from '@org/chat-ui';
@@ -536,17 +539,6 @@ export function ChatSurface({
 
   const repliesByRoot = useMemo(() => groupReplies(messages), [messages]);
 
-  // Display names carry spaces, so the message renderer needs the roster to
-  // know where a `@mention` ends.
-  const mentionNames = useMemo(
-    () => [
-      'here',
-      'channel',
-      'everyone',
-      ...members.map((member) => member.displayName),
-    ],
-    [members],
-  );
 
   /*
    * A deleted message leaves the timeline outright — no "This message was
@@ -805,6 +797,60 @@ export function ChatSurface({
 
   const threadControl = useComposerControl(threadComposerContext, members);
 
+  // Display names carry spaces, so the message renderer needs the roster to
+  // know where a `@mention` ends.
+  const mentionNames = useMemo(() => {
+    const names = new Set<string>();
+    names.add('here');
+    names.add('channel');
+    names.add('everyone');
+
+    for (const m of members) {
+      if (m.displayName) names.add(m.displayName.trim());
+    }
+    for (const m of mainControl.workspaceMembers ?? []) {
+      if (m.displayName) names.add(m.displayName.trim());
+    }
+    for (const a of mainControl.agentMentions ?? []) {
+      if (a.name) names.add(a.name.trim());
+    }
+    for (const c of mainControl.coworkerMentions ?? []) {
+      if (c.name) names.add(c.name.trim());
+    }
+    for (const app of mainControl.appMentions ?? []) {
+      if (app.name) names.add(app.name.trim());
+    }
+    for (const a of threadControl.agentMentions ?? []) {
+      if (a.name) names.add(a.name.trim());
+    }
+    for (const c of threadControl.coworkerMentions ?? []) {
+      if (c.name) names.add(c.name.trim());
+    }
+    for (const app of threadControl.appMentions ?? []) {
+      if (app.name) names.add(app.name.trim());
+    }
+    for (const a of DEFAULT_AI_AGENT_MENTIONS) {
+      if (a.name) names.add(a.name.trim());
+    }
+    for (const c of DEFAULT_COWORKER_MENTIONS) {
+      if (c.name) names.add(c.name.trim());
+    }
+    for (const app of DEFAULT_APP_MENTIONS) {
+      if (app.name) names.add(app.name.trim());
+    }
+
+    return Array.from(names);
+  }, [
+    members,
+    mainControl.workspaceMembers,
+    mainControl.agentMentions,
+    mainControl.coworkerMentions,
+    mainControl.appMentions,
+    threadControl.agentMentions,
+    threadControl.coworkerMentions,
+    threadControl.appMentions,
+  ]);
+
   /* Mark a thread read while its panel is open, and again when a reply lands. */
   useEffect(() => {
     if (panel !== 'thread' || !threadRootId) return;
@@ -868,7 +914,14 @@ export function ChatSurface({
   }, []);
 
   const renderMessage = useCallback(
-    (message: Message, grouped: boolean) => {
+    (
+      message: Message,
+      grouped: boolean,
+      // `MessageList` passes its density third; the thread panel passes true
+      // fourth so the avatar-to-replies connector stays in the main list.
+      _density?: unknown,
+      inThread = false,
+    ) => {
       // Folded into its burst's head bubble as a grid tile — see below.
       if (attachmentBursts.hidden.has(message.id)) return null;
 
@@ -905,6 +958,7 @@ export function ChatSurface({
           isPinned={pinnedIds.includes(message.id)}
           isSaved={savedIds.includes(message.id)}
           threadReplyCount={replies.length}
+          showThreadConnector={!inThread}
           threadHasUnread={unreadThreadRoots.has(
             message.threadRootId ?? message.id,
           )}
@@ -1426,9 +1480,9 @@ export function ChatSurface({
                       />
                     </div>
                   }
-                  rootSlot={renderMessage(threadRoot, false)}
+                  rootSlot={renderMessage(threadRoot, false, undefined, true)}
                   repliesSlot={threadReplies.map((reply) => (
-                    <div key={reply.id}>{renderMessage(reply, false)}</div>
+                    <div key={reply.id}>{renderMessage(reply, false, undefined, true)}</div>
                   ))}
                   composerSlot={
                     <Composer
@@ -1444,6 +1498,7 @@ export function ChatSurface({
                       linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
                       showFormatting={false}
                       placeholder="Reply in thread…"
+                      className="bg-transparent"
                       readOnlyMessage={
                         threadComposerReadOnlyMessage ?? composerReadOnlyMessage
                       }

@@ -74,11 +74,11 @@ import {
   IS_APPLE,
   KEY_DOWN_COMMAND,
   KEY_ENTER_COMMAND,
+  KEY_ESCAPE_COMMAND,
   PASTE_COMMAND,
   SELECTION_CHANGE_COMMAND,
 } from 'lexical';
 import {
-  AtSign,
   BarChart2,
   Blocks,
   Bot,
@@ -810,7 +810,7 @@ function HtmlPastePlugin() {
 /* -------------------------------------------------------------------------- */
 
 const MENU_CLASS =
-  'w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl';
+  'w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-md text-popover-foreground shadow-2xl ring-1 ring-border/50 animate-in fade-in-0 zoom-in-95 duration-100';
 
 /**
  * Shell every typeahead menu renders into.
@@ -865,21 +865,23 @@ function renderCommandIcon(iconName?: string) {
 /**
  * Shell every typeahead menu renders into.
  *
- * It anchors *upwards*: the composer sits at the bottom of the viewport, where
- * Lexical's own downward placement would push the list off-screen.
+ * Anchored upwards with comfortable clearance (`mb-5`) so messages behind and
+ * typed cursor line stay visible. Closes gracefully on outside click.
  */
 function MenuShell({
   label,
-  icon,
-  hint,
   id,
   children,
+  onClose,
+  showFooter = true,
 }: {
   label: string;
-  icon: ReactNode;
+  icon?: ReactNode;
   hint?: string;
   id?: string;
   children: ReactNode;
+  onClose?: () => void;
+  showFooter?: boolean;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -895,28 +897,57 @@ function MenuShell({
     }
   }, []);
 
+  useEffect(() => {
+    if (!onClose) return;
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [onClose]);
+
   return (
     <div
       ref={menuRef}
       role="region"
       aria-label={`${label} suggestions`}
-      className={`left-0 mb-2 absolute bottom-full z-120 ${MENU_CLASS}`}
+      className={`left-0 mb-5 absolute bottom-full z-120 ${MENU_CLASS}`}
     >
-      <div className="px-3 py-1.5 font-bold tracking-wider flex items-center justify-between border-b border-border text-[10px] uppercase">
-        <span className="gap-1.5 flex items-center text-primary-text">
-          {icon}
-          <span>{label}</span>
-        </span>
-        {hint ? <span className="text-subtle">{hint}</span> : null}
-      </div>
       <ul
         id={id}
         role="listbox"
         aria-label={label}
-        className="max-h-64 p-1 overflow-y-auto overscroll-contain"
+        className="max-h-72 p-1.5 overflow-y-auto overscroll-contain scrollbar-thin"
       >
         {children}
       </ul>
+      {showFooter && (
+        <div className="px-3 py-1.5 flex items-center justify-between border-t border-border/40 bg-muted/20 text-[10px] text-muted-foreground/75 select-none">
+          <span className="flex items-center gap-1.5">
+            <kbd className="rounded border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-[9px] text-foreground/70">
+              ↑↓
+            </kbd>
+            <span>navigate</span>
+            <span className="opacity-30">·</span>
+            <kbd className="rounded border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-[9px] text-foreground/70">
+              ↵
+            </kbd>
+            <span>select</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="rounded border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-[9px] text-foreground/70">
+              esc
+            </kbd>
+            <span>close</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -964,8 +995,10 @@ function MenuItem({
           event.preventDefault();
         }}
         onClick={onSelect}
-        className={`gap-2.5 px-2.5 py-1.5 text-xs flex w-full items-center rounded-lg text-left transition-colors ${
-          isSelected ? 'bg-accent text-foreground' : 'hover:bg-accent/60'
+        className={`group gap-2.5 px-2.5 py-2 text-xs flex w-full items-center rounded-xl text-left transition-colors duration-100 ${
+          isSelected
+            ? 'bg-accent text-accent-foreground font-medium shadow-xs'
+            : 'text-foreground/90 hover:bg-muted/70'
         }`}
       >
         {children}
@@ -995,9 +1028,16 @@ function MentionsPlugin({
   // Names contain spaces, so the trigger has to keep matching past one.
   const triggerFn = useBasicTypeaheadTriggerMatch('@', {
     minLength: 0,
-    maxLength: 32,
+    maxLength: 75,
     allowWhitespace: true,
   });
+
+  const handleClose = useCallback(() => {
+    editor.dispatchCommand(
+      KEY_ESCAPE_COMMAND,
+      new KeyboardEvent('keydown', { key: 'Escape' }),
+    );
+  }, [editor]);
 
   const options = useMemo(() => {
     const needle = (query ?? '').toLowerCase().trim();
@@ -1177,45 +1217,44 @@ function MentionsPlugin({
         return createPortal(
           <MenuShell
             label="Mention"
-            hint="↑↓ to browse · ↵ or Tab to insert"
-            icon={<AtSign className="size-3.5" />}
+            onClose={handleClose}
           >
             {options.length === 0 ? (
-              <li className="px-3 py-4 text-xs text-center text-muted-foreground">
+              <li className="px-3 py-6 text-xs text-center text-muted-foreground">
                 No matching members found
               </li>
             ) : (
               <>
                 {groups.length > 0 ? (
-                  <li className="px-2 py-1 font-bold text-[10px] text-subtle uppercase">
+                  <li className="px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase select-none">
                     Group mentions
                   </li>
                 ) : null}
                 {groups.map(renderOption)}
 
                 {people.length > 0 ? (
-                  <li className="mt-1 px-2 py-1 font-bold text-[10px] text-subtle uppercase">
+                  <li className="mt-1 px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase select-none">
                     People — {people.length}
                   </li>
                 ) : null}
                 {people.map(renderOption)}
 
                 {agents.length > 0 ? (
-                  <li className="mt-1 px-2 py-1 font-bold text-[10px] text-primary uppercase">
+                  <li className="mt-1 px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-primary uppercase select-none">
                     AI Agents — {agents.length}
                   </li>
                 ) : null}
                 {agents.map(renderOption)}
 
                 {coworkers.length > 0 ? (
-                  <li className="mt-1 px-2 py-1 font-bold text-purple-600 dark:text-purple-400 text-[10px] uppercase">
+                  <li className="mt-1 px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-purple-600 dark:text-purple-400 uppercase select-none">
                     AI Coworkers — {coworkers.length}
                   </li>
                 ) : null}
                 {coworkers.map(renderOption)}
 
                 {apps.length > 0 ? (
-                  <li className="mt-1 px-2 py-1 font-bold text-[10px] text-accent-violet uppercase">
+                  <li className="mt-1 px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-accent-violet uppercase select-none">
                     Connected Apps — {apps.length}
                   </li>
                 ) : null}
@@ -1293,6 +1332,13 @@ function ChannelMentionsPlugin({
     [editor],
   );
 
+  const handleClose = useCallback(() => {
+    editor.dispatchCommand(
+      KEY_ESCAPE_COMMAND,
+      new KeyboardEvent('keydown', { key: 'Escape' }),
+    );
+  }, [editor]);
+
   return (
     <LexicalTypeaheadMenuPlugin<ChannelMenuOption>
       options={options}
@@ -1311,11 +1357,10 @@ function ChannelMentionsPlugin({
         return createPortal(
           <MenuShell
             label="Channel"
-            hint="↑↓ to browse · ↵ or Tab to insert"
-            icon={<Hash className="size-3.5" />}
+            onClose={handleClose}
           >
             {options.length === 0 ? (
-              <li className="px-3 py-4 text-xs text-center text-muted-foreground">
+              <li className="px-3 py-6 text-xs text-center text-muted-foreground">
                 No matching channels found
               </li>
             ) : (
@@ -1433,6 +1478,13 @@ function SlashCommandsPlugin({
     [editor],
   );
 
+  const handleClose = useCallback(() => {
+    editor.dispatchCommand(
+      KEY_ESCAPE_COMMAND,
+      new KeyboardEvent('keydown', { key: 'Escape' }),
+    );
+  }, [editor]);
+
   return (
     <LexicalTypeaheadMenuPlugin<CommandMenuOption>
       options={options}
@@ -1451,11 +1503,10 @@ function SlashCommandsPlugin({
         return createPortal(
           <MenuShell
             label="Commands"
-            hint="↑↓ to browse · ↵ or Tab to pick"
-            icon={<Slash className="size-3.5" />}
+            onClose={handleClose}
           >
             {options.length === 0 ? (
-              <li className="px-3 py-4 text-xs text-center text-muted-foreground">
+              <li className="px-3 py-6 text-xs text-center text-muted-foreground">
                 No matching commands found
               </li>
             ) : (

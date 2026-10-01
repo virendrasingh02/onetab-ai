@@ -75,7 +75,7 @@ export {
  * Mentions that address a group rather than a person. They lead the `@` menu
  * because they are the ones people reach for by name rather than by face.
  */
-const GROUP_MENTIONS: MentionCandidate[] = [
+export const GROUP_MENTIONS: MentionCandidate[] = [
   {
     id: 'here',
     name: 'here',
@@ -96,7 +96,14 @@ const GROUP_MENTIONS: MentionCandidate[] = [
   },
 ];
 
-const DEFAULT_AI_AGENT_MENTIONS: MentionCandidate[] = [
+export const DEFAULT_AI_AGENT_MENTIONS: MentionCandidate[] = [
+  {
+    id: 'agent-reviewer-sentinel',
+    name: 'Code Reviewer & Security Sentinel',
+    subtitle: 'Code Reviewer AI — Automated PR & diff inspection',
+    kind: 'agent',
+    badge: 'AI AGENT',
+  },
   {
     id: 'agent-copilot',
     name: 'copilot',
@@ -141,7 +148,7 @@ const DEFAULT_AI_AGENT_MENTIONS: MentionCandidate[] = [
   },
 ];
 
-const DEFAULT_COWORKER_MENTIONS: MentionCandidate[] = [
+export const DEFAULT_COWORKER_MENTIONS: MentionCandidate[] = [
   {
     id: 'coworker-alex',
     name: 'alex',
@@ -165,7 +172,7 @@ const DEFAULT_COWORKER_MENTIONS: MentionCandidate[] = [
   },
 ];
 
-const DEFAULT_APP_MENTIONS: MentionCandidate[] = [
+export const DEFAULT_APP_MENTIONS: MentionCandidate[] = [
   {
     id: 'app-github',
     name: 'github-app',
