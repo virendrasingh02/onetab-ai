@@ -388,7 +388,7 @@ export class WorkToolsService {
       ...(input.targetDate !== undefined ? { targetDate: at(input.targetDate) } : {}),
     };
 
-    return this.prisma.project.update({
+    const updated = await this.prisma.project.update({
       where: { id: projectId },
       data,
       include: {
@@ -396,6 +396,24 @@ export class WorkToolsService {
         team: true,
       },
     });
+
+    // Was declared and listened for (realtime, agent triggers) but never
+    // emitted. `statusChanged` lets "when a project changes status" agents
+    // ignore renames and colour changes.
+    this.events.emit(AppEvent.ProjectUpdated, {
+      workspaceId,
+      actorId: null,
+      projectId,
+      name: updated.name,
+      status: updated.status,
+      previousStatus: existing.status,
+      health: updated.health,
+      previousHealth: existing.health,
+      statusChanged: updated.status !== existing.status || updated.health !== existing.health,
+      changes: input,
+    });
+
+    return updated;
   }
 
   async updateIdentifierSettings(
@@ -853,6 +871,7 @@ export class WorkToolsService {
         title: input.title,
         description: input.description ?? null,
         status,
+        ...(status === TaskStatus.DONE ? { completedAt: new Date() } : {}),
         priority: (input.priority as TaskPriority) ?? TaskPriority.MEDIUM,
         type: (input.type as WorkItemType) ?? WorkItemType.TASK,
         projectId,
@@ -972,7 +991,11 @@ export class WorkToolsService {
       ...(input.reporterId !== undefined ? { reporterId: input.reporterId } : {}),
       ...(input.startDate !== undefined ? { startDate: at(input.startDate) } : {}),
       ...(input.dueDate !== undefined ? { dueDate: at(input.dueDate) } : {}),
-      ...(input.completedAt !== undefined ? { completedAt: at(input.completedAt) } : {}),
+      ...(input.completedAt !== undefined
+        ? { completedAt: at(input.completedAt) }
+        : input.status !== undefined
+          ? this.completionStamp(existing.status, input.status)
+          : {}),
       ...(input.estimate !== undefined ? { estimate: input.estimate } : {}),
       ...(input.timeSpent !== undefined ? { timeSpent: input.timeSpent } : {}),
       ...(input.labels !== undefined ? { labels: input.labels } : {}),
@@ -1057,6 +1080,18 @@ export class WorkToolsService {
     return updated;
   }
 
+  /**
+   * `completedAt` follows the status: set when a task becomes DONE, cleared
+   * when it is reopened. Only callers that sent it explicitly used to set it,
+   * so the board's "Done" column and every "completed today" query read null.
+   */
+  private completionStamp(from: string, to: string | undefined): { completedAt?: Date | null } {
+    if (!to || to === from) return {};
+    if (to === TaskStatus.DONE) return { completedAt: new Date() };
+    if (from === TaskStatus.DONE) return { completedAt: null };
+    return {};
+  }
+
   async moveTask(
     workspaceId: string,
     taskId: string,
@@ -1070,6 +1105,7 @@ export class WorkToolsService {
       data: {
         status: input.status,
         orderIndex: input.orderIndex,
+        ...this.completionStamp(existing.status, input.status),
       },
     });
 

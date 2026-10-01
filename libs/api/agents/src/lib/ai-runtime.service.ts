@@ -22,6 +22,7 @@ import type {
 import {
   agentToolNeedsApproval,
   isAIEntityType,
+  OWNER_PRIVATE_AGENT_TOOLS,
   readAgentRuntime,
   READ_ONLY_AGENT_TOOLS,
 } from '@org/types';
@@ -58,8 +59,14 @@ function parseToolNames(value: string | null | undefined): string[] {
   }
 }
 
-/** A coworker's baseline tools: the built-in reads, never web or writes. */
-const READ_ONLY_TOOL_NAMES = READ_ONLY_AGENT_TOOLS.filter((name) => !name.startsWith('firecrawl_'));
+/**
+ * A coworker's baseline tools: the built-in reads, never web or writes — and
+ * never the owner's private reads (their meetings, mailbox…), which a coworker
+ * answering a channel would otherwise relay to everyone in it.
+ */
+const READ_ONLY_TOOL_NAMES = READ_ONLY_AGENT_TOOLS.filter(
+  (name) => !name.startsWith('firecrawl_') && !OWNER_PRIVATE_AGENT_TOOLS.includes(name),
+);
 
 /** Knowledge excerpts are capped so retrieval cannot crowd out the question. */
 const KNOWLEDGE_EXCERPT_CHARS = 1_500;
@@ -93,6 +100,11 @@ export interface AIEntityTurnContext {
    *  outcome of a gated tool call back where the conversation happened. */
   roomId?: string;
   threadRootId?: string;
+  /**
+   * Offer only tools that read — a workflow's test run uses this so an agent
+   * step cannot change anything. Delegation and MCP servers are left out too.
+   */
+  readOnly?: boolean;
 }
 
 export interface AIEntityRunResult {
@@ -772,16 +784,17 @@ export class AIRuntimeService {
 
     const runtime = readAgentRuntime(entity.configuration);
     const allowedToolNames = parseToolNames(entity.tools);
-    const integrationSchemas = await this.integrationTools.getToolsForEntity(
-      workspaceId,
-      entity.id,
-      entity.creatorId,
-    );
-    const mcpTools = await this.mcpToolsFor(workspaceId, allowedToolNames);
-    const builtinSchemas =
+    const readOnly = context.readOnly === true;
+    const integrationSchemas = (
+      await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId)
+    ).filter((t) => !readOnly || t.definition.permissionLevel === 'read');
+    const mcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
+    const builtinSchemas = (
       allowedToolNames.length > 0
         ? this.mcpRegistry.getToolSchemasFor(allowedToolNames)
-        : this.mcpRegistry.getToolSchemas();
+        : // With no explicit list, every tool — except the owner-private reads.
+          this.mcpRegistry.getToolSchemas().filter((s) => !OWNER_PRIVATE_AGENT_TOOLS.includes(schemaName(s)))
+    ).filter((s) => !readOnly || READ_ONLY_AGENT_TOOLS.includes(schemaName(s)));
 
     const memoryContext = runtime.useWorkspaceMemory ? await this.buildMemoryContext(workspaceId) : '';
     const knowledgeContext = await this.buildKnowledgeContext(workspaceId, runtime, promptText);
@@ -882,9 +895,13 @@ export class AIRuntimeService {
     );
     const allowedToolNames = [...new Set([...baseTools, ...(permissions.allowActions ?? [])])];
 
-    const delegateAgents = (entity.agentLinks ?? [])
-      .map((link: any) => link.agent)
-      .filter((agent: any) => agent && agent.isActive);
+    const readOnly = context.readOnly === true;
+    // A read-only turn does not delegate: the specialist could write.
+    const delegateAgents = readOnly
+      ? []
+      : (entity.agentLinks ?? [])
+          .map((link: any) => link.agent)
+          .filter((agent: any) => agent && agent.isActive);
     const delegateSchemas = delegateAgents.map((agent: any) => ({
       type: 'function',
       function: {
@@ -905,13 +922,13 @@ export class AIRuntimeService {
       },
     }));
 
-    const integrationSchemas = await this.integrationTools.getToolsForEntity(
-      workspaceId,
-      entity.id,
-      entity.creatorId,
-    );
-    const mcpTools = await this.mcpToolsFor(workspaceId, allowedToolNames);
-    const builtinSchemas = this.mcpRegistry.getToolSchemasFor(allowedToolNames);
+    const integrationSchemas = (
+      await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId)
+    ).filter((t) => !readOnly || t.definition.permissionLevel === 'read');
+    const mcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
+    const builtinSchemas = this.mcpRegistry
+      .getToolSchemasFor(allowedToolNames)
+      .filter((s) => !readOnly || READ_ONLY_AGENT_TOOLS.includes(schemaName(s)));
     const memoryContext = runtime.useWorkspaceMemory ? await this.buildMemoryContext(workspaceId) : '';
 
     const plan: TurnPlan = {

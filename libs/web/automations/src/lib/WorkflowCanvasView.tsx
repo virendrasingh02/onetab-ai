@@ -486,9 +486,10 @@ function WorkflowEditor({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2 sm:px-4">
         <div className="flex min-w-0 items-center gap-2">
-          <Hint label="Back to workflows">
-            <Button variant="ghost" size="icon-sm" asChild aria-label="Back to workflows">
-              <Link to={aiPath(slug, 'workflows')}>
+          <Hint label={workflow ? 'Back to the agent' : 'Back to workflows'}>
+            <Button variant="ghost" size="icon-sm" asChild aria-label={workflow ? 'Back to the agent' : 'Back to workflows'}>
+              {/* A saved workflow is an agent in the Studio — its page has its runs, versions and plan. */}
+              <Link to={workflow ? aiPath(slug, 'studio', workflow.id) : aiPath(slug, 'workflows')}>
                 <ArrowLeft className="size-4" />
               </Link>
             </Button>

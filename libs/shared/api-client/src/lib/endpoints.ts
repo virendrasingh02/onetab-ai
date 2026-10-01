@@ -265,6 +265,15 @@ import type {
   ApprovalDecisionInput,
   AIExecution,
   AIExecutionFilter,
+  AgentBlueprint,
+  AgentPlanResponse,
+  StudioAgentDetail,
+  StudioAgentState,
+  StudioAgentSummary,
+  StudioAgentVersion,
+  StudioCatalog,
+  StudioHome,
+  StudioRunStarted,
   AISecret,
   CreateAISecretInput,
   AIMemoryEntry,
@@ -4657,6 +4666,65 @@ export const aiExecutionsApi = {
     request<{ entityType: string; status: string; executionId?: string | null }>(
       http.post(`/workspaces/${workspaceId}/ai-executions/${id}/retry`),
     ),
+
+  /** Stops an agent or workflow run after the step in progress; it can be resumed. */
+  pause: (workspaceId: string, id: string) =>
+    request<{ runId: string; status: string }>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/pause`)),
+
+  resume: (workspaceId: string, id: string) =>
+    request<{ runId: string; status: string }>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/resume`)),
+
+  /** A new run that starts at `stepId`, reusing what the earlier steps produced. */
+  restart: (workspaceId: string, id: string, stepId: string) =>
+    request<StudioRunStarted>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/restart`, { stepId })),
+};
+
+/**
+ * AI Agent Studio — plan an agent from a sentence, save and edit its plan,
+ * switch it on, run it live or as a test, and the Home summary. Runs,
+ * approvals and versions use `aiExecutionsApi`, `approvalsApi` and
+ * `automationsApi` like every workflow.
+ */
+export const agentStudioApi = {
+  home: (workspaceId: string) =>
+    request<StudioHome>(http.get(`/workspaces/${workspaceId}/agent-studio/home`)),
+
+  catalog: (workspaceId: string) =>
+    request<StudioCatalog>(http.get(`/workspaces/${workspaceId}/agent-studio/catalog`)),
+
+  /** A model drafts the plan, which can take a while — well past the default request timeout. */
+  plan: (workspaceId: string, input: { prompt: string; templateId?: string; timezone?: string }) =>
+    request<AgentPlanResponse>(http.post(`/workspaces/${workspaceId}/agent-studio/plan`, input, { timeout: 120_000 })),
+
+  list: (workspaceId: string) =>
+    request<StudioAgentSummary[]>(http.get(`/workspaces/${workspaceId}/agent-studio/agents`)),
+
+  get: (workspaceId: string, id: string) =>
+    request<StudioAgentDetail>(http.get(`/workspaces/${workspaceId}/agent-studio/agents/${id}`)),
+
+  create: (workspaceId: string, input: { blueprint: AgentBlueprint; activate?: boolean }) =>
+    request<StudioAgentDetail>(http.post(`/workspaces/${workspaceId}/agent-studio/agents`, input)),
+
+  update: (workspaceId: string, id: string, input: { blueprint: AgentBlueprint; overwriteCanvasEdits?: boolean }) =>
+    request<StudioAgentDetail>(http.put(`/workspaces/${workspaceId}/agent-studio/agents/${id}`, input)),
+
+  setState: (workspaceId: string, id: string, state: StudioAgentState) =>
+    request<{ id: string; state: StudioAgentState }>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/agents/${id}/state`, { state }),
+    ),
+
+  duplicate: (workspaceId: string, id: string) =>
+    request<StudioAgentDetail>(http.post(`/workspaces/${workspaceId}/agent-studio/agents/${id}/duplicate`)),
+
+  /** Starts a run and returns its id at once; follow it with `ai.run.updated`. */
+  run: (
+    workspaceId: string,
+    id: string,
+    input: { text?: string; mode?: 'live' | 'test'; event?: Record<string, unknown> } = {},
+  ) => request<StudioRunStarted>(http.post(`/workspaces/${workspaceId}/agent-studio/agents/${id}/run`, input)),
+
+  version: (workspaceId: string, id: string, version: number) =>
+    request<StudioAgentVersion>(http.get(`/workspaces/${workspaceId}/agent-studio/agents/${id}/versions/${version}`)),
 };
 
 export const aiSecretsApi = {

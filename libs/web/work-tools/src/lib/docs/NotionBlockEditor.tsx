@@ -15,11 +15,9 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Check,
   CheckSquare,
   ChevronRight,
   Code,
-  Copy,
   GripVertical,
   Heading1,
   Heading2,
@@ -130,7 +128,6 @@ const BLOCK_TYPES_CONFIG: {
 export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorProps) {
   const [slashMenuIndex, setSlashMenuIndex] = useState<number | null>(null);
   const [slashSearch, setSlashSearch] = useState('');
-  const [copiedBlockId, setCopiedBlockId] = useState<string | null>(null);
 
   const handleBlockChange = (id: string, updatedFields: Partial<NotionBlock>) => {
     const updated = blocks.map((b) => (b.id === id ? { ...b, ...updatedFields } : b));
@@ -174,12 +171,6 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
     const [moved] = updated.splice(index, 1);
     updated.splice(targetIndex, 0, moved);
     onUpdateBlocks(updated);
-  };
-
-  const handleCopyCode = (id: string, code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedBlockId(id);
-    setTimeout(() => setCopiedBlockId(null), 2000);
   };
 
   // AI Assistant Action Handlers

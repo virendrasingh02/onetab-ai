@@ -193,7 +193,15 @@ export type NotificationKind =
   | 'CALL_SUMMARY_READY'
   | 'CALL_ACTION_ITEM_ASSIGNED'
   | 'MESSAGE_REMINDER'
-  | 'SYSTEM';
+  | 'SYSTEM'
+  /** An AI agent paused for the owner's approval. */
+  | 'AI_APPROVAL_REQUIRED'
+  /** An unattended AI agent run failed. */
+  | 'AI_RUN_FAILED'
+  /** An unattended AI agent run finished. */
+  | 'AI_RUN_COMPLETED'
+  /** An AI agent sent its owner a message. */
+  | 'AI_AGENT_MESSAGE';
 
 /** "Remind me about this" on a chat message — pending until `firedAt`. */
 export interface MessageReminder {

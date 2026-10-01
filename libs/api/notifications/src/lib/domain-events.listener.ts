@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   AppEvent,
+  type AiAgentMessageEvent,
+  type AiApprovalRequestedEvent,
+  type AiRunFinishedEvent,
   type CallActionItemUpdatedEvent,
   type CallSummarySharedEvent,
   type CallSummaryUpdatedEvent,
@@ -482,6 +485,72 @@ export class DomainEventsListener {
         }),
       );
     }
+  }
+
+  /* ---------------------------------------------------------- AI agents -- */
+
+  /**
+   * An agent paused for approval: its owner is told, unless the agent was set
+   * not to. One unread row per run — a second approval in the same run adds
+   * nothing to an unread reminder.
+   */
+  @OnEvent(AppEvent.AiApprovalRequested)
+  async onAiApprovalRequested(e: AiApprovalRequestedEvent): Promise<void> {
+    if (!e.notify || !e.ownerId) return;
+    await this.safeNotify(() =>
+      this.notifications.create({
+        workspaceId: e.workspaceId,
+        recipientId: e.ownerId!,
+        kind: NotificationKind.AI_APPROVAL_REQUIRED,
+        title: `“${e.agentName}” needs your approval`,
+        body: e.action,
+        deepLink: `ai/runs?run=${e.runId}`,
+        resourceType: 'ai_run',
+        resourceId: e.runId,
+      }),
+    );
+  }
+
+  /**
+   * A finished agent run. Only runs nobody was watching notify — a scheduled
+   * or event-triggered run — and only as the agent's settings ask: failures
+   * by default, results when "tell me when it finishes" is on. A run someone
+   * started by hand is on their screen already; test runs never notify.
+   */
+  @OnEvent(AppEvent.AiRunFinished)
+  async onAiRunFinished(e: AiRunFinishedEvent): Promise<void> {
+    if (e.test || !e.ownerId || e.status === 'CANCELLED') return;
+    const unattended = e.startedBy === 'schedule' || e.startedBy === 'event';
+    if (!unattended) return;
+    if (e.status === 'FAILED' && !e.notify.onFailure) return;
+    if (e.status === 'COMPLETED' && !e.notify.onComplete) return;
+    await this.safeNotify(() =>
+      this.notifications.create({
+        workspaceId: e.workspaceId,
+        recipientId: e.ownerId!,
+        kind: e.status === 'FAILED' ? NotificationKind.AI_RUN_FAILED : NotificationKind.AI_RUN_COMPLETED,
+        title: e.status === 'FAILED' ? `“${e.agentName}” couldn’t finish` : `“${e.agentName}” finished`,
+        body: e.status === 'FAILED' ? (e.error ?? 'A step failed.').slice(0, 500) : 'Open the run to see the result.',
+        deepLink: `ai/runs?run=${e.runId}`,
+        resourceType: 'ai_run',
+        resourceId: e.runId,
+      }),
+    );
+  }
+
+  /** The `notify_user` tool — an agent telling its owner something. */
+  @OnEvent(AppEvent.AiAgentMessage)
+  async onAiAgentMessage(e: AiAgentMessageEvent): Promise<void> {
+    await this.safeNotify(() =>
+      this.notifications.create({
+        workspaceId: e.workspaceId,
+        recipientId: e.recipientId,
+        kind: NotificationKind.AI_AGENT_MESSAGE,
+        title: e.title,
+        body: e.body ? `${e.agentName}: ${e.body}`.slice(0, 1_500) : e.agentName,
+        deepLink: e.runId ? `ai/runs?run=${e.runId}` : 'ai',
+      }),
+    );
   }
 
   private async safeNotify(fn: () => Promise<unknown>): Promise<void> {

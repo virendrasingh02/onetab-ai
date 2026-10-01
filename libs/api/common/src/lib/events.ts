@@ -132,6 +132,19 @@ export const AppEvent = {
    */
   AgentApprovalDecided: 'agent.approval.decided',
   WorkflowApprovalDecided: 'workflow.approval.decided',
+  /** A task's due date passed while it was still open (hourly sweep). */
+  TaskOverdue: 'task.overdue',
+  /**
+   * A message was posted in a channel. Carries the text for in-process
+   * listeners only (agents watching that channel); nothing persists it.
+   */
+  ChannelMessagePosted: 'channel.message',
+  /** An AI agent run finished — completed, failed or was cancelled. */
+  AiRunFinished: 'ai.run.finished',
+  /** An AI agent run paused for someone to approve an action. */
+  AiApprovalRequested: 'ai.approval.requested',
+  /** An AI agent sent its owner a message (the notify_user tool). */
+  AiAgentMessage: 'ai.agent.message',
 } as const;
 
 export type AppEventName = (typeof AppEvent)[keyof typeof AppEvent];
@@ -511,6 +524,62 @@ export interface WorkflowApprovalDecidedEvent {
   proposedPayload: Record<string, unknown>;
 }
 
+export interface TaskOverdueEvent extends BaseEvent {
+  taskId: string;
+  title: string;
+  identifier: string | null;
+  projectId: string | null;
+  dueDate: string;
+  assigneeIds: string[];
+}
+
+export interface ChannelMessagePostedEvent extends BaseEvent {
+  channelId: string;
+  channelName: string;
+  channelSlug: string;
+  senderId: string | null;
+  senderName: string;
+  /** The message text — never stored by this event; E2EE messages never reach it. */
+  text: string;
+  matrixEventId: string;
+}
+
+export interface AiRunFinishedEvent {
+  workspaceId: string;
+  runId: string;
+  workflowId: string;
+  agentName: string;
+  /** Who owns the agent — the person it acts for and who is told. */
+  ownerId: string | null;
+  status: 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  /** How the run started: a person pressing Run is already watching it. */
+  startedBy: 'person' | 'schedule' | 'event' | 'retry';
+  test: boolean;
+  error: string | null;
+  /** The agent's own notification settings. */
+  notify: { onComplete: boolean; onFailure: boolean };
+}
+
+export interface AiApprovalRequestedEvent {
+  workspaceId: string;
+  approvalId: string;
+  runId: string;
+  workflowId: string;
+  agentName: string;
+  ownerId: string | null;
+  action: string;
+  notify: boolean;
+}
+
+export interface AiAgentMessageEvent {
+  workspaceId: string;
+  recipientId: string;
+  agentName: string;
+  title: string;
+  body: string | null;
+  runId: string | null;
+}
+
 export interface AppEventPayloads {
   [AppEvent.TaskCreated]: TaskCreatedEvent;
   [AppEvent.TaskAssigned]: TaskAssignedEvent;
@@ -547,4 +616,9 @@ export interface AppEventPayloads {
   [AppEvent.SettingsUpdated]: SettingsUpdatedEvent;
   [AppEvent.AgentApprovalDecided]: AgentApprovalDecidedEvent;
   [AppEvent.WorkflowApprovalDecided]: WorkflowApprovalDecidedEvent;
+  [AppEvent.TaskOverdue]: TaskOverdueEvent;
+  [AppEvent.ChannelMessagePosted]: ChannelMessagePostedEvent;
+  [AppEvent.AiRunFinished]: AiRunFinishedEvent;
+  [AppEvent.AiApprovalRequested]: AiApprovalRequestedEvent;
+  [AppEvent.AiAgentMessage]: AiAgentMessageEvent;
 }

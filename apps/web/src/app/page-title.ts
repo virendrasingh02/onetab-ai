@@ -158,7 +158,7 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/activity': 'Activity Pulse',
   '/dms': 'Direct Messages',
   '/ai-chat': 'AI Assistant',
-  '/ai': 'AI Workspace',
+  '/ai': 'AI Agent Studio',
   '/ai/agents': 'Agents',
   '/ai/workflows': 'Workflows',
   '/ai/runs': 'Runs',
@@ -251,6 +251,10 @@ export function resolvePageTitle(
   if (match(`${base}/ai/agents/new`, path)) return done('New agent');
   if (match(`${base}/ai/agents/:agentId`, path)) {
     return entities.agentName ? done(entities.agentName) : pending('Agent');
+  }
+  if (match(`${base}/ai/studio/new`, path)) return done('New agent');
+  if (match(`${base}/ai/studio/:workflowId`, path)) {
+    return entities.workflowName ? done(entities.workflowName) : pending('Agent');
   }
   if (match(`${base}/ai/workflows/new`, path)) return done('New workflow');
   if (match(`${base}/ai/workflows/:workflowId`, path)) {

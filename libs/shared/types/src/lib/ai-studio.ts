@@ -285,14 +285,17 @@ export type AIExecutionStatus =
   | 'COMPLETED'
   | 'FAILED'
   | 'CANCELLED'
-  | 'WAITING_APPROVAL';
+  | 'WAITING_APPROVAL'
+  /** A workflow run someone paused between steps; it resumes where it stopped. */
+  | 'PAUSED';
 
 export interface AIExecutionStep {
   id: string;
   executionId: string;
   stepId: string;
   nodeType: string;
-  status: 'SUCCESS' | 'FAILED' | 'SKIPPED' | 'WAITING';
+  /** `RUNNING` while a workflow step is executing — the live "current step". */
+  status: 'SUCCESS' | 'FAILED' | 'SKIPPED' | 'WAITING' | 'RUNNING';
   inputJson: Record<string, unknown>;
   outputJson: Record<string, unknown>;
   latencyMs: number;

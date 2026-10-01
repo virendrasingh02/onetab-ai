@@ -106,7 +106,7 @@ export function CodeBlock({
 
   const isTerminal = variant === 'terminal';
   const isDiff = variant === 'diff';
-  const showHeader = propShowHeader ?? (variant !== 'inline');
+  const showHeader = propShowHeader ?? true;
   const lineCount = (isEditing ? currentCode : rawCode).split('\n').length;
   const canPreview = isLanguagePreviewable(resolvedLanguage);
 
@@ -160,7 +160,7 @@ export function CodeBlock({
       onToggleWrap={() => setIsWordWrap(!isWordWrap)}
       onToggleLineNumbers={() => setShowLineNumbers(!showLineNumbers)}
       onToggleExpand={() => setIsModalOpen(true)}
-      onTogglePreview={canPreview ? () => setIsPreview(!isPreview) : undefined}
+      onTogglePreview={canPreview ? () => setInternalPreview(!internalPreview) : undefined}
       onExecute={onExecute ? () => onExecute(rawCode) : undefined}
       onCopySuccess={() => onCopy?.(rawCode)}
       onDownloadSuccess={(fn) => onDownload?.(rawCode, fn)}

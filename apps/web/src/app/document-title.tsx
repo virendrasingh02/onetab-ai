@@ -61,7 +61,10 @@ export function DocumentTitle(): null {
       agentId:
         grab('/w/:workspaceSlug/agents/:agentId/chat', 'agentId') ??
         grab('/w/:workspaceSlug/ai/agents/:agentId', 'agentId'),
-      workflowId: grab('/w/:workspaceSlug/ai/workflows/:workflowId', 'workflowId'),
+      // A Studio agent's page names the workflow it is, like the canvas does.
+      workflowId:
+        grab('/w/:workspaceSlug/ai/workflows/:workflowId', 'workflowId') ??
+        grab('/w/:workspaceSlug/ai/studio/:workflowId', 'workflowId'),
       appId: grab('/w/:workspaceSlug/apps/:appId/chat', 'appId'),
       docId:
         grab('/w/:workspaceSlug/docs/:docId', 'docId') ??

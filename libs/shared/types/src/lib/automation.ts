@@ -141,6 +141,9 @@ export interface AutomationWorkflow {
   /** JSON-encoded React Flow graph. */
   nodesJson: string;
   edgesJson: string;
+  /** The AI Agent Studio blueprint it was compiled from, when it has one. */
+  agentProfile?: unknown;
+  archivedAt?: IsoDateString | null;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
 }

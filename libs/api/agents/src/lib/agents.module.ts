@@ -6,6 +6,7 @@ import { AIInfrastructureModule } from '@org/api-ai';
 import { IntegrationsModule } from '@org/api-integrations';
 import { MatrixModule } from '@org/api-matrix';
 import { RealtimeModule } from '@org/api-realtime';
+import { WorkToolsModule } from '@org/api-work-tools';
 import { WorkspaceModule } from '@org/api-workspace';
 import { AgentApprovalListener } from './agent-approval.listener.js';
 import { AgentMatrixBridgeService } from './agent-matrix-bridge.service.js';
@@ -36,6 +37,9 @@ import { AgentOutputDeliveryService } from './agent-output-delivery.service.js';
     MatrixModule,
     RealtimeModule,
     WorkspaceModule,
+    // Agent tools create and update tasks through WorkToolsService, so they
+    // get identifiers, events and notifications like any other task.
+    WorkToolsModule,
   ],
   controllers: [
     AgentsController,

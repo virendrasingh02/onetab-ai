@@ -1,6 +1,6 @@
 import { cn } from '@org/utils';
 import { AlertCircle, Eye, RefreshCw } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { normalizeLanguage } from './code-block.utils.js';
 
 export interface CodeBlockPreviewProps {

@@ -16,7 +16,9 @@
   "dependencies": {
     "@org/api-client": "*",
     "@org/auth": "*",
+    "@org/chat-ui": "*",
     "@org/design-system": "*",
+    "@org/realtime": "*",
     "@org/types": "*",
     "@org/ui": "*",
     "@org/utils": "*",

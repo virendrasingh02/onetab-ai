@@ -67,6 +67,10 @@ export const RealtimeEventType = {
    *  `AIRuntimeService` on every tool start/finish, not just at the end, so
    *  the Agent Run UI can render live steps instead of polling. */
   AgentRunProgress: 'agent.run_progress',
+
+  /** A workflow or Studio agent run moved on — a step started or finished,
+   *  or the run ended (`WorkflowEngineService`). Drives the live timeline. */
+  AIRunUpdated: 'ai.run.updated',
 } as const;
 
 export type RealtimeEventType =

@@ -37,6 +37,8 @@
     "@nestjs/core": "^11.0.0",
     "@org/api-ai": "*",
     "@org/api-realtime": "*",
-    "@org/database": "*"
+    "@org/api-work-tools": "*",
+    "@org/database": "*",
+    "@org/utils": "*"
   }
 }

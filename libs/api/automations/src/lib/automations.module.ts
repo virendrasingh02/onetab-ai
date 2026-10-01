@@ -5,10 +5,14 @@ import { PrismaModule } from '@org/database';
 import { AIInfrastructureModule } from '@org/api-ai';
 import { AgentsModule } from '@org/api-agents';
 import { IntegrationsModule } from '@org/api-integrations';
+import { RealtimeModule } from '@org/api-realtime';
 import { AutomationTriggerListener } from './automation-trigger.listener.js';
 import { AIRunsController } from './ai-runs.controller.js';
 import { AutomationsController } from './automations.controller.js';
 import { AutomationsService } from './automations.service.js';
+import { AgentPlannerService } from './studio/agent-planner.service.js';
+import { AgentStudioController } from './studio/agent-studio.controller.js';
+import { AgentStudioService } from './studio/agent-studio.service.js';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
 
@@ -20,14 +24,18 @@ import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
     AIInfrastructureModule,
     AgentsModule,
     IntegrationsModule,
+    // Live run updates (`ai.run.updated`) for the Studio.
+    RealtimeModule,
   ],
-  controllers: [AutomationsController, AIRunsController],
+  controllers: [AutomationsController, AIRunsController, AgentStudioController],
   providers: [
     AutomationsService,
     WorkflowEngineService,
     AutomationTriggerListener,
     WorkflowScheduleListener,
+    AgentPlannerService,
+    AgentStudioService,
   ],
-  exports: [AutomationsService, WorkflowEngineService],
+  exports: [AutomationsService, WorkflowEngineService, AgentStudioService],
 })
 export class AutomationsModule {}

@@ -13,6 +13,14 @@ export class AIExecutionsService {
         ...(filters?.status ? { status: filters.status } : {}),
         ...(filters?.entityType ? { entityType: filters.entityType } : {}),
         ...(filters?.entityId ? { entityId: filters.entityId } : {}),
+        ...(filters?.startDate || filters?.endDate
+          ? {
+              startedAt: {
+                ...(filters.startDate ? { gte: new Date(filters.startDate) } : {}),
+                ...(filters.endDate ? { lt: new Date(filters.endDate) } : {}),
+              },
+            }
+          : {}),
       },
       include: {
         user: {
@@ -42,23 +50,31 @@ export class AIExecutionsService {
   }
 
   /**
-   * Cancels a run that is waiting for an approval: the run is closed and its
+   * Cancels a run. One waiting for an approval, or paused, closes now and its
    * pending approvals are withdrawn, so approving one later cannot resume it.
-   * A run that is actively executing cannot be interrupted mid-step — it is
+   * A workflow (or Studio agent) run that is executing stops at its next step
+   * boundary — the engine checks between steps — and the step in progress is
+   * not cut off mid-call. An agent chat turn cannot be interrupted, so it is
    * refused rather than marked "cancelled" while it keeps going.
    */
   async cancelExecution(workspaceId: string, id: string) {
     const exec = await this.getExecution(workspaceId, id);
-    if (exec.status === 'RUNNING') {
+    const running = exec.status === 'RUNNING';
+    if (running && exec.entityType !== 'WORKFLOW') {
       throw new ConflictException(
         "This run is executing right now and can't be interrupted; it will finish on its own.",
       );
     }
-    if (exec.status !== 'WAITING_APPROVAL') return exec;
+    if (!running && exec.status !== 'WAITING_APPROVAL' && exec.status !== 'PAUSED') return exec;
     await this.prisma.$transaction([
       this.prisma.aIExecution.update({
         where: { id },
-        data: { status: 'CANCELLED', finishedAt: new Date() },
+        data: {
+          status: 'CANCELLED',
+          // A running run is closed (with its duration) by the engine when it stops.
+          ...(running ? {} : { finishedAt: new Date() }),
+          errorsJson: { message: 'Cancelled by a person.' },
+        },
       }),
       this.prisma.approvalRequest.updateMany({
         where: { executionId: id, state: 'PENDING' },

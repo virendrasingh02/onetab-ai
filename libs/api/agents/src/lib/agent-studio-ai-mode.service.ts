@@ -306,7 +306,7 @@ Reply ONLY with JSON.`,
   async generatePlan(
     prompt: string,
     classification: IntentClassification,
-    answers: Record<string, unknown>,
+    _answers: Record<string, unknown>,
   ): Promise<AgentPlan> {
     const isGmail = classification.integration === 'GMAIL';
     const isGithub = classification.integration === 'GITHUB';
@@ -509,7 +509,7 @@ Reply ONLY with JSON.`,
     userId: string,
     classification: IntentClassification,
     answers: Record<string, unknown>,
-    plan: AgentPlan,
+    _plan: AgentPlan,
   ): Promise<AgentSpec> {
     const isGmail = classification.integration === 'GMAIL';
     const isGithub = classification.integration === 'GITHUB';
@@ -798,7 +798,7 @@ When asked to review pull requests:
     }
 
     step.status = 'running';
-    let eventType: AgentBuilderRunEvent['type'] = 'step_started';
+    let eventType: AgentBuilderRunEvent['type'];
     let details: Record<string, unknown> = {};
 
     try {
@@ -963,7 +963,7 @@ When asked to review pull requests:
     const toolNames = spec.tools.map((t) => t.name);
     const graphJson = spec.workflows[0]?.graphJson || null;
 
-    let existing = await this.prisma.aIAgent.findFirst({
+    const existing = await this.prisma.aIAgent.findFirst({
       where: {
         workspaceId,
         name: spec.name,
@@ -1143,7 +1143,7 @@ When asked to review pull requests:
     const text = instruction.toLowerCase();
 
     // Determine diff
-    let newTools = [...toolsParsed];
+    const newTools = [...toolsParsed];
     let addedPrompt = '';
 
     if (text.includes('summar')) {

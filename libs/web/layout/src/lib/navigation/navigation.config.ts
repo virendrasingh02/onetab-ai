@@ -240,15 +240,20 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     // approve and review. Replaced AI Studio, Agent Studio, the Agent
     // Builder, AI Coworkers, Automations and the Prompt Library entries.
     id: 'ai-workspace',
-    label: 'AI Workspace',
+    label: 'AI Agent Studio',
     icon: Bot,
     href: 'ai',
     visible: true,
     order: 1,
     group: 'ai',
-    description: 'Build, run and review agents, coworkers and workflows',
+    description: 'Describe, build, run and review agents, coworkers and workflows',
     keywords: [
       'agents',
+      'agent studio',
+      'automate',
+      'daily report',
+      'todo',
+      'schedule',
       'coworkers',
       'workflows',
       'automations',

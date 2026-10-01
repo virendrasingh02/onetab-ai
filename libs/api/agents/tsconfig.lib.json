@@ -33,7 +33,13 @@
       "path": "../common/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/utils/tsconfig.lib.json"
+    },
+    {
       "path": "../database/tsconfig.lib.json"
+    },
+    {
+      "path": "../work-tools/tsconfig.lib.json"
     },
     {
       "path": "../realtime/tsconfig.lib.json"

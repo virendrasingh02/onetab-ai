@@ -1,7 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { IntegrationsService } from '@org/api-integrations';
 import { MatrixAdminService, MatrixBotMessagingService } from '@org/api-matrix';
+import { WorkToolsService } from '@org/api-work-tools';
 import { PrismaService } from '@org/database';
+import { PLATFORM_TOOLS, type PlatformToolInfo } from '@org/types';
 import { FirecrawlService } from './firecrawl.service.js';
+import { buildPlatformTools } from './platform-tools.js';
 
 /**
  * Everything a tool handler is allowed to know about who is calling it.
@@ -21,13 +26,27 @@ export interface MCPToolContext {
    * tools then refuse rather than posting as nobody.
    */
   agentMatrixUserId?: string | null;
+  /** The zone "today" means for date-ranged tools; the owner's profile zone when absent. */
+  timezone?: string | null;
 }
 
 export interface MCPToolDefinition {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
+  /** Parameters the model may leave out; every other one is required. */
+  optional?: string[];
   handler: (params: any, ctx: MCPToolContext) => Promise<unknown>;
+}
+
+/** A built-in tool as the tool picker and the Studio describe it. */
+export interface MCPToolDescriptor {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  optional?: string[];
+  /** Studio metadata (label, scope, progress text) — absent for tools the Studio does not describe. */
+  meta?: PlatformToolInfo;
 }
 
 @Injectable()
@@ -40,8 +59,40 @@ export class MCPToolRegistryService {
     private readonly matrixAdmin: MatrixAdminService,
     private readonly botMessaging: MatrixBotMessagingService,
     private readonly firecrawl: FirecrawlService,
+    @Optional() private readonly integrations?: IntegrationsService,
+    @Optional() private readonly events?: EventEmitter2,
+    @Optional() private readonly workTools?: WorkToolsService,
   ) {
     this.registerBuiltInTools();
+    this.registerPlatformTools();
+  }
+
+  /**
+   * Tasks, meetings, activity, project health, docs, email and notifications
+   * (`platform-tools.ts`). Registered after the originals, so the platform
+   * versions of `search_docs` and `create_task` — which respect doc
+   * visibility and create tasks through `WorkToolsService` (identifiers,
+   * events, notifications) — replace them.
+   */
+  private registerPlatformTools(): void {
+    const workTools = this.workTools;
+    for (const tool of buildPlatformTools({
+      prisma: this.prisma,
+      integrations: this.integrations,
+      events: this.events,
+      ...(workTools
+        ? {
+            createTask: (workspaceId, input, actorId) =>
+              workTools.createTask(workspaceId, input as never, actorId) as never,
+            updateTask: (workspaceId, taskId, input, actorId) =>
+              workTools.updateTask(workspaceId, taskId, input as never, actorId) as never,
+            createDocument: (workspaceId, authorId, input) =>
+              workTools.createDocument(workspaceId, authorId, input as never),
+          }
+        : {}),
+    })) {
+      this.tools.set(tool.name, tool);
+    }
   }
 
   private registerBuiltInTools(): void {
@@ -361,23 +412,25 @@ export class MCPToolRegistryService {
     });
   }
 
-  /** Name, description and parameters of every built-in tool — what the builder's tool picker and tester show. */
-  getToolDefinitions(): Array<{ name: string; description: string; parameters: Record<string, unknown> }> {
+  /**
+   * Name, description and parameters of every built-in tool — what the
+   * builder's tool picker, the tester and the Studio's tool catalog show —
+   * with the Studio's label, scope and progress text where it has them.
+   */
+  getToolDefinitions(): MCPToolDescriptor[] {
     return Array.from(this.tools.values()).map((t) => ({
       name: t.name,
       description: t.description,
       parameters: t.parameters,
+      ...(t.optional?.length ? { optional: t.optional } : {}),
+      ...(PLATFORM_TOOLS[t.name] ? { meta: PLATFORM_TOOLS[t.name] } : {}),
     }));
   }
 
   /**
    * The registered tools as OpenAI-style function schemas, for a provider
-   * chat call's `tools` option (`ChatExecutionOptions.tools`).
-   *
-   * Every declared parameter is treated as required — none of the built-in
-   * tools currently have an optional parameter that isn't already handled by
-   * the handler defaulting it, so this stays a straightforward wrap rather
-   * than needing a richer per-parameter schema on `MCPToolDefinition`.
+   * chat call's `tools` option (`ChatExecutionOptions.tools`). A parameter is
+   * required unless the tool lists it in `optional`.
    */
   getToolSchemas(): Array<Record<string, unknown>> {
     return this.getToolSchemasFor();
@@ -407,7 +460,7 @@ export class MCPToolRegistryService {
         parameters: {
           type: 'object',
           properties: tool.parameters,
-          required: Object.keys(tool.parameters),
+          required: Object.keys(tool.parameters).filter((key) => !tool.optional?.includes(key)),
         },
       },
     }));

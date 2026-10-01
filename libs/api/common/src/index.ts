@@ -43,6 +43,11 @@ export {
   type AgentApprovalEntityType,
   type AgentApprovalDecidedEvent,
   type WorkflowApprovalDecidedEvent,
+  type TaskOverdueEvent,
+  type ChannelMessagePostedEvent,
+  type AiRunFinishedEvent,
+  type AiApprovalRequestedEvent,
+  type AiAgentMessageEvent,
   type CallStartedEvent,
   type CallEndedEvent,
   type CallNoteUpdatedEvent,
@@ -84,6 +89,13 @@ export {
 
 
 export { isCronDue, isValidCronExpression } from './lib/cron.js';
+
+export {
+  MAX_AGENT_TRIGGER_DEPTH,
+  currentAgentRun,
+  runInAgentScope,
+  type AgentRunScope,
+} from './lib/agent-run-context.js';
 
 export {
   assertPublicHttpUrl,

@@ -200,9 +200,11 @@ export const triggerWorkflowSchema = record.refine(
 
 /** Query-string filters arrive as strings; numbers are coerced and bounded. */
 export const aiExecutionFilterSchema = z.object({
-  status: z.enum(['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'WAITING_APPROVAL']).optional(),
+  status: z.enum(['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'WAITING_APPROVAL', 'PAUSED']).optional(),
   entityType: z.enum(['WORKFLOW', 'AGENT', 'COWORKER', 'APP']).optional(),
   entityId: id.optional(),
+  startDate: z.string().datetime({ offset: true }).optional(),
+  endDate: z.string().datetime({ offset: true }).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).max(100_000).optional(),
 });

@@ -14,9 +14,6 @@
   "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.spec.tsx"],
   "references": [
     {
-      "path": "../../shared/chat-ui/tsconfig.lib.json"
-    },
-    {
       "path": "../workspace/tsconfig.lib.json"
     },
     {
@@ -35,7 +32,13 @@
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/realtime/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/design-system/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/chat-ui/tsconfig.lib.json"
     },
     {
       "path": "../auth/tsconfig.lib.json"

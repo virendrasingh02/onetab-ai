@@ -178,8 +178,21 @@ const AIChatView = lazy(() =>
 const AIWorkspaceLayout = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.AIWorkspaceLayout })),
 );
-const AIOverviewSection = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIOverviewSection })),
+/*
+ * The AI Agent Studio's own pages live with the workflows they compile to
+ * (`@org/web-automations`): Home, the agent library, AI Mode and the agent page.
+ */
+const StudioHome = lazy(() =>
+  import('@org/web-automations').then((m) => ({ default: m.StudioHome })),
+);
+const AgentLibrary = lazy(() =>
+  import('@org/web-automations').then((m) => ({ default: m.AgentLibrary })),
+);
+const AgentCreatePage = lazy(() =>
+  import('@org/web-automations').then((m) => ({ default: m.AgentCreatePage })),
+);
+const AgentDetailPage = lazy(() =>
+  import('@org/web-automations').then((m) => ({ default: m.AgentDetailPage })),
 );
 const AIRunsSection = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.AIRunsSection })),
@@ -195,9 +208,6 @@ const AIToolsSection = lazy(() =>
 );
 const AIPromptsSection = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.AIPromptsSection })),
-);
-const AIAgentsDirectory = lazy(() =>
-  import('@org/web-coworkers').then((m) => ({ default: m.AIAgentsDirectory })),
 );
 const AIEntityEditorRoute = lazy(() =>
   import('@org/web-coworkers').then((m) => ({ default: m.AIEntityEditorRoute })),
@@ -504,10 +514,11 @@ export function App() {
             <Route path="ai-chat" element={<AIChatView />} />
             <Route path="whiteboards" element={<WhiteboardCanvas />} />
 
-            {/* --- AI Workspace: agents, coworkers, workflows, runs --- */}
+            {/* --- AI Agent Studio: agents, coworkers, workflows, runs --- */}
             <Route path="ai" element={<AIWorkspaceLayout />}>
-              <Route index element={<AIOverviewSection />} />
-              <Route path="agents" element={<AIAgentsDirectory />} />
+              <Route index element={<StudioHome />} />
+              <Route path="agents" element={<AgentLibrary />} />
+              {/* Canvas workflows and their starters; listed with the agents too. */}
               <Route path="workflows" element={<WorkflowListView />} />
               <Route path="runs" element={<AIRunsSection />} />
               <Route path="approvals" element={<AIApprovalsSection />} />
@@ -515,7 +526,9 @@ export function App() {
               <Route path="tools" element={<AIToolsSection />} />
               <Route path="prompts" element={<AIPromptsSection />} />
             </Route>
-            {/* Editors take the whole content area, outside the section frame. */}
+            {/* Agent pages and editors take the whole content area, outside the section frame. */}
+            <Route path="ai/studio/new" element={<AgentCreatePage />} />
+            <Route path="ai/studio/:workflowId" element={<AgentDetailPage />} />
             <Route path="ai/agents/:agentId" element={<AIEntityEditorRoute />} />
             <Route path="ai/workflows/:workflowId" element={<WorkflowCanvasView />} />
 

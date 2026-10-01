@@ -18,7 +18,8 @@ import { formatRelative } from '@org/utils';
 import { Check, ChevronDown, ShieldCheck, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { aiWorkspacePath } from './ai-workspace-routes.js';
+import { aiWorkspacePath, studioAgentPath } from './ai-workspace-routes.js';
+import { ApprovalReview } from './runs/ApprovalReview.js';
 import { useApprovals, useDecideApproval, useRunSubjects, useWorkspaceIds } from './use-ai-workspace.js';
 
 const STATE_OPTIONS = [
@@ -77,11 +78,12 @@ export function AIApprovalsSection() {
           {(approvals.data ?? []).map((approval) => (
             <ApprovalCard
               key={approval.id}
+              workspaceId={workspaceId}
               approval={approval}
               subjectName={subjects.get(approval.entityId)?.name}
               subjectLink={
                 approval.entityType === 'WORKFLOW'
-                  ? aiWorkspacePath(slug, 'workflows', approval.entityId)
+                  ? studioAgentPath(slug, approval.entityId)
                   : aiWorkspacePath(slug, 'agents', approval.entityId)
               }
               runLink={
@@ -97,7 +99,11 @@ export function AIApprovalsSection() {
   );
 }
 
+/** Context keys the engine adds to a paused run — not what the action works on. */
+const ENGINE_KEYS = new Set(['workspaceId', 'workflowId', 'executionId', 'now', 'params', 'run', 'agent', 'trigger', 'firedAt', 'input']);
+
 function ApprovalCard({
+  workspaceId,
   approval,
   subjectName,
   subjectLink,
@@ -105,6 +111,7 @@ function ApprovalCard({
   deciding,
   onDecide,
 }: {
+  workspaceId: string | undefined;
   approval: AIApprovalRequest;
   subjectName?: string;
   subjectLink: string;
@@ -116,9 +123,13 @@ function ApprovalCard({
   const payload = (approval.proposedPayload ?? {}) as Record<string, unknown>;
   const label =
     (typeof payload['actionLabel'] === 'string' && (payload['actionLabel'] as string)) || approval.actionType;
-  const input = (payload['input'] as Record<string, unknown> | undefined) ?? (approval.entityType === 'WORKFLOW' ? payload : undefined);
   const isWorkflow = approval.entityType === 'WORKFLOW';
+  const input = isWorkflow
+    ? Object.fromEntries(Object.entries(payload).filter(([key]) => !key.startsWith('__') && !ENGINE_KEYS.has(key)))
+    : (payload['input'] as Record<string, unknown> | undefined);
   const pending = approval.state === 'PENDING';
+  // A workflow step that reviews a draft: show the draft, editable, instead of raw context.
+  const reviewable = pending && isWorkflow && !!payload['__review'];
 
   return (
     <Card className="space-y-3 p-4">
@@ -151,7 +162,9 @@ function ApprovalCard({
         </div>
       </div>
 
-      {input && Object.keys(input).length > 0 ? (
+      {reviewable ? <ApprovalReview workspaceId={workspaceId} approval={approval} /> : null}
+
+      {!reviewable && input && Object.keys(input).length > 0 ? (
         <Collapsible>
           <CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
             <ChevronDown className="size-3.5" /> What it will do with
@@ -172,7 +185,7 @@ function ApprovalCard({
         <p className="rounded-lg bg-surface-inset p-2 text-xs text-muted-foreground">“{approval.comment}”</p>
       ) : null}
 
-      {pending && approval.canDecide ? (
+      {reviewable ? null : pending && approval.canDecide ? (
         <div className="space-y-2">
           <Textarea
             value={comment}

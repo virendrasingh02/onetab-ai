@@ -1,11 +1,9 @@
 import { aiFeedbackApi } from '@org/api-client';
 import type { AIExecution, AIExecutionFilter, AIExecutionStatus } from '@org/types';
 import {
-  AIExecutionTimeline,
   AIRunStatusBadge,
   Button,
   Card,
-  CodeBlock,
   EmptyState,
   ErrorState,
   Hint,
@@ -17,18 +15,16 @@ import {
   SheetHeader,
   SheetTitle,
   toast,
-  toTimelineSteps,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
-import { useWorkspacePermission } from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
-import { Activity, ExternalLink, RotateCcw, Square, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Activity, ExternalLink, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { aiWorkspacePath } from './ai-workspace-routes.js';
+import { RunDetailPanel } from './runs/RunDetailPanel.js';
 import {
   errorText,
   useAIRun,
-  useAIRunActions,
   useAIRuns,
   useRunSubjects,
   useWorkspaceIds,
@@ -49,6 +45,7 @@ const STATUS_OPTIONS = [
   { value: 'ALL', label: 'Any status' },
   { value: 'RUNNING', label: 'Running' },
   { value: 'WAITING_APPROVAL', label: 'Waiting' },
+  { value: 'PAUSED', label: 'Paused' },
   { value: 'FAILED', label: 'Failed' },
   { value: 'COMPLETED', label: 'Completed' },
 ] as const;
@@ -186,9 +183,7 @@ function RunDetailSheet({
   subject?: RunSubject;
   onClose: () => void;
 }) {
-  const { can } = useWorkspacePermission();
   const run = useAIRun(workspaceId, runId);
-  const { retry, cancel } = useAIRunActions(workspaceId);
   const feedback = useMutation({
     mutationFn: (rating: 1 | -1) =>
       aiFeedbackApi.submit(workspaceId as string, { executionId: runId as string, rating }),
@@ -201,67 +196,23 @@ function RunDetailSheet({
   const openLink =
     data && kind
       ? kind === 'workflow'
-        ? aiWorkspacePath(slug, 'workflows', data.entityId)
+        ? aiWorkspacePath(slug, 'studio', data.entityId)
         : aiWorkspacePath(slug, 'agents', data.entityId)
       : null;
-  const error = (data?.errorsJson as { message?: string } | null)?.message;
 
   return (
     <Sheet open={Boolean(runId)} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+      <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle>{subject?.name ?? 'Run'}</SheetTitle>
-          <SheetDescription>
-            {data ? `Started ${formatRelative(data.startedAt)} · ${data.id.slice(0, 8)}` : 'Loading…'}
-          </SheetDescription>
+          <SheetDescription>{data ? `Run ${data.id.slice(0, 8)}` : 'Loading…'}</SheetDescription>
         </SheetHeader>
-
-        {run.isLoading ? (
-          <LoadingState label="Loading run…" />
-        ) : !data ? (
-          <ErrorState title="Couldn't load this run" onRetry={() => void run.refetch()} />
-        ) : (
-          <div className="space-y-5 px-4 pb-6">
+        {runId ? (
+          <div className="space-y-4 px-4 pb-6">
             <div className="flex flex-wrap items-center gap-2">
-              <AIRunStatusBadge status={data.status} />
-              <span className="text-xs text-muted-foreground">
-                {data.tokensUsed.toLocaleString()} tokens · {(data.latencyMs / 1000).toFixed(1)}s
-                {data.model ? ` · ${data.model}` : ''}
-              </span>
-            </div>
-
-            {error ? (
-              <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2">
               {openLink ? (
                 <Button variant="outline" size="sm" asChild leadingIcon={<ExternalLink />}>
-                  <Link to={openLink}>Open {kind}</Link>
-                </Button>
-              ) : null}
-              {can('create') && data.status !== 'RUNNING' && data.entityType !== 'APP' ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  leadingIcon={<RotateCcw />}
-                  loading={retry.isPending}
-                  onClick={() => retry.mutate(data.id)}
-                >
-                  Run again
-                </Button>
-              ) : null}
-              {can('update') && data.status === 'WAITING_APPROVAL' ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  leadingIcon={<Square />}
-                  loading={cancel.isPending}
-                  onClick={() => cancel.mutate(data.id)}
-                >
-                  Cancel run
+                  <Link to={openLink}>Open {kind === 'workflow' ? 'agent' : kind}</Link>
                 </Button>
               ) : null}
               <div className="ml-auto flex items-center gap-1">
@@ -277,57 +228,15 @@ function RunDetailSheet({
                 </Hint>
               </div>
             </div>
-
-            <RunInput state={data.stateJson} />
-
-            <section aria-labelledby="run-steps">
-              <h3 id="run-steps" className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Steps
-              </h3>
-              {(data.steps ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {data.status === 'RUNNING' ? 'Steps appear as they finish.' : 'No steps were recorded for this run.'}
-                </p>
-              ) : (
-                <AIExecutionTimeline
-                  steps={toTimelineSteps(data.steps)}
-                  totalDurationMs={data.latencyMs}
-                  totalTokens={data.tokensUsed}
-                />
-              )}
-            </section>
+            <RunDetailPanel
+              workspaceId={workspaceId}
+              slug={slug}
+              runId={runId}
+              permissionsHref={kind === 'workflow' && data ? `${aiWorkspacePath(slug, 'studio', data.entityId)}?tab=plan` : undefined}
+            />
           </div>
-        )}
+        ) : null}
       </SheetContent>
     </Sheet>
-  );
-}
-
-/** The input a run started from — an agent's prompt, or a workflow's trigger payload. */
-function RunInput({ state }: { state: Record<string, unknown> }) {
-  const prompt = typeof state['prompt'] === 'string' ? (state['prompt'] as string) : null;
-  const payload = Object.fromEntries(
-    Object.entries(state).filter(
-      ([key]) => !['prompt', 'workspaceId', 'workflowId', 'executionId', '__workflowRunId'].includes(key),
-    ),
-  );
-  if (!prompt && Object.keys(payload).length === 0) return null;
-  return (
-    <section aria-labelledby="run-input">
-      <h3 id="run-input" className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Input
-      </h3>
-      {prompt ? (
-        <p className="whitespace-pre-wrap rounded-lg border border-border bg-surface-inset p-3 text-sm text-foreground">
-          {prompt}
-        </p>
-      ) : (
-        <CodeBlock
-          variant="compact"
-          language="json"
-          code={JSON.stringify(payload, null, 2)}
-        />
-      )}
-    </section>
   );
 }

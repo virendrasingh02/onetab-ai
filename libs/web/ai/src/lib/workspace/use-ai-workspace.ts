@@ -77,9 +77,11 @@ export function useAIRunActions(workspaceId: string | undefined) {
     onSuccess: (result) => {
       toast.success('Run started again', {
         description:
-          result.status === 'WAITING_APPROVAL'
-            ? 'It is waiting for an approval.'
-            : `Finished: ${String(result.status).toLowerCase().replace('_', ' ')}.`,
+          result.status === 'RUNNING'
+            ? 'It is running now — follow it in Runs.'
+            : result.status === 'WAITING_APPROVAL'
+              ? 'It is waiting for an approval.'
+              : `Finished: ${String(result.status).toLowerCase().replace('_', ' ')}.`,
       });
       void refresh();
     },
@@ -88,15 +90,45 @@ export function useAIRunActions(workspaceId: string | undefined) {
 
   const cancel = useMutation({
     mutationFn: (runId: string) => aiExecutionsApi.cancel(workspaceId as string, runId),
-    onSuccess: () => {
-      toast.success('Run cancelled', { description: 'Its pending approvals were withdrawn.' });
+    onSuccess: (run) => {
+      toast.success(run.status === 'CANCELLED' && !run.finishedAt ? 'Cancelling — it stops after the current step' : 'Run cancelled', {
+        description: 'Its pending approvals were withdrawn.',
+      });
       void refresh();
       void queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all(workspaceId ?? '') });
     },
     onError: (err) => toast.error('Could not cancel this run', { description: errorText(err) }),
   });
 
-  return { retry, cancel };
+  const pause = useMutation({
+    mutationFn: (runId: string) => aiExecutionsApi.pause(workspaceId as string, runId),
+    onSuccess: () => {
+      toast.success('Pausing', { description: 'It stops after the step in progress. Resume it any time.' });
+      void refresh();
+    },
+    onError: (err) => toast.error('Could not pause this run', { description: errorText(err) }),
+  });
+
+  const resume = useMutation({
+    mutationFn: (runId: string) => aiExecutionsApi.resume(workspaceId as string, runId),
+    onSuccess: () => {
+      toast.success('Resumed', { description: 'It carries on from where it stopped.' });
+      void refresh();
+    },
+    onError: (err) => toast.error('Could not resume this run', { description: errorText(err) }),
+  });
+
+  const restart = useMutation({
+    mutationFn: (input: { runId: string; stepId: string }) =>
+      aiExecutionsApi.restart(workspaceId as string, input.runId, input.stepId),
+    onSuccess: () => {
+      toast.success('Started again from that step', { description: 'A new run reuses what the earlier steps produced.' });
+      void refresh();
+    },
+    onError: (err) => toast.error('Could not restart from that step', { description: errorText(err) }),
+  });
+
+  return { retry, cancel, pause, resume, restart };
 }
 
 export function useApprovals(workspaceId: string | undefined, state?: string) {
@@ -111,10 +143,17 @@ export function useApprovals(workspaceId: string | undefined, state?: string) {
 export function useDecideApproval(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { id: string; decision: 'APPROVED' | 'REJECTED'; comment?: string }) =>
+    mutationFn: (input: {
+      id: string;
+      decision: 'APPROVED' | 'REJECTED';
+      comment?: string;
+      /** The run context with the approver's edit to the reviewed draft. */
+      revisedPayload?: Record<string, unknown>;
+    }) =>
       approvalsApi.decide(workspaceId as string, input.id, {
         decision: input.decision,
         ...(input.comment ? { comment: input.comment } : {}),
+        ...(input.revisedPayload ? { revisedPayload: input.revisedPayload } : {}),
       }),
     onSuccess: (_row, input) => {
       toast.success(input.decision === 'APPROVED' ? 'Approved — the action will run' : 'Rejected');

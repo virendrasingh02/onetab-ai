@@ -58,6 +58,7 @@ export {
   aiAppsApi,
   approvalsApi,
   aiExecutionsApi,
+  agentStudioApi,
   aiSecretsApi,
   aiMemoryApi,
   mcpApi,

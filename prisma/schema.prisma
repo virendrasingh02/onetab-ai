@@ -2222,6 +2222,13 @@ model AutomationWorkflow {
   isActive    Boolean             @default(true)
   nodesJson   String              @default("[]")
   edgesJson   String              @default("[]")
+  /// The AI Agent Studio blueprint this workflow was compiled from (objective,
+  /// plan steps, granted scopes, output, params). Null for workflows built on
+  /// the canvas. When set, the engine refuses tools outside its scopes.
+  agentProfile Json?
+  /// Archived agents keep their runs and versions but leave the library and
+  /// never run on a trigger.
+  archivedAt  DateTime?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   creator     User?               @relation(fields: [creatorId], references: [id])
@@ -2775,6 +2782,14 @@ enum NotificationKind {
   CALL_ACTION_ITEM_ASSIGNED
   MESSAGE_REMINDER
   SYSTEM
+  /// An AI agent paused for someone to approve an action.
+  AI_APPROVAL_REQUIRED
+  /// An AI agent run failed and did not recover.
+  AI_RUN_FAILED
+  /// A scheduled or event-triggered AI agent run finished.
+  AI_RUN_COMPLETED
+  /// A message an AI agent sent its owner (the notify_user tool).
+  AI_AGENT_MESSAGE
 }
 
 enum CallKind {
@@ -3558,6 +3573,9 @@ model AIWorkflowVersion {
   description   String?
   nodesJson     String             @default("[]")
   edgesJson     String             @default("[]")
+  /// The Studio blueprint at the time of the snapshot, so a rollback restores
+  /// the plan and permissions along with the graph.
+  agentProfile  Json?
   changeSummary String?
   isPublished   Boolean            @default(false)
   createdAt     DateTime           @default(now())
@@ -3622,6 +3640,7 @@ model AIExecution {
 
   @@index([workspaceId, status])
   @@index([workspaceId, entityType, startedAt])
+  @@index([workspaceId, startedAt])
   @@map("ai_executions")
 }
 

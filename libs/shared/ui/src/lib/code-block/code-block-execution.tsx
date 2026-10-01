@@ -1,7 +1,7 @@
 import { Button } from '../components/button.js';
 import { cn } from '@org/utils';
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Loader2, Play, Terminal } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { ExecutionStatus } from './types.js';
 
 export interface CodeBlockExecutionProps {

@@ -96,7 +96,15 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
   },
   {
     label: 'AI Agent',
-    description: 'Build an agent on the canvas, test it, publish it',
+    description: 'Say what you want done — the Studio plans the agent',
+    icon: Sparkles,
+    tone: 'bg-accent-violet/15 border-accent-violet/30 text-accent-violet',
+    category: 'work',
+    path: 'ai/studio/new',
+  },
+  {
+    label: 'Assistant Agent',
+    description: 'A model with instructions, tools and knowledge, to chat with',
     icon: Bot,
     tone: 'bg-accent-cyan/15 border-accent-cyan/30 text-accent-cyan',
     category: 'work',

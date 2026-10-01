@@ -459,6 +459,15 @@ export const queryKeys = {
       ['ai-executions', workspaceId, 'list', filters ?? {}] as const,
     detail: (workspaceId: string, id: string) => ['ai-executions', workspaceId, 'detail', id] as const,
   },
+  agentStudio: {
+    all: (workspaceId: string) => ['agent-studio', workspaceId] as const,
+    home: (workspaceId: string) => ['agent-studio', workspaceId, 'home'] as const,
+    catalog: (workspaceId: string) => ['agent-studio', workspaceId, 'catalog'] as const,
+    list: (workspaceId: string) => ['agent-studio', workspaceId, 'list'] as const,
+    detail: (workspaceId: string, id: string) => ['agent-studio', workspaceId, 'detail', id] as const,
+    version: (workspaceId: string, id: string, version: number) =>
+      ['agent-studio', workspaceId, 'detail', id, 'version', version] as const,
+  },
   aiSecrets: {
     all: (workspaceId: string) => ['ai-secrets', workspaceId] as const,
     list: (workspaceId: string) => ['ai-secrets', workspaceId, 'list'] as const,

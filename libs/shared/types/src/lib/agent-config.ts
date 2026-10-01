@@ -99,10 +99,29 @@ export const READ_ONLY_AGENT_TOOLS: readonly string[] = [
   'list_tasks',
   'list_channels',
   'list_memory',
+  'find_tasks',
+  'get_project_overview',
+  'list_meetings',
+  'get_activity',
+  'read_doc',
+  'search_email',
   'firecrawl_search',
   'firecrawl_scrape',
   'firecrawl_crawl',
   'firecrawl_extract',
+];
+
+/**
+ * Read-only tools over the owner's *own* data — their meetings, their activity,
+ * their private docs, their mailbox. An agent or coworker answering other
+ * people in a channel must not relay those, so they are never part of a
+ * default tool set; an agent gets them only when its builder picks them.
+ */
+export const OWNER_PRIVATE_AGENT_TOOLS: readonly string[] = [
+  'list_meetings',
+  'get_activity',
+  'read_doc',
+  'search_email',
 ];
 
 /** Whether a tool call must wait for a person under `runtime`. */

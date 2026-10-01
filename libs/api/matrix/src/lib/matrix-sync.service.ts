@@ -243,7 +243,7 @@ export class MatrixSyncService {
 
     const user = await this.prisma.user.findFirst({
       where: { matrixUserId: event.sender },
-      select: { id: true },
+      select: { id: true, name: true, displayName: true },
     });
 
     const mentionedUserIds = await this.resolveMentions(
@@ -262,6 +262,26 @@ export class MatrixSyncService {
         occurredAt: new Date(event.origin_server_ts),
       },
     });
+
+    // Agents watching this channel (a Studio "when a message arrives"
+    // trigger) get the text in-process. Nothing stores it here; an edit or a
+    // bot's own message is not a new message, and encrypted rooms have no
+    // readable body to hand on.
+    const body = typeof event.content['body'] === 'string' ? (event.content['body'] as string) : '';
+    const isEdit = !!(event.content['m.relates_to'] as { rel_type?: string } | undefined)?.rel_type?.startsWith('m.replace');
+    if (user && body.trim() && !isEdit) {
+      this.events.emit(AppEvent.ChannelMessagePosted, {
+        workspaceId: channel.workspaceId,
+        actorId: user.id,
+        channelId: channel.id,
+        channelName: channel.name,
+        channelSlug: channel.slug,
+        senderId: user.id,
+        senderName: user.displayName || user.name,
+        text: body.slice(0, 8_000),
+        matrixEventId: event.event_id,
+      });
+    }
 
     // A named person gets a bell-menu notification, not just a sidebar dot.
     // The activity row above already carries the ids for the dot; this adds the

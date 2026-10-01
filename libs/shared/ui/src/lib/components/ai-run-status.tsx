@@ -9,6 +9,7 @@ const STATUS: Record<AIExecutionStatus, { label: string; variant: BadgeProps['va
   FAILED: { label: 'Failed', variant: 'destructive' },
   CANCELLED: { label: 'Cancelled', variant: 'neutral' },
   WAITING_APPROVAL: { label: 'Waiting for approval', variant: 'warning' },
+  PAUSED: { label: 'Paused', variant: 'info' },
 };
 
 /**
@@ -73,7 +74,9 @@ export function toTimelineSteps(steps: readonly RecordedStep[] | undefined): AIE
           ? 'failed'
           : step.status === 'SKIPPED'
             ? 'skipped'
-            : 'pending',
+            : step.status === 'RUNNING'
+              ? 'running'
+              : 'pending',
     description: step.nodeType,
     durationMs: step.latencyMs,
     tokensUsed: step.tokensUsed,

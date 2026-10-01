@@ -450,6 +450,7 @@ export {
   AGENT_GRAPH_NODE_KINDS,
   DEFAULT_AGENT_RUNTIME,
   READ_ONLY_AGENT_TOOLS,
+  OWNER_PRIVATE_AGENT_TOOLS,
   agentToolNeedsApproval,
   convertLegacyAgentGraph,
   deriveAgentFromGraph,
@@ -473,3 +474,11 @@ export {
 export * from './lib/agent-studio-feature-flags.js';
 export * from './lib/workflow-schema.js';
 export * from './lib/agent-spec.js';
+
+/*
+ * AI Agent Studio — the plan an agent carries (objective, trigger, steps,
+ * permissions, output), compiled into the workflow graph the engine runs.
+ */
+export * from './lib/agent-blueprint.js';
+export * from './lib/agent-templates.js';
+export * from './lib/agent-studio-api.js';

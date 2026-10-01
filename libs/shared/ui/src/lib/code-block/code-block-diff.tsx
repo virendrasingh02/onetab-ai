@@ -2,7 +2,7 @@ import { Button } from '../components/button.js';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/tooltip.js';
 import { cn } from '@org/utils';
 import { Check, Columns, Copy, Download, Rows } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   computeDiff,
   copyToClipboard,

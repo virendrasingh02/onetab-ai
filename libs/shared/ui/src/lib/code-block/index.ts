@@ -7,5 +7,20 @@ export { CodeBlockDiff, type CodeBlockDiffProps } from './code-block-diff.js';
 export { CodeBlockPreview, type CodeBlockPreviewProps, isLanguagePreviewable } from './code-block-preview.js';
 export { CodeBlockExecution, type CodeBlockExecutionProps } from './code-block-execution.js';
 export * from './code-block.constants.js';
-export * from './code-block.utils.js';
+// `copyToClipboard` stays internal: `@org/ui` already exports the action
+// menu's, and two exports of one name made the package barrel ambiguous.
+export {
+  computeDiff,
+  detectLanguage,
+  downloadAsFile,
+  getHighlighter,
+  getLanguageExtension,
+  getLanguageMimeType,
+  getLanguageName,
+  highlightCodeToTokens,
+  normalizeLanguage,
+  parseHighlightedLines,
+  plainTextToTokens,
+  sanitizeFilename,
+} from './code-block.utils.js';
 export * from './types.js';

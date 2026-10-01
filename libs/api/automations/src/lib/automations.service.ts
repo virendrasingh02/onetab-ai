@@ -1,6 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import { WorkflowEngineService } from './workflow-engine.service.js';
+import { normalizeWorkflowNodes } from './workflow-graph.js';
+
+/** What a graph's trigger node says starts it: MANUAL, CRON or an event name. */
+export function triggerTypeFromNodes(nodesJson: string): string | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(nodesJson);
+  } catch {
+    return null;
+  }
+  const trigger = normalizeWorkflowNodes(raw).find((n) => n.type === 'TRIGGER' || n.type === 'START');
+  if (!trigger) return null;
+  const kind = String(trigger.config['triggerKind'] ?? '').toUpperCase();
+  if (kind === 'CRON') return 'CRON';
+  if (kind === 'EVENT' && typeof trigger.config['event'] === 'string') return trigger.config['event'] as string;
+  if (kind === 'MANUAL') return 'MANUAL';
+  return null;
+}
 
 /**
  * Workflows belong to a workspace, so every lookup is filtered by it — a
@@ -166,6 +184,8 @@ export class AutomationsService {
         description: workflow.description,
         nodesJson: workflow.nodesJson,
         edgesJson: workflow.edgesJson,
+        // The plan and its granted permissions roll back with the graph.
+        ...(workflow.agentProfile ? { agentProfile: workflow.agentProfile as object } : {}),
         changeSummary: options.summary?.trim() || (options.publish ? 'Published' : 'Snapshot'),
         isPublished: !!options.publish,
       },
@@ -187,7 +207,14 @@ export class AutomationsService {
     if (!version) throw new NotFoundException(`Version ${versionNumber} not found.`);
     return this.prisma.automationWorkflow.update({
       where: { id: workflowId },
-      data: { nodesJson: version.nodesJson, edgesJson: version.edgesJson },
+      data: {
+        nodesJson: version.nodesJson,
+        edgesJson: version.edgesJson,
+        // The trigger lives in the graph; keep the column that schedules and
+        // event dispatch read in step with the version being restored.
+        triggerType: triggerTypeFromNodes(version.nodesJson) ?? undefined,
+        ...(version.agentProfile ? { agentProfile: version.agentProfile as object } : {}),
+      },
     });
   }
 

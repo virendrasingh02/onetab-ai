@@ -1,11 +1,4 @@
-import {
-  Check,
-  Copy,
-  Sparkles,
-} from 'lucide-react';
-import {
-  useState,
-} from 'react';
+import { Sparkles } from 'lucide-react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
 import { CodeBlock } from '../code-block/index.js';
@@ -35,8 +28,6 @@ export interface PageBlockConfig {
 }
 
 export function BlockRenderer({ block }: { block: PageBlockConfig }) {
-  const [copied, setCopied] = useState(false);
-
   switch (block.type) {
     case 'hero':
       return (

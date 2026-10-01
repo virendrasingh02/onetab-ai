@@ -224,7 +224,7 @@ describe('AgentStudioAiModeService', () => {
       const classification = await service.classifyIntent(prompt);
       expect(classification.integration).toBe('GITHUB');
 
-      const { questions, defaultAnswers } = await service.generateRequirements(prompt, classification);
+      const { defaultAnswers } = await service.generateRequirements(prompt, classification);
       const plan = await service.generatePlan(prompt, classification, defaultAnswers);
       const spec = await service.compileAgentSpec('ws_test', 'usr_1', classification, defaultAnswers, plan);
 
