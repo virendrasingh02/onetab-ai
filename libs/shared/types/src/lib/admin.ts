@@ -622,3 +622,32 @@ export interface MetricDefinition {
   unit?: string;
 }
 
+export type EmailDeliveryStatus =
+  | 'QUEUED'
+  | 'SENDING'
+  | 'SENT'
+  | 'FAILED'
+  | 'DELIVERED'
+  | 'BOUNCED'
+  | 'COMPLAINED'
+  | 'OPENED'
+  | 'CLICKED';
+
+export interface AdminEmailDelivery {
+  id: string;
+  type: string;
+  recipient: string;
+  workspaceId: string | null;
+  workspace: { id: string; name: string } | null;
+  provider: string;
+  providerMessageId: string | null;
+  status: EmailDeliveryStatus;
+  errorCode: string | null;
+  errorMessage: string | null;
+  sentAt: IsoDateString | null;
+  deliveredAt: IsoDateString | null;
+  openedAt: IsoDateString | null;
+  clickedAt: IsoDateString | null;
+  bouncedAt: IsoDateString | null;
+  createdAt: IsoDateString;
+}

@@ -51,6 +51,8 @@ model User {
   notificationPreferences   NotificationPreference[]
   passwordResets            PasswordResetToken[]
   magicLinkTokens           MagicLinkToken[]
+  emailVerificationTokens   EmailVerificationToken[]
+  emailDeliveries           EmailDelivery[]
   twoFactorChallenges       TwoFactorChallenge[]
   pushRegistrations         PushRegistration[]
   recentActivities          RecentActivity[]
@@ -328,6 +330,7 @@ model Workspace {
   automationWorkflows       AutomationWorkflow[]
   calendarEvents            CalendarEvent[]
   channels                  Channel[]
+  emailDeliveries           EmailDelivery[]
   anonymousSettings         ChannelAnonymousSetting[]
   anonymousMessages         AnonymousMessage[]
   anonymousModerationEvents AnonymousModerationEvent[]
@@ -869,6 +872,68 @@ model MagicLinkToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("magic_link_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+enum EmailDeliveryStatus {
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+  DELIVERED
+  BOUNCED
+  COMPLAINED
+  OPENED
+  CLICKED
+}
+
+model EmailDelivery {
+  id                String              @id @default(cuid())
+  type              String
+  recipient         String
+  userId            String?
+  workspaceId       String?
+  provider          String              @default("resend")
+  providerMessageId String?
+  status            EmailDeliveryStatus @default(SENT)
+  idempotencyKey    String?             @unique
+  errorCode         String?
+  errorMessage      String?
+  metadata          Json?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  bouncedAt         DateTime?
+  complainedAt      DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workspace         Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([recipient])
+  @@index([type])
+  @@index([status])
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([createdAt])
+  @@index([providerMessageId])
+  @@map("email_deliveries")
 }
 
 /// The second step of a sign-in for an account with two-factor on: the first

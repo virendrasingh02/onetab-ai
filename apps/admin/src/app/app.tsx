@@ -205,6 +205,12 @@ const AdminPlansView = lazy(() =>
   })),
 );
 
+const EmailDeliveriesView = lazy(() =>
+  import('./email-deliveries-view').then((m) => ({
+    default: m.EmailDeliveriesView,
+  })),
+);
+
 function NotFoundPage() {
   return (
     <div className="p-6 grid min-h-dvh place-items-center">
@@ -272,6 +278,7 @@ export function App() {
           <Route path="/health" element={<HealthDashboardView />} />
           <Route path="/performance" element={<PerformanceMonitoringView />} />
           <Route path="/errors" element={<ErrorTrackingView />} />
+          <Route path="/emails" element={<EmailDeliveriesView />} />
 
           {/* Plans, Tiers & Promotional Code Management */}
           <Route path="/plans" element={<AdminPlansView />} />

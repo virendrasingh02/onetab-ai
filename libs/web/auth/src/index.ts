@@ -43,6 +43,8 @@ export {
   useResetPassword,
   useSessionBootstrap,
   useVerifyMagicLink,
+  useVerifyEmail,
+  useSendEmailVerification,
 } from './lib/use-auth.js';
 
 export { ProtectedRoute, PublicOnlyRoute } from './lib/protected-route.js';
@@ -80,3 +82,4 @@ export { ResetPasswordPage } from './lib/pages/reset-password-page.js';
 export { DesktopAuthCallbackPage } from './lib/pages/desktop-auth-callback-page.js';
 export { MobileDeviceConfirmPage } from './lib/pages/mobile-device-confirm-page.js';
 export { MobileDevicePairPage } from './lib/pages/mobile-device-pair-page.js';
+export { VerifyEmailPage } from './lib/pages/verify-email-page.js';

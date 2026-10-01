@@ -10,7 +10,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { expiresAt, generateToken, hashToken, parseDuration } from '@org/api-common';
-import { MailService, magicLinkEmail, passwordResetEmail } from '@org/api-mail';
+import {
+  MailService,
+  magicLinkEmail,
+  passwordResetEmail,
+  passwordChangedEmail,
+  emailVerificationEmail,
+} from '@org/api-mail';
 import { PrismaService } from '@org/database';
 import {
   ApiErrorCode,
@@ -276,7 +282,7 @@ export class AuthService {
     if (!user) return {};
 
     const token = generateToken(32);
-    await this.prisma.passwordResetToken.create({
+    const tokenRecord = await this.prisma.passwordResetToken.create({
       data: {
         userId: user.id,
         tokenHash: hashToken(token),
@@ -288,10 +294,16 @@ export class AuthService {
       this.config.get<string>('APP_URL') ?? 'http://localhost:4200'
     ).replace(/\/+$/, '');
     const resetUrl = `${appUrl}/reset-password?token=${encodeURIComponent(token)}`;
-    const email = passwordResetEmail({ resetUrl, expiresInMinutes: 60 });
+    const email = passwordResetEmail({ resetUrl, expiresInMinutes: 30 });
     // Best-effort — a mail failure must not reveal whether the address exists.
     void this.mail
-      .send({ to: input.email.trim(), ...email })
+      .send({
+        type: 'PASSWORD_RESET',
+        to: input.email.trim(),
+        userId: user.id,
+        idempotencyKey: `password-reset:${tokenRecord.id}`,
+        ...email,
+      })
       .catch((err) =>
         this.logger.error('Failed to send password-reset email', err),
       );
@@ -299,6 +311,22 @@ export class AuthService {
     return this.config.get('NODE_ENV') === 'production'
       ? {}
       : { devToken: token };
+  }
+
+  async verifyResetToken(token: string): Promise<{ valid: boolean }> {
+    const record = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash: hashToken(token) },
+      select: { id: true, usedAt: true, expiresAt: true },
+    });
+
+    if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException({
+        code: ApiErrorCode.TOKEN_EXPIRED,
+        message: 'This reset link is invalid or has expired.',
+      });
+    }
+
+    return { valid: true };
   }
 
   async resetPassword(input: ResetPasswordInput): Promise<void> {
@@ -330,6 +358,25 @@ export class AuthService {
         data: { revokedAt: new Date() },
       }),
     ]);
+
+    // Asynchronously deliver security notification about changed password
+    const user = await this.prisma.user.findUnique({
+      where: { id: record.userId },
+      select: { email: true },
+    });
+    if (user?.email) {
+      void this.mail
+        .send({
+          type: 'PASSWORD_CHANGED',
+          to: user.email,
+          userId: record.userId,
+          idempotencyKey: `password-changed:${record.id}`,
+          ...passwordChangedEmail(),
+        })
+        .catch((err) =>
+          this.logger.error('Failed to send password-changed alert email', err),
+        );
+    }
   }
 
   /**
@@ -380,7 +427,7 @@ export class AuthService {
     }
 
     const token = generateToken(32);
-    await this.prisma.$transaction([
+    const [_, createdToken] = await this.prisma.$transaction([
       // Only the newest link works. Earlier ones are expired rather than marked
       // used, so clicking an old email reads "expired", which is what happened.
       this.prisma.magicLinkToken.updateMany({
@@ -407,7 +454,13 @@ export class AuthService {
 
     // Best-effort — a mail failure must not reveal whether the address exists.
     void this.mail
-      .send({ to: user.email, ...email })
+      .send({
+        type: 'MAGIC_SIGN_IN',
+        to: user.email,
+        userId: user.id,
+        idempotencyKey: `magic-login:${createdToken.id}`,
+        ...email,
+      })
       .catch((err) =>
         this.logger.error('Failed to send magic-link email', err),
       );
@@ -964,6 +1017,88 @@ export class AuthService {
         OR: [{ id: credentialId }, { credentialId }],
       },
     });
+  }
+
+  async sendEmailVerification(
+    userId: string,
+    emailOverride?: string,
+  ): Promise<{ message: string; devToken?: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, emailVerifiedAt: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const email = (emailOverride || user.email).trim().toLowerCase();
+    const token = generateToken(32);
+    const ttl = '24h';
+
+    const tokenRecord = await this.prisma.emailVerificationToken.create({
+      data: {
+        userId: user.id,
+        email,
+        tokenHash: hashToken(token),
+        expiresAt: expiresAt(ttl),
+      },
+    });
+
+    const appUrl = (
+      this.config.get<string>('APP_URL') ?? 'http://localhost:4200'
+    ).replace(/\/+$/, '');
+    const verifyUrl = `${appUrl}/verify-email?token=${encodeURIComponent(token)}`;
+    const rendered = emailVerificationEmail({ verifyUrl });
+
+    void this.mail
+      .send({
+        type: 'EMAIL_VERIFICATION',
+        to: email,
+        userId: user.id,
+        idempotencyKey: `email-verification:${tokenRecord.id}`,
+        ...rendered,
+      })
+      .catch((err) =>
+        this.logger.error('Failed to send email-verification email', err),
+      );
+
+    return this.config.get('NODE_ENV') === 'production'
+      ? { message: 'Verification email sent.' }
+      : { message: 'Verification email sent.', devToken: token };
+  }
+
+  async verifyEmail(token: string): Promise<{ verified: boolean }> {
+    const record = await this.prisma.emailVerificationToken.findUnique({
+      where: { tokenHash: hashToken(token) },
+      select: {
+        id: true,
+        userId: true,
+        email: true,
+        usedAt: true,
+        expiresAt: true,
+      },
+    });
+
+    if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException({
+        code: ApiErrorCode.TOKEN_EXPIRED,
+        message: 'This email verification link is invalid or has expired.',
+      });
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.emailVerificationToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { emailVerifiedAt: new Date() },
+      }),
+    ]);
+
+    return { verified: true };
   }
 }
 

@@ -390,4 +390,69 @@ export class AdminService {
 
     return { items, total, page, pageSize };
   }
+
+  // --- email delivery monitoring --------------------------------------------
+
+  async listEmailDeliveries(options: {
+    status?: string;
+    type?: string;
+    workspaceId?: string;
+    recipient?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<AdminPage<unknown>> {
+    const { skip, take, page, pageSize } = paging(options.page, options.pageSize);
+    const where: Record<string, unknown> = {};
+
+    if (options.status) {
+      where['status'] = options.status;
+    }
+    if (options.type) {
+      where['type'] = options.type;
+    }
+    if (options.workspaceId) {
+      where['workspaceId'] = options.workspaceId;
+    }
+    if (options.recipient) {
+      where['recipient'] = { contains: options.recipient.trim(), mode: 'insensitive' };
+    }
+    if (options.startDate || options.endDate) {
+      const createdAtFilter: Record<string, Date> = {};
+      if (options.startDate) createdAtFilter['gte'] = new Date(options.startDate);
+      if (options.endDate) createdAtFilter['lte'] = new Date(options.endDate);
+      where['createdAt'] = createdAtFilter;
+    }
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.emailDelivery.findMany({
+        where,
+        select: {
+          id: true,
+          type: true,
+          recipient: true,
+          workspaceId: true,
+          workspace: { select: { id: true, name: true } },
+          provider: true,
+          providerMessageId: true,
+          status: true,
+          errorCode: true,
+          errorMessage: true,
+          sentAt: true,
+          deliveredAt: true,
+          openedAt: true,
+          clickedAt: true,
+          bouncedAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.emailDelivery.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize };
+  }
 }

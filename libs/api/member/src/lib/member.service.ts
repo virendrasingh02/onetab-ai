@@ -652,7 +652,13 @@ export class MemberService {
             role,
             acceptUrl: `${appUrl}/invite/${encodeURIComponent(token)}`,
           });
-          return this.mail.send({ to: inv.email, ...rendered });
+          return this.mail.send({
+            type: 'WORKSPACE_INVITATION',
+            to: inv.email,
+            workspaceId,
+            idempotencyKey: `workspace-invite:${inv.id}:${Date.now()}`,
+            ...rendered,
+          });
         }),
       );
     } catch (err) {
@@ -722,6 +728,16 @@ export class MemberService {
       targetType: 'INVITATION',
       targetId: invitationId,
     });
+
+    if (updated.email) {
+      void this.sendInviteEmails(
+        workspaceId,
+        actorId || updated.invitedById,
+        updated.role as WorkspaceRole,
+        [toInvitation(updated)],
+        { [updated.email]: token },
+      );
+    }
 
     return {
       invitation: toInvitation(updated),

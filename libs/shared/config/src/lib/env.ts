@@ -119,13 +119,20 @@ export const apiEnvSchema = z.object({
   GIPHY_API_KEY: z.string().optional(),
 
   // Transactional email. `log` (default) renders every message to the logger —
-  // no external service, safe everywhere. `http` POSTs to `MAIL_API_URL` with a
-  // `{ from, to, subject, html, text }` JSON body (Resend / Postmark / SendGrid
-  // shape), authorised with `Bearer ${MAIL_API_KEY}`.
+  // no external service, safe everywhere. `http` uses Resend HTTP API.
   MAIL_TRANSPORT: z.enum(['log', 'http']).default('log'),
-  MAIL_FROM: z.string().default('OneTab AI <noreply@onetab.ai>'),
+  MAIL_MODE: z.enum(['live', 'test']).default('live'),
+  MAIL_FROM: z.string().default('Mie <noreply@askmie.ai>'),
+  MAIL_REPLY_TO: z.string().default('support@askmie.ai'),
   MAIL_API_URL: z.string().url().optional(),
   MAIL_API_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_API_URL: z.string().url().default('https://api.resend.com/emails'),
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
+  APP_NAME: z.string().default('Mie'),
+  AUTH_MAGIC_LINK_EXPIRES_MINUTES: z.coerce.number().int().positive().default(15),
+  PASSWORD_RESET_EXPIRES_MINUTES: z.coerce.number().int().positive().default(30),
+  INVITE_EXPIRES_DAYS: z.coerce.number().int().positive().default(7),
   /** Public base URL the app is served from — used to build links in emails. */
   APP_URL: z.string().url().default('http://localhost:4200'),
 
@@ -147,6 +154,24 @@ export const apiEnvSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().optional(),
   CUSTOM_API_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+}).superRefine((data, ctx) => {
+  if (data.NODE_ENV === 'production' && data.MAIL_TRANSPORT === 'http') {
+    const hasKey = Boolean(data.RESEND_API_KEY || data.MAIL_API_KEY);
+    if (!hasKey) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['RESEND_API_KEY'],
+        message: 'RESEND_API_KEY is required in production when MAIL_TRANSPORT=http',
+      });
+    }
+    if (!data.MAIL_FROM) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['MAIL_FROM'],
+        message: 'MAIL_FROM is required when MAIL_TRANSPORT=http',
+      });
+    }
+  }
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

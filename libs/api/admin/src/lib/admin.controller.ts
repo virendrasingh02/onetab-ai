@@ -150,4 +150,29 @@ export class AdminController {
       pageSize: toInt(pageSize),
     });
   }
+
+  // --- email activity monitoring --------------------------------------------
+
+  @Get('emails')
+  listEmails(
+    @Query('status') status?: string,
+    @Query('type') type?: string,
+    @Query('workspaceId') workspaceId?: string,
+    @Query('recipient') recipient?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.admin.listEmailDeliveries({
+      status,
+      type,
+      workspaceId,
+      recipient,
+      startDate,
+      endDate,
+      page: toInt(page),
+      pageSize: toInt(pageSize),
+    });
+  }
 }

@@ -29,6 +29,7 @@ import type {
   RollbackAppReleaseInput,
   AdminAuditLogEntry,
   AdminDepartment,
+  AdminEmailDelivery,
   AdminOrganization,
   AdminOverview,
   AdminPage,
@@ -454,6 +455,19 @@ export const authApi = {
 
   resetPassword: (input: ResetPasswordInput) =>
     request<void>(http.post('/auth/reset-password', input)),
+
+  verifyResetToken: (input: { token: string }) =>
+    request<{ valid: boolean }>(http.post('/auth/password-reset/verify', input)),
+
+  sendEmailVerification: (input: { email?: string } = {}) =>
+    request<{ message: string; devToken?: string }>(
+      http.post('/auth/email-verification/send', input),
+    ),
+
+  verifyEmail: (input: { token: string }) =>
+    request<{ message: string; verified: boolean }>(
+      http.post('/auth/email-verification/verify', input),
+    ),
 
   requestMagicLink: (input: MagicLinkRequestInput) =>
     request<MagicLinkRequestResponse>(
@@ -3861,6 +3875,22 @@ export const adminApi = {
   ) =>
     request<AdminPage<AdminAuditLogEntry>>(
       http.get('/admin/audit-logs', { params }),
+    ),
+
+  emails: (
+    params: {
+      status?: string;
+      type?: string;
+      workspaceId?: string;
+      recipient?: string;
+      startDate?: string;
+      endDate?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) =>
+    request<AdminPage<AdminEmailDelivery>>(
+      http.get('/admin/emails', { params }),
     ),
 
   analytics: {

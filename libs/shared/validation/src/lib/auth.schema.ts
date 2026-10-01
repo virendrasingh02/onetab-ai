@@ -89,6 +89,18 @@ export const resetPasswordSchema = z
     path: ['confirmPassword'],
   });
 
+export const verifyResetTokenSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+});
+
+export const emailVerificationSendSchema = z.object({
+  email: emailSchema.optional(),
+});
+
+export const emailVerificationVerifySchema = z.object({
+  token: z.string().min(1, 'Verification token is required'),
+});
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
@@ -176,6 +188,9 @@ export type MagicLinkRequestInput = z.infer<typeof magicLinkRequestSchema>;
 export type MagicLinkVerifyInput = z.infer<typeof magicLinkVerifySchema>;
 export type TwoFactorLoginInput = z.infer<typeof twoFactorLoginSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type VerifyResetTokenInput = z.infer<typeof verifyResetTokenSchema>;
+export type EmailVerificationSendInput = z.infer<typeof emailVerificationSendSchema>;
+export type EmailVerificationVerifyInput = z.infer<typeof emailVerificationVerifySchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type DesktopAuthorizeInput = z.infer<typeof desktopAuthorizeSchema>;
 export type DesktopExchangeInput = z.infer<typeof desktopExchangeSchema>;

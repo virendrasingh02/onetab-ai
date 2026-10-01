@@ -1,14 +1,24 @@
 import { Global, Module } from '@nestjs/common';
-import { MailService } from './mail.service.js';
+import { EmailService, MailService } from './email.service.js';
+import { ResendWebhookController } from './webhooks/resend-webhook.controller.js';
+import { ResendWebhookService } from './webhooks/resend-webhook.service.js';
 
 /**
- * Global so any feature module can inject `MailService` without adding a local
- * import — email is a cross-cutting side-effect (invitations, password reset,
- * digests), not a feature dependency.
+ * Global module providing transactional email capabilities across all platform features.
+ * Supports Resend HTTP API (`MAIL_TRANSPORT=http`) and logging (`MAIL_TRANSPORT=log`).
+ * Exports both `EmailService` (primary) and `MailService` (legacy alias).
  */
 @Global()
 @Module({
-  providers: [MailService],
-  exports: [MailService],
+  controllers: [ResendWebhookController],
+  providers: [
+    EmailService,
+    {
+      provide: MailService,
+      useExisting: EmailService,
+    },
+    ResendWebhookService,
+  ],
+  exports: [EmailService, MailService, ResendWebhookService],
 })
 export class MailModule {}

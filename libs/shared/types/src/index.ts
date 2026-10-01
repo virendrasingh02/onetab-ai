@@ -235,6 +235,8 @@ export type {
 export type {
   AdminAuditLogEntry,
   AdminDepartment,
+  AdminEmailDelivery,
+  EmailDeliveryStatus,
   AdminOrganization,
   AdminOverview,
   AdminPage,

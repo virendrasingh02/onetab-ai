@@ -9,6 +9,7 @@ import {
   PublicOnlyRoute,
   RegisterPage,
   ResetPasswordPage,
+  VerifyEmailPage,
   useSessionBootstrap,
 } from '@org/auth';
 import { Button, EmptyState, LoadingState } from '@org/ui';
@@ -380,6 +381,8 @@ export function App() {
           path="/auth/magic-link/verify"
           element={<MagicLinkVerifyPage />}
         />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
         <Route path="/invite/:token" element={<AcceptInvitationPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route element={<PublicOnlyRoute />}>

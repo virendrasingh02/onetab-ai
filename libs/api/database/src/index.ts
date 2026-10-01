@@ -47,6 +47,7 @@ export {
   AppReleaseChannel,
   AppReleaseStatus,
   CoworkerStatus,
+  EmailDeliveryStatus,
 } from './generated/client.js';
 
 export type {
@@ -126,5 +127,7 @@ export type {
   CoworkerApp,
   ChannelCoworker,
   ProjectCoworker,
+  EmailDelivery,
+  EmailVerificationToken,
 } from './generated/client.js';
 

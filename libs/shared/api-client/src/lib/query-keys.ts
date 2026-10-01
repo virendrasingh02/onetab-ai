@@ -231,6 +231,8 @@ export const queryKeys = {
     organizations: () => ['admin', 'organizations'] as const,
     auditLogs: (organizationId: string, page: number) =>
       ['admin', 'audit-logs', organizationId, page] as const,
+    emails: (filters?: Record<string, unknown>) =>
+      ['admin', 'emails', filters ?? {}] as const,
     analytics: {
       all: () => ['admin', 'analytics'] as const,
       overview: (filter?: Record<string, unknown>) =>

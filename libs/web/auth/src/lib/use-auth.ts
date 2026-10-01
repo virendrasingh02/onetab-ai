@@ -403,6 +403,19 @@ export function useVerifyMagicLink() {
   });
 }
 
+export function useVerifyEmail() {
+  return useMutation({
+    mutationFn: (input: { token: string }) => authApi.verifyEmail(input),
+  });
+}
+
+export function useSendEmailVerification() {
+  return useMutation({
+    mutationFn: (input: { email?: string } = {}) =>
+      authApi.sendEmailVerification(input),
+  });
+}
+
 export function useCurrentUser() {
   return useAuthStore((state) => state.user);
 }

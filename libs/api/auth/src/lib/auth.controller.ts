@@ -33,6 +33,9 @@ import {
   registerSchema,
   rejectDeviceAuthSchema,
   resetPasswordSchema,
+  verifyResetTokenSchema,
+  emailVerificationSendSchema,
+  emailVerificationVerifySchema,
   type ApproveDeviceAuthInput,
   type ChangePasswordInput,
   type CreateDeviceAuthInput,
@@ -50,6 +53,9 @@ import {
   type RegisterInput,
   type RejectDeviceAuthInput,
   type ResetPasswordInput,
+  type VerifyResetTokenInput,
+  type EmailVerificationSendInput,
+  type EmailVerificationVerifyInput,
 } from '@org/validation';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
@@ -217,10 +223,7 @@ export class AuthController {
   }
 
   @Public()
-  @Post('forgot-password')
-  // 202 Accepted: the request is acknowledged and a reset link is dispatched
-  // out of band. The body carries only a generic message (never an
-  // account-existence signal).
+  @Post(['forgot-password', 'password-reset/request'])
   @HttpCode(HttpStatus.ACCEPTED)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async forgotPassword(
@@ -235,7 +238,17 @@ export class AuthController {
   }
 
   @Public()
-  @Post('reset-password')
+  @Post('password-reset/verify')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async verifyPasswordResetToken(
+    @Body(zodBody(verifyResetTokenSchema)) body: VerifyResetTokenInput,
+  ) {
+    return this.auth.verifyResetToken(body.token);
+  }
+
+  @Public()
+  @Post(['reset-password', 'password-reset/confirm'])
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { limit: 5, ttl: 300_000 } })
   async resetPassword(
@@ -245,7 +258,7 @@ export class AuthController {
   }
 
   @Public()
-  @Post('magic-link/request')
+  @Post(['magic-link', 'magic-link/request'])
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async requestMagicLink(
@@ -284,6 +297,34 @@ export class AuthController {
     @Req() request: Request,
   ) {
     return this.auth.requestMagicLink(body, this.contextOf(request));
+  }
+
+  @Public()
+  @Post('email-verification/send')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async sendEmailVerification(
+    @Body(zodBody(emailVerificationSendSchema)) body: EmailVerificationSendInput,
+    @CurrentUser('id') currentUserId?: string,
+  ) {
+    const targetUserId = currentUserId;
+    if (!targetUserId && !body.email) {
+      return { message: 'If an account exists, a verification link has been sent.' };
+    }
+    if (targetUserId) {
+      return this.auth.sendEmailVerification(targetUserId, body.email);
+    }
+    return { message: 'If an account exists, a verification link has been sent.' };
+  }
+
+  @Public()
+  @Post('email-verification/verify')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async verifyEmail(
+    @Body(zodBody(emailVerificationVerifySchema)) body: EmailVerificationVerifyInput,
+  ) {
+    return this.auth.verifyEmail(body.token);
   }
 
   @Post('change-password')
