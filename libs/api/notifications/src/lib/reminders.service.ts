@@ -142,6 +142,9 @@ export class RemindersService {
         });
         if (member === 0) continue;
 
+        // Scheduler's `create_reminder` tool sets reminders that are not about
+        // a chat message; its rows carry a synthetic `remind-…` event id.
+        const fromScheduler = reminder.eventId.startsWith('remind-');
         await this.center.create({
           workspaceId: reminder.workspaceId,
           recipientId: reminder.userId,
@@ -150,7 +153,9 @@ export class RemindersService {
           title: reminder.snippet
             ? `Reminder: “${reminder.snippet}”`
             : 'Reminder about a message',
-          body: 'You asked to be reminded about this message.',
+          body: fromScheduler
+            ? 'Scheduler is reminding you, as you asked.'
+            : 'You asked to be reminded about this message.',
           deepLink: reminder.deepLink,
           resourceType: 'message_reminder',
           resourceId: reminder.id,

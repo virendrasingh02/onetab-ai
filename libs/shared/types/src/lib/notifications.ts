@@ -275,7 +275,9 @@ export type SearchCategory =
   | 'agents'
   | 'coworkers'
   | 'canvases'
-  | 'calls';
+  | 'calls'
+  | 'meetings'
+  | 'workflows';
 
 export interface SearchResultItem {
   id: string;

@@ -14,11 +14,13 @@ describe('AIRuntimeService', () => {
   let realtime: any;
   let mcpServers: any;
   let knowledge: any;
+  let events: any;
 
   beforeEach(() => {
     prisma = {
       aIAgent: {
         findFirst: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
         update: vi.fn(),
       },
       coworkerAgent: {
@@ -99,6 +101,7 @@ describe('AIRuntimeService', () => {
       realtime,
       mcpServers,
       knowledge,
+      (events = { emit: vi.fn() }),
     );
   });
 
@@ -439,5 +442,116 @@ describe('AIRuntimeService', () => {
         delegationDepth: 3,
       }),
     ).rejects.toThrow(/Delegation depth limit/);
+  });
+
+  describe('coworker collaboration and lifecycle', () => {
+    const scheduler = {
+      id: 'sched_1',
+      name: 'Scheduler',
+      type: 'coworker',
+      role: 'Scheduling',
+      systemPrompt: 'You are Scheduler.',
+      systemInstructions: '',
+      permissions: { allowActions: ['create_task'] },
+      configuration: { coworkerType: 'scheduler' },
+      agentLinks: [],
+      creatorId: null,
+      provider: 'nvidia',
+      model: 'm',
+      isActive: true,
+      workspace: { name: 'WS' },
+    };
+    const tracker = {
+      ...scheduler,
+      id: 'track_1',
+      name: 'Tracker',
+      systemPrompt: 'You are Tracker.',
+      configuration: { coworkerType: 'tracker' },
+    };
+
+    function toolCall(name: string, args: Record<string, unknown>) {
+      return {
+        message: { content: '', toolCalls: [{ id: 'call_1', function: { name, arguments: JSON.stringify(args) } }] },
+        usage: { totalTokens: 1 },
+      };
+    }
+
+    it('emits coworker.started and coworker.completed around a turn', async () => {
+      prisma.aIAgent.findFirst.mockResolvedValue(scheduler);
+      await service.executeTurn('ws_1', 'sched_1', 'Plan my week', { requesterId: 'user_1', source: 'chat' });
+      const names = events.emit.mock.calls.map(([n]: [string]) => n);
+      expect(names).toEqual(['coworker.started', 'coworker.completed']);
+      expect(events.emit.mock.calls[1][1]).toEqual(
+        expect.objectContaining({ coworkerId: 'sched_1', source: 'chat', result: 'Executed successfully' }),
+      );
+    });
+
+    it('emits coworker.failed when the turn fails', async () => {
+      prisma.aIAgent.findFirst.mockResolvedValue(scheduler);
+      aiService.chat.mockRejectedValueOnce(new Error('model down'));
+      await expect(service.executeTurn('ws_1', 'sched_1', 'Plan my week')).rejects.toThrow('model down');
+      expect(events.emit).toHaveBeenCalledWith('coworker.failed', expect.objectContaining({ error: 'model down' }));
+    });
+
+    it('a creator-less coworker acts for the person asking', async () => {
+      prisma.aIAgent.findFirst.mockResolvedValue(scheduler);
+      mcpRegistry.getToolSchemasFor.mockReturnValue([{ type: 'function', function: { name: 'create_task' } }]);
+      mcpRegistry.executeTool.mockResolvedValue({ created: true });
+      aiService.chat
+        .mockResolvedValueOnce(toolCall('create_task', { title: 'Book venue' }))
+        .mockResolvedValue({ message: { content: 'Done', toolCalls: [] }, usage: { totalTokens: 1 } });
+      await service.executeTurn('ws_1', 'sched_1', 'Add a task', { requesterId: 'user_1' });
+      expect(mcpRegistry.executeTool).toHaveBeenCalledWith(
+        'create_task',
+        { title: 'Book venue' },
+        expect.objectContaining({ actingUserId: 'user_1' }),
+      );
+    });
+
+    it('offers a handoff only to template collaborators, and runs the other coworker for the same person', async () => {
+      prisma.aIAgent.findFirst.mockImplementation((args: any) =>
+        Promise.resolve(args.where.id === 'track_1' ? tracker : scheduler),
+      );
+      prisma.aIAgent.findMany.mockResolvedValue([
+        { id: 'sched_1', name: 'Scheduler', configuration: scheduler.configuration },
+        { id: 'track_1', name: 'Tracker', configuration: tracker.configuration },
+        { id: 'other_1', name: 'Writer', configuration: {} },
+      ]);
+      aiService.chat
+        .mockResolvedValueOnce(toolCall('handoff_to_coworker_track_1', { request: 'Watch launch for overdue tasks' }))
+        .mockResolvedValueOnce({ message: { content: 'Monitoring set up', toolCalls: [] }, usage: { totalTokens: 1 } })
+        .mockResolvedValue({ message: { content: 'Tracker is on it', toolCalls: [] }, usage: { totalTokens: 1 } });
+
+      const result = await service.executeTurn('ws_1', 'sched_1', 'Keep an eye on the launch', {
+        requesterId: 'user_1',
+      });
+
+      const offered = aiService.chat.mock.calls[0][0].tools.map((t: any) => t.function.name);
+      expect(offered).toContain('handoff_to_coworker_track_1');
+      expect(offered).not.toContain('handoff_to_coworker_other_1');
+      expect(offered).not.toContain('handoff_to_coworker_sched_1');
+
+      expect(result.tools[0]).toEqual(
+        expect.objectContaining({ name: 'handoff_to_coworker_track_1', status: 'success' }),
+      );
+      expect(events.emit).toHaveBeenCalledWith(
+        'coworker.handoff',
+        expect.objectContaining({ fromCoworkerId: 'sched_1', toCoworkerId: 'track_1' }),
+      );
+      expect(events.emit).toHaveBeenCalledWith(
+        'coworker.started',
+        expect.objectContaining({ coworkerId: 'track_1', source: 'handoff', fromCoworkerId: 'sched_1' }),
+      );
+    });
+
+    it('refuses a handoff to a coworker it was not offered', async () => {
+      prisma.aIAgent.findFirst.mockResolvedValue(scheduler);
+      aiService.chat
+        .mockResolvedValueOnce(toolCall('handoff_to_coworker_other_1', { request: 'Write a post' }))
+        .mockResolvedValue({ message: { content: 'ok', toolCalls: [] }, usage: { totalTokens: 1 } });
+      const result = await service.executeTurn('ws_1', 'sched_1', 'Write');
+      expect(result.tools[0].status).toBe('failed');
+      expect(result.tools[0].error).toMatch(/does not work with that coworker/);
+    });
   });
 });

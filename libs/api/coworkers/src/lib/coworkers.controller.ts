@@ -23,14 +23,18 @@ import {
 } from '@org/api-common';
 import {
   createCoworkerSchema,
+  createTrackerMonitorSchema,
   executeAIEntitySchema,
   linkAgentSchema,
   linkCoworkerSchema,
   linkIntegrationSchema,
   setEnabledSchema,
   updateCoworkerSchema,
+  updateTrackerMonitorSchema,
   type CreateCoworkerInput,
+  type CreateTrackerMonitorInput,
   type UpdateCoworkerInput,
+  type UpdateTrackerMonitorInput,
 } from '@org/validation';
 import type { WorkspacePolicy, WorkspaceRole } from '@org/types';
 import { isPolicyRoleAllowed, WorkspacePermission } from '@org/types';
@@ -119,6 +123,7 @@ export class CoworkersController {
   async executeCoworker(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
+    @CurrentUser('id') userId: string,
     @Body(zodBody(executeAIEntitySchema))
     body: { promptText: string; channelId?: string; projectId?: string },
   ) {
@@ -126,7 +131,7 @@ export class CoworkersController {
       workspaceId,
       coworkerId,
       body.promptText,
-      { channelId: body.channelId, projectId: body.projectId },
+      { channelId: body.channelId, projectId: body.projectId, requesterId: userId, source: 'api' },
     );
     return result;
   }
@@ -211,9 +216,22 @@ export class CoworkersController {
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: any,
+    @Body(zodBody(createTrackerMonitorSchema)) body: CreateTrackerMonitorInput,
   ) {
     return this.coworkersService.createMonitor(workspaceId, coworkerId, userId, body);
+  }
+
+  /** Runs one monitor's check now instead of waiting for its schedule. */
+  @Post(':coworkerId/monitors/:monitorId/check')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  checkMonitor(
+    @WorkspaceId() workspaceId: string,
+    @Param('coworkerId') coworkerId: string,
+    @Param('monitorId') monitorId: string,
+  ) {
+    return this.coworkersService.checkMonitorNow(workspaceId, coworkerId, monitorId);
   }
 
   @Patch(':coworkerId/monitors/:monitorId')
@@ -223,7 +241,7 @@ export class CoworkersController {
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
     @Param('monitorId') monitorId: string,
-    @Body() body: any,
+    @Body(zodBody(updateTrackerMonitorSchema)) body: UpdateTrackerMonitorInput,
   ) {
     return this.coworkersService.updateMonitor(workspaceId, coworkerId, monitorId, body);
   }

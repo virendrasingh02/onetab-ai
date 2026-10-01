@@ -145,6 +145,19 @@ export const AppEvent = {
   AiApprovalRequested: 'ai.approval.requested',
   /** An AI agent sent its owner a message (the notify_user tool). */
   AiAgentMessage: 'ai.agent.message',
+  /**
+   * An AI Coworker turn started / finished / failed (`AIRuntimeService`),
+   * whoever asked — a person in chat, a schedule, a workflow node or another
+   * coworker handing work over. Workflows can trigger on these, so one
+   * coworker's result can start the next step of a process.
+   */
+  CoworkerStarted: 'coworker.started',
+  CoworkerCompleted: 'coworker.completed',
+  CoworkerFailed: 'coworker.failed',
+  /** One coworker handed work to another (coworker collaboration). */
+  CoworkerHandoff: 'coworker.handoff',
+  /** A Tracker monitor checked its condition and found something to report. */
+  CoworkerMonitorTriggered: 'coworker.monitor.triggered',
 } as const;
 
 export type AppEventName = (typeof AppEvent)[keyof typeof AppEvent];
@@ -578,6 +591,67 @@ export interface AiAgentMessageEvent {
   title: string;
   body: string | null;
   runId: string | null;
+  /** Workspace-relative link; defaults to the run (or the AI home). */
+  deepLink?: string | null;
+  /** The title already names the agent — show `body` as written, unprefixed. */
+  bodyAsIs?: boolean;
+}
+
+/** How a coworker turn was started. */
+export type CoworkerTurnSource = 'chat' | 'schedule' | 'workflow' | 'handoff' | 'api';
+
+export interface CoworkerRunEvent {
+  workspaceId: string;
+  coworkerId: string;
+  coworkerName: string;
+  /** The `AIExecution` row of the turn, when one could be opened. */
+  executionId: string | null;
+  source: CoworkerTurnSource;
+  /** The coworker that handed this work over, for `source: 'handoff'`. */
+  fromCoworkerId: string | null;
+  channelId: string | null;
+  projectId: string | null;
+  /** The request, trimmed — never the full conversation. */
+  request: string;
+}
+
+export interface CoworkerCompletedEvent extends CoworkerRunEvent {
+  /** The coworker's answer, trimmed. */
+  result: string;
+  /** Tool names it called, in order. */
+  tools: string[];
+  /** A person still has to approve one of its actions. */
+  waitingApproval: boolean;
+}
+
+export interface CoworkerFailedEvent extends CoworkerRunEvent {
+  error: string;
+}
+
+export interface CoworkerHandoffEvent {
+  workspaceId: string;
+  fromCoworkerId: string;
+  fromCoworkerName: string;
+  toCoworkerId: string;
+  toCoworkerName: string;
+  request: string;
+}
+
+export interface CoworkerMonitorTriggeredEvent {
+  workspaceId: string;
+  coworkerId: string;
+  coworkerName: string;
+  monitorId: string;
+  monitorName: string;
+  /** What was checked: overdue, due_soon, completed, changed, project_progress. */
+  check: string;
+  /** How many items the check found. */
+  count: number;
+  summary: string;
+  projectId: string | null;
+  /** Task ids the finding is about (capped). */
+  taskIds: string[];
+  ownerId: string | null;
 }
 
 export interface AppEventPayloads {
@@ -621,4 +695,9 @@ export interface AppEventPayloads {
   [AppEvent.AiRunFinished]: AiRunFinishedEvent;
   [AppEvent.AiApprovalRequested]: AiApprovalRequestedEvent;
   [AppEvent.AiAgentMessage]: AiAgentMessageEvent;
+  [AppEvent.CoworkerStarted]: CoworkerRunEvent;
+  [AppEvent.CoworkerCompleted]: CoworkerCompletedEvent;
+  [AppEvent.CoworkerFailed]: CoworkerFailedEvent;
+  [AppEvent.CoworkerHandoff]: CoworkerHandoffEvent;
+  [AppEvent.CoworkerMonitorTriggered]: CoworkerMonitorTriggeredEvent;
 }

@@ -5,7 +5,11 @@
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "rootDir": "src",
     "jsx": "react-jsx",
-    "lib": ["es2022", "dom", "dom.iterable"],
+    "lib": [
+      "es2022",
+      "dom",
+      "dom.iterable"
+    ],
     "module": "esnext",
     "moduleResolution": "bundler",
     "types": [
@@ -15,7 +19,10 @@
       "@nx/react/typings/image.d.ts"
     ]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
   "exclude": [
     "out-tsc",
     "dist",
@@ -57,6 +64,12 @@
     },
     {
       "path": "../auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../coworkers/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/api-client/tsconfig.lib.json"
     }
   ]
 }

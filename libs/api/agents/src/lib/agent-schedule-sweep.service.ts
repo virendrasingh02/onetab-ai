@@ -57,7 +57,7 @@ export class AgentScheduleSweepService {
 
       const task = schedule.description?.trim() || 'Scheduled check-in';
       this.runtime
-        .executeTurn(schedule.agent.workspaceId, schedule.agent.id, promptText)
+        .executeTurn(schedule.agent.workspaceId, schedule.agent.id, promptText, { source: 'schedule' })
         // Where the builder said a scheduled result goes (channel, task,
         // webhook) — without this a scheduled run's answer went nowhere.
         .then((run) => this.delivery.deliver(schedule.agent, run, task))

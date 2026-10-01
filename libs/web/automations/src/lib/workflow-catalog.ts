@@ -13,6 +13,7 @@
  * them still open.
  */
 
+import { AGENT_EVENTS } from '@org/types';
 import type { OptionSource } from '@org/web-agents';
 import {
   Bot,
@@ -74,15 +75,16 @@ export interface NodeCatalogItem {
   legacy?: boolean;
 }
 
-/** Workspace events a workflow can start on (`AutomationTriggerListener`). */
-export const WORKFLOW_EVENTS = [
-  { value: 'task.created', label: 'A task is created' },
-  { value: 'task.assigned', label: 'A task is assigned' },
-  { value: 'task.completed', label: 'A task is completed' },
-  { value: 'project.created', label: 'A project is created' },
-  { value: 'document.created', label: 'A document is created' },
+/**
+ * Workspace events a workflow can start on (`AutomationTriggerListener`) —
+ * the same catalog the Studio offers (`AGENT_EVENTS`), so canvas workflows and
+ * Studio agents react to the same things. Events that only fire for a chosen
+ * channel are left out: the canvas trigger has no channel picker.
+ */
+export const WORKFLOW_EVENTS: ReadonlyArray<{ value: string; label: string }> = [
+  ...AGENT_EVENTS.filter((e) => e.filter !== 'channel').map(({ value, label }) => ({ value, label })),
   { value: 'channel.created', label: 'A channel is created' },
-] as const;
+];
 
 const csv = (value: unknown): string[] =>
   (Array.isArray(value) ? value.map(String) : String(value ?? '').split(','))

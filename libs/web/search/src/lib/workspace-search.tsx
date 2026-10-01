@@ -3,62 +3,10 @@ import type { SearchCategory, SearchResultItem } from '@org/types';
 import { cn } from '@org/utils';
 import { Hint } from '@org/ui';
 import { useUploadMediaAdapter } from '@org/web-upload';
-import {
-  Bot,
-  CheckSquare,
-  Eye,
-  FileText,
-  FolderKanban,
-  Hash,
-  LayoutDashboard,
-  Paperclip,
-  PhoneCall,
-  Search,
-  Sparkles,
-  Users,
-} from 'lucide-react';
-import type { ComponentType } from 'react';
+import { Eye, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SEARCH_CATEGORIES, SEARCH_CATEGORY_META } from './search-categories.js';
 import { MIN_QUERY_LENGTH } from './use-search.js';
-
-const CATEGORY_ORDER: SearchCategory[] = [
-  'channels',
-  'people',
-  'docs',
-  'tasks',
-  'projects',
-  'files',
-  'calls',
-  'agents',
-  'coworkers',
-  'canvases',
-];
-
-const CATEGORY_LABEL: Record<SearchCategory, string> = {
-  channels: 'Channels',
-  people: 'People',
-  docs: 'Documents',
-  tasks: 'Tasks',
-  projects: 'Projects',
-  files: 'Files',
-  calls: 'Calls',
-  agents: 'AI agents',
-  coworkers: 'AI coworkers',
-  canvases: 'Canvases',
-};
-
-const CATEGORY_ICON: Record<SearchCategory, ComponentType<{ className?: string }>> = {
-  channels: Hash,
-  people: Users,
-  docs: FileText,
-  tasks: CheckSquare,
-  projects: FolderKanban,
-  files: Paperclip,
-  calls: PhoneCall,
-  agents: Bot,
-  coworkers: Sparkles,
-  canvases: LayoutDashboard,
-};
 
 export interface WorkspaceSearchResultsProps {
   /** Only needed to preview `files`-category results (an authenticated
@@ -115,7 +63,7 @@ export function WorkspaceSearchResults({
     );
   }
 
-  const grouped = CATEGORY_ORDER.map((category) => ({
+  const grouped = SEARCH_CATEGORIES.map((category) => ({
     category,
     items: (results ?? []).filter((item) => item.category === category),
   })).filter((group) => group.items.length > 0);
@@ -135,11 +83,11 @@ export function WorkspaceSearchResults({
             isActive={!activeCategory}
             onClick={() => onCategoryChange(undefined)}
           />
-          {CATEGORY_ORDER.filter((category) => counts[category] > 0).map(
+          {SEARCH_CATEGORIES.filter((category) => counts[category] > 0).map(
             (category) => (
               <CategoryChip
                 key={category}
-                label={CATEGORY_LABEL[category]}
+                label={SEARCH_CATEGORY_META[category].label}
                 count={counts[category]}
                 isActive={activeCategory === category}
                 onClick={() => onCategoryChange(category)}
@@ -156,11 +104,11 @@ export function WorkspaceSearchResults({
       ) : (
         <div className={cn('space-y-3', isLoading && 'opacity-60')}>
           {grouped.map(({ category, items }) => {
-            const Icon = CATEGORY_ICON[category];
+            const Icon = SEARCH_CATEGORY_META[category].icon;
             return (
               <section key={category}>
                 <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                  {CATEGORY_LABEL[category]}
+                  {SEARCH_CATEGORY_META[category].label}
                 </p>
                 <ul>
                   {items.map((item) => {
@@ -259,7 +207,7 @@ export function WorkspaceSearchHint() {
   return (
     <p className="gap-2 px-2 py-6 text-sm text-muted-foreground flex items-center justify-center">
       <Search className="size-4" aria-hidden />
-      Search channels, people, docs, tasks, projects and files.
+      Search channels, people, docs, tasks, projects, meetings, files, coworkers and workflows.
     </p>
   );
 }

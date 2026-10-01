@@ -36,7 +36,7 @@ import {
   useAttentionMutations,
   useCatchUp,
 } from '@org/notifications';
-import { useDocuments, useTasks } from '@org/web-work-tools';
+import { useDocuments, useMeetings, useTasks } from '@org/web-work-tools';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   AlertCircle,
@@ -65,6 +65,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AIActivitySection } from '../ai-activity-section.js';
 
 function AttentionCard({
   item,
@@ -180,6 +181,7 @@ export function DashboardPage() {
   const groups = useGroupedChannels(channels.data);
   const tasks = useTasks(workspaceId);
   const documents = useDocuments(workspaceId);
+  const upcomingMeetings = useMeetings(workspaceId, { scope: 'upcoming' });
   const members = useMembers(workspaceId);
   const integrations = useIntegrations(workspaceId);
 
@@ -333,6 +335,9 @@ export function DashboardPage() {
               </div>
             )}
           </section>
+
+          {/* SECTION 1b: WHAT COWORKERS, AGENTS AND WORKFLOWS ARE DOING */}
+          <AIActivitySection workspaceId={workspaceId} slug={slug} />
 
           {/* SECTION 2: CONTINUE WHERE YOU LEFT OFF */}
           <section className="space-y-3">
@@ -563,6 +568,26 @@ export function DashboardPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  {(upcomingMeetings.data ?? []).slice(0, 2).map((meeting) => (
+                    <Link
+                      key={meeting.id}
+                      to={`/w/${slug}/meetings?meeting=${meeting.id}`}
+                      className="p-2.5 rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all flex items-center justify-between gap-2"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Clock className="size-4 shrink-0 text-primary" />
+                        <div className="min-w-0">
+                          <span className="block truncate text-xs font-medium text-foreground">
+                            {meeting.title}
+                          </span>
+                          <span className="block text-[10px] text-muted-foreground">
+                            {formatRelative(new Date(meeting.startAt).getTime())}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+                    </Link>
+                  ))}
                   <Link
                     to={`/w/${slug}/tasks`}
                     className="p-2.5 rounded-md border border-border hover:border-primary/40 hover:bg-accent/30 transition-all flex items-center justify-between"

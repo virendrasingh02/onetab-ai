@@ -547,8 +547,10 @@ export class DomainEventsListener {
         recipientId: e.recipientId,
         kind: NotificationKind.AI_AGENT_MESSAGE,
         title: e.title,
-        body: e.body ? `${e.agentName}: ${e.body}`.slice(0, 1_500) : e.agentName,
-        deepLink: e.runId ? `ai/runs?run=${e.runId}` : 'ai',
+        body: e.body
+          ? (e.bodyAsIs ? e.body : `${e.agentName}: ${e.body}`).slice(0, 1_500)
+          : e.agentName,
+        deepLink: e.deepLink ?? (e.runId ? `ai/runs?run=${e.runId}` : 'ai'),
       }),
     );
   }

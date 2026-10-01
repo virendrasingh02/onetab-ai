@@ -110,6 +110,26 @@ export class AutomationTriggerListener {
     void this.dispatch(AppEvent.MeetingEnded, e);
   }
 
+  /**
+   * Coworker outcomes, so a process can continue from one coworker's result
+   * (Tracker finds overdue work → a workflow follows up). Test runs never
+   * reach here — `dispatch` drops events raised inside a test run.
+   */
+  @OnEvent(AppEvent.CoworkerCompleted)
+  onCoworkerCompleted(e: Record<string, unknown> & { workspaceId: string }) {
+    void this.dispatch(AppEvent.CoworkerCompleted, e);
+  }
+
+  @OnEvent(AppEvent.CoworkerFailed)
+  onCoworkerFailed(e: Record<string, unknown> & { workspaceId: string }) {
+    void this.dispatch(AppEvent.CoworkerFailed, e);
+  }
+
+  @OnEvent(AppEvent.CoworkerMonitorTriggered)
+  onCoworkerMonitorTriggered(e: Record<string, unknown> & { workspaceId: string }) {
+    void this.dispatch(AppEvent.CoworkerMonitorTriggered, e);
+  }
+
   @OnEvent(AppEvent.ChannelMessagePosted)
   onChannelMessage(e: ChannelMessagePostedEvent) {
     void this.dispatch(AppEvent.ChannelMessagePosted, e as unknown as Record<string, unknown> & { workspaceId: string });

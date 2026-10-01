@@ -14,3 +14,10 @@ export {
   CanManageAIEntity,
   CanManageWorkflow,
 } from './lib/ai-entity-access.guard.js';
+export { TrackerMonitorSweepService } from './lib/tracker-monitor-sweep.service.js';
+export {
+  buildTrackerMonitor,
+  classifyMonitor,
+  monitorIntervalMinutes,
+  type MonitorCheck,
+} from './lib/tracker-monitors.js';

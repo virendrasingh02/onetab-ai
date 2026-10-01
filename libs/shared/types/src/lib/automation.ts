@@ -255,6 +255,10 @@ export interface TrackerMonitor {
   enabled: boolean;
   lastCheckedAt?: string | null;
   lastTriggeredAt?: string | null;
+  /** What the last check found (`count: 0` = checked, nothing to report). */
+  lastResult?: { count: number; summary: string } | null;
+  /** Why the last check could not run, in plain words. */
+  lastError?: string | null;
   createdBy?: string | null;
   createdAt: string;
 }

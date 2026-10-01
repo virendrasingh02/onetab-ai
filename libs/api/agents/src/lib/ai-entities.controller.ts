@@ -114,6 +114,7 @@ export class AIEntitiesController {
   executeEntity(
     @WorkspaceId() workspaceId: string,
     @Param('id') entityId: string,
+    @CurrentUser('id') userId: string,
     @Body(zodBody(executeAIEntitySchema)) body: ExecuteAIEntityInput,
   ) {
     return this.runtimeService.executeTurn(
@@ -125,6 +126,8 @@ export class AIEntitiesController {
         channelName: body.channelName,
         projectId: body.projectId,
         projectName: body.projectName,
+        requesterId: userId,
+        source: 'api',
       },
     );
   }

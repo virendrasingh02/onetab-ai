@@ -1,27 +1,13 @@
-import type { FederatedSearchResultItem, SearchCategory } from '@org/types';
+import type { FederatedSearchResultItem } from '@org/types';
 import { Button, Input, Switch } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import {
-  ArrowLeft,
-  Bot,
-  CheckSquare,
-  FileText,
-  FolderKanban,
-  Hash,
-  LayoutDashboard,
-  Paperclip,
-  PhoneCall,
-  Search,
-  Sparkles,
-  Users,
-} from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import {
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ComponentType,
 } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -29,24 +15,8 @@ import {
   useFederatedSearch,
   type FederatedSearchFilters,
 } from './use-federated-search.js';
+import { SEARCH_CATEGORIES, SEARCH_CATEGORY_META } from './search-categories.js';
 import { MIN_QUERY_LENGTH } from './use-search.js';
-
-const CATEGORY_META: Record<
-  SearchCategory,
-  { label: string; icon: ComponentType<{ className?: string }> }
-> = {
-  channels: { label: 'Channels', icon: Hash },
-  people: { label: 'People', icon: Users },
-  docs: { label: 'Documents', icon: FileText },
-  tasks: { label: 'Tasks', icon: CheckSquare },
-  projects: { label: 'Projects', icon: FolderKanban },
-  files: { label: 'Files', icon: Paperclip },
-  calls: { label: 'Calls', icon: PhoneCall },
-  agents: { label: 'AI agents', icon: Bot },
-  coworkers: { label: 'AI coworkers', icon: Sparkles },
-  canvases: { label: 'Canvases', icon: LayoutDashboard },
-};
-const ALL_CATEGORIES = Object.keys(CATEGORY_META) as SearchCategory[];
 
 const FILE_TYPES: { value: string; label: string }[] = [
   { value: '', label: 'Any file type' },
@@ -179,10 +149,10 @@ export function GlobalSearchView() {
           </FilterGroup>
 
           <FilterGroup title="Type">
-            {ALL_CATEGORIES.map((c) => (
+            {SEARCH_CATEGORIES.map((c) => (
               <Check
                 key={c}
-                label={CATEGORY_META[c].label}
+                label={SEARCH_CATEGORY_META[c].label}
                 checked={
                   filters.categories.length === 0 ||
                   filters.categories.includes(c)
@@ -312,7 +282,7 @@ export function GlobalSearchView() {
 }
 
 function ResultRow({ item }: { item: FederatedSearchResultItem }) {
-  const Icon = CATEGORY_META[item.category].icon;
+  const Icon = SEARCH_CATEGORY_META[item.category].icon;
   return (
     <Link
       to={`/w/${item.workspace.slug}/${item.href ?? ''}`}
@@ -328,7 +298,7 @@ function ResultRow({ item }: { item: FederatedSearchResultItem }) {
         </span>
         <span className="block truncate text-xs text-muted-foreground">
           {item.snippet ? `${item.snippet} · ` : ''}
-          {CATEGORY_META[item.category].label} · {item.workspace.name}
+          {SEARCH_CATEGORY_META[item.category].label} · {item.workspace.name}
           {item.timestamp ? ` · ${formatRelative(item.timestamp)}` : ''}
         </span>
       </span>

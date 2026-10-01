@@ -209,7 +209,10 @@ export type AgentEventName =
   | 'document.created'
   | 'document.updated'
   | 'meeting.ended'
-  | 'channel.message';
+  | 'channel.message'
+  | 'coworker.completed'
+  | 'coworker.failed'
+  | 'coworker.monitor.triggered';
 
 export const AGENT_EVENTS: ReadonlyArray<{
   value: AgentEventName;
@@ -227,6 +230,9 @@ export const AGENT_EVENTS: ReadonlyArray<{
   { value: 'document.updated', label: 'A doc is updated' },
   { value: 'meeting.ended', label: 'A meeting ends' },
   { value: 'channel.message', label: 'A message is posted in a channel', filter: 'channel' },
+  { value: 'coworker.completed', label: 'An AI coworker finishes a piece of work' },
+  { value: 'coworker.failed', label: 'An AI coworker can’t finish its work' },
+  { value: 'coworker.monitor.triggered', label: 'Tracker finds something to report', filter: 'project' },
 ];
 
 export interface AgentBlueprintTrigger {

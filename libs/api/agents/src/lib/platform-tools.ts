@@ -2,9 +2,10 @@ import type { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppEvent, currentAgentRun, type AiAgentMessageEvent } from '@org/api-common';
 import type { PrismaService } from '@org/database';
 import type { IntegrationsService } from '@org/api-integrations';
-import type { IntegrationMessage } from '@org/types';
+import type { IntegrationMessage, TrackerMonitor } from '@org/types';
 import { startOfZonedDay, zonedParts } from '@org/utils';
 import { docContentToText, markdownToDocContent } from './doc-markdown.js';
+import { buildTrackerMonitor, classifyMonitor } from './tracker-monitors.js';
 
 /**
  * The platform's own data as agent tools: tasks, projects, meetings and the
@@ -956,7 +957,7 @@ export function buildPlatformTools(deps: PlatformToolDeps): PlatformToolDefiniti
           userId: me,
           roomId,
           eventId: `remind-${Date.now()}`,
-          deepLink: `/w/${ctx.workspaceId}/schedule`,
+          deepLink: 'schedule',
           snippet: snippet.slice(0, 280),
           remindAt: remindAtDate,
         },
@@ -1002,103 +1003,126 @@ export function buildPlatformTools(deps: PlatformToolDeps): PlatformToolDefiniti
     },
   };
 
+  /** The workspace's Tracker — by template key, falling back to the name. */
+  const findTracker = (workspaceId: string) =>
+    prisma.aIAgent.findFirst({
+      where: {
+        workspaceId,
+        type: 'coworker',
+        OR: [{ configuration: { path: ['coworkerType'], equals: 'tracker' } }, { name: 'Tracker' }],
+      },
+      select: { id: true, name: true, isActive: true, configuration: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
   const createMonitor: PlatformToolDefinition = {
     name: 'create_monitor',
     description:
-      'Configure a Tracker monitor to watch workspace tasks, projects, metrics, or status changes and report exceptions.',
+      'Set up a Tracker monitor that is checked automatically on a schedule: overdue or soon-due tasks, completed or changed tasks, or a project’s progress. Findings go to the owner, the tasks’ assignees, or a #channel.',
     parameters: {
       targetType: {
         type: 'string',
-        enum: ['task', 'project', 'metric', 'event', 'deadline', 'status'],
-        description: 'What kind of resource or condition to monitor.',
+        enum: ['task', 'project', 'deadline', 'status'],
+        description: 'What to watch: tasks, a project, deadlines, or status changes.',
       },
       target: {
         type: 'string',
-        description: 'The target name, project name, or identifier being monitored.',
+        description: 'A project name to watch, or "All tasks" for the whole workspace.',
       },
       condition: {
         type: 'string',
-        description: 'The condition to watch for, e.g. "status changes", "becomes overdue", "milestone reached".',
+        description:
+          'What to report, e.g. "becomes overdue", "due soon", "completed", "status changes", "progress summary".',
       },
       destination: {
         type: 'string',
-        description: 'Where to report changes, e.g. a channel name, #channel, or "me".',
+        description:
+          'Who hears about it: "me" (default), "assignees" (each person about their own tasks), or "#channel-name". Several can be given comma-separated.',
       },
       frequency: {
         type: 'string',
-        description: 'Monitoring frequency, e.g. "realtime", "hourly", "daily".',
+        enum: ['realtime', 'hourly', 'daily', 'weekly'],
+        description: 'How often to check. realtime = every 5 minutes. Default hourly.',
       },
     },
     optional: ['target', 'destination', 'frequency'],
     handler: async (p: Record<string, unknown>, ctx) => {
-      const targetType = String(p['targetType'] || 'task');
-      const target = String(p['target'] || 'All tasks');
-      const condition = String(p['condition'] || 'status changes');
-      const destination = typeof p['destination'] === 'string' ? p['destination'] : '#general';
-      const frequency = typeof p['frequency'] === 'string' ? p['frequency'] : 'realtime';
+      const me = actingUser(ctx);
+      await assertMember(ctx.workspaceId, me);
+      const tracker = await findTracker(ctx.workspaceId);
+      if (!tracker) throw new Error('This workspace has no Tracker coworker to run monitors.');
+      if (!tracker.isActive) throw new Error('Tracker is switched off in this workspace, so it cannot run monitors.');
 
-      const tracker = await prisma.aIAgent.findFirst({
-        where: { workspaceId: ctx.workspaceId, type: 'coworker', name: 'Tracker' },
-      });
-
-      const monitorId = `mon-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-      const monitorRecord = {
-        id: monitorId,
-        workspaceId: ctx.workspaceId,
-        coworkerId: tracker?.id ?? 'tracker',
-        type: targetType,
-        target,
-        condition,
-        frequency,
-        destinations: [destination],
-        enabled: true,
-        lastCheckedAt: new Date().toISOString(),
-        lastTriggeredAt: null,
-        createdBy: ctx.actingUserId,
-        createdAt: new Date().toISOString(),
-      };
-
-      if (tracker) {
-        const config = (tracker.configuration ?? {}) as Record<string, unknown>;
-        const monitors = Array.isArray(config['monitors']) ? [...(config['monitors'] as unknown[])] : [];
-        monitors.push(monitorRecord);
-        await prisma.aIAgent.update({
-          where: { id: tracker.id },
-          data: { configuration: { ...config, monitors } as any },
-        });
+      const monitor = buildTrackerMonitor(
+        {
+          type: given(p['targetType']),
+          target: given(p['target']),
+          condition: given(p['condition']),
+          frequency: given(p['frequency']),
+          destinations: (given(p['destination']) ?? 'me').split(',').map((d) => d.trim()),
+        },
+        { workspaceId: ctx.workspaceId, coworkerId: tracker.id, createdBy: me },
+      );
+      const check = classifyMonitor(monitor);
+      if (check === 'unsupported') {
+        throw new Error(
+          `Tracker can't check “${monitor.condition}” automatically. Try overdue, due soon, completed, status changes or a progress summary.`,
+        );
       }
 
+      const config = (tracker.configuration ?? {}) as Record<string, unknown>;
+      const monitors = Array.isArray(config['monitors']) ? [...(config['monitors'] as unknown[])] : [];
+      monitors.push(monitor);
+      await prisma.aIAgent.update({
+        where: { id: tracker.id },
+        data: { configuration: { ...config, monitors } as any },
+      });
+
       return {
-        success: true,
-        monitor: monitorRecord,
-        message: `Tracker monitor configured for ${target} on condition "${condition}". Reports will be sent to ${destination}.`,
+        created: true,
+        monitor: {
+          id: monitor.id,
+          name: monitor.name,
+          check,
+          target: monitor.target,
+          frequency: monitor.frequency,
+          destinations: monitor.destinations,
+        },
+        message: `${tracker.name} will check “${monitor.target}” for “${monitor.condition}” (${monitor.frequency}) and report to ${monitor.destinations?.join(', ')}. The first check runs within 5 minutes.`,
       };
     },
   };
 
   const listMonitors: PlatformToolDefinition = {
     name: 'list_monitors',
-    description: 'List active Tracker monitors configured in this workspace.',
+    description: 'List the Tracker monitors configured in this workspace, with what each last found.',
     parameters: {
       targetType: {
         type: 'string',
-        description: 'Optional filter by targetType (task, project, metric, etc.)',
+        description: 'Optional filter by targetType (task, project, deadline, status).',
       },
     },
     optional: ['targetType'],
     handler: async (p: Record<string, unknown>, ctx) => {
-      const tracker = await prisma.aIAgent.findFirst({
-        where: { workspaceId: ctx.workspaceId, type: 'coworker', name: 'Tracker' },
-        select: { configuration: true },
-      });
+      const tracker = await findTracker(ctx.workspaceId);
       const config = (tracker?.configuration ?? {}) as Record<string, unknown>;
-      let monitors = Array.isArray(config['monitors']) ? (config['monitors'] as Record<string, unknown>[]) : [];
-      if (typeof p['targetType'] === 'string' && p['targetType']) {
-        monitors = monitors.filter((m) => m['type'] === p['targetType']);
-      }
+      let monitors = Array.isArray(config['monitors']) ? (config['monitors'] as TrackerMonitor[]) : [];
+      const type = given(p['targetType']);
+      if (type) monitors = monitors.filter((m) => m.type === type);
       return {
         count: monitors.length,
-        monitors,
+        monitors: monitors.map((m) => ({
+          id: m.id,
+          name: m.name,
+          type: m.type,
+          target: m.target,
+          condition: m.condition,
+          frequency: m.frequency,
+          enabled: m.enabled,
+          lastCheckedAt: m.lastCheckedAt ?? null,
+          lastResult: m.lastResult ?? null,
+          lastError: m.lastError ?? null,
+        })),
       };
     },
   };

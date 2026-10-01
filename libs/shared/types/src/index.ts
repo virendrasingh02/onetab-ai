@@ -298,6 +298,14 @@ export type {
   WorkflowExecutionEntry,
 } from './lib/automation.js';
 
+export {
+  COWORKER_TEMPLATES,
+  coworkerTemplateKey,
+  getCoworkerTemplate,
+  resolveCoworkerCollaborators,
+} from './lib/coworker-templates.js';
+export type { CoworkerTemplate, CoworkerTemplateKey } from './lib/coworker-templates.js';
+
 export type {
   CalendarEvent,
   Cycle,

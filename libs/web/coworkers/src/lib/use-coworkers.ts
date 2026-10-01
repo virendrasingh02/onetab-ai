@@ -516,7 +516,26 @@ export function useCoworkerMonitorMutations(
     onSuccess: invalidate,
   });
 
-  return { create, update, remove };
+  const check = useMutation({
+    mutationFn: (monitorId: string) =>
+      coworkersApi.checkMonitor(
+        workspaceId as string,
+        coworkerId as string,
+        monitorId,
+      ),
+    onSuccess: () => {
+      void invalidate();
+      // A check that found something writes to the coworker's activity log.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.coworkers.logs(workspaceId ?? '', coworkerId ?? ''),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.coworkers.workspaceLogs(workspaceId ?? ''),
+      });
+    },
+  });
+
+  return { create, update, remove, check };
 }
 
 /** Scheduler schedules configured on this coworker. */

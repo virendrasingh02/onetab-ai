@@ -33,6 +33,27 @@ export function sampleEvent(agent: StudioAgentDetail): Record<string, unknown> |
     case 'document.created':
     case 'document.updated':
       return { documentId: '', title: 'Q4 launch plan' };
+    case 'coworker.completed':
+    case 'coworker.failed':
+      return {
+        coworkerId: '',
+        coworkerName: 'Scheduler',
+        source: 'chat',
+        request: 'Remind the launch team about tomorrow’s review',
+        ...(trigger.event === 'coworker.failed'
+          ? { error: 'Google Calendar isn’t connected.' }
+          : { result: 'Reminders set for 4 people for 9:00 tomorrow.', tools: ['create_reminder'] }),
+      };
+    case 'coworker.monitor.triggered':
+      return {
+        coworkerName: 'Tracker',
+        monitorName: 'Launch — becomes overdue',
+        check: 'overdue',
+        count: 2,
+        summary: '2 overdue tasks in Product Launch',
+        projectId: trigger.filter?.projectId ?? null,
+        taskIds: [],
+      };
     case 'project.created':
     case 'project.updated':
       return { projectId: trigger.filter?.projectId ?? '', name: 'Website relaunch', status: 'ON_HOLD', previousStatus: 'ACTIVE' };

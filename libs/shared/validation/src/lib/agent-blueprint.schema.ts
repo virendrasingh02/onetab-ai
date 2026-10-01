@@ -61,6 +61,9 @@ export const agentEventSchema = z.enum([
   'document.updated',
   'meeting.ended',
   'channel.message',
+  'coworker.completed',
+  'coworker.failed',
+  'coworker.monitor.triggered',
 ]);
 
 const cronSchema = z

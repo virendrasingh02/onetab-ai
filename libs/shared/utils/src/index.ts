@@ -76,3 +76,5 @@ export {
   type ParsedSchedule,
   type ZonedParts,
 } from './lib/cron.js';
+
+export { docContentToText } from './lib/doc-text.js';

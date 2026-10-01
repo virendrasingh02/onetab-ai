@@ -1,7 +1,13 @@
 import { coworkersApi, queryKeys } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
 import { useUserPresenceMap } from '@org/realtime';
-import { WorkspacePermission, WorkspaceRole, type AICoworkerDetail } from '@org/types';
+import {
+  WorkspacePermission,
+  WorkspaceRole,
+  coworkerTemplateKey,
+  getCoworkerTemplate,
+  type AICoworkerDetail,
+} from '@org/types';
 import {
   ActionDropdownMenu,
   Badge,
@@ -567,17 +573,10 @@ export function MembersPage() {
                   <span>Capabilities</span>
                 </h4>
                 <ul className="space-y-1.5">
-                  {((selectedCoworker.configuration as any)?.capabilities ?? [
-                    selectedCoworker.name.toLowerCase().includes('scheduler')
-                      ? 'Create reminders'
-                      : 'Monitor tasks',
-                    selectedCoworker.name.toLowerCase().includes('scheduler')
-                      ? 'Schedule recurring work'
-                      : 'Detect meaningful changes',
-                    selectedCoworker.name.toLowerCase().includes('scheduler')
-                      ? 'Track deadlines'
-                      : 'Report exceptions & summaries',
-                  ]).map((cap: string, i: number) => (
+                  {((selectedCoworker.configuration as { capabilities?: string[] } | null)?.capabilities ??
+                    getCoworkerTemplate(coworkerTemplateKey(selectedCoworker.configuration))?.capabilities ??
+                    []
+                  ).map((cap: string, i: number) => (
                     <li key={i} className="flex items-start gap-2 text-xs text-foreground/90">
                       <span className="size-1.5 rounded-full bg-primary/70 shrink-0 mt-1.5" />
                       <span>{cap}</span>

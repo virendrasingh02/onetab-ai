@@ -53,8 +53,13 @@ function makeService() {
     deleteSchedule: vi.fn().mockResolvedValue({ success: true }),
   } as any;
   const events = { emit: vi.fn() };
-  const service = new CoworkersService(prisma, entitiesService, events as any);
-  return { service, prisma, entitiesService, events };
+  const monitorSweep = {
+    checkNow: vi.fn().mockImplementation((_ws, _cw, monitorId) =>
+      Promise.resolve(monitorId === 'missing' ? null : { id: monitorId, lastResult: { count: 2, summary: '2 overdue tasks' } }),
+    ),
+  };
+  const service = new CoworkersService(prisma, entitiesService, events as any, monitorSweep as any);
+  return { service, prisma, entitiesService, events, monitorSweep };
 }
 
 describe('CoworkersService — channel-coworker system/activity events (brief §3, §5, §22, §30)', () => {
@@ -123,7 +128,7 @@ describe('CoworkersService — Tracker monitor CRUD', () => {
     // 1. Create
     const created = await ctx.service.createMonitor('ws-1', 'coworker-1', 'user-1', {
       name: 'Task Completion Monitor',
-      type: 'TASK_STATUS',
+      type: 'task',
       target: 'project-1',
       condition: 'status == DONE',
       intervalMinutes: 15,
@@ -151,6 +156,37 @@ describe('CoworkersService — Tracker monitor CRUD', () => {
     await ctx.service.deleteMonitor('ws-1', 'coworker-1', created.id);
     const afterDelete = await ctx.service.listMonitors('ws-1', 'coworker-1');
     expect(afterDelete).toHaveLength(0);
+  });
+
+  it('starts a new monitor unchecked and owned by the caller', async () => {
+    const created = await ctx.service.createMonitor('ws-1', 'coworker-1', 'user-1', {
+      target: 'Product Launch',
+      condition: 'becomes overdue',
+      destinations: ['assignees'],
+    });
+    expect(created.createdBy).toBe('user-1');
+    expect(created.lastCheckedAt).toBeNull();
+    expect(created.destinations).toEqual(['assignees']);
+  });
+
+  it('refuses a condition Tracker cannot check', async () => {
+    await expect(
+      ctx.service.createMonitor('ws-1', 'coworker-1', 'user-1', { type: 'metric', condition: 'revenue goes up' }),
+    ).rejects.toThrow(/can't check/);
+  });
+
+  it('resets the check history when the question changes', async () => {
+    const created = await ctx.service.createMonitor('ws-1', 'coworker-1', 'user-1', { condition: 'becomes overdue' });
+    await ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, { enabled: true });
+    const updated = await ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, { condition: 'due soon' });
+    expect(updated.lastCheckedAt).toBeNull();
+  });
+
+  it('checks a monitor now through the sweep service', async () => {
+    const checked = await ctx.service.checkMonitorNow('ws-1', 'coworker-1', 'mon-1');
+    expect(ctx.monitorSweep.checkNow).toHaveBeenCalledWith('ws-1', 'coworker-1', 'mon-1');
+    expect(checked.lastResult?.count).toBe(2);
+    await expect(ctx.service.checkMonitorNow('ws-1', 'coworker-1', 'missing')).rejects.toThrow(/not found/i);
   });
 });
 

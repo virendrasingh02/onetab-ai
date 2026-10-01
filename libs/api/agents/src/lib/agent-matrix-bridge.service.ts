@@ -125,6 +125,8 @@ export class AgentMatrixBridgeService implements OnModuleInit {
     if (event.sender === target.matrixUserId) return false;
     if (!cleanPrompt.trim()) return false;
 
+    const requesterId = await this.resolveRequester(event.sender, target.workspaceId);
+
     void this.runTurn(
       target,
       event.room_id,
@@ -132,6 +134,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
       threadRootId,
       channelId,
       channelName,
+      requesterId,
     ).catch((error) => {
       this.logger.error(
         `AI Entity turn failed for ${target.id} in ${event.room_id}: ${String(error)}`,
@@ -139,6 +142,22 @@ export class AgentMatrixBridgeService implements OnModuleInit {
     });
 
     return true;
+  }
+
+  /**
+   * The platform user behind a Matrix sender, when they are an active member
+   * of the entity's workspace — the person a creator-less coworker acts for.
+   */
+  private async resolveRequester(sender: string, workspaceId: string): Promise<string | undefined> {
+    const user = await this.prisma.user.findUnique({
+      where: { matrixUserId: sender },
+      select: { id: true },
+    });
+    if (!user) return undefined;
+    const member = await this.prisma.workspaceMember.count({
+      where: { workspaceId, userId: user.id, status: 'ACTIVE' },
+    });
+    return member > 0 ? user.id : undefined;
   }
 
   private async runTurn(
@@ -157,6 +176,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
     threadRootId?: string,
     channelId?: string,
     channelName?: string,
+    requesterId?: string,
   ): Promise<void> {
     if (!entity.matrixUserId) return;
 
@@ -213,7 +233,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
         entity.workspaceId,
         entity.id,
         promptText,
-        { channelId, channelName, roomId, threadRootId },
+        { channelId, channelName, roomId, threadRootId, requesterId, source: 'chat' },
         postToolUpdate,
       );
 

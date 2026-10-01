@@ -1600,6 +1600,9 @@ export class WorkflowEngineService {
     // A test run hands the agent only tools that read, so nothing changes.
     const run = await this.aiRuntime.executeTurn(workspaceId, entityId, promptText, {
       ...(env.mode === 'test' ? { readOnly: true } : {}),
+      // A coworker with no creator acts for the workflow's owner, never for nobody.
+      ...(env.workflow.creatorId ? { requesterId: env.workflow.creatorId } : {}),
+      source: 'workflow',
     });
     return {
       stepId: node.id,

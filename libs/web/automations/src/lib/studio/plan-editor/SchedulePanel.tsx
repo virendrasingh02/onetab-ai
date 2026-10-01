@@ -205,7 +205,10 @@ export function SchedulePanel({
                 onChange={(channelId) => onChange({ ...trigger, filter: { ...trigger.filter, channelId } })}
               />
             </Field>
-          ) : trigger.event?.startsWith('task.') || trigger.event === 'meeting.ended' || trigger.event === 'project.updated' ? (
+          ) : trigger.event?.startsWith('task.') ||
+            trigger.event === 'meeting.ended' ||
+            trigger.event === 'project.updated' ||
+            event?.filter === 'project' ? (
             <Field label="Only in project" optional>
               <ProjectPicker
                 workspaceId={workspaceId}

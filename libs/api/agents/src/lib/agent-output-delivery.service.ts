@@ -6,7 +6,7 @@ import { readAgentRuntime, type AgentOutputTarget } from '@org/types';
 import type { AIEntityRunResult } from './ai-runtime.service.js';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
 
-interface DeliverableAgent {
+export interface DeliverableAgent {
   id: string;
   type: string;
   name: string;
@@ -125,7 +125,21 @@ export class AgentOutputDeliveryService {
     run: AIEntityRunResult,
     task: string,
   ): Promise<string> {
-    if (!(await creatorCanPostToChannel(this.prisma, agent.workspaceId, channelId, agent.creatorId))) {
+    return this.postText(agent, channelId, `**${task}**\n\n${run.result}`, agent.creatorId);
+  }
+
+  /**
+   * Posts `text` into a channel as the agent's own bot identity, with
+   * `authorityUserId`'s right to post there (the agent's creator, or the
+   * person a creator-less coworker works for). Returns what happened.
+   */
+  async postText(
+    agent: DeliverableAgent,
+    channelId: string,
+    text: string,
+    authorityUserId: string | null,
+  ): Promise<string> {
+    if (!(await creatorCanPostToChannel(this.prisma, agent.workspaceId, channelId, authorityUserId))) {
       return "channel: skipped — the agent's creator can't post there";
     }
     const channel = await this.prisma.channel.findUniqueOrThrow({
@@ -136,11 +150,7 @@ export class AgentOutputDeliveryService {
 
     const matrixUserId = agent.matrixUserId ?? (await this.provisionIdentity(agent));
     await this.matrixAdmin.joinRoomAs(matrixUserId, channel.matrixRoomId);
-    await this.messaging.sendText(
-      channel.matrixRoomId,
-      matrixUserId,
-      `**${task}**\n\n${run.result}`.slice(0, 30_000),
-    );
+    await this.messaging.sendText(channel.matrixRoomId, matrixUserId, text.slice(0, 30_000));
     return `channel: posted to #${channel.name}`;
   }
 

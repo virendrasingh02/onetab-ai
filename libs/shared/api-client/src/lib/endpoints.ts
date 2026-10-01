@@ -2570,8 +2570,9 @@ export const coworkersApi = {
       http.get(`/workspaces/${workspaceId}/coworkers/${coworkerId}/logs`),
     ),
 
+  /** Recent activity across every coworker, each row with the coworker it came from. */
   workspaceLogs: (workspaceId: string) =>
-    request<CoworkerExecutionLog[]>(
+    request<Array<CoworkerExecutionLog & { agent: { id: string; name: string; type: string } }>>(
       http.get(`/workspaces/${workspaceId}/coworkers/logs`),
     ),
 
@@ -2713,6 +2714,18 @@ export const coworkersApi = {
     request<void>(
       http.delete(
         `/workspaces/${workspaceId}/coworkers/${coworkerId}/monitors/${monitorId}`,
+      ),
+    ),
+
+  /** Runs one monitor's check now; returns it with the new result. */
+  checkMonitor: (
+    workspaceId: string,
+    coworkerId: string,
+    monitorId: string,
+  ) =>
+    request<TrackerMonitor>(
+      http.post(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/monitors/${monitorId}/check`,
       ),
     ),
 

@@ -1,4 +1,13 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  AppEvent,
+  type CoworkerCompletedEvent,
+  type CoworkerFailedEvent,
+  type CoworkerHandoffEvent,
+  type CoworkerRunEvent,
+  type CoworkerTurnSource,
+} from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
   ApprovalsService,
@@ -25,6 +34,7 @@ import {
   OWNER_PRIVATE_AGENT_TOOLS,
   readAgentRuntime,
   READ_ONLY_AGENT_TOOLS,
+  resolveCoworkerCollaborators,
 } from '@org/types';
 import { applyPiiGuardrail } from './agent-guardrails.js';
 import {
@@ -79,6 +89,9 @@ function schemaName(schema: Record<string, unknown>): string {
 
 const DELEGATE_TOOL_PREFIX = 'consult_agent_';
 
+/** A coworker handing work to another coworker it collaborates with. */
+const HANDOFF_TOOL_PREFIX = 'handoff_to_coworker_';
+
 /** A coworker delegating to an agent, which delegates to another coworker,
  *  forever — capped independently of the 4-round-per-turn tool loop limit. */
 const MAX_DELEGATION_DEPTH = 3;
@@ -105,6 +118,17 @@ export interface AIEntityTurnContext {
    * step cannot change anything. Delegation and MCP servers are left out too.
    */
   readOnly?: boolean;
+  /**
+   * The workspace member who asked. Built-in tools act as the entity's
+   * creator; a coworker with no creator on record (the workspace's default
+   * Scheduler and Tracker) acts as the person asking instead — never as
+   * anyone with more access than them.
+   */
+  requesterId?: string;
+  /** How the turn was started — carried on the coworker lifecycle events. */
+  source?: CoworkerTurnSource;
+  /** The coworker that handed this work over (`source: 'handoff'`). */
+  fromCoworkerId?: string;
 }
 
 export interface AIEntityRunResult {
@@ -131,6 +155,8 @@ interface TurnPlan {
   builtinTools: Set<string>;
   integrationTools: Map<string, IntegrationToolSchema>;
   mcpTools: Map<string, MCPToolBinding>;
+  /** Coworkers this coworker may hand work to, by id → name. */
+  handoffTargets: Map<string, string>;
   runtime: AgentRuntimeConfig;
   sampling: { temperature?: number; maxTokens?: number };
 }
@@ -181,6 +207,7 @@ export class AIRuntimeService {
     private readonly realtime: RealtimeGatewayService,
     private readonly mcpServers: MCPService,
     private readonly knowledge: KnowledgeService,
+    @Optional() private readonly events?: EventEmitter2,
   ) {}
 
   /**
@@ -250,17 +277,108 @@ export class AIRuntimeService {
       executionId: await this.startExecution(workspaceId, entity, promptText, context),
       pendingApprovals: 0,
     };
+    const lifecycle: CoworkerRunEvent | null =
+      entity.type === 'coworker'
+        ? {
+            workspaceId,
+            coworkerId: entity.id,
+            coworkerName: entity.name,
+            executionId: state.executionId,
+            source: context.source ?? (context.roomId ? 'chat' : 'api'),
+            fromCoworkerId: context.fromCoworkerId ?? null,
+            channelId: context.channelId ?? null,
+            projectId: context.projectId ?? null,
+            request: promptText.slice(0, 1_000),
+          }
+        : null;
+    if (lifecycle) this.emit(AppEvent.CoworkerStarted, lifecycle);
     try {
       const run =
         entity.type === 'agent'
           ? await this.executeAgentTurn(entity, workspaceId, promptText, context, state, onToolUpdate, delegationDepth)
           : await this.executeCoworkerTurn(entity, workspaceId, promptText, context, state, onToolUpdate, delegationDepth);
       await this.finishExecution(state, startedAt, promptText, entity.model, run);
+      if (lifecycle) {
+        const completed: CoworkerCompletedEvent = {
+          ...lifecycle,
+          result: run.result.slice(0, 4_000),
+          tools: run.tools.map((t) => t.name),
+          waitingApproval: state.pendingApprovals > 0,
+        };
+        this.emit(AppEvent.CoworkerCompleted, completed);
+      }
       return { ...run, executionId: state.executionId };
     } catch (err) {
       await this.finishExecution(state, startedAt, promptText, entity.model, undefined, err);
+      if (lifecycle) {
+        const failed: CoworkerFailedEvent = {
+          ...lifecycle,
+          error: (err instanceof Error ? err.message : String(err)).slice(0, 1_000),
+        };
+        this.emit(AppEvent.CoworkerFailed, failed);
+      }
       throw err;
     }
+  }
+
+  /** Domain events are best-effort: a listener failing never fails the turn. */
+  private emit(name: string, payload: object): void {
+    try {
+      this.events?.emit(name, payload);
+    } catch (error) {
+      this.logger.warn(`Event '${name}' listener failed: ${String(error)}`);
+    }
+  }
+
+  /**
+   * Hands work from one coworker to another it collaborates with. The
+   * receiving coworker runs a full turn under its own tools and permissions,
+   * for the same person, and its answer comes back as the tool result. Shares
+   * the delegation depth cap with agent delegation, so handoffs cannot loop.
+   */
+  private async handOffToCoworker(
+    from: { id: string; name: string },
+    toCoworkerId: string,
+    toName: string,
+    workspaceId: string,
+    request: string,
+    context: AIEntityTurnContext,
+    delegationDepth: number,
+  ): Promise<{ coworker: string; result: string; executionId: string | null }> {
+    if (delegationDepth >= MAX_DELEGATION_DEPTH) {
+      throw new Error(
+        `Delegation depth limit (${MAX_DELEGATION_DEPTH}) reached — refusing to hand off further to prevent a runaway coworker chain.`,
+      );
+    }
+    const task = request.trim();
+    if (!task) throw new Error(`Say what ${toName} should do.`);
+    const handoff: CoworkerHandoffEvent = {
+      workspaceId,
+      fromCoworkerId: from.id,
+      fromCoworkerName: from.name,
+      toCoworkerId,
+      toCoworkerName: toName,
+      request: task.slice(0, 1_000),
+    };
+    this.emit(AppEvent.CoworkerHandoff, handoff);
+    this.logger.log(`Handoff: Coworker '${from.name}' → '${toName}' (${toCoworkerId})`);
+    const run = await this.executeTurn(
+      workspaceId,
+      toCoworkerId,
+      `${from.name} handed you this: ${task}`,
+      {
+        channelId: context.channelId,
+        channelName: context.channelName,
+        projectId: context.projectId,
+        projectName: context.projectName,
+        requesterId: context.requesterId,
+        source: 'handoff',
+        fromCoworkerId: from.id,
+      },
+      undefined,
+      delegationDepth + 1,
+    );
+    return { coworker: run.entityName, result: run.result, executionId: run.executionId ?? null };
   }
 
   /**
@@ -569,7 +687,7 @@ export class AIRuntimeService {
     const { runtime } = plan;
     const ctx = {
       workspaceId,
-      actingUserId: entity.creatorId as string | null,
+      actingUserId: ((entity.creatorId as string | null) ?? context.requesterId ?? null) as string | null,
       agentMatrixUserId: entity.matrixUserId as string | null,
     };
     const gatedByPolicy = !!runtime.toolPolicies[name]?.requiresApproval || runtime.autonomy === 'supervised';
@@ -593,6 +711,25 @@ export class AIRuntimeService {
         entry.output = output;
         entry.durationMs = Date.now() - startedAt;
         return JSON.stringify(output ?? null);
+      }
+
+      if (plan.kind === 'coworker' && name.startsWith(HANDOFF_TOOL_PREFIX)) {
+        const targetId = name.slice(HANDOFF_TOOL_PREFIX.length);
+        const targetName = plan.handoffTargets.get(targetId);
+        if (!targetName) throw new Error(`${entity.name} does not work with that coworker.`);
+        const output = await this.handOffToCoworker(
+          { id: entity.id, name: entity.name },
+          targetId,
+          targetName,
+          workspaceId,
+          typeof input['request'] === 'string' ? (input['request'] as string) : '',
+          context,
+          delegationDepth,
+        );
+        entry.status = 'success';
+        entry.output = output;
+        entry.durationMs = Date.now() - startedAt;
+        return JSON.stringify(output);
       }
 
       const mcpTool = plan.mcpTools.get(name);
@@ -811,6 +948,7 @@ export class AIRuntimeService {
       builtinTools: new Set(builtinSchemas.map(schemaName)),
       integrationTools: new Map(integrationSchemas.map((t) => [t.name, t])),
       mcpTools,
+      handoffTargets: new Map(),
       runtime,
       sampling: this.samplingFor(runtime),
     };
@@ -922,6 +1060,36 @@ export class AIRuntimeService {
       },
     }));
 
+    // Coworker collaboration: the coworkers this one may hand work to.
+    const handoffTargets = new Map<string, string>();
+    if (!readOnly) {
+      const colleagues = await this.prisma.aIAgent.findMany({
+        where: { workspaceId, type: 'coworker', isActive: true },
+        select: { id: true, name: true, configuration: true },
+      });
+      for (const id of resolveCoworkerCollaborators(entity, colleagues)) {
+        const colleague = colleagues.find((c) => c.id === id);
+        if (colleague) handoffTargets.set(colleague.id, colleague.name);
+      }
+    }
+    const handoffSchemas = [...handoffTargets.entries()].map(([id, colleagueName]) => ({
+      type: 'function',
+      function: {
+        name: `${HANDOFF_TOOL_PREFIX}${id}`,
+        description: `Hand this work to your fellow coworker '${colleagueName}', who does it with their own tools and reports back. Use it when the request is ${colleagueName}'s speciality rather than yours.`,
+        parameters: {
+          type: 'object',
+          properties: {
+            request: {
+              type: 'string',
+              description: `What '${colleagueName}' should do, with every detail they need.`,
+            },
+          },
+          required: ['request'],
+        },
+      },
+    }));
+
     const integrationSchemas = (
       await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId)
     ).filter((t) => !readOnly || t.definition.permissionLevel === 'read');
@@ -937,12 +1105,14 @@ export class AIRuntimeService {
       toolSchemas: [
         ...builtinSchemas,
         ...delegateSchemas,
+        ...handoffSchemas,
         ...integrationSchemas.map((t) => t.schema),
         ...[...mcpTools.values()].map((t) => t.schema),
       ],
       builtinTools: new Set(builtinSchemas.map(schemaName)),
       integrationTools: new Map(integrationSchemas.map((t) => [t.name, t])),
       mcpTools,
+      handoffTargets,
       runtime,
       sampling: this.samplingFor(runtime),
     };

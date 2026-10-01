@@ -1,31 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaService } from '@org/database';
+import type { SearchCategory, SearchResultItem } from '@org/types';
+import { docContentToText } from '@org/utils';
 
-export type SearchCategory =
-  | 'channels'
-  | 'docs'
-  | 'files'
-  | 'tasks'
-  | 'projects'
-  | 'people'
-  | 'agents'
-  | 'coworkers'
-  | 'canvases'
-  | 'calls';
-
-export interface SearchResultItem {
-  id: string;
-  category: SearchCategory;
-  title: string;
-  snippet?: string;
-  /** Workspace-relative route the result opens. */
-  href?: string;
-  /** Full-text rank, higher is a better match. Absent for ILIKE categories. */
-  score?: number;
-  /** ISO — most recent of created/updated, for the date-range filter (§4). */
-  timestamp?: string;
-  metadata?: Record<string, unknown>;
-}
+// One definition, shared with the web client.
+export type { SearchCategory, SearchResultItem } from '@org/types';
 
 export interface SearchOptions {
   workspaceId: string;
@@ -47,6 +26,8 @@ const CATEGORIES: SearchCategory[] = [
   'coworkers',
   'canvases',
   'calls',
+  'meetings',
+  'workflows',
 ];
 
 /** Keeps one loud category from crowding out the rest in an "all" search. */
@@ -193,7 +174,8 @@ export class SearchService {
           id: row.id,
           category,
           title: row.title,
-          snippet: snippet(row.content, query),
+          // Docs are stored as the editor's JSON envelope — snippet the text.
+          snippet: snippet(docContentToText(row.content), query),
           href: `docs/${row.id}`,
           score: Number(row.score),
           timestamp: row.updatedAt.toISOString(),
@@ -374,7 +356,7 @@ export class SearchService {
           category,
           title: row.name,
           snippet: row.role,
-          href: `agents?agent=${row.id}`,
+          href: `ai/agents/${row.id}`,
           timestamp: row.updatedAt.toISOString(),
         }));
       }
@@ -408,6 +390,60 @@ export class SearchService {
           href: `coworkers/${row.id}`,
           timestamp: row.updatedAt.toISOString(),
         }));
+      }
+
+      case 'meetings': {
+        // Meetings are workspace-visible (the Meetings screen lists them all).
+        const contains = { contains: query, mode: 'insensitive' as const };
+        const rows = await this.prisma.meeting.findMany({
+          where: {
+            workspaceId,
+            deletedAt: null,
+            OR: [{ title: contains }, { description: contains }, { agenda: contains }],
+          },
+          select: { id: true, title: true, startAt: true, status: true, updatedAt: true },
+          orderBy: { startAt: 'desc' },
+          take,
+        });
+        return rows.map((row) => ({
+          id: row.id,
+          category,
+          title: row.title,
+          snippet: `${row.status.charAt(0)}${row.status.slice(1).toLowerCase()} · ${row.startAt.toISOString().slice(0, 10)}`,
+          href: `meetings?meeting=${row.id}`,
+          timestamp: row.updatedAt.toISOString(),
+          metadata: { startAt: row.startAt.toISOString(), status: row.status },
+        }));
+      }
+
+      case 'workflows': {
+        // Canvas workflows and Studio agents (a workflow with an agent
+        // profile) — both open in the AI workspace.
+        const contains = { contains: query, mode: 'insensitive' as const };
+        const rows = await this.prisma.automationWorkflow.findMany({
+          where: {
+            workspaceId,
+            archivedAt: null,
+            OR: [{ name: contains }, { description: contains }],
+          },
+          select: { id: true, name: true, description: true, isActive: true, agentProfile: true, updatedAt: true },
+          orderBy: { updatedAt: 'desc' },
+          take,
+        });
+        return rows.map((row) => {
+          const isAgent = row.agentProfile !== null;
+          return {
+            id: row.id,
+            category,
+            title: row.name,
+            snippet: `${isAgent ? 'Agent' : 'Workflow'}${row.isActive ? '' : ' · off'}${
+              row.description ? ` · ${snippet(row.description, query, 40)}` : ''
+            }`,
+            href: isAgent ? `ai/studio/${row.id}` : `ai/workflows/${row.id}`,
+            timestamp: row.updatedAt.toISOString(),
+            metadata: { kind: isAgent ? 'agent' : 'workflow', isActive: row.isActive },
+          };
+        });
       }
 
       case 'canvases': {

@@ -4,16 +4,20 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '@org/database';
+import { PrismaService, type Prisma } from '@org/database';
 import { creatorCanPostToChannel } from './agent-output-delivery.service.js';
 import {
+  COWORKER_TEMPLATES,
   PLANS_CONFIG,
   canUpgradeAgent,
+  coworkerTemplateKey,
+  getCoworkerTemplate,
   deriveAgentFromGraph,
   isAIEntityType,
   normalizePlanTier,
   type AIEntityType,
   type AgentScheduleSpec,
+  type CoworkerTemplate,
   type CoworkerPermissions,
   type CoworkerStatus,
   type DerivedAgentConfig,
@@ -681,143 +685,95 @@ export class AIEntitiesService {
     });
   }
 
+  /**
+   * Seeds the default coworkers (`COWORKER_TEMPLATES` with `seedByDefault`)
+   * into a workspace, and brings rows seeded before the template carried
+   * write grants up to date: a template coworker whose `permissions` has no
+   * `allowActions` key yet gets the template's — so Scheduler can actually
+   * create reminders and Tracker monitors. A key that is present, even empty,
+   * is the workspace's own choice and is left alone.
+   *
+   * Runs on every coworker listing, so concurrent first loads used to seed
+   * each default twice. The work now happens under a per-workspace Postgres
+   * advisory lock, re-reading inside it; the common case (nothing to do) is
+   * one read and no transaction.
+   */
   async initializeDefaultCoworkers(workspaceId: string, creatorId?: string): Promise<void> {
     try {
-      const existing = await this.prisma.aIAgent.findMany({
-        where: { workspaceId, type: 'coworker' },
-        select: { name: true },
-      });
-      const names = new Set(existing.map((e) => e.name));
-
-      const DEFAULT_SPECS = [
-        {
-          name: 'Scheduler',
-          type: 'coworker' as const,
-          role: 'Scheduling & Coordination',
-          description:
-            'Helps the workspace schedule reminders, recurring work, deadlines, follow-ups, and scheduled workflows.',
-          personality:
-            'Organized, punctual, clear, and proactive. Helps track deadlines, meetings, and recurring work across the workspace.',
-          welcomeMessage:
-            'Hi! I am Scheduler, your AI coworker for reminders, deadlines, recurring work, and scheduled workflows. How can I help coordinate your schedule today?',
-          systemPrompt:
-            'You are Scheduler, an AI Coworker specialized in workspace scheduling, reminders, recurring work, deadlines, follow-ups, and scheduled workflows.',
-          systemInstructions:
-            'Coordinate scheduling, reminders, recurring work, and deadlines. Use available tools to create reminders, inspect tasks, follow up on assigned work, and report scheduled activity. Always verify timing and permissions with the user before committing scheduled workflows.',
-          status: 'AVAILABLE' as const,
-          tools: [
-            'create_reminder',
-            'list_reminders',
-            'find_tasks',
-            'create_task',
-            'update_task',
-            'list_tasks',
-            'list_meetings',
-            'list_projects',
-            'list_channels',
-            'search_docs',
-            'read_doc',
-            'notify_user',
-          ],
-          permissions: {
-            remindersAccess: true,
-            calendarAccess: true,
-            taskAccess: true,
-            knowledgeAccess: true,
-          },
-          configuration: {
-            coworkerType: 'scheduler',
-            capabilities: [
-              'Create reminders',
-              'Schedule tasks',
-              'Create recurring schedules',
-              'Schedule workflows',
-              'Track deadlines',
-              'Create calendar events when authorized',
-              'Follow up on assigned work',
-              'Report scheduled activity',
-            ],
-          },
-        },
-        {
-          name: 'Tracker',
-          type: 'coworker' as const,
-          role: 'Monitoring & Tracking',
-          description:
-            'Monitors workspace activity, projects, tasks, metrics, and configured conditions and reports meaningful changes.',
-          personality:
-            'Vigilant, analytical, concise, and dependable. Watches for bottlenecks, overdue tasks, and milestone updates.',
-          welcomeMessage:
-            'Hello! I am Tracker, your AI coworker for monitoring workspace tasks, projects, metrics, and conditions. What would you like me to keep an eye on?',
-          systemPrompt:
-            'You are Tracker, an AI Coworker specialized in monitoring workspace activity, projects, tasks, metrics, events, and configured conditions.',
-          systemInstructions:
-            'Monitor workspace tasks, project status changes, and deadlines. Generate tracking summaries, detect meaningful changes or exceptions, and report them to the configured destination or channel without unnecessary noise.',
-          status: 'AVAILABLE' as const,
-          tools: [
-            'find_tasks',
-            'list_tasks',
-            'get_project_overview',
-            'list_projects',
-            'get_activity',
-            'create_task',
-            'update_task',
-            'search_docs',
-            'read_doc',
-            'notify_user',
-            'list_channels',
-            'create_monitor',
-            'list_monitors',
-          ],
-          permissions: {
-            projectAccess: true,
-            taskAccess: true,
-            activityAccess: true,
-            knowledgeAccess: true,
-          },
-          configuration: {
-            coworkerType: 'tracker',
-            capabilities: [
-              'Monitor tasks',
-              'Monitor projects',
-              'Monitor status changes',
-              'Monitor configured metrics',
-              'Monitor events',
-              'Detect meaningful changes',
-              'Report exceptions',
-              'Generate tracking summaries',
-            ],
-            monitors: [],
-          },
-        },
-      ];
-
-      for (const spec of DEFAULT_SPECS) {
-        if (!names.has(spec.name)) {
-          await this.prisma.aIAgent.create({
+      if (!this.coworkerSeedWork(await this.readCoworkers(this.prisma, workspaceId))) return;
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`coworker-seed:${workspaceId}`}))`;
+        const work = this.coworkerSeedWork(await this.readCoworkers(tx, workspaceId));
+        if (!work) return;
+        for (const row of work.needGrants) {
+          await tx.aIAgent.update({
+            where: { id: row.id },
+            data: {
+              permissions: {
+                ...row.permissions,
+                allowActions: [...(row.template.permissions.allowActions ?? [])],
+              } as Prisma.InputJsonValue,
+            },
+          });
+        }
+        for (const template of work.missing) {
+          await tx.aIAgent.create({
             data: {
               workspaceId,
               creatorId: creatorId ?? null,
-              type: spec.type,
-              name: spec.name,
-              role: spec.role,
-              description: spec.description,
-              personality: spec.personality,
-              welcomeMessage: spec.welcomeMessage,
-              systemPrompt: spec.systemPrompt,
-              systemInstructions: spec.systemInstructions,
-              status: spec.status,
-              tools: JSON.stringify(spec.tools),
-              permissions: spec.permissions as any,
-              configuration: spec.configuration as any,
+              type: 'coworker',
+              name: template.name,
+              role: template.role,
+              description: template.description,
+              personality: template.personality,
+              welcomeMessage: template.welcomeMessage,
+              systemPrompt: template.systemPrompt,
+              systemInstructions: template.systemInstructions,
+              status: 'AVAILABLE',
+              tools: JSON.stringify(template.tools),
+              permissions: { ...template.permissions } as Prisma.InputJsonValue,
+              configuration: {
+                coworkerType: template.key,
+                capabilities: [...template.capabilities],
+                ...(template.key === 'tracker' ? { monitors: [] } : {}),
+              },
             },
           });
-          this.logger.log(`Initialized default coworker '${spec.name}' in workspace ${workspaceId}`);
+          this.logger.log(`Initialized default coworker '${template.name}' in workspace ${workspaceId}`);
         }
-      }
+      });
     } catch (error) {
       this.logger.warn(`Failed to initialize default coworkers for workspace ${workspaceId}: ${String(error)}`);
     }
+  }
+
+  private readCoworkers(db: Pick<PrismaService, 'aIAgent'>, workspaceId: string) {
+    return db.aIAgent.findMany({
+      where: { workspaceId, type: 'coworker' },
+      select: { id: true, name: true, permissions: true, configuration: true },
+    });
+  }
+
+  /** What seeding still has to do, or null when the workspace is up to date. */
+  private coworkerSeedWork(
+    existing: Array<{ id: string; name: string; permissions: unknown; configuration: unknown }>,
+  ) {
+    const needGrants: Array<{ id: string; permissions: Record<string, unknown>; template: CoworkerTemplate }> = [];
+    for (const row of existing) {
+      const template = getCoworkerTemplate(coworkerTemplateKey(row.configuration));
+      const permissions =
+        row.permissions && typeof row.permissions === 'object' && !Array.isArray(row.permissions)
+          ? (row.permissions as Record<string, unknown>)
+          : {};
+      if (template && !('allowActions' in permissions)) needGrants.push({ id: row.id, permissions, template });
+    }
+    // A renamed default is still that default — matched by template key first.
+    const missing = COWORKER_TEMPLATES.filter(
+      (t) =>
+        t.seedByDefault &&
+        !existing.some((e) => coworkerTemplateKey(e.configuration) === t.key || e.name === t.name),
+    );
+    return needGrants.length || missing.length ? { needGrants, missing } : null;
   }
 
   async seedInitialCoworkers(workspaceId: string, creatorId?: string): Promise<void> {

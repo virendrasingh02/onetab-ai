@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '@org/database';
-import { AIEntitiesService } from '@org/api-agents';
+import { PrismaService, type Prisma } from '@org/database';
+import {
+  AIEntitiesService,
+  TrackerMonitorSweepService,
+  buildTrackerMonitor,
+  classifyMonitor,
+} from '@org/api-agents';
 import { AppEvent } from '@org/api-common';
 import type { CoworkerPermissions, CoworkerStatus, TrackerMonitor } from '@org/types';
+import type { CreateTrackerMonitorInput, UpdateTrackerMonitorInput } from '@org/validation';
 
 @Injectable()
 export class CoworkersService {
@@ -11,6 +17,7 @@ export class CoworkersService {
     private readonly prisma: PrismaService,
     private readonly entitiesService: AIEntitiesService,
     private readonly events: EventEmitter2,
+    private readonly monitorSweep: TrackerMonitorSweepService,
   ) {}
 
   async initializeDefaultCoworkers(workspaceId: string, creatorId?: string): Promise<void> {
@@ -331,136 +338,99 @@ export class CoworkersService {
   }
 
   // -------------------------------------------------------------------------
-  // Tracker Monitors
+  // Tracker Monitors — checked on schedule by `TrackerMonitorSweepService`
   // -------------------------------------------------------------------------
 
-  async listMonitors(workspaceId: string, coworkerId: string): Promise<TrackerMonitor[]> {
+  private async monitorHost(workspaceId: string, coworkerId: string) {
     const coworker = await this.prisma.aIAgent.findFirst({
-      where: { id: coworkerId, workspaceId },
-      select: { configuration: true },
+      where: { id: coworkerId, workspaceId, type: 'coworker' },
+      select: { id: true, configuration: true },
     });
     if (!coworker) throw new NotFoundException('Coworker not found');
     const config = (coworker.configuration ?? {}) as Record<string, unknown>;
-    return Array.isArray(config['monitors']) ? (config['monitors'] as TrackerMonitor[]) : [];
+    const monitors: TrackerMonitor[] = Array.isArray(config['monitors'])
+      ? [...(config['monitors'] as TrackerMonitor[])]
+      : [];
+    return { coworker, config, monitors };
+  }
+
+  private async saveMonitors(coworkerId: string, config: Record<string, unknown>, monitors: TrackerMonitor[]) {
+    await this.prisma.aIAgent.update({
+      where: { id: coworkerId },
+      data: { configuration: { ...config, monitors } as unknown as Prisma.InputJsonValue },
+    });
+  }
+
+  private assertCheckable(monitor: Pick<TrackerMonitor, 'type' | 'condition'>) {
+    if (classifyMonitor(monitor) === 'unsupported') {
+      throw new BadRequestException(
+        `Tracker can't check “${monitor.condition}” automatically. Use overdue, due soon, completed, status changes or a progress summary.`,
+      );
+    }
+  }
+
+  async listMonitors(workspaceId: string, coworkerId: string): Promise<TrackerMonitor[]> {
+    return (await this.monitorHost(workspaceId, coworkerId)).monitors;
   }
 
   async createMonitor(
     workspaceId: string,
     coworkerId: string,
     createdBy: string,
-    input: Omit<TrackerMonitor, 'id' | 'workspaceId' | 'coworkerId' | 'createdAt' | 'createdBy' | 'lastCheckedAt' | 'lastTriggeredAt'>,
+    input: CreateTrackerMonitorInput,
   ): Promise<TrackerMonitor> {
-    const coworker = await this.prisma.aIAgent.findFirst({
-      where: { id: coworkerId, workspaceId },
-      select: { id: true, configuration: true },
-    });
-    if (!coworker) throw new NotFoundException('Coworker not found');
-    const config = (coworker.configuration ?? {}) as Record<string, unknown>;
-    const monitors: TrackerMonitor[] = Array.isArray(config['monitors'])
-      ? [...(config['monitors'] as TrackerMonitor[])]
-      : [];
-
-    const newMonitor: TrackerMonitor = {
-      id: `mon-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-      workspaceId,
-      coworkerId,
-      name: input.name ?? input.target,
-      type: input.type,
-      target: input.target,
-      condition: input.condition,
-      frequency: input.frequency ?? 'realtime',
-      intervalMinutes: input.intervalMinutes ?? 15,
-      destinations: input.destinations ?? [],
-      enabled: input.enabled ?? true,
-      lastCheckedAt: new Date().toISOString(),
-      lastTriggeredAt: null,
-      createdBy,
-      createdAt: new Date().toISOString(),
-    };
-
-    monitors.push(newMonitor);
-
-    await this.prisma.aIAgent.update({
-      where: { id: coworker.id },
-      data: {
-        configuration: {
-          ...config,
-          monitors,
-        } as any,
-      },
-    });
-
-    return newMonitor;
+    const { coworker, config, monitors } = await this.monitorHost(workspaceId, coworkerId);
+    const monitor = buildTrackerMonitor(input, { workspaceId, coworkerId, createdBy });
+    this.assertCheckable(monitor);
+    await this.saveMonitors(coworker.id, config, [...monitors, monitor]);
+    return monitor;
   }
 
   async updateMonitor(
     workspaceId: string,
     coworkerId: string,
     monitorId: string,
-    input: Partial<TrackerMonitor>,
+    input: UpdateTrackerMonitorInput,
   ): Promise<TrackerMonitor> {
-    const coworker = await this.prisma.aIAgent.findFirst({
-      where: { id: coworkerId, workspaceId },
-      select: { id: true, configuration: true },
-    });
-    if (!coworker) throw new NotFoundException('Coworker not found');
-    const config = (coworker.configuration ?? {}) as Record<string, unknown>;
-    const monitors: TrackerMonitor[] = Array.isArray(config['monitors'])
-      ? [...(config['monitors'] as TrackerMonitor[])]
-      : [];
-
+    const { coworker, config, monitors } = await this.monitorHost(workspaceId, coworkerId);
     const idx = monitors.findIndex((m) => m.id === monitorId);
     if (idx === -1) throw new NotFoundException('Monitor not found');
-
+    const current = monitors[idx];
     const updated: TrackerMonitor = {
-      ...monitors[idx],
+      ...current,
       ...input,
-      id: monitors[idx].id,
+      id: current.id,
       workspaceId,
       coworkerId,
     };
-
+    this.assertCheckable(updated);
+    // A changed question starts over: the next check reports everything matching.
+    if (
+      (input.condition !== undefined && input.condition !== current.condition) ||
+      (input.target !== undefined && input.target !== current.target)
+    ) {
+      updated.lastCheckedAt = null;
+      updated.lastResult = null;
+      updated.lastError = null;
+    }
     monitors[idx] = updated;
-
-    await this.prisma.aIAgent.update({
-      where: { id: coworker.id },
-      data: {
-        configuration: {
-          ...config,
-          monitors,
-        } as any,
-      },
-    });
-
+    await this.saveMonitors(coworker.id, config, monitors);
     return updated;
   }
 
-  async deleteMonitor(
-    workspaceId: string,
-    coworkerId: string,
-    monitorId: string,
-  ): Promise<void> {
-    const coworker = await this.prisma.aIAgent.findFirst({
-      where: { id: coworkerId, workspaceId },
-      select: { id: true, configuration: true },
-    });
-    if (!coworker) throw new NotFoundException('Coworker not found');
-    const config = (coworker.configuration ?? {}) as Record<string, unknown>;
-    const monitors: TrackerMonitor[] = Array.isArray(config['monitors'])
-      ? [...(config['monitors'] as TrackerMonitor[])]
-      : [];
+  async deleteMonitor(workspaceId: string, coworkerId: string, monitorId: string): Promise<void> {
+    const { coworker, config, monitors } = await this.monitorHost(workspaceId, coworkerId);
+    await this.saveMonitors(
+      coworker.id,
+      config,
+      monitors.filter((m) => m.id !== monitorId),
+    );
+  }
 
-    const filtered = monitors.filter((m) => m.id !== monitorId);
-
-    await this.prisma.aIAgent.update({
-      where: { id: coworker.id },
-      data: {
-        configuration: {
-          ...config,
-          monitors: filtered,
-        } as any,
-      },
-    });
+  async checkMonitorNow(workspaceId: string, coworkerId: string, monitorId: string): Promise<TrackerMonitor> {
+    const checked = await this.monitorSweep.checkNow(workspaceId, coworkerId, monitorId);
+    if (!checked) throw new NotFoundException('Monitor not found');
+    return checked;
   }
 
   // -------------------------------------------------------------------------

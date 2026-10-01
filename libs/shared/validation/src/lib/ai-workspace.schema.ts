@@ -430,3 +430,26 @@ export const workflowGraphSchema = z.object({
 });
 
 export type WorkflowGraphInput = z.infer<typeof workflowGraphSchema>;
+
+/* --------------------------------------------------- tracker monitors ------ */
+
+/**
+ * A Tracker monitor as a person may set it. Ownership (`createdBy`) and the
+ * check bookkeeping (`lastCheckedAt`, `lastResult`…) are the server's — a
+ * body cannot hand a monitor to someone else or fake when it last ran.
+ */
+export const createTrackerMonitorSchema = z.object({
+  name: text(120).optional(),
+  type: z.enum(['task', 'project', 'metric', 'event', 'deadline', 'status']).optional(),
+  target: text(200).optional(),
+  condition: text(300).min(1, 'Say what to watch for.'),
+  frequency: z.enum(['realtime', 'hourly', 'daily', 'weekly']).optional(),
+  intervalMinutes: z.number().int().min(5).max(10_080).optional(),
+  destinations: z.array(text(120).min(1)).max(10).optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const updateTrackerMonitorSchema = createTrackerMonitorSchema.partial();
+
+export type CreateTrackerMonitorInput = z.infer<typeof createTrackerMonitorSchema>;
+export type UpdateTrackerMonitorInput = z.infer<typeof updateTrackerMonitorSchema>;

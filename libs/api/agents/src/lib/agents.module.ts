@@ -26,6 +26,7 @@ import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
 import { FirecrawlService } from './firecrawl.service.js';
 import { AIResourceManageGuard } from './ai-entity-access.guard.js';
 import { AgentOutputDeliveryService } from './agent-output-delivery.service.js';
+import { TrackerMonitorSweepService } from './tracker-monitor-sweep.service.js';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { AgentOutputDeliveryService } from './agent-output-delivery.service.js';
     AgentApprovalListener,
     AgentScheduleSweepService,
     AgentOutputDeliveryService,
+    TrackerMonitorSweepService,
     AIResourceManageGuard,
   ],
   exports: [
@@ -69,6 +71,7 @@ import { AgentOutputDeliveryService } from './agent-output-delivery.service.js';
     AgentStudioAiModeService,
     MCPToolRegistryService,
     FirecrawlService,
+    TrackerMonitorSweepService,
   ],
 })
 export class AgentsModule {}

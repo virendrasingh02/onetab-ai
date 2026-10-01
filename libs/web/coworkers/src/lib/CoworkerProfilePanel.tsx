@@ -1,7 +1,9 @@
 import type { AICoworkerDetail, TrackerMonitor, AgentSchedule } from '@org/types';
+import { coworkerTemplateKey, getCoworkerTemplate } from '@org/types';
 import {
   Badge,
   Button,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -12,7 +14,7 @@ import {
   toast,
   type RightPanelProfile,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, formatRelative } from '@org/utils';
 import {
   Activity,
   Bot,
@@ -29,6 +31,7 @@ import {
   MoreVertical,
   Play,
   Plug,
+  RefreshCw,
   Shield,
   Trash2,
   Unlink,
@@ -38,6 +41,7 @@ import {
 } from 'lucide-react';
 import { type FC, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCanManageAIResource } from '@org/web-workspace';
 import { CoworkerAvatar } from './CoworkerAvatar.js';
 import { CoworkerCreateDialog } from './CoworkerCreateDialog.js';
 import { CoworkerStatusDot } from './CoworkerStatusDot.js';
@@ -45,6 +49,7 @@ import {
   useCoworker,
   useCoworkerLogs,
   useCoworkerMutations,
+  useCoworkerMonitorMutations,
   useCoworkerMonitors,
   useCoworkerSchedules,
 } from './use-coworkers.js';
@@ -86,12 +91,28 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copiedHandle, setCopiedHandle] = useState(false);
 
-  const isTracker = Boolean(coworker?.name?.toLowerCase().includes('tracker'));
-  const isScheduler = Boolean(coworker?.name?.toLowerCase().includes('scheduler'));
+  // What the coworker was created from — not its (renamable) name.
+  const templateKey = coworkerTemplateKey(coworker?.configuration);
+  const isTracker = templateKey === 'tracker';
+  const isScheduler = templateKey === 'scheduler';
   const { data: monitors } = useCoworkerMonitors(
     workspaceId,
     isTracker ? effectiveId : undefined,
   );
+  const canManage = useCanManageAIResource();
+  const monitorMutations = useCoworkerMonitorMutations(
+    workspaceId,
+    isTracker ? effectiveId : undefined,
+  );
+  const handleCheckMonitor = async (monitor: TrackerMonitor) => {
+    try {
+      const checked = await monitorMutations.check.mutateAsync(monitor.id);
+      if (checked.lastError) toast.error(checked.lastError);
+      else toast.success(checked.lastResult?.summary ?? 'Checked');
+    } catch {
+      toast.error('Could not run the check');
+    }
+  };
   const { data: schedules } = useCoworkerSchedules(
     workspaceId,
     isScheduler ? effectiveId : undefined,
@@ -137,40 +158,21 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
       })
     : 'Recently';
 
-  const capabilities: string[] =
-    (coworker.configuration as any)?.capabilities ??
-    (isScheduler
-      ? [
-          'Create reminders',
-          'Schedule tasks',
-          'Create recurring schedules',
-          'Schedule workflows',
-          'Track deadlines',
-          'Create calendar events when authorized',
-          'Follow up on assigned work',
-          'Report scheduled activity',
-        ]
-      : isTracker
-      ? [
-          'Monitor tasks',
-          'Monitor projects',
-          'Monitor status changes',
-          'Monitor configured metrics',
-          'Monitor events',
-          'Detect meaningful changes',
-          'Report exceptions',
-          'Generate tracking summaries',
-        ]
-      : []);
+  const configuredCapabilities = (coworker.configuration as { capabilities?: unknown } | null)
+    ?.capabilities;
+  const capabilities: string[] = Array.isArray(configuredCapabilities)
+    ? configuredCapabilities.filter((c): c is string => typeof c === 'string')
+    : [...(getCoworkerTemplate(templateKey)?.capabilities ?? [])];
 
   const handleDelete = async () => {
-    if (
-      !window.confirm(
-        `Are you sure you want to remove AI Coworker "${coworker.name}"? This action cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: `Remove “${coworker.name}”?`,
+      description:
+        'The coworker, its schedules and monitors are removed from this workspace. This cannot be undone.',
+      confirmLabel: 'Remove coworker',
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await mutations.remove.mutateAsync(coworker.id);
       toast.success(`Removed coworker ${coworker.name}`);
@@ -438,15 +440,49 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
                 <div className="space-y-1.5">
                   {monitors.map((m: TrackerMonitor) => (
                     <div key={m.id} className="rounded-lg border border-border bg-card p-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium truncate">{m.name}</span>
-                        <Badge variant={m.enabled ? 'primary' : 'neutral'} className="text-[9px] px-1 py-0">
-                          {m.type}
-                        </Badge>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium truncate">{m.name ?? m.target}</span>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Badge variant={m.enabled ? 'primary' : 'neutral'} className="text-[9px] px-1 py-0">
+                            {m.enabled ? (m.frequency ?? 'hourly') : 'paused'}
+                          </Badge>
+                          {canManage(coworker.creatorId) ? (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`Check “${m.name ?? m.target}” now`}
+                            title="Check now"
+                            disabled={monitorMutations.check.isPending}
+                            onClick={() => void handleCheckMonitor(m)}
+                          >
+                            <RefreshCw
+                              className={cn(
+                                'size-3',
+                                monitorMutations.check.isPending &&
+                                  monitorMutations.check.variables === m.id &&
+                                  'animate-spin',
+                              )}
+                            />
+                          </Button>
+                          ) : null}
+                        </div>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Condition: {m.condition} ({m.intervalMinutes}m)
+                        Watches {m.target} for “{m.condition}”
+                        {m.destinations?.length ? ` · tells ${m.destinations.join(', ')}` : ''}
                       </p>
+                      {m.lastError ? (
+                        <p className="text-[11px] text-destructive mt-1">{m.lastError}</p>
+                      ) : m.lastResult ? (
+                        <p className="text-[11px] text-foreground/80 mt-1">
+                          {m.lastResult.count > 0 ? m.lastResult.summary : 'Last check: nothing to report'}
+                          {m.lastCheckedAt ? (
+                            <span className="text-muted-foreground"> · {formatRelative(m.lastCheckedAt)}</span>
+                          ) : null}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground mt-1">Not checked yet — first check within 5 minutes.</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -528,9 +564,8 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
                           <span
                             className={cn(
                               'h-2 w-2 rounded-full shrink-0',
-                              log.status === 'COMPLETED'
-                                ? 'bg-emerald-500'
-                                : 'bg-rose-500',
+                              // Logs are written SUCCESS / FAILED.
+                              log.status === 'FAILED' ? 'bg-rose-500' : 'bg-emerald-500',
                             )}
                           />
                           <span className="font-medium truncate max-w-[130px]">
