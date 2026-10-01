@@ -130,6 +130,8 @@ export interface ChatPanelProps {
   onCreateTask?: (message: Message) => void;
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
+  onAssignScheduler?: (message: Message) => void;
+  onTrackTracker?: (message: Message) => void;
   /** Replaces the composer with a read-only notice — see `ChatSurface`. */
   composerReadOnlyMessage?: ReactNode;
   /** Same, for the thread reply composer specifically — see `ChatSurface`. */
@@ -167,6 +169,8 @@ export function ChatPanel({
   onCreateTask,
   onCreateDoc,
   onAskAI,
+  onAssignScheduler,
+  onTrackTracker,
   composerReadOnlyMessage,
   threadComposerReadOnlyMessage,
   anonymousPosting,
@@ -906,6 +910,8 @@ export function ChatPanel({
       onCreateTask={handleCreateTask}
       onCreateDoc={handleCreateDoc}
       onAskAI={handleAskAI}
+      onAssignScheduler={onAssignScheduler}
+      onTrackTracker={onTrackTracker}
       onViewContext={handleViewContext}
       onAction={handleAction}
       onRetryAgent={handleRetryAgent}

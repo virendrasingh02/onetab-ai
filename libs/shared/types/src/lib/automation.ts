@@ -232,3 +232,29 @@ export interface CoworkerRunResult {
   result: string;
   logId: string;
 }
+
+export type TrackerMonitorType =
+  | 'task'
+  | 'project'
+  | 'metric'
+  | 'event'
+  | 'deadline'
+  | 'status';
+
+export interface TrackerMonitor {
+  id: string;
+  workspaceId: string;
+  coworkerId: string;
+  name?: string;
+  type: TrackerMonitorType;
+  target: string;
+  condition: string;
+  frequency?: string;
+  intervalMinutes?: number;
+  destinations?: string[];
+  enabled: boolean;
+  lastCheckedAt?: string | null;
+  lastTriggeredAt?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+}

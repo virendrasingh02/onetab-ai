@@ -924,7 +924,203 @@ export function buildPlatformTools(deps: PlatformToolDeps): PlatformToolDefiniti
     },
   };
 
-  return [findTasks, listMeetings, getActivity, projectOverview, readDoc, searchDocs, createDoc, createTask, createTasks, updateTask, notifyUser, searchEmail];
+  const createReminder: PlatformToolDefinition = {
+    name: 'create_reminder',
+    description:
+      'Schedule a reminder in the workspace. Reminders notify the user or channel at the requested time.',
+    parameters: {
+      snippet: { type: 'string', description: 'What to remind the user about (the reminder text).' },
+      remindAt: {
+        type: 'string',
+        description: 'ISO-8601 date string or timestamp for when the reminder should fire.',
+      },
+      roomId: {
+        type: 'string',
+        description: 'Optional Matrix room ID or channel ID where the reminder should be sent.',
+      },
+    },
+    optional: ['roomId'],
+    handler: async (p: Record<string, unknown>, ctx) => {
+      const me = ctx.actingUserId;
+      if (!me) throw new Error('No acting user context for reminder.');
+      const snippet = given(p['snippet']);
+      if (!snippet) throw new Error('Snippet is required.');
+      let remindAtDate = new Date(String(p['remindAt']));
+      if (isNaN(remindAtDate.getTime())) {
+        remindAtDate = new Date(Date.now() + 60 * 60_000);
+      }
+      const roomId = typeof p['roomId'] === 'string' && p['roomId'] ? p['roomId'] : `workspace-${ctx.workspaceId}`;
+      const reminder = await prisma.messageReminder.create({
+        data: {
+          workspaceId: ctx.workspaceId,
+          userId: me,
+          roomId,
+          eventId: `remind-${Date.now()}`,
+          deepLink: `/w/${ctx.workspaceId}/schedule`,
+          snippet: snippet.slice(0, 280),
+          remindAt: remindAtDate,
+        },
+      });
+      return {
+        id: reminder.id,
+        snippet: reminder.snippet,
+        remindAt: reminder.remindAt.toISOString(),
+        link: reminder.deepLink,
+        status: 'scheduled',
+      };
+    },
+  };
+
+  const listReminders: PlatformToolDefinition = {
+    name: 'list_reminders',
+    description: 'List pending scheduled reminders for the workspace and acting user.',
+    parameters: {
+      limit: { type: 'number', description: 'Max reminders to return (default 10).' },
+    },
+    optional: ['limit'],
+    handler: async (p: Record<string, unknown>, ctx) => {
+      const me = ctx.actingUserId;
+      const limit = typeof p['limit'] === 'number' ? Math.min(p['limit'], 50) : 10;
+      const rows = await prisma.messageReminder.findMany({
+        where: {
+          workspaceId: ctx.workspaceId,
+          ...(me ? { userId: me } : {}),
+          firedAt: null,
+        },
+        orderBy: { remindAt: 'asc' },
+        take: limit,
+      });
+      return {
+        count: rows.length,
+        reminders: rows.map((r) => ({
+          id: r.id,
+          snippet: r.snippet,
+          remindAt: r.remindAt.toISOString(),
+          roomId: r.roomId,
+        })),
+      };
+    },
+  };
+
+  const createMonitor: PlatformToolDefinition = {
+    name: 'create_monitor',
+    description:
+      'Configure a Tracker monitor to watch workspace tasks, projects, metrics, or status changes and report exceptions.',
+    parameters: {
+      targetType: {
+        type: 'string',
+        enum: ['task', 'project', 'metric', 'event', 'deadline', 'status'],
+        description: 'What kind of resource or condition to monitor.',
+      },
+      target: {
+        type: 'string',
+        description: 'The target name, project name, or identifier being monitored.',
+      },
+      condition: {
+        type: 'string',
+        description: 'The condition to watch for, e.g. "status changes", "becomes overdue", "milestone reached".',
+      },
+      destination: {
+        type: 'string',
+        description: 'Where to report changes, e.g. a channel name, #channel, or "me".',
+      },
+      frequency: {
+        type: 'string',
+        description: 'Monitoring frequency, e.g. "realtime", "hourly", "daily".',
+      },
+    },
+    optional: ['target', 'destination', 'frequency'],
+    handler: async (p: Record<string, unknown>, ctx) => {
+      const targetType = String(p['targetType'] || 'task');
+      const target = String(p['target'] || 'All tasks');
+      const condition = String(p['condition'] || 'status changes');
+      const destination = typeof p['destination'] === 'string' ? p['destination'] : '#general';
+      const frequency = typeof p['frequency'] === 'string' ? p['frequency'] : 'realtime';
+
+      const tracker = await prisma.aIAgent.findFirst({
+        where: { workspaceId: ctx.workspaceId, type: 'coworker', name: 'Tracker' },
+      });
+
+      const monitorId = `mon-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const monitorRecord = {
+        id: monitorId,
+        workspaceId: ctx.workspaceId,
+        coworkerId: tracker?.id ?? 'tracker',
+        type: targetType,
+        target,
+        condition,
+        frequency,
+        destinations: [destination],
+        enabled: true,
+        lastCheckedAt: new Date().toISOString(),
+        lastTriggeredAt: null,
+        createdBy: ctx.actingUserId,
+        createdAt: new Date().toISOString(),
+      };
+
+      if (tracker) {
+        const config = (tracker.configuration ?? {}) as Record<string, unknown>;
+        const monitors = Array.isArray(config['monitors']) ? [...(config['monitors'] as unknown[])] : [];
+        monitors.push(monitorRecord);
+        await prisma.aIAgent.update({
+          where: { id: tracker.id },
+          data: { configuration: { ...config, monitors } as any },
+        });
+      }
+
+      return {
+        success: true,
+        monitor: monitorRecord,
+        message: `Tracker monitor configured for ${target} on condition "${condition}". Reports will be sent to ${destination}.`,
+      };
+    },
+  };
+
+  const listMonitors: PlatformToolDefinition = {
+    name: 'list_monitors',
+    description: 'List active Tracker monitors configured in this workspace.',
+    parameters: {
+      targetType: {
+        type: 'string',
+        description: 'Optional filter by targetType (task, project, metric, etc.)',
+      },
+    },
+    optional: ['targetType'],
+    handler: async (p: Record<string, unknown>, ctx) => {
+      const tracker = await prisma.aIAgent.findFirst({
+        where: { workspaceId: ctx.workspaceId, type: 'coworker', name: 'Tracker' },
+        select: { configuration: true },
+      });
+      const config = (tracker?.configuration ?? {}) as Record<string, unknown>;
+      let monitors = Array.isArray(config['monitors']) ? (config['monitors'] as Record<string, unknown>[]) : [];
+      if (typeof p['targetType'] === 'string' && p['targetType']) {
+        monitors = monitors.filter((m) => m['type'] === p['targetType']);
+      }
+      return {
+        count: monitors.length,
+        monitors,
+      };
+    },
+  };
+
+  return [
+    findTasks,
+    listMeetings,
+    getActivity,
+    projectOverview,
+    readDoc,
+    searchDocs,
+    createDoc,
+    createTask,
+    createTasks,
+    updateTask,
+    notifyUser,
+    searchEmail,
+    createReminder,
+    listReminders,
+    createMonitor,
+    listMonitors,
+  ];
 }
 
 /** A task list the way models write one: JSON array, JSON text, or markdown bullets. */

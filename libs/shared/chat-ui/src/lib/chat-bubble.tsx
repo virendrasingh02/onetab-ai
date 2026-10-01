@@ -14,12 +14,14 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  Activity,
   AlertTriangle,
   Bell,
   BellOff,
   Blocks,
   Bookmark,
   Bot,
+  Calendar,
   CheckSquare,
   ChevronDown,
   ChevronLeft,
@@ -118,6 +120,8 @@ export interface ChatBubbleProps {
   onCreateTask?: () => void;
   onCreateDoc?: () => void;
   onAskAI?: () => void;
+  onAssignScheduler?: () => void;
+  onTrackTracker?: () => void;
   onViewContext?: () => void;
   threadParticipants?: RoomMember[];
   lastReplyAt?: number;
@@ -128,7 +132,7 @@ export interface ChatBubbleProps {
    * `@handles` are recognised, which cuts a name like "Ana Ruiz" in half.
    */
   mentionNames?: string[];
-  entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread';
+  entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread' | 'coworker';
   onRetry?: () => void;
   linkPreviewsEnabled?: boolean;
   workspacePolicy?: WorkspacePolicy;
@@ -455,6 +459,8 @@ export function ChatBubble({
   onCreateTask,
   onCreateDoc,
   onAskAI,
+  onAssignScheduler,
+  onTrackTracker,
   onViewContext,
   threadParticipants,
   lastReplyAt,
@@ -635,8 +641,14 @@ export function ChatBubble({
     ? /@(here|channel|everyone|\w+)/.test(message.body)
     : false;
 
+  const isCoworker =
+    entityKind === 'coworker' ||
+    message.senderId.startsWith('coworker-') ||
+    /\b(scheduler|tracker)\b/i.test(message.senderName);
+
   const isAgent =
-    entityKind === 'agent' ||
+    !isCoworker &&
+    (entityKind === 'agent' ||
     message.senderId.startsWith('agent-') ||
     message.senderId.includes('copilot') ||
     message.senderId.includes('codereview') ||
@@ -646,7 +658,7 @@ export function ChatBubble({
     message.senderId.includes('data') ||
     /\b(copilot|assistant|reviewer|standup|triage|bot|agent)\b/i.test(
       message.senderName,
-    );
+    ));
 
   const isDoc =
     entityKind === 'doc' ||
@@ -667,6 +679,7 @@ export function ChatBubble({
     /\b(kanban|board|sprint|epic)\b/i.test(message.senderName);
 
   const isApp =
+    !isCoworker &&
     !isAgent &&
     !isDoc &&
     !isTask &&
@@ -679,7 +692,15 @@ export function ChatBubble({
 
   const effectiveBadge =
     senderBadge ||
-    (isAgent ? (
+    (isCoworker ? (
+      <Badge
+        variant="primary"
+        className="py-0 h-4 font-bold tracking-wider gap-0.5 text-[9px] uppercase border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300"
+      >
+        <UserCheck className="size-2.5 mr-0.5 inline-block" />
+        <span>AI COWORKER</span>
+      </Badge>
+    ) : isAgent ? (
       <Badge
         variant="primary"
         className="py-0 h-4 font-bold tracking-wider gap-0.5 text-[9px] uppercase"
@@ -934,6 +955,20 @@ export function ChatBubble({
             icon: Bot,
             hidden: !onAskAI,
             run: onAskAI,
+          },
+          {
+            id: 'assign-scheduler',
+            label: 'Assign to Scheduler',
+            icon: Calendar,
+            hidden: !onAssignScheduler,
+            run: onAssignScheduler,
+          },
+          {
+            id: 'track-tracker',
+            label: 'Track with Tracker',
+            icon: Activity,
+            hidden: !onTrackTracker,
+            run: onTrackTracker,
           },
         ],
       },

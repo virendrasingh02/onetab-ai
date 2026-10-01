@@ -291,6 +291,8 @@ export type {
   CoworkerPermissions,
   CoworkerRunResult,
   CoworkerStatus,
+  TrackerMonitor,
+  TrackerMonitorType,
   ExternalIntegration,
   WorkflowExecution,
   WorkflowExecutionEntry,

@@ -52,10 +52,12 @@ export interface MessageRendererProps {
   onCreateTask?: () => void;
   onCreateDoc?: () => void;
   onAskAI?: () => void;
+  onAssignScheduler?: () => void;
+  onTrackTracker?: () => void;
   onViewContext?: () => void;
   onAction?: (action: StructuredMessageAction) => void | Promise<void>;
   onRetry?: () => void;
-  entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread';
+  entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread' | 'coworker';
   /** Whether the viewer can manage this conversation — gates a system
    * event's admin-only actions (delete/hide). */
   canManageConversation?: boolean;

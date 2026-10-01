@@ -191,6 +191,101 @@ export class CoworkersController {
   ) {
     return this.coworkersService.unlinkApp(workspaceId, coworkerId, integrationId);
   }
+
+  // -------------------------------------------------------------------------
+  // Tracker Monitors
+  // -------------------------------------------------------------------------
+
+  @Get(':coworkerId/monitors')
+  listMonitors(
+    @WorkspaceId() workspaceId: string,
+    @Param('coworkerId') coworkerId: string,
+  ) {
+    return this.coworkersService.listMonitors(workspaceId, coworkerId);
+  }
+
+  @Post(':coworkerId/monitors')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
+  createMonitor(
+    @WorkspaceId() workspaceId: string,
+    @Param('coworkerId') coworkerId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: any,
+  ) {
+    return this.coworkersService.createMonitor(workspaceId, coworkerId, userId, body);
+  }
+
+  @Patch(':coworkerId/monitors/:monitorId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
+  updateMonitor(
+    @WorkspaceId() workspaceId: string,
+    @Param('coworkerId') coworkerId: string,
+    @Param('monitorId') monitorId: string,
+    @Body() body: any,
+  ) {
+    return this.coworkersService.updateMonitor(workspaceId, coworkerId, monitorId, body);
+  }
+
+  @Delete(':coworkerId/monitors/:monitorId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteMonitor(
+    @WorkspaceId() workspaceId: string,
+    @Param('coworkerId') coworkerId: string,
+    @Param('monitorId') monitorId: string,
+  ): Promise<void> {
+    return this.coworkersService.deleteMonitor(workspaceId, coworkerId, monitorId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Scheduler Schedules
+  // -------------------------------------------------------------------------
+
+  @Get(':coworkerId/schedules')
+  listSchedules(
+    @WorkspaceId() workspaceId: string,
+    @Param('coworkerId') coworkerId: string,
+  ) {
+    return this.coworkersService.listSchedules(workspaceId, coworkerId);
+  }
+
+  @Post(':coworkerId/schedules')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
+  createSchedule(
+    @WorkspaceId() workspaceId: string,
+    @Param('coworkerId') coworkerId: string,
+    @Body() body: { cronExpression: string; description?: string },
+  ) {
+    return this.coworkersService.createSchedule(workspaceId, coworkerId, body);
+  }
+
+  @Patch(':coworkerId/schedules/:scheduleId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
+  updateSchedule(
+    @WorkspaceId() workspaceId: string,
+    @Param('coworkerId') coworkerId: string,
+    @Param('scheduleId') scheduleId: string,
+    @Body() body: { cronExpression?: string; description?: string; isActive?: boolean },
+  ) {
+    return this.coworkersService.updateSchedule(workspaceId, coworkerId, scheduleId, body);
+  }
+
+  @Delete(':coworkerId/schedules/:scheduleId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('coworkerId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteSchedule(
+    @WorkspaceId() workspaceId: string,
+    @Param('coworkerId') coworkerId: string,
+    @Param('scheduleId') scheduleId: string,
+  ): Promise<void> {
+    return this.coworkersService.deleteSchedule(workspaceId, coworkerId, scheduleId);
+  }
 }
 
 /**

@@ -150,25 +150,18 @@ export const DEFAULT_AI_AGENT_MENTIONS: MentionCandidate[] = [
 
 export const DEFAULT_COWORKER_MENTIONS: MentionCandidate[] = [
   {
-    id: 'coworker-alex',
-    name: 'alex',
-    subtitle: 'AI Coworker — Technical Project Manager',
+    id: 'coworker-scheduler',
+    name: 'Scheduler',
+    subtitle: 'AI Coworker — Scheduling, reminders & workflows',
     kind: 'coworker',
-    badge: 'COWORKER',
+    badge: 'AI COWORKER',
   },
   {
-    id: 'coworker-sarah',
-    name: 'sarah',
-    subtitle: 'AI Coworker — Product & UX Designer',
+    id: 'coworker-tracker',
+    name: 'Tracker',
+    subtitle: 'AI Coworker — Monitoring tasks, projects & metrics',
     kind: 'coworker',
-    badge: 'COWORKER',
-  },
-  {
-    id: 'coworker-marcus',
-    name: 'marcus',
-    subtitle: 'AI Coworker — Engineering Lead & Architect',
-    kind: 'coworker',
-    badge: 'COWORKER',
+    badge: 'AI COWORKER',
   },
 ];
 

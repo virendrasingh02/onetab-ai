@@ -1,4 +1,4 @@
-import type { AICoworkerDetail } from '@org/types';
+import type { AICoworkerDetail, TrackerMonitor, AgentSchedule } from '@org/types';
 import {
   Badge,
   Button,
@@ -45,6 +45,8 @@ import {
   useCoworker,
   useCoworkerLogs,
   useCoworkerMutations,
+  useCoworkerMonitors,
+  useCoworkerSchedules,
 } from './use-coworkers.js';
 
 export interface CoworkerProfilePanelProps {
@@ -83,6 +85,17 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
   const mutations = useCoworkerMutations(workspaceId);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copiedHandle, setCopiedHandle] = useState(false);
+
+  const isTracker = Boolean(coworker?.name?.toLowerCase().includes('tracker'));
+  const isScheduler = Boolean(coworker?.name?.toLowerCase().includes('scheduler'));
+  const { data: monitors } = useCoworkerMonitors(
+    workspaceId,
+    isTracker ? effectiveId : undefined,
+  );
+  const { data: schedules } = useCoworkerSchedules(
+    workspaceId,
+    isScheduler ? effectiveId : undefined,
+  );
 
   if (coworkerLoading && !coworker) {
     return (
@@ -123,6 +136,32 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
         year: 'numeric',
       })
     : 'Recently';
+
+  const capabilities: string[] =
+    (coworker.configuration as any)?.capabilities ??
+    (isScheduler
+      ? [
+          'Create reminders',
+          'Schedule tasks',
+          'Create recurring schedules',
+          'Schedule workflows',
+          'Track deadlines',
+          'Create calendar events when authorized',
+          'Follow up on assigned work',
+          'Report scheduled activity',
+        ]
+      : isTracker
+      ? [
+          'Monitor tasks',
+          'Monitor projects',
+          'Monitor status changes',
+          'Monitor configured metrics',
+          'Monitor events',
+          'Detect meaningful changes',
+          'Report exceptions',
+          'Generate tracking summaries',
+        ]
+      : []);
 
   const handleDelete = async () => {
     if (
@@ -364,6 +403,94 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
               <p className="text-xs italic text-muted-foreground rounded-lg bg-muted/40 p-2.5">
                 "{coworker.personality}"
               </p>
+            </div>
+          )}
+
+          {/* Capabilities */}
+          {capabilities.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-border/60">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                <Check className="size-3 text-primary" />
+                <span>Capabilities</span>
+              </h4>
+              <ul className="space-y-1.5">
+                {capabilities.map((cap, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-foreground/90">
+                    <span className="size-1.5 rounded-full bg-primary/70 shrink-0 mt-1.5" />
+                    <span>{cap}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Active Monitors for Tracker */}
+          {isTracker && (
+            <div className="mt-4 pt-3 border-t border-border/60 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Activity className="h-3.5 w-3.5 text-primary" />
+                  Active Monitors
+                </span>
+                <span className="text-[10px] font-mono">{monitors?.length ?? 0}</span>
+              </div>
+              {monitors && monitors.length > 0 ? (
+                <div className="space-y-1.5">
+                  {monitors.map((m: TrackerMonitor) => (
+                    <div key={m.id} className="rounded-lg border border-border bg-card p-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium truncate">{m.name}</span>
+                        <Badge variant={m.enabled ? 'primary' : 'neutral'} className="text-[9px] px-1 py-0">
+                          {m.type}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Condition: {m.condition} ({m.intervalMinutes}m)
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic rounded-lg border border-dashed border-border p-2.5 text-center">
+                  No active monitors configured.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Active Schedules for Scheduler */}
+          {isScheduler && (
+            <div className="mt-4 pt-3 border-t border-border/60 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-primary" />
+                  Active Schedules
+                </span>
+                <span className="text-[10px] font-mono">{schedules?.length ?? 0}</span>
+              </div>
+              {schedules && schedules.length > 0 ? (
+                <div className="space-y-1.5">
+                  {schedules.map((s: AgentSchedule) => (
+                    <div key={s.id} className="rounded-lg border border-border bg-card p-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[11px] font-medium">{s.cronExpression}</span>
+                        <Badge variant={s.isActive ? 'primary' : 'neutral'} className="text-[9px] px-1 py-0">
+                          {s.isActive ? 'Active' : 'Paused'}
+                        </Badge>
+                      </div>
+                      {s.description && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                          {s.description}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic rounded-lg border border-dashed border-border p-2.5 text-center">
+                  No active schedules configured.
+                </p>
+              )}
             </div>
           )}
 

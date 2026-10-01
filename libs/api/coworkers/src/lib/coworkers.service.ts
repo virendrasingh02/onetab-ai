@@ -3,7 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@org/database';
 import { AIEntitiesService } from '@org/api-agents';
 import { AppEvent } from '@org/api-common';
-import type { CoworkerPermissions, CoworkerStatus } from '@org/types';
+import type { CoworkerPermissions, CoworkerStatus, TrackerMonitor } from '@org/types';
 
 @Injectable()
 export class CoworkersService {
@@ -12,6 +12,10 @@ export class CoworkersService {
     private readonly entitiesService: AIEntitiesService,
     private readonly events: EventEmitter2,
   ) {}
+
+  async initializeDefaultCoworkers(workspaceId: string, creatorId?: string): Promise<void> {
+    return this.entitiesService.initializeDefaultCoworkers(workspaceId, creatorId);
+  }
 
   async getCoworkers(workspaceId: string) {
     return this.entitiesService.getEntities(workspaceId, 'coworker');
@@ -324,5 +328,172 @@ export class CoworkersService {
       select: { id: true },
     });
     if (!found) throw new NotFoundException('Project not found.');
+  }
+
+  // -------------------------------------------------------------------------
+  // Tracker Monitors
+  // -------------------------------------------------------------------------
+
+  async listMonitors(workspaceId: string, coworkerId: string): Promise<TrackerMonitor[]> {
+    const coworker = await this.prisma.aIAgent.findFirst({
+      where: { id: coworkerId, workspaceId },
+      select: { configuration: true },
+    });
+    if (!coworker) throw new NotFoundException('Coworker not found');
+    const config = (coworker.configuration ?? {}) as Record<string, unknown>;
+    return Array.isArray(config['monitors']) ? (config['monitors'] as TrackerMonitor[]) : [];
+  }
+
+  async createMonitor(
+    workspaceId: string,
+    coworkerId: string,
+    createdBy: string,
+    input: Omit<TrackerMonitor, 'id' | 'workspaceId' | 'coworkerId' | 'createdAt' | 'createdBy' | 'lastCheckedAt' | 'lastTriggeredAt'>,
+  ): Promise<TrackerMonitor> {
+    const coworker = await this.prisma.aIAgent.findFirst({
+      where: { id: coworkerId, workspaceId },
+      select: { id: true, configuration: true },
+    });
+    if (!coworker) throw new NotFoundException('Coworker not found');
+    const config = (coworker.configuration ?? {}) as Record<string, unknown>;
+    const monitors: TrackerMonitor[] = Array.isArray(config['monitors'])
+      ? [...(config['monitors'] as TrackerMonitor[])]
+      : [];
+
+    const newMonitor: TrackerMonitor = {
+      id: `mon-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      workspaceId,
+      coworkerId,
+      name: input.name ?? input.target,
+      type: input.type,
+      target: input.target,
+      condition: input.condition,
+      frequency: input.frequency ?? 'realtime',
+      intervalMinutes: input.intervalMinutes ?? 15,
+      destinations: input.destinations ?? [],
+      enabled: input.enabled ?? true,
+      lastCheckedAt: new Date().toISOString(),
+      lastTriggeredAt: null,
+      createdBy,
+      createdAt: new Date().toISOString(),
+    };
+
+    monitors.push(newMonitor);
+
+    await this.prisma.aIAgent.update({
+      where: { id: coworker.id },
+      data: {
+        configuration: {
+          ...config,
+          monitors,
+        } as any,
+      },
+    });
+
+    return newMonitor;
+  }
+
+  async updateMonitor(
+    workspaceId: string,
+    coworkerId: string,
+    monitorId: string,
+    input: Partial<TrackerMonitor>,
+  ): Promise<TrackerMonitor> {
+    const coworker = await this.prisma.aIAgent.findFirst({
+      where: { id: coworkerId, workspaceId },
+      select: { id: true, configuration: true },
+    });
+    if (!coworker) throw new NotFoundException('Coworker not found');
+    const config = (coworker.configuration ?? {}) as Record<string, unknown>;
+    const monitors: TrackerMonitor[] = Array.isArray(config['monitors'])
+      ? [...(config['monitors'] as TrackerMonitor[])]
+      : [];
+
+    const idx = monitors.findIndex((m) => m.id === monitorId);
+    if (idx === -1) throw new NotFoundException('Monitor not found');
+
+    const updated: TrackerMonitor = {
+      ...monitors[idx],
+      ...input,
+      id: monitors[idx].id,
+      workspaceId,
+      coworkerId,
+    };
+
+    monitors[idx] = updated;
+
+    await this.prisma.aIAgent.update({
+      where: { id: coworker.id },
+      data: {
+        configuration: {
+          ...config,
+          monitors,
+        } as any,
+      },
+    });
+
+    return updated;
+  }
+
+  async deleteMonitor(
+    workspaceId: string,
+    coworkerId: string,
+    monitorId: string,
+  ): Promise<void> {
+    const coworker = await this.prisma.aIAgent.findFirst({
+      where: { id: coworkerId, workspaceId },
+      select: { id: true, configuration: true },
+    });
+    if (!coworker) throw new NotFoundException('Coworker not found');
+    const config = (coworker.configuration ?? {}) as Record<string, unknown>;
+    const monitors: TrackerMonitor[] = Array.isArray(config['monitors'])
+      ? [...(config['monitors'] as TrackerMonitor[])]
+      : [];
+
+    const filtered = monitors.filter((m) => m.id !== monitorId);
+
+    await this.prisma.aIAgent.update({
+      where: { id: coworker.id },
+      data: {
+        configuration: {
+          ...config,
+          monitors: filtered,
+        } as any,
+      },
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Scheduler Schedules
+  // -------------------------------------------------------------------------
+
+  async listSchedules(workspaceId: string, coworkerId: string) {
+    const coworker = await this.prisma.aIAgent.findFirst({
+      where: { id: coworkerId, workspaceId },
+      include: { schedules: true },
+    });
+    if (!coworker) throw new NotFoundException('Coworker not found');
+    return coworker.schedules;
+  }
+
+  async createSchedule(
+    workspaceId: string,
+    coworkerId: string,
+    data: { cronExpression: string; description?: string },
+  ) {
+    return this.entitiesService.createSchedule(workspaceId, coworkerId, data);
+  }
+
+  async updateSchedule(
+    workspaceId: string,
+    coworkerId: string,
+    scheduleId: string,
+    data: { cronExpression?: string; description?: string; isActive?: boolean },
+  ) {
+    return this.entitiesService.updateSchedule(workspaceId, coworkerId, scheduleId, data);
+  }
+
+  async deleteSchedule(workspaceId: string, coworkerId: string, scheduleId: string) {
+    return this.entitiesService.deleteSchedule(workspaceId, coworkerId, scheduleId);
   }
 }

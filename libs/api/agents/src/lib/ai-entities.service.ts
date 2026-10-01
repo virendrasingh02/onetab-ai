@@ -681,7 +681,7 @@ export class AIEntitiesService {
     });
   }
 
-  async seedInitialCoworkers(workspaceId: string, creatorId?: string): Promise<void> {
+  async initializeDefaultCoworkers(workspaceId: string, creatorId?: string): Promise<void> {
     try {
       const existing = await this.prisma.aIAgent.findMany({
         where: { workspaceId, type: 'coworker' },
@@ -689,90 +689,139 @@ export class AIEntitiesService {
       });
       const names = new Set(existing.map((e) => e.name));
 
-      // 1. Seed Nova (General / Product Coworker)
-      if (!names.has('Nova')) {
-        await this.prisma.aIAgent.create({
-          data: {
-            workspaceId,
-            creatorId: creatorId ?? null,
-            type: 'coworker',
-            name: 'Nova',
-            role: 'Product & General Coworker',
-            description:
-              'Persistent AI product partner for planning, specifications, research, and team coordination.',
-            personality:
-              'Strategic, inquisitive, articulate, and proactive. Helps turn complex ideas into actionable roadmaps.',
-            systemPrompt:
-              'You are Nova, a persistent AI teammate and product partner.',
-            systemInstructions:
-              'Focus on structured thinking, user-centric solutions, clear specifications, and proactive delegation to specialists.',
-            status: 'AVAILABLE',
-            tools: JSON.stringify([
-              'search_docs',
-              'create_doc',
-              'create_task',
-              'list_tasks',
-              'list_projects',
-              'list_channels',
-            ]),
-            permissions: { knowledgeAccess: true } as any,
+      const DEFAULT_SPECS = [
+        {
+          name: 'Scheduler',
+          type: 'coworker' as const,
+          role: 'Scheduling & Coordination',
+          description:
+            'Helps the workspace schedule reminders, recurring work, deadlines, follow-ups, and scheduled workflows.',
+          personality:
+            'Organized, punctual, clear, and proactive. Helps track deadlines, meetings, and recurring work across the workspace.',
+          welcomeMessage:
+            'Hi! I am Scheduler, your AI coworker for reminders, deadlines, recurring work, and scheduled workflows. How can I help coordinate your schedule today?',
+          systemPrompt:
+            'You are Scheduler, an AI Coworker specialized in workspace scheduling, reminders, recurring work, deadlines, follow-ups, and scheduled workflows.',
+          systemInstructions:
+            'Coordinate scheduling, reminders, recurring work, and deadlines. Use available tools to create reminders, inspect tasks, follow up on assigned work, and report scheduled activity. Always verify timing and permissions with the user before committing scheduled workflows.',
+          status: 'AVAILABLE' as const,
+          tools: [
+            'create_reminder',
+            'list_reminders',
+            'find_tasks',
+            'create_task',
+            'update_task',
+            'list_tasks',
+            'list_meetings',
+            'list_projects',
+            'list_channels',
+            'search_docs',
+            'read_doc',
+            'notify_user',
+          ],
+          permissions: {
+            remindersAccess: true,
+            calendarAccess: true,
+            taskAccess: true,
+            knowledgeAccess: true,
           },
-        });
-        this.logger.log(`Seeded default coworker 'Nova' in workspace ${workspaceId}`);
-      }
+          configuration: {
+            coworkerType: 'scheduler',
+            capabilities: [
+              'Create reminders',
+              'Schedule tasks',
+              'Create recurring schedules',
+              'Schedule workflows',
+              'Track deadlines',
+              'Create calendar events when authorized',
+              'Follow up on assigned work',
+              'Report scheduled activity',
+            ],
+          },
+        },
+        {
+          name: 'Tracker',
+          type: 'coworker' as const,
+          role: 'Monitoring & Tracking',
+          description:
+            'Monitors workspace activity, projects, tasks, metrics, and configured conditions and reports meaningful changes.',
+          personality:
+            'Vigilant, analytical, concise, and dependable. Watches for bottlenecks, overdue tasks, and milestone updates.',
+          welcomeMessage:
+            'Hello! I am Tracker, your AI coworker for monitoring workspace tasks, projects, metrics, and conditions. What would you like me to keep an eye on?',
+          systemPrompt:
+            'You are Tracker, an AI Coworker specialized in monitoring workspace activity, projects, tasks, metrics, events, and configured conditions.',
+          systemInstructions:
+            'Monitor workspace tasks, project status changes, and deadlines. Generate tracking summaries, detect meaningful changes or exceptions, and report them to the configured destination or channel without unnecessary noise.',
+          status: 'AVAILABLE' as const,
+          tools: [
+            'find_tasks',
+            'list_tasks',
+            'get_project_overview',
+            'list_projects',
+            'get_activity',
+            'create_task',
+            'update_task',
+            'search_docs',
+            'read_doc',
+            'notify_user',
+            'list_channels',
+            'create_monitor',
+            'list_monitors',
+          ],
+          permissions: {
+            projectAccess: true,
+            taskAccess: true,
+            activityAccess: true,
+            knowledgeAccess: true,
+          },
+          configuration: {
+            coworkerType: 'tracker',
+            capabilities: [
+              'Monitor tasks',
+              'Monitor projects',
+              'Monitor status changes',
+              'Monitor configured metrics',
+              'Monitor events',
+              'Detect meaningful changes',
+              'Report exceptions',
+              'Generate tracking summaries',
+            ],
+            monitors: [],
+          },
+        },
+      ];
 
-      // 2. Seed Codey (Engineering Coworker)
-      if (!names.has('Codey')) {
-        const codey = await this.prisma.aIAgent.create({
-          data: {
-            workspaceId,
-            creatorId: creatorId ?? null,
-            type: 'coworker',
-            name: 'Codey',
-            role: 'Engineering Coworker',
-            description:
-              'Persistent AI engineering teammate for code architecture, debugging, reviews, and development.',
-            personality:
-              'Pragmatic, detail-oriented, technically rigorous. Prefers robust code solutions and clean architecture.',
-            systemPrompt:
-              'You are Codey, a persistent AI engineering coworker.',
-            systemInstructions:
-              'Offer precise code analysis, adhere to project conventions, debug methodically, and delegate to specialist agents when appropriate.',
-            status: 'AVAILABLE',
-            tools: JSON.stringify([
-              'search_docs',
-              'create_doc',
-              'create_task',
-              'list_tasks',
-              'list_projects',
-            ]),
-            permissions: { knowledgeAccess: true } as any,
-          },
-        });
-        this.logger.log(`Seeded default coworker 'Codey' in workspace ${workspaceId}`);
-
-        // Link Codey to any active Code Reviewer Agent in the workspace
-        const reviewerAgent = await this.prisma.aIAgent.findFirst({
-          where: {
-            workspaceId,
-            type: 'agent',
-            name: { contains: 'Reviewer', mode: 'insensitive' },
-          },
-          select: { id: true },
-        });
-        if (reviewerAgent) {
-          await this.prisma.coworkerAgent.create({
+      for (const spec of DEFAULT_SPECS) {
+        if (!names.has(spec.name)) {
+          await this.prisma.aIAgent.create({
             data: {
-              coworkerId: codey.id,
-              agentId: reviewerAgent.id,
+              workspaceId,
+              creatorId: creatorId ?? null,
+              type: spec.type,
+              name: spec.name,
+              role: spec.role,
+              description: spec.description,
+              personality: spec.personality,
+              welcomeMessage: spec.welcomeMessage,
+              systemPrompt: spec.systemPrompt,
+              systemInstructions: spec.systemInstructions,
+              status: spec.status,
+              tools: JSON.stringify(spec.tools),
+              permissions: spec.permissions as any,
+              configuration: spec.configuration as any,
             },
           });
-          this.logger.log(`Linked Codey to Code Reviewer Agent (${reviewerAgent.id})`);
+          this.logger.log(`Initialized default coworker '${spec.name}' in workspace ${workspaceId}`);
         }
       }
     } catch (error) {
-      this.logger.warn(`Failed to seed initial coworkers for workspace ${workspaceId}: ${String(error)}`);
+      this.logger.warn(`Failed to initialize default coworkers for workspace ${workspaceId}: ${String(error)}`);
     }
+  }
+
+  async seedInitialCoworkers(workspaceId: string, creatorId?: string): Promise<void> {
+    return this.initializeDefaultCoworkers(workspaceId, creatorId);
   }
 
   private async assertEntity(workspaceId: string, entityId: string) {

@@ -105,6 +105,8 @@ export const READ_ONLY_AGENT_TOOLS: readonly string[] = [
   'get_activity',
   'read_doc',
   'search_email',
+  'list_reminders',
+  'list_monitors',
   'firecrawl_search',
   'firecrawl_scrape',
   'firecrawl_crawl',

@@ -294,6 +294,8 @@ export interface ChatSurfaceProps {
   onCreateTask?: (message: Message) => void;
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
+  onAssignScheduler?: (message: Message) => void;
+  onTrackTracker?: (message: Message) => void;
   onViewContext?: (message: Message) => void;
   /**
    * Whether the caller may manage this conversation (channel admin / workspace
@@ -406,6 +408,8 @@ export function ChatSurface({
   onCreateTask,
   onCreateDoc,
   onAskAI,
+  onAssignScheduler,
+  onTrackTracker,
   onViewContext,
   onAction,
   onRetryAgent,
@@ -1023,6 +1027,42 @@ export function ChatSurface({
           onCreateTask={onCreateTask ? () => onCreateTask(message) : undefined}
           onCreateDoc={onCreateDoc ? () => onCreateDoc(message) : undefined}
           onAskAI={onAskAI ? () => onAskAI(message) : undefined}
+          onAssignScheduler={
+            onAssignScheduler
+              ? () => onAssignScheduler(message)
+              : conversationId
+                ? () => {
+                    const targetId = message.threadRootId
+                      ? `${conversationId}-thread-${message.threadRootId}`
+                      : conversationId;
+                    insertIntoComposer(
+                      targetId,
+                      `@Scheduler schedule: "${message.body.slice(0, 100)}" `,
+                    );
+                    toast.info('Assigned to Scheduler', {
+                      description: 'Drafted prompt with @Scheduler',
+                    });
+                  }
+                : undefined
+          }
+          onTrackTracker={
+            onTrackTracker
+              ? () => onTrackTracker(message)
+              : conversationId
+                ? () => {
+                    const targetId = message.threadRootId
+                      ? `${conversationId}-thread-${message.threadRootId}`
+                      : conversationId;
+                    insertIntoComposer(
+                      targetId,
+                      `@Tracker track: "${message.body.slice(0, 100)}" `,
+                    );
+                    toast.info('Track with Tracker', {
+                      description: 'Drafted prompt with @Tracker',
+                    });
+                  }
+                : undefined
+          }
           onViewContext={
             onViewContext ? () => onViewContext(message) : undefined
           }
@@ -1154,6 +1194,8 @@ export function ChatSurface({
       onCreateTask,
       onCreateDoc,
       onAskAI,
+      onAssignScheduler,
+      onTrackTracker,
       onAction,
       onRetryAgent,
       onRetry,

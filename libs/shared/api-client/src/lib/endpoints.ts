@@ -62,6 +62,7 @@ import type {
   AgentExecutionLog,
   AgentTestRunResult,
   AgentVersion,
+  AgentSchedule,
   AgentExecutionLogEntry,
   AgentRunResult,
   AIEntity,
@@ -282,6 +283,7 @@ import type {
   CreateMCPConnectionInput,
   AIStudioOverview,
   AIFeedbackPayload,
+  TrackerMonitor,
 } from '@org/types';
 
 import type {
@@ -2669,6 +2671,90 @@ export const coworkersApi = {
     request<void>(
       http.delete(
         `/workspaces/${workspaceId}/projects/${projectId}/coworkers/${coworkerId}`,
+      ),
+    ),
+
+  // Tracker Monitors
+  listMonitors: (workspaceId: string, coworkerId: string) =>
+    request<TrackerMonitor[]>(
+      http.get(`/workspaces/${workspaceId}/coworkers/${coworkerId}/monitors`),
+    ),
+
+  createMonitor: (
+    workspaceId: string,
+    coworkerId: string,
+    input: Partial<TrackerMonitor>,
+  ) =>
+    request<TrackerMonitor>(
+      http.post(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/monitors`,
+        input,
+      ),
+    ),
+
+  updateMonitor: (
+    workspaceId: string,
+    coworkerId: string,
+    monitorId: string,
+    input: Partial<TrackerMonitor>,
+  ) =>
+    request<TrackerMonitor>(
+      http.patch(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/monitors/${monitorId}`,
+        input,
+      ),
+    ),
+
+  deleteMonitor: (
+    workspaceId: string,
+    coworkerId: string,
+    monitorId: string,
+  ) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/monitors/${monitorId}`,
+      ),
+    ),
+
+  // Scheduler Schedules
+  listSchedules: (workspaceId: string, coworkerId: string) =>
+    request<AgentSchedule[]>(
+      http.get(`/workspaces/${workspaceId}/coworkers/${coworkerId}/schedules`),
+    ),
+
+  createSchedule: (
+    workspaceId: string,
+    coworkerId: string,
+    input: { cronExpression: string; description?: string },
+  ) =>
+    request<AgentSchedule>(
+      http.post(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/schedules`,
+        input,
+      ),
+    ),
+
+  updateSchedule: (
+    workspaceId: string,
+    coworkerId: string,
+    scheduleId: string,
+    input: { cronExpression?: string; description?: string; isActive?: boolean },
+  ) =>
+    request<AgentSchedule>(
+      http.patch(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/schedules/${scheduleId}`,
+        input,
+      ),
+    ),
+
+  deleteSchedule: (
+    workspaceId: string,
+    coworkerId: string,
+    scheduleId: string,
+  ) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/schedules/${scheduleId}`,
       ),
     ),
 };

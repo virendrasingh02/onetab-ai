@@ -455,3 +455,131 @@ export function useCoworkerFavorites(workspaceId: string | undefined) {
   };
 }
 
+/** Tracker monitors configured on this coworker. */
+export function useCoworkerMonitors(
+  workspaceId: string | undefined,
+  coworkerId: string | undefined,
+) {
+  return useQuery({
+    queryKey: ['coworkers', workspaceId, 'monitors', coworkerId],
+    queryFn: () =>
+      coworkersApi.listMonitors(workspaceId as string, coworkerId as string),
+    enabled: !!workspaceId && !!coworkerId,
+    staleTime: 15_000,
+  });
+}
+
+export function useCoworkerMonitorMutations(
+  workspaceId: string | undefined,
+  coworkerId: string | undefined,
+) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: ['coworkers', workspaceId, 'monitors', coworkerId],
+    });
+
+  const create = useMutation({
+    mutationFn: (input: Parameters<typeof coworkersApi.createMonitor>[2]) =>
+      coworkersApi.createMonitor(
+        workspaceId as string,
+        coworkerId as string,
+        input,
+      ),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({
+      monitorId,
+      input,
+    }: {
+      monitorId: string;
+      input: Parameters<typeof coworkersApi.updateMonitor>[3];
+    }) =>
+      coworkersApi.updateMonitor(
+        workspaceId as string,
+        coworkerId as string,
+        monitorId,
+        input,
+      ),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (monitorId: string) =>
+      coworkersApi.deleteMonitor(
+        workspaceId as string,
+        coworkerId as string,
+        monitorId,
+      ),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove };
+}
+
+/** Scheduler schedules configured on this coworker. */
+export function useCoworkerSchedules(
+  workspaceId: string | undefined,
+  coworkerId: string | undefined,
+) {
+  return useQuery({
+    queryKey: ['coworkers', workspaceId, 'schedules', coworkerId],
+    queryFn: () =>
+      coworkersApi.listSchedules(workspaceId as string, coworkerId as string),
+    enabled: !!workspaceId && !!coworkerId,
+    staleTime: 15_000,
+  });
+}
+
+export function useCoworkerScheduleMutations(
+  workspaceId: string | undefined,
+  coworkerId: string | undefined,
+) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: ['coworkers', workspaceId, 'schedules', coworkerId],
+    });
+
+  const create = useMutation({
+    mutationFn: (input: { cronExpression: string; description?: string }) =>
+      coworkersApi.createSchedule(
+        workspaceId as string,
+        coworkerId as string,
+        input,
+      ),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({
+      scheduleId,
+      input,
+    }: {
+      scheduleId: string;
+      input: { cronExpression?: string; description?: string; isActive?: boolean };
+    }) =>
+      coworkersApi.updateSchedule(
+        workspaceId as string,
+        coworkerId as string,
+        scheduleId,
+        input,
+      ),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (scheduleId: string) =>
+      coworkersApi.deleteSchedule(
+        workspaceId as string,
+        coworkerId as string,
+        scheduleId,
+      ),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove };
+}
+
