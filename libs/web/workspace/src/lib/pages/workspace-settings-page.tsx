@@ -2946,10 +2946,10 @@ export function WorkspaceSettingsPage({
         </div>
       )}
 
-      {currentTab === 'import-export' && (
+      {(currentTab === 'import-export' || currentTab === 'migrations') && (
         <div className="space-y-8">
           <SettingsSectionHeader
-            title={<>Import & Export</>}
+            title={<>Slack Migration & Export Center</>}
             description={
               <>
                 Migrate channels, messages, and documents from Slack or Notion.

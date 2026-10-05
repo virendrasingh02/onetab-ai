@@ -101,6 +101,7 @@ model User {
   invitedWorkspaceMembers   WorkspaceMember[]           @relation("WorkspaceMemberInvitedBy")
   targetedInvitations       Invitation[]                @relation("InvitationTargetUser")
   workspaceAuditLogs        WorkspaceAuditLog[]         @relation("WorkspaceAuditActor")
+  migrationSessions         MigrationSession[]          @relation("UserMigrations")
   knowledgeBases            KnowledgeBase[]
   aiApps                    AIApp[]
   approvalRequests          ApprovalRequest[]           @relation("ApprovalRequester")
@@ -371,6 +372,7 @@ model Workspace {
   bookmarks                 Bookmark[]
   attentionItemStates       AttentionItemState[]
   auditLogs                 WorkspaceAuditLog[]
+  migrations                MigrationSession[]
   knowledgeBases            KnowledgeBase[]
   aiApps                    AIApp[]
   approvalRequests          ApprovalRequest[]
@@ -3788,5 +3790,211 @@ model AIFeedback {
 
   @@index([workspaceId, createdAt])
   @@map("ai_feedbacks")
+}
+
+model MigrationSession {
+  id                  String                @id @default(cuid())
+  workspaceId         String
+  sourceProvider      String                @default("SLACK")
+  sourceWorkspaceId   String?
+  sourceWorkspaceName String?
+  createdById         String
+  status              MigrationStatus       @default(PENDING)
+  currentStage        MigrationStage        @default(INITIALIZING)
+  scope               Json                  @default("{}")
+  progress            Json                  @default("{}")
+  stats               Json                  @default("{}")
+  checkpoint          Json                  @default("{}")
+  capabilities        Json                  @default("{}")
+  readinessReport     Json                  @default("{}")
+  aiRecommendations   Json?
+  errorMessage        String?
+  startedAt           DateTime?
+  pausedAt            DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  workspace           Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy           User                  @relation("UserMigrations", fields: [createdById], references: [id], onDelete: Cascade)
+  steps               MigrationStep[]
+  mappings            MigrationMapping[]
+  errors              MigrationError[]
+  validations         MigrationValidation[]
+  reports             MigrationReport[]
+
+  @@index([workspaceId, status])
+  @@index([createdById])
+  @@map("migration_sessions")
+}
+
+model MigrationStep {
+  id             String           @id @default(cuid())
+  migrationId    String
+  stage          MigrationStage
+  name           String
+  status         StepStatus       @default(PENDING)
+  totalItems     Int              @default(0)
+  processedItems Int              @default(0)
+  failedItems    Int              @default(0)
+  skippedItems   Int              @default(0)
+  errorDetails   Json?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  migration      MigrationSession @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+
+  @@index([migrationId, stage])
+  @@map("migration_steps")
+}
+
+model MigrationMapping {
+  id                     String                      @id @default(cuid())
+  migrationId            String
+  sourceProvider         String                      @default("SLACK")
+  sourceWorkspaceId      String?
+  entityType             MigrationEntityType
+  sourceId               String
+  destinationId          String?
+  destinationWorkspaceId String
+  status                 MigrationMappingStatus     @default(PENDING)
+  resolution             MigrationResolutionStrategy @default(USE_EXISTING)
+  metadata               Json?
+  error                  String?
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+  migration              MigrationSession            @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+
+  @@unique([migrationId, entityType, sourceId])
+  @@index([destinationWorkspaceId, entityType, sourceId])
+  @@index([migrationId, entityType, status])
+  @@map("migration_mappings")
+}
+
+model MigrationError {
+  id          String                  @id @default(cuid())
+  migrationId String
+  stepStage   MigrationStage?
+  entityType  MigrationEntityType?
+  sourceId    String?
+  severity    MigrationErrorSeverity  @default(RECOVERABLE)
+  errorCode   String
+  message     String
+  details     Json?
+  retryCount  Int                     @default(0)
+  resolved    Boolean                 @default(false)
+  createdAt   DateTime                @default(now())
+  migration   MigrationSession        @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+
+  @@index([migrationId, severity, resolved])
+  @@map("migration_errors")
+}
+
+model MigrationValidation {
+  id               String           @id @default(cuid())
+  migrationId      String
+  score            Float            @default(100.0)
+  passed           Boolean          @default(true)
+  summary          Json             @default("{}")
+  checks           Json             @default("[]")
+  brokenReferences Json             @default("[]")
+  discrepancies    Json             @default("[]")
+  createdAt        DateTime         @default(now())
+  migration        MigrationSession @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+
+  @@index([migrationId])
+  @@map("migration_validations")
+}
+
+model MigrationReport {
+  id              String           @id @default(cuid())
+  migrationId     String
+  title           String
+  summary         Json             @default("{}")
+  metrics         Json             @default("{}")
+  recommendations Json             @default("[]")
+  exportedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  migration       MigrationSession @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+
+  @@index([migrationId])
+  @@map("migration_reports")
+}
+
+enum MigrationStatus {
+  PENDING
+  READY
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum MigrationStage {
+  INITIALIZING
+  WORKSPACE_METADATA
+  USERS
+  USER_MAPPING
+  CHANNELS
+  CHANNEL_MEMBERSHIP
+  MESSAGES
+  THREADS
+  REACTIONS
+  MENTIONS
+  FILES
+  DMS
+  GROUP_DMS
+  SEARCH_INDEXING
+  VALIDATION
+  FINALIZATION
+  COMPLETED
+}
+
+enum StepStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+  PAUSED
+}
+
+enum MigrationEntityType {
+  WORKSPACE
+  USER
+  CHANNEL
+  MEMBERSHIP
+  MESSAGE
+  THREAD
+  REACTION
+  MENTION
+  FILE
+  DM
+  GROUP_DM
+}
+
+enum MigrationMappingStatus {
+  PENDING
+  MAPPED
+  MERGED
+  SKIPPED
+  FAILED
+}
+
+enum MigrationResolutionStrategy {
+  USE_EXISTING
+  CREATE_NEW
+  MERGE
+  RENAME
+  SKIP
+  ARCHIVE
+  KEEP_EXTERNAL_LINK
+  RETRY_LATER
+}
+
+enum MigrationErrorSeverity {
+  FATAL
+  RECOVERABLE
+  WARNING
+  SKIPPED
 }
 

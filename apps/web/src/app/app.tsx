@@ -439,7 +439,19 @@ export function App() {
             element={<LegacySettingsRedirect section="import-export" />}
           />
           <Route
+            path="/w/:workspaceSlug/migrations"
+            element={<LegacySettingsRedirect section="import-export" />}
+          />
+          <Route
+            path="/w/:workspaceSlug/admin/migrations"
+            element={<LegacySettingsRedirect section="import-export" />}
+          />
+          <Route
             path="/w/:workspaceSlug/integrations/import"
+            element={<LegacySettingsRedirect section="import-export" />}
+          />
+          <Route
+            path="/w/:workspaceSlug/integrations/slack"
             element={<LegacySettingsRedirect section="import-export" />}
           />
           <Route

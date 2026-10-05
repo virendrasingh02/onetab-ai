@@ -495,3 +495,4 @@ export * from './lib/agent-spec.js';
 export * from './lib/agent-blueprint.js';
 export * from './lib/agent-templates.js';
 export * from './lib/agent-studio-api.js';
+export * from './lib/migration.js';

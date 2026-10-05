@@ -30,10 +30,25 @@ import { SlackProvider } from './providers/slack.provider.js';
 import { TrelloProvider } from './providers/trello.provider.js';
 import { SlackImporterService } from './slack-importer.service.js';
 import { WebhooksController } from './webhooks.controller.js';
+import { MigrationController } from './migration/migration.controller.js';
+import { SlackCapabilityChecker } from './migration/slack-capability-checker.service.js';
+import { SlackApiMigrationProvider } from './migration/slack-api-migration.provider.js';
+import { SlackExportMigrationProvider } from './migration/slack-export-migration.provider.js';
+import { MigrationReadinessService } from './migration/migration-readiness.service.js';
+import { MigrationMappingService } from './migration/migration-mapping.service.js';
+import { MigrationValidationService } from './migration/migration-validation.service.js';
+import { MigrationAiAdvisorService } from './migration/migration-ai-advisor.service.js';
+import { MigrationWorkerService } from './migration/migration-worker.service.js';
+import { MigrationEngineService } from './migration/migration-engine.service.js';
 
 @Module({
   imports: [ConfigModule, PrismaModule, AuthModule, MatrixModule],
-  controllers: [IntegrationsController, WebhooksController, ChannelAppsController],
+  controllers: [
+    IntegrationsController,
+    WebhooksController,
+    ChannelAppsController,
+    MigrationController,
+  ],
   providers: [
     // Core Services
     IntegrationEncryptionService,
@@ -45,6 +60,17 @@ import { WebhooksController } from './webhooks.controller.js';
     IntegrationSyncService,
     IntegrationManagerService,
     IntegrationsService,
+
+    // Migration Engine Services
+    SlackCapabilityChecker,
+    SlackApiMigrationProvider,
+    SlackExportMigrationProvider,
+    MigrationReadinessService,
+    MigrationMappingService,
+    MigrationValidationService,
+    MigrationAiAdvisorService,
+    MigrationWorkerService,
+    MigrationEngineService,
 
     // Provider Adapters
     GmailProvider,
@@ -88,6 +114,15 @@ import { WebhooksController } from './webhooks.controller.js';
     CustomApiProvider,
     SlackImporterService,
     NotionImporterService,
+    SlackCapabilityChecker,
+    SlackApiMigrationProvider,
+    SlackExportMigrationProvider,
+    MigrationReadinessService,
+    MigrationMappingService,
+    MigrationValidationService,
+    MigrationAiAdvisorService,
+    MigrationWorkerService,
+    MigrationEngineService,
   ],
 })
 export class IntegrationsModule {}

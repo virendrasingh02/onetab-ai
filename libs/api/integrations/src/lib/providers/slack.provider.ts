@@ -15,7 +15,7 @@ import type {
   WebhookProcessResult,
 } from '../core/provider-adapter.interface.js';
 
-const USER_SCOPES = [
+export const USER_SCOPES = [
   'channels:read',
   'channels:history',
   'groups:read',
@@ -30,9 +30,29 @@ const USER_SCOPES = [
   'reactions:write',
 ];
 
-const API_BASE = 'https://slack.com/api';
+export const SLACK_MIGRATION_SCOPES = [
+  'team:read',
+  'users:read',
+  'users:read.email',
+  'users.profile:read',
+  'channels:read',
+  'channels:history',
+  'groups:read',
+  'groups:history',
+  'im:read',
+  'im:history',
+  'mpim:read',
+  'mpim:history',
+  'reactions:read',
+  'reactions:write',
+  'files:read',
+  'chat:write',
+  'search:read',
+];
 
-async function slackCall<T = any>(
+export const API_BASE = 'https://slack.com/api';
+
+export async function slackCall<T = any>(
   method: string,
   token: string,
   params: Record<string, unknown> = {},
@@ -100,11 +120,19 @@ export class SlackProvider implements ProviderAdapter {
     );
   }
 
-  async getAuthorizationUrl(state: string, options?: { redirectUri?: string }): Promise<string> {
+  async getAuthorizationUrl(
+    state: string,
+    options?: { redirectUri?: string; migration?: boolean; scopes?: string[] },
+  ): Promise<string> {
     const { clientId } = this.clientCreds();
+    const scopesToRequest = options?.scopes
+      ? options.scopes
+      : options?.migration
+        ? SLACK_MIGRATION_SCOPES
+        : USER_SCOPES;
     const params = new URLSearchParams({
       client_id: clientId,
-      user_scope: USER_SCOPES.join(','),
+      user_scope: scopesToRequest.join(','),
       redirect_uri: this.redirectUri(options?.redirectUri),
       state,
     });

@@ -129,5 +129,18 @@ export type {
   ProjectCoworker,
   EmailDelivery,
   EmailVerificationToken,
+  MigrationStatus,
+  MigrationStage,
+  StepStatus,
+  MigrationEntityType,
+  MigrationMappingStatus,
+  MigrationResolutionStrategy,
+  MigrationErrorSeverity,
+  MigrationSession,
+  MigrationStep,
+  MigrationMapping,
+  MigrationError,
+  MigrationValidation,
+  MigrationReport,
 } from './generated/client.js';
 

@@ -26,6 +26,9 @@ export { CustomApiModal } from './lib/CustomApiModal.js';
 export { TrelloConnectModal } from './lib/TrelloConnectModal.js';
 export { IntegrationLogsView } from './lib/IntegrationLogsView.js';
 export { SlackNotionImportView } from './lib/SlackNotionImportView.js';
+export { MigrationCenterView } from './lib/migration-center-view.js';
+export { MigrationWizardDialog } from './lib/migration-wizard-dialog.js';
+export * from './lib/use-migrations.js';
 export {
   AppChatView,
   DEFAULT_WORKSPACE_APPS,

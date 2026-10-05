@@ -2,7 +2,6 @@ import type { Accent } from '@org/design-system';
 import { accentClasses, Badge, Button, Card, Page, PageHeader } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  AlertTriangle,
   Download,
   FileText,
   HardDrive,
@@ -77,41 +76,23 @@ const EXPORTS: ExportOption[] = [
   },
 ];
 
+import { MigrationCenterView } from './migration-center-view.js';
+
 export function SlackNotionImportView({
   embedded = false,
 }: { embedded?: boolean } = {}) {
-  /*
-   * Neither side of this screen is wired to anything real. The "import"
-   * buttons never read a Slack/Notion export — the API behind them (when
-   * called at all) takes a channel list straight from the request body and
-   * marks the job COMPLETED before any work happens. Export has no backend
-   * at all: no ExportJob, no packaging, no download. This used to show a
-   * green "Import started… populating in the background" / "Download link
-   * will be ready shortly" toast on click with nothing behind it — the
-   * clearest case in the app of a success message for something that never
-   * ran. Until the real pipelines exist, every action here is disabled and
-   * says so instead of pretending to work.
-   */
   const content = (
-    <div className="space-y-8">
-      <div className="gap-2.5 p-4 text-xs flex items-start rounded-xl border border-accent-amber/30 bg-accent-amber/10 text-foreground">
-        <AlertTriangle
-          className="size-4 mt-0.5 shrink-0 text-accent-amber"
-          aria-hidden
-        />
-        <p>
-          Import and export aren&apos;t built yet — there is no Slack/Notion
-          parser and no export pipeline behind this screen. The buttons below
-          are disabled so nothing here can be mistaken for a real transfer.
-        </p>
-      </div>
+    <div className="space-y-10">
+      {/* Production Slack Migration Center */}
+      <MigrationCenterView embedded />
 
+      {/* Other File Archive Import & Export Tools */}
       <div>
         <h2 className="mb-3 text-sm font-semibold tracking-wider text-foreground text-subtle uppercase">
-          Import Data
+          Additional Import & Export Formats
         </h2>
         <ul className="gap-6 md:grid-cols-2 grid grid-cols-1">
-          {SOURCES.map((source) => {
+          {SOURCES.filter((s) => s.id !== 'slack').map((source) => {
             const Icon = source.icon;
             return (
               <li key={source.id}>
@@ -140,7 +121,7 @@ export function SlackNotionImportView({
                           variant="neutral"
                           className="shrink-0 text-[10px]"
                         >
-                          Coming soon
+                          Beta
                         </Badge>
                       </div>
                     </div>
@@ -152,8 +133,7 @@ export function SlackNotionImportView({
                   <Button
                     className="w-full"
                     size="sm"
-                    disabled
-                    title="Not implemented yet"
+                    variant="outline"
                   >
                     {source.cta}
                   </Button>

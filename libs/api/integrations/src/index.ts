@@ -26,3 +26,15 @@ export type {
   WebhookProcessResult,
   MessageQuery,
 } from './lib/core/provider-adapter.interface.js';
+
+export { MigrationController } from './lib/migration/migration.controller.js';
+export { SlackCapabilityChecker } from './lib/migration/slack-capability-checker.service.js';
+export { SlackApiMigrationProvider } from './lib/migration/slack-api-migration.provider.js';
+export { SlackExportMigrationProvider } from './lib/migration/slack-export-migration.provider.js';
+export { MigrationReadinessService } from './lib/migration/migration-readiness.service.js';
+export { MigrationMappingService } from './lib/migration/migration-mapping.service.js';
+export { MigrationValidationService } from './lib/migration/migration-validation.service.js';
+export { MigrationAiAdvisorService } from './lib/migration/migration-ai-advisor.service.js';
+export { MigrationWorkerService } from './lib/migration/migration-worker.service.js';
+export { MigrationEngineService } from './lib/migration/migration-engine.service.js';
+export type { MigrationProvider } from './lib/migration/migration-provider.interface.js';

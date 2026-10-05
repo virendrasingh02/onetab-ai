@@ -284,6 +284,14 @@ import type {
   AIStudioOverview,
   AIFeedbackPayload,
   TrackerMonitor,
+  MigrationCapabilityReport,
+  MigrationReadinessReport,
+  MigrationScope,
+  MigrationMappingPreview,
+  MigrationConflictResolutionInput,
+  MigrationLiveProgress,
+  MigrationFinalReport,
+  MigrationSessionDto,
 } from '@org/types';
 
 import type {
@@ -4892,6 +4900,101 @@ export const mcpApi = {
 export const aiFeedbackApi = {
   submit: (workspaceId: string, data: AIFeedbackPayload) =>
     request<{ id: string }>(http.post(`/workspaces/${workspaceId}/ai-feedback`, data)),
+};
+
+export const migrationsApi = {
+  createSession: (workspaceId: string, provider = 'SLACK_API') =>
+    request<MigrationSessionDto>(
+      http.post(`/workspaces/${workspaceId}/migrations`, { provider }),
+    ),
+
+  list: (workspaceId: string) =>
+    request<MigrationSessionDto[]>(http.get(`/workspaces/${workspaceId}/migrations`)),
+
+  getCapabilities: (workspaceId: string, integrationId?: string) =>
+    request<MigrationCapabilityReport>(
+      http.get(`/workspaces/${workspaceId}/migrations/capabilities`, {
+        params: integrationId ? { integrationId } : undefined,
+      }),
+    ),
+
+  getDetail: (workspaceId: string, migrationId: string) =>
+    request<MigrationSessionDto>(
+      http.get(`/workspaces/${workspaceId}/migrations/${migrationId}`),
+    ),
+
+  getReadiness: (workspaceId: string, migrationId: string) =>
+    request<MigrationReadinessReport>(
+      http.get(`/workspaces/${workspaceId}/migrations/${migrationId}/readiness`),
+    ),
+
+  updateScope: (workspaceId: string, migrationId: string, scope: MigrationScope) =>
+    request<MigrationSessionDto>(
+      http.patch(`/workspaces/${workspaceId}/migrations/${migrationId}/scope`, scope),
+    ),
+
+  getPreview: (workspaceId: string, migrationId: string) =>
+    request<MigrationMappingPreview>(
+      http.get(`/workspaces/${workspaceId}/migrations/${migrationId}/preview`),
+    ),
+
+  resolveConflicts: (
+    workspaceId: string,
+    migrationId: string,
+    resolutions: MigrationConflictResolutionInput,
+  ) =>
+    request<{ success: boolean }>(
+      http.post(`/workspaces/${workspaceId}/migrations/${migrationId}/conflicts`, resolutions),
+    ),
+
+  start: (workspaceId: string, migrationId: string) =>
+    request<{ success: boolean; message: string }>(
+      http.post(`/workspaces/${workspaceId}/migrations/${migrationId}/start`),
+    ),
+
+  pause: (workspaceId: string, migrationId: string) =>
+    request<{ success: boolean; status: string }>(
+      http.post(`/workspaces/${workspaceId}/migrations/${migrationId}/pause`),
+    ),
+
+  resume: (workspaceId: string, migrationId: string) =>
+    request<{ success: boolean; status: string }>(
+      http.post(`/workspaces/${workspaceId}/migrations/${migrationId}/resume`),
+    ),
+
+  retry: (workspaceId: string, migrationId: string) =>
+    request<{ success: boolean; status: string }>(
+      http.post(`/workspaces/${workspaceId}/migrations/${migrationId}/retry`),
+    ),
+
+  cancel: (workspaceId: string, migrationId: string) =>
+    request<{ success: boolean; status: string }>(
+      http.post(`/workspaces/${workspaceId}/migrations/${migrationId}/cancel`),
+    ),
+
+  getProgress: (workspaceId: string, migrationId: string) =>
+    request<MigrationLiveProgress>(
+      http.get(`/workspaces/${workspaceId}/migrations/${migrationId}/progress`),
+    ),
+
+  getReport: (workspaceId: string, migrationId: string) =>
+    request<MigrationFinalReport>(
+      http.get(`/workspaces/${workspaceId}/migrations/${migrationId}/report`),
+    ),
+
+  applyRecommendation: (
+    workspaceId: string,
+    migrationId: string,
+    recId: string,
+    actionType: string,
+    payload?: Record<string, unknown>,
+  ) =>
+    request<{ success: boolean; createdId?: string; type?: string }>(
+      http.post(
+        `/workspaces/${workspaceId}/migrations/${migrationId}/recommendations/${recId}/apply`,
+        { actionType, payload },
+      ),
+    ),
 };
 
 

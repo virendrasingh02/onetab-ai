@@ -64,6 +64,7 @@ export {
   mcpApi,
   aiFeedbackApi,
   callsApi,
+  migrationsApi,
   type AuthResponse,
   type SignInResponse,
   isTwoFactorChallenge,

@@ -878,7 +878,7 @@ export function ChatSurface({
           name: m.displayName,
           avatarUrl: m.avatarUrl,
           powerLevel: m.powerLevel,
-          role: m.role,
+          role: (m as any).role,
           entityKind: 'user',
         };
       }
