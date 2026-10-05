@@ -39,6 +39,9 @@ import {
   type ScrollAnchor,
 } from './scroll-position-store.js';
 
+/** Stable default, so an absent prop does not rebuild the rows every render. */
+const NO_EPHEMERAL: readonly TimelineEphemeralItem[] = [];
+
 /** Consecutive messages from one sender within this window are grouped. */
 const GROUPING_WINDOW_MS = 5 * 60_000;
 
@@ -55,7 +58,23 @@ const NEW_MESSAGES_BAR_HEIGHT = 32;
 type Row =
   | { kind: 'separator'; key: string; timestamp: number }
   | { kind: 'unread'; key: string }
-  | { kind: 'message'; key: string; message: Message; grouped: boolean };
+  | { kind: 'message'; key: string; message: Message; grouped: boolean }
+  | { kind: 'ephemeral'; key: string; id: string };
+
+/**
+ * A client-only row woven into the timeline — an "Only visible to you" notice,
+ * say — that no one else sees and the server never stores.
+ */
+export interface TimelineEphemeralItem {
+  id: string;
+  /**
+   * The message to sit directly under: its event id, or the transaction id a
+   * fresh send returned (kept on the message after the server acknowledges).
+   */
+  anchorId?: string;
+  /** Places the row by time when its anchor is not (or not yet) loaded. */
+  timestamp: number;
+}
 
 /**
  * Flattens messages into rows, inserting a separator at each day boundary and
@@ -69,11 +88,52 @@ type Row =
 export function buildRows(
   messages: Message[],
   unreadBeforeId?: string | null,
+  ephemeral: readonly TimelineEphemeralItem[] = [],
 ): Row[] {
   const rows: Row[] = [];
   let previous: Message | undefined;
 
+  /*
+   * Ephemeral rows either follow their anchor message or, when it is not
+   * loaded, fall into place by time. Either way the next message starts a
+   * fresh run (avatar + name) instead of grouping under the row in between.
+   */
+  const anchored = new Map<string, TimelineEphemeralItem[]>();
+  const loadedIds = new Set<string>();
   for (const message of messages) {
+    loadedIds.add(message.id);
+    if (message.transactionId) loadedIds.add(message.transactionId);
+  }
+  const floating: TimelineEphemeralItem[] = [];
+  for (const item of ephemeral) {
+    if (item.anchorId && loadedIds.has(item.anchorId)) {
+      const list = anchored.get(item.anchorId) ?? [];
+      list.push(item);
+      anchored.set(item.anchorId, list);
+    } else {
+      floating.push(item);
+    }
+  }
+  floating.sort((a, b) => a.timestamp - b.timestamp);
+  let nextFloating = 0;
+  let breakGroup = false;
+
+  const pushEphemeral = (items: TimelineEphemeralItem[] | undefined) => {
+    if (!items) return;
+    for (const item of items) {
+      rows.push({ kind: 'ephemeral', key: `ephemeral-${item.id}`, id: item.id });
+      breakGroup = true;
+    }
+  };
+
+  for (const message of messages) {
+    while (
+      nextFloating < floating.length &&
+      floating[nextFloating].timestamp < message.timestamp
+    ) {
+      pushEphemeral([floating[nextFloating++]]);
+    }
+
     const isNewDay =
       !previous ||
       new Date(previous.timestamp).toDateString() !==
@@ -95,13 +155,22 @@ export function buildRows(
     const grouped =
       !isNewDay &&
       !isFirstUnread &&
+      !breakGroup &&
       !!previous &&
       previous.senderId === message.senderId &&
       message.timestamp - previous.timestamp < GROUPING_WINDOW_MS;
 
     rows.push({ kind: 'message', key: message.id, message, grouped });
     previous = message;
+    breakGroup = false;
+
+    pushEphemeral(anchored.get(message.id));
+    if (message.transactionId && message.transactionId !== message.id) {
+      pushEphemeral(anchored.get(message.transactionId));
+    }
   }
+
+  pushEphemeral(floating.slice(nextFloating));
 
   return rows;
 }
@@ -191,6 +260,10 @@ export interface MessageListProps {
    * page. In an empty conversation it stands in for the empty state.
    */
   introSlot?: ReactNode;
+  /** Client-only rows to weave in — see {@link TimelineEphemeralItem}. */
+  ephemeralItems?: readonly TimelineEphemeralItem[];
+  /** Renders one `ephemeralItems` row by id. */
+  renderEphemeral?: (id: string) => ReactNode;
   className?: string;
 }
 
@@ -245,6 +318,8 @@ export function MessageList({
   connectionState,
   onMarkRead,
   introSlot,
+  ephemeralItems = NO_EPHEMERAL,
+  renderEphemeral,
   className,
   unreadMentionCount = 0,
   mentionDirection = null,
@@ -265,8 +340,8 @@ export function MessageList({
   const [dayJumpOpen, setDayJumpOpen] = useState(false);
 
   const rows = useMemo(
-    () => buildRows(messages, unreadBeforeId),
-    [messages, unreadBeforeId],
+    () => buildRows(messages, unreadBeforeId, ephemeralItems),
+    [messages, unreadBeforeId, ephemeralItems],
   );
   /** Latest `rows` for the rAF loops, which run outside the render pass. */
   const rowsRef = useRef(rows);
@@ -1031,6 +1106,8 @@ export function MessageList({
                   />
                 ) : row.kind === 'unread' ? (
                   <UnreadDivider />
+                ) : row.kind === 'ephemeral' ? (
+                  (renderEphemeral?.(row.id) ?? null)
                 ) : (
                   renderMessage(row.message, row.grouped, density)
                 )}

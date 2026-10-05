@@ -1,6 +1,7 @@
 import {
   canMentionGroups as canMentionGroupsHelper,
   getComposerPlaceholder,
+  toPlatformUserId,
   WorkspaceRole,
   type RoomMember,
   type DetectedMention,
@@ -718,7 +719,10 @@ export function Composer({
   );
 
   const handleComposerSend = useCallback(
-    (body: string) => {
+    (body: string, sentMentions?: DetectedMention[]) => {
+      // The editor reads its chips at the instant of sending; the debounced
+      // ref is only a fallback for callers that do not pass them.
+      const mentions = sentMentions ?? currentMentionsRef.current;
       setHasContent(false);
       flushAttachments();
       setDismissedUrls(new Set());
@@ -734,7 +738,7 @@ export function Composer({
       // that happened to start with `/help` originally gets saved verbatim.
       if (edit) {
         return onSend(body, {
-          mentions: currentMentionsRef.current,
+          mentions,
           targetType: surfaceKind,
           targetId: conversationId ?? undefined,
           workspaceId,
@@ -782,7 +786,7 @@ export function Composer({
       }
 
       const meta: ComposerMessageMeta = {
-        mentions: currentMentionsRef.current,
+        mentions,
         command: detectedCommand,
         commandArguments: commandArgs,
         targetType: surfaceKind,
@@ -919,7 +923,10 @@ export function Composer({
 
     const groups = allowGroups ? GROUP_MENTIONS : [];
 
-    const roomUserIds = new Set(members.map((m) => m.userId));
+    // Room rosters carry Matrix ids, the workspace list platform ids — compare
+    // on one spelling or everyone already here is listed twice, the second
+    // time as "Not in this channel".
+    const roomUserIds = new Set(members.map((m) => toPlatformUserId(m.userId)));
     const people: MentionCandidate[] = members.map((member) => ({
       id: member.userId,
       name: member.displayName,
@@ -929,12 +936,15 @@ export function Composer({
     }));
 
     const otherWorkspacePeople: MentionCandidate[] = (workspaceMembers ?? [])
-      .filter((wm) => !roomUserIds.has(wm.userId))
+      .filter((wm) => !roomUserIds.has(toPlatformUserId(wm.userId)))
       .map((wm) => ({
         id: wm.userId,
         name: wm.displayName,
         avatarUrl: wm.avatarUrl,
-        subtitle: 'Not in this channel',
+        subtitle:
+          surfaceKind === 'channel' || surfaceKind === 'thread'
+            ? 'Not in this channel'
+            : 'Not in this conversation',
         kind: 'user' as const,
         isSelf: !!currentUserId && wm.userId === currentUserId,
       }));

@@ -125,11 +125,19 @@ export { EncryptionSecurityPanel } from './lib/encryption-security-panel.js';
 export {
   useComposerControl,
   type ComposerControlResult,
+  type MentionNoticePlacement,
 } from './lib/use-composer-control.js';
 export {
-  useComposerAddActions,
-  type UseComposerAddActionsOptions,
-} from './lib/use-composer-add-actions.js';
+  useMentionAddActions,
+  type MentionAddResult,
+  type UseMentionAddActionsOptions,
+} from './lib/use-mention-add-actions.js';
+export {
+  MentionNoticeRow,
+  interleaveMentionNotices,
+  useMentionNoticeTimeline,
+  type MentionNoticeRowProps,
+} from './lib/mention-notice-row.js';
 export {
   useScheduledMessages,
   useScheduledMessageMutations,

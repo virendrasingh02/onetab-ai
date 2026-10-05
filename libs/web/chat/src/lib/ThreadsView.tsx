@@ -4,17 +4,21 @@ import { normalizeAvatarSeed } from '@org/design-system';
 import {
   AttachmentRenderer,
   Composer,
-  ComposerWarning,
   DEFAULT_AI_AGENT_MENTIONS,
   DEFAULT_COWORKER_MENTIONS,
   DEFAULT_APP_MENTIONS,
   MessageRenderer,
+  useMentionNotices,
 } from '@org/chat-ui';
 import type { ComposerContext } from '@org/types';
 import type { Message, RoomKind, RoomMember } from '@org/matrix-client';
 import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import { useComposerControl } from './use-composer-control.js';
-import { useComposerAddActions } from './use-composer-add-actions.js';
+import { useMentionAddActions } from './use-mention-add-actions.js';
+import {
+  MentionNoticeRow,
+  interleaveMentionNotices,
+} from './mention-notice-row.js';
 import {
   Badge,
   Button,
@@ -156,6 +160,7 @@ function useAttachmentSlot() {
 function ThreadDetail({
   thread,
   channelLink,
+  channelId,
   isPrivate,
   members,
   mentionNames,
@@ -168,6 +173,9 @@ function ThreadDetail({
 }: {
   thread: CrossRoomThread;
   channelLink: string;
+  /** The thread's channel, when it is in one — lets mentions of agents/apps be
+   *  checked against what is actually connected to that channel. */
+  channelId?: string;
   isPrivate?: boolean;
   members: RoomMember[];
   mentionNames: string[];
@@ -199,17 +207,20 @@ function ThreadDetail({
       surfaceKind: 'thread',
       workspaceId,
       roomId: thread.roomId,
+      channelId,
       threadRootId: thread.id,
     }),
-    [workspaceId, thread.roomId, thread.id],
+    [workspaceId, thread.roomId, channelId, thread.id],
   );
 
   const composerControl = useComposerControl(composerContext, members);
-  const handleAddAction = useComposerAddActions({
+  const addMentionTargets = useMentionAddActions({
     workspaceId,
+    channelId,
     roomId: thread.roomId,
     slug: workspaceSlug,
   });
+  const notices = useMentionNotices(thread.roomId, thread.id);
 
   // Opening an unread thread catches its read marker up to the latest reply.
   useEffect(() => {
@@ -298,63 +309,81 @@ function ThreadDetail({
         </p>
       ) : (
         <ul>
-          {replies.map((reply) => (
-            <li key={reply.id}>
-              <MessageRenderer
-                message={reply}
-                isOwn={reply.senderId === myUserId}
-                density={density}
-                mentionNames={effectiveMentionNames}
-                threadParticipants={[]}
-                onReact={
-                  canReact
-                    ? (key) =>
-                        void actions.toggleReaction(
-                          reply.id,
-                          key,
-                          reply.reactions.some(
-                            (reaction) =>
-                              reaction.key === key && reaction.reactedByMe,
-                          ),
-                        )
-                    : undefined
-                }
-                onEdit={
-                  reply.senderId === myUserId
-                    ? () => setEditing(reply)
-                    : undefined
-                }
-                onDelete={
-                  reply.senderId === myUserId || canModerateMessages
-                    ? () => void actions.remove(reply.id)
-                    : undefined
-                }
-                canModerateMessages={canModerateMessages}
-                editWindowMinutes={policiesQuery.data?.messageEditWindowMinutes}
-                onRetry={
-                  reply.sendState === 'failed'
-                    ? () => void actions.retry(reply.id)
-                    : undefined
-                }
-                onCopyText={() =>
-                  void navigator.clipboard?.writeText(reply.body)
-                }
-                onCopyLink={() => copyThreadMessageLink(channelLink, reply.id)}
-                attachmentSlot={attachmentSlot(reply)}
-              />
-            </li>
-          ))}
+          {interleaveMentionNotices(
+            replies,
+            notices,
+            (reply) => (
+              <li>
+                <MessageRenderer
+                  message={reply}
+                  isOwn={reply.senderId === myUserId}
+                  density={density}
+                  mentionNames={effectiveMentionNames}
+                  threadParticipants={[]}
+                  onReact={
+                    canReact
+                      ? (key) =>
+                          void actions.toggleReaction(
+                            reply.id,
+                            key,
+                            reply.reactions.some(
+                              (reaction) =>
+                                reaction.key === key && reaction.reactedByMe,
+                            ),
+                          )
+                      : undefined
+                  }
+                  onEdit={
+                    reply.senderId === myUserId
+                      ? () => setEditing(reply)
+                      : undefined
+                  }
+                  onDelete={
+                    reply.senderId === myUserId || canModerateMessages
+                      ? () => void actions.remove(reply.id)
+                      : undefined
+                  }
+                  canModerateMessages={canModerateMessages}
+                  editWindowMinutes={policiesQuery.data?.messageEditWindowMinutes}
+                  onRetry={
+                    reply.sendState === 'failed'
+                      ? () => void actions.retry(reply.id)
+                      : undefined
+                  }
+                  onCopyText={() =>
+                    void navigator.clipboard?.writeText(reply.body)
+                  }
+                  onCopyLink={() => copyThreadMessageLink(channelLink, reply.id)}
+                  attachmentSlot={attachmentSlot(reply)}
+                />
+              </li>
+            ),
+            (notice) => (
+              <li>
+                <MentionNoticeRow
+                  notice={notice}
+                  onAddTargets={addMentionTargets}
+                />
+              </li>
+            ),
+          )}
         </ul>
       )}
 
       <div className="border-t border-border bg-card px-2 py-2">
         <Composer
-          onSend={async (body) => {
+          onSend={async (body, meta) => {
             if (editing) {
               await actions.edit(editing.id, body);
               setEditing(null);
             } else {
-              await send(body);
+              const anchorId = await send(body);
+              composerControl.raiseMentionNotice(meta?.mentions, {
+                threadRootId: thread.id,
+                anchorId,
+                conversationName: thread.roomName,
+                isPrivate,
+              });
             }
           }}
           onTyping={chat?.sendTypingNotice !== false ? actions.setTyping : undefined}
@@ -365,7 +394,15 @@ function ThreadDetail({
           currentUserId={myUserId}
           placeholder={editing ? 'Edit your message…' : `Reply in ${roomLabel}…`}
           showFormatting={false}
-          onMentionsChange={composerControl.onMentionsChange}
+          surfaceKind="thread"
+          viewerCanManage={composerControl.viewerCanManage}
+          isGuest={composerControl.isGuest}
+          canMentionGroups={composerControl.canMentionGroups}
+          workspaceMembers={composerControl.workspaceMembers}
+          agentMentions={composerControl.agentMentions}
+          coworkerMentions={composerControl.coworkerMentions}
+          appMentions={composerControl.appMentions}
+          channelMentions={composerControl.channelMentions}
           edit={
             editing ? { messageId: editing.id, initialMarkdown: editing.body } : null
           }
@@ -383,14 +420,6 @@ function ThreadDetail({
                   Cancel
                 </Button>
               </div>
-            ) : composerControl.warning ? (
-              <ComposerWarning
-                state={composerControl.warning}
-                onDismiss={composerControl.dismissWarning}
-                onAdd={handleAddAction}
-                channelName={thread.roomName}
-                surfaceKind="thread"
-              />
             ) : null
           }
         />
@@ -427,6 +456,7 @@ function ThreadRow({
   onToggle,
   workspaceSlug,
   channelSlugByName,
+  channelId,
   isPrivate,
   myUserId,
   density,
@@ -436,6 +466,7 @@ function ThreadRow({
   onToggle: (id: string) => void;
   workspaceSlug?: string;
   channelSlugByName?: Map<string, string>;
+  channelId?: string;
   isPrivate?: boolean;
   myUserId?: string;
   density: 'comfy' | 'compact';
@@ -522,6 +553,7 @@ function ThreadRow({
         <ThreadDetail
           thread={thread}
           channelLink={channelLink}
+          channelId={channelId}
           isPrivate={isPrivate}
           members={members}
           mentionNames={mentionNames}
@@ -660,6 +692,7 @@ function RoomThreadSection({
               onToggle={onToggle}
               workspaceSlug={workspaceSlug}
               channelSlugByName={channelSlugByName}
+              channelId={channel?.id}
               isPrivate={isPrivate}
               myUserId={myUserId}
               density={density}

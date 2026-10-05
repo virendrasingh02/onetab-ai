@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from '@org/auth';
 import { useChatPreferences } from '@org/common';
@@ -25,17 +25,41 @@ import {
 } from '@org/types';
 import {
   getContextualSlashCommands,
-  useComposerWarningStore,
-  type ComposerWarningState,
-  type ComposerWarningTarget,
+  useMentionNoticeStore,
   type MentionCandidate,
+  type MentionNoticeTarget,
   type SlashCommand,
 } from '@org/chat-ui';
 
+/** Where a sent message went, for the wording of its mention notice. */
+export interface MentionNoticePlacement {
+  /** The room to file it under; defaults to the composer context's `roomId`. */
+  conversationKey?: string | null;
+  /** The message that raised it — see `MentionNoticeEntry.anchorId`. */
+  anchorId?: string;
+  /** Set for a thread reply, so the notice renders in that thread. */
+  threadRootId?: string;
+  conversationName?: string;
+  peerName?: string;
+  isPrivate?: boolean;
+}
+
 export interface ComposerControlResult {
-  warning: ComposerWarningState | null;
-  dismissWarning: () => void;
-  onMentionsChange: (mentions: DetectedMention[]) => void;
+  /**
+   * The mentions in a message that won't reach their target (not in the
+   * room / not connected to the channel), each with what the viewer may do
+   * about it. Empty when the viewer has switched these notices off.
+   */
+  findUnreachable: (mentions: readonly DetectedMention[]) => MentionNoticeTarget[];
+  /**
+   * Call after a message is sent: raises an "Only visible to you" notice under
+   * it for any mention that won't reach its target. Returns whether one was
+   * raised.
+   */
+  raiseMentionNotice: (
+    mentions: readonly DetectedMention[] | undefined,
+    placement?: MentionNoticePlacement,
+  ) => boolean;
   viewerCanManage: boolean;
   isGuest: boolean;
   canMentionGroups: boolean;
@@ -54,7 +78,6 @@ export function useComposerControl(
   const currentUser = useCurrentUser();
   const currentWorkspace = useCurrentWorkspace();
   const { chat } = useChatPreferences();
-  const [currentMentions, setCurrentMentions] = useState<DetectedMention[]>([]);
 
   const workspaceId = context?.workspaceId ?? currentWorkspace.workspaceId;
   const channelId = context?.channelId;
@@ -167,33 +190,26 @@ export function useComposerControl(
     channelAppsQuery.data,
   ]);
 
-  // Unreachable targets calculation
-  const targets = useMemo<ComposerWarningTarget[]>(() => {
-    if (
-      !context ||
-      currentMentions.length === 0 ||
-      chat?.mentionWarningsEnabled === false
-    ) {
-      return [];
-    }
-    const list: ComposerWarningTarget[] = [];
-    const seen = new Set<string>();
+  const noticesEnabled = chat?.mentionWarningsEnabled !== false;
 
-    for (const mention of currentMentions) {
-      if (seen.has(mention.id)) continue;
-      seen.add(mention.id);
+  const findUnreachable = useCallback(
+    (mentions: readonly DetectedMention[]): MentionNoticeTarget[] => {
+      if (!context || !noticesEnabled || mentions.length === 0) return [];
+      const list: MentionNoticeTarget[] = [];
+      const seen = new Set<string>();
 
-      const evaluation = evaluateMention(mention, {
-        surfaceKind: context.surfaceKind,
-        reachable,
-        viewerCanManage,
-      });
+      for (const mention of mentions) {
+        // A chip restored from a plain-text draft has no target to check.
+        if (!mention.id || seen.has(mention.id)) continue;
+        seen.add(mention.id);
 
-      if (!evaluation.reachable) {
-        if (
-          mention.kind === 'user' &&
-          context.suggestMissingMembers === false
-        ) {
+        const evaluation = evaluateMention(mention, {
+          surfaceKind: context.surfaceKind,
+          reachable,
+          viewerCanManage,
+        });
+        if (evaluation.reachable) continue;
+        if (mention.kind === 'user' && context.suggestMissingMembers === false) {
           continue;
         }
         list.push({
@@ -203,43 +219,32 @@ export function useComposerControl(
           addAction: evaluation.addAction,
         });
       }
-    }
 
-    return list;
-  }, [
-    context,
-    currentMentions,
-    reachable,
-    viewerCanManage,
-    chat?.mentionWarningsEnabled,
-  ]);
-
-  const signature = useMemo(
-    () => targets.map((t) => t.id).sort().join(','),
-    [targets],
+      return list;
+    },
+    [context, noticesEnabled, reachable, viewerCanManage],
   );
 
-  const conversationKey =
-    context?.roomId ?? context?.channelId ?? context?.peerId ?? '';
-
-  const isDismissed = useComposerWarningStore((s) =>
-    s.isDismissed(conversationKey, signature),
+  const raiseMentionNotice = useCallback(
+    (
+      mentions: readonly DetectedMention[] | undefined,
+      placement: MentionNoticePlacement = {},
+    ): boolean => {
+      const { conversationKey: keyOverride, ...rest } = placement;
+      const conversationKey = keyOverride ?? context?.roomId;
+      if (!context || !conversationKey || !mentions?.length) return false;
+      const targets = findUnreachable(mentions);
+      if (targets.length === 0) return false;
+      useMentionNoticeStore.getState().raise({
+        ...rest,
+        conversationKey,
+        surfaceKind: context.surfaceKind,
+        targets,
+      });
+      return true;
+    },
+    [context, findUnreachable],
   );
-
-  const warning = useMemo<ComposerWarningState | null>(() => {
-    if (targets.length === 0 || isDismissed) return null;
-    return { targets };
-  }, [targets, isDismissed]);
-
-  const dismissWarning = useCallback(() => {
-    if (conversationKey && signature) {
-      useComposerWarningStore.getState().dismiss(conversationKey, signature);
-    }
-  }, [conversationKey, signature]);
-
-  const onMentionsChange = useCallback((mentions: DetectedMention[]) => {
-    setCurrentMentions(mentions);
-  }, []);
 
   // ── Workspace-level queries ────────────────────────────────────────────────
   const hasWorkspace = !!workspaceId;
@@ -367,9 +372,8 @@ export function useComposerControl(
   );
 
   return {
-    warning,
-    dismissWarning,
-    onMentionsChange,
+    findUnreachable,
+    raiseMentionNotice,
     viewerCanManage,
     isGuest,
     canMentionGroups: canMentionGroupsValue,

@@ -243,7 +243,15 @@ export interface MentionCandidate {
 
 export interface LexicalComposerInputProps {
   placeholder?: string;
-  onSend: (text: string) => void | Promise<void>;
+  /**
+   * `mentions` is read straight off the document at the moment of sending —
+   * unlike the debounced `onMentionsChange`, it cannot miss a chip inserted a
+   * beat before Enter.
+   */
+  onSend: (
+    text: string,
+    mentions: DetectedMention[],
+  ) => void | Promise<void>;
   /** When false, bare Enter inserts a newline and Ctrl/Cmd+Enter sends. Defaults to true. */
   enterToSend?: boolean;
   /**
@@ -312,6 +320,15 @@ export interface LexicalEditorRef {
 /* Editor API                                                                  */
 /* -------------------------------------------------------------------------- */
 
+/** Every mention chip in the document. Call inside an editor read. */
+function readMentions(): DetectedMention[] {
+  return $nodesOfType(MentionNode).map((node) => ({
+    id: $getChipTarget(node),
+    kind: $getMentionKind(node),
+    displayName: node.getTextContent().replace(/^@/, ''),
+  }));
+}
+
 /**
  * Enter-to-send plus the imperative handle, in one plugin.
  *
@@ -328,7 +345,10 @@ function EditorApiPlugin({
   hasPendingAttachments = false,
   enterToSend = true,
 }: {
-  onSend: (text: string) => void | Promise<void>;
+  onSend: (
+    text: string,
+    mentions: DetectedMention[],
+  ) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onRegisterRef?: (ref: LexicalEditorRef) => void;
   hasPendingAttachments?: boolean;
@@ -361,11 +381,16 @@ function EditorApiPlugin({
     // only bail out when there's neither text nor anything else going out.
     if (!body && !hasPendingAttachments) return false;
 
+    let mentions: DetectedMention[] = [];
+    editor.getEditorState().read(() => {
+      mentions = readMentions();
+    });
+
     reset();
     onTyping?.(false);
-    void onSend(body);
+    void onSend(body, mentions);
     return true;
-  }, [readMarkdown, reset, onSend, onTyping, hasPendingAttachments]);
+  }, [editor, readMarkdown, reset, onSend, onTyping, hasPendingAttachments]);
 
   const insertNodesAtCaret = useCallback(
     (build: () => ReturnType<typeof $createTextNode>[]) => {
@@ -608,13 +633,7 @@ function ChangeSignalsPlugin({
       const write = callbacks.current.onMentionsChange;
       if (!write) return;
       editor.getEditorState().read(() => {
-        const nodes = $nodesOfType(MentionNode);
-        const mentions: DetectedMention[] = nodes.map((node) => ({
-          id: $getChipTarget(node),
-          kind: $getMentionKind(node),
-          displayName: node.getTextContent().replace(/^@/, ''),
-        }));
-        write(mentions);
+        write(readMentions());
       });
     };
 

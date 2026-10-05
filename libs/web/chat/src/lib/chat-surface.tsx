@@ -23,7 +23,7 @@ import {
   ThreadPanel,
   TypingIndicator,
   UnreadMentionsPill,
-  ComposerWarning,
+  useMentionNotices,
   DEFAULT_AI_AGENT_MENTIONS,
   DEFAULT_COWORKER_MENTIONS,
   DEFAULT_APP_MENTIONS,
@@ -42,7 +42,12 @@ import type {
 import type { ComposerContext } from '@org/types';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useComposerControl } from './use-composer-control.js';
-import { useComposerAddActions } from './use-composer-add-actions.js';
+import { useMentionAddActions } from './use-mention-add-actions.js';
+import {
+  MentionNoticeRow,
+  interleaveMentionNotices,
+  useMentionNoticeTimeline,
+} from './mention-notice-row.js';
 import {
   useScheduledMessages,
   useScheduledMessageMutations,
@@ -259,7 +264,14 @@ export interface ChatSurfaceProps {
 
   /** Offered by the channel welcome block; there is no bookmarks bar. */
   onAddBookmark?: () => void;
-  onSend: (body: string, threadRootId?: string) => void | Promise<void>;
+  /**
+   * May resolve to the send's transaction id, which lets an "Only visible to
+   * you" mention notice sit directly under the message that raised it.
+   */
+  onSend: (
+    body: string,
+    threadRootId?: string,
+  ) => void | string | undefined | Promise<void | string | undefined>;
   onEdit?: (eventId: string, body: string) => void | Promise<void>;
   onDelete?: (eventId: string) => void | Promise<void>;
   /** Holds `WorkspacePermission.MODERATE_MESSAGES` — may delete another member's message. */
@@ -753,13 +765,22 @@ export function ChatSurface({
   const effectiveRoomId = composerContext?.roomId ?? conversationId;
   const effectivePeerId = composerContext?.peerId;
 
-  const handleAddAction = useComposerAddActions({
+  const addMentionTargets = useMentionAddActions({
     workspaceId: effectiveWorkspaceId,
     channelId: effectiveChannelId,
     roomId: effectiveRoomId,
     peerId: effectivePeerId,
     slug: workspaceSlug,
   });
+
+  // "Only visible to you" notices raised by this room's sends — the main
+  // timeline's woven into the message list, a thread's under its replies.
+  const mainNotices = useMentionNotices(effectiveRoomId);
+  const threadNotices = useMentionNotices(effectiveRoomId, threadRootId ?? '');
+  const noticeTimeline = useMentionNoticeTimeline(
+    mainNotices,
+    addMentionTargets,
+  );
 
   const scheduledMessagesQuery = useScheduledMessages(effectiveWorkspaceId);
   const scheduledMessageMutations = useScheduledMessageMutations(effectiveWorkspaceId);
@@ -801,6 +822,17 @@ export function ChatSurface({
   }, [composerContext, threadRoot?.id]);
 
   const threadControl = useComposerControl(threadComposerContext, members);
+
+  /** Wording inputs every notice raised from this surface shares. */
+  const noticePlacement = useMemo(
+    () => ({
+      conversationKey: effectiveRoomId,
+      conversationName: title,
+      peerName: welcome?.peer?.name ?? title,
+      isPrivate: welcome?.isPrivate ?? isEncrypted,
+    }),
+    [effectiveRoomId, title, welcome?.peer?.name, welcome?.isPrivate, isEncrypted],
+  );
 
   // Display names carry spaces, so the message renderer needs the roster to
   // know where a `@mention` ends.
@@ -1673,9 +1705,19 @@ export function ChatSurface({
                     </div>
                   }
                   rootSlot={renderMessage(threadRoot, false, undefined, true)}
-                  repliesSlot={threadReplies.map((reply) => (
-                    <div key={reply.id}>{renderMessage(reply, false, undefined, true)}</div>
-                  ))}
+                  repliesSlot={interleaveMentionNotices(
+                    threadReplies,
+                    threadNotices,
+                    (reply) => (
+                      <div>{renderMessage(reply, false, undefined, true)}</div>
+                    ),
+                    (notice) => (
+                      <MentionNoticeRow
+                        notice={notice}
+                        onAddTargets={addMentionTargets}
+                      />
+                    ),
+                  )}
                   composerSlot={
                     <Composer
                       conversationId={
@@ -1694,10 +1736,17 @@ export function ChatSurface({
                       readOnlyMessage={
                         threadComposerReadOnlyMessage ?? composerReadOnlyMessage
                       }
-                      onSend={(body) => onSend(body, threadRoot.id)}
+                      onSend={async (body, meta) => {
+                        const anchorId = await onSend(body, threadRoot.id);
+                        threadControl.raiseMentionNotice(meta?.mentions, {
+                          ...noticePlacement,
+                          threadRootId: threadRoot.id,
+                          anchorId:
+                            typeof anchorId === 'string' ? anchorId : undefined,
+                        });
+                      }}
                       onTyping={effectiveOnTyping}
                       enterToSend={chat?.enterToSend ?? true}
-                      onMentionsChange={threadControl.onMentionsChange}
                       surfaceKind={threadComposerContext?.surfaceKind}
                       viewerCanManage={threadControl.viewerCanManage}
                       isGuest={threadControl.isGuest}
@@ -1705,19 +1754,8 @@ export function ChatSurface({
                       workspaceMembers={threadControl.workspaceMembers}
                       agentMentions={threadControl.agentMentions}
                       coworkerMentions={threadControl.coworkerMentions}
+                      appMentions={threadControl.appMentions}
                       channelMentions={threadControl.channelMentions}
-                      contextSlot={
-                        threadControl.warning ? (
-                          <ComposerWarning
-                            state={threadControl.warning}
-                            onDismiss={threadControl.dismissWarning}
-                            onAdd={handleAddAction}
-                            channelName={title}
-                            peerName={welcome?.peer?.name ?? title}
-                            surfaceKind={threadComposerContext?.surfaceKind}
-                          />
-                        ) : undefined
-                      }
                       onAttach={
                         onAttach
                           ? (files) => void onAttach(files, threadRoot.id)
@@ -1774,6 +1812,8 @@ export function ChatSurface({
             mentionsRemaining={mainMentionNav.remaining}
             onJumpToMention={mainMentionNav.jumpToNext}
             renderMessage={renderMessage}
+            ephemeralItems={noticeTimeline.ephemeralItems}
+            renderEphemeral={noticeTimeline.renderEphemeral}
             introSlot={
               welcome ? (
                 <ChannelWelcome
@@ -1838,7 +1878,6 @@ export function ChatSurface({
             onSendVoice={onSendVoice}
             readOnlyMessage={editing ? undefined : composerReadOnlyMessage}
             anonymousPosting={editing ? undefined : anonymousPosting}
-            onMentionsChange={mainControl.onMentionsChange}
             surfaceKind={composerContext?.surfaceKind}
             viewerCanManage={mainControl.viewerCanManage}
             isGuest={mainControl.isGuest}
@@ -1846,6 +1885,7 @@ export function ChatSurface({
             workspaceMembers={mainControl.workspaceMembers}
             agentMentions={mainControl.agentMentions}
             coworkerMentions={mainControl.coworkerMentions}
+            appMentions={mainControl.appMentions}
             channelMentions={mainControl.channelMentions}
             edit={
               editing ? { messageId: editing.id, initialMarkdown: editing.body } : null
@@ -1864,23 +1904,18 @@ export function ChatSurface({
                     Cancel
                   </Button>
                 </div>
-              ) : mainControl.warning ? (
-                <ComposerWarning
-                  state={mainControl.warning}
-                  onDismiss={mainControl.dismissWarning}
-                  onAdd={handleAddAction}
-                  channelName={title}
-                  peerName={welcome?.peer?.name ?? title}
-                  surfaceKind={composerContext?.surfaceKind}
-                />
               ) : null
             }
-            onSend={async (body) => {
+            onSend={async (body, meta) => {
               if (editing && onEdit) {
                 await onEdit(editing.id, body);
                 setEditing(null);
               } else {
-                await onSend(body);
+                const anchorId = await onSend(body);
+                mainControl.raiseMentionNotice(meta?.mentions, {
+                  ...noticePlacement,
+                  anchorId: typeof anchorId === 'string' ? anchorId : undefined,
+                });
               }
             }}
           />

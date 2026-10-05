@@ -31,6 +31,29 @@ export interface MentionEvaluation {
 }
 
 /**
+ * One person has two spellings in chat: room rosters carry the Matrix id the
+ * bridge minted for them (`@onetab_<id>:server`, see `toMatrixLocalpart` in
+ * `@org/api-matrix`), while the workspace member list and every API carry the
+ * bare platform id. Collapses the Matrix spelling back to `<id>` so the two can
+ * be compared; anything else (a bare id, an agent/app id) passes through.
+ */
+export function toPlatformUserId(id: string): string {
+  const match = /^@onetab_([^:]+):.+$/.exec(id.trim());
+  return match ? match[1] : id;
+}
+
+/** Whether `userId` (either spelling) is in `reachable` (either spelling). */
+function hasUser(reachable: ReadonlySet<string>, userId: string): boolean {
+  if (reachable.has(userId)) return true;
+  const platformId = toPlatformUserId(userId);
+  if (reachable.has(platformId)) return true;
+  for (const id of reachable) {
+    if (toPlatformUserId(id) === platformId) return true;
+  }
+  return false;
+}
+
+/**
  * Mirrors `ChannelService.assertCanManage`'s predicate exactly, so the
  * button state and the server enforcement can never drift (same discipline
  * `channel-policy.ts` already documents for posting).
@@ -76,7 +99,7 @@ export function evaluateMention(
     case 'thread':
     case 'channel': {
       if (mention.kind === 'user') {
-        const isReachable = reachable.userIds.has(mention.id);
+        const isReachable = hasUser(reachable.userIds, mention.id);
         return {
           reachable: isReachable,
           addAction: isReachable
@@ -124,7 +147,7 @@ export function evaluateMention(
 
     case 'group-dm': {
       if (mention.kind === 'user') {
-        const isReachable = reachable.userIds.has(mention.id);
+        const isReachable = hasUser(reachable.userIds, mention.id);
         return {
           reachable: isReachable,
           addAction: isReachable ? 'none' : 'group-dm-member',
@@ -135,7 +158,7 @@ export function evaluateMention(
 
     case 'dm': {
       if (mention.kind === 'user') {
-        const isReachable = reachable.userIds.has(mention.id);
+        const isReachable = hasUser(reachable.userIds, mention.id);
         return {
           reachable: isReachable,
           addAction: isReachable ? 'none' : 'start-group',
@@ -147,7 +170,7 @@ export function evaluateMention(
     case 'agent':
     case 'coworker':
     case 'app': {
-      const isReachable = reachable.userIds.has(mention.id);
+      const isReachable = hasUser(reachable.userIds, mention.id);
       return {
         reachable: isReachable,
         addAction: 'none',

@@ -3,6 +3,7 @@ import { ChannelRole, WorkspaceRole } from './enums.js';
 import {
   evaluateMention,
   canManageChannelMembers,
+  toPlatformUserId,
   type ComposerReachability,
   type DetectedMention,
 } from './composer-policy.js';
@@ -179,5 +180,45 @@ describe('evaluateMention — 1:1 agent/coworker/app surface', () => {
       { surfaceKind: 'agent', reachable: reachableAll, viewerCanManage: false },
     );
     expect(res).toEqual({ reachable: false, addAction: 'none' });
+  });
+});
+
+describe('toPlatformUserId', () => {
+  it('unwraps the bridged Matrix spelling to the platform id', () => {
+    expect(toPlatformUserId('@onetab_ckabc123:chat.example.com')).toBe(
+      'ckabc123',
+    );
+    expect(toPlatformUserId('@onetab_ckabc123:localhost:8008')).toBe(
+      'ckabc123',
+    );
+  });
+
+  it('passes every other id through untouched', () => {
+    expect(toPlatformUserId('ckabc123')).toBe('ckabc123');
+    expect(toPlatformUserId('@alice:matrix.org')).toBe('@alice:matrix.org');
+    expect(toPlatformUserId('agent-1')).toBe('agent-1');
+  });
+});
+
+describe('evaluateMention — mixed id spellings', () => {
+  const roster: ComposerReachability = {
+    ...reachableEmpty,
+    userIds: new Set(['@onetab_ckalice:chat.example.com']),
+  };
+
+  it('treats a platform-id mention of a room member as reachable', () => {
+    const result = evaluateMention(
+      { id: 'ckalice', kind: 'user' },
+      { surfaceKind: 'channel', reachable: roster, viewerCanManage: true },
+    );
+    expect(result).toEqual({ reachable: true, addAction: 'none' });
+  });
+
+  it('still flags a platform-id mention of someone outside the room', () => {
+    const result = evaluateMention(
+      { id: 'ckbob', kind: 'user' },
+      { surfaceKind: 'channel', reachable: roster, viewerCanManage: true },
+    );
+    expect(result).toEqual({ reachable: false, addAction: 'channel-member' });
   });
 });

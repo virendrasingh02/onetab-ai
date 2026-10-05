@@ -434,7 +434,7 @@ export function ChatSettingsPanel() {
                   Mention reachability warnings
                 </h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Show inline warnings and quick-add actions when mentioning teammates, agents, or apps not present in the channel.
+                  After you mention a teammate, agent, or app who isn't in the conversation, show a private "Only visible to you" notice with a one-click way to add them.
                 </p>
               </div>
             </div>

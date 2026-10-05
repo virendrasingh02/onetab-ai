@@ -485,10 +485,12 @@ function extensionForAudioMimeType(mimeType: string): string {
 export function useRoomActions(roomId: RoomId | undefined) {
   const { client } = useMatrix();
 
+  /** Resolves to the send's transaction id — kept on the message once the
+   *  server acknowledges it, so callers can find "the message I just sent". */
   const send = useCallback(
-    async (body: string, threadRootId?: string) => {
-      if (!client || !roomId) return;
-      await client.sendMessage(roomId, body, { threadRootId });
+    async (body: string, threadRootId?: string): Promise<string | undefined> => {
+      if (!client || !roomId) return undefined;
+      return client.sendMessage(roomId, body, { threadRootId });
     },
     [client, roomId],
   );

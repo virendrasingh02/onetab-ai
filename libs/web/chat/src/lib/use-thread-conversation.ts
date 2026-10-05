@@ -8,8 +8,11 @@ export interface ThreadConversation {
   isLoading: boolean;
   /** True while a reply this client sent is still in flight. */
   isSending: boolean;
-  /** Post a reply into the thread. Resolves once the echo is on the timeline. */
-  send: (body: string) => Promise<void>;
+  /**
+   * Post a reply into the thread. Resolves once the echo is on the timeline,
+   * to the send's transaction id.
+   */
+  send: (body: string) => Promise<string | undefined>;
   /** Catch the thread's read marker up to its latest reply. */
   markRead: () => void;
   /** Re-read the thread from the client (used after a send). */
@@ -76,13 +79,16 @@ export function useThreadConversation(
   }, [client, roomId, rootId, enabled, load]);
 
   const send = useCallback(
-    async (body: string) => {
+    async (body: string): Promise<string | undefined> => {
       const trimmed = body.trim();
-      if (!client || !roomId || !rootId || !trimmed) return;
+      if (!client || !roomId || !rootId || !trimmed) return undefined;
       setIsSending(true);
       try {
-        await client.sendMessage(roomId, trimmed, { threadRootId: rootId });
+        const transactionId = await client.sendMessage(roomId, trimmed, {
+          threadRootId: rootId,
+        });
         await load();
+        return transactionId;
       } finally {
         setIsSending(false);
       }

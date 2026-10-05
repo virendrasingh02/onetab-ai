@@ -169,6 +169,7 @@ export {
   buildRows,
   type MessageListHandle,
   type MessageListProps,
+  type TimelineEphemeralItem,
 } from './lib/message-list.js';
 
 export {
@@ -335,18 +336,26 @@ export {
 } from './lib/entities/types.js';
 
 export {
-  ComposerWarning,
-  formatTargetSentence,
+  MentionNotice,
+  MENTION_NOTICE_SENDER,
+  describeConversation,
   formatActionLabel,
-  type ComposerWarningProps,
-  type ComposerWarningState,
-  type ComposerWarningTarget,
-} from './lib/composer-warning.js';
+  getMentionNoticeCopy,
+  getMentionNoticeSuccess,
+  type MentionNoticeCopy,
+  type MentionNoticeCopyInput,
+  type MentionNoticeProps,
+} from './lib/mention-notice.js';
 
 export {
-  useComposerWarningStore,
-  type ComposerWarningStoreState,
-} from './lib/composer-warning-store.js';
+  useMentionNoticeStore,
+  useMentionNotices,
+  type MentionNoticeEntry,
+  type MentionNoticeStatus,
+  type MentionNoticeStoreState,
+  type MentionNoticeTarget,
+  type RaiseMentionNoticeInput,
+} from './lib/mention-notice-store.js';
 
 export {
   detectLinks,
