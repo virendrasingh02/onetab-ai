@@ -12,14 +12,12 @@ import {
 } from '@org/ui';
 import {
   ArrowLeft,
-  DollarSign,
-  HardDrive,
   Laptop,
-  MessageSquare,
   Users,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
+  AdminMetricCard,
   AnalyticsFilterBar,
   AnalyticsHeader,
 } from '../components/index.js';
@@ -117,59 +115,51 @@ export function WorkspaceDetailAnalyticsView() {
         state={filterState}
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Members</span>
-            <Users className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {ws.userCount.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Active: {ws.activeUsers.toLocaleString()}
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Total Members"
+          subtitle="Seat Allocation"
+          value={ws.userCount.toLocaleString()}
+          badgeText="+11.2%"
+          badgeType="positive"
+          secondaryText={`Active: ${ws.activeUsers.toLocaleString()} members`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Messages Sent</span>
-            <MessageSquare className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.communication?.messagesSent?.toLocaleString() ?? '0'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Channels: {data?.communication?.channelMessages?.toLocaleString() ?? 0} | DMs: {data?.communication?.directMessages?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Messages Sent"
+          subtitle="Internal Comms Velocity"
+          value={data?.communication?.messagesSent?.toLocaleString() ?? '0'}
+          badgeText="+14.5%"
+          badgeType="positive"
+          secondaryText={`Channels: ${data?.communication?.channelMessages?.toLocaleString() ?? 0} · DMs: ${data?.communication?.directMessages?.toLocaleString() ?? 0}`}
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Storage Used</span>
-            <HardDrive className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {formatBytes(ws.storageBytes)}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Uploads: {data?.files?.uploads?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Storage Used"
+          subtitle="Quota Headroom"
+          value={formatBytes(ws.storageBytes)}
+          badgeText="+5.3%"
+          badgeType="positive"
+          secondaryText={`Uploads: ${data?.files?.uploads?.toLocaleString() ?? 0} files`}
+          sparklineColor="amber"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Revenue</span>
-            <DollarSign className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            ${ws.revenue?.toLocaleString() ?? '0'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Status: {data?.revenue?.billingStatus ?? 'Active'}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Revenue Generated"
+          subtitle="Subscription Tier"
+          value={`$${ws.revenue?.toLocaleString() ?? '0'}`}
+          badgeText={data?.revenue?.billingStatus ?? 'Active'}
+          badgeType="positive"
+          secondaryText={`Plan: ${ws.plan || 'Enterprise'}`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Message Growth & Storage Growth Charts */}

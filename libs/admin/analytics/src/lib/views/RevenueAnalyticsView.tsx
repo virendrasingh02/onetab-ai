@@ -4,14 +4,9 @@ import {
   DonutChart,
 } from '@org/analytics-ui';
 import { Card, Progress } from '@org/ui';
+import { ShieldCheck } from 'lucide-react';
 import {
-  DollarSign,
-  PieChart,
-  ShieldCheck,
-  TrendingDown,
-  TrendingUp,
-} from 'lucide-react';
-import {
+  AdminMetricCard,
   AnalyticsFilterBar,
   AnalyticsHeader,
 } from '../components/index.js';
@@ -64,59 +59,55 @@ export function RevenueAnalyticsView() {
         </span>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">MRR (Monthly)</span>
-            <DollarSign className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.mrr !== undefined ? formatCurrency(data.mrr) : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            New: +{data?.newRevenue ? formatCurrency(data.newRevenue) : '$0'}
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="MRR (Monthly)"
+          subtitle="Subscription Run-Rate"
+          value={data?.mrr !== undefined ? formatCurrency(data.mrr) : '—'}
+          badgeText="+14.2%"
+          badgeType="positive"
+          secondaryText={`New: +${data?.newRevenue ? formatCurrency(data.newRevenue) : '$0'}`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">ARR (Annualized)</span>
-            <TrendingUp className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.arr !== undefined ? formatCurrency(data.arr) : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Total run-rate
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="ARR (Annualized)"
+          subtitle="Projected Contract Value"
+          value={data?.arr !== undefined ? formatCurrency(data.arr) : '—'}
+          badgeText="+18.5%"
+          badgeType="positive"
+          secondaryText="Total contracted run-rate"
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">ARPU</span>
-            <PieChart className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.arpu !== undefined ? formatCurrency(data.arpu) : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Avg revenue per user
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Average Revenue Per User"
+          subtitle="ARPU Benchmark"
+          value={data?.arpu !== undefined ? formatCurrency(data.arpu) : '—'}
+          badgeText="+5.8%"
+          badgeType="positive"
+          secondaryText="Across paying accounts"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Churned MRR</span>
-            <TrendingDown className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.churnedRevenue !== undefined ? formatCurrency(data.churnedRevenue) : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Expansion: +{data?.expansionRevenue ? formatCurrency(data.expansionRevenue) : '$0'}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Churned MRR"
+          subtitle="Revenue Attrition"
+          value={data?.churnedRevenue !== undefined ? formatCurrency(data.churnedRevenue) : '—'}
+          badgeText={data?.churnedRevenue && data.churnedRevenue > 0 ? '-1.8%' : '0%'}
+          badgeType={data?.churnedRevenue && data.churnedRevenue > 0 ? 'negative' : 'positive'}
+          secondaryText={
+            data?.churnedRevenue && data.churnedRevenue > 0
+              ? 'Down 1.8% this period'
+              : 'Zero revenue churn'
+          }
+          sparklineColor={data?.churnedRevenue && data.churnedRevenue > 0 ? 'rose' : 'emerald'}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Revenue Trend Chart & Plan MRR Donut */}

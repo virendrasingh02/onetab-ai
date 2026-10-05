@@ -3,14 +3,9 @@ import {
   DonutChart,
 } from '@org/analytics-ui';
 import { Card } from '@org/ui';
+import { Filter } from 'lucide-react';
 import {
-  Clock,
-  Filter,
-  Layers,
-  Sparkles,
-  Users,
-} from 'lucide-react';
-import {
+  AdminMetricCard,
   AnalyticsFilterBar,
   AnalyticsFunnelChart,
   AnalyticsHeader,
@@ -56,63 +51,59 @@ export function SubscriptionAnalyticsView() {
         state={filterState}
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Paid Subscriptions</span>
-            <Users className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.paidCount?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Free accounts: {data?.freeCount?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Paid Subscriptions"
+          subtitle="Enterprise & Pro Plans"
+          value={data?.paidCount?.toLocaleString() ?? '—'}
+          badgeText="+12.6%"
+          badgeType="positive"
+          secondaryText={`Free tier: ${data?.freeCount?.toLocaleString() ?? 0} accounts`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Trial Conversion</span>
-            <Sparkles className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.trialConversionRatePct !== undefined ? `${data.trialConversionRatePct}%` : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Trials active: {data?.trialCount?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Trial Conversion"
+          subtitle="Funnel Efficiency"
+          value={data?.trialConversionRatePct !== undefined ? `${data.trialConversionRatePct}%` : '—'}
+          badgeText="+3.4%"
+          badgeType="positive"
+          secondaryText={`Active trials: ${data?.trialCount?.toLocaleString() ?? 0}`}
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Cancellations</span>
-            <Clock className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.cancellations?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Churn rate: {data?.churnRatePct ?? 0}%
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Cancellations"
+          subtitle="Monthly Drop-off"
+          value={data?.cancellations?.toLocaleString() ?? '—'}
+          badgeText={`${data?.churnRatePct ?? 0}% churn`}
+          badgeType={data?.cancellations && data.cancellations > 0 ? 'negative' : 'positive'}
+          secondaryText={
+            data?.cancellations && data.cancellations > 0
+              ? `Monthly churn rate: ${data?.churnRatePct ?? 0}%`
+              : 'Zero recent cancellations'
+          }
+          sparklineColor={data?.cancellations && data.cancellations > 0 ? 'rose' : 'emerald'}
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Plan Upgrades</span>
-            <Layers className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.upgrades?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Downgrades: {data?.downgrades?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Plan Upgrades"
+          subtitle="Expansion Velocity"
+          value={data?.upgrades?.toLocaleString() ?? '—'}
+          badgeText="+19.0%"
+          badgeType="positive"
+          secondaryText={`Downgrades: ${data?.downgrades?.toLocaleString() ?? 0}`}
+          sparklineColor="amber"
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Conversion Funnel */}
-      <Card className="p-4">
+      <Card className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6 shadow-2xs">
         <div className="flex items-center gap-2 mb-3 pb-2 border-b">
           <Filter className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">Tier Upgrade Conversion Funnel</h2>

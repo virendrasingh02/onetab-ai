@@ -9,8 +9,8 @@ export function Card({ className, ...props }: ComponentProps<'div'>) {
         // The white panel that sits on the grey app canvas. Hover lifts the
         // border a step rather than dropping a shadow: a card in a grid of
         // cards should not jump when the pointer crosses it.
-        'flex flex-col rounded-card border border-border bg-card text-card-foreground',
-        'transition-colors duration-(--duration-fast) ease-standard hover:border-border-strong',
+        'flex flex-col rounded-2xl border border-border/60 bg-card text-card-foreground shadow-2xs',
+        'transition-all duration-(--duration-fast) ease-standard hover:border-border/90',
         className,
       )}
       {...props}

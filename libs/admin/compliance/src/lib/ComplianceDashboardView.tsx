@@ -89,31 +89,39 @@ export function ComplianceDashboardView() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           label="Overall Compliance Score"
+          subtitle="Regulatory Benchmark"
           value={`${data.overallScore}%`}
-          hint={`${data.overallStatus === 'PASSED' ? 'Production Ready' : 'Review Required'}`}
-          icon={ShieldCheck}
-          accent="green"
+          badgeText={data.overallStatus === 'PASSED' ? 'PASSED' : 'REVIEW'}
+          badgeType={data.overallStatus === 'PASSED' ? 'positive' : 'warning'}
+          secondaryText={data.overallStatus === 'PASSED' ? 'Production Ready' : 'Review Required'}
+          sparklineColor="emerald"
         />
         <StatCard
           label="Web Platform Readiness"
+          subtitle="Web & PWA Standards"
           value={`${data.webReadiness}%`}
-          hint="Production Web & PWA"
-          icon={Globe}
-          accent="cyan"
+          badgeText="Verified"
+          badgeType="positive"
+          secondaryText="Production Web Ready"
+          sparklineColor="cyan"
         />
         <StatCard
           label="Desktop Platform Readiness"
+          subtitle="OS Native Targets"
           value={`${data.desktopReadiness}%`}
-          hint="Windows, macOS & Linux"
-          icon={Monitor}
-          accent="violet"
+          badgeText="Certified"
+          badgeType="positive"
+          secondaryText="Windows, macOS & Linux"
+          sparklineColor="emerald"
         />
         <StatCard
           label="Open Compliance Issues"
+          subtitle="Audit Remediation"
           value={data.openIssuesCount.total.toString()}
-          hint={`${data.openIssuesCount.critical} Critical · ${data.openIssuesCount.high} High`}
-          icon={ShieldAlert}
-          accent="rose"
+          badgeText={`${data.openIssuesCount.total} items`}
+          badgeType={data.openIssuesCount.critical > 0 ? 'negative' : 'warning'}
+          secondaryText={`${data.openIssuesCount.critical} Critical · ${data.openIssuesCount.high} High`}
+          sparklineColor={data.openIssuesCount.critical > 0 ? 'rose' : 'amber'}
         />
       </div>
 

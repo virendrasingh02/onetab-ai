@@ -12,10 +12,7 @@ export interface PanelProps extends Omit<ComponentProps<'section'>, 'title'> {
 
 /**
  * A titled surface for one unit of content — a chart, a table, a breakdown.
- *
- * Distinct from `Card`: `Card` is the bare surface primitive, `Panel` is the
- * titled composition of it that dashboard screens repeat. Its heading is an
- * `<h3>`, so it nests correctly under `PageSection`'s `<h2>`.
+ * Styled consistently across the platform with rounded-xl border and card tokens.
  */
 export function Panel({
   title,
@@ -31,18 +28,17 @@ export function Panel({
     <section
       data-slot="panel"
       className={cn(
-        // `rounded-card` like `Card`: a panel and a card are the same box at
-        // different scales, and they sat a corner-step apart.
-        'shadow-xs flex flex-col rounded-card border border-border bg-surface text-card-foreground',
+        'shadow-2xs flex flex-col rounded-2xl border border-border/60 bg-card text-card-foreground',
+        'transition-all duration-(--duration-fast) hover:border-border/90',
         className,
       )}
       {...props}
     >
       {title || actions ? (
-        <div className="gap-3 px-5 pt-4 pb-3 flex items-start justify-between">
+        <div className="gap-3 px-5 pt-4 pb-3 flex items-start justify-between border-b border-border/40">
           <div className="min-w-0">
             {title ? (
-              <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+              <h3 className="text-sm font-semibold text-foreground tracking-tight">{title}</h3>
             ) : null}
             {subtitle ? (
               <p className="mt-0.5 text-xs text-pretty text-muted-foreground">
@@ -67,7 +63,7 @@ export function Panel({
       </div>
 
       {footer ? (
-        <div className="px-5 py-3 text-xs border-t text-muted-foreground">
+        <div className="px-5 py-3 text-xs border-t border-border/40 text-muted-foreground bg-muted/20 rounded-b-2xl">
           {footer}
         </div>
       ) : null}

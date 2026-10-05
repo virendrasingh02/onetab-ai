@@ -4,3 +4,4 @@ export * from './AnalyticsFilterBar.js';
 export * from './ExecutiveKpiGrid.js';
 export * from './AnalyticsDataTable.js';
 export * from './LiveActivityFeed.js';
+export * from './AdminMetricCard.js';

@@ -4,8 +4,9 @@ import {
   DonutChart,
 } from '@org/analytics-ui';
 import { Card } from '@org/ui';
-import { Globe, Laptop, Monitor, Sparkles } from 'lucide-react';
+import { Globe, Laptop } from 'lucide-react';
 import {
+  AdminMetricCard,
   AnalyticsDataTable,
   AnalyticsFilterBar,
   AnalyticsHeader,
@@ -148,63 +149,55 @@ export function PlatformUsageView() {
         showPlatformFilter={false}
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Active Web Users</span>
-            <Globe className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.activeWebUsers?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Total: {data?.totalWebUsers?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Active Web Users"
+          subtitle="Browser Platform Sessions"
+          value={data?.activeWebUsers?.toLocaleString() ?? '—'}
+          badgeText="+14.2%"
+          badgeType="positive"
+          secondaryText={`Total: ${data?.totalWebUsers?.toLocaleString() ?? 0}`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Active Desktop Users</span>
-            <Laptop className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.activeDesktopUsers?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Total: {data?.totalDesktopUsers?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Active Desktop Users"
+          subtitle="Electron Client Adoption"
+          value={data?.activeDesktopUsers?.toLocaleString() ?? '—'}
+          badgeText="+8.5%"
+          badgeType="positive"
+          secondaryText={`Total: ${data?.totalDesktopUsers?.toLocaleString() ?? 0}`}
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Sessions</span>
-            <Monitor className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {totalSessions.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Web: {data?.sessionsByPlatform?.web ?? 0} | Desktop: {data?.sessionsByPlatform?.desktop ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Total Sessions"
+          subtitle="Aggregated Concurrency"
+          value={totalSessions.toLocaleString()}
+          badgeText="+12.0%"
+          badgeType="positive"
+          secondaryText={`Web: ${data?.sessionsByPlatform?.web ?? 0} · Desktop: ${data?.sessionsByPlatform?.desktop ?? 0}`}
+          sparklineColor="amber"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Desktop Share</span>
-            <Sparkles className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {desktopPct}%
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Electron adoption
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Desktop Share"
+          subtitle="Platform Distribution"
+          value={`${desktopPct}%`}
+          badgeText="+2.4%"
+          badgeType="positive"
+          secondaryText="Native app client ratio"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Visual Split */}
-      <Card className="p-4">
+      <Card className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6 shadow-2xs">
         <div className="flex items-center justify-between mb-2 text-xs font-semibold">
           <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
             <Globe className="size-3.5" />

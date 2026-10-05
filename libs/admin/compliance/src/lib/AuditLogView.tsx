@@ -1,11 +1,8 @@
 import type { ComplianceAuditLogView } from '@org/types';
 import {
-  Badge,
   Button,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   CodeBlock,
   Dialog,
   DialogContent,
@@ -31,6 +28,8 @@ import {
   TableRow,
 } from '@org/ui';
 import {
+  ChevronLeft,
+  ChevronRight,
   Eye,
   History,
   Lock,
@@ -57,6 +56,8 @@ export function AuditLogView() {
   const logs = logsQuery.data?.items ?? [];
   const total = logsQuery.data?.total ?? 0;
   const totalPages = Math.ceil(total / 20) || 1;
+  const startEntry = total === 0 ? 0 : (page - 1) * 20 + 1;
+  const endEntry = Math.min(page * 20, total);
 
   if (logsQuery.isLoading && !logsQuery.data) {
     return (
@@ -159,120 +160,132 @@ export function AuditLogView() {
         </CardContent>
       </Card>
 
-      {/* Audit Log Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <History className="h-4 w-4 text-blue-600" />
-              Audit Ledger Records ({total})
-            </CardTitle>
-            <div className="text-xs text-muted-foreground">
-              Page {page} of {totalPages}
-            </div>
+      {/* Audit Log Table Container */}
+      <div className="rounded-2xl border border-border/60 bg-card shadow-2xs overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:px-5 sm:py-3.5 border-b border-border/40">
+          <div>
+            <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight flex items-center gap-2">
+              <History className="h-4 w-4 text-blue-500" />
+              Audit Ledger Records
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Verified append-only event stream for SOC 2, ISO 27001, and App Store compliance
+            </p>
           </div>
-        </CardHeader>
+          <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-foreground">
+            {total} Records
+          </span>
+        </div>
 
-        <CardContent>
-          <div className="border rounded-md overflow-x-auto">
-            <Table>
-              <TableHeader>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b border-border/40 hover:bg-transparent">
+                <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight w-[180px]">Timestamp</TableHead>
+                <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight w-[180px]">Action</TableHead>
+                <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight w-[140px]">Target Type</TableHead>
+                <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Actor / Operator</TableHead>
+                <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight w-[90px] text-right">Payload</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.length === 0 ? (
                 <TableRow>
-                  <TableHead className="w-[180px]">Timestamp</TableHead>
-                  <TableHead className="w-[180px]">Action</TableHead>
-                  <TableHead className="w-[140px]">Target Type</TableHead>
-                  <TableHead>Actor / Operator</TableHead>
-                  <TableHead className="w-[90px] text-right">Payload</TableHead>
+                  <TableCell
+                    colSpan={5}
+                    className="text-center py-12 text-muted-foreground"
+                  >
+                    <EmptyState
+                      title="No audit events found"
+                      description="Audit actions will appear here as compliance reviews and changes are executed."
+                    />
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      <EmptyState
-                        title="No audit events found"
-                        description="Audit actions will appear here as compliance reviews and changes are executed."
-                      />
+              ) : (
+                logs.map((log) => (
+                  <TableRow
+                    key={log.id}
+                    className="border-b border-border/40 hover:bg-muted/30 transition-colors"
+                  >
+                    <TableCell className="py-3.5 px-5 font-mono text-xs text-muted-foreground">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="py-3.5 px-5">
+                      <span
+                        className={
+                          log.action.includes('OVERRIDE')
+                            ? 'inline-flex items-center rounded-full border border-rose-500/25 bg-rose-500/15 text-rose-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase'
+                            : log.action.includes('UPDATE')
+                            ? 'inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/15 text-amber-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase'
+                            : 'inline-flex items-center rounded-full border border-blue-500/25 bg-blue-500/15 text-blue-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase'
+                        }
+                      >
+                        {log.action.replace(/_/g, ' ')}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-3.5 px-5 font-mono text-xs text-foreground">
+                      {log.targetType}
+                    </TableCell>
+                    <TableCell className="py-3.5 px-5">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="font-semibold text-foreground">
+                          {log.actorEmail || log.actorId || 'System Worker'}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3.5 px-5 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="size-7 p-0 rounded-lg border border-border/60 hover:bg-muted/50"
+                        onClick={() => setInspectLog(log)}
+                        title="Inspect JSON Payload"
+                      >
+                        <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  logs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {new Date(log.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            log.action.includes('OVERRIDE')
-                              ? 'destructive'
-                              : log.action.includes('UPDATE')
-                                ? 'warning'
-                                : 'secondary'
-                          }
-                          className="text-[10px] font-mono uppercase"
-                        >
-                          {log.action.replace(/_/g, ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {log.targetType}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <User className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="font-medium text-foreground">
-                            {log.actorEmail || log.actorId || 'System Worker'}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={() => setInspectLog(log)}
-                          title="Inspect JSON Payload"
-                        >
-                          <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-xs text-muted-foreground">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {/* Reference Image Footer Pagination */}
+        <div className="border-t border-border/40 px-5 py-3 flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            Showing{' '}
+            <span className="font-semibold text-foreground">{startEntry}</span>{' '}
+            to{' '}
+            <span className="font-semibold text-foreground">{endEntry}</span> of{' '}
+            <span className="font-semibold text-foreground">{total}</span> entries
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              aria-label="Previous page"
+              className="size-7 rounded-lg border border-border/60 bg-background/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+            >
+              <ChevronLeft className="size-3.5" />
+            </button>
+            <span className="px-1 font-medium text-foreground">
+              Page {page} of {Math.max(1, totalPages)}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              aria-label="Next page"
+              className="size-7 rounded-lg border border-border/60 bg-background/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+            >
+              <ChevronRight className="size-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Inspect JSON Details Dialog */}
       <Dialog

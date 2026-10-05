@@ -8,3 +8,15 @@
 @source '../../../libs/shared/design-system/src';
 @source '../../../libs/shared/analytics-ui/src';
 @source '../../../libs/admin';
+
+/* Ensure all admin pages, panels, and box layouts fill 100% of the available width */
+[data-slot="page"] {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}

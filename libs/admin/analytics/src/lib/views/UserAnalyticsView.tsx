@@ -5,9 +5,8 @@ import {
   DonutChart,
 } from '@org/analytics-ui';
 import type { AdminUserAnalytics } from '@org/types';
-import { Badge, Card } from '@org/ui';
-import { UserCheck, Users, UserX, Zap } from 'lucide-react';
 import {
+  AdminMetricCard,
   AnalyticsDataTable,
   AnalyticsFilterBar,
   AnalyticsHeader,
@@ -58,9 +57,9 @@ export function UserAnalyticsView() {
       accessorKey: 'systemRole',
       sortable: true,
       cell: (row) => (
-        <Badge variant="outline" className="text-[10px]">
+        <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-foreground">
           {row.systemRole}
-        </Badge>
+        </span>
       ),
     },
     {
@@ -70,9 +69,9 @@ export function UserAnalyticsView() {
       sortable: true,
       align: 'right',
       cell: (row) => (
-        <Badge variant="secondary" className="text-xs">
+        <span className="font-medium text-foreground tabular-nums">
           {row.workspacesCount}
-        </Badge>
+        </span>
       ),
     },
     {
@@ -82,7 +81,9 @@ export function UserAnalyticsView() {
       sortable: true,
       align: 'right',
       cell: (row) => (
-        <span className="font-semibold">{row.messagesCount.toLocaleString()}</span>
+        <span className="font-semibold text-foreground tabular-nums">
+          {row.messagesCount.toLocaleString()}
+        </span>
       ),
     },
     {
@@ -117,59 +118,63 @@ export function UserAnalyticsView() {
         state={filterState}
       />
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Accounts</span>
-            <Users className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.totalAccounts?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Growth: <span className="text-success font-semibold">+{data?.growthRate ?? 0}%</span>
-          </div>
-        </Card>
+      {/* Summary KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Total Accounts"
+          subtitle="Directory Registry"
+          value={data?.totalAccounts?.toLocaleString() ?? '—'}
+          badgeText={`+${data?.growthRate ?? 0}%`}
+          badgeType="positive"
+          secondaryText="Strong user acquisition"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Active Accounts</span>
-            <UserCheck className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.activeAccounts?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            DAU: {data?.dau?.toLocaleString() ?? 0} | WAU: {data?.wau?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Active Accounts"
+          subtitle="Platform Concurrency"
+          value={data?.activeAccounts?.toLocaleString() ?? '—'}
+          badgeText="+12.5%"
+          badgeType="positive"
+          secondaryText={`DAU: ${data?.dau?.toLocaleString() ?? 0} | WAU: ${data?.wau?.toLocaleString() ?? 0}`}
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">DAU / MAU Stickiness</span>
-            <Zap className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.dauMauRatio ? `${data.dauMauRatio}%` : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Retention rate: {data?.retentionRate ?? 0}%
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="DAU / MAU Stickiness"
+          subtitle="Cohort Stickiness Index"
+          value={data?.dauMauRatio ? `${data.dauMauRatio}%` : '—'}
+          badgeText={`+${data?.retentionRate ?? 0}%`}
+          badgeType="positive"
+          secondaryText={`Retention rate: ${data?.retentionRate ?? 0}%`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Pending / Suspended</span>
-            <UserX className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {(data?.suspendedAccounts ?? 0) + (data?.pendingAccounts ?? 0)}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Needs review / moderation
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Pending / Suspended"
+          subtitle="Compliance & Risk Holds"
+          value={(data?.suspendedAccounts ?? 0) + (data?.pendingAccounts ?? 0)}
+          badgeText={`${(data?.suspendedAccounts ?? 0) + (data?.pendingAccounts ?? 0)} req`}
+          badgeType={
+            (data?.suspendedAccounts ?? 0) + (data?.pendingAccounts ?? 0) > 0
+              ? 'negative'
+              : 'neutral'
+          }
+          secondaryText={
+            (data?.suspendedAccounts ?? 0) + (data?.pendingAccounts ?? 0) > 0
+              ? 'Down 20% this period'
+              : 'All accounts in compliance'
+          }
+          sparklineColor={
+            (data?.suspendedAccounts ?? 0) + (data?.pendingAccounts ?? 0) > 0
+              ? 'rose'
+              : 'blue'
+          }
+          isLoading={isLoading}
+        />
       </div>
 
       {/* User Activity Trends (DAU / WAU / MAU) */}

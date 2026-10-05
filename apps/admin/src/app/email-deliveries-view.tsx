@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { adminApi, queryKeys } from '@org/api-client';
 import type { AdminEmailDelivery, EmailDeliveryStatus } from '@org/types';
 import {
-  Badge,
   Button,
   Dialog,
   DialogBody,
@@ -18,7 +17,6 @@ import {
   LoadingState,
   Page,
   PageHeader,
-  Panel,
   Select,
   SelectContent,
   SelectItem,
@@ -35,6 +33,8 @@ import { formatDateTime, formatRelative } from '@org/utils';
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Eye,
   Mail,
@@ -50,54 +50,54 @@ function getStatusBadge(status: EmailDeliveryStatus) {
   switch (status) {
     case 'DELIVERED':
       return (
-        <Badge variant="success" className="gap-1 font-mono">
+        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/15 text-emerald-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
           <CheckCircle2 className="size-3" />
           DELIVERED
-        </Badge>
+        </span>
       );
     case 'SENT':
       return (
-        <Badge variant="primary" className="gap-1 font-mono">
+        <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/25 bg-blue-500/15 text-blue-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
           <CheckCircle2 className="size-3" />
           SENT
-        </Badge>
+        </span>
       );
     case 'OPENED':
       return (
-        <Badge variant="success" className="gap-1 font-mono">
+        <span className="inline-flex items-center gap-1 rounded-full border border-teal-500/25 bg-teal-500/15 text-teal-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
           <Eye className="size-3" />
           OPENED
-        </Badge>
+        </span>
       );
     case 'CLICKED':
       return (
-        <Badge variant="success" className="gap-1 font-mono">
+        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/25 bg-cyan-500/15 text-cyan-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
           <MousePointerClick className="size-3" />
           CLICKED
-        </Badge>
+        </span>
       );
     case 'FAILED':
     case 'BOUNCED':
     case 'COMPLAINED':
       return (
-        <Badge variant="destructive" className="gap-1 font-mono">
+        <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/25 bg-rose-500/15 text-rose-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
           <XCircle className="size-3" />
           {status}
-        </Badge>
+        </span>
       );
     case 'QUEUED':
     case 'SENDING':
       return (
-        <Badge variant="warning" className="gap-1 font-mono">
+        <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/15 text-amber-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
           <Clock className="size-3" />
           {status}
-        </Badge>
+        </span>
       );
     default:
       return (
-        <Badge variant="neutral" className="gap-1 font-mono">
+        <span className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-muted/60 text-muted-foreground px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
           {status}
-        </Badge>
+        </span>
       );
   }
 }
@@ -167,174 +167,208 @@ export function EmailDeliveriesView() {
       />
 
       <div className="space-y-4">
-        {/* Filter controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          <form onSubmit={handleRecipientSubmit} className="relative w-64">
-            <Input
-              type="text"
-              placeholder="Search recipient email…"
-              value={recipientFilter}
-              onChange={(e) => setRecipientFilter(e.target.value)}
-              className="pl-8 text-xs"
-            />
-            <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          </form>
+        {/* Deliveries Table Card Container */}
+        <div className="rounded-2xl border border-border/60 bg-card shadow-2xs overflow-hidden">
+          {/* Header Toolbar */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 sm:px-5 sm:py-3.5 border-b border-border/40">
+            <div>
+              <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight">
+                Transactional Deliveries
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Delivery logs, recipient states, and provider telemetry
+              </p>
+            </div>
 
-          <Select
-            value={statusFilter}
-            onValueChange={(val) => {
-              setStatusFilter(val);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-44 text-xs" aria-label="Filter by status">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_VALUES}>All Statuses</SelectItem>
-              <SelectItem value="SENT">SENT</SelectItem>
-              <SelectItem value="DELIVERED">DELIVERED</SelectItem>
-              <SelectItem value="OPENED">OPENED</SelectItem>
-              <SelectItem value="CLICKED">CLICKED</SelectItem>
-              <SelectItem value="FAILED">FAILED</SelectItem>
-              <SelectItem value="BOUNCED">BOUNCED</SelectItem>
-              <SelectItem value="COMPLAINED">COMPLAINED</SelectItem>
-              <SelectItem value="QUEUED">QUEUED</SelectItem>
-            </SelectContent>
-          </Select>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <form onSubmit={handleRecipientSubmit} className="relative w-64">
+                <Input
+                  type="text"
+                  placeholder="Search recipient email…"
+                  value={recipientFilter}
+                  onChange={(e) => setRecipientFilter(e.target.value)}
+                  className="h-8 rounded-full border border-border/60 bg-background/50 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground/60 transition-colors focus-visible:border-ring focus-visible:ring-1"
+                />
+                <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </form>
 
-          <Select
-            value={typeFilter}
-            onValueChange={(val) => {
-              setTypeFilter(val);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-56 text-xs" aria-label="Filter by email type">
-              <SelectValue placeholder="All Email Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_VALUES}>All Email Types</SelectItem>
-              <SelectItem value="WORKSPACE_INVITATION">Workspace Invitation</SelectItem>
-              <SelectItem value="MAGIC_SIGN_IN">Magic Sign-In</SelectItem>
-              <SelectItem value="PASSWORD_RESET">Password Reset</SelectItem>
-              <SelectItem value="EMAIL_VERIFICATION">Email Verification</SelectItem>
-              <SelectItem value="WELCOME">Welcome</SelectItem>
-              <SelectItem value="PASSWORD_CHANGED">Password Changed</SelectItem>
-              <SelectItem value="SECURITY_ALERT">Security Alert</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+              <Select
+                value={statusFilter}
+                onValueChange={(val) => {
+                  setStatusFilter(val);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-36 rounded-full border border-border/60 bg-background/50 text-xs px-3" aria-label="Filter by status">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_VALUES}>All Statuses</SelectItem>
+                  <SelectItem value="SENT">SENT</SelectItem>
+                  <SelectItem value="DELIVERED">DELIVERED</SelectItem>
+                  <SelectItem value="OPENED">OPENED</SelectItem>
+                  <SelectItem value="CLICKED">CLICKED</SelectItem>
+                  <SelectItem value="FAILED">FAILED</SelectItem>
+                  <SelectItem value="BOUNCED">BOUNCED</SelectItem>
+                  <SelectItem value="COMPLAINED">COMPLAINED</SelectItem>
+                  <SelectItem value="QUEUED">QUEUED</SelectItem>
+                </SelectContent>
+              </Select>
 
-        {/* Deliveries Table */}
-        <Panel flush>
-          {isLoading ? (
-            <LoadingState label="Loading email delivery records…" />
-          ) : isError ? (
-            <ErrorState
-              title="Could not load email delivery logs"
-              description="Failed to fetch transactional email deliveries. Verify the API service is accessible and you have SUPERADMIN privileges."
-            />
-          ) : emails.length === 0 ? (
-            <EmptyState
-              icon={<Mail />}
-              title="No transactional email deliveries found"
-              description={
-                statusFilter !== ALL_VALUES || typeFilter !== ALL_VALUES || debouncedRecipient
-                  ? 'No email records match the selected filters.'
-                  : 'Transactional emails sent via Resend or log transport will be displayed here.'
-              }
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Status</TableHead>
-                  <TableHead>Recipient</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Workspace</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {emails.map((email) => (
-                  <TableRow
-                    key={email.id}
-                    className="cursor-pointer hover:bg-surface-raised/50"
-                    onClick={() => setSelectedEmail(email)}
-                  >
-                    <TableCell>{getStatusBadge(email.status)}</TableCell>
-                    <TableCell className="font-mono text-xs font-medium">
-                      {email.recipient}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                        {email.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {email.workspace?.name ?? '— (System)'}
-                    </TableCell>
-                    <TableCell className="text-xs font-mono text-muted-foreground">
-                      <span className="capitalize">{email.provider}</span>
-                      {email.providerMessageId && (
-                        <span className="text-[10px] block opacity-75">
-                          {email.providerMessageId}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell
-                      className="text-xs text-muted-foreground"
-                      title={formatDateTime(email.createdAt)}
-                    >
-                      {formatRelative(email.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs h-7 px-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedEmail(email);
-                        }}
-                      >
-                        Inspect
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </Panel>
-
-        {/* Pagination */}
-        {total > pageSize ? (
-          <div className="gap-3 flex items-center justify-end">
-            <p className="text-xs text-muted-foreground tabular-nums">
-              Page {page} of {lastPage} · {total} deliveries recorded
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= lastPage}
-              onClick={() => setPage((current) => Math.min(lastPage, current + 1))}
-            >
-              Next
-            </Button>
+              <Select
+                value={typeFilter}
+                onValueChange={(val) => {
+                  setTypeFilter(val);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-44 rounded-full border border-border/60 bg-background/50 text-xs px-3" aria-label="Filter by email type">
+                  <SelectValue placeholder="All Email Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_VALUES}>All Email Types</SelectItem>
+                  <SelectItem value="WORKSPACE_INVITATION">Workspace Invitation</SelectItem>
+                  <SelectItem value="MAGIC_SIGN_IN">Magic Sign-In</SelectItem>
+                  <SelectItem value="PASSWORD_RESET">Password Reset</SelectItem>
+                  <SelectItem value="EMAIL_VERIFICATION">Email Verification</SelectItem>
+                  <SelectItem value="WELCOME">Welcome</SelectItem>
+                  <SelectItem value="PASSWORD_CHANGED">Password Changed</SelectItem>
+                  <SelectItem value="SECURITY_ALERT">Security Alert</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        ) : null}
+
+          {/* Table / State */}
+          {isLoading ? (
+            <div className="py-12">
+              <LoadingState label="Loading email delivery records…" />
+            </div>
+          ) : isError ? (
+            <div className="p-6">
+              <ErrorState
+                title="Could not load email delivery logs"
+                description="Failed to fetch transactional email deliveries. Verify the API service is accessible and you have SUPERADMIN privileges."
+              />
+            </div>
+          ) : emails.length === 0 ? (
+            <div className="p-6">
+              <EmptyState
+                icon={<Mail />}
+                title="No transactional email deliveries found"
+                description={
+                  statusFilter !== ALL_VALUES || typeFilter !== ALL_VALUES || debouncedRecipient
+                    ? 'No email records match the selected filters.'
+                    : 'Transactional emails sent via Resend or log transport will be displayed here.'
+                }
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b border-border/40 hover:bg-transparent">
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Status</TableHead>
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Recipient</TableHead>
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Type</TableHead>
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Workspace</TableHead>
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Provider</TableHead>
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Created</TableHead>
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {emails.map((email) => (
+                    <TableRow
+                      key={email.id}
+                      className="cursor-pointer hover:bg-muted/30 border-b border-border/40 transition-colors"
+                      onClick={() => setSelectedEmail(email)}
+                    >
+                      <TableCell className="py-3.5 px-5">{getStatusBadge(email.status)}</TableCell>
+                      <TableCell className="py-3.5 px-5 font-mono text-xs font-medium text-foreground">
+                        {email.recipient}
+                      </TableCell>
+                      <TableCell className="py-3.5 px-5">
+                        <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-[10px] font-mono uppercase text-foreground">
+                          {email.type}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-3.5 px-5 text-xs text-muted-foreground">
+                        {email.workspace?.name ?? '— (System)'}
+                      </TableCell>
+                      <TableCell className="py-3.5 px-5 text-xs font-mono text-muted-foreground">
+                        <span className="capitalize text-foreground font-medium">{email.provider}</span>
+                        {email.providerMessageId && (
+                          <span className="text-[10px] block opacity-75">
+                            {email.providerMessageId}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell
+                        className="py-3.5 px-5 text-xs text-muted-foreground"
+                        title={formatDateTime(email.createdAt)}
+                      >
+                        {formatRelative(email.createdAt)}
+                      </TableCell>
+                      <TableCell className="py-3.5 px-5 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-7 px-2.5 rounded-lg border border-border/60 hover:bg-muted/50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEmail(email);
+                          }}
+                        >
+                          Inspect
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Reference Image Footer Pagination */}
+          <div className="border-t border-border/40 px-5 py-3 flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              Showing{' '}
+              <span className="font-semibold text-foreground">
+                {total === 0 ? 0 : (page - 1) * pageSize + 1}
+              </span>{' '}
+              to{' '}
+              <span className="font-semibold text-foreground">
+                {Math.min(page * pageSize, total)}
+              </span>{' '}
+              of{' '}
+              <span className="font-semibold text-foreground">{total}</span> entries
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page <= 1}
+                aria-label="Previous page"
+                className="size-7 rounded-lg border border-border/60 bg-background/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+              >
+                <ChevronLeft className="size-3.5" />
+              </button>
+              <span className="px-1 font-medium text-foreground">
+                Page {page} of {Math.max(1, lastPage)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.min(lastPage, current + 1))}
+                disabled={page >= lastPage}
+                aria-label="Next page"
+                className="size-7 rounded-lg border border-border/60 bg-background/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+              >
+                <ChevronRight className="size-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Details Dialog */}

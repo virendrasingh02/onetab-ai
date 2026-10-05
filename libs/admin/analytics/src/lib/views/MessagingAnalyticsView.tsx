@@ -4,9 +4,10 @@ import {
   ChartContainer,
   DonutChart,
 } from '@org/analytics-ui';
-import { Badge, Card } from '@org/ui';
-import { Building2, MessageSquare, MessagesSquare, Send, Smile } from 'lucide-react';
+import { Badge } from '@org/ui';
+import { Building2 } from 'lucide-react';
 import {
+  AdminMetricCard,
   AnalyticsDataTable,
   AnalyticsFilterBar,
   AnalyticsHeader,
@@ -79,59 +80,51 @@ export function MessagingAnalyticsView() {
         state={filterState}
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Messages</span>
-            <MessageSquare className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.totalMessages?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Sent: {data?.messagesSent?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Total Messages"
+          subtitle="Dispatch Throughput"
+          value={data?.totalMessages?.toLocaleString() ?? '—'}
+          badgeText="+16.3%"
+          badgeType="positive"
+          secondaryText={`Sent: ${data?.messagesSent?.toLocaleString() ?? 0} messages`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Direct Messages</span>
-            <Send className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.directMessages?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            1-on-1 conversations
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Direct Messages"
+          subtitle="1-on-1 Peer Channels"
+          value={data?.directMessages?.toLocaleString() ?? '—'}
+          badgeText="+12.8%"
+          badgeType="positive"
+          secondaryText="Private discussions"
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Channel Messages</span>
-            <MessagesSquare className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.channelMessages?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Threads: {data?.threadsCount?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Channel Messages"
+          subtitle="Shared Collaboration"
+          value={data?.channelMessages?.toLocaleString() ?? '—'}
+          badgeText="+19.5%"
+          badgeType="positive"
+          secondaryText={`Threads: ${data?.threadsCount?.toLocaleString() ?? 0} active`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Reactions & Mentions</span>
-            <Smile className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {((data?.reactionsCount || 0) + (data?.mentionsCount || 0)).toLocaleString()}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Reactions: {data?.reactionsCount ?? 0} | Mentions: {data?.mentionsCount ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Reactions & Mentions"
+          subtitle="Sentiment Velocity"
+          value={((data?.reactionsCount || 0) + (data?.mentionsCount || 0)).toLocaleString()}
+          badgeText="+24.1%"
+          badgeType="positive"
+          secondaryText={`Reactions: ${data?.reactionsCount ?? 0} · Mentions: ${data?.mentionsCount ?? 0}`}
+          sparklineColor="amber"
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Message Volume Trend & Type Distribution */}

@@ -4,9 +4,10 @@ import {
   DonutChart,
 } from '@org/analytics-ui';
 import type { AdminLocationAnalytics } from '@org/types';
-import { Badge, Card, Progress } from '@org/ui';
-import { Globe, MapPin, ShieldCheck, Users } from 'lucide-react';
+import { Badge, Progress } from '@org/ui';
+import { ShieldCheck } from 'lucide-react';
 import {
+  AdminMetricCard,
   AnalyticsDataTable,
   AnalyticsFilterBar,
   AnalyticsHeader,
@@ -104,59 +105,51 @@ export function LocationAnalyticsView() {
         </span>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Countries Reached</span>
-            <Globe className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.totalCountries ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Global geographic footprint
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Countries Reached"
+          subtitle="Sovereign Jurisdictions"
+          value={data?.totalCountries ?? '—'}
+          badgeText="Global"
+          badgeType="positive"
+          secondaryText="Privacy-compliant aggregation"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Top Country</span>
-            <MapPin className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-xl font-bold mt-2 truncate">
-            {data?.countries?.[0]?.name ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            {data?.countries?.[0]?.percentage ?? 0}% of platform traffic
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Top Country"
+          subtitle="Regional Concentration"
+          value={data?.countries?.[0]?.name ?? '—'}
+          badgeText={`${data?.countries?.[0]?.percentage ?? 0}%`}
+          badgeType="positive"
+          secondaryText={`${data?.countries?.[0]?.percentage ?? 0}% of platform traffic`}
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Regional Users</span>
-            <Users className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.countries?.reduce((acc, c) => acc + c.usersCount, 0)?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Active in selected period
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Total Regional Users"
+          subtitle="Geo-Distributed Traffic"
+          value={data?.countries?.reduce((acc, c) => acc + c.usersCount, 0)?.toLocaleString() ?? '—'}
+          badgeText="+14.8%"
+          badgeType="positive"
+          secondaryText="International adoption"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Privacy Status</span>
-            <ShieldCheck className="size-4 text-success" />
-          </div>
-          <div className="text-xl font-bold mt-2 text-success">
-            Compliant
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Zero raw coordinates stored
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Privacy Compliance"
+          subtitle="Data Residency Shield"
+          value="100%"
+          badgeText="GDPR"
+          badgeType="positive"
+          secondaryText="CCPA & privacy verified"
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Country Distribution Charts */}

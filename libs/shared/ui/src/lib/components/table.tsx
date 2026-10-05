@@ -27,8 +27,7 @@ export function TableHeader({ className, ...props }: ComponentProps<'thead'>) {
     <thead
       data-slot="table-header"
       className={cn(
-        // Opaque, because it is sticky — rows scroll underneath it.
-        'top-0 sticky z-10 bg-surface-muted [&_tr]:border-b [&_tr]:border-border',
+        'top-0 sticky z-10 bg-card/80 backdrop-blur-xs [&_tr]:border-b [&_tr]:border-border/40',
         className,
       )}
       {...props}
@@ -51,7 +50,7 @@ export function TableFooter({ className, ...props }: ComponentProps<'tfoot'>) {
     <tfoot
       data-slot="table-footer"
       className={cn(
-        'font-medium border-t border-border bg-surface-muted [&>tr]:last:border-b-0',
+        'font-medium border-t border-border/40 bg-muted/10 [&>tr]:last:border-b-0',
         className,
       )}
       {...props}
@@ -64,8 +63,8 @@ export function TableRow({ className, ...props }: ComponentProps<'tr'>) {
     <tr
       data-slot="table-row"
       className={cn(
-        'h-10 border-b border-border transition-colors duration-(--duration-fast)',
-        'hover:bg-accent data-[state=selected]:bg-selected',
+        'border-b border-border/40 transition-colors duration-(--duration-fast)',
+        'hover:bg-muted/30 data-[state=selected]:bg-muted/50',
         className,
       )}
       {...props}
@@ -79,7 +78,7 @@ export function TableHead({ className, scope = 'col', ...props }: ComponentProps
       scope={scope}
       data-slot="table-head"
       className={cn(
-        'h-10 px-3 text-xs font-medium text-left align-middle whitespace-nowrap text-muted-foreground',
+        'h-10 px-4 py-3 text-xs font-semibold text-left align-middle whitespace-nowrap text-muted-foreground/90 tracking-tight',
         '[&:has([role=checkbox])]:pr-0',
         className,
       )}
@@ -93,7 +92,7 @@ export function TableCell({ className, ...props }: ComponentProps<'td'>) {
     <td
       data-slot="table-cell"
       className={cn(
-        'px-3 py-2 text-xs align-middle text-foreground',
+        'px-4 py-3.5 text-xs align-middle text-foreground',
         '[&:has([role=checkbox])]:pr-0',
         className,
       )}

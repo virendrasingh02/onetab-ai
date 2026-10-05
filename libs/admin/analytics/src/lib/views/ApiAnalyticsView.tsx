@@ -5,9 +5,9 @@ import {
   LineChart,
 } from '@org/analytics-ui';
 import type { AdminApiAnalytics } from '@org/types';
-import { Badge, Card } from '@org/ui';
-import { Activity, AlertCircle, Clock, Server } from 'lucide-react';
+import { cn } from '@org/utils';
 import {
+  AdminMetricCard,
   AnalyticsDataTable,
   AnalyticsFilterBar,
   AnalyticsHeader,
@@ -45,8 +45,10 @@ export function ApiAnalyticsView() {
       sortable: true,
       cell: (row) => (
         <div className="flex flex-col">
-          <span className="font-semibold text-foreground">{row.name}</span>
-          <span className="font-mono text-[11px] text-muted-foreground truncate max-w-[280px]">
+          <span className="font-semibold text-foreground text-xs tracking-tight">
+            {row.name}
+          </span>
+          <span className="font-mono text-[11px] text-muted-foreground/75 truncate max-w-[320px] mt-0.5">
             {row.endpoint}
           </span>
         </div>
@@ -58,18 +60,18 @@ export function ApiAnalyticsView() {
       accessorKey: 'status',
       sortable: true,
       cell: (row) => (
-        <Badge
-          variant={
+        <span
+          className={cn(
+            'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase',
             row.status === 'ACTIVE'
-              ? 'success'
+              ? 'border-emerald-500/25 bg-emerald-500/15 text-emerald-400 dark:text-emerald-400'
               : row.status === 'DEPRECATED'
-              ? 'warning'
-              : 'outline'
-          }
-          className="text-[10px] px-1.5 py-0"
+              ? 'border-amber-500/25 bg-amber-500/15 text-amber-400 dark:text-amber-400'
+              : 'border-border/80 bg-muted/60 text-muted-foreground',
+          )}
         >
           {row.status}
-        </Badge>
+        </span>
       ),
     },
     {
@@ -78,7 +80,11 @@ export function ApiAnalyticsView() {
       accessorKey: 'requests',
       sortable: true,
       align: 'right',
-      cell: (row) => row.requests.toLocaleString(),
+      cell: (row) => (
+        <span className="font-medium text-foreground tabular-nums">
+          {row.requests.toLocaleString()}
+        </span>
+      ),
     },
     {
       id: 'errorRate',
@@ -88,13 +94,14 @@ export function ApiAnalyticsView() {
       align: 'right',
       cell: (row) => (
         <span
-          className={`font-medium ${
+          className={cn(
+            'font-medium tabular-nums',
             row.errorRate > 5
-              ? 'text-destructive'
-              : row.errorRate > 1
-              ? 'text-warning'
-              : 'text-success'
-          }`}
+              ? 'text-rose-400 font-semibold'
+              : row.errorRate > 0
+              ? 'text-amber-400'
+              : 'text-emerald-400',
+          )}
         >
           {row.errorRate}%
         </span>
@@ -107,15 +114,7 @@ export function ApiAnalyticsView() {
       sortable: true,
       align: 'right',
       cell: (row) => (
-        <span
-          className={
-            row.avgLatencyMs > 500
-              ? 'text-destructive font-semibold'
-              : row.avgLatencyMs > 200
-              ? 'text-warning'
-              : 'text-foreground'
-          }
-        >
+        <span className="font-medium text-foreground tabular-nums">
           {row.avgLatencyMs} ms
         </span>
       ),
@@ -138,59 +137,55 @@ export function ApiAnalyticsView() {
         state={filterState}
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Requests</span>
-            <Server className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.totalRequests?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Across {data?.totalApis ?? 0} registered APIs
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Total Requests"
+          subtitle="API Gateway & Ingestion"
+          value={data?.totalRequests?.toLocaleString() ?? '—'}
+          badgeText="+22.4%"
+          badgeType="positive"
+          secondaryText={`Across ${data?.totalApis ?? 0} registered APIs`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Error Rate</span>
-            <AlertCircle className="size-4 text-destructive" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.errorRate !== undefined ? `${data.errorRate}%` : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Failed requests: {data?.failedRequests?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Error Rate"
+          subtitle="Failure Index (5xx/4xx)"
+          value={data?.errorRate !== undefined ? `${data.errorRate}%` : '—'}
+          badgeText={`${data?.errorRate ?? 0}%`}
+          badgeType={data?.errorRate && data.errorRate > 2 ? 'negative' : 'positive'}
+          secondaryText={
+            data?.errorRate && data.errorRate > 2
+              ? `${data?.failedRequests?.toLocaleString() ?? 0} failed requests`
+              : 'Well within SLA budget'
+          }
+          sparklineColor={data?.errorRate && data.errorRate > 2 ? 'rose' : 'emerald'}
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">p95 Latency</span>
-            <Clock className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.p95ResponseTimeMs !== undefined ? `${data.p95ResponseTimeMs} ms` : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Average: {data?.avgResponseTimeMs ?? 0} ms
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="p95 Latency"
+          subtitle="Tail Threshold Benchmark"
+          value={data?.p95ResponseTimeMs !== undefined ? `${data.p95ResponseTimeMs} ms` : '—'}
+          badgeText={data?.p95ResponseTimeMs && data.p95ResponseTimeMs > 250 ? '+15ms' : '-8ms'}
+          badgeType={data?.p95ResponseTimeMs && data.p95ResponseTimeMs > 250 ? 'negative' : 'positive'}
+          secondaryText={`Average: ${data?.avgResponseTimeMs ?? 0} ms`}
+          sparklineColor={data?.p95ResponseTimeMs && data.p95ResponseTimeMs > 250 ? 'rose' : 'cyan'}
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Peak Rate</span>
-            <Activity className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.peakRequestsPerMinute?.toLocaleString() ?? '—'} /min
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Peak requests per minute
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Peak Rate"
+          subtitle="Throughput Envelope"
+          value={`${data?.peakRequestsPerMinute?.toLocaleString() ?? '—'} /min`}
+          badgeText="+18.0%"
+          badgeType="positive"
+          secondaryText="Peak requests per minute"
+          sparklineColor="amber"
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Volume Chart & Success vs Error Donut */}

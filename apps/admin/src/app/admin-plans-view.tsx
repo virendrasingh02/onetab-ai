@@ -41,7 +41,7 @@ export function AdminPlansView() {
   const selectedPlan = PLANS_CONFIG[selectedTier];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="space-y-8 w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -294,42 +294,78 @@ export function AdminPlansView() {
 
           {/* Highlighted & Expanded Features */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
-              Included Feature Capabilities ({selectedPlan.expandedFeatures.length} Items)
-            </h4>
-            <div className="rounded-xl border border-border overflow-hidden">
+            <div className="rounded-2xl border border-border/60 bg-card shadow-2xs overflow-hidden">
+              <div className="flex items-center justify-between gap-4 p-4 sm:px-5 sm:py-3.5 border-b border-border/40">
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground tracking-tight">
+                    Included Feature Capabilities
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Plan tier quotas, feature gates, and operational limits
+                  </p>
+                </div>
+                <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/60 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-foreground">
+                  {selectedPlan.expandedFeatures.length} Features
+                </span>
+              </div>
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-surface-muted/40 text-xs">
-                    <TableHead>Category</TableHead>
-                    <TableHead>Feature Name</TableHead>
-                    <TableHead>Included</TableHead>
-                    <TableHead>Limit / Details</TableHead>
+                  <TableRow className="border-b border-border/40 hover:bg-transparent">
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Category</TableHead>
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Feature Name</TableHead>
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Included</TableHead>
+                    <TableHead className="py-3 px-5 text-xs font-semibold text-muted-foreground/90 tracking-tight">Limit / Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {selectedPlan.expandedFeatures.map((feat) => (
-                    <TableRow key={feat.id} className="text-xs">
-                      <TableCell className="font-semibold text-muted-foreground">
+                    <TableRow key={feat.id} className="border-b border-border/40 hover:bg-muted/30 transition-colors">
+                      <TableCell className="py-3.5 px-5 font-semibold text-muted-foreground text-xs">
                         {feat.category}
                       </TableCell>
-                      <TableCell className="font-medium text-foreground">
+                      <TableCell className="py-3.5 px-5 font-medium text-foreground text-xs">
                         {feat.label}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-3.5 px-5">
                         {feat.included ? (
-                          <Check className="size-4 text-emerald-500" />
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/15 text-emerald-400 px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+                            <Check className="size-3" />
+                            Yes
+                          </span>
                         ) : (
-                          <Minus className="size-4 text-muted-foreground/40" />
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/40 text-muted-foreground/60 px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+                            <Minus className="size-3" />
+                            No
+                          </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="py-3.5 px-5 text-muted-foreground text-xs">
                         {feat.valueText || (feat.included ? 'Supported' : '—')}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              <div className="border-t border-border/40 px-5 py-3 flex items-center justify-between text-xs text-muted-foreground">
+                <span>
+                  Showing{' '}
+                  <span className="font-semibold text-foreground">
+                    {selectedPlan.expandedFeatures.length > 0 ? 1 : 0}
+                  </span>{' '}
+                  to{' '}
+                  <span className="font-semibold text-foreground">
+                    {selectedPlan.expandedFeatures.length}
+                  </span>{' '}
+                  of{' '}
+                  <span className="font-semibold text-foreground">
+                    {selectedPlan.expandedFeatures.length}
+                  </span>{' '}
+                  entries
+                </span>
+                <span className="font-medium text-foreground">
+                  Page 1 of 1
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>

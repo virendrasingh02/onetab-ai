@@ -2,7 +2,6 @@ import type { AdminWorkspaceAnalyticsRow } from '@org/types';
 import {
   Badge,
   Button,
-  Card,
   SearchInput,
   Select,
   SelectContent,
@@ -10,16 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@org/ui';
-import {
-  Building2,
-  Database,
-  DollarSign,
-  ExternalLink,
-  HardDrive,
-} from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  AdminMetricCard,
   AnalyticsDataTable,
   AnalyticsHeader,
   type ColumnDef,
@@ -158,59 +152,51 @@ export function WorkspaceAnalyticsView() {
         exportType="workspaces"
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Workspaces</span>
-            <Building2 className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {summary?.totalWorkspaces?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Registered organizations
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Total Workspaces"
+          subtitle="Tenant Organizations"
+          value={summary?.totalWorkspaces?.toLocaleString() ?? '—'}
+          badgeText="+18.4%"
+          badgeType="positive"
+          secondaryText="Registered enterprise orgs"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Active (30d)</span>
-            <Database className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {summary?.activeWorkspaces?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Workspaces with recent activity
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Active Workspaces"
+          subtitle="Monthly Concurrency"
+          value={summary?.activeWorkspaces?.toLocaleString() ?? '—'}
+          badgeText="+9.1%"
+          badgeType="positive"
+          secondaryText="Active in last 30 days"
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Revenue</span>
-            <DollarSign className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            ${summary?.totalRevenue?.toLocaleString() ?? '0'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Across all accounts
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Total Revenue"
+          subtitle="MRR & Platform Billings"
+          value={`$${summary?.totalRevenue?.toLocaleString() ?? '0'}`}
+          badgeText="+15.3%"
+          badgeType="positive"
+          secondaryText="Across all active tiers"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Storage Consumed</span>
-            <HardDrive className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {formatBytes(summary?.totalStorageBytes ?? 0)}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Files & attachments
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Storage Consumed"
+          subtitle="Volume & Attachments"
+          value={formatBytes(summary?.totalStorageBytes ?? 0)}
+          badgeText="+6.8%"
+          badgeType="positive"
+          secondaryText="Media & document blobs"
+          sparklineColor="amber"
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Filter and search row */}

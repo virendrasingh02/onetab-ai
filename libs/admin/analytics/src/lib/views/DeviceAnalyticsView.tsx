@@ -3,8 +3,8 @@ import {
   DonutChart,
 } from '@org/analytics-ui';
 import { Card, Progress } from '@org/ui';
-import { Globe, Laptop, Monitor, ShieldAlert } from 'lucide-react';
 import {
+  AdminMetricCard,
   AnalyticsFilterBar,
   AnalyticsHeader,
 } from '../components/index.js';
@@ -49,59 +49,55 @@ export function DeviceAnalyticsView() {
         state={filterState}
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Distinct Devices</span>
-            <Monitor className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.totalDevices?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Active: {data?.activeDevices?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Distinct Devices"
+          subtitle="Hardware Fingerprints"
+          value={data?.totalDevices?.toLocaleString() ?? '—'}
+          badgeText="+13.4%"
+          badgeType="positive"
+          secondaryText={`Active: ${data?.activeDevices?.toLocaleString() ?? 0} devices`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Top OS</span>
-            <Laptop className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.usersByOs?.[0]?.label ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            {data?.usersByOs?.[0]?.percentage ?? 0}% of client devices
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Primary Platform"
+          subtitle="Operating System Leader"
+          value={data?.usersByOs?.[0]?.label ?? '—'}
+          badgeText={`${data?.usersByOs?.[0]?.percentage ?? 0}%`}
+          badgeType="positive"
+          secondaryText={`${data?.usersByOs?.[0]?.percentage ?? 0}% of client devices`}
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Top Browser</span>
-            <Globe className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.browsers?.[0]?.label ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            {data?.browsers?.[0]?.percentage ?? 0}% browser share
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Top Browser"
+          subtitle="Web Engine Distribution"
+          value={data?.browsers?.[0]?.label ?? '—'}
+          badgeText={`${data?.browsers?.[0]?.percentage ?? 0}%`}
+          badgeType="positive"
+          secondaryText={`${data?.browsers?.[0]?.percentage ?? 0}% browser share`}
+          sparklineColor="amber"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Outdated Builds</span>
-            <ShieldAlert className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.outdatedCount ?? 0}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Devices on older versions
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Outdated Builds"
+          subtitle="Client Patch Status"
+          value={data?.outdatedCount ?? 0}
+          badgeText={data?.outdatedCount && data.outdatedCount > 0 ? 'Update' : 'Current'}
+          badgeType={data?.outdatedCount && data.outdatedCount > 0 ? 'negative' : 'positive'}
+          secondaryText={
+            data?.outdatedCount && data.outdatedCount > 0
+              ? 'Requires auto-updater sync'
+              : 'All devices on latest version'
+          }
+          sparklineColor={data?.outdatedCount && data.outdatedCount > 0 ? 'rose' : 'emerald'}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Distribution Donut Charts */}

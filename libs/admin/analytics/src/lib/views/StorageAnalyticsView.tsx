@@ -3,10 +3,9 @@ import {
   ChartContainer,
   DonutChart,
 } from '@org/analytics-ui';
-import { Card } from '@org/ui';
-import { FileText, HardDrive, Layers, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
+  AdminMetricCard,
   AnalyticsDataTable,
   AnalyticsFilterBar,
   AnalyticsHeader,
@@ -96,59 +95,51 @@ export function StorageAnalyticsView() {
         state={filterState}
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Storage</span>
-            <HardDrive className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.storageUsedBytes ? formatBytes(data.storageUsedBytes) : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            MinIO / S3 bucket utilization
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="Total Storage"
+          subtitle="Volume & Bucket Capacity"
+          value={data?.storageUsedBytes ? formatBytes(data.storageUsedBytes) : '—'}
+          badgeText={`+${data?.growthPct ?? 0}%`}
+          badgeType="positive"
+          secondaryText="MinIO / S3 utilization"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Uploads</span>
-            <FileText className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.totalFiles?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Uploaded: {data?.filesUploaded?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Total Uploads"
+          subtitle="Asset Registry"
+          value={data?.totalFiles?.toLocaleString() ?? '—'}
+          badgeText="+10.2%"
+          badgeType="positive"
+          secondaryText={`Uploaded: ${data?.filesUploaded?.toLocaleString() ?? 0} files`}
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Growth</span>
-            <TrendingUp className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            +{data?.growthPct ?? 0}%
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Compared to previous period
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Growth Rate"
+          subtitle="Expansion Run-Rate"
+          value={`+${data?.growthPct ?? 0}%`}
+          badgeText={`+${data?.growthPct ?? 0}%`}
+          badgeType="positive"
+          secondaryText="Storage runway healthy"
+          sparklineColor="amber"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Average File Size</span>
-            <Layers className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.averageFileSizeBytes ? formatBytes(data.averageFileSizeBytes) : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Per attachment upload
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Average File Size"
+          subtitle="Payload Benchmark"
+          value={data?.averageFileSizeBytes ? formatBytes(data.averageFileSizeBytes) : '—'}
+          badgeText="Optimized"
+          badgeType="positive"
+          secondaryText="Per attachment upload"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Storage Growth & Type Breakdown */}

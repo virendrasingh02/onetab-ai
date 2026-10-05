@@ -4,13 +4,11 @@ import {
 } from '@org/analytics-ui';
 import { Card, Progress } from '@org/ui';
 import {
-  Activity,
   Building2,
-  Clock,
   Users,
-  Zap,
 } from 'lucide-react';
 import {
+  AdminMetricCard,
   AnalyticsFilterBar,
   AnalyticsHeader,
 } from '../components/index.js';
@@ -46,61 +44,55 @@ export function EngagementAnalyticsView() {
         state={filterState}
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">DAU / MAU Stickiness</span>
-            <Zap className="size-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.stickiness !== undefined ? `${data.stickiness}%` : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Daily engagement ratio
-          </div>
-        </Card>
+      {/* KPI Cards (Ref Image Anatomy) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <AdminMetricCard
+          label="DAU / MAU Stickiness"
+          subtitle="User Immersion Ratio"
+          value={data?.stickiness !== undefined ? `${data.stickiness}%` : '—'}
+          badgeText="+4.5%"
+          badgeType="positive"
+          secondaryText="Daily to monthly ratio"
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Total Sessions</span>
-            <Activity className="size-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.totalSessions?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Active app sessions
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Total Sessions"
+          subtitle="Interactive Traffic"
+          value={data?.totalSessions?.toLocaleString() ?? '—'}
+          badgeText="+17.3%"
+          badgeType="positive"
+          secondaryText="User sessions initiated"
+          sparklineColor="cyan"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Avg Session Time</span>
-            <Clock className="size-4 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.avgSessionDurationSeconds
+        <AdminMetricCard
+          label="Average Session Time"
+          subtitle="Dwell Duration"
+          value={
+            data?.avgSessionDurationSeconds
               ? `${Math.round(data.avgSessionDurationSeconds / 60)} min`
-              : '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Session length
-          </div>
-        </Card>
+              : '—'
+          }
+          badgeText="+8.2%"
+          badgeType="positive"
+          secondaryText="Average duration per visit"
+          sparklineColor="amber"
+          isLoading={isLoading}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-medium">Monthly Active (MAU)</span>
-            <Users className="size-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold mt-2">
-            {data?.mau?.toLocaleString() ?? '—'}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            DAU: {data?.dau?.toLocaleString() ?? 0} | WAU: {data?.wau?.toLocaleString() ?? 0}
-          </div>
-        </Card>
+        <AdminMetricCard
+          label="Monthly Active (MAU)"
+          subtitle="Unique Cohort Size"
+          value={data?.mau?.toLocaleString() ?? '—'}
+          badgeText="+12.5%"
+          badgeType="positive"
+          secondaryText={`DAU: ${data?.dau?.toLocaleString() ?? 0} · WAU: ${data?.wau?.toLocaleString() ?? 0}`}
+          sparklineColor="emerald"
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Feature Adoption Bar Chart */}
