@@ -87,13 +87,68 @@ The test monitor was removed afterwards.
 | G1 | **Typed app registry** | `DEFAULT_NAV_ITEMS` is the de facto registry, but labels are repeated in `page-title.ts` and `mobile-bottom-nav.tsx`, and nothing records capabilities or tools per app. Next step: move app metadata (id, route, category, capabilities, linked tools) into `@org/types` and derive nav, titles and the Studio tool catalog from it. |
 | G2 | **AI rows in the activity feed (Pulse)** | `RecentActivity.kind` (`ActivityKind`) has no AI kinds, so coworker and workflow outcomes show on the dashboard but not in Pulse. Needs an enum migration (hand-written; `migrate dev` is broken here) plus a listener on the new coworker events. |
 | G3 | **Which page is Home** | `/w/:slug` renders `AIChatView`; the AI Home content is `/dashboard`. Making the dashboard the index (with the assistant prompt on top) is a product decision. |
-| G4 | **Monitor policy mismatch** | Through chat, any member can ask Tracker to create a monitor they own. Through REST, only the coworker's creator or an admin can. Decide whether members may own monitors on shared coworkers. |
+| G4 | ~~Monitor policy mismatch~~ | **Resolved 2026-10-01.** Any member may own monitors on a shared coworker. Only the monitor's owner, the coworker's creator, or an admin may edit, pause, delete or run it. Guests may do none of these. The rule is `canManageTrackerMonitor` (`@org/types`), shared by the API (`CoworkersService`) and the UI (`useCanManageTrackerMonitor`). Verified live with two test members. |
 | G5 | **Ecosystem analytics** | Coworker and workflow success rates and run volume aren't in `@org/web-analytics` yet. The data is in `AIExecution`. |
 | G6 | **More coworker templates** | The framework is ready. Add Researcher, Writer, etc. as `COWORKER_TEMPLATES` entries with `seedByDefault: false`, and offer them in `CoworkerCreateDialog`. |
 | G7 | **Coworker chat identity** | A newly seeded coworker's Matrix identity 404s until provisioned, so the chat pane shows "Could not open the conversation". This is pre-existing and Matrix-side; the dev homeserver is also flaky. |
-| G8 | **Duplicate defaults in `dev-space`** | Two Scheduler and two Tracker rows were created before the race fix. Both are empty (no logs or links). They were left in place: deleting them is the owner's call. |
+| G8 | ~~Duplicate defaults in `dev-space`~~ | **Resolved 2026-10-01.** The two empty duplicates were deleted at the owner's request, keeping one Scheduler and one Tracker. No workspace has duplicate defaults now. |
 | G9 | **Handoff with a live model** | Handoff is covered by unit tests. It hasn't been exercised with a real model, because the dev LLM providers fall back to Ollama or error. |
 | G10 | Small | The search `category` query parameter is unvalidated. The members page shows "Workspace RAG Active" unconditionally. |
+
+## 4. Roadmap by phase (do in this order)
+
+The phases follow the brief (§35). ✅ done, 🟡 partly done, ⬜ not started. Within a phase, items are listed in the order to do them. The **G** numbers point to §3.
+
+### Phase 1 — Audit and foundation · 🟡
+1. ✅ Audit and implementation map (this document).
+2. ✅ Event catalog: coworker lifecycle, handoff and monitor events added to `AppEvent`.
+3. ✅ Coworker template framework (`COWORKER_TEMPLATES`).
+4. ⬜ **Typed app registry (G1).** Move app metadata (id, label, route, category, capabilities, linked tools, required permission) into `@org/types`. Derive `DEFAULT_NAV_ITEMS`, `page-title.ts` and the mobile tabs from it, and remove the copied labels.
+5. ⬜ Map each registry app to the tools it exposes (`platform-tools.ts`), so Studio and coworkers read "what this app can do" from one place.
+6. ⬜ Small fixes (G10): validate the search `category` parameter, and show the members page "Workspace RAG Active" badge only when it's true.
+
+### Phase 2 — Ecosystem UX · 🟡
+1. ✅ AI Activity on the dashboard; upcoming meetings in "What next".
+2. ✅ Search covers meetings and workflows; doc snippets are readable.
+3. ⬜ **Decide what Home is (G3).** Recommendation: make the dashboard the workspace index, with an "Ask or delegate" prompt at the top that opens the assistant or Studio (`ai/studio/new?prompt=`).
+4. ⬜ **AI rows in Pulse (G2).** Add AI kinds to `ActivityKind` (hand-written migration) and write rows from `coworker.completed`, `coworker.failed`, `coworker.monitor.triggered` and `ai.run.finished`.
+5. ⬜ App discovery page built from the registry (Phase 1.4) instead of separate hardcoded lists.
+6. ⬜ Responsive pass on the new dashboard section and the coworker profile at phone and tablet widths.
+
+### Phase 3 — Coworkers · 🟡
+1. ✅ Scheduler and Tracker get their write grants and act for the person asking.
+2. ✅ Tracker monitors are checked on schedule and on demand.
+3. ✅ Coworker-to-coworker handoff.
+4. ✅ **Monitor ownership policy (G4).** Any member owns their monitors; the owner, the coworker's creator or an admin may manage them. REST and the chat tool now agree.
+5. ⬜ **Monitor UI.** Create, edit and pause monitors from Tracker's profile. Today they can only be made through chat or the API.
+6. ⬜ **Coworker chat identity (G7).** Provision the Matrix identity when a default is seeded, so the chat pane always opens.
+7. ⬜ **Live handoff test (G9)** once a working model provider is configured in dev.
+8. ⬜ **More templates (G6):** Researcher, Writer, Meeting Assistant, offered in `CoworkerCreateDialog`.
+
+### Phase 4 — Workflows and events · 🟡
+1. ✅ Coworker events trigger workflows; the canvas and Studio share one trigger list.
+2. ⬜ A "When Tracker finds overdue work" Studio template (`agent-templates.ts`): monitor triggered → notify the assignees' lead → summary doc.
+3. ⬜ Show approval requests raised by a coworker's gated tool calls in the same Approvals view as workflow approvals, then check end to end.
+4. ⬜ A durable delay node: delays over 15 s are refused today, which needs a scheduler (`AI_AGENT_STUDIO.md`).
+
+### Phase 5 — Agent Studio integration · 🟡
+1. ✅ The Studio is in-app at `/w/:slug/ai` (see `AI_AGENT_STUDIO.md`).
+2. ⬜ Create a coworker from a Studio template, not only agents and workflows.
+3. ⬜ Studio follow-ups: the "Created by agent" chip on tasks; remove the old simulated `agent-studio-ai-mode.service.ts`; decide on deleting the standalone `apps/ai-agent-studio`.
+
+### Phase 6 — Integrations · ⬜
+1. ⬜ Check that every connected integration's actions reach coworkers through `IntegrationToolBridgeService`, with read/write permission levels shown in the coworker profile.
+2. ⬜ An `integration.failed` event, so workflows and notifications can react to broken connections.
+3. ⬜ Let Scheduler use calendar integrations (Google Calendar) for "create a calendar event when authorized".
+
+### Phase 7 — Analytics and admin · ⬜
+1. ⬜ **Ecosystem metrics (G5):** coworker runs and success rate, workflow runs and success rate, monitor findings. Built from `AIExecution` with the existing Recharts and date-range components in `@org/analytics-ui`.
+2. ⬜ Admin console: list coworkers, agents and workflows per workspace, with switch-off and audit.
+3. ⬜ Audit-log entries for coworker permission changes and monitor creation.
+
+### Phase 8 — Final ecosystem audit · ⬜
+1. ⬜ Run the brief's §24 flow end to end ("Track our product launch and remind the team about anything overdue"): request → Tracker monitor on the project → overdue found → assignees notified → activity → summary.
+2. ⬜ Re-check §36 (definition of done) item by item, including Electron and mobile.
 
 ## Where the code is
 

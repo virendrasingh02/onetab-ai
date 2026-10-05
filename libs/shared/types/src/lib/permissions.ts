@@ -123,6 +123,25 @@ export function canManageOwnedAIResource(
 }
 
 /**
+ * Who may edit, pause, delete or run a Tracker monitor. Any member may own
+ * monitors on a shared coworker; a monitor is then theirs to change. The
+ * coworker's creator and workspace admins may change any monitor on it.
+ * Creating one only needs `CREATE` — it is always owned by its creator.
+ */
+export function canManageTrackerMonitor(
+  monitor: { createdBy?: string | null },
+  coworkerCreatorId: string | null | undefined,
+  actor: {
+    userId: string | null | undefined;
+    permissions?: readonly WorkspacePermission[] | null;
+  },
+): boolean {
+  if (actor.permissions?.includes(WorkspacePermission.MANAGE_SETTINGS)) return true;
+  if (!actor.permissions?.includes(WorkspacePermission.UPDATE) || !actor.userId) return false;
+  return monitor.createdBy === actor.userId || coworkerCreatorId === actor.userId;
+}
+
+/**
  * Platform administration compliance permissions.
  */
 export const CompliancePermission = {

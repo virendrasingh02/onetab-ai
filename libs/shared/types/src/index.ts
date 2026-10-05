@@ -41,6 +41,7 @@ export {
   WORKSPACE_PERMISSIONS,
   WorkspacePermission,
   canManageOwnedAIResource,
+  canManageTrackerMonitor,
   permissionsForRole,
   roleHasAllPermissions,
   roleHasPermission,

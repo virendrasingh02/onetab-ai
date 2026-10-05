@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { MarkdownMessage } from './markdown-message.js';
 
 describe('MarkdownMessage', () => {
@@ -100,5 +100,38 @@ describe('MarkdownMessage', () => {
     expect(mentionChip).toBeInTheDocument();
     expect(mentionChip?.getAttribute('data-mention')).toBe('Code Reviewer & Security Sentinel');
     expect(mentionChip?.textContent).toBe('@Code Reviewer & Security Sentinel');
+  });
+
+  it('renders link pills with badge styling and link icon', () => {
+    const { container } = render(
+      <MarkdownMessage text={'Join call at meet.google.com/ogd-tbmv-yxp or [Google Meet](https://meet.google.com/ogd-tbmv-yxp)'} />,
+    );
+
+    const links = container.querySelectorAll('a');
+    expect(links).toHaveLength(2);
+
+    expect(links[0]).toHaveAttribute('href', 'https://meet.google.com/ogd-tbmv-yxp');
+    expect(links[0].className).toContain('bg-sky-50');
+    expect(links[0].querySelector('svg')).toBeInTheDocument();
+
+    expect(links[1]).toHaveAttribute('href', 'https://meet.google.com/ogd-tbmv-yxp');
+    expect(links[1].textContent).toContain('Google Meet');
+    expect(links[1].querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('opens profile in rightbar when mention is clicked', () => {
+    const onMentionClick = vi.fn();
+    const { container } = render(
+      <MarkdownMessage
+        text={'Hello @Virendra Singh'}
+        mentionNames={['Virendra Singh']}
+        onMentionClick={onMentionClick}
+      />,
+    );
+
+    const mentionChip = container.querySelector('span[data-mention]');
+    expect(mentionChip).toBeInTheDocument();
+    fireEvent.click(mentionChip!);
+    expect(onMentionClick).toHaveBeenCalledWith('@Virendra Singh');
   });
 });

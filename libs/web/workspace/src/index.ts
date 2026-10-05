@@ -17,6 +17,7 @@ export {
 
 export {
   useCanManageAIResource,
+  useCanManageTrackerMonitor,
   useWorkspacePermission,
 } from './lib/use-workspace-permission.js';
 

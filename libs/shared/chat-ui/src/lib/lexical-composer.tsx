@@ -7,6 +7,7 @@ import {
 import { HashtagNode } from '@lexical/hashtag';
 import { $generateNodesFromDOM } from '@lexical/html';
 import {
+  $createLinkNode,
   $isLinkNode,
   AutoLinkNode,
   autoLinkEmailMatcher,
@@ -176,7 +177,7 @@ const EDITOR_THEME = {
     'border-l-4 border-primary pl-3 py-1 my-1 text-muted-foreground italic bg-surface-inset/50 rounded-r',
   code: 'block rounded-lg bg-surface-inset p-2.5 font-mono text-xs text-success-text border border-border my-1 whitespace-pre-wrap',
   hr: 'my-2 h-px border-0 bg-border',
-  link: 'text-primary-text underline underline-offset-2 cursor-pointer',
+  link: 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 cursor-pointer no-underline font-medium hover:bg-sky-100 dark:hover:bg-sky-900/50',
   hashtag: 'rounded bg-info/15 px-1 font-semibold text-info-text',
   mention:
     'rounded border border-primary/40 bg-primary/20 px-1 font-semibold text-primary-text',
@@ -1218,6 +1219,7 @@ function MentionsPlugin({
           <MenuShell
             label="Mention"
             onClose={handleClose}
+            showFooter={false}
           >
             {options.length === 0 ? (
               <li className="px-3 py-6 text-xs text-center text-muted-foreground">
@@ -1814,11 +1816,25 @@ export function ToolbarContent({
   );
 
   const applyLink = useCallback(() => {
-    const url = (linkDraft ?? '').trim();
-    editor.dispatchCommand(
-      TOGGLE_LINK_COMMAND,
-      url ? (/^[a-z][\w+.-]*:/i.test(url) ? url : `https://${url}`) : null,
-    );
+    const raw = (linkDraft ?? '').trim();
+    if (!raw) {
+      setLinkDraft(null);
+      return;
+    }
+    const fullUrl = /^[a-z][\w+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        if (selection.isCollapsed()) {
+          const linkNode = $createLinkNode(fullUrl);
+          const textNode = $createTextNode(raw);
+          linkNode.append(textNode);
+          selection.insertNodes([linkNode]);
+        } else {
+          editor.dispatchCommand(TOGGLE_LINK_COMMAND, fullUrl);
+        }
+      }
+    });
     setLinkDraft(null);
     editor.focus();
   }, [editor, linkDraft]);

@@ -3,6 +3,7 @@ import {
   WorkspacePermission,
   WorkspaceStatus,
   canManageOwnedAIResource,
+  canManageTrackerMonitor,
   permissionsForRole,
   roleHasPermission,
   type WorkspaceRole,
@@ -83,4 +84,23 @@ export function useCanManageAIResource(): (creatorId: string | null | undefined)
   return (creatorId) =>
     !isArchived &&
     canManageOwnedAIResource(creatorId, { userId: user?.id, permissions: permissionsForRole(role) });
+}
+
+/**
+ * Whether the signed-in user may change, pause, delete or run a Tracker
+ * monitor — its owner, the coworker's creator or an admin. The same rule the
+ * API enforces (`canManageTrackerMonitor`). Presentation only.
+ */
+export function useCanManageTrackerMonitor(): (
+  monitor: { createdBy?: string | null },
+  coworkerCreatorId: string | null | undefined,
+) => boolean {
+  const user = useCurrentUser();
+  const { role, isArchived } = useWorkspacePermission();
+  return (monitor, coworkerCreatorId) =>
+    !isArchived &&
+    canManageTrackerMonitor(monitor, coworkerCreatorId, {
+      userId: user?.id,
+      permissions: permissionsForRole(role),
+    });
 }

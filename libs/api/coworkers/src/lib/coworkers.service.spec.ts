@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppEvent } from '@org/api-common';
+import { WorkspacePermission } from '@org/types';
 import { CoworkersService } from './coworkers.service.js';
+
+const MEMBER = [WorkspacePermission.VIEW, WorkspacePermission.CREATE, WorkspacePermission.UPDATE];
+const ADMIN = [...MEMBER, WorkspacePermission.MANAGE_SETTINGS];
+const owner = { userId: 'user-1', permissions: MEMBER };
 
 function makeService() {
   let agentConfig: Record<string, unknown> = {
@@ -24,6 +29,8 @@ function makeService() {
         Promise.resolve({
           id: 'coworker-1',
           name: 'Tracker',
+          creatorId: 'creator-1',
+          isActive: true,
           configuration: { ...agentConfig },
           schedules: [
             { id: 'sched-1', cronExpression: '0 9 * * *', description: 'Daily morning report', isActive: true },
@@ -145,15 +152,18 @@ describe('CoworkersService — Tracker monitor CRUD', () => {
     expect(monitors[0].name).toBe('Task Completion Monitor');
 
     // 3. Update
-    const updated = await ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, {
-      condition: 'status == IN_PROGRESS',
-      enabled: false,
-    });
+    const updated = await ctx.service.updateMonitor(
+      'ws-1',
+      'coworker-1',
+      created.id,
+      { condition: 'status == IN_PROGRESS', enabled: false },
+      owner,
+    );
     expect(updated.condition).toBe('status == IN_PROGRESS');
     expect(updated.enabled).toBe(false);
 
     // 4. Delete
-    await ctx.service.deleteMonitor('ws-1', 'coworker-1', created.id);
+    await ctx.service.deleteMonitor('ws-1', 'coworker-1', created.id, owner);
     const afterDelete = await ctx.service.listMonitors('ws-1', 'coworker-1');
     expect(afterDelete).toHaveLength(0);
   });
@@ -177,16 +187,60 @@ describe('CoworkersService — Tracker monitor CRUD', () => {
 
   it('resets the check history when the question changes', async () => {
     const created = await ctx.service.createMonitor('ws-1', 'coworker-1', 'user-1', { condition: 'becomes overdue' });
-    await ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, { enabled: true });
-    const updated = await ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, { condition: 'due soon' });
+    await ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, { enabled: true }, owner);
+    const updated = await ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, { condition: 'due soon' }, owner);
     expect(updated.lastCheckedAt).toBeNull();
   });
 
   it('checks a monitor now through the sweep service', async () => {
-    const checked = await ctx.service.checkMonitorNow('ws-1', 'coworker-1', 'mon-1');
-    expect(ctx.monitorSweep.checkNow).toHaveBeenCalledWith('ws-1', 'coworker-1', 'mon-1');
+    const created = await ctx.service.createMonitor('ws-1', 'coworker-1', 'user-1', { condition: 'becomes overdue' });
+    const checked = await ctx.service.checkMonitorNow('ws-1', 'coworker-1', created.id, owner);
+    expect(ctx.monitorSweep.checkNow).toHaveBeenCalledWith('ws-1', 'coworker-1', created.id);
     expect(checked.lastResult?.count).toBe(2);
-    await expect(ctx.service.checkMonitorNow('ws-1', 'coworker-1', 'missing')).rejects.toThrow(/not found/i);
+    await expect(ctx.service.checkMonitorNow('ws-1', 'coworker-1', 'missing', owner)).rejects.toThrow(/not found/i);
+  });
+
+  describe('ownership', () => {
+    it('lets any member own a monitor on a coworker they did not create', async () => {
+      const created = await ctx.service.createMonitor('ws-1', 'coworker-1', 'member-2', { condition: 'becomes overdue' });
+      expect(created.createdBy).toBe('member-2');
+      const member = { userId: 'member-2', permissions: MEMBER };
+      await expect(
+        ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, { enabled: false }, member),
+      ).resolves.toEqual(expect.objectContaining({ enabled: false }));
+    });
+
+    it("refuses another member's changes", async () => {
+      const created = await ctx.service.createMonitor('ws-1', 'coworker-1', 'member-2', { condition: 'becomes overdue' });
+      const other = { userId: 'member-3', permissions: MEMBER };
+      await expect(ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, { enabled: false }, other)).rejects.toThrow(/owner/);
+      await expect(ctx.service.deleteMonitor('ws-1', 'coworker-1', created.id, other)).rejects.toThrow(/owner/);
+      await expect(ctx.service.checkMonitorNow('ws-1', 'coworker-1', created.id, other)).rejects.toThrow(/owner/);
+      expect(ctx.monitorSweep.checkNow).not.toHaveBeenCalled();
+    });
+
+    it("lets the coworker's creator and admins manage anyone's monitor", async () => {
+      const created = await ctx.service.createMonitor('ws-1', 'coworker-1', 'member-2', { condition: 'becomes overdue' });
+      await expect(
+        ctx.service.updateMonitor('ws-1', 'coworker-1', created.id, { enabled: false }, { userId: 'creator-1', permissions: MEMBER }),
+      ).resolves.toBeDefined();
+      await expect(
+        ctx.service.deleteMonitor('ws-1', 'coworker-1', created.id, { userId: 'admin-1', permissions: ADMIN }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('never lets a guest change a monitor, even their own', async () => {
+      const created = await ctx.service.createMonitor('ws-1', 'coworker-1', 'guest-1', { condition: 'becomes overdue' });
+      const guest = { userId: 'guest-1', permissions: [WorkspacePermission.VIEW] };
+      await expect(ctx.service.deleteMonitor('ws-1', 'coworker-1', created.id, guest)).rejects.toThrow(/owner/);
+    });
+
+    it('refuses monitors on a switched-off coworker', async () => {
+      ctx.prisma.aIAgent.findFirst.mockResolvedValueOnce({ id: 'coworker-1', creatorId: null, isActive: false, configuration: {} });
+      await expect(
+        ctx.service.createMonitor('ws-1', 'coworker-1', 'member-2', { condition: 'becomes overdue' }),
+      ).rejects.toThrow(/switched off/);
+    });
   });
 });
 

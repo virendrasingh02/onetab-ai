@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   UserAvatar,
+  type RightPanelProfile,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -132,6 +133,8 @@ export interface ChatBubbleProps {
    * `@handles` are recognised, which cuts a name like "Ana Ruiz" in half.
    */
   mentionNames?: string[];
+  onMentionClick?: (mention: string) => void;
+  mentionProfiles?: Record<string, RightPanelProfile>;
   entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread' | 'coworker';
   onRetry?: () => void;
   linkPreviewsEnabled?: boolean;
@@ -467,6 +470,8 @@ export function ChatBubble({
   isHighlighted = false,
   density = 'comfy',
   mentionNames,
+  onMentionClick,
+  mentionProfiles,
   entityKind,
   onRetry,
   linkPreviewsEnabled = true,
@@ -1148,6 +1153,8 @@ export function ChatBubble({
               <MarkdownMessage
                 text={message.body}
                 mentionNames={mentionNames}
+                onMentionClick={onMentionClick}
+                mentionProfiles={mentionProfiles}
               />
             ) : null}
             {message.isEdited ? (

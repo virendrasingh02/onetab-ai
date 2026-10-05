@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import { type FC, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCanManageAIResource } from '@org/web-workspace';
+import { useCanManageTrackerMonitor } from '@org/web-workspace';
 import { CoworkerAvatar } from './CoworkerAvatar.js';
 import { CoworkerCreateDialog } from './CoworkerCreateDialog.js';
 import { CoworkerStatusDot } from './CoworkerStatusDot.js';
@@ -99,7 +99,7 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
     workspaceId,
     isTracker ? effectiveId : undefined,
   );
-  const canManage = useCanManageAIResource();
+  const canManageMonitor = useCanManageTrackerMonitor();
   const monitorMutations = useCoworkerMonitorMutations(
     workspaceId,
     isTracker ? effectiveId : undefined,
@@ -446,7 +446,7 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
                           <Badge variant={m.enabled ? 'primary' : 'neutral'} className="text-[9px] px-1 py-0">
                             {m.enabled ? (m.frequency ?? 'hourly') : 'paused'}
                           </Badge>
-                          {canManage(coworker.creatorId) ? (
+                          {canManageMonitor(m, coworker.creatorId) ? (
                           <Button
                             variant="ghost"
                             size="icon-xs"

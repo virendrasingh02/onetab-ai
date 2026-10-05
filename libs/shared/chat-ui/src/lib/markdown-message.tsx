@@ -1,8 +1,8 @@
 import { useAuthenticatedMediaSrc } from '@org/hooks';
-import { CodeBlock } from '@org/ui';
+import { CodeBlock, useRightPanelStore, type RightPanelProfile } from '@org/ui';
 import { cn } from '@org/utils';
-import { CheckSquare, Square } from 'lucide-react';
-import { Fragment, useMemo, type ReactNode } from 'react';
+import { CheckSquare, Link2, Square } from 'lucide-react';
+import { Fragment, useCallback, useMemo, type ReactNode } from 'react';
 
 /**
  * Renders the markdown a message body carries.
@@ -23,6 +23,7 @@ function safeUrl(raw: string): string | null {
   const url = raw.trim();
   if (/^(https?:|mailto:)/i.test(url)) return url;
   if (/^www\./i.test(url)) return `https://${url}`;
+  if (/^meet\.google\.com\//i.test(url)) return `https://${url}`;
   return null;
 }
 
@@ -55,7 +56,7 @@ const INLINE_PATTERN_SOURCE = [
     '(?<italic>\\*[^*\\n]+\\*|_[^_\\n]+_)',
     '(?<strike>~~[^~\\n]+~~)',
     '(?<highlight>==[^=\\n]+==)',
-    '(?<url>(?:https?://|www\\.)[^\\s<>()]+)',
+    '(?<url>(?:https?://|www\\.|meet\\.google\\.com/)[^\\s<>()]+)',
     '(?<mention>@[A-Za-z0-9][A-Za-z0-9._-]*)',
     '(?<hashtag>#[A-Za-z][A-Za-z0-9_-]*)',
 ].join('|');
@@ -97,7 +98,10 @@ function isWordCharacter(character: string | undefined): boolean {
  * keeps the whole name inside one chip while unknown `@handles` still fall
  * back to the single-word form.
  */
-type InlineOptions = { mentionNames: string[] };
+type InlineOptions = {
+  mentionNames: string[];
+  onMentionClick?: (mention: string) => void;
+};
 
 const NO_MENTIONS: InlineOptions = { mentionNames: [] };
 
@@ -167,6 +171,7 @@ function renderInline(
       const parsed = /^\[([^\]]*)\]\(([^\s)]*)\)$/.exec(token);
       const href = parsed ? safeUrl(parsed[2]) : null;
       const label = parsed?.[1] ?? '';
+      const display = label || (href ? href.replace(/^https?:\/\//i, '') : '');
       nodes.push(
         href ? (
           <a
@@ -174,9 +179,10 @@ function renderInline(
             href={href}
             target="_blank"
             rel="noreferrer noopener"
-            className="text-primary-text underline underline-offset-2 hover:text-primary"
+            className="inline-flex items-center gap-1.5 rounded-md bg-sky-50/90 dark:bg-sky-950/40 px-2 py-0.5 text-xs sm:text-sm font-medium text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 hover:text-sky-700 dark:hover:text-sky-300 transition-colors no-underline break-all align-baseline my-0.5 shadow-2xs"
           >
-            {label || href}
+            <Link2 className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden="true" />
+            <span>{display}</span>
           </a>
         ) : (
           // Nowhere safe to go (empty, relative, `javascript:`…): keep the
@@ -217,18 +223,29 @@ function renderInline(
         </mark>,
       );
     } else if (groups['url']) {
-      const href = safeUrl(token);
+      let cleanToken = token;
+      let trailingPunct = '';
+      const punctMatch = /[.,;:!?)]+$/.exec(token);
+      if (punctMatch && !token.endsWith(')')) {
+        trailingPunct = punctMatch[0];
+        cleanToken = token.slice(0, -trailingPunct.length);
+      }
+      const href = safeUrl(cleanToken);
+      const display = cleanToken.replace(/^https?:\/\//i, '');
       nodes.push(
         href ? (
-          <a
-            key={key}
-            href={href}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="break-all text-primary-text underline underline-offset-2 hover:text-primary"
-          >
-            {token}
-          </a>
+          <Fragment key={key}>
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1.5 rounded-md bg-sky-50/90 dark:bg-sky-950/40 px-2 py-0.5 text-xs sm:text-sm font-medium text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 hover:text-sky-700 dark:hover:text-sky-300 transition-colors no-underline break-all align-baseline my-0.5 shadow-2xs"
+            >
+              <Link2 className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden="true" />
+              <span>{display}</span>
+            </a>
+            {trailingPunct}
+          </Fragment>
         ) : (
           <Fragment key={key}>{token}</Fragment>
         ),
@@ -251,18 +268,42 @@ function renderInline(
 
       const isGroupMention = GROUP_MENTIONS.has(mention.toLowerCase());
       nodes.push(
-        <span
-          key={key}
-          data-mention={mention.slice(1)}
-          className={cn(
-            'inline-flex items-center rounded px-1 font-semibold',
-            isGroupMention
-              ? 'border border-warning/40 bg-warning/20 text-foreground'
-              : 'border border-primary/40 bg-primary/20 text-primary-text',
-          )}
-        >
-          {mention}
-        </span>,
+        isGroupMention ? (
+          <span
+            key={key}
+            data-mention={mention.slice(1)}
+            className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold border border-warning/40 bg-warning/20 text-foreground select-none"
+          >
+            {mention}
+          </span>
+        ) : (
+          <span
+            key={key}
+            role="button"
+            tabIndex={0}
+            data-mention={mention.slice(1)}
+            onClick={(e) => {
+              e.stopPropagation();
+              options.onMentionClick?.(mention);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                options.onMentionClick?.(mention);
+              }
+            }}
+            title={`View profile for ${mention}`}
+            className={cn(
+              'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold select-none transition-all cursor-pointer',
+              'border border-primary/40 bg-primary/20 text-primary-text',
+              'hover:bg-primary/30 hover:border-primary/60 hover:shadow-xs active:scale-95',
+              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
+            )}
+          >
+            {mention}
+          </span>
+        ),
       );
     } else if (groups['hashtag']) {
       nodes.push(
@@ -559,13 +600,49 @@ export interface MarkdownMessageProps {
    */
   mentionNames?: string[];
   className?: string;
+  onMentionClick?: (mention: string) => void;
+  mentionProfiles?: Record<string, RightPanelProfile>;
 }
 
 export function MarkdownMessage({
   text,
   mentionNames,
   className,
+  onMentionClick,
+  mentionProfiles,
 }: MarkdownMessageProps) {
+  const openProfile = useRightPanelStore((s) => s.openProfile);
+
+  const handleMentionClick = useCallback(
+    (rawMention: string) => {
+      if (onMentionClick) {
+        onMentionClick(rawMention);
+        return;
+      }
+      const clean = rawMention.replace(/^@/, '').trim();
+      const lower = clean.toLowerCase();
+      if (mentionProfiles && mentionProfiles[lower]) {
+        openProfile(mentionProfiles[lower]);
+        return;
+      }
+      const isCoworkerOrAgent = [
+        'scheduler',
+        'tracker',
+        'onetab copilot',
+        'copilot',
+        'code reviewer & security sentinel',
+        'onetab ai',
+      ].includes(lower);
+
+      openProfile({
+        userId: isCoworkerOrAgent ? `coworker-${lower}` : `user-${lower}`,
+        name: clean,
+        entityKind: isCoworkerOrAgent ? 'coworker' : 'user',
+      });
+    },
+    [onMentionClick, mentionProfiles, openProfile],
+  );
+
   const options = useMemo<InlineOptions>(() => {
     const rawNames = [
       ...DEFAULT_FALLBACK_MENTIONS,
@@ -581,8 +658,11 @@ export function MarkdownMessage({
     );
     // Longest first, so "@Ana Ruiz" wins over a colleague simply called "Ana".
     cleaned.sort((a, b) => b.length - a.length);
-    return { mentionNames: cleaned };
-  }, [mentionNames]);
+    return {
+      mentionNames: cleaned,
+      onMentionClick: handleMentionClick,
+    };
+  }, [mentionNames, handleMentionClick]);
 
   return (
     <div

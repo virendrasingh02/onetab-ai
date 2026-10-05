@@ -7,6 +7,7 @@ import type {
   WorkspacePolicy,
 } from '@org/types';
 import { memo, type ReactNode } from 'react';
+import type { RightPanelProfile } from '@org/ui';
 import { ChatBubble } from '../chat-bubble.js';
 import { AgentMessageCard } from './agent-message-card.js';
 import { AppResponseCard } from './app-response-card.js';
@@ -30,6 +31,8 @@ export interface MessageRendererProps {
   isHighlighted?: boolean;
   density?: 'comfy' | 'compact';
   mentionNames?: string[];
+  onMentionClick?: (mention: string) => void;
+  mentionProfiles?: Record<string, RightPanelProfile>;
   threadReplyCount?: number;
   /** Curved line from the avatar to the replies summary — see `ChatBubble`. */
   showThreadConnector?: boolean;

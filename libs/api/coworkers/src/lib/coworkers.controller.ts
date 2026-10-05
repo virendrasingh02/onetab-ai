@@ -18,6 +18,7 @@ import {
   RequireWorkspacePermissions,
   WorkspaceId,
   WorkspaceMemberRole,
+  WorkspacePermissions,
   WorkspacePolicies,
   zodBody,
 } from '@org/api-common';
@@ -209,9 +210,14 @@ export class CoworkersController {
     return this.coworkersService.listMonitors(workspaceId, coworkerId);
   }
 
+  /**
+   * Any member may set up a monitor on a workspace coworker; it is theirs.
+   * Changing, pausing, deleting or running one is for its owner, the
+   * coworker's creator or an admin (`canManageTrackerMonitor`, checked in the
+   * service per monitor — the coworker-level guard was too coarse for that).
+   */
   @Post(':coworkerId/monitors')
-  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
-  @CanManageAIEntity('coworkerId')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createMonitor(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
@@ -224,38 +230,41 @@ export class CoworkersController {
   /** Runs one monitor's check now instead of waiting for its schedule. */
   @Post(':coworkerId/monitors/:monitorId/check')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
-  @CanManageAIEntity('coworkerId')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   checkMonitor(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
     @Param('monitorId') monitorId: string,
+    @CurrentUser('id') userId: string,
+    @WorkspacePermissions() permissions: readonly WorkspacePermission[] | undefined,
   ) {
-    return this.coworkersService.checkMonitorNow(workspaceId, coworkerId, monitorId);
+    return this.coworkersService.checkMonitorNow(workspaceId, coworkerId, monitorId, { userId, permissions });
   }
 
   @Patch(':coworkerId/monitors/:monitorId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
-  @CanManageAIEntity('coworkerId')
   updateMonitor(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
     @Param('monitorId') monitorId: string,
+    @CurrentUser('id') userId: string,
+    @WorkspacePermissions() permissions: readonly WorkspacePermission[] | undefined,
     @Body(zodBody(updateTrackerMonitorSchema)) body: UpdateTrackerMonitorInput,
   ) {
-    return this.coworkersService.updateMonitor(workspaceId, coworkerId, monitorId, body);
+    return this.coworkersService.updateMonitor(workspaceId, coworkerId, monitorId, body, { userId, permissions });
   }
 
   @Delete(':coworkerId/monitors/:monitorId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
-  @CanManageAIEntity('coworkerId')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteMonitor(
     @WorkspaceId() workspaceId: string,
     @Param('coworkerId') coworkerId: string,
     @Param('monitorId') monitorId: string,
+    @CurrentUser('id') userId: string,
+    @WorkspacePermissions() permissions: readonly WorkspacePermission[] | undefined,
   ): Promise<void> {
-    return this.coworkersService.deleteMonitor(workspaceId, coworkerId, monitorId);
+    return this.coworkersService.deleteMonitor(workspaceId, coworkerId, monitorId, { userId, permissions });
   }
 
   // -------------------------------------------------------------------------

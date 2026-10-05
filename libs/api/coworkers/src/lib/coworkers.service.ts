@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService, type Prisma } from '@org/database';
 import {
@@ -8,7 +8,19 @@ import {
   classifyMonitor,
 } from '@org/api-agents';
 import { AppEvent } from '@org/api-common';
-import type { CoworkerPermissions, CoworkerStatus, TrackerMonitor } from '@org/types';
+import {
+  canManageTrackerMonitor,
+  type CoworkerPermissions,
+  type CoworkerStatus,
+  type TrackerMonitor,
+  type WorkspacePermission,
+} from '@org/types';
+
+/** Who is acting on a monitor — the caller and their workspace permissions. */
+export interface MonitorActor {
+  userId: string;
+  permissions: readonly WorkspacePermission[] | undefined;
+}
 import type { CreateTrackerMonitorInput, UpdateTrackerMonitorInput } from '@org/validation';
 
 @Injectable()
@@ -344,7 +356,7 @@ export class CoworkersService {
   private async monitorHost(workspaceId: string, coworkerId: string) {
     const coworker = await this.prisma.aIAgent.findFirst({
       where: { id: coworkerId, workspaceId, type: 'coworker' },
-      select: { id: true, configuration: true },
+      select: { id: true, creatorId: true, isActive: true, configuration: true },
     });
     if (!coworker) throw new NotFoundException('Coworker not found');
     const config = (coworker.configuration ?? {}) as Record<string, unknown>;
@@ -359,6 +371,21 @@ export class CoworkersService {
       where: { id: coworkerId },
       data: { configuration: { ...config, monitors } as unknown as Prisma.InputJsonValue },
     });
+  }
+
+  /** The monitor, if `actor` may change it — its owner, the coworker's creator or an admin. */
+  private assertCanManage(
+    coworker: { creatorId: string | null },
+    monitor: TrackerMonitor | undefined,
+    actor: MonitorActor,
+  ): TrackerMonitor {
+    if (!monitor) throw new NotFoundException('Monitor not found');
+    if (!canManageTrackerMonitor(monitor, coworker.creatorId, actor)) {
+      throw new ForbiddenException(
+        "Only this monitor's owner, the coworker's creator or a workspace admin can change it.",
+      );
+    }
+    return monitor;
   }
 
   private assertCheckable(monitor: Pick<TrackerMonitor, 'type' | 'condition'>) {
@@ -380,6 +407,9 @@ export class CoworkersService {
     input: CreateTrackerMonitorInput,
   ): Promise<TrackerMonitor> {
     const { coworker, config, monitors } = await this.monitorHost(workspaceId, coworkerId);
+    if (!coworker.isActive) {
+      throw new BadRequestException('This coworker is switched off, so it cannot run monitors.');
+    }
     const monitor = buildTrackerMonitor(input, { workspaceId, coworkerId, createdBy });
     this.assertCheckable(monitor);
     await this.saveMonitors(coworker.id, config, [...monitors, monitor]);
@@ -391,11 +421,11 @@ export class CoworkersService {
     coworkerId: string,
     monitorId: string,
     input: UpdateTrackerMonitorInput,
+    actor: MonitorActor,
   ): Promise<TrackerMonitor> {
     const { coworker, config, monitors } = await this.monitorHost(workspaceId, coworkerId);
     const idx = monitors.findIndex((m) => m.id === monitorId);
-    if (idx === -1) throw new NotFoundException('Monitor not found');
-    const current = monitors[idx];
+    const current = this.assertCanManage(coworker, monitors[idx], actor);
     const updated: TrackerMonitor = {
       ...current,
       ...input,
@@ -418,8 +448,14 @@ export class CoworkersService {
     return updated;
   }
 
-  async deleteMonitor(workspaceId: string, coworkerId: string, monitorId: string): Promise<void> {
+  async deleteMonitor(
+    workspaceId: string,
+    coworkerId: string,
+    monitorId: string,
+    actor: MonitorActor,
+  ): Promise<void> {
     const { coworker, config, monitors } = await this.monitorHost(workspaceId, coworkerId);
+    this.assertCanManage(coworker, monitors.find((m) => m.id === monitorId), actor);
     await this.saveMonitors(
       coworker.id,
       config,
@@ -427,7 +463,14 @@ export class CoworkersService {
     );
   }
 
-  async checkMonitorNow(workspaceId: string, coworkerId: string, monitorId: string): Promise<TrackerMonitor> {
+  async checkMonitorNow(
+    workspaceId: string,
+    coworkerId: string,
+    monitorId: string,
+    actor: MonitorActor,
+  ): Promise<TrackerMonitor> {
+    const { coworker, monitors } = await this.monitorHost(workspaceId, coworkerId);
+    this.assertCanManage(coworker, monitors.find((m) => m.id === monitorId), actor);
     const checked = await this.monitorSweep.checkNow(workspaceId, coworkerId, monitorId);
     if (!checked) throw new NotFoundException('Monitor not found');
     return checked;

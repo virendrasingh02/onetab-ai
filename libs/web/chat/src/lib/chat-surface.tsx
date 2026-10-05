@@ -56,6 +56,7 @@ import {
   Hint,
   toast,
   useRightPanelStore,
+  type RightPanelProfile,
 } from '@org/ui';
 import { Hash, Headphones, Lock, Pin, Search, Users } from 'lucide-react';
 import {
@@ -855,6 +856,121 @@ export function ChatSurface({
     threadControl.appMentions,
   ]);
 
+  const mentionProfiles = useMemo<Record<string, RightPanelProfile>>(() => {
+    const profiles: Record<string, RightPanelProfile> = {};
+
+    for (const m of mainControl.workspaceMembers ?? []) {
+      if (m.displayName) {
+        profiles[m.displayName.trim().toLowerCase()] = {
+          userId: m.userId,
+          name: m.displayName,
+          avatarUrl: m.avatarUrl,
+          powerLevel: m.powerLevel,
+          entityKind: 'user',
+        };
+      }
+    }
+
+    for (const m of members) {
+      if (m.displayName) {
+        profiles[m.displayName.trim().toLowerCase()] = {
+          userId: m.userId,
+          name: m.displayName,
+          avatarUrl: m.avatarUrl,
+          powerLevel: m.powerLevel,
+          role: m.role,
+          entityKind: 'user',
+        };
+      }
+    }
+
+    for (const a of DEFAULT_AI_AGENT_MENTIONS) {
+      if (a.name) {
+        profiles[a.name.trim().toLowerCase()] = {
+          userId: `agent-${a.id}`,
+          entityId: a.id,
+          name: a.name,
+          avatarUrl: a.avatarUrl,
+          entityKind: 'agent',
+        };
+      }
+    }
+    for (const c of DEFAULT_COWORKER_MENTIONS) {
+      if (c.name) {
+        profiles[c.name.trim().toLowerCase()] = {
+          userId: `coworker-${c.id}`,
+          entityId: c.id,
+          name: c.name,
+          avatarUrl: c.avatarUrl,
+          entityKind: 'coworker',
+        };
+      }
+    }
+    for (const app of DEFAULT_APP_MENTIONS) {
+      if (app.name) {
+        profiles[app.name.trim().toLowerCase()] = {
+          userId: `app-${app.id}`,
+          entityId: app.id,
+          name: app.name,
+          entityKind: 'app',
+        };
+      }
+    }
+
+    for (const a of [
+      ...(mainControl.agentMentions ?? []),
+      ...(threadControl.agentMentions ?? []),
+    ]) {
+      if (a.name) {
+        profiles[a.name.trim().toLowerCase()] = {
+          userId: `agent-${a.id}`,
+          entityId: a.id,
+          name: a.name,
+          avatarUrl: a.avatarUrl,
+          entityKind: 'agent',
+        };
+      }
+    }
+    for (const c of [
+      ...(mainControl.coworkerMentions ?? []),
+      ...(threadControl.coworkerMentions ?? []),
+    ]) {
+      if (c.name) {
+        profiles[c.name.trim().toLowerCase()] = {
+          userId: `coworker-${c.id}`,
+          entityId: c.id,
+          name: c.name,
+          avatarUrl: c.avatarUrl,
+          entityKind: 'coworker',
+        };
+      }
+    }
+    for (const app of [
+      ...(mainControl.appMentions ?? []),
+      ...(threadControl.appMentions ?? []),
+    ]) {
+      if (app.name) {
+        profiles[app.name.trim().toLowerCase()] = {
+          userId: `app-${app.id}`,
+          entityId: app.id,
+          name: app.name,
+          entityKind: 'app',
+        };
+      }
+    }
+
+    return profiles;
+  }, [
+    members,
+    mainControl.workspaceMembers,
+    mainControl.agentMentions,
+    mainControl.coworkerMentions,
+    mainControl.appMentions,
+    threadControl.agentMentions,
+    threadControl.coworkerMentions,
+    threadControl.appMentions,
+  ]);
+
   /* Mark a thread read while its panel is open, and again when a reply lands. */
   useEffect(() => {
     if (panel !== 'thread' || !threadRootId) return;
@@ -870,6 +986,8 @@ export function ChatSurface({
       avatarUrl?: string;
       role?: string;
       powerLevel?: number;
+      entityKind?: 'user' | 'agent' | 'app' | 'coworker';
+      entityId?: string;
     }) => {
       setPanel('none');
       openProfilePanel({
@@ -878,9 +996,37 @@ export function ChatSurface({
         avatarUrl: user.avatarUrl,
         role: user.role,
         powerLevel: user.powerLevel,
+        entityKind: user.entityKind,
+        entityId: user.entityId,
       });
     },
     [openProfilePanel],
+  );
+
+  const handleMentionClick = useCallback(
+    (rawMention: string) => {
+      const clean = rawMention.replace(/^@/, '').trim();
+      const lower = clean.toLowerCase();
+      const profile = mentionProfiles[lower];
+      if (profile) {
+        handleOpenUserProfile(profile);
+        return;
+      }
+      const isCoworkerOrAgent = [
+        'scheduler',
+        'tracker',
+        'onetab copilot',
+        'copilot',
+        'code reviewer & security sentinel',
+        'onetab ai',
+      ].includes(lower);
+      handleOpenUserProfile({
+        userId: isCoworkerOrAgent ? `coworker-${lower}` : `user-${lower}`,
+        name: clean,
+        entityKind: isCoworkerOrAgent ? 'coworker' : 'user',
+      });
+    },
+    [mentionProfiles, handleOpenUserProfile],
   );
 
   /** A system event's entity was clicked. A member opens the existing profile
@@ -959,6 +1105,8 @@ export function ChatSurface({
           linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
           isHighlighted={message.id === highlightId}
           mentionNames={mentionNames}
+          onMentionClick={handleMentionClick}
+          mentionProfiles={mentionProfiles}
           isPinned={pinnedIds.includes(message.id)}
           isSaved={savedIds.includes(message.id)}
           threadReplyCount={replies.length}
@@ -1174,6 +1322,8 @@ export function ChatSurface({
       messageDensity,
       highlightId,
       mentionNames,
+      handleMentionClick,
+      mentionProfiles,
       pinnedIds,
       savedIds,
       unreadThreadRoots,
