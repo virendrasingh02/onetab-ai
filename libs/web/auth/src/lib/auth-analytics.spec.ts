@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { trackAuthEvent, type AuthAnalyticsEvent } from './auth-analytics.js';
+import { trackAuthEvent } from './auth-analytics.js';
 
 describe('auth-analytics', () => {
   const originalWindow = globalThis.window;

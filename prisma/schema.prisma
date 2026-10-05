@@ -945,7 +945,7 @@ model TwoFactorChallenge {
   id        String    @id @default(cuid())
   userId    String
   tokenHash String    @unique
-  /// "password" | "magic_link" — which first factor started it.
+  /// "password" | "magic_link" | "google" | "apple" — which first factor started it.
   method    String
   attempts  Int       @default(0)
   expiresAt DateTime

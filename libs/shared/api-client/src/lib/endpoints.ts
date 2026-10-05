@@ -569,11 +569,20 @@ export const authApi = {
   deleteWebAuthn: (credentialId: string) =>
     request<void>(http.delete(`/auth/webauthn/credentials/${credentialId}`)),
 
-  getGoogleAuthUrl: (params?: OAuthInitQueryInput) =>
-    request<{ url: string }>(http.get('/auth/google/url', { params })),
+  /** Which social sign-in providers the server has credentials for. */
+  getOAuthProviders: () =>
+    request<{ google: boolean; apple: boolean }>(http.get('/auth/oauth/providers')),
 
-  getAppleAuthUrl: (params?: OAuthInitQueryInput) =>
-    request<{ url: string }>(http.get('/auth/apple/url', { params })),
+  /**
+   * Starts a Google / Apple sign-in. The response also sets the httpOnly flow
+   * cookie the callback checks, so navigate to `url` in this same browser.
+   */
+  getOAuthUrl: (provider: 'google' | 'apple', params?: OAuthInitQueryInput) =>
+    request<{ url: string }>(http.get(`/auth/${provider}/url`, { params })),
+
+  /** Same, but links the provider to the signed-in account (Settings). */
+  getOAuthLinkUrl: (provider: 'google' | 'apple', params?: OAuthInitQueryInput) =>
+    request<{ url: string }>(http.get(`/auth/${provider}/link/url`, { params })),
 
   getIdentities: () =>
     request<{ identities: UserIdentityDto[]; hasPassword: boolean }>(

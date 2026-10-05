@@ -229,29 +229,28 @@ export interface CreateDeviceAuthResponse {
   expiresInSeconds: number;
 }
 
+/** Starts a Google / Apple sign-in. Handoff fields mirror the desktop login URL. */
 export const oauthInitQuerySchema = z.object({
-  returnTo: z.string().optional(),
+  returnTo: z.string().max(2048).optional(),
   desktop: z.enum(['true', 'false']).optional(),
-  state: z.string().optional(),
-  code_challenge: z.string().optional(),
-  code_challenge_method: z.string().optional(),
-  invitationToken: z.string().optional(),
-  link: z.enum(['true', 'false']).optional(),
+  state: z.string().max(512).optional(),
+  code_challenge: z.string().max(256).optional(),
+  code_challenge_method: z.literal('S256').optional(),
+  invitationToken: z.string().max(512).optional(),
 });
 
+/** What a provider sends back to the redirect URI. Values are opaque. */
 export const oauthCallbackQuerySchema = z.object({
-  code: z.string().optional(),
-  state: z.string().optional(),
-  error: z.string().optional(),
-  error_description: z.string().optional(),
+  code: z.string().max(4096).optional(),
+  state: z.string().max(512).optional(),
+  error: z.string().max(256).optional(),
+  error_description: z.string().max(1024).optional(),
 });
 
-export const appleCallbackBodySchema = z.object({
-  code: z.string().optional(),
-  state: z.string().optional(),
-  id_token: z.string().optional(),
-  user: z.string().optional(),
-  error: z.string().optional(),
+/** Apple posts the callback as a form (`response_mode=form_post`). */
+export const appleCallbackBodySchema = oauthCallbackQuerySchema.extend({
+  /** JSON with the user's name — sent only on the very first authorization. */
+  user: z.string().max(2048).optional(),
 });
 
 export type OAuthInitQueryInput = z.infer<typeof oauthInitQuerySchema>;

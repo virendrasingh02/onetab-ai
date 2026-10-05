@@ -565,12 +565,39 @@ export class AuthService {
   }
 
   /**
+   * Finishes a sign-in whose first factor was a verified Google / Apple
+   * identity. Same contract as password and magic link: an account with
+   * two-factor on gets a challenge, never a session.
+   */
+  async signInWithFederatedIdentity(
+    userId: string,
+    provider: 'google' | 'apple',
+    context: SessionContext = {},
+  ): Promise<SignInResult> {
+    const challenge = await this.startTwoFactorChallenge(userId, provider);
+    if (challenge) {
+      this.logger.log({ event: 'oauth_2fa_required', userId, provider });
+      return { twoFactor: challenge };
+    }
+
+    const signedIn = await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastSeenAt: new Date(), presence: 'ONLINE' },
+    });
+    const session = await this.tokens.issueSession(signedIn, context);
+
+    this.logger.log({ event: 'oauth_signed_in', userId, provider });
+    this.events?.emit('auth.oauth_signed_in', { userId, provider });
+    return { user: toCurrentUser(signedIn), session };
+  }
+
+  /**
    * Opens the code step of a sign-in when the account has two-factor on;
    * `null` when it does not. The token is returned once and stored hashed.
    */
   private async startTwoFactorChallenge(
     userId: string,
-    method: 'password' | 'magic_link',
+    method: 'password' | 'magic_link' | 'google' | 'apple',
   ): Promise<TwoFactorChallengeResponse | null> {
     const twoFactor = await this.prisma.twoFactorAuth.findUnique({
       where: { userId },

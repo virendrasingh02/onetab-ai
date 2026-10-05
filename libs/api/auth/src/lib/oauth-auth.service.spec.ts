@@ -1,600 +1,458 @@
+import { createVerify, generateKeyPairSync, sign, type KeyObject } from 'node:crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
-import type { Response } from 'express';
 import axios from 'axios';
 import { OAuthAuthService } from './oauth-auth.service.js';
-import type { DesktopAuthService } from './desktop-auth.service.js';
-import type { TokenService } from './token.service.js';
+import type { AuthService } from './auth.service.js';
 
 vi.mock('axios');
 
-describe('OAuthAuthService', () => {
-  let service: OAuthAuthService;
-  let mockPrisma: any;
-  let mockConfig: any;
-  let mockTokens: any;
-  let mockDesktopAuth: any;
-  let mockResponse: Partial<Response>;
+/* --- Fake identity provider ------------------------------------------------ */
 
-  const mockUser = {
-    id: 'user_oauth_1',
-    email: 'alex@example.com',
+function rsaKey(kid: string) {
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  return { kid, privateKey, jwk: { ...publicKey.export({ format: 'jwk' }), kid, alg: 'RS256', use: 'sig' } };
+}
+
+const googleKey = rsaKey('google-1');
+const appleKey = rsaKey('apple-1');
+const attackerKey = rsaKey('google-1'); // same kid, different key
+
+const appleTeamKey = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const APPLE_PRIVATE_KEY_PEM = appleTeamKey.privateKey.export({ format: 'pem', type: 'pkcs8' }).toString();
+
+function signIdToken(
+  claims: Record<string, unknown>,
+  { key, kid, alg = 'RS256' }: { key: KeyObject; kid: string; alg?: string },
+): string {
+  const header = Buffer.from(JSON.stringify({ alg, kid, typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+  const signature = sign('RSA-SHA256', Buffer.from(`${header}.${payload}`), key).toString('base64url');
+  return `${header}.${payload}.${signature}`;
+}
+
+const now = () => Math.floor(Date.now() / 1000);
+
+function googleClaims(nonce: string, overrides: Record<string, unknown> = {}) {
+  return {
+    iss: 'https://accounts.google.com',
+    aud: 'google-client-id',
+    sub: 'google-sub-1',
+    email: 'Alex@Example.com',
+    email_verified: true,
     name: 'Alex Mercer',
-    displayName: null,
-    avatarUrl: 'https://example.com/avatar.png',
-    bio: null,
-    timezone: 'UTC',
-    preferredLanguage: 'en',
-    systemRole: 'USER',
-    presence: 'OFFLINE',
-    statusText: null,
-    statusEmoji: null,
-    statusExpiresAt: null,
-    emailVerifiedAt: new Date(),
-    lastSeenAt: new Date(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    passwordHash: '$2b$12$somehashedpassword',
-    identities: [],
+    picture: 'https://example.com/a.png',
+    iat: now(),
+    exp: now() + 3600,
+    nonce,
+    ...overrides,
   };
+}
 
-  beforeEach(() => {
-    vi.clearAllMocks();
+/* --- Harness --------------------------------------------------------------- */
 
-    mockPrisma = {
-      user: {
-        findUnique: vi.fn(),
-        findFirst: vi.fn(),
-        create: vi.fn(),
-        update: vi.fn(),
-      },
-      userIdentity: {
-        findUnique: vi.fn(),
-        findFirst: vi.fn(),
-        create: vi.fn(),
-        delete: vi.fn(),
-      },
-    };
+const config: Record<string, string> = {
+  NODE_ENV: 'test',
+  WEB_APP_URL: 'http://localhost:4200',
+  API_URL: 'http://localhost:3000/api/v1',
+  JWT_ACCESS_SECRET: 'test-access-secret',
+  GOOGLE_CLIENT_ID: 'google-client-id',
+  GOOGLE_CLIENT_SECRET: 'google-client-secret',
+  APPLE_CLIENT_ID: 'com.onetab.web',
+  APPLE_TEAM_ID: 'TEAM123456',
+  APPLE_KEY_ID: 'KEY1234567',
+  APPLE_PRIVATE_KEY: APPLE_PRIVATE_KEY_PEM,
+};
 
-    mockConfig = {
-      get: vi.fn((key: string, defaultValue?: any) => {
-        const configMap: Record<string, string> = {
-          NODE_ENV: 'test',
-          WEB_APP_URL: 'http://localhost:4200',
-          API_URL: 'http://localhost:3000/api/v1',
-          GOOGLE_CLIENT_ID: 'test-google-client-id',
-          GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
-          GOOGLE_AUTH_REDIRECT_URI: 'http://localhost:3000/api/v1/auth/google/callback',
-          APPLE_CLIENT_ID: 'com.onetab.ai.web',
-          APPLE_TEAM_ID: 'TESTTEAM12',
-          APPLE_KEY_ID: 'TESTKEY123',
-          APPLE_AUTH_REDIRECT_URI: 'http://localhost:3000/api/v1/auth/apple/callback',
-          JWT_ACCESS_SECRET: 'super-secret-test-key-for-state-signing',
-        };
-        return configMap[key] ?? defaultValue;
-      }),
-    } as unknown as ConfigService;
+const session = { tokens: { accessToken: 'at' }, refreshToken: 'rt', refreshExpiresAt: new Date() };
 
-    mockTokens = {
-      issueSession: vi.fn().mockResolvedValue({
-        tokens: {
-          accessToken: 'test-access-token',
-          expiresIn: 900,
-          tokenType: 'Bearer',
+let prisma: any;
+let auth: { signInWithFederatedIdentity: ReturnType<typeof vi.fn> };
+let service: OAuthAuthService;
+let configValues: Record<string, string>;
+
+function makeService() {
+  const configService = {
+    get: vi.fn((key: string, fallback?: unknown) => configValues[key] ?? fallback),
+    getOrThrow: vi.fn((key: string) => {
+      if (!configValues[key]) throw new Error(`missing ${key}`);
+      return configValues[key];
+    }),
+  } as unknown as ConfigService;
+  return new OAuthAuthService(prisma, configService, auth as unknown as AuthService);
+}
+
+/** Starts a flow and reads back its state + nonce the way the provider would see them. */
+function begin(provider: 'google' | 'apple', options: Record<string, string> = {}, linkUserId?: string) {
+  const { url, flowCookie } = service.start(provider, options, linkUserId);
+  const params = new URL(url).searchParams;
+  return { url, flowCookie, state: params.get('state')!, nonce: params.get('nonce')! };
+}
+
+/** Makes the token endpoint return `idToken`. */
+function providerReturns(idToken: string) {
+  vi.mocked(axios.post).mockResolvedValue({ data: { id_token: idToken } });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  configValues = { ...config };
+
+  vi.mocked(axios.get).mockImplementation(async (url: string) => ({
+    data: { keys: url.includes('apple') ? [appleKey.jwk] : [googleKey.jwk] },
+  }));
+
+  prisma = {
+    user: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    userIdentity: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    refreshToken: { updateMany: vi.fn() },
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(prisma)),
+  };
+  auth = {
+    signInWithFederatedIdentity: vi.fn().mockResolvedValue({ user: { id: 'u1' }, session }),
+  };
+  service = makeService();
+});
+
+/* --- Tests ----------------------------------------------------------------- */
+
+describe('OAuthAuthService.start', () => {
+  it('builds a Google URL with PKCE + nonce and keeps the verifier out of the URL', () => {
+    const { url, flowCookie, state, nonce } = begin('google', { returnTo: '/w/acme' });
+    const params = new URL(url).searchParams;
+
+    expect(params.get('code_challenge_method')).toBe('S256');
+    expect(params.get('code_challenge')).toBeTruthy();
+    expect(params.get('access_type')).toBeNull();
+    expect(state).toHaveLength(43);
+    expect(nonce).toHaveLength(43);
+
+    const flow = service.openFlow(flowCookie)!;
+    expect(flow.state).toBe(state);
+    expect(flow.returnTo).toBe('/w/acme');
+    expect(url).not.toContain(flow.pkceVerifier!);
+    expect(flowCookie).not.toContain(state); // sealed, not merely encoded
+  });
+
+  it('asks Apple for a code only, via form_post', () => {
+    const params = new URL(begin('apple').url).searchParams;
+    expect(params.get('response_type')).toBe('code');
+    expect(params.get('response_mode')).toBe('form_post');
+  });
+
+  it('refuses a provider without credentials', () => {
+    delete configValues['GOOGLE_CLIENT_SECRET'];
+    expect(() => service.start('google', {})).toThrow(ServiceUnavailableException);
+    expect(service.isConfigured('google')).toBe(false);
+    expect(service.isConfigured('apple')).toBe(true);
+  });
+
+  it('drops off-site returnTo values', () => {
+    expect(service.sanitizeReturnTo('//evil.com/x')).toBeUndefined();
+    expect(service.sanitizeReturnTo('/\\evil.com')).toBeUndefined();
+    expect(service.sanitizeReturnTo('https://evil.com/x')).toBeUndefined();
+    expect(service.sanitizeReturnTo('javascript:alert(1)')).toBeUndefined();
+    expect(service.sanitizeReturnTo('http://localhost:4200/w/a?b=1')).toBe('/w/a?b=1');
+  });
+
+  it('rejects a tampered or expired flow cookie', () => {
+    const { flowCookie } = begin('google');
+    const tampered = flowCookie.slice(0, -2) + (flowCookie.endsWith('A') ? 'BB' : 'AA');
+    expect(service.openFlow(tampered)).toBeNull();
+
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.now() + 11 * 60 * 1000);
+    expect(service.openFlow(flowCookie)).toBeNull();
+    vi.useRealTimers();
+  });
+});
+
+describe('OAuthAuthService.handleCallback — security', () => {
+  it('rejects a callback whose browser never started the flow (login CSRF)', async () => {
+    const { state } = begin('google');
+    const out = await service.handleCallback('google', { code: 'c', state }, undefined, {});
+    expect(out.redirectTo).toBe('http://localhost:4200/login?error=oauth_state_mismatch');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('rejects a state that does not match the flow cookie', async () => {
+    const { flowCookie } = begin('google');
+    const out = await service.handleCallback('google', { code: 'c', state: 'x'.repeat(43) }, flowCookie, {});
+    expect(out.redirectTo).toContain('error=oauth_state_mismatch');
+  });
+
+  it('rejects a Google flow cookie replayed at the Apple callback', async () => {
+    const { flowCookie, state } = begin('google');
+    const out = await service.handleCallback('apple', { code: 'c', state }, flowCookie, {});
+    expect(out.redirectTo).toContain('error=oauth_state_mismatch');
+  });
+
+  it('rejects an ID token signed by anyone but the provider', async () => {
+    const { flowCookie, state, nonce } = begin('google');
+    providerReturns(signIdToken(googleClaims(nonce), { key: attackerKey.privateKey, kid: 'google-1' }));
+
+    const out = await service.handleCallback('google', { code: 'c', state }, flowCookie, {});
+    expect(out.redirectTo).toContain('error=oauth_invalid_token');
+    expect(out.session).toBeUndefined();
+    expect(auth.signInWithFederatedIdentity).not.toHaveBeenCalled();
+  });
+
+  it('rejects an ID token with an unknown key id', async () => {
+    const { flowCookie, state, nonce } = begin('google');
+    providerReturns(signIdToken(googleClaims(nonce), { key: googleKey.privateKey, kid: 'nope' }));
+    const out = await service.handleCallback('google', { code: 'c', state }, flowCookie, {});
+    expect(out.redirectTo).toContain('error=oauth_invalid_token');
+  });
+
+  it.each([
+    ['nonce', { nonce: 'other' }],
+    ['audience', { aud: 'someone-else' }],
+    ['issuer', { iss: 'https://evil.example' }],
+    ['expiry', { exp: now() - 3600 }],
+  ])('rejects an ID token with the wrong %s', async (_label, overrides) => {
+    const { flowCookie, state, nonce } = begin('google');
+    providerReturns(signIdToken(googleClaims(nonce, overrides), { key: googleKey.privateKey, kid: 'google-1' }));
+    const out = await service.handleCallback('google', { code: 'c', state }, flowCookie, {});
+    expect(out.redirectTo).toContain('error=oauth_invalid_token');
+  });
+
+  it('refuses to match an account by an email the provider has not verified', async () => {
+    const { flowCookie, state, nonce } = begin('google');
+    providerReturns(
+      signIdToken(googleClaims(nonce, { email_verified: false }), { key: googleKey.privateKey, kid: 'google-1' }),
+    );
+    prisma.userIdentity.findUnique.mockResolvedValue(null);
+
+    const out = await service.handleCallback('google', { code: 'c', state }, flowCookie, {});
+    expect(out.redirectTo).toContain('error=oauth_email_unverified');
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('maps a provider cancel to oauth_cancelled and keeps the desktop handoff', async () => {
+    const { flowCookie } = begin('google', { desktop: 'true', state: 'ds', code_challenge: 'dc' });
+    const out = await service.handleCallback('google', { error: 'access_denied' }, flowCookie, {});
+    const url = new URL(out.redirectTo);
+    expect(url.pathname).toBe('/login');
+    expect(url.searchParams.get('error')).toBe('oauth_cancelled');
+    expect(url.searchParams.get('desktop')).toBe('true');
+    expect(url.searchParams.get('state')).toBe('ds');
+  });
+});
+
+describe('OAuthAuthService.handleCallback — sign-in', () => {
+  async function googleSignIn(options: Record<string, string> = {}, claimOverrides = {}) {
+    const { flowCookie, state, nonce } = begin('google', options);
+    providerReturns(signIdToken(googleClaims(nonce, claimOverrides), { key: googleKey.privateKey, kid: 'google-1' }));
+    return service.handleCallback('google', { code: 'auth-code', state }, flowCookie, { ipAddress: '1.2.3.4' });
+  }
+
+  it('signs in a user whose identity is already linked', async () => {
+    prisma.userIdentity.findUnique.mockResolvedValue({ id: 'i1', userId: 'u1', email: 'alex@example.com' });
+
+    const out = await googleSignIn({ returnTo: '/w/acme/chat' });
+
+    expect(out).toEqual({ redirectTo: 'http://localhost:4200/w/acme/chat', session });
+    expect(auth.signInWithFederatedIdentity).toHaveBeenCalledWith('u1', 'google', { ipAddress: '1.2.3.4' });
+    const body = vi.mocked(axios.post).mock.calls[0]![1] as URLSearchParams;
+    expect(body.get('code_verifier')).toBeTruthy();
+    expect(prisma.userIdentity.update).not.toHaveBeenCalled();
+  });
+
+  it('links to a verified account with the same email and keeps its password', async () => {
+    prisma.userIdentity.findUnique.mockResolvedValue(null);
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'u2',
+      emailVerifiedAt: new Date(),
+      avatarUrl: null,
+      passwordHash: 'hash',
+    });
+
+    await googleSignIn();
+
+    expect(prisma.userIdentity.create).toHaveBeenCalledWith({
+      data: { userId: 'u2', provider: 'google', providerUserId: 'google-sub-1', email: 'alex@example.com' },
+    });
+    const update = prisma.user.update.mock.calls[0][0];
+    expect(update.data.passwordHash).toBeUndefined();
+    expect(update.data.avatarUrl).toBe('https://example.com/a.png');
+    expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    expect(auth.signInWithFederatedIdentity).toHaveBeenCalledWith('u2', 'google', expect.anything());
+  });
+
+  it('wipes credentials of an unverified squatter account before linking it', async () => {
+    prisma.userIdentity.findUnique.mockResolvedValue(null);
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'u3',
+      emailVerifiedAt: null,
+      avatarUrl: null,
+      passwordHash: 'attacker-chosen',
+    });
+
+    await googleSignIn();
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'u3', revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+    const update = prisma.user.update.mock.calls[0][0];
+    expect(update.data.passwordHash).toBeNull();
+    expect(update.data.emailVerifiedAt).toBeInstanceOf(Date);
+  });
+
+  it('creates a passwordless, verified account for a new email', async () => {
+    prisma.userIdentity.findUnique.mockResolvedValue(null);
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({ id: 'u4' });
+
+    const out = await googleSignIn();
+
+    const data = prisma.user.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      email: 'alex@example.com',
+      name: 'Alex Mercer',
+      passwordHash: null,
+      identities: { create: { provider: 'google', providerUserId: 'google-sub-1' } },
+    });
+    expect(data.emailVerifiedAt).toBeInstanceOf(Date);
+    expect(out.session).toBe(session);
+  });
+
+  it('resolves to the winner when a concurrent callback created the identity first', async () => {
+    prisma.userIdentity.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ userId: 'u-winner' });
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.$transaction.mockRejectedValue(Object.assign(new Error('unique'), { code: 'P2002' }));
+
+    await googleSignIn();
+    expect(auth.signInWithFederatedIdentity).toHaveBeenCalledWith('u-winner', 'google', expect.anything());
+  });
+
+  it('hands a two-factor account to the code step without issuing a session', async () => {
+    prisma.userIdentity.findUnique.mockResolvedValue({ id: 'i1', userId: 'u1', email: 'alex@example.com' });
+    auth.signInWithFederatedIdentity.mockResolvedValue({
+      twoFactor: { requiresTwoFactor: true, challengeToken: 'chal', expiresAt: '2030-01-01T00:00:00.000Z' },
+    });
+
+    const out = await googleSignIn({ returnTo: '/w/acme' });
+
+    expect(out.session).toBeUndefined();
+    const url = new URL(out.redirectTo);
+    expect(url.pathname).toBe('/login');
+    expect(url.searchParams.get('returnTo')).toBe('/w/acme');
+    expect(url.search).not.toContain('chal');
+    expect(new URLSearchParams(url.hash.slice(1)).get('two_factor')).toBe('chal');
+  });
+
+  it('sends a desktop handoff back through the login page', async () => {
+    prisma.userIdentity.findUnique.mockResolvedValue({ id: 'i1', userId: 'u1', email: 'alex@example.com' });
+
+    const out = await googleSignIn({ desktop: 'true', state: 'ds', code_challenge: 'dc' });
+
+    expect(out.session).toBe(session);
+    expect(out.redirectTo).toBe('http://localhost:4200/login?desktop=true&state=ds&code_challenge=dc');
+  });
+
+  it('lands an invitation sign-in on the invite page', async () => {
+    prisma.userIdentity.findUnique.mockResolvedValue({ id: 'i1', userId: 'u1', email: 'alex@example.com' });
+    const out = await googleSignIn({ invitationToken: 'inv/1' });
+    expect(out.redirectTo).toBe('http://localhost:4200/invite/inv%2F1');
+  });
+
+  it('signs in with Apple using a team-signed client secret and the first-login name', async () => {
+    const { flowCookie, state, nonce } = begin('apple');
+    providerReturns(
+      signIdToken(
+        {
+          iss: 'https://appleid.apple.com',
+          aud: 'com.onetab.web',
+          sub: 'apple-sub-1',
+          email: 'x1@privaterelay.appleid.com',
+          email_verified: 'true',
+          iat: now(),
+          exp: now() + 600,
+          nonce,
         },
-        refreshToken: 'test-refresh-token',
-        refreshExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      }),
-    } as unknown as TokenService;
+        { key: appleKey.privateKey, kid: 'apple-1' },
+      ),
+    );
+    prisma.userIdentity.findUnique.mockResolvedValue(null);
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({ id: 'u5' });
 
-    mockDesktopAuth = {
-      generateCode: vi.fn().mockResolvedValue({
-        code: 'desktop-one-time-code-123',
-        state: 'desktop-state-123',
-      }),
-    } as unknown as DesktopAuthService;
+    const user = JSON.stringify({ name: { firstName: 'Jane', lastName: 'Doe' } });
+    const out = await service.handleCallback('apple', { code: 'c', state, user }, flowCookie, {});
 
-    mockResponse = {
-      redirect: vi.fn() as any,
-      cookie: vi.fn() as any,
-    };
+    expect(out.session).toBe(session);
+    expect(prisma.user.create.mock.calls[0][0].data.name).toBe('Jane Doe');
 
-    service = new OAuthAuthService(
-      mockPrisma,
-      mockConfig,
-      mockTokens,
-      mockDesktopAuth,
+    const clientSecret = (vi.mocked(axios.post).mock.calls[0]![1] as URLSearchParams).get('client_secret')!;
+    const [h, p, s] = clientSecret.split('.');
+    const verifier = createVerify('SHA256').update(`${h}.${p}`);
+    expect(verifier.verify({ key: appleTeamKey.publicKey, dsaEncoding: 'ieee-p1363' }, s!, 'base64url')).toBe(true);
+    expect(JSON.parse(Buffer.from(p!, 'base64url').toString())).toMatchObject({
+      iss: 'TEAM123456',
+      sub: 'com.onetab.web',
+      aud: 'https://appleid.apple.com',
+    });
+  });
+});
+
+describe('OAuthAuthService.handleCallback — linking from Settings', () => {
+  async function link(identityOwner: string | null) {
+    const { flowCookie, state, nonce } = begin('google', { returnTo: '/w/acme/settings/security' }, 'me');
+    providerReturns(signIdToken(googleClaims(nonce), { key: googleKey.privateKey, kid: 'google-1' }));
+    prisma.userIdentity.findUnique.mockResolvedValue(identityOwner ? { userId: identityOwner } : null);
+    return service.handleCallback('google', { code: 'c', state }, flowCookie, {});
+  }
+
+  it('links the identity to the signed-in user without issuing a session', async () => {
+    const out = await link(null);
+    expect(prisma.userIdentity.create).toHaveBeenCalledWith({
+      data: { userId: 'me', provider: 'google', providerUserId: 'google-sub-1', email: 'alex@example.com' },
+    });
+    expect(out).toEqual({ redirectTo: 'http://localhost:4200/w/acme/settings/security?linked=google' });
+    expect(auth.signInWithFederatedIdentity).not.toHaveBeenCalled();
+  });
+
+  it('refuses an identity that belongs to another user', async () => {
+    const out = await link('someone-else');
+    expect(prisma.userIdentity.create).not.toHaveBeenCalled();
+    expect(out.redirectTo).toBe(
+      'http://localhost:4200/w/acme/settings/security?oauth_error=oauth_account_linked_to_other',
     );
   });
+});
 
-  describe('State Generation & Verification', () => {
-    it('generates a signed state token and verifies it successfully', () => {
-      const { state, nonce } = service.generateState({
-        provider: 'google',
-        returnTo: '/dashboard',
-      });
-
-      expect(state).toContain('.');
-      const unpacked = service.verifyState(state, 'google');
-      expect(unpacked.provider).toBe('google');
-      expect(unpacked.returnTo).toBe('/dashboard');
-      expect(unpacked.nonce).toBe(nonce);
-    });
-
-    it('rejects tampered state tokens', () => {
-      const { state } = service.generateState({
-        provider: 'google',
-      });
-
-      const tampered = `${state}tampered`;
-      expect(() => service.verifyState(tampered, 'google')).toThrow(BadRequestException);
-    });
-
-    it('prevents state replay attacks', () => {
-      const { state } = service.generateState({
-        provider: 'google',
-      });
-
-      const firstPass = service.verifyState(state, 'google');
-      expect(firstPass.provider).toBe('google');
-
-      // Second attempt with same state string must be rejected
-      expect(() => service.verifyState(state, 'google')).toThrow(BadRequestException);
-    });
-
-    it('rejects provider mismatch in state', () => {
-      const { state } = service.generateState({
-        provider: 'apple',
-      });
-
-      expect(() => service.verifyState(state, 'google')).toThrow(BadRequestException);
-    });
+describe('OAuthAuthService.disconnectIdentity', () => {
+  it('disconnects when a password remains', async () => {
+    prisma.user.findUnique.mockResolvedValue({ passwordHash: 'h', identities: [{ id: 'i1', provider: 'google' }] });
+    await expect(service.disconnectIdentity('u1', 'google')).resolves.toEqual({ success: true });
+    expect(prisma.userIdentity.delete).toHaveBeenCalledWith({ where: { id: 'i1' } });
   });
 
-  describe('Google OAuth Flow', () => {
-    it('generates Google authorization URL with PKCE and state', async () => {
-      const { url } = await service.getGoogleAuthUrl({
-        returnTo: '/projects/123',
-      });
-
-      expect(url).toContain('https://accounts.google.com/o/oauth2/v2/auth');
-      expect(url).toContain('client_id=test-google-client-id');
-      expect(url).toContain('redirect_uri=');
-      expect(url).toContain('code_challenge=');
-      expect(url).toContain('code_challenge_method=S256');
-      expect(url).toContain('state=');
+  it('disconnects when another provider remains', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      passwordHash: null,
+      identities: [
+        { id: 'i1', provider: 'google' },
+        { id: 'i2', provider: 'apple' },
+      ],
     });
-
-    it('handles Google user cancellation cleanly', async () => {
-      await service.handleGoogleCallback(
-        { error: 'access_denied' },
-        {},
-        mockResponse as Response,
-      );
-
-      expect(mockResponse.redirect).toHaveBeenCalledWith(
-        'http://localhost:4200/login?error=oauth_cancelled',
-      );
-    });
-
-    it('successfully signs in an existing user with linked Google identity', async () => {
-      const { state } = service.generateState({
-        provider: 'google',
-        returnTo: '/pulse',
-      });
-
-      (axios.post as any).mockResolvedValueOnce({
-        data: { access_token: 'google_access_token_123', id_token: 'google_id_token' },
-      });
-
-      (axios.get as any).mockResolvedValueOnce({
-        data: {
-          sub: 'google_sub_123',
-          email: 'alex@example.com',
-          email_verified: true,
-          name: 'Alex Mercer',
-          picture: 'https://example.com/avatar.png',
-        },
-      });
-
-      mockPrisma.user.findFirst.mockResolvedValueOnce({
-        ...mockUser,
-      });
-
-      await service.handleGoogleCallback(
-        { code: 'valid_google_code', state },
-        { ipAddress: '127.0.0.1' },
-        mockResponse as Response,
-      );
-
-      expect(mockTokens.issueSession).toHaveBeenCalled();
-      expect(mockResponse.cookie).toHaveBeenCalled();
-      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:4200/pulse');
-    });
-
-    it('creates a new user when email does not exist yet', async () => {
-      const { state } = service.generateState({
-        provider: 'google',
-        returnTo: '/',
-      });
-
-      (axios.post as any).mockResolvedValueOnce({
-        data: { access_token: 'google_access_token_456' },
-      });
-
-      (axios.get as any).mockResolvedValueOnce({
-        data: {
-          sub: 'google_sub_new_user',
-          email: 'newuser@company.com',
-          email_verified: true,
-          name: 'New Colleague',
-          picture: 'https://example.com/new.png',
-        },
-      });
-
-      // No identity found
-      mockPrisma.user.findFirst.mockResolvedValueOnce(null);
-      // No existing user with that email
-      mockPrisma.user.findFirst.mockResolvedValueOnce(null);
-
-      const createdUser = {
-        id: 'new_user_id',
-        email: 'newuser@company.com',
-        name: 'New Colleague',
-      };
-      mockPrisma.user.create.mockResolvedValueOnce(createdUser);
-
-      await service.handleGoogleCallback(
-        { code: 'valid_google_code', state },
-        {},
-        mockResponse as Response,
-      );
-
-      expect(mockPrisma.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            email: 'newuser@company.com',
-            name: 'New Colleague',
-            passwordHash: null,
-          }),
-        }),
-      );
-      expect(mockTokens.issueSession).toHaveBeenCalledWith(createdUser, {});
-      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:4200/');
-    });
-
-    it('links Google to existing account when email matches', async () => {
-      const { state } = service.generateState({
-        provider: 'google',
-      });
-
-      (axios.post as any).mockResolvedValueOnce({
-        data: { access_token: 'google_access_token_789' },
-      });
-
-      (axios.get as any).mockResolvedValueOnce({
-        data: {
-          sub: 'google_sub_link_me',
-          email: 'alex@example.com',
-          email_verified: true,
-          name: 'Alex Mercer',
-        },
-      });
-
-      // 1. Identity lookup by provider & providerUserId -> null
-      mockPrisma.user.findFirst.mockResolvedValueOnce(null);
-      // 2. Existing user lookup by email -> found mockUser
-      mockPrisma.user.findFirst.mockResolvedValueOnce(mockUser);
-      mockPrisma.userIdentity.create.mockResolvedValueOnce({ id: 'ident_1' });
-      mockPrisma.user.update.mockResolvedValueOnce(mockUser);
-
-      await service.handleGoogleCallback(
-        { code: 'valid_code', state },
-        {},
-        mockResponse as Response,
-      );
-
-      expect(mockPrisma.userIdentity.create).toHaveBeenCalledWith({
-        data: {
-          userId: mockUser.id,
-          provider: 'google',
-          providerUserId: 'google_sub_link_me',
-          email: 'alex@example.com',
-        },
-      });
-      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:4200/');
-    });
-
-    it('rejects Google account when email is not verified', async () => {
-      const { state } = service.generateState({
-        provider: 'google',
-      });
-
-      (axios.post as any).mockResolvedValueOnce({
-        data: { access_token: 'google_access_token_unverified' },
-      });
-
-      (axios.get as any).mockResolvedValueOnce({
-        data: {
-          sub: 'google_sub_unverified',
-          email: 'unverified@example.com',
-          email_verified: false,
-        },
-      });
-
-      await service.handleGoogleCallback(
-        { code: 'valid_code', state },
-        {},
-        mockResponse as Response,
-      );
-
-      expect(mockResponse.redirect).toHaveBeenCalledWith(
-        'http://localhost:4200/login?error=oauth_email_unverified',
-      );
-    });
-
-    it('handles desktop handoff PKCE redirect correctly', async () => {
-      const { state } = service.generateState({
-        provider: 'google',
-        desktop: true,
-        handoffState: 'desktop_handoff_state_xyz',
-        handoffChallenge: 'desktop_pkce_challenge_123',
-      });
-
-      (axios.post as any).mockResolvedValueOnce({
-        data: { access_token: 'google_access_token' },
-      });
-
-      (axios.get as any).mockResolvedValueOnce({
-        data: {
-          sub: 'google_sub_123',
-          email: 'alex@example.com',
-          email_verified: true,
-        },
-      });
-
-      mockPrisma.user.findFirst.mockResolvedValueOnce(mockUser);
-
-      await service.handleGoogleCallback(
-        { code: 'valid_code', state },
-        {},
-        mockResponse as Response,
-      );
-
-      expect(mockDesktopAuth.generateCode).toHaveBeenCalledWith(
-        mockUser.id,
-        {
-          state: 'desktop_handoff_state_xyz',
-          codeChallenge: 'desktop_pkce_challenge_123',
-        },
-      );
-      expect(mockResponse.redirect).toHaveBeenCalledWith(
-        expect.stringContaining('http://localhost:4200/auth/callback?code=desktop-one-time-code-123'),
-      );
-    });
+    await expect(service.disconnectIdentity('u1', 'google')).resolves.toEqual({ success: true });
   });
 
-  describe('Apple OAuth Flow', () => {
-    it('generates Apple authorization URL with form_post response mode', async () => {
-      const { url } = await service.getAppleAuthUrl({
-        returnTo: '/channels',
-      });
-
-      expect(url).toContain('https://appleid.apple.com/auth/authorize');
-      expect(url).toContain('client_id=com.onetab.ai.web');
-      expect(url).toContain('response_mode=form_post');
-      expect(url).toContain('response_type=code+id_token');
-      expect(url).toContain('state=');
-      expect(url).toContain('nonce=');
-    });
-
-    it('handles Apple user cancellation cleanly', async () => {
-      await service.handleAppleCallback(
-        { error: 'user_cancelled_authorize' },
-        {},
-        mockResponse as Response,
-      );
-
-      expect(mockResponse.redirect).toHaveBeenCalledWith(
-        'http://localhost:4200/login?error=oauth_cancelled',
-      );
-    });
-
-    it('handles first-time Apple login profile name and private relay email', async () => {
-      const { state, nonce } = service.generateState({
-        provider: 'apple',
-      });
-
-      // Construct a mock unverified/test id_token
-      const header = Buffer.from(JSON.stringify({ alg: 'none', kid: 'test_kid' })).toString('base64url');
-      const payload = Buffer.from(
-        JSON.stringify({
-          iss: 'https://appleid.apple.com',
-          aud: 'com.onetab.ai.web',
-          exp: Math.floor(Date.now() / 1000) + 3600,
-          sub: 'apple_sub_private_relay',
-          email: 'privaterelay123@privaterelay.appleid.com',
-          nonce,
-        }),
-      ).toString('base64url');
-      const mockIdToken = `${header}.${payload}.sig`;
-
-      // Apple returns user JSON on first login
-      const appleUserJson = JSON.stringify({
-        name: { firstName: 'Taylor', lastName: 'Swift' },
-      });
-
-      mockPrisma.user.findFirst.mockResolvedValueOnce(null); // identity check
-      mockPrisma.user.findFirst.mockResolvedValueOnce(null); // email check
-      const createdUser = {
-        id: 'user_apple_1',
-        email: 'privaterelay123@privaterelay.appleid.com',
-        name: 'Taylor Swift',
-      };
-      mockPrisma.user.create.mockResolvedValueOnce(createdUser);
-
-      await service.handleAppleCallback(
-        {
-          state,
-          id_token: mockIdToken,
-          user: appleUserJson,
-        },
-        {},
-        mockResponse as Response,
-      );
-
-      expect(mockPrisma.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            email: 'privaterelay123@privaterelay.appleid.com',
-            name: 'Taylor Swift',
-          }),
-        }),
-      );
-      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:4200/');
-    });
+  it('refuses to remove the only sign-in method', async () => {
+    prisma.user.findUnique.mockResolvedValue({ passwordHash: null, identities: [{ id: 'i1', provider: 'google' }] });
+    await expect(service.disconnectIdentity('u1', 'google')).rejects.toThrow(BadRequestException);
+    expect(prisma.userIdentity.delete).not.toHaveBeenCalled();
   });
 
-  describe('Account Linking in Settings', () => {
-    it('links provider to authenticated user when linkUserId is present', async () => {
-      const { state } = service.generateState({
-        provider: 'google',
-        linkUserId: mockUser.id,
-        returnTo: '/w/test/settings/security',
-      });
-
-      (axios.post as any).mockResolvedValueOnce({
-        data: { access_token: 'google_token' },
-      });
-
-      (axios.get as any).mockResolvedValueOnce({
-        data: {
-          sub: 'google_new_sub_link',
-          email: 'alex@example.com',
-          email_verified: true,
-        },
-      });
-
-      mockPrisma.user.findUnique.mockResolvedValueOnce(mockUser);
-      mockPrisma.userIdentity.findUnique.mockResolvedValueOnce(null);
-      mockPrisma.userIdentity.create.mockResolvedValueOnce({ id: 'ident_new' });
-
-      await service.handleGoogleCallback(
-        { code: 'valid_code', state },
-        {},
-        mockResponse as Response,
-      );
-
-      expect(mockPrisma.userIdentity.create).toHaveBeenCalledWith({
-        data: {
-          userId: mockUser.id,
-          provider: 'google',
-          providerUserId: 'google_new_sub_link',
-          email: 'alex@example.com',
-        },
-      });
-      expect(mockResponse.redirect).toHaveBeenCalledWith(
-        'http://localhost:4200/w/test/settings/security?linked=google',
-      );
-    });
-
-    it('rejects linking if provider account is already linked to another user', async () => {
-      const { state } = service.generateState({
-        provider: 'google',
-        linkUserId: mockUser.id,
-      });
-
-      (axios.post as any).mockResolvedValueOnce({
-        data: { access_token: 'google_token' },
-      });
-
-      (axios.get as any).mockResolvedValueOnce({
-        data: {
-          sub: 'google_already_taken_sub',
-          email: 'other@example.com',
-          email_verified: true,
-        },
-      });
-
-      mockPrisma.user.findUnique.mockResolvedValueOnce(mockUser);
-      // Already linked to someone else
-      mockPrisma.userIdentity.findUnique.mockResolvedValueOnce({
-        id: 'other_ident',
-        userId: 'other_different_user_id',
-      });
-
-      await service.handleGoogleCallback(
-        { code: 'valid_code', state },
-        {},
-        mockResponse as Response,
-      );
-
-      expect(mockResponse.redirect).toHaveBeenCalledWith(
-        'http://localhost:4200/settings/security?error=oauth_account_linked_to_other',
-      );
-    });
-  });
-
-  describe('Disconnecting Identity', () => {
-    it('successfully disconnects provider if user has password', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
-        id: 'user_1',
-        passwordHash: '$2b$12$passwordhash',
-        identities: [
-          { id: 'id_google', provider: 'google' },
-        ],
-      });
-      mockPrisma.userIdentity.delete.mockResolvedValueOnce({});
-
-      const result = await service.disconnectIdentity('user_1', 'google');
-      expect(result.success).toBe(true);
-      expect(mockPrisma.userIdentity.delete).toHaveBeenCalledWith({
-        where: { id: 'id_google' },
-      });
-    });
-
-    it('successfully disconnects provider if user has another identity', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
-        id: 'user_1',
-        passwordHash: null, // no password
-        identities: [
-          { id: 'id_google', provider: 'google' },
-          { id: 'id_apple', provider: 'apple' },
-        ],
-      });
-      mockPrisma.userIdentity.delete.mockResolvedValueOnce({});
-
-      const result = await service.disconnectIdentity('user_1', 'google');
-      expect(result.success).toBe(true);
-    });
-
-    it('prevents disconnecting the only usable sign-in method', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
-        id: 'user_1',
-        passwordHash: null, // no password
-        identities: [
-          { id: 'id_google', provider: 'google' },
-          // no other identities
-        ],
-      });
-
-      await expect(service.disconnectIdentity('user_1', 'google')).rejects.toThrow(
-        BadRequestException,
-      );
-      expect(mockPrisma.userIdentity.delete).not.toHaveBeenCalled();
-    });
-
-    it('throws NotFoundException if identity does not exist on user', async () => {
-      mockPrisma.user.findUnique.mockResolvedValueOnce({
-        id: 'user_1',
-        passwordHash: 'hash',
-        identities: [],
-      });
-
-      await expect(service.disconnectIdentity('user_1', 'google')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
+  it('rejects unknown providers and missing identities', async () => {
+    await expect(service.disconnectIdentity('u1', 'github')).rejects.toThrow(BadRequestException);
+    prisma.user.findUnique.mockResolvedValue({ passwordHash: 'h', identities: [] });
+    await expect(service.disconnectIdentity('u1', 'apple')).rejects.toThrow(NotFoundException);
   });
 });

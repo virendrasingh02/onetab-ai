@@ -56,6 +56,9 @@ import {
   type VerifyResetTokenInput,
   type EmailVerificationSendInput,
   type EmailVerificationVerifyInput,
+  oauthInitQuerySchema,
+  oauthCallbackQuerySchema,
+  appleCallbackBodySchema,
   type OAuthInitQueryInput,
   type OAuthCallbackQueryInput,
   type AppleCallbackBodyInput,
@@ -64,7 +67,12 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
 import { DesktopAuthService } from './desktop-auth.service.js';
 import { DeviceAuthService } from './device-auth.service.js';
-import { OAuthAuthService } from './oauth-auth.service.js';
+import {
+  OAUTH_FLOW_COOKIE,
+  OAUTH_FLOW_TTL_MS,
+  OAuthAuthService,
+  type OAuthProvider,
+} from './oauth-auth.service.js';
 import type { IssuedSession } from './token.service.js';
 
 const REFRESH_COOKIE = 'onetab_rt';
@@ -564,179 +572,150 @@ export class AuthController {
     return { user, ...session.tokens, refreshToken: session.refreshToken };
   }
 
-  /* --- OAuth / Social Authentication endpoints -------------------------- */
+  /* --- Google / Apple sign-in ------------------------------------------ */
 
   /**
-   * Initiates Google OAuth login or sign-up flow and redirects to Google.
+   * The flow cookie must survive the provider's redirect back. Apple returns
+   * with a cross-site form POST, which only a `SameSite=None` cookie rides
+   * along on — so production uses that (it needs `Secure`, which production
+   * has). It is useless on its own: it only matches the `state` it was minted
+   * with, and is cleared on the first callback.
    */
-  @Public()
-  @Get('google')
-  @HttpCode(HttpStatus.FOUND)
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async googleAuth(
-    @Query() query: OAuthInitQueryInput,
-    @Res() response: Response,
-  ) {
-    const { url } = await this.oauth.getGoogleAuthUrl(query);
-    return response.redirect(url);
+  private setOAuthFlowCookie(response: Response, sealed: string): void {
+    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
+    response.cookie(OAUTH_FLOW_COOKIE, sealed, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/api/v1/auth',
+      maxAge: OAUTH_FLOW_TTL_MS,
+    });
   }
 
-  /**
-   * Returns Google OAuth URL without immediate redirect (for client-driven flows).
-   */
+  private clearOAuthFlowCookie(response: Response): void {
+    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
+    response.clearCookie(OAUTH_FLOW_COOKIE, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/api/v1/auth',
+    });
+  }
+
+  private startOAuth(
+    provider: OAuthProvider,
+    query: OAuthInitQueryInput,
+    response: Response,
+    linkUserId?: string,
+  ): { url: string } {
+    const { url, flowCookie } = this.oauth.start(provider, query, linkUserId);
+    this.setOAuthFlowCookie(response, flowCookie);
+    return { url };
+  }
+
+  private async finishOAuth(
+    provider: OAuthProvider,
+    input: OAuthCallbackQueryInput | AppleCallbackBodyInput,
+    request: Request,
+    response: Response,
+  ): Promise<void> {
+    const outcome = await this.oauth.handleCallback(
+      provider,
+      input,
+      request.cookies?.[OAUTH_FLOW_COOKIE],
+      this.contextOf(request),
+    );
+    this.clearOAuthFlowCookie(response);
+    if (outcome.session) this.setRefreshCookie(response, outcome.session);
+    response.redirect(HttpStatus.FOUND, outcome.redirectTo);
+  }
+
+  /** Which providers this server can offer — lets the UI hide dead buttons. */
+  @Public()
+  @Get('oauth/providers')
+  oauthProviders() {
+    return {
+      google: this.oauth.isConfigured('google'),
+      apple: this.oauth.isConfigured('apple'),
+    };
+  }
+
+  /** Authorization URL for a sign-in / sign-up; the browser navigates to it. */
   @Public()
   @Get('google/url')
-  @HttpCode(HttpStatus.OK)
-  async getGoogleAuthUrl(@Query() query: OAuthInitQueryInput) {
-    return this.oauth.getGoogleAuthUrl(query);
-  }
-
-  /**
-   * Initiates Google OAuth account linking for an already-authenticated user.
-   */
-  @Get('google/link')
-  @HttpCode(HttpStatus.FOUND)
-  async linkGoogle(
-    @CurrentUser('id') userId: string,
-    @Query() query: OAuthInitQueryInput,
-    @Res() response: Response,
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  googleUrl(
+    @Query(zodBody(oauthInitQuerySchema)) query: OAuthInitQueryInput,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    const { url } = await this.oauth.getGoogleAuthUrl({
-      ...query,
-      linkUserId: userId,
-    });
-    return response.redirect(url);
+    return this.startOAuth('google', query, response);
+  }
+
+  @Public()
+  @Get('apple/url')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  appleUrl(
+    @Query(zodBody(oauthInitQuerySchema)) query: OAuthInitQueryInput,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return this.startOAuth('apple', query, response);
   }
 
   /**
-   * Google OAuth callback redirect handler (GET).
+   * Authorization URL that links the provider to the signed-in account
+   * (Settings → Sign-in methods). Fetched with the bearer token, so the
+   * user id is sealed into the flow server-side.
    */
+  @Get('google/link/url')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  googleLinkUrl(
+    @CurrentUser('id') userId: string,
+    @Query(zodBody(oauthInitQuerySchema)) query: OAuthInitQueryInput,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return this.startOAuth('google', query, response, userId);
+  }
+
+  @Get('apple/link/url')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  appleLinkUrl(
+    @CurrentUser('id') userId: string,
+    @Query(zodBody(oauthInitQuerySchema)) query: OAuthInitQueryInput,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return this.startOAuth('apple', query, response, userId);
+  }
+
   @Public()
   @Get('google/callback')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async googleCallback(
-    @Query() query: OAuthCallbackQueryInput,
+  googleCallback(
+    @Query(zodBody(oauthCallbackQuerySchema)) query: OAuthCallbackQueryInput,
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    return this.oauth.handleGoogleCallback(
-      query,
-      this.contextOf(request),
-      response,
-    );
+    return this.finishOAuth('google', query, request, response);
   }
 
-  /**
-   * Google OAuth callback handler for POST / direct client exchanges.
-   */
-  @Public()
-  @Post('google/callback')
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async googleCallbackPost(
-    @Body() body: OAuthCallbackQueryInput,
-    @Req() request: Request,
-    @Res() response: Response,
-  ) {
-    return this.oauth.handleGoogleCallback(
-      body,
-      this.contextOf(request),
-      response,
-    );
-  }
-
-  /**
-   * Initiates Apple OAuth login or sign-up flow and redirects to Apple.
-   */
-  @Public()
-  @Get('apple')
-  @HttpCode(HttpStatus.FOUND)
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async appleAuth(
-    @Query() query: OAuthInitQueryInput,
-    @Res() response: Response,
-  ) {
-    const { url } = await this.oauth.getAppleAuthUrl(query);
-    return response.redirect(url);
-  }
-
-  /**
-   * Returns Apple OAuth URL without immediate redirect.
-   */
-  @Public()
-  @Get('apple/url')
-  @HttpCode(HttpStatus.OK)
-  async getAppleAuthUrl(@Query() query: OAuthInitQueryInput) {
-    return this.oauth.getAppleAuthUrl(query);
-  }
-
-  /**
-   * Initiates Apple OAuth account linking for an already-authenticated user.
-   */
-  @Get('apple/link')
-  @HttpCode(HttpStatus.FOUND)
-  async linkApple(
-    @CurrentUser('id') userId: string,
-    @Query() query: OAuthInitQueryInput,
-    @Res() response: Response,
-  ) {
-    const { url } = await this.oauth.getAppleAuthUrl({
-      ...query,
-      linkUserId: userId,
-    });
-    return response.redirect(url);
-  }
-
-  /**
-   * Apple Sign In callback handler (POST - Apple response_mode: form_post).
-   */
+  /** Apple returns with `response_mode=form_post`. */
   @Public()
   @Post('apple/callback')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async appleCallbackPost(
-    @Body() body: AppleCallbackBodyInput,
+  appleCallback(
+    @Body(zodBody(appleCallbackBodySchema)) body: AppleCallbackBodyInput,
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    return this.oauth.handleAppleCallback(
-      body,
-      this.contextOf(request),
-      response,
-    );
+    return this.finishOAuth('apple', body, request, response);
   }
 
-  /**
-   * Apple Sign In callback handler (GET fallback).
-   */
-  @Public()
-  @Get('apple/callback')
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async appleCallbackGet(
-    @Query() query: AppleCallbackBodyInput,
-    @Req() request: Request,
-    @Res() response: Response,
-  ) {
-    return this.oauth.handleAppleCallback(
-      query,
-      this.contextOf(request),
-      response,
-    );
-  }
-
-  /**
-   * Retrieves all linked social identities for the current user.
-   */
   @Get('identities')
-  @HttpCode(HttpStatus.OK)
-  async getIdentities(@CurrentUser('id') userId: string) {
+  getIdentities(@CurrentUser('id') userId: string) {
     return this.oauth.getIdentities(userId);
   }
 
-  /**
-   * Disconnects a social provider identity from the current user account.
-   */
   @Delete('identities/:provider')
-  @HttpCode(HttpStatus.OK)
-  async disconnectIdentity(
+  disconnectIdentity(
     @CurrentUser('id') userId: string,
     @Param('provider') provider: string,
   ) {

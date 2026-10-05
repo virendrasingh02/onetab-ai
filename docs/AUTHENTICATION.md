@@ -24,7 +24,7 @@ flowchart TD
     end
 
     subgraph CoreEngine ["Unified Auth Engine (libs/api/auth)"]
-        State[HMAC-SHA256 State & PKCE Engine]
+        State[Sealed flow cookie & PKCE]
         Resolver[Account & Identity Resolver]
         Linker[Verified Identity Linker]
     end
@@ -106,106 +106,78 @@ model UserIdentity {
 
 ### 2.2 Account Linking & User Resolution Protocol
 
-When a user completes an OAuth flow (Google or Apple):
+Every callback first verifies the flow (§6) and the provider's ID token, then:
 
-1. **Explicit Linking (Authenticated User):**
-   - If the OAuth initiation was triggered from Account Settings (`linkUserId` present in HMAC state), the provider identity is directly linked to the current logged-in user.
-   - If the provider account is already linked to a *different* user, the system rejects the operation with `409 Conflict` (`oauth_already_linked`).
+1. **Explicit linking (Settings → Connect).** The flow carries the signed-in user's id (sealed server-side, never a URL parameter). The identity is attached to that user; if it already belongs to someone else the browser returns to Settings with `?oauth_error=oauth_account_linked_to_other`. No session is issued.
+2. **Existing identity.** `(provider, providerUserId)` matches a `UserIdentity` → that user.
+3. **Link by verified email.** Only when the ID token says the email is verified (`email_verified === true`, or `"true"` from Apple). Missing email → `oauth_email_required`; unverified → `oauth_email_unverified`.
+   - If the matching account's own email was **never verified**, it may have been pre-registered by someone else waiting for the real owner to arrive. Since the provider just proved inbox ownership, that account's password is cleared and its sessions revoked before linking. The owner signs in with Google/Apple or a magic link from then on.
+4. **New account.** Verified, passwordless, with the identity attached.
 
-2. **Existing Identity Match:**
-   - The database is queried for `UserIdentity` matching `(provider, providerUserId)`.
-   - If found, the corresponding user is signed in immediately.
+Identity/user creation runs in a transaction; a concurrent duplicate callback resolves to the winning row instead of failing.
 
-3. **Automatic Account Linking by Verified Email:**
-   - If no `UserIdentity` exists yet, the system checks whether a user already exists with the matching email.
-   - **Crucial Security Requirement:** Automatic linking *only* occurs if the provider explicitly verifies the email (`email_verified === true` for Google; Apple identity tokens signed by Apple with verified email claims).
-   - A new `UserIdentity` row is created linked to the existing `User`. Profile metadata (such as avatar or missing name) is optionally backfilled without overwriting existing user data.
+**The session goes through `AuthService.signInWithFederatedIdentity`**, the same gate as password and magic-link sign-in. An account with two-factor on gets a challenge, not a session: the browser lands on `/login#two_factor=<token>&expires_at=…` (fragment, so it never reaches a server log) and the login page shows the code step.
 
-4. **New User Registration:**
-   - If no existing user matches the verified email, a new `User` is created with `emailVerified = true`, `passwordHash = null`, and the provider `UserIdentity` is attached.
-   - If an `invitationToken` is present in the state, the user is automatically added to the target workspace and redirected to the workspace.
-   - Otherwise, the user completes the standard onboarding/workspace creation flow.
+Destination after sign-in: desktop handoff → `/login?desktop=true&state=…&code_challenge=…` (the login page mints the one-time desktop code); invitation → `/invite/<token>`; otherwise the sanitized `returnTo`, or `/`.
 
 ---
 
-## 3. Google OAuth 2.0 Implementation (PKCE Flow)
+## 3. Google (Authorization Code + PKCE + OIDC)
 
-### 3.1 Flow Details
+- Scopes `openid email profile`; `code_challenge_method=S256`; a per-flow `nonce`.
+- `GET /api/v1/auth/google/url` → `{ url }` and sets the flow cookie. The SPA navigates to `url` in the same browser.
+- `GET /api/v1/auth/google/callback` → code exchange at `https://oauth2.googleapis.com/token` with the `code_verifier`, then the returned `id_token` is verified against Google's JWKS (RS256, issuer, audience = `GOOGLE_CLIENT_ID`, expiry, nonce). Profile data comes from the verified token; there is no separate userinfo call.
 
-- **Protocol:** Authorization Code Flow with PKCE (Proof Key for Code Exchange, S256).
-- **Scopes:** `openid email profile`.
-- **Endpoints:**
-  - `GET /api/v1/auth/google` (or `GET /api/v1/auth/google/url` for SPA JSON response): generates PKCE verifier/challenge, signed HMAC state, and returns Google's authorization URL.
-  - `GET /api/v1/auth/google/callback`: receives Google's authorization code and state parameter.
-- **Verification:**
-  1. Validates the state parameter HMAC signature and freshness (10-minute TTL).
-  2. Ensures the state token has not been previously redeemed (replay defense).
-  3. Exchanges the code with Google's token endpoint (`https://oauth2.googleapis.com/token`) passing `code_verifier`.
-  4. Fetches and validates the user profile from `https://www.googleapis.com/oauth2/v3/userinfo`.
-  5. Enforces `email_verified === true`.
+## 4. Sign in with Apple
 
----
+- `GET /api/v1/auth/apple/url` → `{ url }` with `response_type=code`, `response_mode=form_post`, `scope=name email`, and a `nonce`.
+- `POST /api/v1/auth/apple/callback` (form post) → the `code` is exchanged at `https://appleid.apple.com/auth/token` using a 5-minute ES256 client secret signed with the team key (`APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`). The returned `id_token` is verified against Apple's JWKS (RS256, issuer `https://appleid.apple.com`, audience = `APPLE_CLIENT_ID`, expiry, nonce). An `id_token` posted by the browser is never trusted.
+- Apple sends the user's name only on the first authorization, in the `user` form field; it is used when the account is created. Private-relay addresses work like any other verified email.
+- All four Apple variables are required; with any missing, Apple is reported as unavailable.
 
-## 4. Sign in with Apple Implementation
-
-### 4.1 Flow Details
-
-- **Protocol:** Sign in with Apple REST API (authorization code exchange & identity token validation).
-- **Response Modes:** Supports `form_post` (Apple default for web) and standard GET redirects.
-- **Client Secret Generation:** Apple requires a signed ES256 JWT using an Apple Developer private key (`.p8` file), signed with Team ID, Key ID, and Client ID (Service ID).
-  - Implemented natively using Node.js `crypto.createSign('SHA256')` with `dsaEncoding: 'ieee-p1363'`.
-- **Endpoints:**
-  - `GET /api/v1/auth/apple` (or `GET /api/v1/auth/apple/url`): initiates flow with signed state and `response_mode=form_post`.
-  - `POST /api/v1/auth/apple/callback`: receives Apple's POST callback containing `code`, `id_token`, `state`, and optional first-login `user` payload.
-  - `GET /api/v1/auth/apple/callback`: handles GET fallbacks.
-- **First-Time Authorization & Private Relay:**
-  - Apple only sends the user's name during the *first* sign-in. This payload is parsed and saved immediately.
-  - Supports Apple Private Relay addresses (`*@privaterelay.appleid.com`).
-  - Identity tokens are verified against Apple's live JWKS keys (`https://appleid.apple.com/auth/keys`), checking signature, issuer (`https://appleid.apple.com`), and audience (`APPLE_CLIENT_ID`).
+`GET /api/v1/auth/oauth/providers` → `{ google: boolean, apple: boolean }` lets the UI hide a provider the server has no credentials for.
 
 ---
 
 ## 5. Electron Desktop Application Flow
 
-Desktop applications must never store client secrets or expose tokens directly in webviews.
-
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User
     participant Desktop as Electron App
-    participant Browser as System Default Browser
-    participant API as Platform NestJS API
+    participant Browser as System Browser
+    participant API
     participant Provider as Google / Apple
 
-    User->>Desktop: Click "Continue with Google"
-    Desktop->>Desktop: Generate PKCE (code_verifier, code_challenge, state)
-    Desktop->>Browser: shell.openExternal(webAppUrl/login?desktop=true&state=...&code_challenge=...)
-    Browser->>API: GET /auth/google?desktop=true&state=...&code_challenge=...
-    API->>Browser: 302 Redirect to Provider Auth URL (with state containing desktop handoff)
-    Browser->>Provider: User completes consent
-    Provider->>API: 302 Redirect /auth/google/callback?code=...&state=...
-    API->>API: Resolve user & mint one-time desktop handoff code (DesktopAuthService)
-    API->>Browser: 302 Redirect to onetab://auth/callback?code=HANDOFF_CODE&state=DESKTOP_STATE
-    Browser->>Desktop: OS forwards onetab:// deep link to Electron
+    Desktop->>Browser: open webApp/login?desktop=true&state=S&code_challenge=C
+    Browser->>API: GET /auth/google/url?desktop=true&state=S&code_challenge=C
+    API-->>Browser: { url } + flow cookie (holds S, C)
+    Browser->>Provider: consent
+    Provider->>API: callback (code, state)
+    API-->>Browser: 302 webApp/login?desktop=true&state=S&code_challenge=C (+ refresh cookie)
+    Browser->>API: POST /auth/desktop/authorize (signed-in browser)
+    Browser->>Desktop: onetab://auth/callback?code=…&state=S
     Desktop->>API: POST /auth/desktop/exchange { code, codeVerifier, state }
-    API-->>Desktop: 200 OK { accessToken, refreshToken, user }
-    Desktop->>Desktop: Store session securely & transition to authenticated view
 ```
+
+If the account has two-factor on, step 6 lands on the code step first and the handoff continues once it is completed.
 
 ---
 
 ## 6. Security Controls & Defenses
 
-| Threat | Defense Implementation |
+| Threat | Defense |
 |---|---|
-| **CSRF / State Manipulation** | State tokens are serialized JSON containing nonce, timestamp, provider, and destination, signed with an HMAC-SHA256 signature using the server secret (`JWT_ACCESS_SECRET`). |
-| **State Replay Attacks** | State tokens are stored in an in-memory single-use cache (`redeemedStates`). Re-submitting the same state parameter produces an immediate `400 Bad Request`. |
-| **State Expiration** | State tokens expire after 10 minutes (`OAUTH_STATE_TTL_MS = 600_000`). |
-| **Open Redirects** | The `returnTo` parameter is sanitized via `sanitizeReturnTo`: only relative paths starting with a single `/` (rejecting `//`) or URLs strictly matching `WEB_APP_URL` are permitted. |
-| **Account Takeover via Unverified Email** | Automatic account linking is blocked unless `email_verified` is true from Google or verified in Apple's signed identity token. |
-| **Single Sign-in Method Lockout** | In `disconnectIdentity`, the backend verifies that the user has at least one other active sign-in method (either a set password or another connected identity) before allowing disconnection. |
-| **Credential Exposure in Frontend** | Zero client secrets or Apple private keys are bundled or exposed to frontend code. All code exchanges occur strictly server-side. |
+| **Login CSRF / forged callbacks** | The flow (state, nonce, PKCE verifier, return path, desktop handoff, link target) is sealed with AES-256-GCM (key derived via HKDF from `JWT_ACCESS_SECRET`) into the httpOnly `onetab_oauth` cookie, scoped to `/api/v1/auth`. The callback requires that cookie and a constant-time match on `state`, so a callback URL replayed in another browser fails. |
+| **PKCE verifier leakage** | The verifier lives only in the sealed cookie; the provider and the address bar only ever see the challenge. |
+| **Replay** | The flow cookie is cleared by the first callback and expires after 10 minutes; codes are single-use at the provider. |
+| **Forged / substituted ID tokens** | Mandatory RS256 signature check against the provider's JWKS (unknown `kid` → one refetch, then reject), plus issuer, audience, expiry, issued-at and nonce. Any failure → `oauth_invalid_token`. |
+| **Two-factor bypass** | Federated sign-in uses the same 2FA challenge gate as password and magic link. |
+| **Account takeover via email** | Auto-linking requires a provider-verified email; linking into an unverified local account clears its password and sessions first. |
+| **Open redirects** | `returnTo` accepts only same-origin paths (`/x`, never `//x` or `/\x`) or absolute URLs on `WEB_APP_URL`. |
+| **Apple form_post vs SameSite** | In production the flow cookie is `SameSite=None; Secure` so Apple's cross-site POST carries it; it is useless without the matching `state`. Development uses `Lax` (Google only, since Apple needs HTTPS). |
+| **Lockout** | An identity cannot be disconnected when it is the only sign-in method (no password, no other identity). |
+| **Secrets** | No client secret or Apple key reaches the browser; all exchanges are server-side. |
 
 ---
 
@@ -218,6 +190,7 @@ Under **Workspace Settings -> Security -> Sign-in Methods**:
 - Disconnecting is disabled with a helpful tooltip/message if the identity is the user's only remaining sign-in method.
 
 ### Endpoints
+- `GET /api/v1/auth/{google|apple}/link/url` (bearer-authenticated): returns the provider URL for linking and seals the caller's user id into the flow cookie. The provider returns to the settings page with `?linked=<provider>` or `?oauth_error=<code>`.
 - `GET /api/v1/auth/identities`: returns list of connected provider identities for the authenticated user.
 - `DELETE /api/v1/auth/identities/:provider`: disconnects the specified provider identity with lockout protection.
 

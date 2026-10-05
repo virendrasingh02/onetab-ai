@@ -111,14 +111,8 @@ export function RegisterPage() {
         returnTo={searchParams.get('returnTo')}
         invitationToken={searchParams.get('invitationToken')}
         mode="register"
+        dividerLabel="or continue with email"
       />
-
-      <div className="relative my-4 flex items-center justify-center">
-        <div className="border-t border-border w-full absolute" />
-        <span className="bg-background px-2.5 text-[11px] text-muted-foreground relative uppercase tracking-wider">
-          or continue with email
-        </span>
-      </div>
 
       <Form {...form}>
         <form onSubmit={onSubmit} className="space-y-3.5" noValidate>

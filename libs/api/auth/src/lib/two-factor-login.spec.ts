@@ -98,6 +98,25 @@ describe('AuthService - two-factor sign-in', () => {
     expect(tokens.issueSession).not.toHaveBeenCalled();
   });
 
+  it('gates a Google / Apple sign-in behind the code step too', async () => {
+    const result = await service.signInWithFederatedIdentity(user.id, 'google');
+
+    expect('twoFactor' in result).toBe(true);
+    expect(tokens.issueSession).not.toHaveBeenCalled();
+    expect(prisma.twoFactorChallenge.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: user.id, method: 'google' }),
+    });
+  });
+
+  it('signs a Google / Apple identity straight in when two-factor is off', async () => {
+    twoFactorRow = null;
+    const result = await service.signInWithFederatedIdentity(user.id, 'apple');
+
+    expect('session' in result).toBe(true);
+    expect(tokens.issueSession).toHaveBeenCalledTimes(1);
+    expect(prisma.twoFactorChallenge.create).not.toHaveBeenCalled();
+  });
+
   it('signs straight in when two-factor is off', async () => {
     twoFactorRow = { ...twoFactorRow, isEnabled: false };
     const result = await service.login({

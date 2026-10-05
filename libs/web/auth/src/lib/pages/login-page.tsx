@@ -66,17 +66,39 @@ import {
 import { resolveSafeHandoff, withHandoffToken } from '../safe-handoff-redirect.js';
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
-  oauth_cancelled: 'Sign-in was cancelled. Please try again.',
-  oauth_state_mismatch: 'Security verification failed (state mismatch). Please try again.',
-  oauth_invalid_code: 'Authorization code was invalid or has expired. Please try again.',
-  oauth_invalid_token: 'Identity token could not be verified. Please try again.',
-  oauth_email_unverified: 'Your email address is not verified with the provider.',
-  oauth_email_conflict: 'An account with this email already exists under a different sign-in method.',
-  oauth_account_linked_to_other: 'This account is already linked to another user.',
-  oauth_config_error: 'OAuth provider is not configured on the server.',
-  oauth_callback_failed: 'Authentication could not be completed. Please try again.',
-  oauth_provider_error: 'Authentication provider returned an error. Please try again.',
+  oauth_cancelled: 'Sign-in was cancelled.',
+  oauth_state_mismatch:
+    'That sign-in expired or was started in another browser. Please try again.',
+  oauth_invalid_code: 'The provider sign-in could not be completed. Please try again.',
+  oauth_invalid_token: 'We could not verify your identity with the provider. Please try again.',
+  oauth_email_unverified:
+    'Your email address is not verified with that provider. Verify it there, or sign in with email.',
+  oauth_email_required:
+    'The provider did not share your email address. Sign in with email instead.',
+  oauth_account_linked_to_other: 'That account is already linked to another user.',
+  oauth_config_error: 'This sign-in method is not available right now.',
+  oauth_callback_failed: 'Sign-in could not be completed. Please try again.',
+  oauth_provider_error: 'The sign-in provider returned an error. Please try again.',
 };
+
+/**
+ * A Google / Apple sign-in for an account with two-factor on comes back as
+ * `/login#two_factor=…&expires_at=…` — in the fragment so the challenge never
+ * reaches a server log. Read once, then wiped from the address bar.
+ */
+function takeOAuthTwoFactorChallenge(): TwoFactorChallengeResponse | null {
+  if (typeof window === 'undefined' || !window.location.hash) return null;
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const challengeToken = params.get('two_factor');
+  const expiresAt = params.get('expires_at');
+  if (!challengeToken || !expiresAt) return null;
+  window.history.replaceState(
+    window.history.state,
+    '',
+    window.location.pathname + window.location.search,
+  );
+  return { requiresTwoFactor: true, challengeToken, expiresAt };
+}
 
 export function LoginPage() {
   const login = useLogin();
@@ -109,8 +131,9 @@ export function LoginPage() {
   );
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   // Set when the password was right but the account also wants a code.
-  const [twoFactor, setTwoFactor] =
-    useState<TwoFactorChallengeResponse | null>(null);
+  const [twoFactor, setTwoFactor] = useState<TwoFactorChallengeResponse | null>(
+    takeOAuthTwoFactorChallenge,
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [desktopHandoffRunning, setDesktopHandoffRunning] = useState(false);
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
@@ -517,14 +540,8 @@ export function LoginPage() {
             handoffChallenge={handoffChallenge}
             returnTo={searchParams.get('returnTo')}
             invitationToken={searchParams.get('invitationToken')}
+            dividerLabel="or continue with email"
           />
-
-          <div className="relative my-4 flex items-center justify-center">
-            <div className="border-t border-border w-full absolute" />
-            <span className="bg-background px-2.5 text-[11px] text-muted-foreground relative uppercase tracking-wider">
-              or continue with email
-            </span>
-          </div>
 
           {oauthError ? (
             <div className="mb-3">

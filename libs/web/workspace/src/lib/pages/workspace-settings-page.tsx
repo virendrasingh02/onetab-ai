@@ -1,5 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { channelApi, http, queryKeys, userApi, workspaceApi } from '@org/api-client';
+import {
+  authApi,
+  channelApi,
+  http,
+  queryKeys,
+  toApiError,
+  userApi,
+  workspaceApi,
+} from '@org/api-client';
 import { formErrorMessage, useAuthStore, useCurrentUser } from '@org/auth';
 import { useTheme } from '@org/design-system';
 import {
@@ -247,7 +255,7 @@ export function WorkspaceSettingsPage({
     workspaceSlug: string;
     section: string;
   }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Logo & slug states for General Settings
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -590,10 +598,50 @@ export function WorkspaceSettingsPage({
   const disconnectIdentityMutation = useDisconnectIdentity();
   const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null);
 
-  const handleConnectProvider = (provider: 'google' | 'apple') => {
-    const returnTo = window.location.pathname;
-    window.location.href = `/api/v1/auth/${provider}/link?returnTo=${encodeURIComponent(returnTo)}`;
+  const [connectingProvider, setConnectingProvider] = useState<'google' | 'apple' | null>(null);
+
+  /*
+   * The link URL is fetched with the bearer token (a plain navigation can't
+   * carry one); the API seals this user's id into the flow cookie and the
+   * provider sends the browser back here with `?linked=` or `?oauth_error=`.
+   */
+  const handleConnectProvider = async (provider: 'google' | 'apple') => {
+    setConnectingProvider(provider);
+    try {
+      const { url } = await authApi.getOAuthLinkUrl(provider, {
+        returnTo: window.location.pathname,
+      });
+      window.location.assign(url);
+    } catch (err) {
+      setConnectingProvider(null);
+      toast.error(toApiError(err).message || `Could not connect ${provider}.`);
+    }
   };
+
+  // Result of a Connect round-trip through the provider.
+  useEffect(() => {
+    const linked = searchParams.get('linked');
+    const oauthError = searchParams.get('oauth_error');
+    if (!linked && !oauthError) return;
+    const name = (linked ?? '') === 'apple' ? 'Apple' : 'Google';
+    if (linked) {
+      toast.success(`${name} account connected.`);
+      void queryClient.invalidateQueries({ queryKey: ['auth'] });
+    } else if (oauthError === 'oauth_account_linked_to_other') {
+      toast.error('That account is already linked to another user.');
+    } else if (oauthError !== 'oauth_cancelled') {
+      toast.error('Could not connect the account. Please try again.');
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('linked');
+        next.delete('oauth_error');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams, queryClient]);
 
   const handleDisconnectProvider = async (provider: 'google' | 'apple') => {
     const overview = securityOverviewQuery.data;
@@ -3718,7 +3766,8 @@ export function WorkspaceSettingsPage({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleConnectProvider('google')}
+                      onClick={() => void handleConnectProvider('google')}
+                      loading={connectingProvider === 'google'}
                       className="text-xs h-8"
                     >
                       Connect
@@ -3776,7 +3825,8 @@ export function WorkspaceSettingsPage({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleConnectProvider('apple')}
+                      onClick={() => void handleConnectProvider('apple')}
+                      loading={connectingProvider === 'apple'}
                       className="text-xs h-8"
                     >
                       Connect
