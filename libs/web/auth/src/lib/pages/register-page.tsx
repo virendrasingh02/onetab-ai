@@ -24,6 +24,7 @@ import {
 } from 'react-router-dom';
 import { AuthLayout } from '../auth-layout.js';
 import { DesktopBrowserSignIn } from '../components/desktop-browser-sign-in.js';
+import { SocialAuthButtons } from '../components/social-auth-buttons.js';
 import { readDesktopHandoff, withDesktopHandoff } from '../desktop-handoff.js';
 import {
   formErrorMessage,
@@ -102,8 +103,24 @@ export function RegisterPage() {
         </>
       }
     >
-      <Form {...form}>
+      <SocialAuthButtons
+        disabled={register.isPending}
+        isDesktopHandoff={Boolean(readDesktopHandoff(searchParams))}
+        handoffState={searchParams.get('state')}
+        handoffChallenge={searchParams.get('code_challenge')}
+        returnTo={searchParams.get('returnTo')}
+        invitationToken={searchParams.get('invitationToken')}
+        mode="register"
+      />
 
+      <div className="relative my-4 flex items-center justify-center">
+        <div className="border-t border-border w-full absolute" />
+        <span className="bg-background px-2.5 text-[11px] text-muted-foreground relative uppercase tracking-wider">
+          or continue with email
+        </span>
+      </div>
+
+      <Form {...form}>
         <form onSubmit={onSubmit} className="space-y-3.5" noValidate>
           <FormError error={formErrorMessage(register.error)} />
 

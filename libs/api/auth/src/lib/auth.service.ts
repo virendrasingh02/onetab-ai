@@ -733,7 +733,7 @@ export class AuthService {
       select: { passwordHash: true },
     });
 
-    if (!(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
+    if (!user.passwordHash || !(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
       throw new UnauthorizedException({
         code: ApiErrorCode.INVALID_CREDENTIALS,
         message: 'Your current password is incorrect.',
@@ -784,6 +784,7 @@ export class AuthService {
       activeSessionsCount,
       ssoConfig,
       lastMagicLinkSignIn,
+      identities,
     ] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
@@ -807,6 +808,10 @@ export class AuthService {
         orderBy: { usedAt: 'desc' },
         select: { usedAt: true },
       }),
+      this.prisma.userIdentity.findMany({
+        where: { userId },
+        select: { provider: true, email: true, createdAt: true },
+      }),
     ]);
 
     const hasBackupCodes = Boolean(
@@ -814,6 +819,9 @@ export class AuthService {
         twoFactor.backupCodes !== '[]' &&
         JSON.parse(twoFactor.backupCodes).length > 0,
     );
+
+    const googleIdentity = identities.find((i) => i.provider === 'google');
+    const appleIdentity = identities.find((i) => i.provider === 'apple');
 
     return {
       password: {
@@ -836,6 +844,18 @@ export class AuthService {
       magicLink: {
         isEnabled: true,
         lastUsedAt: lastMagicLinkSignIn?.usedAt?.toISOString() ?? null,
+      },
+      socialProviders: {
+        google: {
+          isConnected: Boolean(googleIdentity),
+          email: googleIdentity?.email ?? null,
+          linkedAt: googleIdentity?.createdAt.toISOString() ?? null,
+        },
+        apple: {
+          isConnected: Boolean(appleIdentity),
+          email: appleIdentity?.email ?? null,
+          linkedAt: appleIdentity?.createdAt.toISOString() ?? null,
+        },
       },
       passkeysCount,
       activeSessionsCount,
@@ -927,7 +947,9 @@ export class AuthService {
         where: { id: userId },
         select: { passwordHash: true },
       });
-      const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+      const valid = user.passwordHash
+        ? await bcrypt.compare(currentPassword, user.passwordHash)
+        : false;
       if (!valid) {
         throw new UnauthorizedException('Current password is incorrect.');
       }

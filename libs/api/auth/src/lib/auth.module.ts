@@ -8,6 +8,7 @@ import { DesktopAuthService } from './desktop-auth.service.js';
 import { DeviceAuthService } from './device-auth.service.js';
 import { JwtAuthGuard, WorkspaceRoleGuard } from './guards.js';
 import { JwtStrategy } from './jwt.strategy.js';
+import { OAuthAuthService } from './oauth-auth.service.js';
 import { TokenCleanupService } from './token-cleanup.service.js';
 import { TokenService } from './token.service.js';
 
@@ -20,6 +21,7 @@ import { TokenService } from './token.service.js';
   controllers: [AuthController],
   providers: [
     AuthService,
+    OAuthAuthService,
     DesktopAuthService,
     DeviceAuthService,
     TokenService,
@@ -30,6 +32,7 @@ import { TokenService } from './token.service.js';
   ],
   exports: [
     AuthService,
+    OAuthAuthService,
     DesktopAuthService,
     DeviceAuthService,
     TokenService,

@@ -242,8 +242,28 @@ export interface SecurityOverviewDto {
     /** When the user last completed a sign-in through an emailed link. */
     lastUsedAt?: IsoDateString | null;
   };
+  socialProviders?: {
+    google: {
+      isConnected: boolean;
+      email?: string | null;
+      linkedAt?: IsoDateString | null;
+    };
+    apple: {
+      isConnected: boolean;
+      email?: string | null;
+      linkedAt?: IsoDateString | null;
+    };
+  };
   passkeysCount: number;
   activeSessionsCount: number;
+}
+
+export interface UserIdentityDto {
+  id: string;
+  provider: 'google' | 'apple';
+  providerUserId: string;
+  email: string | null;
+  createdAt: IsoDateString;
 }
 
 export interface TotpSetupResponse {

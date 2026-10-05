@@ -230,6 +230,7 @@ import type {
   TotpSetupResponse,
   TotpVerifyResponse,
   WebAuthnCredentialDto,
+  UserIdentityDto,
   Cycle,
   Epic,
   Initiative,
@@ -393,6 +394,7 @@ import type {
   UpdateUserPreferencesInput,
   UpdateWhiteboardInput,
   UpdateWorkspaceInput,
+  OAuthInitQueryInput,
 } from '@org/validation';
 import { http, request, resolveMediaUrl } from './http.js';
 
@@ -566,6 +568,20 @@ export const authApi = {
 
   deleteWebAuthn: (credentialId: string) =>
     request<void>(http.delete(`/auth/webauthn/credentials/${credentialId}`)),
+
+  getGoogleAuthUrl: (params?: OAuthInitQueryInput) =>
+    request<{ url: string }>(http.get('/auth/google/url', { params })),
+
+  getAppleAuthUrl: (params?: OAuthInitQueryInput) =>
+    request<{ url: string }>(http.get('/auth/apple/url', { params })),
+
+  getIdentities: () =>
+    request<{ identities: UserIdentityDto[]; hasPassword: boolean }>(
+      http.get('/auth/identities'),
+    ),
+
+  disconnectIdentity: (provider: string) =>
+    request<{ success: boolean }>(http.delete(`/auth/identities/${provider}`)),
 };
 
 /**

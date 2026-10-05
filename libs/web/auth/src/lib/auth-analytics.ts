@@ -10,6 +10,7 @@
 
 export type AuthAnalyticsEvent =
   | 'auth_login_view'
+  | 'auth_login_started'
   | 'auth_password_login_started'
   | 'auth_password_login_success'
   | 'auth_magic_link_started'
@@ -19,10 +20,18 @@ export type AuthAnalyticsEvent =
   | 'auth_magic_link_verified'
   | 'auth_magic_link_failed'
   | 'auth_magic_link_expired'
+  | 'auth_google_started'
+  | 'auth_google_success'
+  | 'auth_google_failed'
+  | 'auth_apple_started'
+  | 'auth_apple_success'
+  | 'auth_apple_failed'
+  | 'auth_account_linked'
+  | 'auth_account_created'
   | 'auth_logout';
 
 export interface AuthAnalyticsPayload {
-  method?: 'password' | 'magic_link' | 'device';
+  method?: 'password' | 'magic_link' | 'device' | 'google' | 'apple';
   emailDomain?: string;
   hasReturnTo?: boolean;
   errorCode?: string;

@@ -11,6 +11,8 @@ export {
   useWorkspace,
   useWorkspacePolicies,
   useWorkspaces,
+  useIdentities,
+  useDisconnectIdentity,
   type CreateWorkspaceFlowInput,
   type CreateWorkspaceFlowResult,
 } from './lib/use-workspaces.js';

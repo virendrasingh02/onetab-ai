@@ -13,7 +13,7 @@ model User {
   id                        String                      @id @default(cuid())
   email                     String                      @unique
   /// bcrypt digest. Never selected into API responses.
-  passwordHash              String
+  passwordHash              String?
   name                      String
   displayName               String?
   avatarUrl                 String?
@@ -36,6 +36,7 @@ model User {
   updatedAt                 DateTime                    @updatedAt
   /// Bridged Matrix identity, provisioned lazily on first chat use.
   matrixUserId              String?                     @unique
+  identities                UserIdentity[]
   createdAgents             AIAgent[]
   channelCoworkersAdded     ChannelCoworker[]           @relation("ChannelCoworkerAddedBy")
   aiChatSessions            AIChatSession[]
@@ -988,6 +989,22 @@ model WebAuthnCredential {
 
   @@index([userId])
   @@map("webauthn_credentials")
+}
+
+model UserIdentity {
+  id             String    @id @default(cuid())
+  userId         String
+  provider       String
+  providerUserId String
+  email          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@index([provider, email])
+  @@map("user_identities")
 }
 
 /// Where an upload is "filed". `channelId` predates this and stays populated

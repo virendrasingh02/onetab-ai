@@ -50,6 +50,7 @@ import { AuthLayout } from '../auth-layout.js';
 import { DesktopBrowserSignIn } from '../components/desktop-browser-sign-in.js';
 import { DesktopHandoffPanel } from '../components/desktop-handoff-panel.js';
 import { MagicLinkPanel } from '../components/magic-link-panel.js';
+import { SocialAuthButtons } from '../components/social-auth-buttons.js';
 import { TwoFactorChallengePanel } from '../components/two-factor-challenge-panel.js';
 import {
   formErrorMessage,
@@ -64,6 +65,19 @@ import {
 } from '../desktop-handoff.js';
 import { resolveSafeHandoff, withHandoffToken } from '../safe-handoff-redirect.js';
 
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  oauth_cancelled: 'Sign-in was cancelled. Please try again.',
+  oauth_state_mismatch: 'Security verification failed (state mismatch). Please try again.',
+  oauth_invalid_code: 'Authorization code was invalid or has expired. Please try again.',
+  oauth_invalid_token: 'Identity token could not be verified. Please try again.',
+  oauth_email_unverified: 'Your email address is not verified with the provider.',
+  oauth_email_conflict: 'An account with this email already exists under a different sign-in method.',
+  oauth_account_linked_to_other: 'This account is already linked to another user.',
+  oauth_config_error: 'OAuth provider is not configured on the server.',
+  oauth_callback_failed: 'Authentication could not be completed. Please try again.',
+  oauth_provider_error: 'Authentication provider returned an error. Please try again.',
+};
+
 export function LoginPage() {
   const login = useLogin();
   const navigate = useNavigate();
@@ -76,6 +90,10 @@ export function LoginPage() {
   const isDesktopHandoff = searchParams.get('desktop') === 'true';
   const handoffState = searchParams.get('state');
   const handoffChallenge = searchParams.get('code_challenge');
+  const rawError = searchParams.get('error');
+  const oauthError = rawError
+    ? OAUTH_ERROR_MESSAGES[rawError] || 'Authentication error. Please try again.'
+    : null;
 
   /*
    * An emailed link opens in the system browser, so it can only ever sign in
@@ -488,6 +506,32 @@ export function LoginPage() {
             Cancel
           </button>
         </div>
+      ) : null}
+
+      {!(authMode === 'magic-link' && magicLinkSent) ? (
+        <>
+          <SocialAuthButtons
+            disabled={login.isPending || desktopHandoffRunning}
+            isDesktopHandoff={isDesktopHandoff}
+            handoffState={handoffState}
+            handoffChallenge={handoffChallenge}
+            returnTo={searchParams.get('returnTo')}
+            invitationToken={searchParams.get('invitationToken')}
+          />
+
+          <div className="relative my-4 flex items-center justify-center">
+            <div className="border-t border-border w-full absolute" />
+            <span className="bg-background px-2.5 text-[11px] text-muted-foreground relative uppercase tracking-wider">
+              or continue with email
+            </span>
+          </div>
+
+          {oauthError ? (
+            <div className="mb-3">
+              <FormError error={oauthError} />
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {/* VIEW: MAGIC LINK MODE */}

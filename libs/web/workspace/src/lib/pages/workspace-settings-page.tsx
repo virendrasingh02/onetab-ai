@@ -138,6 +138,7 @@ import {
   useWebAuthnCredentials,
   useRegisterWebAuthn,
   useDeleteWebAuthn,
+  useDisconnectIdentity,
 } from '../use-workspaces.js';
 import { SettingsLayout } from '../settings-layout.js';
 import { useRegisterSettingsDirty } from '../settings-dirty.store.js';
@@ -586,6 +587,39 @@ export function WorkspaceSettingsPage({
   const [passkeyDeviceName, setPasskeyDeviceName] = useState('');
   const [disableTotpModalOpen, setDisableTotpModalOpen] = useState(false);
   const [disableTotpPassword, setDisableTotpPassword] = useState('');
+  const disconnectIdentityMutation = useDisconnectIdentity();
+  const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null);
+
+  const handleConnectProvider = (provider: 'google' | 'apple') => {
+    const returnTo = window.location.pathname;
+    window.location.href = `/api/v1/auth/${provider}/link?returnTo=${encodeURIComponent(returnTo)}`;
+  };
+
+  const handleDisconnectProvider = async (provider: 'google' | 'apple') => {
+    const overview = securityOverviewQuery.data;
+    const hasPassword = Boolean(overview?.password.hasPassword);
+    const otherProviderConnected =
+      provider === 'google'
+        ? Boolean(overview?.socialProviders?.apple.isConnected)
+        : Boolean(overview?.socialProviders?.google.isConnected);
+
+    if (!hasPassword && !otherProviderConnected) {
+      toast.error(
+        'Cannot disconnect your only sign-in method. Please set a password or connect another provider first.',
+      );
+      return;
+    }
+
+    setDisconnectingProvider(provider);
+    try {
+      await disconnectIdentityMutation.mutateAsync(provider);
+      toast.success(`${provider === 'google' ? 'Google' : 'Apple'} account disconnected.`);
+    } catch (err: any) {
+      toast.error(err?.message || `Failed to disconnect ${provider}.`);
+    } finally {
+      setDisconnectingProvider(null);
+    }
+  };
 
   // Password Change Mutation & Form
   const changePassword = useMutation({
@@ -3580,6 +3614,177 @@ export function WorkspaceSettingsPage({
                 )}
               </div>
             </div>
+          </div>
+
+          {/* SIGN-IN METHODS SECTION */}
+          <div className="space-y-4">
+            <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              Sign-in Methods
+            </h2>
+            <SettingsCard divided>
+              {/* Email / Password Row */}
+              <div className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
+                <div className="gap-4 flex items-start">
+                  <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-foreground">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="gap-2 flex items-center">
+                      <h4 className="text-xs font-semibold text-foreground">
+                        Email & Password
+                      </h4>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'font-medium text-[10px]',
+                          securityOverviewQuery.data?.password.hasPassword
+                            ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
+                            : 'border-border bg-muted/40 text-muted-foreground',
+                        )}
+                      >
+                        {securityOverviewQuery.data?.password.hasPassword
+                          ? 'Configured'
+                          : 'No password set'}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                      Sign in using your work email address and secure password.
+                    </p>
+                  </div>
+                </div>
+                <div className="gap-2 flex shrink-0 items-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setChangePasswordModalOpen(true)}
+                    className="text-xs h-8"
+                  >
+                    {securityOverviewQuery.data?.password.hasPassword
+                      ? 'Change password'
+                      : 'Set password'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Google Row */}
+              <div className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
+                <div className="gap-4 flex items-start">
+                  <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-foreground">
+                    <svg className="size-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
+                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.97 0 12s.45 3.83 1.25 5.42l4.03-3.15z" />
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="gap-2 flex items-center">
+                      <h4 className="text-xs font-semibold text-foreground">
+                        Google
+                      </h4>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'font-medium text-[10px]',
+                          securityOverviewQuery.data?.socialProviders?.google.isConnected
+                            ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
+                            : 'border-border bg-muted/40 text-muted-foreground',
+                        )}
+                      >
+                        {securityOverviewQuery.data?.socialProviders?.google.isConnected
+                          ? 'Connected'
+                          : 'Not connected'}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                      {securityOverviewQuery.data?.socialProviders?.google.isConnected
+                        ? `Connected with ${securityOverviewQuery.data.socialProviders.google.email || 'Google account'}.`
+                        : 'Sign in to OneTab AI using your Google account.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="gap-2 flex shrink-0 items-center">
+                  {securityOverviewQuery.data?.socialProviders?.google.isConnected ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDisconnectProvider('google')}
+                      loading={disconnectingProvider === 'google'}
+                      className="text-xs h-8 text-destructive hover:text-destructive"
+                    >
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleConnectProvider('google')}
+                      className="text-xs h-8"
+                    >
+                      Connect
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Apple Row */}
+              <div className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
+                <div className="gap-4 flex items-start">
+                  <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-foreground">
+                    <svg className="size-5 shrink-0 fill-current text-foreground" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 1.01-2.87-.96.04-2.12.64-2.79 1.43-.59.68-1.11 1.77-1.03 2.83 1.07.08 2.19-.58 2.81-1.39z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="gap-2 flex items-center">
+                      <h4 className="text-xs font-semibold text-foreground">
+                        Apple
+                      </h4>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'font-medium text-[10px]',
+                          securityOverviewQuery.data?.socialProviders?.apple.isConnected
+                            ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
+                            : 'border-border bg-muted/40 text-muted-foreground',
+                        )}
+                      >
+                        {securityOverviewQuery.data?.socialProviders?.apple.isConnected
+                          ? 'Connected'
+                          : 'Not connected'}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                      {securityOverviewQuery.data?.socialProviders?.apple.isConnected
+                        ? `Connected with ${securityOverviewQuery.data.socialProviders.apple.email || 'Apple ID'}.`
+                        : 'Sign in to OneTab AI using Sign in with Apple.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="gap-2 flex shrink-0 items-center">
+                  {securityOverviewQuery.data?.socialProviders?.apple.isConnected ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDisconnectProvider('apple')}
+                      loading={disconnectingProvider === 'apple'}
+                      className="text-xs h-8 text-destructive hover:text-destructive"
+                    >
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleConnectProvider('apple')}
+                      className="text-xs h-8"
+                    >
+                      Connect
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </SettingsCard>
           </div>
 
           {/* 2. AUTHENTICATION FACTORS SECTION */}

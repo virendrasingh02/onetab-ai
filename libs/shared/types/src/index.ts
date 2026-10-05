@@ -120,6 +120,7 @@ export type {
   WorkspaceAuditLogDto,
   UserSessionDto,
   SecurityOverviewDto,
+  UserIdentityDto,
   TotpSetupResponse,
   TotpVerifyResponse,
   WebAuthnCredentialDto,

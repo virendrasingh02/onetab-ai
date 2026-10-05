@@ -476,3 +476,24 @@ export function useDeleteWebAuthn() {
   });
 }
 
+export function useIdentities() {
+  return useQuery({
+    queryKey: ['auth', 'identities'],
+    queryFn: () => authApi.getIdentities(),
+    staleTime: 30_000,
+  });
+}
+
+export function useDisconnectIdentity() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (provider: string) => authApi.disconnectIdentity(provider),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'identities'] });
+      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+    },
+  });
+}
+
+

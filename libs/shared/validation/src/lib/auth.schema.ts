@@ -228,3 +228,33 @@ export interface CreateDeviceAuthResponse {
   expiresAt: string;
   expiresInSeconds: number;
 }
+
+export const oauthInitQuerySchema = z.object({
+  returnTo: z.string().optional(),
+  desktop: z.enum(['true', 'false']).optional(),
+  state: z.string().optional(),
+  code_challenge: z.string().optional(),
+  code_challenge_method: z.string().optional(),
+  invitationToken: z.string().optional(),
+  link: z.enum(['true', 'false']).optional(),
+});
+
+export const oauthCallbackQuerySchema = z.object({
+  code: z.string().optional(),
+  state: z.string().optional(),
+  error: z.string().optional(),
+  error_description: z.string().optional(),
+});
+
+export const appleCallbackBodySchema = z.object({
+  code: z.string().optional(),
+  state: z.string().optional(),
+  id_token: z.string().optional(),
+  user: z.string().optional(),
+  error: z.string().optional(),
+});
+
+export type OAuthInitQueryInput = z.infer<typeof oauthInitQuerySchema>;
+export type OAuthCallbackQueryInput = z.infer<typeof oauthCallbackQuerySchema>;
+export type AppleCallbackBodyInput = z.infer<typeof appleCallbackBodySchema>;
+
