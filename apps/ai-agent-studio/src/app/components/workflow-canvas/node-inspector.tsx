@@ -1,19 +1,19 @@
 import { Button, CodeBlock, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
-import type { Node } from '@xyflow/react';
+import type { Connection, Edge, Node } from '@xyflow/react';
 import {
-  Bot,
+  Braces,
   Cpu,
   Flame,
-  GitBranch,
   Shield,
   Sliders,
   Trash2,
-  UserCheck,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { workflowService } from '../../services/workflowService.js';
+import { MODEL_OPTIONS } from './custom-nodes.js';
+import { getNodeIcon, getStatusBadge, NodeWiringPanel } from './node-wiring-panel.js';
 
 const COMMON_VARIABLES = [
   '{{input.message}}',
@@ -26,18 +26,52 @@ const COMMON_VARIABLES = [
   '{{customer.email}}',
 ];
 
+/** A node's data plus every edge touching it — what Cancel puts back. */
+export interface NodeSnapshot {
+  data: Record<string, unknown>;
+  edges: Edge[];
+}
+
 interface NodeInspectorProps {
   selectedNode: Node | null;
+  /** Whole graph, for the Wiring tab. */
+  nodes: Node[];
+  edges: Edge[];
+  readOnly?: boolean;
   onUpdateNode: (nodeId: string, updatedData: any) => void;
   onDeleteNode: (nodeId: string) => void;
+  onRewireEdge: (edgeId: string, patch: Partial<Pick<Edge, 'source' | 'target' | 'sourceHandle' | 'targetHandle'>>) => void;
+  onDeleteEdge: (edgeId: string) => void;
+  onConnect: (connection: Connection) => void;
+  /** Cancel: put the node's data and wiring back the way they were when the panel opened. */
+  onRestoreNode: (nodeId: string, snapshot: NodeSnapshot) => void;
   onClose: () => void;
   className?: string;
 }
 
+const touching = (edges: Edge[], nodeId: string) =>
+  edges.filter((e) => e.source === nodeId || e.target === nodeId);
+
+/** Order-insensitive fingerprint of a node's data + wiring, to tell whether anything changed. */
+const fingerprint = (data: unknown, edges: Edge[]) =>
+  JSON.stringify([
+    data,
+    edges
+      .map((e) => [e.id, e.source, e.target, e.sourceHandle ?? null, e.targetHandle ?? null])
+      .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+  ]);
+
 export function NodeInspector({
   selectedNode,
+  nodes,
+  edges,
+  readOnly,
   onUpdateNode,
   onDeleteNode,
+  onRewireEdge,
+  onDeleteEdge,
+  onConnect,
+  onRestoreNode,
   onClose,
   className,
 }: NodeInspectorProps) {
@@ -45,6 +79,19 @@ export function NodeInspector({
   const [targetField, setTargetField] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<any | null>(null);
+  const [tab, setTab] = useState<'settings' | 'wiring'>('settings');
+
+  // Edits apply to the canvas live; this is the state Cancel returns to. The parent
+  // keys the inspector by node id, so a new node gets a new snapshot.
+  const [snapshot] = useState<NodeSnapshot | null>(() =>
+    selectedNode ? { data: selectedNode.data as Record<string, unknown>, edges: touching(edges, selectedNode.id) } : null,
+  );
+  const hasChanges = useMemo(() => {
+    if (!selectedNode || !snapshot) return false;
+    return (
+      fingerprint(selectedNode.data, touching(edges, selectedNode.id)) !== fingerprint(snapshot.data, snapshot.edges)
+    );
+  }, [selectedNode, edges, snapshot]);
 
   if (!selectedNode) {
     return (
@@ -68,6 +115,8 @@ export function NodeInspector({
   const nodeType = (selectedNode.type || '').toUpperCase();
   const data = selectedNode.data as any;
   const config = data.config || {};
+  // Prompt nodes keep their text in `prompt` (edited inline on the canvas too); transforms use `template`
+  const templateKey = nodeType === 'PROMPT_TEMPLATE' ? 'prompt' : 'template';
 
   const updateConfig = (key: string, value: any) => {
     onUpdateNode(selectedNode.id, {
@@ -94,64 +143,147 @@ export function NodeInspector({
     toast.success(`Inserted ${variableStr}`);
   };
 
+  const NodeIcon = getNodeIcon(selectedNode.type);
+  const statusBadge = getStatusBadge(data.status);
+
+  const handleCancel = () => {
+    if (hasChanges && snapshot) onRestoreNode(selectedNode.id, snapshot);
+    onClose();
+  };
+
   return (
-    <div
+    <aside
+      aria-label={`${data.label || 'Node'} settings`}
       className={cn(
-        'flex h-full w-84 flex-col border-l border-border bg-surface select-none overflow-hidden',
+        'flex flex-col overflow-hidden rounded-2xl border border-border bg-surface text-foreground shadow-2xl select-none',
+        'animate-in fade-in slide-in-from-right-2 duration-150',
         className,
       )}
+      onKeyDown={(e) => {
+        // Esc closes the panel (keeping edits) unless a field wants it
+        if (e.key === 'Escape' && !(e.target as HTMLElement).closest('input, textarea, select, [role="listbox"]')) {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
     >
-      {/* Inspector Header */}
-      <div className="flex items-center justify-between border-b border-border p-3">
-        <div className="flex items-center gap-2">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-surface-raised border border-border text-primary font-bold">
-            {nodeType === 'AGENT' ? (
-              <Bot className="size-3.5" />
-            ) : nodeType.startsWith('FIRECRAWL') ? (
-              <Flame className="size-3.5 text-warning" />
-            ) : nodeType === 'USER_APPROVAL' ? (
-              <UserCheck className="size-3.5 text-destructive" />
-            ) : nodeType === 'AI_GUARDRAIL' ? (
-              <Shield className="size-3.5 text-success" />
-            ) : nodeType === 'IF_ELSE' ? (
-              <GitBranch className="size-3.5 text-accent-violet" />
-            ) : (
-              <Cpu className="size-3.5" />
+      {/* Header: what this step is and how it last ran */}
+      <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+        <NodeIcon className="size-4 shrink-0 text-primary" />
+        <h3 className="min-w-0 truncate text-sm font-semibold" title={data.label || selectedNode.id}>
+          {data.label || selectedNode.id}
+        </h3>
+        {statusBadge ? (
+          <span
+            className={cn(
+              'inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-[11px] font-semibold',
+              statusBadge.className,
             )}
-          </div>
-          <div>
-            <div className="text-xs font-bold text-foreground">
-              Node Properties
-            </div>
-            <div className="text-[10px] font-mono text-muted-foreground uppercase">
-              {nodeType}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => onDeleteNode(selectedNode.id)}
-            className="text-muted-foreground hover:text-destructive"
-            title="Delete node"
           >
-            <Trash2 className="size-3.5" />
-          </Button>
+            {statusBadge.label}
+          </span>
+        ) : (
+          <span className="inline-flex h-5 shrink-0 items-center rounded-md border border-border bg-surface-raised px-1.5 font-mono text-[10px] text-muted-foreground">
+            {nodeType}
+          </span>
+        )}
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {!readOnly && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onDeleteNode(selectedNode.id)}
+              className="text-muted-foreground hover:text-destructive"
+              title="Delete node"
+              aria-label="Delete node"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon-xs"
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground"
+            title="Close (Esc)"
+            aria-label="Close"
           >
-            <X className="size-3.5" />
+            <X className="size-4" />
           </Button>
         </div>
       </div>
 
-      {/* Inspector Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+      {/* Tabs */}
+      <div role="tablist" aria-label="Node panel" className="flex gap-5 border-b border-border px-4">
+        {(['settings', 'wiring'] as const).map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={cn(
+              '-mb-px border-b-2 pb-2.5 text-sm font-medium capitalize transition-colors',
+              tab === id
+                ? 'border-foreground text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {id}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'wiring' && (
+        <div role="tabpanel" className="flex-1 overflow-y-auto p-4">
+          <NodeWiringPanel
+            node={selectedNode}
+            nodes={nodes}
+            edges={edges}
+            readOnly={readOnly}
+            onRewireEdge={onRewireEdge}
+            onDeleteEdge={onDeleteEdge}
+            onConnect={onConnect}
+            onUpdateConfig={updateConfig}
+          />
+        </div>
+      )}
+
+      {/* Settings tab */}
+      {tab === 'settings' && (
+      <div role="tabpanel" className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+        {/* Variable picker, opened by the "Insert Variable" links below */}
+        {showVariablePicker && targetField && (
+          <div className="sticky top-0 z-10 rounded-xl border border-primary/30 bg-surface p-3 shadow-lg animate-in fade-in slide-in-from-top-1 duration-100">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+                <Braces className="size-3.5 text-primary" />
+                Insert a variable
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowVariablePicker(false)}
+                aria-label="Close variable picker"
+                className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {COMMON_VARIABLES.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => insertVariable(v)}
+                  className="rounded-md border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* General: Node Label */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-semibold text-foreground">
@@ -230,41 +362,17 @@ export function NodeInspector({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
-                Tools & Capabilities
-              </label>
-              <div className="space-y-1 rounded-lg border border-border p-2">
-                {[
-                  { id: 'search_docs', name: 'Knowledge / Document Search' },
-                  { id: 'firecrawl_search', name: 'Firecrawl Web Search' },
-                  { id: 'firecrawl_scrape', name: 'Firecrawl Scrape' },
-                  { id: 'create_task', name: 'Kanban Task Creator' },
-                  { id: 'send_channel_message', name: 'Chat Channel Post' },
-                ].map((tool) => {
-                  const activeTools = (config.tools as string[]) || [];
-                  const isChecked = activeTools.includes(tool.id);
-                  return (
-                    <label
-                      key={tool.id}
-                      className="flex cursor-pointer items-center justify-between py-1 text-xs hover:text-foreground"
-                    >
-                      <span className="text-muted-foreground">{tool.name}</span>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={(e) => {
-                          const next = e.target.checked
-                            ? [...activeTools, tool.id]
-                            : activeTools.filter((t) => t !== tool.id);
-                          updateConfig('tools', next);
-                        }}
-                        className="rounded border-border accent-primary"
-                      />
-                    </label>
-                  );
-                })}
-              </div>
+            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-raised/60 px-3 py-2">
+              <span className="text-muted-foreground">
+                {((config.tools as string[]) || []).length} tool(s) attached
+              </span>
+              <button
+                type="button"
+                onClick={() => setTab('wiring')}
+                className="text-[11px] font-medium text-primary hover:underline"
+              >
+                Manage in Wiring
+              </button>
             </div>
           </div>
         )}
@@ -576,12 +684,12 @@ export function NodeInspector({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-semibold text-foreground">
-                  Template
+                  {nodeType === 'PROMPT_TEMPLATE' ? 'Prompt' : 'Template'}
                 </label>
                 <button
                   type="button"
                   onClick={() => {
-                    setTargetField('template');
+                    setTargetField(templateKey);
                     setShowVariablePicker(true);
                   }}
                   className="text-[10px] font-medium text-primary hover:underline"
@@ -591,10 +699,61 @@ export function NodeInspector({
               </div>
               <textarea
                 rows={5}
-                value={config.template || ''}
-                onChange={(e) => updateConfig('template', e.target.value)}
+                value={config[templateKey] || ''}
+                onChange={(e) => updateConfig(templateKey, e.target.value)}
                 placeholder="Draft formatted output: {{agent.output}} &#10;Source: {{firecrawl.url}}"
                 className="w-full font-mono rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* LLM / CHAT MODEL (also editable on the canvas node) */}
+        {nodeType === 'AI_CHAT_MODEL' && (
+          <div className="space-y-3.5 pt-2 border-t border-border">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Model</label>
+              <select
+                value={config.model || 'gpt-4o'}
+                onChange={(e) => updateConfig('model', e.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {!MODEL_OPTIONS.some((m) => m.value === (config.model || 'gpt-4o')) && (
+                  <option value={config.model}>{config.model}</option>
+                )}
+                {MODEL_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">
+                Temperature: {config.temperature ?? 0.7}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.05"
+                value={config.temperature ?? 0.7}
+                onChange={(e) => updateConfig('temperature', parseFloat(e.target.value))}
+                className="w-full accent-primary"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Max tokens</label>
+              <input
+                type="number"
+                min={1}
+                step={256}
+                value={config.maxTokens ?? 2048}
+                onChange={(e) => {
+                  const v = e.target.valueAsNumber;
+                  if (Number.isFinite(v) && v >= 1) updateConfig('maxTokens', Math.round(v));
+                }}
+                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>
@@ -818,6 +977,22 @@ export function NodeInspector({
           )}
         </div>
       </div>
-    </div>
+      )}
+
+      {/* Footer: Cancel reverts this step's edits + wiring; Save keeps them */}
+      <div className="grid grid-cols-2 gap-2.5 border-t border-border p-4">
+        <Button variant="outline" onClick={handleCancel} className="h-9 rounded-xl text-sm font-semibold">
+          Cancel
+        </Button>
+        <Button
+          onClick={onClose}
+          disabled={!hasChanges || readOnly}
+          title={hasChanges ? 'Keep these changes' : 'No changes yet'}
+          className="h-9 rounded-xl text-sm font-semibold"
+        >
+          Save step
+        </Button>
+      </div>
+    </aside>
   );
 }

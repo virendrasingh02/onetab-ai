@@ -11,6 +11,7 @@ import {
   DialogFooter,
   DialogBody,
   Input,
+  Page,
   PageHeader,
   toast,
 } from '@org/ui';
@@ -128,7 +129,7 @@ export function WorkflowsPage() {
   }, [agents, search]);
 
   return (
-    <div className="space-y-6 max-w-7xl w-full mx-auto">
+    <Page width="wide" padding="none" className="space-y-6 w-full">
       {/* Header bar matching Admin */}
       <PageHeader
         title="Visual Workflows"
@@ -215,7 +216,7 @@ export function WorkflowsPage() {
 
       {/* Grid View */}
       {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredWorkflows.map((workflow) => {
             const isPub = workflow.status === 'published';
             let nodeCount = 3;
@@ -495,6 +496,6 @@ export function WorkflowsPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </Page>
   );
 }

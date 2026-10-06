@@ -1,14 +1,21 @@
-import { agentsApi } from '@org/api-client';
+import { agentsApi, http } from '@org/api-client';
 import {
   Badge,
   Button,
   CodeBlock,
+  confirm,
   Dialog,
   DialogContent,
   DialogFooter,
   DialogBody,
   DialogHeader,
   DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
   Input,
   LoadingState,
   Popover,
@@ -33,6 +40,7 @@ import {
   SelectionMode,
   useOnSelectionChange,
   useReactFlow,
+  useViewport,
   type Connection,
   type Edge,
   type EdgeChange,
@@ -42,9 +50,12 @@ import {
 import {
   Activity,
   AlertCircle,
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  AlignEndHorizontal,
+  AlignEndVertical,
+  AlignStartHorizontal,
+  AlignStartVertical,
   ArrowLeft,
   ArrowUpRight,
   Award,
@@ -56,39 +67,38 @@ import {
   Code2,
   Copy,
   Cpu,
-  Download,
   Edit2,
   Eye,
   GitBranch,
   Globe,
+  Hand,
   Layers,
   Loader2,
-  Maximize2,
+  Lock,
   MessageSquare,
+  Minus,
+  MousePointer2,
   Network,
   Palette,
   Play,
   Plus,
   Radio,
-  Redo,
+  Redo2,
   RotateCcw,
   Save,
   Settings,
   ShieldCheck,
   Sparkles,
-  Store,
   Tag,
   Trash2,
-  Undo,
+  Undo2,
   Upload,
   Variable,
   Wand2,
   X,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AGENT_ICONS,
@@ -101,7 +111,7 @@ import { STUDIO_NODE_TYPES } from '../components/workflow-canvas/custom-nodes.js
 import { STUDIO_EDGE_TYPES } from '../components/workflow-canvas/custom-edges.jsx';
 import { CanvasContextMenu } from '../components/workflow-canvas/canvas-context-menu.jsx';
 import { NodeCatalogModal } from '../components/workflow-canvas/node-catalog-modal.js';
-import { NodeInspector } from '../components/workflow-canvas/node-inspector.js';
+import { NodeInspector, type NodeSnapshot } from '../components/workflow-canvas/node-inspector.js';
 import { ValidationModal } from '../components/workflow-canvas/validation-modal.js';
 import { TestDebuggerDrawer } from '../components/workflow-canvas/test-debugger-drawer.jsx';
 import { NaturalLanguagePanel } from '../components/workflow-canvas/natural-language-panel.jsx';
@@ -111,7 +121,23 @@ import { VariablesTab } from '../components/agent-detail/variables-tab.jsx';
 import { WidgetBuilder } from '../components/agent-detail/widget-builder.jsx';
 import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
 import { agentService } from '../services/agentService.js';
-import { workflowService } from '../services/workflowService.js';
+import { layoutWorkflow } from '../components/workflow-canvas/auto-layout.js';
+import {
+  agentIssues,
+  attachmentPosition,
+  collapsedAncestors,
+  collapsedNodeIds,
+  getSlot,
+  isAttachmentEdge,
+  isSlotHost,
+  isValidSlotConnection,
+  resolveAgentModel,
+  slotAttachments,
+  slotConnectionError,
+  supervisorOf,
+  withSlotConnection,
+} from '../components/workflow-canvas/agent-slots.js';
+import { AgentOutlinePanel } from '../components/workflow-canvas/agent-outline-panel.js';
 
 const INITIAL_NODES: Node[] = [
   {
@@ -192,6 +218,62 @@ interface AgentSettingsDraft {
   ownerEmail: string;
 }
 
+const ZOOM_PRESETS = [0.5, 1, 2] as const;
+/** How long auto layout takes to glide nodes into place. */
+const LAYOUT_ANIMATION_MS = 420;
+
+const AGENT_TABS = [
+  { id: 'build', label: 'Canvas', icon: GitBranch },
+  { id: 'multi_agent', label: 'Multi-Agent', icon: Network },
+  { id: 'memory', label: 'Memory', icon: Brain },
+  { id: 'variables', label: 'Variables', icon: Variable },
+  { id: 'widget', label: 'Widget', icon: MessageSquare },
+  { id: 'executions', label: 'Executions', icon: Activity },
+  { id: 'evaluations', label: 'Evaluation', icon: Award },
+  { id: 'versions', label: 'Versions', icon: Clock },
+  { id: 'settings', label: 'Settings', icon: Settings },
+] as const;
+type AgentTab = (typeof AGENT_TABS)[number]['id'];
+const isAgentTab = (value: string | null): value is AgentTab =>
+  AGENT_TABS.some((t) => t.id === value);
+
+type AlignType = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
+
+const SELECTION_ALIGN_ACTIONS: { type: AlignType; label: string; icon: typeof AlignStartVertical }[] = [
+  { type: 'left', label: 'Align left edges', icon: AlignStartVertical },
+  { type: 'center', label: 'Align horizontal centers', icon: AlignCenterVertical },
+  { type: 'right', label: 'Align right edges', icon: AlignEndVertical },
+  { type: 'top', label: 'Align top edges', icon: AlignStartHorizontal },
+  { type: 'middle', label: 'Align vertical centers', icon: AlignCenterHorizontal },
+  { type: 'bottom', label: 'Align bottom edges', icon: AlignEndHorizontal },
+];
+
+/** Undo/redo keeps at most this many graph states. */
+const HISTORY_LIMIT = 100;
+/** Edits that land within this window (typing in the inspector, nudges) collapse into one undo step. */
+const HISTORY_SETTLE_MS = 400;
+
+interface GraphSnapshot {
+  key: string;
+  nodes: Node[];
+  edges: Edge[];
+}
+
+/** The graph minus React Flow's transient UI state (selection, drag, measured size). */
+function toGraphSnapshot(nodes: Node[], edges: Edge[]): GraphSnapshot {
+  const cleanNodes = nodes.map(({ selected: _s, dragging: _d, measured: _m, ...n }) => n as Node);
+  const cleanEdges = edges.map(({ selected: _s, ...e }) => e as Edge);
+  return { key: JSON.stringify([cleanNodes, cleanEdges]), nodes: cleanNodes, edges: cleanEdges };
+}
+
+const isTypingTarget = (target: EventTarget | null) => {
+  const el = target as HTMLElement | null;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+};
+
+const canvasControlClass =
+  'flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors cursor-pointer hover:bg-surface-raised hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:pointer-events-none disabled:opacity-40';
+
 function WorkflowCanvasInner({
   nodes,
   edges,
@@ -202,8 +284,7 @@ function WorkflowCanvasInner({
   onPaneClick,
   onAddNode,
   onAutoLayout,
-  selectedNode,
-  onDeleteSelected,
+  onDeleteNodes,
   onDuplicateNode,
   onTestNode,
   onInspectNode,
@@ -218,6 +299,10 @@ function WorkflowCanvasInner({
   onBatchDuplicate,
   onBatchGroup,
   onInitFlow,
+  isLocked,
+  onToggleLock,
+  onToggleCollapse,
+  onFocusNodeById,
 }: {
   nodes: Node[];
   edges: Edge[];
@@ -227,9 +312,9 @@ function WorkflowCanvasInner({
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
   onPaneClick: () => void;
   onAddNode: (newNode: Node) => void;
-  onAutoLayout: () => void;
-  selectedNode: Node | null;
-  onDeleteSelected: () => void;
+  /** Returns the animation length in ms, or null if nothing moved. */
+  onAutoLayout: () => number | null;
+  onDeleteNodes: (nodeIds: string[]) => void;
   onDuplicateNode: (node: Node) => void;
   onTestNode: (node: Node) => void;
   onInspectNode: (node: Node) => void;
@@ -240,13 +325,48 @@ function WorkflowCanvasInner({
   onUndo: () => void;
   onRedo: () => void;
   onExportJson: () => void;
-  onBatchAlign: (type: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom', selectedIds: string[]) => void;
+  onBatchAlign: (type: AlignType, selectedIds: string[]) => void;
   onBatchDuplicate: (selectedIds: string[]) => void;
   onBatchGroup: (selectedIds: string[]) => void;
   onInitFlow?: (instance: any) => void;
+  isLocked: boolean;
+  onToggleLock: () => void;
+  /** Agents: hide / show everything plugged into one. */
+  onToggleCollapse: (agentId: string) => void;
+  /** Frame a node (expanding collapsed agents above it). */
+  onFocusNodeById: (nodeId: string) => void;
 }) {
   const reactFlowInstance = useReactFlow();
+  const { zoom } = useViewport();
+  const [interactionMode, setInteractionMode] = useState<'select' | 'pan'>('select');
+  const canvasRef = useRef<HTMLDivElement>(null);
   const edgeReconnectSuccessful = useRef(true);
+
+  // Keyboard shortcuts: V (select), H (pan), Shift+1 (zoom to fit), Shift+0 (zoom to 100%), Shift+L (tidy)
+  const autoLayoutRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // e.code, not e.key: Shift+1 yields '!' (or another symbol, layout-dependent)
+      if (e.shiftKey && e.code === 'Digit1') {
+        e.preventDefault();
+        reactFlowInstance.fitView({ padding: 0.2, duration: 250 });
+      } else if (e.shiftKey && e.code === 'Digit0') {
+        e.preventDefault();
+        reactFlowInstance.zoomTo(1, { duration: 250 });
+      } else if (e.shiftKey && e.code === 'KeyL') {
+        e.preventDefault();
+        autoLayoutRef.current();
+      } else if (e.key === 'v' || e.key === 'V') {
+        setInteractionMode('select');
+      } else if (e.key === 'h' || e.key === 'H') {
+        setInteractionMode('pan');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [reactFlowInstance]);
 
   useEffect(() => {
     onInitFlow?.(reactFlowInstance);
@@ -270,6 +390,9 @@ function WorkflowCanvasInner({
 
   // Bottom Node Catalog Modal State
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  // Agent outline (teams, attachments, setup issues); opens on its own once the flow has agents
+  const agentCount = useMemo(() => nodes.filter((n) => isSlotHost(n.type)).length, [nodes]);
+  const [isOutlineOpen, setIsOutlineOpen] = useState(false);
 
   const handleDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -332,7 +455,7 @@ function WorkflowCanvasInner({
   );
 
   // Canvas Right-Click
-  const handlePaneContextMenu = useCallback((event: React.MouseEvent) => {
+  const handlePaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
     event.preventDefault();
     setContextMenu({
       isOpen: true,
@@ -354,16 +477,27 @@ function WorkflowCanvasInner({
     });
   }, []);
 
+  // Node quick-action toolbars hide mutating actions while the canvas is locked
+  const displayNodes = useMemo(
+    () => (isLocked ? nodes.map((n) => ({ ...n, data: { ...n.data, locked: true } })) : nodes),
+    [nodes, isLocked],
+  );
+
+  autoLayoutRef.current = () => handleAutoLayoutClick();
   const handleAutoLayoutClick = useCallback(() => {
-    onAutoLayout();
+    if (isLocked) return;
+    const duration = onAutoLayout();
+    if (duration === null) return;
+    // Frame the tidied graph once the nodes have settled
     setTimeout(() => {
-      reactFlowInstance.fitView({ padding: 0.25, duration: 400 });
-    }, 60);
-  }, [onAutoLayout, reactFlowInstance]);
+      reactFlowInstance.fitView({ padding: 0.2, duration: 450 });
+    }, duration + 40);
+  }, [isLocked, onAutoLayout, reactFlowInstance]);
 
   return (
     <div
-      className="relative flex-1 h-full w-full bg-background select-none overflow-hidden"
+      ref={canvasRef}
+      className="relative flex-1 h-full w-full bg-surface/50 select-none overflow-hidden"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
@@ -391,105 +525,184 @@ function WorkflowCanvasInner({
           variant="ghost"
           size="xs"
           onClick={handleAutoLayoutClick}
-          title="Auto arrange workflow graph cleanly"
+          disabled={isLocked}
+          title={isLocked ? 'Unlock the canvas to tidy the layout' : 'Tidy the layout (Shift+L)'}
+          aria-keyshortcuts="Shift+L"
           className="gap-1.5 text-xs font-semibold text-foreground hover:text-primary h-8 px-2.5 rounded-xl cursor-pointer"
         >
           <Wand2 className="size-3.5 text-primary" />
           <span>Auto Layout</span>
         </Button>
+      </div>
 
-        <div className="h-4 w-px bg-border mx-0.5" />
+      {isOutlineOpen && (
+        <AgentOutlinePanel
+          nodes={nodes}
+          edges={edges}
+          onFocusNode={onFocusNodeById}
+          onToggleCollapse={onToggleCollapse}
+          onClose={() => setIsOutlineOpen(false)}
+          className="absolute left-5 top-5 z-20"
+        />
+      )}
 
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={onUndo}
-          disabled={!canUndo}
-          title="Undo (Ctrl+Z)"
-          className="size-8 p-0 rounded-xl disabled:opacity-30 cursor-pointer"
+      {/* Floating Canvas View Controls (Docked at Bottom Left) */}
+      <div
+        role="group"
+        aria-label="Canvas controls"
+        className="absolute bottom-5 left-5 z-20 flex h-9 items-center gap-1 rounded-[14px] border border-border bg-surface p-1 shadow-sm select-none"
+      >
+        {/* SECTION 1: Mode Switch (Select / Pan) */}
+        <div role="group" aria-label="Canvas tool" className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => setInteractionMode('select')}
+            aria-label="Select"
+            aria-pressed={interactionMode === 'select'}
+            title="Select (V) - Click and drag to box-select"
+            className={cn(
+              canvasControlClass,
+              interactionMode === 'select' && 'bg-surface-raised text-foreground',
+            )}
+          >
+            <MousePointer2 className="size-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setInteractionMode('pan')}
+            aria-label="Pan"
+            aria-pressed={interactionMode === 'pan'}
+            title="Pan (H) - Drag canvas freely"
+            className={cn(
+              canvasControlClass,
+              interactionMode === 'pan' && 'bg-surface-raised text-foreground',
+            )}
+          >
+            <Hand className="size-3.5" />
+          </button>
+        </div>
+
+        <div className="h-4 w-px shrink-0 bg-border" />
+
+        {/* SECTION 2: Zoom Controls (- 100% +) */}
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => reactFlowInstance.zoomOut({ duration: 200 })}
+            aria-label="Zoom out"
+            title="Zoom out (Ctrl -)"
+            className={canvasControlClass}
+          >
+            <Minus className="size-3.5" />
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Zoom level ${Math.round(zoom * 100)}%`}
+                title="Zoom options"
+                className={cn(
+                  canvasControlClass,
+                  'w-12 text-xs font-semibold tabular-nums text-foreground data-[state=open]:bg-surface-raised',
+                )}
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start" sideOffset={8} className="min-w-44">
+              <DropdownMenuItem onSelect={() => reactFlowInstance.fitView({ padding: 0.2, duration: 250 })}>
+                Zoom to fit
+                <DropdownMenuShortcut keys={['Shift', '1']} />
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {ZOOM_PRESETS.map((preset) => {
+                const isCurrent = Math.round(zoom * 100) === preset * 100;
+                return (
+                  <DropdownMenuItem
+                    key={preset}
+                    onSelect={() => reactFlowInstance.zoomTo(preset, { duration: 250 })}
+                    className={cn(isCurrent && 'font-semibold')}
+                  >
+                    Zoom to {preset * 100}%
+                    {preset === 1 ? (
+                      <DropdownMenuShortcut keys={['Shift', '0']} />
+                    ) : null}
+                    {isCurrent && (
+                      <Check className={cn('size-3.5 text-primary', preset !== 1 && 'ml-auto')} />
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <button
+            type="button"
+            onClick={() => reactFlowInstance.zoomIn({ duration: 200 })}
+            aria-label="Zoom in"
+            title="Zoom in (Ctrl +)"
+            className={canvasControlClass}
+          >
+            <Plus className="size-3.5" />
+          </button>
+        </div>
+
+        <div className="h-4 w-px shrink-0 bg-border" />
+
+        {/* SECTION 3: History (Undo / Redo) */}
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            aria-label="Undo"
+            title="Undo (Ctrl+Z)"
+            className={canvasControlClass}
+          >
+            <Undo2 className="size-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            aria-label="Redo"
+            title="Redo (Ctrl+Y)"
+            className={canvasControlClass}
+          >
+            <Redo2 className="size-3.5" />
+          </button>
+        </div>
+
+        <div className="h-4 w-px shrink-0 bg-border" />
+
+        {/* SECTION 4: Agent outline */}
+        <button
+          type="button"
+          onClick={() => setIsOutlineOpen((v) => !v)}
+          aria-label="Agent outline"
+          aria-pressed={isOutlineOpen}
+          title={agentCount > 0 ? `Agents & teams (${agentCount})` : 'Agents & teams'}
+          className={cn(canvasControlClass, isOutlineOpen && 'bg-surface-raised text-primary')}
         >
-          <Undo className="size-3.5" />
-        </Button>
+          <Network className="size-3.5" />
+        </button>
 
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={onRedo}
-          disabled={!canRedo}
-          title="Redo (Ctrl+Y)"
-          className="size-8 p-0 rounded-xl disabled:opacity-30 cursor-pointer"
+        <div className="h-4 w-px shrink-0 bg-border" />
+
+        {/* SECTION 5: Canvas Lock */}
+        <button
+          type="button"
+          onClick={onToggleLock}
+          aria-label="Lock canvas"
+          aria-pressed={isLocked}
+          title={isLocked ? 'Canvas locked (click to unlock)' : 'Lock canvas (prevent changes)'}
+          className={cn(canvasControlClass, isLocked && 'bg-warning/15 text-warning hover:bg-warning/20 hover:text-warning')}
         >
-          <Redo className="size-3.5" />
-        </Button>
-
-        <div className="h-4 w-px bg-border mx-0.5" />
-
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => reactFlowInstance.fitView({ padding: 0.2, duration: 300 })}
-          title="Fit to screen"
-          className="size-8 p-0 rounded-xl cursor-pointer"
-        >
-          <Maximize2 className="size-3.5" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => reactFlowInstance.zoomIn({ duration: 250 })}
-          title="Zoom In"
-          className="size-8 p-0 rounded-xl cursor-pointer"
-        >
-          <ZoomIn className="size-3.5" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => reactFlowInstance.zoomOut({ duration: 250 })}
-          title="Zoom Out"
-          className="size-8 p-0 rounded-xl cursor-pointer"
-        >
-          <ZoomOut className="size-3.5" />
-        </Button>
-
-        <div className="h-4 w-px bg-border mx-0.5" />
-
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={onExportJson}
-          title="Export Workflow JSON"
-          className="size-8 p-0 rounded-xl text-muted-foreground hover:text-foreground cursor-pointer"
-        >
-          <Download className="size-3.5" />
-        </Button>
-
-        {selectedNode && (
-          <>
-            <div className="h-4 w-px bg-border mx-0.5" />
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => onDuplicateNode(selectedNode)}
-              title={`Duplicate (${selectedNode.data?.label || selectedNode.id})`}
-              className="size-8 p-0 rounded-xl text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              <Copy className="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={onDeleteSelected}
-              title={`Delete selected node (${selectedNode.data?.label || selectedNode.id})`}
-              className="gap-1 text-xs font-semibold text-destructive hover:bg-destructive/10 h-8 px-2.5 rounded-xl cursor-pointer"
-            >
-              <Trash2 className="size-3.5" />
-              <span>Delete</span>
-            </Button>
-          </>
-        )}
+          <Lock className="size-3.5" />
+        </button>
       </div>
 
       {/* Node Catalog Grid Modal */}
@@ -497,11 +710,12 @@ function WorkflowCanvasInner({
         isOpen={isCatalogOpen}
         onClose={() => setIsCatalogOpen(false)}
         onSelectNode={(item) => {
-          const screenCenterX = window.innerWidth / 2;
-          const screenCenterY = window.innerHeight / 2;
+          // Drop the new node in the middle of the visible canvas (not the window — the
+          // header and side panels offset it)
+          const rect = canvasRef.current?.getBoundingClientRect();
           const position = reactFlowInstance.screenToFlowPosition({
-            x: screenCenterX,
-            y: screenCenterY,
+            x: rect ? rect.left + rect.width / 2 - 120 : window.innerWidth / 2,
+            y: rect ? rect.top + rect.height / 2 - 40 : window.innerHeight / 2,
           });
 
           const newNode: Node = {
@@ -519,12 +733,14 @@ function WorkflowCanvasInner({
       />
 
       <ReactFlow
-        nodes={nodes}
+        nodes={displayNodes}
         edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onReconnect={onReconnect}
+        onNodesChange={isLocked ? undefined : onNodesChange}
+        onEdgesChange={isLocked ? undefined : onEdgesChange}
+        onConnect={isLocked ? undefined : onConnect}
+        // Agent slots only take compatible nodes (Prompt → Prompt, LLM → a model, …)
+        isValidConnection={(connection) => isValidSlotConnection(connection, nodes, edges)}
+        onReconnect={isLocked ? undefined : onReconnect}
         onReconnectStart={onReconnectStart}
         onReconnectEnd={onReconnectEnd}
         onNodeClick={onNodeClick}
@@ -536,6 +752,15 @@ function WorkflowCanvasInner({
         connectionMode={ConnectionMode.Loose}
         connectionLineType={ConnectionLineType.SmoothStep}
         selectionMode={SelectionMode.Partial}
+        panOnDrag={interactionMode === 'pan' ? true : [1, 2]}
+        selectionOnDrag={interactionMode === 'select'}
+        // Wheel zooms toward the cursor; pan by dragging (Pan tool) or with middle/right mouse
+        panOnScroll={false}
+        zoomOnScroll={true}
+        zoomOnPinch={true}
+        nodesDraggable={!isLocked}
+        nodesConnectable={!isLocked}
+        elementsSelectable={true}
         defaultEdgeOptions={{
           animated: true,
           type: 'workflow',
@@ -544,91 +769,78 @@ function WorkflowCanvasInner({
         }}
         snapToGrid={true}
         snapGrid={[16, 16]}
-        deleteKeyCode={['Backspace', 'Delete']}
+        deleteKeyCode={isLocked ? [] : ['Backspace', 'Delete']}
         proOptions={{ hideAttribution: true }}
         fitView
-        className="bg-dot-pattern"
+        className={cn(
+          'bg-dot-pattern',
+          interactionMode === 'pan' && 'cursor-grab active:cursor-grabbing',
+        )}
       >
-        {/* Multi-Node Selection Alignment Panel */}
+        {/* Multi-Node Selection Toolbar */}
         {selectedNodes.length >= 2 && (
-          <Panel position="top-right" className="!m-3">
-            <div className="flex items-center gap-1 rounded-xl border border-border bg-surface/95 backdrop-blur-md p-1 shadow-lg select-none">
-              <span className="text-[10px] font-bold text-foreground px-2">
-                {selectedNodes.length} Selected
+          <Panel position="top-center" className="!mt-3">
+            <div
+              role="toolbar"
+              aria-label="Selection actions"
+              className="flex h-9 items-center gap-1 rounded-[14px] border border-border bg-surface p-1 shadow-sm select-none animate-in fade-in slide-in-from-top-1 duration-150"
+            >
+              <span className="px-2 text-xs font-semibold text-foreground tabular-nums">
+                {selectedNodes.length} selected
               </span>
 
-              <div className="h-3.5 w-px bg-border" />
+              {!isLocked && (
+                <>
+                  <div className="h-4 w-px shrink-0 bg-border" />
+                  {SELECTION_ALIGN_ACTIONS.map(({ type, label, icon: Icon }) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => onBatchAlign(type, selectedNodes.map((n) => n.id))}
+                      aria-label={label}
+                      title={label}
+                      className={canvasControlClass}
+                    >
+                      <Icon className="size-3.5" />
+                    </button>
+                  ))}
 
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => onBatchAlign('left', selectedNodes.map((n) => n.id))}
-                title="Align Left"
-                className="size-7 p-0"
-              >
-                <AlignLeft className="size-3.5" />
-              </Button>
+                  <div className="h-4 w-px shrink-0 bg-border" />
 
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => onBatchAlign('center', selectedNodes.map((n) => n.id))}
-                title="Align Center"
-                className="size-7 p-0"
-              >
-                <AlignCenter className="size-3.5" />
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => onBatchAlign('right', selectedNodes.map((n) => n.id))}
-                title="Align Right"
-                className="size-7 p-0"
-              >
-                <AlignRight className="size-3.5" />
-              </Button>
-
-              <div className="h-3.5 w-px bg-border" />
-
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => onBatchDuplicate(selectedNodes.map((n) => n.id))}
-                title="Duplicate Selected Nodes"
-                className="size-7 p-0"
-              >
-                <Copy className="size-3.5" />
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => onBatchGroup(selectedNodes.map((n) => n.id))}
-                title="Group Selected Nodes into Stage Container"
-                className="size-7 p-0"
-              >
-                <Layers className="size-3.5" />
-              </Button>
-
-              <div className="h-3.5 w-px bg-border" />
-
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  selectedNodes.forEach((n) => onDeleteSelected?.());
-                }}
-                title="Delete Selected Nodes"
-                className="size-7 p-0 text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
+                  <button
+                    type="button"
+                    onClick={() => onBatchDuplicate(selectedNodes.map((n) => n.id))}
+                    aria-label="Duplicate selected"
+                    title="Duplicate selected"
+                    className={canvasControlClass}
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onBatchGroup(selectedNodes.map((n) => n.id))}
+                    aria-label="Group into stage"
+                    title="Group into stage"
+                    className={canvasControlClass}
+                  >
+                    <Layers className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteNodes(selectedNodes.map((n) => n.id))}
+                    aria-label="Delete selected"
+                    title="Delete selected (Del)"
+                    className={cn(canvasControlClass, 'hover:bg-destructive/15 hover:text-destructive')}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </>
+              )}
             </div>
           </Panel>
         )}
 
-        <Background gap={18} size={1} />
+        <Background gap={18} size={1} color="color-mix(in oklab, var(--muted-foreground) 30%, transparent)" />
         <MiniMap
           nodeColor={(n) => {
             const t = n.type || '';
@@ -668,9 +880,10 @@ function WorkflowCanvasInner({
           });
         }}
         onDuplicateNode={(node) => onDuplicateNode(node)}
-        onDeleteNode={(id) => onDeleteSelected()}
+        onDeleteNode={(id: string) => onDeleteNodes([id])}
         onTestNode={(node) => onTestNode(node)}
         onInspectNode={(node) => onInspectNode(node)}
+        onExportJson={onExportJson}
       />
     </div>
   );
@@ -682,13 +895,42 @@ export function AgentDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<
-    'build' | 'multi_agent' | 'memory' | 'variables' | 'widget' | 'test' | 'executions' | 'versions' | 'settings'
-  >('build');
+  // The active tab lives in the URL (?tab=) so refresh / back / shared links keep it
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab: AgentTab = isAgentTab(tabParam) ? tabParam : 'build';
+  const setActiveTab = useCallback(
+    (tab: AgentTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === 'build') next.delete('tab');
+          else next.set('tab', tab);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [showAiPanel, setShowAiPanel] = useState(false);
+  const [isCanvasLocked, setIsCanvasLocked] = useState(false);
+  // Bumped when a different graph is loaded, remounting the canvas so it fits the new graph
+  const [canvasEpoch, setCanvasEpoch] = useState(0);
   const [nodes, setNodes] = useState<Node[]>(INITIAL_NODES);
   const [edges, setEdges] = useState<Edge[]>(INITIAL_EDGES);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  // Track the inspected node by id and read it from live canvas state, so the
+  // inspector never shows a stale copy (after a drag, undo, or keyboard delete).
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const selectedNode = useMemo(
+    () => (selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) ?? null : null),
+    [nodes, selectedNodeId],
+  );
+  const setSelectedNode = useCallback((node: Node | null) => setSelectedNodeId(node?.id ?? null), []);
+  // Forget a deleted node, so undoing the delete doesn't silently reopen its inspector
+  useEffect(() => {
+    if (selectedNodeId && !selectedNode) setSelectedNodeId(null);
+  }, [selectedNodeId, selectedNode]);
   const [isDirty, setIsDirty] = useState(false);
   const reactFlowRef = useRef<any>(null);
 
@@ -698,7 +940,8 @@ export function AgentDetailPage() {
         const x = node.position.x + 120;
         const y = node.position.y + 60;
         try {
-          reactFlowRef.current.setCenter(x, y, { zoom: 1.15, duration: 500 });
+          // Keep the user's zoom level; just bring the node into view
+          reactFlowRef.current.setCenter(x, y, { zoom: reactFlowRef.current.getZoom(), duration: 400 });
         } catch (err) {
           console.warn('Could not focus on node', err);
         }
@@ -707,40 +950,69 @@ export function AgentDetailPage() {
   }, []);
 
   // History & Undo / Redo
-  const [history, setHistory] = useState<Array<{ nodes: Node[]; edges: Edge[] }>>([
-    { nodes: INITIAL_NODES, edges: INITIAL_EDGES },
-  ]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  // Every graph change is recorded automatically once it settles (no handler has to
+  // remember to push). Selection, drag-in-progress and measured sizes are ignored.
+  const historyRef = useRef<{ stack: GraphSnapshot[]; index: number; reset: boolean }>({
+    stack: [],
+    index: -1,
+    reset: true,
+  });
+  const [historyFlags, setHistoryFlags] = useState({ canUndo: false, canRedo: false });
+  const syncHistoryFlags = useCallback(() => {
+    const { stack, index } = historyRef.current;
+    setHistoryFlags({ canUndo: index > 0, canRedo: index < stack.length - 1 });
+  }, []);
 
-  const pushHistory = useCallback(
-    (newNodes: Node[], newEdges: Edge[]) => {
-      setHistory((h) => [...h.slice(0, historyIndex + 1), { nodes: newNodes, edges: newEdges }]);
-      setHistoryIndex((i) => i + 1);
+  useEffect(() => {
+    if (nodes.some((n) => n.dragging)) return; // record once the drag ends
+    const timer = setTimeout(() => {
+      const snapshot = toGraphSnapshot(nodes, edges);
+      const h = historyRef.current;
+      if (h.reset) {
+        // Fresh load / restored version: this graph is the new baseline
+        historyRef.current = { stack: [snapshot], index: 0, reset: false };
+      } else if (h.stack[h.index]?.key !== snapshot.key) {
+        const stack = [...h.stack.slice(0, h.index + 1), snapshot].slice(-HISTORY_LIMIT);
+        historyRef.current = { stack, index: stack.length - 1, reset: false };
+      } else {
+        return;
+      }
+      syncHistoryFlags();
+    }, HISTORY_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [nodes, edges, syncHistoryFlags]);
+
+  const graphRef = useRef({ nodes, edges });
+  graphRef.current = { nodes, edges };
+
+  const stepHistory = useCallback(
+    (direction: -1 | 1) => {
+      const h = historyRef.current;
+      // Commit an edit that hasn't settled yet, so Undo right after it reverts *it*
+      const current = toGraphSnapshot(graphRef.current.nodes, graphRef.current.edges);
+      if (!h.reset && h.stack[h.index] && h.stack[h.index].key !== current.key) {
+        h.stack = [...h.stack.slice(0, h.index + 1), current].slice(-HISTORY_LIMIT);
+        h.index = h.stack.length - 1;
+      }
+      const target = h.stack[h.index + direction];
+      if (!target) {
+        syncHistoryFlags();
+        return;
+      }
+      h.index += direction;
+      setNodes(target.nodes);
+      setEdges(target.edges);
+      setIsDirty(true);
+      syncHistoryFlags();
     },
-    [historyIndex],
+    [syncHistoryFlags],
   );
-
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const prev = history[historyIndex - 1];
-      setNodes(prev.nodes);
-      setEdges(prev.edges);
-      setHistoryIndex((i) => i - 1);
-      setIsDirty(true);
-      toast.info('Undo');
-    }
-  }, [history, historyIndex]);
-
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const next = history[historyIndex + 1];
-      setNodes(next.nodes);
-      setEdges(next.edges);
-      setHistoryIndex((i) => i + 1);
-      setIsDirty(true);
-      toast.info('Redo');
-    }
-  }, [history, historyIndex]);
+  const undo = useCallback(() => stepHistory(-1), [stepHistory]);
+  const redo = useCallback(() => stepHistory(1), [stepHistory]);
+  // Toast "Undo" buttons outlive the render that created them; always call the latest undo
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+  const undoAction = useMemo(() => ({ label: 'Undo', onClick: () => undoRef.current() }), []);
 
   // Modals & Drawers
   const [isValidationOpen, setIsValidationOpen] = useState(false);
@@ -826,13 +1098,50 @@ export function AgentDetailPage() {
     return `v${maxVerNum || 1}.0`;
   }, [versions, isPublished]);
 
+  // The version that is actually live (not the one the next publish would create)
+  const liveVersionTag = useMemo(() => {
+    const published = versions.filter((v) => v.status?.toUpperCase() === 'PUBLISHED');
+    if (published.length === 0) return null;
+    const latest = published.reduce((a, b) => (Number(b.version) > Number(a.version) ? b : a));
+    return latest.versionTag ?? `v${latest.version}`;
+  }, [versions]);
+
+  // `curl` for the execute endpoint, built from the API base URL the app is really using
+  const apiCurlSnippet = (promptText: string) => {
+    const apiBase = String(http.defaults.baseURL ?? '').replace(/\/$/, '');
+    return `curl -X POST "${apiBase}/workspaces/${activeWorkspace.id}/agents/${agentId}/execute" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"promptText": "${promptText}"}'`;
+  };
+
   // Hydrate the canvas and the settings form whenever the stored agent changes.
+  // Other saves (Memory/Widget tabs, header rename) refetch the agent too; those must
+  // not wipe unsaved canvas/settings edits. Only a version restore forces a reload.
+  const isDirtyRef = useRef(isDirty);
+  isDirtyRef.current = isDirty;
+  const forceHydrateRef = useRef(false);
   useEffect(() => {
     if (!agent) return;
+    if (isDirtyRef.current && !forceHydrateRef.current) {
+      // Keep local edits; still reflect a name change made from the header
+      setSettingsDraft((draft) => (draft ? { ...draft, name: agent.name } : draft));
+      return;
+    }
+    forceHydrateRef.current = false;
     const graph = parseGraph(agent.graphJson);
     if (graph) {
-      setNodes(graph.nodes);
-      setEdges(graph.edges);
+      // A save round-trip returns the graph already on the canvas — leave it (and the
+      // undo history) alone. Only a different graph (first load, restored version)
+      // replaces the canvas and becomes the new undo baseline.
+      const incoming = toGraphSnapshot(graph.nodes, graph.edges);
+      const onCanvas = toGraphSnapshot(graphRef.current.nodes, graphRef.current.edges);
+      if (incoming.key !== onCanvas.key) {
+        setNodes(graph.nodes);
+        setEdges(graph.edges);
+        historyRef.current.reset = true;
+        setCanvasEpoch((n) => n + 1);
+      }
     }
     const config = (agent.configuration || {}) as any;
     setSettingsDraft({
@@ -867,20 +1176,28 @@ export function AgentDetailPage() {
 
   const handleSaveHeaderName = async () => {
     const trimmed = headerNameInput.trim();
-    if (!trimmed || !agentId) {
-      setIsEditingHeaderName(false);
+    const current = settingsDraft?.name ?? agent?.name;
+    setIsEditingHeaderName(false);
+    if (!trimmed || !agentId || trimmed === current) {
+      setHeaderNameInput(current ?? '');
       return;
     }
-    updateSettings({ name: trimmed });
+    // Optimistic: show the new name right away, roll back if neither store accepts it
+    setSettingsDraft((draft) => (draft ? { ...draft, name: trimmed } : draft));
     try {
-      await agentsApi.update(activeWorkspace.id, agentId, { name: trimmed });
-    } catch {
-      await agentService.updateAgent(activeWorkspace.id, agentId, { name: trimmed });
+      try {
+        await agentsApi.update(activeWorkspace.id, agentId, { name: trimmed });
+      } catch {
+        await agentService.updateAgent(activeWorkspace.id, agentId, { name: trimmed });
+      }
+      queryClient.invalidateQueries({ queryKey: agentQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
+      toast.success('Agent renamed');
+    } catch (err) {
+      setSettingsDraft((draft) => (draft ? { ...draft, name: current ?? draft.name } : draft));
+      setHeaderNameInput(current ?? '');
+      toast.error(errorMessage(err, 'Could not rename the agent'));
     }
-    queryClient.invalidateQueries({ queryKey: agentQueryKey });
-    queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
-    setIsEditingHeaderName(false);
-    toast.success('Agent name updated');
   };
 
   const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1057,22 +1374,109 @@ export function AgentDetailPage() {
     },
     onSuccess: () => {
       toast.success('Version restored');
+      // Replace the canvas even if it had unsaved edits (the user confirmed that), then show it
+      forceHydrateRef.current = true;
       refetchAgent();
+      setActiveTab('build');
     },
     onError: (err) => {
       toast.error(errorMessage(err, 'Failed to restore that version'));
     },
   });
 
+  // What's plugged into each agent slot: agents get per-slot summaries for their
+  // rows, attached nodes get an "LLM · Agent 1" chip.
+  const slotDecorations = useMemo(() => {
+    const out = new Map<string, Record<string, unknown>>();
+    for (const host of nodes) {
+      if (!isSlotHost(host.type)) continue;
+      const attached = slotAttachments(host.id, nodes, edges);
+      const slots: Record<string, { id: string; label: string }[]> = {};
+      for (const [slotId, list] of Object.entries(attached)) {
+        slots[slotId] = list.map((n) => ({ id: n.id, label: String((n.data as any)?.label || n.type) }));
+        for (const n of list) {
+          out.set(n.id, {
+            attachedTo: { label: String(host.data?.label || 'Agent'), slot: getSlot(slotId)?.label ?? slotId },
+          });
+        }
+      }
+      const supervised = Boolean(supervisorOf(host.id, edges));
+      const leads = attached.agents.length > 0;
+      const hidden = teamMembers(host.id);
+      out.set(host.id, {
+        ...out.get(host.id),
+        slots,
+        team: {
+          role: leads && supervised ? 'lead' : leads ? 'supervisor' : supervised ? 'member' : 'solo',
+          issues: agentIssues(host, nodes, edges),
+          model: resolveAgentModel(host.id, nodes, edges),
+          hiddenCount: (host.data as any)?.collapsed ? hidden.size : 0,
+        },
+      });
+    }
+    return out;
+
+    function teamMembers(agentId: string): Set<string> {
+      const below = new Set<string>();
+      const stack = [agentId];
+      while (stack.length > 0) {
+        const id = stack.pop() as string;
+        for (const e of edges) {
+          if (e.source === id && getSlot(e.sourceHandle) && !below.has(e.target)) {
+            below.add(e.target);
+            stack.push(e.target);
+          }
+        }
+      }
+      return below;
+    }
+  }, [nodes, edges]);
+
+  // Nodes tucked away under a collapsed agent (not removed: the graph is unchanged)
+  const hiddenNodeIds = useMemo(() => collapsedNodeIds(nodes, edges), [nodes, edges]);
+
+  const handleToggleCollapse = useCallback((agentId: string) => {
+    setNodes((nds) =>
+      nds.map((n) => (n.id === agentId ? { ...n, data: { ...n.data, collapsed: !(n.data as any)?.collapsed } } : n)),
+    );
+    setIsDirty(true);
+  }, []);
+
+  /** Jump to a node from the agent outline, unfolding any collapsed agent hiding it. */
+  const handleFocusNodeById = useCallback(
+    (nodeId: string) => {
+      const toExpand = new Set(collapsedAncestors(nodeId, nodes, edges));
+      if (toExpand.size > 0) {
+        setNodes((nds) =>
+          nds.map((n) => (toExpand.has(n.id) ? { ...n, data: { ...n.data, collapsed: false } } : n)),
+        );
+      }
+      setNodes((nds) => nds.map((n) => (n.selected === (n.id === nodeId) ? n : { ...n, selected: n.id === nodeId })));
+      // Wait a frame so newly revealed nodes are measured before framing them
+      setTimeout(() => {
+        reactFlowRef.current?.fitView({ nodes: [{ id: nodeId }], duration: 350, maxZoom: 1.1, padding: 0.6 });
+      }, toExpand.size > 0 ? 80 : 0);
+    },
+    [nodes, edges],
+  );
+
   // ReactFlow Event Handlers
   // React Flow also reports selection and measured sizes as "changes"; only
   // real edits (move, add, remove…) should light the unsaved indicator.
-  const onNodesChange = useCallback((changes: NodeChange[]) => {
-    setNodes((nds) => applyNodeChanges(changes, nds));
-    if (changes.some((c) => c.type !== 'select' && c.type !== 'dimensions')) {
-      setIsDirty(true);
-    }
-  }, []);
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      setNodes((nds) => applyNodeChanges(changes, nds));
+      if (changes.some((c) => c.type !== 'select' && c.type !== 'dimensions')) {
+        setIsDirty(true);
+      }
+      // Keyboard Delete / Backspace goes through here rather than handleDeleteNodes
+      const removed = changes.filter((c) => c.type === 'remove').length;
+      if (removed > 0) {
+        toast(removed === 1 ? 'Node deleted' : `${removed} nodes deleted`, { action: undoAction });
+      }
+    },
+    [undoAction],
+  );
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
     setEdges((eds) => applyEdgeChanges(changes, eds));
@@ -1080,11 +1484,22 @@ export function AgentDetailPage() {
   }, []);
 
   const onConnect = useCallback((connection: Connection) => {
+    const refusal = slotConnectionError(connection, graphRef.current.nodes, graphRef.current.edges);
+    if (refusal) {
+      toast.error(refusal);
+      return;
+    }
     setEdges((eds) => {
-      const updated = addEdge({ ...connection, animated: true }, eds);
-      setIsDirty(true);
-      return updated;
+      // Agent slots: a second Prompt / LLM replaces the first instead of stacking
+      if (getSlot(connection.sourceHandle)) {
+        return withSlotConnection(eds, {
+          ...connection,
+          id: `e-${connection.source}-${connection.sourceHandle}-${connection.target}-${Date.now().toString(36)}`,
+        } as Edge);
+      }
+      return addEdge({ ...connection, animated: true }, eds);
     });
+    setIsDirty(true);
   }, []);
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
@@ -1097,55 +1512,67 @@ export function AgentDetailPage() {
 
   const handleUpdateNode = useCallback((nodeId: string, updatedData: any) => {
     setNodes((nds) =>
-      nds.map((n) => {
-        if (n.id === nodeId) {
-          const updated = {
-            ...n,
-            data: {
-              ...n.data,
-              ...updatedData,
-            },
-          };
-          setSelectedNode(updated);
-          return updated;
-        }
-        return n;
-      }),
+      nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, ...updatedData } } : n)),
     );
     setIsDirty(true);
   }, []);
 
-  const handleDeleteNode = useCallback(
-    (nodeId: string) => {
-      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-      if (selectedNode?.id === nodeId) {
-        setSelectedNode(null);
-      }
-      setIsDirty(true);
-      toast.info('Node deleted');
-    },
-    [selectedNode],
-  );
-
-  const handleAddNode = useCallback((node: Node) => {
-    const withSelected: Node = {
-      ...node,
-      selected: true,
-    };
-    setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), withSelected]);
-    setSelectedNode(withSelected);
+  /** Merge into a node's config from the latest state (inline editors fire in quick succession). */
+  const handleUpdateNodeConfig = useCallback((nodeId: string, patch: Record<string, unknown>) => {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, config: { ...((n.data as any)?.config || {}), ...patch } } }
+          : n,
+      ),
+    );
     setIsDirty(true);
-    focusNode(node);
-    toast.success(`Added "${node.data?.label || 'Node'}" to canvas`);
-  }, [focusNode]);
+  }, []);
+
+  const handleDeleteNodes = useCallback(
+    (nodeIds: string[]) => {
+      if (nodeIds.length === 0) return;
+      const ids = new Set(nodeIds);
+      setNodes((nds) => nds.filter((n) => !ids.has(n.id)));
+      setEdges((eds) => eds.filter((e) => !ids.has(e.source) && !ids.has(e.target)));
+      // The inspector closes on its own: selectedNode is derived from `nodes`
+      setIsDirty(true);
+      toast(nodeIds.length === 1 ? 'Node deleted' : `${nodeIds.length} nodes deleted`, {
+        action: undoAction,
+      });
+    },
+    [undoAction],
+  );
+  const handleDeleteNode = useCallback((nodeId: string) => handleDeleteNodes([nodeId]), [handleDeleteNodes]);
+
+  const handleAddNode = useCallback(
+    (node: Node, options?: { silent?: boolean }) => {
+      const withSelected: Node = {
+        ...node,
+        selected: true,
+      };
+      setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), withSelected]);
+      setSelectedNode(withSelected);
+      setIsDirty(true);
+      focusNode(node);
+      if (!options?.silent) toast.success(`Added "${node.data?.label || 'Node'}"`);
+    },
+    [focusNode, setSelectedNode],
+  );
 
   const handleConnectNextNode = useCallback(
     (sourceNode: Node, item: any, handleId?: string) => {
       const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
-      const xPos = sourceNode.position.x + 320;
+      const slot = isSlotHost(sourceNode.type) ? getSlot(handleId) : undefined;
+      let xPos = sourceNode.position.x + 320;
       let yPos = sourceNode.position.y;
-      if (handleId === 'false') {
+      if (slot) {
+        ({ x: xPos, y: yPos } = attachmentPosition(sourceNode, nodes, edges));
+      } else if (isSlotHost(sourceNode.type)) {
+        // The agent's next step goes past the column of things plugged into it
+        const hasAttachments = Object.values(slotAttachments(sourceNode.id, nodes, edges)).some((l) => l.length > 0);
+        if (hasAttachments) xPos = sourceNode.position.x + (sourceNode.measured?.width ?? 280) + 440;
+      } else if (handleId === 'false') {
         yPos += 90;
       } else if (handleId === 'true') {
         yPos -= 50;
@@ -1171,29 +1598,110 @@ export function AgentDetailPage() {
         animated: true,
       };
 
-      setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), newNode]);
-      setEdges((eds) => [...eds, newEdge]);
+      setNodes((nds) => [
+        ...nds.map((n) =>
+          // Plugging into a collapsed agent unfolds it so the new step is visible
+          slot && n.id === sourceNode.id && (n.data as any)?.collapsed
+            ? { ...n, selected: false, data: { ...n.data, collapsed: false } }
+            : { ...n, selected: false },
+        ),
+        newNode,
+      ]);
+      setEdges((eds) => (slot ? withSlotConnection(eds, { ...newEdge, animated: false }) : [...eds, newEdge]));
       setSelectedNode(newNode);
       setIsDirty(true);
       focusNode(newNode);
-      toast.success(`Connected "${item.label}" to "${sourceNode.data?.label || 'Node'}"`);
+      toast.success(
+        slot
+          ? `${item.label} plugged into ${sourceNode.data?.label || 'agent'} → ${slot.label}`
+          : `Connected "${item.label}" to "${sourceNode.data?.label || 'Node'}"`,
+      );
     },
-    [focusNode],
+    [focusNode, nodes, edges],
   );
 
-  const handleAutoLayout = useCallback(
-    (direction: 'LR' | 'TB' = 'LR') => {
-      const layouted = workflowService.autoLayout(nodes, edges, direction);
-      const newNodes = (layouted && layouted.nodes) || (Array.isArray(layouted) ? layouted : nodes);
-      const newEdges = (layouted && layouted.edges) || edges;
-      setNodes([...newNodes]);
-      setEdges([...newEdges]);
-      setIsDirty(true);
-      pushHistory(newNodes, newEdges);
-      toast.success('Auto-layout applied!');
-    },
-    [nodes, edges, pushHistory],
-  );
+  // Auto layout glides nodes to their new spots (edges follow, since positions are
+  // interpolated in state rather than with CSS). Returns how long the move takes,
+  // or null when the graph is already tidy.
+  const layoutAnimationRef = useRef<{ frame: number | null; timer: ReturnType<typeof setTimeout> | null }>({
+    frame: null,
+    timer: null,
+  });
+  const handleAutoLayout = useCallback((): number | null => {
+    const target = layoutWorkflow(nodes, edges, 'LR');
+    const targetById = new Map(target.map((n) => [n.id, n]));
+    const moved = nodes.some((n) => {
+      const t = targetById.get(n.id);
+      return (
+        !!t &&
+        (Math.abs(t.position.x - n.position.x) > 1 ||
+          Math.abs(t.position.y - n.position.y) > 1 ||
+          t.style?.width !== n.style?.width ||
+          t.style?.height !== n.style?.height)
+      );
+    });
+    if (!moved) {
+      toast('Already tidy — nothing to move');
+      return null;
+    }
+
+    const anim = layoutAnimationRef.current;
+    if (anim.frame !== null) cancelAnimationFrame(anim.frame);
+    if (anim.timer !== null) clearTimeout(anim.timer);
+
+    const reduceMotion =
+      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const duration = reduceMotion ? 0 : LAYOUT_ANIMATION_MS;
+    const start = new Map(nodes.map((n) => [n.id, n.position]));
+
+    // Merge onto the latest state so selection etc. made meanwhile isn't lost
+    const finish = () => {
+      if (anim.frame !== null) cancelAnimationFrame(anim.frame);
+      if (anim.timer !== null) clearTimeout(anim.timer);
+      anim.frame = null;
+      anim.timer = null;
+      setNodes((cur) =>
+        cur.map((n) => {
+          const t = targetById.get(n.id);
+          return t ? { ...n, position: t.position, style: t.style } : n;
+        }),
+      );
+    };
+
+    if (duration > 0) {
+      const t0 = performance.now();
+      const step = (now: number) => {
+        const p = Math.min(1, (now - t0) / duration);
+        const ease = 1 - Math.pow(1 - p, 3); // ease-out cubic
+        if (p >= 1) return finish();
+        setNodes((cur) =>
+          cur.map((n) => {
+            const from = start.get(n.id);
+            const to = targetById.get(n.id)?.position;
+            if (!from || !to) return n;
+            return { ...n, position: { x: from.x + (to.x - from.x) * ease, y: from.y + (to.y - from.y) * ease } };
+          }),
+        );
+        anim.frame = requestAnimationFrame(step);
+      };
+      anim.frame = requestAnimationFrame(step);
+      // Background tabs pause animation frames; still land on the final layout
+      anim.timer = setTimeout(finish, duration + 120);
+    } else {
+      finish();
+    }
+
+    setIsDirty(true);
+    toast.success('Layout tidied', { action: undoAction });
+    return duration;
+  }, [nodes, edges, undoAction]);
+  useEffect(() => {
+    const anim = layoutAnimationRef.current;
+    return () => {
+      if (anim.frame !== null) cancelAnimationFrame(anim.frame);
+      if (anim.timer !== null) clearTimeout(anim.timer);
+    };
+  }, []);
 
   const handleDuplicateNode = useCallback(
     (node: Node) => {
@@ -1209,20 +1717,57 @@ export function AgentDetailPage() {
           label: `${node.data?.label || 'Node'} (Copy)`,
         },
       };
-      handleAddNode(newNode);
+      handleAddNode(newNode, { silent: true });
       toast.success(`Duplicated "${node.data?.label || 'Node'}"`);
     },
     [handleAddNode],
   );
 
-  const handleDeleteEdge = useCallback((edgeId: string) => {
-    setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+  const handleDeleteEdge = useCallback(
+    (edgeId: string) => {
+      setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+      setIsDirty(true);
+      toast('Connection deleted', { action: undoAction });
+    },
+    [undoAction],
+  );
+
+  /** Re-point one end of an edge (from the node panel's Wiring tab). */
+  const handleRewireEdge = useCallback(
+    (edgeId: string, patch: Partial<Pick<Edge, 'source' | 'target' | 'sourceHandle' | 'targetHandle'>>) => {
+      setEdges((eds) => {
+        const edge = eds.find((e) => e.id === edgeId);
+        if (!edge) return eds;
+        const next = { ...edge, ...patch };
+        if (next.source === next.target) return eds;
+        // Don't create a second copy of a connection that already exists
+        if (eds.some((e) => e.id !== edgeId && e.source === next.source && e.target === next.target)) {
+          toast.info('Those steps are already connected');
+          return eds;
+        }
+        return eds.map((e) => (e.id === edgeId ? next : e));
+      });
+      setIsDirty(true);
+    },
+    [],
+  );
+
+  /** Node panel "Cancel": put back the node's data and every edge touching it. */
+  const handleRestoreNode = useCallback((nodeId: string, snapshot: NodeSnapshot) => {
+    setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: snapshot.data } : n)));
+    setEdges((eds) => [
+      ...eds.filter((e) => e.source !== nodeId && e.target !== nodeId),
+      ...snapshot.edges,
+    ]);
     setIsDirty(true);
-    toast.info('Connection deleted');
   }, []);
 
   const handleReconnectEdge = useCallback((oldEdge: Edge, newConnection: Connection) => {
-    setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+    setEdges((els) => {
+      const next = reconnectEdge(oldEdge, newConnection, els);
+      const moved = next.find((e) => !els.includes(e));
+      return moved && getSlot(moved.sourceHandle) ? withSlotConnection(next.filter((e) => e !== moved), moved) : next;
+    });
     setIsDirty(true);
     toast.success('Connection reconnected');
   }, []);
@@ -1328,36 +1873,112 @@ export function AgentDetailPage() {
     toast.success('Workflow exported as JSON');
   }, [agent, nodes, edges]);
 
-  // Keyboard Shortcuts Listener
+  // Keyboard shortcuts. Handlers are read through a ref so the listener is bound once.
+  const shortcutHandlersRef = useRef<{
+    undo: () => void;
+    redo: () => void;
+    save: () => void;
+    publish: () => void;
+    duplicate: () => void;
+    clearSelection: () => void;
+    canEditGraph: boolean;
+  } | null>(null);
+  shortcutHandlersRef.current = {
+    undo,
+    redo,
+    save: () => {
+      if (isDirty && !saveMutation.isPending) saveMutation.mutate();
+      else if (!isDirty) toast('Everything is already saved');
+    },
+    publish: () => {
+      if (!publishMutation.isPending) publishMutation.mutate();
+    },
+    duplicate: () => {
+      if (selectedNode) handleDuplicateNode(selectedNode);
+    },
+    clearSelection: () => {
+      setSelectedNodeId(null);
+      setNodes((nds) => (nds.some((n) => n.selected) ? nds.map((n) => (n.selected ? { ...n, selected: false } : n)) : nds));
+    },
+    canEditGraph: activeTab === 'build' && !isCanvasLocked,
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      const h = shortcutHandlersRef.current;
+      if (!h) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+
+      // Save works everywhere, including while typing in a settings field
+      if (mod && key === 's') {
+        e.preventDefault();
+        h.save();
         return;
       }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        if (e.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
+      if (mod && e.shiftKey && key === 'p') {
         e.preventDefault();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-        redo();
+        h.publish();
+        return;
+      }
+      if (isTypingTarget(e.target)) return;
+
+      if (e.key === 'Escape') {
+        h.clearSelection();
+      } else if (mod && key === 'z' && h.canEditGraph) {
         e.preventDefault();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
-        if (selectedNode) {
-          handleDuplicateNode(selectedNode);
-          e.preventDefault();
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+        if (e.shiftKey) h.redo();
+        else h.undo();
+      } else if (mod && key === 'y' && h.canEditGraph) {
         e.preventDefault();
-        publishMutation.mutate();
+        h.redo();
+      } else if (mod && key === 'd' && h.canEditGraph) {
+        e.preventDefault();
+        h.duplicate();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, selectedNode, handleDuplicateNode, publishMutation]);
+  }, []);
+
+  // Warn before closing / reloading the tab with unsaved edits
+  useEffect(() => {
+    if (!isDirty) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  const handleBack = async () => {
+    if (
+      isDirty &&
+      !(await confirm({
+        title: 'Leave without saving?',
+        description: 'You have unsaved changes to this agent. They will be lost if you leave now.',
+        confirmLabel: 'Leave',
+        destructive: true,
+      }))
+    ) {
+      return;
+    }
+    navigate('/agents');
+  };
+
+  const handleRestoreVersion = async (version: AgentVersion) => {
+    const tag = version.versionTag ?? `v${version.version}`;
+    const ok = await confirm({
+      title: `Restore ${tag}?`,
+      description: isDirty
+        ? `The canvas will be replaced with ${tag}, and your unsaved changes will be lost.`
+        : `The canvas will be replaced with ${tag}. You can still restore any other version afterwards.`,
+      confirmLabel: 'Restore',
+      destructive: isDirty,
+    });
+    if (ok) restoreVersionMutation.mutate(version.version);
+  };
 
   const handleValidateGraph = async () => {
     if (!agentId) return;
@@ -1398,13 +2019,14 @@ export function AgentDetailPage() {
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
       {/* Top Navbar */}
-      <header className="flex h-13 shrink-0 items-center justify-between border-b border-border bg-card/95 backdrop-blur-xs px-3.5 gap-2 z-30 select-none">
+      <header className="flex h-13 shrink-0 items-center justify-between border-b border-border bg-background px-3.5 gap-2 z-30 select-none">
         {/* Left: Back, Identity, Status */}
         <div className="flex items-center gap-2 shrink-0 min-w-0">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/agents')}
+            onClick={handleBack}
+            aria-label="Back to agents"
             className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-raised shrink-0"
             title="Back to agents"
           >
@@ -1494,8 +2116,13 @@ export function AgentDetailPage() {
 
             {/* Auto-saved / Unsaved Status */}
             <div className="hidden xl:flex items-center shrink-0">
-              {isDirty ? (
-                <span className="text-[11px] text-warning flex items-center gap-1 font-medium whitespace-nowrap" title="Unsaved changes on canvas">
+              {saveMutation.isPending ? (
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium whitespace-nowrap">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Saving…
+                </span>
+              ) : isDirty ? (
+                <span className="text-[11px] text-warning flex items-center gap-1 font-medium whitespace-nowrap" title="Unsaved changes — press Ctrl+S to save">
                   <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
                   Unsaved
                 </span>
@@ -1509,37 +2136,34 @@ export function AgentDetailPage() {
           </div>
         </div>
 
-        {/* Center: Tabs */}
-        <div className="flex items-center gap-0.5 rounded-lg bg-surface-raised/70 p-1 border border-border/60 shrink-0 overflow-x-auto no-scrollbar">
-          {[
-            { id: 'build', label: 'Canvas', icon: GitBranch },
-            { id: 'multi_agent', label: 'Multi-Agent', icon: Network },
-            { id: 'memory', label: 'Memory', icon: Brain },
-            { id: 'variables', label: 'Variables', icon: Variable },
-            { id: 'widget', label: 'Widget', icon: MessageSquare },
-            { id: 'executions', label: 'Executions', icon: Activity },
-            { id: 'evaluations', label: 'Evaluation', icon: Award },
-            { id: 'versions', label: 'Versions', icon: Clock },
-            { id: 'settings', label: 'Settings', icon: Settings },
-          ].map((tab) => {
+        {/* Center: Tabs — take the leftover width so the actions on the right never get pushed off-screen */}
+        <div className="flex min-w-0 flex-1 justify-center">
+        <div className="flex max-w-full items-center gap-0.5 rounded-[10px] bg-surface p-1 border border-border overflow-x-auto no-scrollbar">
+          {AGENT_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                type="button"
+                aria-current={isActive ? 'page' : undefined}
+                aria-label={tab.label}
+                title={tab.label}
+                onClick={() => setActiveTab(tab.id)}
                 className={cn(
                   'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap shrink-0 transition-all select-none cursor-pointer',
                   isActive
-                    ? 'bg-card text-foreground font-semibold shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-card/40',
+                    ? 'bg-surface-raised text-foreground font-semibold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised/60',
                 )}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" />
-                <span>{tab.label}</span>
+                {/* Narrower screens: only the active tab keeps its label */}
+                <span className={cn(!isActive && 'hidden 2xl:inline')}>{tab.label}</span>
               </button>
             );
           })}
+        </div>
         </div>
 
         {/* Right: Actions */}
@@ -1586,16 +2210,21 @@ export function AgentDetailPage() {
             size="sm"
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending || !isDirty}
+            aria-keyshortcuts="Control+S"
             className={cn(
               "h-8 gap-1.5 text-xs rounded-lg transition-all",
               isDirty
                 ? "border-warning/40 text-warning bg-warning/10 hover:bg-warning/20 font-medium"
                 : "border-border/60 text-muted-foreground hover:text-foreground"
             )}
-            title={isDirty ? "Save unsaved changes" : "All changes saved"}
+            title={isDirty ? 'Save changes (Ctrl+S)' : 'All changes saved'}
           >
-            <Save className="h-3.5 w-3.5" />
-            <span>Save</span>
+            {saveMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+            <span>{saveMutation.isPending ? 'Saving…' : 'Save'}</span>
           </Button>
 
           {/* Publish Dropdown Popover matching reference design */}
@@ -1634,7 +2263,11 @@ export function AgentDetailPage() {
                     {isPublished && <div className="size-1.5 rounded-full bg-success" />}
                   </div>
                   <span className="text-xs text-muted-foreground font-medium">
-                    {isPublished ? `Published · ${targetPublishVersion} live` : 'Not published yet'}
+                    {isPublished
+                      ? liveVersionTag
+                        ? `Published · ${liveVersionTag} live`
+                        : 'Published'
+                      : 'Not published yet'}
                   </span>
                 </div>
 
@@ -1682,7 +2315,7 @@ export function AgentDetailPage() {
                     <div className={cn("size-1.5 rounded-full", isDirty ? "bg-warning animate-pulse" : "bg-success")} />
                   </div>
                   <span className="text-xs text-muted-foreground font-medium">
-                    {isDirty ? 'Auto-Saved · unsaved changes' : 'Auto-Saved · in a few seconds'}
+                    {isDirty ? 'Unsaved changes · saved automatically when you publish' : 'All changes saved'}
                   </span>
                 </div>
               </div>
@@ -1696,9 +2329,8 @@ export function AgentDetailPage() {
                   type="button"
                   onClick={() => {
                     setIsPublishPopoverOpen(false);
-                    const url = `https://onetab.ai/agent/${agent.id}`;
-                    window.open(url, '_blank');
-                    toast.info('Opened web app preview');
+                    // The Studio's own end-user chat page for this agent
+                    window.open(`${window.location.origin}/chat/${agent.id}`, '_blank', 'noopener');
                   }}
                   className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-medium text-foreground hover:bg-surface-raised transition-colors group cursor-pointer"
                 >
@@ -1715,12 +2347,10 @@ export function AgentDetailPage() {
                   type="button"
                   onClick={() => {
                     setIsPublishPopoverOpen(false);
-                    const snippet = `curl -X POST "https://api.onetab.ai/v1/workspaces/${activeWorkspace.id}/agents/${agent.id}/execute" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{"prompt": "Execute task"}'`;
-                    navigator.clipboard.writeText(snippet);
-                    toast.success('Copied API Access Point cURL endpoint');
+                    navigator.clipboard
+                      .writeText(apiCurlSnippet('Execute task'))
+                      .then(() => toast.success('API request copied as cURL'))
+                      .catch(() => toast.error('Could not copy to the clipboard'));
                   }}
                   className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-medium text-foreground hover:bg-surface-raised transition-colors group cursor-pointer"
                 >
@@ -1728,32 +2358,11 @@ export function AgentDetailPage() {
                     <div className="size-8 rounded-lg bg-surface-raised border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
                       <Radio className="size-4" />
                     </div>
-                    <span>Access Point</span>
+                    <span>Copy API request</span>
                   </div>
                   <ArrowUpRight className="size-4 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setIsPublishPopoverOpen(false);
-                    try {
-                      await agentsApi.update(activeWorkspace.id, agent.id, { isMarketplace: true });
-                    } catch {
-                      // Fallback
-                    }
-                    toast.success('Published to workspace marketplace catalog!');
-                  }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-medium text-foreground hover:bg-surface-raised transition-colors group cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-8 rounded-lg bg-surface-raised border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
-                      <Store className="size-4" />
-                    </div>
-                    <span>Publish to Marketplace</span>
-                  </div>
-                  <ArrowUpRight className="size-4 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
-                </button>
 
                 {isPublished && (
                   <button
@@ -1785,29 +2394,41 @@ export function AgentDetailPage() {
         {/* TAB 1: BUILD CANVAS */}
         {activeTab === 'build' && (
           <div className="flex h-full w-full overflow-hidden">
-            {/* Full-Width Workflow Canvas */}
-            <ReactFlowProvider>
+            {/* Canvas, with the node panel floating over its right edge */}
+            <div className="relative min-w-0 flex-1">
+            <ReactFlowProvider key={canvasEpoch}>
               <WorkflowCanvasInner
                 nodes={nodes.map((n) => ({
                   ...n,
+                  hidden: hiddenNodeIds.has(n.id),
                   data: {
                     ...n.data,
+                    ...slotDecorations.get(n.id),
+                    ...(isSlotHost(n.type) ? { onToggleCollapse: () => handleToggleCollapse(n.id) } : {}),
+                    onUpdateConfig: (patch: Record<string, unknown>) => handleUpdateNodeConfig(n.id, patch),
                     onTest: () => setIsTestDrawerOpen(true),
+                    onEdit: () => setSelectedNodeId(n.id),
                     onDuplicate: () => handleDuplicateNode(n),
                     onDelete: () => handleDeleteNode(n.id),
                     onConnectNext: (item: any, handleId?: string) =>
                       handleConnectNextNode(n, item, handleId),
                   },
                 }))}
-                edges={edges.map((e) => ({
-                  ...e,
-                  type: 'workflow',
-                  markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1', width: 14, height: 14 },
-                  data: {
-                    ...e.data,
-                    onDelete: (id: string) => handleDeleteEdge(id),
-                  },
-                }))}
+                edges={edges.map((e) => {
+                  const attachment = isAttachmentEdge(e);
+                  return {
+                    ...e,
+                    type: 'workflow',
+                    // Things plugged into an agent slot are drawn dashed; the run order stays solid
+                    ...(attachment ? { animated: false, style: { ...e.style, strokeDasharray: '6 4' } } : {}),
+                    markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1', width: 14, height: 14 },
+                    data: {
+                      ...e.data,
+                      attachment,
+                      onDelete: (id: string) => handleDeleteEdge(id),
+                    },
+                  };
+                })}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
@@ -1815,15 +2436,14 @@ export function AgentDetailPage() {
                 onPaneClick={onPaneClick}
                 onAddNode={handleAddNode}
                 onAutoLayout={handleAutoLayout}
-                selectedNode={selectedNode}
-                onDeleteSelected={() => selectedNode && handleDeleteNode(selectedNode.id)}
+                onDeleteNodes={handleDeleteNodes}
                 onDuplicateNode={handleDuplicateNode}
                 onTestNode={() => setIsTestDrawerOpen(true)}
                 onInspectNode={(node) => setSelectedNode(node)}
                 onDeleteEdge={handleDeleteEdge}
                 onReconnectEdge={handleReconnectEdge}
-                canUndo={historyIndex > 0}
-                canRedo={historyIndex < history.length - 1}
+                canUndo={historyFlags.canUndo}
+                canRedo={historyFlags.canRedo}
                 onUndo={undo}
                 onRedo={redo}
                 onExportJson={handleExportJson}
@@ -1833,19 +2453,36 @@ export function AgentDetailPage() {
                 onInitFlow={(instance) => {
                   reactFlowRef.current = instance;
                 }}
+                onToggleCollapse={handleToggleCollapse}
+                onFocusNodeById={handleFocusNodeById}
+                isLocked={isCanvasLocked}
+                onToggleLock={() => {
+                  const next = !isCanvasLocked;
+                  setIsCanvasLocked(next);
+                  toast(next ? 'Canvas locked — editing is paused' : 'Canvas unlocked');
+                }}
               />
             </ReactFlowProvider>
 
-            {/* Right 3rd Panel: Node Inspector (opens only when a node is selected) */}
+            {/* Floating node panel (opens when a node is clicked) */}
             {selectedNode && (
               <NodeInspector
+                key={selectedNode.id}
                 selectedNode={selectedNode}
+                nodes={nodes}
+                edges={edges}
+                readOnly={isCanvasLocked}
                 onUpdateNode={handleUpdateNode}
                 onDeleteNode={handleDeleteNode}
+                onRewireEdge={handleRewireEdge}
+                onDeleteEdge={handleDeleteEdge}
+                onConnect={onConnect}
+                onRestoreNode={handleRestoreNode}
                 onClose={() => setSelectedNode(null)}
-                className="w-80 shrink-0 border-l border-border"
+                className="absolute top-3 right-3 bottom-3 z-30 w-[360px] max-w-[calc(100%-1.5rem)]"
               />
             )}
+            </div>
 
             {/* Right 4th Panel: AI Copilot Prompt Assistant (if open) */}
             {showAiPanel && (
@@ -2094,7 +2731,7 @@ export function AgentDetailPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => restoreVersionMutation.mutate(ver.version)}
+                        onClick={() => handleRestoreVersion(ver)}
                         disabled={restoreVersionMutation.isPending}
                         className="gap-1.5 text-xs"
                       >
@@ -2668,10 +3305,7 @@ export function AgentDetailPage() {
               <CodeBlock
                 language="bash"
                 filename="curl-execute.sh"
-                code={`curl -X POST "https://api.onetab.ai/v1/workspaces/${activeWorkspace.id}/agents/${agent.id}/execute" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{"prompt": "Research AI developments and summarize"}'`}
+                code={apiCurlSnippet('Research AI developments and summarize')}
               />
             </div>
 

@@ -1,6 +1,7 @@
 import { cn } from '@org/utils';
 import {
   AlignLeft,
+  Binary,
   Bot,
   Clock,
   Code2,
@@ -17,10 +18,12 @@ import {
   Hourglass,
   Layers,
   MessageSquare,
+  Network,
   Play,
   Plug,
   Plus,
   Repeat,
+  ScrollText,
   Search,
   Shield,
   Sliders,
@@ -128,6 +131,21 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     },
   },
   {
+    type: 'AGENT_COORDINATOR',
+    category: 'ai',
+    label: 'Supervisor Agent',
+    subtitle: 'Multi-agent Team Lead',
+    description: 'Leads a team: plug agents into its Sub-agents slot and it delegates work to them',
+    icon: Network,
+    badge: 'Team',
+    defaultConfig: {
+      instructions: 'You lead a team of specialist agents. Break the request down, delegate each part to the right sub-agent and combine their results.',
+      model: 'gpt-4o',
+      temperature: 0.2,
+      delegation: 'router',
+    },
+  },
+  {
     type: 'SUB_AGENT',
     category: 'ai',
     label: 'Specialist Sub-Agent',
@@ -135,7 +153,11 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     description: 'Specialized worker agent focused on narrow tasks like research or code review',
     icon: Sparkles,
     badge: 'AI',
-    defaultConfig: { role: 'Researcher', model: 'gpt-4o-mini', temperature: 0.2 },
+    defaultConfig: {
+      role: 'Researcher',
+      instructions: 'You are a specialist. Complete the part of the task you are given and report back clearly.',
+      temperature: 0.2,
+    },
   },
   {
     type: 'AI_CHAT_MODEL',
@@ -146,6 +168,18 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     icon: Cpu,
     badge: 'AI',
     defaultConfig: { model: 'gpt-4o', temperature: 0.7, maxTokens: 2048 },
+  },
+  {
+    type: 'PROMPT_TEMPLATE',
+    category: 'ai',
+    label: 'Prompt',
+    subtitle: 'System Prompt',
+    description: 'Role, scope and rules an agent follows; plug it into an agent’s Prompt slot',
+    icon: ScrollText,
+    badge: 'AI',
+    defaultConfig: {
+      prompt: '## Role\nYou are a helpful assistant.\n\n## Scope\nDescribe what you handle.\n\n## Rules\n- Be concise.',
+    },
   },
   {
     type: 'INTENT_CLASSIFIER',
@@ -218,6 +252,16 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     icon: FileText,
     badge: 'RAG',
     defaultConfig: { extractTables: true },
+  },
+  {
+    type: 'EMBEDDING_MODEL',
+    category: 'knowledge',
+    label: 'Embedding Model',
+    subtitle: 'Vectorize Text',
+    description: 'Turns text into vectors for semantic search over an agent’s knowledge',
+    icon: Binary,
+    badge: 'RAG',
+    defaultConfig: { model: 'text-embedding-3-small', dimensions: 1536 },
   },
   {
     type: 'RERANKER',

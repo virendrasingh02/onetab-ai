@@ -1,5 +1,5 @@
 import { LoadingState, ScrollArea } from '@org/ui';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { StudioHeader } from './components/studio-header.js';
 import { StudioSidebar } from './components/studio-sidebar.js';
@@ -20,12 +20,72 @@ import { WorkflowsPage } from './pages/workflows-page.jsx';
 import { Providers } from './providers.js';
 import { SessionGuard } from './session-guard.js';
 
+const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
+  '/': { section: 'Platform', page: 'Studio Overview' },
+  '/overview': { section: 'Platform', page: 'Studio Overview' },
+  '/agents': { section: 'Build & Orchestrate', page: 'My Agents' },
+  '/workflows': { section: 'Build & Orchestrate', page: 'Visual Workflows' },
+  '/templates': { section: 'Build & Orchestrate', page: 'Agent Templates' },
+  '/knowledge': { section: 'Intelligence & Tools', page: 'Knowledge & RAG' },
+  '/tools': { section: 'Intelligence & Tools', page: 'Tools & Integrations' },
+  '/mcp': { section: 'Intelligence & Tools', page: 'MCP Registry' },
+  '/executions': { section: 'Operations & Governance', page: 'Executions & Logs' },
+  '/approvals': { section: 'Operations & Governance', page: 'Human Approvals' },
+  '/analytics': { section: 'Operations & Governance', page: 'Studio Analytics' },
+  '/settings': { section: 'Platform & Config', page: 'Settings & Security' },
+  '/developer': { section: 'Platform & Config', page: 'Developer Hub' },
+};
+
+function getBreadcrumb(pathname: string): { section: string; page: string } {
+  if (BREADCRUMB_MAP[pathname]) return BREADCRUMB_MAP[pathname];
+  for (const [key, value] of Object.entries(BREADCRUMB_MAP)) {
+    if (key !== '/' && pathname.startsWith(key)) {
+      return value;
+    }
+  }
+  return { section: 'Platform', page: 'Studio Overview' };
+}
+
 function StudioShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('onetab_studio_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const location = useLocation();
   const isAgentCanvas =
     location.pathname.startsWith('/agents/') && location.pathname !== '/agents';
   const isUserChat = location.pathname.startsWith('/chat/');
+
+  const breadcrumb = useMemo(() => getBreadcrumb(location.pathname), [location.pathname]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('onetab_studio_sidebar_collapsed', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  // Keyboard shortcut Ctrl+B / Cmd+B for sidebar toggle
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleCollapsed();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Close mobile drawer upon route change
   useEffect(() => {
@@ -51,19 +111,26 @@ function StudioShell() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col relative bg-background">
-      <StudioHeader onToggleMobile={() => setMobileOpen((prev) => !prev)} />
+    <div className="flex h-dvh w-full overflow-hidden bg-background">
+      <StudioSidebar
+        collapsed={collapsed}
+        onToggleCollapsed={toggleCollapsed}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
+      />
 
-      <div className="min-h-0 flex flex-1 relative">
-        <StudioSidebar
-          mobileOpen={mobileOpen}
-          onCloseMobile={() => setMobileOpen(false)}
+      <div className="flex min-w-0 flex-1 flex-col h-dvh overflow-hidden">
+        <StudioHeader
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
+          onToggleMobile={() => setMobileOpen((prev) => !prev)}
+          breadcrumb={breadcrumb}
         />
 
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
           <ScrollArea
             className="min-h-0 flex-1"
-            contentClassName="flex min-h-full flex-col p-3 sm:p-6"
+            contentClassName="flex min-h-full flex-col p-3 sm:p-6 w-full"
           >
             <Suspense fallback={<LoadingState fullPage />}>
               <Routes>

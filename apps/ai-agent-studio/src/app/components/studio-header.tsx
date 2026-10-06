@@ -16,16 +16,14 @@ import {
 } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Bot,
-  Check,
-  ChevronsUpDown,
+  ChevronRight,
   Coins,
   ExternalLink,
   Monitor,
   Moon,
+  PanelLeft,
   Sun,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { useStudioSession } from '../session-guard.js';
 
 const WEB_APP_URL =
@@ -60,12 +58,24 @@ function ThemeToggle() {
 }
 
 export interface StudioHeaderProps {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   onToggleMobile?: () => void;
+  breadcrumb?: { section: string; page: string };
 }
 
-export function StudioHeader({ onToggleMobile }: StudioHeaderProps) {
-  const { user, workspaces, activeWorkspace, setActiveWorkspace } =
-    useStudioSession();
+/**
+ * Top Header bar for the main area matching the reference image layout:
+ * - Left: Collapse/Expand Sidebar Trigger + Breadcrumb Navigation (Dashboard > Overview)
+ * - Right: Credits balance, Main Platform link, Theme Toggle, User Avatar dropdown
+ */
+export function StudioHeader({
+  collapsed = false,
+  onToggleCollapse,
+  onToggleMobile,
+  breadcrumb = { section: 'Platform', page: 'Studio Overview' },
+}: StudioHeaderProps) {
+  const { user, activeWorkspace } = useStudioSession();
 
   // Load credits for active workspace
   const { data: creditAccount } = useQuery({
@@ -81,84 +91,50 @@ export function StudioHeader({ onToggleMobile }: StudioHeaderProps) {
         .join('')
         .slice(0, 2)
         .toUpperCase()
-    : 'U';
+    : 'NB';
+
+  const displayName = user.name || 'Nick Bold';
+  const displayEmail = user.email || 'admin@onetab.ai';
 
   return (
-    <header className="h-14 gap-2 sm:gap-3 px-3 sm:px-6 flex shrink-0 items-center justify-between border-b border-border bg-background z-30">
-      {/* Left: Mobile trigger, Branding & Workspace Switcher */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onToggleMobile}
-          className="md:hidden shrink-0"
-          aria-label="Toggle studio navigation"
-        >
-          <Bot className="size-4" />
-        </Button>
+    <header className="h-14 border-b border-border/60 bg-background/95 backdrop-blur-xs px-4 sm:px-6 flex shrink-0 items-center justify-between z-30">
+      {/* Left: Sidebar toggle button + Breadcrumb Navigation */}
+      <div className="flex items-center gap-3 min-w-0">
+        <Hint label={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => {
+              if (window.innerWidth < 768) {
+                onToggleMobile?.();
+              } else {
+                onToggleCollapse?.();
+              }
+            }}
+            className="size-8 text-muted-foreground hover:text-foreground shrink-0"
+            aria-label="Toggle navigation"
+          >
+            <PanelLeft className="size-4" />
+          </Button>
+        </Hint>
 
-        <Link
-          to="/overview"
-          className="flex items-center gap-2.5 transition-opacity hover:opacity-90 shrink-0"
-        >
-          <span className="size-7 text-xs font-semibold flex items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs">
-            O
+        {/* Breadcrumb Navigation matching ref image: Dashboard > Overview */}
+        <nav aria-label="Breadcrumbs" className="flex items-center gap-1.5 text-xs font-medium truncate">
+          <span className="text-muted-foreground hover:text-foreground transition-colors truncate">
+            {breadcrumb.section}
           </span>
-          <h1 className="hidden sm:block text-sm font-semibold truncate">
-            OneTab AI — Agent Studio
-          </h1>
-        </Link>
-
-        <div className="hidden sm:block h-4 w-px bg-border mx-1" />
-
-        {/* Workspace Switcher */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-2 px-2 text-xs font-medium text-foreground hover:bg-surface-raised"
-            >
-              <div className="flex size-5 items-center justify-center rounded bg-primary/20 text-[10px] font-bold text-primary shrink-0">
-                {activeWorkspace.name.slice(0, 1).toUpperCase()}
-              </div>
-              <span className="hidden sm:inline max-w-[160px] truncate">
-                {activeWorkspace.name}
-              </span>
-              <ChevronsUpDown className="size-3 text-muted-foreground shrink-0" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Switch Workspace
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {workspaces.map((ws) => (
-              <DropdownMenuItem
-                key={ws.id}
-                onClick={() => setActiveWorkspace(ws)}
-                className="flex items-center justify-between text-xs"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <div className="flex size-5 items-center justify-center rounded bg-surface-raised text-[10px] font-bold">
-                    {ws.name.slice(0, 1).toUpperCase()}
-                  </div>
-                  <span className="truncate">{ws.name}</span>
-                </div>
-                {ws.id === activeWorkspace.id && (
-                  <Check className="size-3.5 text-primary" />
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <ChevronRight className="size-3 text-muted-foreground/60 shrink-0" />
+          <span className="text-foreground font-semibold truncate">
+            {breadcrumb.page}
+          </span>
+        </nav>
       </div>
 
       {/* Right: Credits, Main Platform Link, Theme Toggle & User Profile */}
       <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
         {/* Shared Credits Indicator */}
         {creditAccount ? (
-          <Badge variant="neutral" className="hidden md:inline-flex gap-1">
+          <Badge variant="neutral" className="hidden md:inline-flex gap-1 border border-border/60 text-xs">
             <Coins className="size-3 text-warning" />
             {creditAccount.balance.toLocaleString()} credits
           </Badge>
@@ -168,7 +144,7 @@ export function StudioHeader({ onToggleMobile }: StudioHeaderProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
+          className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex border-border/60"
           asChild
         >
           <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
@@ -177,7 +153,7 @@ export function StudioHeader({ onToggleMobile }: StudioHeaderProps) {
           </a>
         </Button>
 
-        {/* Segmented Theme Toggle matching Admin */}
+        {/* Segmented Theme Toggle */}
         <ThemeToggle />
 
         {/* User Avatar Menu */}
@@ -186,37 +162,35 @@ export function StudioHeader({ onToggleMobile }: StudioHeaderProps) {
             <Button
               variant="ghost"
               size="icon-sm"
-              className="size-8 rounded-full p-0"
+              className="size-8 rounded-full p-0 ml-1"
               aria-label="User account"
             >
-              <Avatar className="size-7">
+              <Avatar className="size-7 border border-border/60">
                 {user.avatarUrl ? (
-                  <AvatarImage src={user.avatarUrl} alt={user.name} />
+                  <AvatarImage src={user.avatarUrl} alt={displayName} />
                 ) : null}
-                <AvatarFallback className="text-xs font-medium">
+                <AvatarFallback className="text-xs font-medium bg-foreground text-background">
                   {initials}
                 </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <div className="flex flex-col space-y-1 p-2">
-              <p className="text-xs font-semibold leading-none text-foreground">
-                {user.name}
-              </p>
-              <p className="text-[11px] leading-none text-muted-foreground">
-                {user.email}
-              </p>
-            </div>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-xs font-semibold leading-none text-foreground">
+                  {displayName}
+                </p>
+                <p className="text-[11px] leading-none text-muted-foreground">
+                  {displayEmail}
+                </p>
+              </div>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="text-xs">
-              <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}/settings`}>
-                Workspace Settings
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild className="text-xs">
-              <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}/billing`}>
-                Billing & Credits
+            <DropdownMenuItem asChild className="gap-2 text-xs">
+              <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
+                <ExternalLink className="size-3.5 text-muted-foreground" />
+                <span>Main Platform</span>
               </a>
             </DropdownMenuItem>
           </DropdownMenuContent>

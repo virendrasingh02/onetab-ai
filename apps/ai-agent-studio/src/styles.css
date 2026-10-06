@@ -17,3 +17,21 @@
 .react-flow__node:has(.quick-add-open) {
   z-index: 99999 !important;
 }
+
+/* The renderer (z 4) is its own stacking context below the minimap/panels (z 5); lift it while a quick-add menu is open */
+.react-flow__renderer:has(.quick-add-open) {
+  z-index: 6;
+}
+
+/* Ensure all studio pages, panels, and box layouts fill 100% of the available width */
+[data-slot="page"] {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+

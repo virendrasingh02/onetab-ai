@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
   Input,
   LoadingState,
+  Page,
   PageHeader,
   toast,
 } from '@org/ui';
@@ -503,7 +504,7 @@ export function AgentsListPage() {
     return Array.from(new Set([...DEFAULT_CATEGORIES, ...fromAgents]));
   }, [rawAgents]);
 
-  const activeAgentsCount = rawAgents.filter((a: any) => !a.deletedAt).length;
+  const _activeAgentsCount = rawAgents.filter((a: any) => !a.deletedAt).length;
   const deletedAgentsCount = rawAgents.filter((a: any) => Boolean(a.deletedAt) || a.configuration?.status === 'deleted').length;
 
   if (isLoading) {
@@ -511,7 +512,7 @@ export function AgentsListPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl w-full mx-auto">
+    <Page width="wide" padding="none" className="space-y-6 w-full">
       {/* Header bar matching Admin */}
       <PageHeader
         title="Agent Lifecycle Management"
@@ -661,13 +662,13 @@ export function AgentsListPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredAgents.map((agent: any) => {
             const config = agent.configuration || {};
             const status: AgentStatus = config.status || 'draft';
             const env: AgentEnvironment = config.environment || 'development';
             const themeKey = config.theme || 'emerald';
-            const theme = THEME_COLORS[themeKey] || THEME_COLORS.emerald;
+            const _theme = THEME_COLORS[themeKey] || THEME_COLORS.emerald;
             const tags = config.tags || [];
             const owner = config.owner || { name: 'Workspace Admin', email: 'admin@onetab.ai' };
             const isDeleted = Boolean(agent.deletedAt) || status === ('deleted' as any);
@@ -1570,6 +1571,6 @@ export function AgentsListPage() {
           navigate(`/agents/${agentId}`);
         }}
       />
-    </div>
+    </Page>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import {
   Copy,
+  Download,
   Maximize2,
   Play,
   Plus,
@@ -22,6 +23,7 @@ export function CanvasContextMenu({
   onDeleteNode,
   onTestNode,
   onInspectNode,
+  onExportJson,
 }) {
   const menuRef = useRef(null);
 
@@ -143,6 +145,18 @@ export function CanvasContextMenu({
           >
             <Maximize2 className="size-3.5 text-muted-foreground" />
             <span>Fit to Viewport</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onExportJson?.();
+              onClose();
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left"
+          >
+            <Download className="size-3.5 text-muted-foreground" />
+            <span>Export Workflow JSON</span>
           </button>
         </div>
       )}
