@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { ScrollArea } from './scroll-area.js';
 import { Dialog, DialogContent, DialogTitle } from './dialog.js';
 import { Kbd, KbdShortcut, useKeyboardShortcut } from './kbd.js';
+import { AIModelIcon } from '../ai/index.js';
 
 export interface CommandPaletteProps {
   open: boolean;
@@ -110,7 +111,7 @@ export function CommandPalette({
       id: 'ai-chat',
       category: 'AI Workflows',
       label: 'Open AI Assistant Copilot',
-      icon: <Sparkles className="size-4 text-accent-violet" />,
+      icon: <AIModelIcon modelId="gpt-4o" size={16} className="text-accent-violet" />,
       shortcut: 'G A',
       action: () => {
         onOpenChange(false);

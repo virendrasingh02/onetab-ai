@@ -92,6 +92,24 @@ export default defineConfig(() => ({
   },
   resolve: {
     preserveSymlinks: true,
+    alias: {
+      '@lobehub/ui/base-ui': path.resolve(
+        import.meta.dirname,
+        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+      ),
+      '@lobehub/ui/icons': path.resolve(
+        import.meta.dirname,
+        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+      ),
+      '@lobehub/ui': path.resolve(
+        import.meta.dirname,
+        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+      ),
+      antd: path.resolve(
+        import.meta.dirname,
+        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+      ),
+    },
   },
   optimizeDeps: {
     exclude: ORG_WORKSPACE_PACKAGES,

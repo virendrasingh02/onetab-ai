@@ -13,6 +13,7 @@ import {
   Input,
   Page,
   PageHeader,
+  AIModelBadge,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -244,9 +245,10 @@ export function WorkflowsPage() {
                         <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                           {workflow.name}
                         </h3>
-                        <p className="text-[11px] text-muted-foreground">
-                          {nodeCount} nodes • {workflow.model || 'gpt-4o'}
-                        </p>
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <span className="text-[11px] text-muted-foreground">{nodeCount} nodes</span>
+                          <AIModelBadge modelId={workflow.model || 'gpt-4o'} variant="subtle" size="xs" />
+                        </div>
                       </div>
                     </div>
 
@@ -350,7 +352,9 @@ export function WorkflowsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{workflow.model || 'gpt-4o'}</td>
+                  <td className="px-4 py-3">
+                    <AIModelBadge modelId={workflow.model || 'gpt-4o'} variant="subtle" size="xs" />
+                  </td>
                   <td className="px-4 py-3">
                     <Badge variant={workflow.status === 'published' ? 'success' : 'outline'} className="text-[10px]">
                       {workflow.status || 'draft'}

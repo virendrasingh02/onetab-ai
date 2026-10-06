@@ -1,6 +1,6 @@
-import { Button } from '@org/ui';
+import { Button, AIModelIcon } from '@org/ui';
 import { cn } from '@org/utils';
-import { Sparkles, TriangleAlert, User } from 'lucide-react';
+import { TriangleAlert, User } from 'lucide-react';
 import { MarkdownMessage } from './markdown-message.js';
 
 /**
@@ -33,12 +33,16 @@ export interface AIMessageProps {
   message: AITranscriptMessage;
   /** Names the assistant after the model that answered. */
   assistantLabel?: string;
+  modelId?: string;
+  provider?: string;
   density?: AIDensity;
 }
 
 export function AIMessage({
   message,
   assistantLabel = 'Copilot',
+  modelId,
+  provider,
   density = 'comfortable',
 }: AIMessageProps) {
   const isUser = message.role === 'user';
@@ -55,11 +59,16 @@ export function AIMessage({
       )}
     >
       <div className="gap-3 text-[10px] flex items-center justify-between opacity-70">
-        <span className="gap-1 font-medium flex items-center">
+        <span className="gap-1.5 font-medium flex items-center">
           {isUser ? (
             <User className="size-3" aria-hidden />
           ) : (
-            <Sparkles className="size-3" aria-hidden />
+            <AIModelIcon
+              modelId={modelId || assistantLabel}
+              provider={provider}
+              size={13}
+              className="shrink-0"
+            />
           )}
           <span className="truncate">{isUser ? 'You' : assistantLabel}</span>
         </span>

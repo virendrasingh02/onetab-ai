@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input, toast } from '@org/ui';
+import { Badge, Button, Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle, Input, AIModelBadge, AIModelIcon, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import { agentsApi } from '@org/api-client';
 import { useQuery } from '@tanstack/react-query';
@@ -362,9 +362,7 @@ export function MultiAgentTab({ agent, onSave }) {
                   <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Bot className="size-3.5" />
                   </div>
-                  <Badge variant="outline" className="text-[10px]">
-                    {worker.model}
-                  </Badge>
+                  <AIModelBadge modelId={worker.model} variant="subtle" size="xs" />
                 </div>
                 <div>
                   <div className="text-xs font-bold text-foreground">{worker.name}</div>
@@ -516,16 +514,21 @@ export function MultiAgentTab({ agent, onSave }) {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-semibold text-foreground">Foundation Model</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-foreground">Foundation Model</label>
+                        <AIModelBadge modelId={newWorkerModel} variant="subtle" size="xs" />
+                      </div>
                       <select
                         value={newWorkerModel}
                         onChange={(e) => setNewWorkerModel(e.target.value)}
                         className="mt-1 w-full rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground focus:ring-1 focus:ring-primary"
                       >
-                        <option value="gpt-4o">gpt-4o</option>
-                        <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
-                        <option value="gemini-2-5-pro">gemini-2-5-pro</option>
-                        <option value="deepseek-chat">deepseek-chat</option>
+                        <option value="gpt-4o">OpenAI GPT-4o</option>
+                        <option value="claude-sonnet-4-5">Claude Sonnet 4.5</option>
+                        <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="gemini-2-5-pro">Gemini 2.5 Pro</option>
+                        <option value="deepseek-chat">DeepSeek V3</option>
+                        <option value="deepseek-reasoner">DeepSeek R1</option>
                       </select>
                     </div>
 

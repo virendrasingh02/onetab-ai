@@ -1,5 +1,5 @@
 import type { FederatedSearchResultItem } from '@org/types';
-import { Button, Input, Switch } from '@org/ui';
+import { Button, Input, Switch, AIModelIcon } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowLeft, Search } from 'lucide-react';
@@ -282,7 +282,15 @@ export function GlobalSearchView() {
 }
 
 function ResultRow({ item }: { item: FederatedSearchResultItem }) {
-  const Icon = SEARCH_CATEGORY_META[item.category].icon;
+  const Icon = SEARCH_CATEGORY_META[item.category]?.icon ?? Search;
+  const isAiCategory =
+    item.category === 'coworkers' ||
+    item.category === 'agents' ||
+    item.category === 'workflows';
+  const modelId = (item.metadata?.model ||
+    item.metadata?.modelId ||
+    item.metadata?.provider) as string | undefined;
+
   return (
     <Link
       to={`/w/${item.workspace.slug}/${item.href ?? ''}`}
@@ -291,14 +299,24 @@ function ResultRow({ item }: { item: FederatedSearchResultItem }) {
         'hover:bg-accent hover:text-accent-foreground',
       )}
     >
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
+      {isAiCategory || modelId ? (
+        <span className="flex size-4 shrink-0 items-center justify-center">
+          <AIModelIcon
+            modelId={modelId || (item.category === 'coworkers' ? 'claude-3-5-sonnet' : 'gpt-4o')}
+            size="xs"
+            fallback={<Icon className="size-4 shrink-0 text-muted-foreground" />}
+          />
+        </span>
+      ) : (
+        <Icon className="size-4 shrink-0 text-muted-foreground" />
+      )}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-foreground">
           {item.title}
         </span>
         <span className="block truncate text-xs text-muted-foreground">
           {item.snippet ? `${item.snippet} · ` : ''}
-          {SEARCH_CATEGORY_META[item.category].label} · {item.workspace.name}
+          {SEARCH_CATEGORY_META[item.category]?.label ?? item.category} · {item.workspace.name}
           {item.timestamp ? ` · ${formatRelative(item.timestamp)}` : ''}
         </span>
       </span>

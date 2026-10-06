@@ -19,6 +19,7 @@ import {
   LoadingState,
   Page,
   PageHeader,
+  AIModelBadge,
   toast,
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -878,7 +879,7 @@ export function AgentsListPage() {
                       <User className="size-3 text-muted-foreground" />
                       <span>{owner.name}</span>
                     </span>
-                    <span>{agent.model || 'OpenAI GPT-4o'}</span>
+                    <AIModelBadge modelId={agent.model || 'gpt-4o'} variant="subtle" size="xs" />
                   </div>
 
                   <div className="mt-3 flex items-center justify-between pt-1">

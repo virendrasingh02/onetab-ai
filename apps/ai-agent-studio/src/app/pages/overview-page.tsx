@@ -15,6 +15,7 @@ import {
   PageHeader,
   PageSection,
   StatCard,
+  AIModelBadge,
   toast,
 } from '@org/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -420,11 +421,12 @@ export function OverviewPage() {
                       </p>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] text-muted-foreground font-mono">
-                      <span>{version}</span>
-                      <span>
-                        {toolsCount} {toolsCount === 1 ? 'tool' : 'tools'} · {agent.model || 'llama3'}
-                      </span>
+                    <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                      <span className="font-mono">{version}</span>
+                      <div className="flex items-center gap-2">
+                        <span>{toolsCount} {toolsCount === 1 ? 'tool' : 'tools'}</span>
+                        <AIModelBadge modelId={agent.model || 'llama3'} variant="subtle" size="xs" />
+                      </div>
                     </div>
                   </div>
                 );
@@ -471,8 +473,8 @@ export function OverviewPage() {
                             {isPublished ? 'Published' : 'Draft'}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">
-                          {agent.model || 'llama3'}
+                        <td className="px-4 py-3">
+                          <AIModelBadge modelId={agent.model || 'llama3'} variant="subtle" size="xs" />
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {toolsCount} tools

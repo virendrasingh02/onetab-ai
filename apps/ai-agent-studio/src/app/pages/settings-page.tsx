@@ -12,6 +12,9 @@ import {
   Input,
   Page,
   PageHeader,
+  AIProviderIcon,
+  AIModelIcon,
+  AIModelBadge,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -359,7 +362,9 @@ export function SettingsPage() {
                   <div className="space-y-2.5">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-2xl">{meta.icon}</span>
+                        <div className="flex size-9 items-center justify-center rounded-lg bg-surface-raised border border-border shrink-0">
+                          <AIProviderIcon provider={meta.provider} size={20} />
+                        </div>
                         <div>
                           <div className="font-semibold text-sm text-foreground">{meta.name}</div>
                           <div className="text-[11px] text-muted-foreground line-clamp-1">
@@ -375,18 +380,19 @@ export function SettingsPage() {
                       </Badge>
                     </div>
 
-                    <div className="text-[11px] text-muted-foreground space-y-1 pt-1">
+                    <div className="text-[11px] text-muted-foreground space-y-1.5 pt-1">
                       <div className="font-medium text-foreground text-[10px] uppercase tracking-wider">
                         Available Models:
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {meta.models.slice(0, 3).map((m) => (
-                          <span
+                          <AIModelBadge
                             key={m}
-                            className="rounded-md bg-surface-raised px-1.5 py-0.5 text-[10px] font-mono border border-border"
-                          >
-                            {m}
-                          </span>
+                            modelId={m}
+                            provider={meta.provider}
+                            variant="subtle"
+                            size="xs"
+                          />
                         ))}
                         {meta.models.length > 3 && (
                           <span className="text-[10px] text-muted-foreground self-center">
@@ -732,8 +738,9 @@ export function SettingsPage() {
       <Dialog open={selectedProvider !== null} onOpenChange={(open) => !open && setSelectedProvider(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              Configure {selectedProvider ? selectedProvider.toUpperCase() : ''} Credentials
+            <DialogTitle className="flex items-center gap-2">
+              {selectedProvider ? <AIProviderIcon provider={selectedProvider} size={20} /> : null}
+              <span>Configure {selectedProvider ? selectedProvider.toUpperCase() : ''} Credentials</span>
             </DialogTitle>
           </DialogHeader>
 

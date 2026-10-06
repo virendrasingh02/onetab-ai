@@ -1,7 +1,7 @@
 import { MarkdownMessage } from '@org/chat-ui';
 import type { AIExecution, AIExecutionStep, StudioGraphNode } from '@org/types';
 import { PLATFORM_TOOLS } from '@org/types';
-import { Badge, Button, CodeBlock } from '@org/ui';
+import { Badge, Button, CodeBlock, AIModelIcon, AIProviderIcon, AIModelBadge } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Bot,
@@ -180,6 +180,10 @@ function TimelineItem({
   const TypeIcon = TYPE_ICON[row.nodeType] ?? Wrench;
   const output = (row.step?.outputJson ?? {}) as Record<string, unknown>;
   const toolName = typeof row.node?.data?.['toolName'] === 'string' ? (row.node.data['toolName'] as string) : undefined;
+  const isFirecrawl = toolName?.toLowerCase().includes('firecrawl') || row.label.toLowerCase().includes('firecrawl');
+  const isMcp = row.nodeType === 'MCP' || toolName?.toLowerCase().includes('mcp') || row.label.toLowerCase().includes('mcp');
+  const isLlm = row.nodeType === 'LLM' || row.nodeType === 'AI_ACTION';
+  const llmModel = (row.node?.data?.['model'] as string) || (row.step?.outputJson as any)?.model;
   const activity =
     (typeof row.node?.data?.['activity'] === 'string' ? (row.node.data['activity'] as string) : undefined) ??
     (toolName ? PLATFORM_TOOLS[toolName]?.activity : undefined);
@@ -207,8 +211,19 @@ function TimelineItem({
             aria-controls={expandable ? detailsId : undefined}
             disabled={!expandable}
           >
-            <TypeIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            {isFirecrawl ? (
+              <AIProviderIcon provider="firecrawl" size={14} className="shrink-0" />
+            ) : isMcp ? (
+              <AIProviderIcon provider="mcp" size={14} className="shrink-0" />
+            ) : isLlm ? (
+              <AIModelIcon modelId={llmModel || 'gpt-4o'} size={14} className="shrink-0" />
+            ) : (
+              <TypeIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            )}
             <span className="truncate">{row.label}</span>
+            {isLlm && llmModel ? (
+              <AIModelBadge modelId={llmModel} size="xs" variant="subtle" />
+            ) : null}
             {expandable ? (
               open ? <ChevronDown className="size-3.5 shrink-0" aria-hidden /> : <ChevronRight className="size-3.5 shrink-0" aria-hidden />
             ) : null}

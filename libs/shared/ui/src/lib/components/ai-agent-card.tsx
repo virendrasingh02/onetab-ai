@@ -15,6 +15,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './dropdown-menu.js';
+import { AIModelBadge } from '../ai/AIModelBadge.jsx';
 
 export type AgentStatus = 'online' | 'idle' | 'running' | 'offline' | 'error';
 
@@ -92,7 +93,9 @@ export function AIAgentCard({
           </div>
           <div className="truncate">
             <div className="font-semibold text-foreground truncate">{name}</div>
-            <div className="text-[11px] text-muted-foreground truncate">{model}</div>
+            <div className="mt-0.5">
+              <AIModelBadge modelId={model} provider={provider} variant="compact" />
+            </div>
           </div>
         </div>
 
@@ -129,9 +132,7 @@ export function AIAgentCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-foreground truncate">{name}</h3>
-              <Badge variant="secondary" className="text-[10px] font-mono h-4.5 px-1.5">
-                {model}
-              </Badge>
+              <AIModelBadge modelId={model} provider={provider} variant="subtle" />
               <span className={cn('rounded-full border px-1.5 py-0.2 text-[10px] font-medium', currentStatus.badgeClass)}>
                 {currentStatus.label}
               </span>
@@ -197,9 +198,8 @@ export function AIAgentCard({
                   <Sparkles className="size-3.5 text-primary shrink-0" />
                 )}
               </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                <Cpu className="size-3" />
-                <span>{model}</span>
+              <div className="mt-1">
+                <AIModelBadge modelId={model} provider={provider} variant="subtle" />
               </div>
             </div>
           </div>

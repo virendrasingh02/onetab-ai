@@ -33,6 +33,7 @@
     }
   },
   "dependencies": {
+    "@lobehub/icons": "^5.23.0",
     "@org/design-system": "*",
     "@org/hooks": "*",
     "@org/i18n": "*",

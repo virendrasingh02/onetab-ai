@@ -4,11 +4,13 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  AIModelBadge,
 } from '@org/ui';
 import { Sparkles } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { AIErrorRow, AIMessage, AIThinkingRow, Composer } from '@org/chat-ui';
 import { AI_STUDIO_SLASH_COMMANDS } from './ai-composer-commands.js';
+import { AI_MODELS } from './ai-models.js';
 import { AIModelPicker } from './ai-model-picker.js';
 import { useAIConversation } from './use-ai-conversation.js';
 
@@ -30,6 +32,7 @@ export interface AISidebarProps {
  */
 export function AISidebar({ isOpen, onClose }: AISidebarProps) {
   const chat = useAIConversation({ greeting: true });
+  const activeOption = AI_MODELS.find((opt) => opt.value === chat.model);
 
   const streamEndRef = useRef<HTMLDivElement>(null);
 
@@ -41,19 +44,27 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="gap-0 p-0 sm:max-w-md w-full">
-        <SheetHeader className="gap-3 px-4 py-3 flex-row items-center border-b">
-          <span
-            aria-hidden
-            className="size-8 shrink-0 flex items-center justify-center rounded-lg bg-primary text-primary-foreground"
-          >
-            <Sparkles className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <SheetTitle className="text-sm">AI Copilot</SheetTitle>
-            <SheetDescription className="text-xs">
-              Ask about anything in this workspace
-            </SheetDescription>
+        <SheetHeader className="gap-3 px-4 py-3 flex-row items-center justify-between border-b">
+          <div className="gap-3 flex items-center min-w-0">
+            <span
+              aria-hidden
+              className="size-8 shrink-0 flex items-center justify-center rounded-lg bg-primary text-primary-foreground"
+            >
+              <Sparkles className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <SheetTitle className="text-sm">AI Copilot</SheetTitle>
+              <SheetDescription className="text-xs">
+                Ask about anything in this workspace
+              </SheetDescription>
+            </div>
           </div>
+          <AIModelBadge
+            modelId={activeOption?.model || (chat.model === 'auto' ? 'nemotron' : chat.model)}
+            provider={activeOption?.provider}
+            variant="subtle"
+            size="sm"
+          />
         </SheetHeader>
 
         {/*
@@ -69,7 +80,9 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
             <AIMessage
               key={message.id}
               message={message}
-              assistantLabel="Copilot"
+              assistantLabel={chat.modelLabel}
+              modelId={activeOption?.model || (chat.model === 'auto' ? 'nemotron' : chat.model)}
+              provider={activeOption?.provider}
               density="compact"
             />
           ))}

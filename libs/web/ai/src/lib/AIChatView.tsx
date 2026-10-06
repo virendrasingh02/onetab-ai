@@ -6,9 +6,11 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  AIModelBadge,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { AI_MODELS } from './ai-models.js';
 import {
   Check,
   Copy,
@@ -76,6 +78,7 @@ export function AIChatView() {
   const firstName = (user?.displayName ?? user?.name ?? '').split(' ')[0];
 
   const streamEndRef = useRef<HTMLDivElement>(null);
+  const activeOption = AI_MODELS.find((opt) => opt.value === chat.model);
 
   /* `block: 'nearest'` keeps the scroll inside the transcript. Without it the
      nearest scrollable ancestor — the shell's `main` — is dragged along too. */
@@ -156,11 +159,20 @@ export function AIChatView() {
       ) : (
         <>
           <header className="gap-3 px-4 py-2.5 mb-2 flex w-full shrink-0 items-center justify-between border-b border-border bg-background/95">
-            <div className="gap-0.5 min-w-0 flex items-center">
-              <span className="size-7 flex shrink-0 items-center justify-center">
-                <Home className="size-3.5" aria-hidden />
-              </span>
-              <span className="font-semibold text-sm truncate">Home</span>
+            <div className="gap-2.5 min-w-0 flex items-center">
+              <div className="gap-0.5 min-w-0 flex items-center">
+                <span className="size-7 flex shrink-0 items-center justify-center">
+                  <Home className="size-3.5" aria-hidden />
+                </span>
+                <span className="font-semibold text-sm truncate">Home</span>
+              </div>
+              <span className="h-3.5 w-px bg-border shrink-0" aria-hidden />
+              <AIModelBadge
+                modelId={activeOption?.model || (chat.model === 'auto' ? 'nemotron' : chat.model)}
+                provider={activeOption?.provider}
+                variant="subtle"
+                size="sm"
+              />
             </div>
 
             <div className="gap-1 flex items-center">
@@ -245,6 +257,8 @@ export function AIChatView() {
                   key={message.id}
                   message={message}
                   assistantLabel={`${chat.modelLabel} Copilot`}
+                  modelId={activeOption?.model || (chat.model === 'auto' ? 'nemotron' : chat.model)}
+                  provider={activeOption?.provider}
                 />
               ))}
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Badge, Button, Card, LoadingState, Page, PageHeader } from '@org/ui';
+import { Badge, Button, Card, LoadingState, Page, PageHeader, AIModelIcon } from '@org/ui';
 import {
   Activity,
   AlertTriangle,
@@ -238,8 +238,9 @@ export function AnalyticsPage() {
             {modelsBreakdown.map((m, idx) => (
               <div key={m.name} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full" style={{ backgroundColor: PIE_COLORS[idx] }} />
-                  <span className="text-foreground">{m.name}</span>
+                  <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[idx] }} />
+                  <AIModelIcon modelId={m.name} size={15} className="shrink-0" />
+                  <span className="text-foreground font-medium">{m.name}</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <span>{m.calls} calls</span>

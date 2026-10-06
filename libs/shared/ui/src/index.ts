@@ -717,6 +717,25 @@ export {
 } from './lib/components/ai-model-selector.js';
 
 export {
+  AIModelIcon,
+  AIProviderIcon,
+  AIModelIdentity,
+  AIModelBadge,
+  AIProviderBadge,
+  AIModelAvatar,
+  AIModelMeta,
+  AIModelListItem,
+  normalizeModel,
+  normalizeProvider,
+  cleanModelString,
+  PROVIDER_NAMES,
+  MODEL_ICONS,
+  PROVIDER_ICONS,
+  resolveModelIconComponent,
+  resolveProviderIconComponent,
+} from './lib/ai/index.js';
+
+export {
   AIExecutionTimeline,
   type AIExecutionTimelineProps,
   type AIExecutionStep,

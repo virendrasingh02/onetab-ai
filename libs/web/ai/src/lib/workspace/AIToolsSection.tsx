@@ -24,6 +24,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  AIProviderIcon,
   toast,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
@@ -271,9 +272,14 @@ function McpServerCard({
   return (
     <Card className="space-y-3 p-4">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{conn.name}</p>
-          <p className="truncate font-mono text-[11px] text-muted-foreground">{conn.serverUrl}</p>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-surface-raised border border-border shrink-0">
+            <AIProviderIcon provider="mcp" size={16} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">{conn.name}</p>
+            <p className="truncate font-mono text-[11px] text-muted-foreground">{conn.serverUrl}</p>
+          </div>
         </div>
         <Badge variant={statusVariant} className="shrink-0 text-[10px]">
           {statusLabel}
@@ -444,7 +450,11 @@ function SecretsPanel({ canManage }: { canManage: boolean }) {
             {(secrets.data ?? []).map((secret) => (
               <li key={secret.key} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                 <span className="flex items-center gap-2">
-                  <KeyRound className="size-4 text-muted-foreground" aria-hidden />
+                  {secret.key.includes('FIRECRAWL') ? (
+                    <AIProviderIcon provider="firecrawl" size={15} className="shrink-0" />
+                  ) : (
+                    <KeyRound className="size-4 text-muted-foreground" aria-hidden />
+                  )}
                   <span className="font-mono text-xs text-foreground">{secret.key}</span>
                   <span className="font-mono text-xs text-muted-foreground">{secret.maskedValue}</span>
                 </span>

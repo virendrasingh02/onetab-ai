@@ -1,4 +1,4 @@
-import { Button, CodeBlock, Input, toast } from '@org/ui';
+import { Button, CodeBlock, Input, AIModelBadge, AIModelIcon, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Connection, Edge, Node } from '@xyflow/react';
 import {
@@ -326,19 +326,22 @@ export function NodeInspector({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
-                Model
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-foreground">
+                  Model
+                </label>
+                <AIModelBadge modelId={config.model || 'llama3:latest'} size="xs" variant="subtle" />
+              </div>
               <select
                 value={config.model || 'llama3:latest'}
                 onChange={(e) => updateConfig('model', e.target.value)}
                 className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                <option value="llama3:latest">Llama 3 (Default Local / Fast)</option>
-                <option value="gpt-4o">OpenAI GPT-4o</option>
-                <option value="claude-3-5-sonnet">Anthropic Claude 3.5 Sonnet</option>
-                <option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
-                <option value="mistral-large">Mistral Large</option>
+                {MODEL_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -712,7 +715,10 @@ export function NodeInspector({
         {nodeType === 'AI_CHAT_MODEL' && (
           <div className="space-y-3.5 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Model</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-foreground">Model</label>
+                <AIModelBadge modelId={config.model || 'gpt-4o'} size="xs" variant="subtle" />
+              </div>
               <select
                 value={config.model || 'gpt-4o'}
                 onChange={(e) => updateConfig('model', e.target.value)}

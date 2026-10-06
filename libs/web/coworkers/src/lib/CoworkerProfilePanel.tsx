@@ -12,6 +12,9 @@ import {
   ScrollArea,
   Spinner,
   toast,
+  AIModelIdentity,
+  AIModelBadge,
+  AIProviderBadge,
   type RightPanelProfile,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
@@ -339,14 +342,12 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
                 <Cpu className="size-3.5" />
                 <span>Model & Provider</span>
               </div>
-              <div className="text-right">
-                <span className="font-mono font-semibold text-foreground">
-                  {coworker.model || 'gpt-4o'}
-                </span>
-                <span className="text-[11px] text-muted-foreground block capitalize">
-                  {coworker.provider || 'OpenAI'}
-                </span>
-              </div>
+              <AIModelIdentity
+                modelId={coworker.model || 'gpt-4o'}
+                provider={coworker.provider || 'openai'}
+                layout="stacked"
+                className="text-right items-end"
+              />
             </div>
 
             <div className="flex items-center justify-between py-0.5">
@@ -768,9 +769,12 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
               <span className="font-medium text-foreground">{coworker.role}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Cpu className="size-3.5 text-primary" />
-              <span className="font-mono">{coworker.model || 'gpt-4o'}</span>
-              <span className="capitalize">({coworker.provider || 'OpenAI'})</span>
+              <AIModelBadge
+                modelId={coworker.model || 'gpt-4o'}
+                provider={coworker.provider || 'openai'}
+                variant="subtle"
+                size="sm"
+              />
             </div>
             <div className="flex items-center gap-1.5">
               <CoworkerStatusDot status={coworker.status} showLabel />

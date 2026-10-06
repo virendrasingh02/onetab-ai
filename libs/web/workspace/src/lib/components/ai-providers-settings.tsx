@@ -17,6 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
+  AIProviderIcon,
+  AIModelIcon,
+  AIModelBadge,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import type {
@@ -308,7 +311,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="flex size-10 items-center justify-center rounded-xl bg-surface border border-border/80 shadow-2xs">
-                      <Icon className="size-5 text-primary" />
+                      <AIProviderIcon provider={provider.id} size={22} />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -342,9 +345,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
 
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground">Default Model:</span>
-                    <span className="text-[11px] font-medium text-foreground truncate max-w-[180px]">
-                      {provider.defaultModel}
-                    </span>
+                    <AIModelBadge modelId={provider.defaultModel} provider={provider.id} variant="subtle" size="xs" />
                   </div>
 
                   <div className="flex items-center justify-between pt-1 border-t border-border/30">
@@ -577,8 +578,11 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {selectedProvider.models.map((m) => (
-                      <SelectItem key={m.model} value={m.model} className="text-xs font-mono">
-                        {m.name} ({m.model})
+                      <SelectItem key={m.model} value={m.model} className="text-xs">
+                        <div className="flex items-center gap-2">
+                          <AIModelIcon modelId={m.model} provider={selectedProvider.id} size={15} />
+                          <span>{m.name || m.model}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

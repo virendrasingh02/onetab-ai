@@ -5,8 +5,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
+  AIModelIcon,
 } from '@org/ui';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Sparkles } from 'lucide-react';
 import { AI_MODELS, modelLabelFor, type AIModelValue } from './ai-models.js';
 
 export interface AIModelPickerProps {
@@ -16,17 +17,12 @@ export interface AIModelPickerProps {
 
 /**
  * The model switcher for the raw AI chat surfaces (AI Studio home, docked
- * assistant), rendered through the shared `Composer`'s `toolbarSlot` — a real
- * menu button rather than a bare styled `<button>`, so the radio group reports
- * the current model to assistive tech and shows a check beside it.
- *
- * Previously this lived inside a bespoke `AIComposer`, reached by typing `@`
- * in the text itself. A visible control is strictly more discoverable, and it
- * frees `@` from meaning "pick a model" now that the shared composer's `@`
- * menu means "mention someone/something" everywhere else it's used.
+ * assistant), rendered through the shared `Composer`'s `toolbarSlot`.
+ * Upgraded with LobeHub brand icons and rich provider metadata.
  */
 export function AIModelPicker({ model, onModelChange }: AIModelPickerProps) {
   const modelLabel = modelLabelFor(model);
+  const activeOption = AI_MODELS.find((opt) => opt.value === model);
 
   return (
     <DropdownMenu>
@@ -35,23 +31,60 @@ export function AIModelPicker({ model, onModelChange }: AIModelPickerProps) {
           type="button"
           variant="ghost"
           size="sm"
-          className="gap-1 px-2 font-medium"
+          className="gap-2 px-2.5 font-medium hover:bg-surface-hover"
           aria-label={`Model: ${modelLabel}`}
         >
-          <span className="max-w-40 truncate">{modelLabel}</span>
-          <ChevronDown className="size-3" aria-hidden />
+          {model === 'auto' ? (
+            <Sparkles className="size-3.5 text-primary shrink-0" aria-hidden />
+          ) : (
+            <AIModelIcon
+              modelId={activeOption?.model || activeOption?.value}
+              provider={activeOption?.provider}
+              size={15}
+              className="shrink-0"
+            />
+          )}
+          <span className="max-w-40 truncate text-xs">{modelLabel}</span>
+          <ChevronDown className="size-3 text-muted-foreground shrink-0" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
+      <DropdownMenuContent align="start" className="w-64 p-1">
         <DropdownMenuRadioGroup
           value={model}
           onValueChange={(next) => onModelChange(next as AIModelValue)}
         >
-          {AI_MODELS.map((option) => (
-            <DropdownMenuRadioItem key={option.value} value={option.value}>
-              {option.label}
-            </DropdownMenuRadioItem>
-          ))}
+          {AI_MODELS.map((option) => {
+            const isAuto = option.value === 'auto';
+            return (
+              <DropdownMenuRadioItem
+                key={option.value}
+                value={option.value}
+                className="gap-2.5 py-2 cursor-pointer"
+              >
+                <div className="shrink-0 flex items-center justify-center">
+                  {isAuto ? (
+                    <Sparkles className="size-4 text-primary" aria-hidden />
+                  ) : (
+                    <AIModelIcon
+                      modelId={option.model || option.value}
+                      provider={option.provider}
+                      size={16}
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="font-medium text-xs truncate leading-snug">
+                    {option.label}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground truncate leading-snug">
+                    {option.badge
+                      ? `${option.category || 'AI'} · ${option.badge}`
+                      : option.description || option.category || 'Platform default'}
+                  </span>
+                </div>
+              </DropdownMenuRadioItem>
+            );
+          })}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

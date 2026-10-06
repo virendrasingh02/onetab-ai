@@ -16,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
+  AIProviderIcon,
+  AIModelIcon,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -510,8 +512,13 @@ function ProviderModelFields({
             <SelectItem value={DEFAULT}>Workspace default</SelectItem>
             {options.providers.map((p) => (
               <SelectItem key={p.value} value={p.value}>
-                {p.label}
-                {p.hint ? ' — not configured' : ''}
+                <div className="flex items-center gap-2">
+                  <AIProviderIcon provider={p.value} size={15} />
+                  <span>
+                    {p.label}
+                    {p.hint ? ' — not configured' : ''}
+                  </span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
@@ -525,11 +532,19 @@ function ProviderModelFields({
           <SelectContent>
             <SelectItem value={DEFAULT}>Provider default</SelectItem>
             {model && !models.some((m) => m.value === model) ? (
-              <SelectItem value={model}>{model}</SelectItem>
+              <SelectItem value={model}>
+                <div className="flex items-center gap-2">
+                  <AIModelIcon modelId={model} provider={provider} size={15} />
+                  <span>{model}</span>
+                </div>
+              </SelectItem>
             ) : null}
             {models.map((m) => (
               <SelectItem key={m.value} value={m.value}>
-                {m.label}
+                <div className="flex items-center gap-2">
+                  <AIModelIcon modelId={m.value} provider={provider} size={15} />
+                  <span>{m.label}</span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>

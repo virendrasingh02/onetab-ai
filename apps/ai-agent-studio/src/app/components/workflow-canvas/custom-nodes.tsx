@@ -7,6 +7,9 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  AIModelIcon,
+  AIModelBadge,
+  AIModelIdentity,
   type AppSelectOption,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -724,12 +727,17 @@ function SlotRow({
 }
 
 export const MODEL_OPTIONS: AppSelectOption[] = [
-  { value: 'llama3:latest', label: 'Llama 3' },
   { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
   { value: 'gpt-4o-mini', label: 'OpenAI GPT-4o mini' },
+  { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
   { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
-  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+  { value: 'gemini-1.5-pro', label: 'Google Gemini 1.5 Pro' },
+  { value: 'gemini-2-5-pro', label: 'Google Gemini 2.5 Pro' },
+  { value: 'deepseek-chat', label: 'DeepSeek V3' },
+  { value: 'deepseek-reasoner', label: 'DeepSeek R1' },
+  { value: 'llama3:latest', label: 'Meta Llama 3' },
   { value: 'mistral-large', label: 'Mistral Large' },
+  { value: 'nemotron', label: 'NVIDIA Nemotron 3' },
 ];
 const modelLabel = (model: unknown) =>
   MODEL_OPTIONS.find((m) => m.value === model)?.label ?? String(model).replace(':latest', '');
@@ -1066,11 +1074,14 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
         className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
       />
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-success/15 text-success">
-          <Cpu className="size-4" />
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-raised border border-border/80">
+          <AIModelIcon modelId={model} size={18} />
         </div>
-        <div className="min-w-0">
-          <div className="truncate text-xs font-bold text-foreground">{nodeData.label || 'LLM'}</div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-xs font-bold text-foreground flex items-center justify-between gap-1">
+            <span>{nodeData.label || 'LLM'}</span>
+            <AIModelBadge modelId={model} variant="subtle" size="xs" />
+          </div>
           <div className="truncate text-[11px] text-muted-foreground">{nodeData.subtitle || 'Chat model'}</div>
         </div>
       </div>
@@ -1179,9 +1190,11 @@ export const AgentNode = memo((props: NodeProps) => {
         </div>
 
         {cfg.model && (
-          <span className="rounded bg-surface-raised px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
-            {String(cfg.model).replace(':latest', '')}
-          </span>
+          <AIModelBadge
+            modelId={String(cfg.model)}
+            variant="subtle"
+            size="xs"
+          />
         )}
       </div>
 

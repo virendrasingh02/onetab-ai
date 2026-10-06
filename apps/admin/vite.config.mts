@@ -136,6 +136,22 @@ export default defineConfig(() => ({
     alias: {
       react: path.resolve(import.meta.dirname, '../../node_modules/react'),
       'react-dom': path.resolve(import.meta.dirname, '../../node_modules/react-dom'),
+      '@lobehub/ui/base-ui': path.resolve(
+        import.meta.dirname,
+        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+      ),
+      '@lobehub/ui/icons': path.resolve(
+        import.meta.dirname,
+        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+      ),
+      '@lobehub/ui': path.resolve(
+        import.meta.dirname,
+        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+      ),
+      antd: path.resolve(
+        import.meta.dirname,
+        '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
+      ),
     },
   },
   plugins: [react(), tailwindcss(), workspaceLiveSourcePlugin()],
