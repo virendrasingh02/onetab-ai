@@ -177,12 +177,11 @@ const EDITOR_THEME = {
     'border-l-4 border-primary pl-3 py-1 my-1 text-muted-foreground italic bg-surface-inset/50 rounded-r',
   code: 'block rounded-lg bg-surface-inset p-2.5 font-mono text-xs text-success-text border border-border my-1 whitespace-pre-wrap',
   hr: 'my-2 h-px border-0 bg-border',
-  link: 'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 cursor-pointer no-underline font-medium hover:bg-sky-100 dark:hover:bg-sky-900/50',
-  hashtag: 'rounded bg-info/15 px-1 font-semibold text-info-text',
-  mention:
-    'rounded border border-primary/40 bg-primary/20 px-1 font-semibold text-primary-text',
-  command:
-    'rounded border border-info/40 bg-info/15 px-1 font-semibold text-info-text',
+  // Inline chips mirror MarkdownMessage so a draft looks like the sent message.
+  link: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone cursor-pointer bg-info/10 text-info-text no-underline hover:bg-info/20',
+  hashtag: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-info/10 text-info-text',
+  mention: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-primary/15 text-primary-text',
+  command: 'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone bg-info/10 text-info-text',
 };
 
 /** Every node type the composer can hold. Anything missing here throws at runtime. */

@@ -47,6 +47,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { compactBlankLines } from './blank-lines.js';
 import { useDraftsStore } from './drafts-store.js';
 import { useComposerInsertStore } from './composer-insert-store.js';
 import {
@@ -680,7 +681,9 @@ export function Composer({
 
   const handleSchedule = useCallback(
     async (scheduledForIso: string) => {
-      const content = lexicalRef.current?.getMarkdown().trim();
+      const content = compactBlankLines(
+        lexicalRef.current?.getMarkdown().trim() ?? '',
+      );
       if (!content) {
         toast.error('Please enter a message to schedule.');
         return;
@@ -719,7 +722,10 @@ export function Composer({
   );
 
   const handleComposerSend = useCallback(
-    (body: string, sentMentions?: DetectedMention[]) => {
+    (rawBody: string, sentMentions?: DetectedMention[]) => {
+      // New messages, thread replies and edits all leave through here, so
+      // this is the one place a burst of Shift+Enters gets compacted.
+      const body = compactBlankLines(rawBody);
       // The editor reads its chips at the instant of sending; the debounced
       // ref is only a fallback for callers that do not pass them.
       const mentions = sentMentions ?? currentMentionsRef.current;

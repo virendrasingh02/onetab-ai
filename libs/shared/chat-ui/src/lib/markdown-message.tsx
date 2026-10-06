@@ -4,6 +4,8 @@ import { cn } from '@org/utils';
 import { CheckSquare, Link2, Square } from 'lucide-react';
 import { Fragment, useCallback, useMemo, type ReactNode } from 'react';
 
+import { compactBlankLineCount } from './blank-lines.js';
+
 /**
  * Renders the markdown a message body carries.
  *
@@ -101,7 +103,44 @@ function isWordCharacter(character: string | undefined): boolean {
 type InlineOptions = {
   mentionNames: string[];
   onMentionClick?: (mention: string) => void;
+  /** Rendering a link's label: nested links/mentions/tags stay plain text. */
+  inLink?: boolean;
 };
+
+function linkLabelOptions(options: InlineOptions): InlineOptions {
+  return { ...options, inLink: true };
+}
+
+/**
+ * Inline tokens (links, mentions, hashtags) share one geometry so they sit in
+ * the sentence like text: same font size as the message, same weight, same
+ * radius, no vertical padding to push the line height around. `inline` rather
+ * than `inline-flex` keeps them on the text baseline and lets long links wrap;
+ * `box-decoration-clone` keeps the tint on every wrapped fragment.
+ */
+const CHIP_BASE_CLASS =
+  'rounded-[0.3em] px-[0.3em] py-px font-medium box-decoration-clone align-baseline transition-colors';
+
+const LINK_CHIP_CLASS = cn(
+  CHIP_BASE_CLASS,
+  'bg-info/10 text-info-text no-underline [overflow-wrap:anywhere] [&_strong]:text-inherit [&_span]:text-inherit',
+  'hover:bg-info/20 hover:underline underline-offset-2',
+  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-info',
+);
+
+/** Sized in `em` so it scales with the message text instead of a fixed px. */
+const CHIP_ICON_CLASS = 'mr-[0.25em] inline-block size-[0.95em] -translate-y-px align-middle';
+
+const MENTION_CHIP_CLASS = cn(
+  CHIP_BASE_CLASS,
+  'cursor-pointer bg-primary/15 text-primary-text',
+  'hover:bg-primary/25',
+  'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
+);
+
+const GROUP_MENTION_CHIP_CLASS = cn(CHIP_BASE_CLASS, 'bg-warning/20 text-foreground');
+
+const HASHTAG_CHIP_CLASS = cn(CHIP_BASE_CLASS, 'bg-info/10 text-info-text');
 
 const NO_MENTIONS: InlineOptions = { mentionNames: [] };
 
@@ -143,7 +182,13 @@ function renderInline(
     }
     lastIndex = match.index + token.length;
 
-    if (groups['escape']) {
+    if (
+      options.inLink &&
+      (groups['link'] || groups['url'] || groups['mention'] || groups['hashtag'])
+    ) {
+      // An anchor can't hold another anchor or a clickable chip.
+      nodes.push(token);
+    } else if (groups['escape']) {
       nodes.push(token.slice(1));
     } else if (groups['code']) {
       nodes.push(
@@ -179,10 +224,10 @@ function renderInline(
             href={href}
             target="_blank"
             rel="noreferrer noopener"
-            className="inline-flex items-center gap-1.5 rounded-md bg-sky-50/90 dark:bg-sky-950/40 px-2 py-0.5 text-xs sm:text-sm font-medium text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 hover:text-sky-700 dark:hover:text-sky-300 transition-colors no-underline break-all align-baseline my-0.5 shadow-2xs"
+            className={LINK_CHIP_CLASS}
           >
-            <Link2 className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden="true" />
-            <span>{display}</span>
+            <Link2 className={CHIP_ICON_CLASS} aria-hidden="true" />
+            {label ? renderInline(label, key, linkLabelOptions(options), depth + 1) : display}
           </a>
         ) : (
           // Nowhere safe to go (empty, relative, `javascript:`…): keep the
@@ -239,10 +284,10 @@ function renderInline(
               href={href}
               target="_blank"
               rel="noreferrer noopener"
-              className="inline-flex items-center gap-1.5 rounded-md bg-sky-50/90 dark:bg-sky-950/40 px-2 py-0.5 text-xs sm:text-sm font-medium text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 hover:text-sky-700 dark:hover:text-sky-300 transition-colors no-underline break-all align-baseline my-0.5 shadow-2xs"
+              className={LINK_CHIP_CLASS}
             >
-              <Link2 className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden="true" />
-              <span>{display}</span>
+              <Link2 className={CHIP_ICON_CLASS} aria-hidden="true" />
+              {display}
             </a>
             {trailingPunct}
           </Fragment>
@@ -272,7 +317,7 @@ function renderInline(
           <span
             key={key}
             data-mention={mention.slice(1)}
-            className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold border border-warning/40 bg-warning/20 text-foreground select-none"
+            className={GROUP_MENTION_CHIP_CLASS}
           >
             {mention}
           </span>
@@ -294,12 +339,7 @@ function renderInline(
               }
             }}
             title={`View profile for ${mention}`}
-            className={cn(
-              'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold select-none transition-all cursor-pointer',
-              'border border-primary/40 bg-primary/20 text-primary-text',
-              'hover:bg-primary/30 hover:border-primary/60 hover:shadow-xs active:scale-95',
-              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
-            )}
+            className={MENTION_CHIP_CLASS}
           >
             {mention}
           </span>
@@ -307,7 +347,7 @@ function renderInline(
       );
     } else if (groups['hashtag']) {
       nodes.push(
-        <span key={key} className="rounded bg-info/15 px-1 font-semibold text-info-text">
+        <span key={key} className={HASHTAG_CHIP_CLASS}>
           {token}
         </span>,
       );
@@ -353,14 +393,35 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
   let index = 0;
+  let blankRun = 0;
 
   while (index < lines.length) {
     const line = lines[index];
     const trimmed = line.trim();
 
     if (!trimmed) {
+      blankRun += 1;
       index += 1;
       continue;
+    }
+
+    // Blank lines between blocks are a deliberate pause: draw each one as a
+    // half-line break (Slack-style), compacted by the same rule the composer
+    // applies on send, so older uncompacted messages don't open tall gaps.
+    // Leading and trailing blanks draw nothing.
+    if (blankRun > 0) {
+      const count = compactBlankLineCount(blankRun);
+      if (blocks.length > 0) {
+        blocks.push(
+          <div
+            key={`blank-${index}`}
+            aria-hidden
+            className="msg-blank-line mt-0!"
+            style={{ height: `${count * 0.5}lh` }}
+          />,
+        );
+      }
+      blankRun = 0;
     }
 
     // Fenced code block — handles optional language, filename metadata, and unclosed streaming blocks.

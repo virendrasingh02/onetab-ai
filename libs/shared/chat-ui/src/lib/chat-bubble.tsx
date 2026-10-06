@@ -1695,7 +1695,8 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
   const label = formatDaySeparatorLabel(timestamp);
 
   return (
-    <div className="top-0 my-2 gap-3 px-4 py-1 sticky z-10 flex items-center">
+    // No side padding: the rule runs the full width of the timeline, edge to edge.
+    <div className="top-0 my-2 gap-3 py-1 sticky z-10 flex items-center">
       <span className="h-px flex-1 bg-border" aria-hidden />
 
       {/* Date Dropdown Trigger Button with Dual Panel Popover */}

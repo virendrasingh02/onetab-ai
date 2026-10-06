@@ -111,12 +111,40 @@ describe('MarkdownMessage', () => {
     expect(links).toHaveLength(2);
 
     expect(links[0]).toHaveAttribute('href', 'https://meet.google.com/ogd-tbmv-yxp');
-    expect(links[0].className).toContain('bg-sky-50');
+    expect(links[0].className).toContain('text-info-text');
     expect(links[0].querySelector('svg')).toBeInTheDocument();
 
     expect(links[1]).toHaveAttribute('href', 'https://meet.google.com/ogd-tbmv-yxp');
     expect(links[1].textContent).toContain('Google Meet');
     expect(links[1].querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('renders markdown inside a link label instead of the raw syntax', () => {
+    const { container } = render(
+      <MarkdownMessage
+        text={'See [**~~identifies~~**](https://example.com) and [`Link`](https://example.com/b)'}
+      />,
+    );
+
+    const links = container.querySelectorAll('a');
+    expect(links).toHaveLength(2);
+    expect(links[0].textContent).toBe('identifies');
+    expect(links[0].querySelector('strong')).toBeInTheDocument();
+    expect(links[0].querySelector('.line-through')).toBeInTheDocument();
+    expect(links[1].textContent).not.toContain('`');
+    expect(links[1].textContent).toContain('Link');
+  });
+
+  it('draws blank lines as compacted half-line breaks', () => {
+    const { container } = render(
+      <MarkdownMessage text={'\n\na' + '\n'.repeat(21) + 'b\n\nc\n\n'} />
+    );
+
+    const spacers = container.querySelectorAll<HTMLElement>('.msg-blank-line');
+    // Leading/trailing blanks draw nothing; 20 blanks cap at 3, 1 stays 1.
+    expect(spacers).toHaveLength(2);
+    expect(spacers[0].style.height).toBe('1.5lh');
+    expect(spacers[1].style.height).toBe('0.5lh');
   });
 
   it('opens profile in rightbar when mention is clicked', () => {
