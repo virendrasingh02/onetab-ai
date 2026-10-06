@@ -32,6 +32,7 @@ import {
 } from '@org/chat-ui';
 import type {
   ConnectionState,
+  ForwardedMessage,
   Message,
   PresenceState,
   RoomKind,
@@ -39,7 +40,7 @@ import type {
   StructuredMessageAction,
   SystemEventEntity,
 } from '@org/matrix-client';
-import type { ComposerContext } from '@org/types';
+import { toPlatformUserId, type ComposerContext } from '@org/types';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useComposerControl } from './use-composer-control.js';
 import { useMentionAddActions } from './use-mention-add-actions.js';
@@ -73,6 +74,11 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  ForwardMessageDialog,
+  type ForwardMessageSource,
+} from './forward-message-dialog.js';
 import { useRegisterActiveConversation } from './active-conversation.js';
 import { deriveAttachmentBursts } from './derive-attachment-bursts.js';
 import { deriveThreads, groupReplies } from './derive-threads.js';
@@ -760,6 +766,90 @@ export function ChatSurface({
     : [];
 
   const { slug: workspaceSlug } = useCurrentWorkspace();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  // --- forwarding ---------------------------------------------------------
+
+  const [forwardSource, setForwardSource] =
+    useState<ForwardMessageSource | null>(null);
+
+  /** What this conversation is, for the forward's "from" line and link. */
+  const kindOf = useCallback(
+    (roomId: string): RoomKind => {
+      if (roomKind) return roomKind;
+      if (welcome?.kind === 'direct' || welcome?.kind === 'self') return 'direct';
+      if (welcome?.kind === 'group') return 'group';
+      try {
+        return client?.getRoom(roomId)?.kind ?? 'channel';
+      } catch {
+        return 'channel';
+      }
+    },
+    [roomKind, welcome?.kind, client],
+  );
+
+  const openForward = useCallback(
+    (message: Message) => {
+      const kind = kindOf(message.roomId);
+      const params = new URLSearchParams();
+      // A channel's own route works for anyone in it. A DM's route is keyed
+      // on the *other* person, which differs per reader — so DMs and groups
+      // are addressed by room instead.
+      const conversationPath =
+        kind === 'channel'
+          ? /^\/w\/[^/]+\/([^?#]+)/.exec(pathname)?.[1]
+          : 'dms';
+      if (kind !== 'channel') params.set('room', message.roomId);
+      if (message.threadRootId) params.set('thread', message.threadRootId);
+      params.set('msg', message.id);
+      const link = conversationPath
+        ? `${conversationPath}?${params.toString()}`
+        : undefined;
+
+      setForwardSource({
+        message,
+        roomKind: kind,
+        roomName: kind === 'channel' ? title : undefined,
+        isPrivate: kind !== 'channel' || (welcome?.isPrivate ?? false),
+        link,
+      });
+    },
+    [kindOf, pathname, title, welcome?.isPrivate],
+  );
+
+  const handleForward = onForward ?? openForward;
+
+  /**
+   * Reopens a forward's original — only when the reader is in the room it came
+   * from; otherwise the card stays a read-only snapshot.
+   */
+  const openForwardedOriginal = useCallback(
+    (forwarded: ForwardedMessage) => {
+      if (!forwarded.link || !workspaceSlug) return undefined;
+      let room: ReturnType<NonNullable<typeof client>['getRoom']>;
+      try {
+        room = client?.getRoom(forwarded.roomId) ?? null;
+      } catch {
+        room = null;
+      }
+      if (!room) return undefined;
+
+      // A 1:1 opens on its own `/dms/:peerId` route — from this reader's side,
+      // the peer is whoever *they* talk to there.
+      if (room.kind === 'direct' && room.directUserId) {
+        const params = new URLSearchParams();
+        if (forwarded.threadRootId) params.set('thread', forwarded.threadRootId);
+        params.set('msg', forwarded.eventId);
+        const peerId = toPlatformUserId(room.directUserId);
+        return () =>
+          navigate(`/w/${workspaceSlug}/dms/${peerId}?${params.toString()}`);
+      }
+      return () => navigate(`/w/${workspaceSlug}/${forwarded.link}`);
+    },
+    [client, workspaceSlug, navigate],
+  );
+
   const effectiveWorkspaceId = composerContext?.workspaceId ?? workspaceId;
   const effectiveChannelId = composerContext?.channelId;
   const effectiveRoomId = composerContext?.roomId ?? conversationId;
@@ -1180,11 +1270,40 @@ export function ChatSurface({
           onToggleSave={
             onToggleSave ? () => onToggleSave(message.id) : undefined
           }
-          onForward={
-            onForward
-              ? () => onForward(message)
-              : () => copyMessageLink(message, 'Link copied — paste it to forward')
+          onForward={() => handleForward(message)}
+          onOpenForwarded={
+            message.forwarded
+              ? openForwardedOriginal(message.forwarded)
+              : undefined
           }
+          forwardedAttachmentSlot={(() => {
+            const forwarded = message.forwarded;
+            const attachment = forwarded?.attachment;
+            if (!forwarded || !attachment) return undefined;
+            return (
+              <AttachmentRenderer
+                attachment={attachment}
+                kind={forwarded.kind}
+                onOpen={() =>
+                  openPreview([
+                    attachmentToMediaItem(
+                      attachment,
+                      forwarded.kind,
+                      forwarded.eventId,
+                      {
+                        senderId: forwarded.senderId,
+                        senderName: forwarded.senderName,
+                        senderAvatarUrl: forwarded.senderAvatarUrl,
+                        channelName: title,
+                        isEncrypted: isEncrypted || message.isEncrypted,
+                        timestamp: forwarded.timestamp,
+                      },
+                    ),
+                  ])
+                }
+              />
+            );
+          })()}
           onMarkUnread={onMarkUnread ? () => onMarkUnread(message) : undefined}
           onRemind={
             onRemind ? (remindAt: Date) => onRemind(message, remindAt) : undefined
@@ -1371,7 +1490,6 @@ export function ChatSurface({
       onRemind,
       mutedThreadRootIds,
       onToggleReplyNotifications,
-      onForward,
       onAssignToMe,
       onCreateTask,
       onCreateDoc,
@@ -1393,6 +1511,8 @@ export function ChatSurface({
       workspaceId,
       copyMessageLink,
       conversationId,
+      handleForward,
+      openForwardedOriginal,
     ],
   );
 
@@ -1646,6 +1766,7 @@ export function ChatSurface({
             onOpenThread={(messageId) => openThreadPanel(messageId)}
             onToggleSave={onToggleSave}
             isSaved={(messageId) => savedIds?.includes(messageId) ?? false}
+            onForward={handleForward}
           />
         ) : panel === 'members' ? (
           <MemberList
@@ -1921,6 +2042,14 @@ export function ChatSurface({
           />
         </div>
       </div>
+
+      <ForwardMessageDialog
+        source={forwardSource}
+        onOpenChange={(open) => {
+          if (!open) setForwardSource(null);
+        }}
+        onCopyLink={(message) => copyMessageLink(message, 'Link copied')}
+      />
     </ChatLayout>
   );
 }

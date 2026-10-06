@@ -79,6 +79,7 @@ import { LinkPreviewCard } from './link-preview-card.js';
 import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
 import { useMediaPreview } from '@org/media-preview';
 import { MarkdownMessage } from './markdown-message.js';
+import { ForwardedMessageCard } from './forwarded-message-card.js';
 import { reminderPresets } from './reminder-presets.js';
 import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
 import { UserProfileCard } from './user-profile-card.js';
@@ -108,6 +109,10 @@ export interface ChatBubbleProps {
   /** True when the thread has replies the reader has not caught up to. */
   threadHasUnread?: boolean;
   attachmentSlot?: ReactNode;
+  /** The forwarded original's attachment, when this message is a forward. */
+  forwardedAttachmentSlot?: ReactNode;
+  /** Opens a forward's original message; omit when the viewer cannot see it. */
+  onOpenForwarded?: () => void;
   isPinned?: boolean;
   onTogglePin?: () => void;
   isSaved?: boolean;
@@ -450,6 +455,8 @@ export function ChatBubble({
   showThreadConnector = false,
   threadHasUnread = false,
   attachmentSlot,
+  forwardedAttachmentSlot,
+  onOpenForwarded,
   isPinned = false,
   onTogglePin,
   isSaved = false,
@@ -1196,6 +1203,15 @@ export function ChatBubble({
                   );
                 })}
               </div>
+            ) : null}
+
+            {message.forwarded ? (
+              <ForwardedMessageCard
+                forwarded={message.forwarded}
+                onOpen={onOpenForwarded}
+                attachmentSlot={forwardedAttachmentSlot}
+                mentionNames={mentionNames}
+              />
             ) : null}
 
             {attachmentSlot}

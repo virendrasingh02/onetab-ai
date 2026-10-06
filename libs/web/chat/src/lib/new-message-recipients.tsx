@@ -6,7 +6,7 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Hash, Lock, Search, X } from 'lucide-react';
+import { Hash, Lock, Search, Users, X } from 'lucide-react';
 import {
   useId,
   useMemo,
@@ -31,12 +31,14 @@ export interface RecipientPerson {
   statusText?: string | null;
 }
 
-/** A channel the viewer may post to. */
+/** A channel — or an existing group conversation — the viewer may post to. */
 export interface RecipientChannel {
   id: string;
   name: string;
   slug: string;
   isPrivate: boolean;
+  /** Defaults to `'channel'`. A `group` is an existing group DM. */
+  kind?: 'channel' | 'group';
 }
 
 export interface NewMessageRecipientsProps {
@@ -46,8 +48,19 @@ export interface NewMessageRecipientsProps {
   selectedPeopleIds: string[];
   onChangePeople: (ids: string[]) => void;
   /** A single chosen channel, mutually exclusive with people. */
-  selectedChannelId: string | null;
-  onChangeChannel: (id: string | null) => void;
+  selectedChannelId?: string | null;
+  onChangeChannel?: (id: string | null) => void;
+  /**
+   * Several destinations at once — any mix of channels, groups and people,
+   * each receiving its own copy (Forward). Channels are then read from
+   * `selectedChannelIds` / `onChangeChannels` instead.
+   */
+  multiple?: boolean;
+  selectedChannelIds?: string[];
+  onChangeChannels?: (ids: string[]) => void;
+  /** The field's leading label. Defaults to "To:"; empty hides it. */
+  label?: string;
+  placeholder?: string;
   autoFocus?: boolean;
   className?: string;
 }
@@ -72,8 +85,13 @@ export function NewMessageRecipients({
   channels,
   selectedPeopleIds,
   onChangePeople,
-  selectedChannelId,
+  selectedChannelId = null,
   onChangeChannel,
+  multiple = false,
+  selectedChannelIds,
+  onChangeChannels,
+  label = 'To:',
+  placeholder,
   autoFocus,
   className,
 }: NewMessageRecipientsProps) {
@@ -83,9 +101,27 @@ export function NewMessageRecipients({
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
 
-  const selectedChannel = useMemo(
-    () => channels.find((channel) => channel.id === selectedChannelId) ?? null,
-    [channels, selectedChannelId],
+  // One shape for both modes: the chosen channel ids, in pick order.
+  const channelIds = useMemo(
+    () =>
+      multiple
+        ? (selectedChannelIds ?? [])
+        : selectedChannelId
+          ? [selectedChannelId]
+          : [],
+    [multiple, selectedChannelIds, selectedChannelId],
+  );
+  const setChannelIds = (ids: string[]) => {
+    if (multiple) onChangeChannels?.(ids);
+    else onChangeChannel?.(ids[ids.length - 1] ?? null);
+  };
+
+  const selectedChannels = useMemo(
+    () =>
+      channelIds
+        .map((id) => channels.find((channel) => channel.id === id))
+        .filter((channel): channel is RecipientChannel => Boolean(channel)),
+    [channels, channelIds],
   );
   const selectedPeople = useMemo(
     () => selectedPeopleIds
@@ -107,7 +143,7 @@ export function NewMessageRecipients({
       (person.statusText ?? '').toLowerCase().includes(needle);
 
     const channelRows: Row[] = channels
-      .filter((channel) => channel.id !== selectedChannelId && matchChannel(channel))
+      .filter((channel) => !channelIds.includes(channel.id) && matchChannel(channel))
       .map((channel) => ({ type: 'channel', channel }));
 
     const peopleRows: Row[] = people
@@ -119,16 +155,19 @@ export function NewMessageRecipients({
       .map((person) => ({ type: 'person', person }));
 
     return [...channelRows, ...peopleRows];
-  }, [channels, people, query, selectedChannelId, selectedPeopleIds]);
+  }, [channels, people, query, channelIds, selectedPeopleIds]);
 
   const clampedActive = Math.min(activeIndex, Math.max(rows.length - 1, 0));
 
   const commit = (row: Row) => {
-    if (row.type === 'channel') {
+    if (multiple) {
+      if (row.type === 'channel') setChannelIds([...channelIds, row.channel.id]);
+      else onChangePeople([...selectedPeopleIds, row.person.id]);
+    } else if (row.type === 'channel') {
       onChangePeople([]);
-      onChangeChannel(row.channel.id);
+      setChannelIds([row.channel.id]);
     } else {
-      onChangeChannel(null);
+      setChannelIds([]);
       onChangePeople([...selectedPeopleIds, row.person.id]);
     }
     setQuery('');
@@ -137,14 +176,13 @@ export function NewMessageRecipients({
     inputRef.current?.focus();
   };
 
+  // Tokens render channels first, then people: peel from the end of that.
   const removeLastToken = () => {
-    if (selectedChannel) {
-      onChangeChannel(null);
-      return;
-    }
     if (selectedPeopleIds.length > 0) {
       onChangePeople(selectedPeopleIds.slice(0, -1));
+      return;
     }
+    if (channelIds.length > 0) setChannelIds(channelIds.slice(0, -1));
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -182,6 +220,10 @@ export function NewMessageRecipients({
   };
 
   const showChannelGroup = rows.some((row) => row.type === 'channel');
+  const hasGroupRows = rows.some(
+    (row) => row.type === 'channel' && row.channel.kind === 'group',
+  );
+  const hasSelection = channelIds.length > 0 || selectedPeopleIds.length > 0;
   const firstPersonIndex = rows.findIndex((row) => row.type === 'person');
   // Keep the panel up while typing so "no matches" can show; otherwise only
   // when there is something to pick.
@@ -197,23 +239,22 @@ export function NewMessageRecipients({
           )}
           onClick={() => inputRef.current?.focus()}
         >
-          <span className="font-medium pl-0.5 text-muted-foreground select-none">
-            To:
-          </span>
-
-          {selectedChannel ? (
-            <Token
-              icon={
-                selectedChannel.isPrivate ? (
-                  <Lock className="size-3" />
-                ) : (
-                  <Hash className="size-3" />
-                )
-              }
-              label={selectedChannel.name}
-              onRemove={() => onChangeChannel(null)}
-            />
+          {label ? (
+            <span className="font-medium pl-0.5 text-muted-foreground select-none">
+              {label}
+            </span>
           ) : null}
+
+          {selectedChannels.map((channel) => (
+            <Token
+              key={channel.id}
+              icon={<ChannelGlyph channel={channel} className="size-3" />}
+              label={channel.name}
+              onRemove={() =>
+                setChannelIds(channelIds.filter((id) => id !== channel.id))
+              }
+            />
+          ))}
 
           {selectedPeople.map((person) => (
             <Token
@@ -252,9 +293,9 @@ export function NewMessageRecipients({
             aria-controls={listId}
             aria-autocomplete="list"
             placeholder={
-              selectedChannel || selectedPeople.length > 0
+              hasSelection
                 ? 'Add another…'
-                : '#a-channel, @somebody, or a name'
+                : (placeholder ?? '#a-channel, @somebody, or a name')
             }
             className="min-w-40 flex-1 bg-transparent py-0.5 outline-none placeholder:text-muted-foreground"
           />
@@ -271,7 +312,7 @@ export function NewMessageRecipients({
       >
         {showChannelGroup ? (
           <p className="px-2 pt-1.5 pb-1 font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
-            Channels
+            {hasGroupRows ? 'Channels & groups' : 'Channels'}
           </p>
         ) : null}
 
@@ -311,17 +352,13 @@ export function NewMessageRecipients({
                 {row.type === 'channel' ? (
                   <>
                     <span className="size-6 flex shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      {row.channel.isPrivate ? (
-                        <Lock className="size-3.5" />
-                      ) : (
-                        <Hash className="size-3.5" />
-                      )}
+                      <ChannelGlyph channel={row.channel} className="size-3.5" />
                     </span>
                     <span className="min-w-0 flex-1 truncate font-medium">
                       {row.channel.name}
                     </span>
                     <span className="text-[11px] text-muted-foreground">
-                      Channel
+                      {row.channel.kind === 'group' ? 'Group' : 'Channel'}
                     </span>
                   </>
                 ) : (
@@ -389,6 +426,21 @@ export function NewMessageRecipients({
         ) : null}
       </PopoverContent>
     </Popover>
+  );
+}
+
+function ChannelGlyph({
+  channel,
+  className,
+}: {
+  channel: RecipientChannel;
+  className?: string;
+}) {
+  if (channel.kind === 'group') return <Users className={className} />;
+  return channel.isPrivate ? (
+    <Lock className={className} />
+  ) : (
+    <Hash className={className} />
   );
 }
 

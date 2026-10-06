@@ -9,6 +9,7 @@ import type {
 import {
   validateStructuredEvent,
   type Attachment,
+  type ForwardedMessage,
   type LinkPreview,
   type Message,
   type MessageKind,
@@ -304,6 +305,154 @@ export function extractStructuredEvent(
   return undefined;
 }
 
+// --- forwarding ------------------------------------------------------------
+
+/** Content key under which a forwarded message travels — see `ForwardedContent`. */
+export const FORWARDED_CONTENT_KEY = 'org.onetab.forwarded';
+
+/**
+ * The wire shape of a forward, stored under `FORWARDED_CONTENT_KEY` on an
+ * ordinary `m.text` event.
+ *
+ * The original's content is copied in rather than referenced: the recipients
+ * are usually not in the source room (a DM forwarded to a channel), so they
+ * could never fetch it. Media keeps its `mxc://` URI (and, when encrypted, the
+ * `file` key material) — the same thing Element does when it forwards.
+ */
+export interface ForwardedContent {
+  event_id: string;
+  room_id: string;
+  room_kind?: RoomKind;
+  room_name?: string;
+  sender: string;
+  sender_name?: string;
+  /** `mxc://` URI, resolved for each reader. */
+  sender_avatar_url?: string;
+  origin_server_ts: number;
+  thread_root_id?: string;
+  link?: string;
+  /** The original's content, trimmed to what renders it. */
+  content: Record<string, unknown>;
+  /** The forwarder's own note, as markdown. Empty when they added none. */
+  comment?: string;
+}
+
+/** The content keys a forwarded copy keeps — text, formatting and media. */
+const FORWARDABLE_CONTENT_KEYS = [
+  'msgtype',
+  'body',
+  'format',
+  'formatted_body',
+  'url',
+  'file',
+  'info',
+  'org.matrix.msc3245.voice',
+  'org.matrix.msc1767.audio',
+] as const;
+
+/**
+ * The parts of an event's content worth carrying into a forward. Relations
+ * (`m.relates_to`), edits and app payloads are dropped: a reply pointer or a
+ * thread link would dangle in the destination room.
+ */
+export function pickForwardableContent(
+  content: Record<string, unknown>,
+): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const key of FORWARDABLE_CONTENT_KEYS) {
+    if (content[key] !== undefined) picked[key] = content[key];
+  }
+  // Only plain message types survive; an app card forwards as its text.
+  if (typeof picked['msgtype'] !== 'string' || !MSGTYPE_TO_KIND[picked['msgtype']]) {
+    picked['msgtype'] = 'm.text';
+  }
+  return picked;
+}
+
+/** The forward payload in an event's content, when it carries a valid one. */
+export function readForwardedContent(
+  content: unknown,
+): ForwardedContent | undefined {
+  if (!content || typeof content !== 'object') return undefined;
+  const raw = (content as Record<string, unknown>)[FORWARDED_CONTENT_KEY];
+  if (!raw || typeof raw !== 'object') return undefined;
+  const value = raw as Partial<ForwardedContent>;
+  if (
+    typeof value.event_id !== 'string' ||
+    typeof value.room_id !== 'string' ||
+    typeof value.sender !== 'string' ||
+    !value.content ||
+    typeof value.content !== 'object'
+  ) {
+    return undefined;
+  }
+  return {
+    ...value,
+    origin_server_ts:
+      typeof value.origin_server_ts === 'number' ? value.origin_server_ts : 0,
+    comment: typeof value.comment === 'string' ? value.comment : '',
+  } as ForwardedContent;
+}
+
+const MEDIA_KINDS: readonly MessageKind[] = [
+  'image',
+  'video',
+  'audio',
+  'voice',
+  'file',
+];
+
+/** A forward payload as the domain's `ForwardedMessage`, media resolved for this reader. */
+export function toForwarded(
+  client: SdkClient,
+  raw: ForwardedContent,
+): ForwardedMessage {
+  const content = raw.content as MessageContentShape;
+  const kind = toMessageKind(content);
+  return {
+    eventId: raw.event_id,
+    roomId: raw.room_id,
+    roomKind: raw.room_kind,
+    roomName: raw.room_name,
+    senderId: raw.sender,
+    senderName: raw.sender_name || raw.sender,
+    senderAvatarUrl:
+      resolveMediaUrl(client, raw.sender_avatar_url, {
+        width: 64,
+        height: 64,
+      }) ?? undefined,
+    kind,
+    // A media event's `body` is its filename — the attachment shows that.
+    body: MEDIA_KINDS.includes(kind) ? '' : (content.body ?? ''),
+    timestamp: raw.origin_server_ts,
+    attachment: toAttachment(client, content, kind),
+    threadRootId: raw.thread_root_id,
+    link: raw.link,
+  };
+}
+
+/**
+ * The plain `body` of a forward, for clients and surfaces that do not read
+ * `FORWARDED_CONTENT_KEY` — push notifications, sidebar previews, other Matrix
+ * apps. Our own timeline shows the comment and the card instead.
+ */
+export function forwardFallbackBody(
+  comment: string,
+  senderName: string,
+  originalBody: string,
+): string {
+  const original = originalBody.trim();
+  const quoted = original
+    ? original
+        .split('\n')
+        .map((line) => `> ${line}`)
+        .join('\n')
+    : '> (attachment)';
+  const header = `Forwarded message from ${senderName}:`;
+  const note = comment.trim();
+  return note ? `${note}\n\n${header}\n${quoted}` : `${header}\n${quoted}`;
+}
+
 export function toMessage(
   client: SdkClient,
   event: MatrixEvent,
@@ -331,6 +480,7 @@ export function toMessage(
   const kind = toMessageKind(content);
   const member = room?.getMember(senderId);
   const decryptionFailed = event.isDecryptionFailure();
+  const forwarded = decryptionFailed ? undefined : readForwardedContent(content);
   const isMention = eventHighlightsUser(client, event);
 
   const status = event.status;
@@ -358,9 +508,15 @@ export function toMessage(
         height: 64,
       }) ?? undefined,
     kind,
-    body: decryptionFailed ? '' : (content.body ?? ''),
+    // A forward's `body` is a fallback quoting the original; the timeline
+    // shows only the forwarder's note, with the original as a card.
+    body: decryptionFailed
+      ? ''
+      : forwarded
+        ? (forwarded.comment ?? '')
+        : (content.body ?? ''),
     formattedBody:
-      content.format === 'org.matrix.custom.html'
+      !forwarded && content.format === 'org.matrix.custom.html'
         ? content.formatted_body
         : undefined,
     timestamp: event.getTs(),
@@ -383,6 +539,7 @@ export function toMessage(
     isMention,
     linkPreviews: content.link_previews ?? content.linkPreviews ?? undefined,
     readers: toReaders(client, room, id),
+    forwarded: forwarded ? toForwarded(client, forwarded) : undefined,
   };
 }
 

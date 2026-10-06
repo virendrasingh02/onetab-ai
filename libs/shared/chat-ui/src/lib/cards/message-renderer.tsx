@@ -26,6 +26,10 @@ export interface MessageRendererProps {
   senderBadge?: ReactNode;
   avatarSlot?: ReactNode;
   attachmentSlot?: ReactNode;
+  /** A forward's original attachment — see `ChatBubble`. */
+  forwardedAttachmentSlot?: ReactNode;
+  /** Opens a forward's original message — see `ChatBubble`. */
+  onOpenForwarded?: () => void;
   isPinned?: boolean;
   isSaved?: boolean;
   isHighlighted?: boolean;

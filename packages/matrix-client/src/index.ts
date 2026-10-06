@@ -63,6 +63,7 @@ export type {
   MatrixEventListener,
   MatrixSession,
   MatrixUserId,
+  ForwardedMessage,
   Message,
   MessageKind,
   MessageSearchResult,

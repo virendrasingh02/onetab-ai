@@ -2,6 +2,10 @@ import type { MatrixClient as SdkClient, MatrixEvent } from 'matrix-js-sdk';
 import type { Room as SdkRoom } from 'matrix-js-sdk';
 import {
   collectUnreadMentions,
+  FORWARDED_CONTENT_KEY,
+  forwardFallbackBody,
+  pickForwardableContent,
+  readForwardedContent,
   eventHighlightsUser,
   resolveDirectMessageRoom,
   resolveGroupDirectMessageRoom,
@@ -948,5 +952,126 @@ describe('threadMuteRuleId', () => {
     const a = threadMuteRuleId('$abc/def+g=');
     expect(a).toMatch(/^mie\.thread_mute\.[A-Za-z0-9_]+$/);
     expect(a).not.toBe(threadMuteRuleId('$abc+def/g='));
+  });
+});
+
+describe('forwarding', () => {
+  const client = fakeClient();
+  const room = fakeRoom();
+
+  const payload = {
+    event_id: '$original',
+    room_id: '!source:example.org',
+    room_kind: 'direct',
+    sender: '@bob:example.org',
+    sender_name: 'Bob',
+    sender_avatar_url: 'mxc://example.org/bob',
+    origin_server_ts: 1_700_000_000_000,
+    link: 'dms?room=!source%3Aexample.org&msg=%24original',
+    content: { msgtype: 'm.text', body: 'Ship it on Friday' },
+    comment: 'FYI',
+  };
+
+  it('shows only the note as the body and the original as `forwarded`', () => {
+    const message = toMessage(
+      client,
+      fakeEvent({
+        content: {
+          msgtype: 'm.text',
+          body: forwardFallbackBody('FYI', 'Bob', 'Ship it on Friday'),
+          [FORWARDED_CONTENT_KEY]: payload,
+        },
+      }),
+      room,
+    );
+
+    expect(message?.body).toBe('FYI');
+    expect(message?.forwarded).toMatchObject({
+      eventId: '$original',
+      roomId: '!source:example.org',
+      roomKind: 'direct',
+      senderName: 'Bob',
+      senderAvatarUrl: 'https://media.example.org/example.org/bob',
+      kind: 'text',
+      body: 'Ship it on Friday',
+      link: payload.link,
+    });
+  });
+
+  it('resolves a forwarded attachment and drops its filename body', () => {
+    const message = toMessage(
+      client,
+      fakeEvent({
+        content: {
+          msgtype: 'm.text',
+          body: 'Forwarded message from Bob:\n> plan.pdf',
+          [FORWARDED_CONTENT_KEY]: {
+            ...payload,
+            comment: '',
+            content: {
+              msgtype: 'm.file',
+              body: 'plan.pdf',
+              url: 'mxc://example.org/plan',
+              info: { mimetype: 'application/pdf', size: 1024 },
+            },
+          },
+        },
+      }),
+      room,
+    );
+
+    expect(message?.body).toBe('');
+    expect(message?.forwarded?.kind).toBe('file');
+    expect(message?.forwarded?.body).toBe('');
+    expect(message?.forwarded?.attachment).toMatchObject({
+      name: 'plan.pdf',
+      mimeType: 'application/pdf',
+      url: 'https://media.example.org/example.org/plan',
+    });
+  });
+
+  it('ignores a malformed payload', () => {
+    expect(readForwardedContent({ [FORWARDED_CONTENT_KEY]: { event_id: 1 } })).toBeUndefined();
+    expect(readForwardedContent(null)).toBeUndefined();
+    const message = toMessage(
+      client,
+      fakeEvent({
+        content: { msgtype: 'm.text', body: 'plain', [FORWARDED_CONTENT_KEY]: 'nope' },
+      }),
+      room,
+    );
+    expect(message?.body).toBe('plain');
+    expect(message?.forwarded).toBeUndefined();
+  });
+
+  it('keeps only renderable content and strips relations', () => {
+    expect(
+      pickForwardableContent({
+        msgtype: 'm.image',
+        body: 'cat.png',
+        url: 'mxc://example.org/cat',
+        info: { w: 10, h: 10 },
+        'm.relates_to': { rel_type: 'm.thread', event_id: '$root' },
+        mie_event: { type: 'mie.form' },
+      }),
+    ).toEqual({
+      msgtype: 'm.image',
+      body: 'cat.png',
+      url: 'mxc://example.org/cat',
+      info: { w: 10, h: 10 },
+    });
+    // App cards forward as their text.
+    expect(
+      pickForwardableContent({ msgtype: 'mie.form', body: 'Form: Survey' }),
+    ).toEqual({ msgtype: 'm.text', body: 'Form: Survey' });
+  });
+
+  it('writes a readable fallback for other clients', () => {
+    expect(forwardFallbackBody('', 'Bob', 'line one\nline two')).toBe(
+      'Forwarded message from Bob:\n> line one\n> line two',
+    );
+    expect(forwardFallbackBody('  see this ', 'Bob', '')).toBe(
+      'see this\n\nForwarded message from Bob:\n> (attachment)',
+    );
   });
 });

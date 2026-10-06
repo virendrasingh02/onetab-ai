@@ -23,6 +23,9 @@ import { CallManager } from './calls.js';
 import { toMatrixError, withRetry } from './errors.js';
 import {
   collectUnreadMentions,
+  FORWARDED_CONTENT_KEY,
+  forwardFallbackBody,
+  type ForwardedContent,
   MARKED_UNREAD_EVENT,
   MARKED_UNREAD_FROM_KEY,
   PINNED_EVENTS_EVENT,
@@ -33,6 +36,9 @@ import {
   resolveDirectMessageRoom,
   resolveGroupDirectMessageRoom,
   resolveMediaUrl,
+  pickForwardableContent,
+  readForwardedContent,
+  toForwarded,
   toMessage,
   toPresence,
   toReaders,
@@ -72,6 +78,7 @@ import {
   type ReadReceipt,
   type Room,
   type RoomId,
+  type RoomKind,
   type RoomMember,
   type Thread,
   type Timeline,
@@ -1147,6 +1154,110 @@ export class OneTabMatrixClient {
       html?: string;
     } = {},
   ): Promise<string> {
+    return this.sendTextEvent(roomId, body, options);
+  }
+
+  /**
+   * Forwards `message` into `targetRoomId`, optionally with a note of the
+   * sender's own.
+   *
+   * The original is copied into the new event (see `ForwardedContent`) rather
+   * than linked, because the people in the destination usually cannot read the
+   * source room. Forwarding a forward with no note of its own passes the
+   * original along, so attribution stays with whoever first wrote it.
+   *
+   * Resolves to the send's transaction id, like `sendMessage`.
+   */
+  async forwardMessage(
+    targetRoomId: RoomId,
+    message: Message,
+    options: {
+      /** The forwarder's note, as markdown. */
+      comment?: string;
+      /** The source channel's display name; unset for DMs. */
+      roomName?: string;
+      roomKind?: RoomKind;
+      /** Workspace-relative path that reopens the original. */
+      link?: string;
+    } = {},
+  ): Promise<string> {
+    const sdk = this.require();
+    const comment = options.comment?.trim() ?? '';
+    const sourceRoom = sdk.getRoom(message.roomId);
+    const sourceEvent = sourceRoom?.findEventById(message.id);
+    const sourceContent = (sourceEvent?.getContent() ?? null) as Record<
+      string,
+      unknown
+    > | null;
+
+    // A forward of a bare forward: pass the original along untouched.
+    const inner = readForwardedContent(sourceContent);
+    let payload: ForwardedContent;
+    if (inner && !inner.comment?.trim()) {
+      payload = { ...inner, comment };
+    } else {
+      const member = sourceRoom?.getMember(message.senderId);
+      const content = sourceContent
+        ? pickForwardableContent(sourceContent)
+        : { msgtype: 'm.text', body: message.body };
+      // The note on a forward we re-forward is what's being passed on.
+      if (inner) {
+        content['msgtype'] = 'm.text';
+        content['body'] = inner.comment ?? '';
+        delete content['format'];
+        delete content['formatted_body'];
+      }
+      payload = {
+        event_id: message.id,
+        room_id: message.roomId,
+        room_kind:
+          options.roomKind ??
+          (sourceRoom ? toRoomKind(sourceRoom, sdk) : undefined),
+        room_name: options.roomName,
+        sender: message.senderId,
+        sender_name: member?.name ?? message.senderName,
+        sender_avatar_url: member?.getMxcAvatarUrl() ?? undefined,
+        origin_server_ts: message.timestamp,
+        thread_root_id: message.threadRootId,
+        link: options.link,
+        content,
+        comment,
+      };
+    }
+
+    const originalBody =
+      typeof payload.content['body'] === 'string'
+        ? (payload.content['body'] as string)
+        : '';
+    const body = forwardFallbackBody(
+      comment,
+      payload.sender_name ?? payload.sender,
+      originalBody,
+    );
+
+    return this.sendTextEvent(targetRoomId, body, {
+      extraContent: { [FORWARDED_CONTENT_KEY]: payload },
+      echo: { body: comment, forwarded: toForwarded(sdk, payload) },
+    });
+  }
+
+  /**
+   * The text send behind `sendMessage` and `forwardMessage`: a local echo now,
+   * replaced by the real event once the homeserver acknowledges it.
+   */
+  private async sendTextEvent(
+    roomId: RoomId,
+    body: string,
+    options: {
+      threadRootId?: EventId;
+      replyToId?: EventId;
+      html?: string;
+      /** Extra keys merged into the event content. */
+      extraContent?: Record<string, unknown>;
+      /** Overrides for the local echo — what the timeline should show. */
+      echo?: Partial<Message>;
+    } = {},
+  ): Promise<string> {
     const sdk = this.require();
     const transactionId = `m.${Date.now()}.${Math.random().toString(36).slice(2)}`;
     const myUserId = sdk.getUserId() ?? '';
@@ -1175,12 +1286,14 @@ export class OneTabMatrixClient {
       sendState: 'sending',
       transactionId,
       isEncrypted: room ? room.hasEncryptionStateEvent() : false,
+      ...options.echo,
     };
 
     this.pendingEchoes.set(transactionId, optimisticMessage);
     this.emit({ type: 'message.received', message: optimisticMessage });
 
     const content: Record<string, unknown> = {
+      ...options.extraContent,
       msgtype: 'm.text',
       body,
       ...(options.html
@@ -1336,12 +1449,33 @@ export class OneTabMatrixClient {
   ): Promise<void> {
     const sdk = this.require();
 
+    // Editing a forward edits only the note: the forwarded original rides
+    // along in the new content, or the card would vanish with the edit.
+    const original = sdk
+      .getRoom(roomId)
+      ?.findEventById(eventId)
+      ?.getContent();
+    const forwarded = readForwardedContent(original);
+    const newContent: Record<string, unknown> = forwarded
+      ? {
+          msgtype: 'm.text',
+          body: forwardFallbackBody(
+            newBody,
+            forwarded.sender_name ?? forwarded.sender,
+            typeof forwarded.content['body'] === 'string'
+              ? (forwarded.content['body'] as string)
+              : '',
+          ),
+          [FORWARDED_CONTENT_KEY]: { ...forwarded, comment: newBody.trim() },
+        }
+      : { msgtype: 'm.text', body: newBody };
+
     await withRetry(() =>
       sdk.sendMessage(roomId, {
         msgtype: 'm.text',
         // Fallback body for clients that do not understand replacements.
         body: `* ${newBody}`,
-        'm.new_content': { msgtype: 'm.text', body: newBody },
+        'm.new_content': newContent,
         'm.relates_to': { rel_type: 'm.replace', event_id: eventId },
       } as never),
     );

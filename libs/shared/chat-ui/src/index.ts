@@ -71,6 +71,12 @@ export {
 } from './lib/markdown-message.js';
 
 export {
+  ForwardedMessageCard,
+  describeForwardSource,
+  type ForwardedMessageCardProps,
+} from './lib/forwarded-message-card.js';
+
+export {
   LexicalComposerInput,
   LexicalToolbar,
   FloatingSelectionToolbar,

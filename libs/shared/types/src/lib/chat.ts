@@ -160,6 +160,35 @@ export interface LinkPreview {
   updatedAt?: number;
 }
 
+/**
+ * A message carried inside another one by "Forward".
+ *
+ * A snapshot taken at the moment of forwarding — the original can later be
+ * edited or deleted without changing what the recipients were shown, the same
+ * as a forwarded email. `link` reopens the original for anyone who can still
+ * see it; everyone else just reads the snapshot.
+ */
+export interface ForwardedMessage {
+  eventId: EventId;
+  roomId: RoomId;
+  /** Where it was originally posted, for the "Direct message" / "#general" line. */
+  roomKind?: RoomKind;
+  /** The channel's name; unset for direct and group messages. */
+  roomName?: string;
+  senderId: MatrixUserId;
+  senderName: string;
+  senderAvatarUrl?: string;
+  kind: MessageKind;
+  /** The original's plain-text (markdown) body. Empty for a bare attachment. */
+  body: string;
+  timestamp: Timestamp;
+  attachment?: Attachment;
+  /** Set when the original was a thread reply. */
+  threadRootId?: EventId;
+  /** Workspace-relative path that reopens the original, e.g. `c/general?msg=…`. */
+  link?: string;
+}
+
 export interface Message {
   id: EventId;
   roomId: RoomId;
@@ -202,6 +231,11 @@ export interface Message {
   linkPreviews?: LinkPreview[];
   /** Users who have seen/read this message, ordered newest receipt first. */
   readers?: MessageReader[];
+  /**
+   * Set when this message forwards another one. `body` is then only the
+   * forwarder's own note (often empty) — the forwarded content lives here.
+   */
+  forwarded?: ForwardedMessage;
 }
 
 export interface MessageReader {
