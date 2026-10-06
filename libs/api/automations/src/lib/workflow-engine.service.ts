@@ -1742,8 +1742,6 @@ export class WorkflowEngineService {
 
       case 'MCP':
       case 'MCP_TOOL': {
-        const gatedMcp = this.gateStep(node, env);
-        if (gatedMcp) return gatedMcp;
         // The canvas stores the picked tool as `<connectionId>::<toolName>`.
         const picked = typeof cfg['mcpTool'] === 'string' ? (cfg['mcpTool'] as string).split('::') : [];
         const mcpCfg =
@@ -1751,8 +1749,12 @@ export class WorkflowEngineService {
             ? { ...cfg, mcpConnectionId: picked[0], mcpToolName: picked[1] }
             : cfg;
         if (mcpCfg['mcpConnectionId'] && mcpCfg['mcpToolName']) {
+          const gatedMcp = this.gateStep(node, env);
+          if (gatedMcp) return gatedMcp;
           return this.runMcpServerNode(node, context, workspaceId, mcpCfg);
         }
+        // A built-in tool or a connected app's action: gated by what it
+        // really does (a read runs in a test, a write is simulated).
         return this.runToolNode(node, context, env, cfg);
       }
 

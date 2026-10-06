@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { AppEvent, isCronDue, type WorkflowApprovalDecidedEvent } from '@org/api-common';
 import { PrismaService } from '@org/database';
+import { CanvasAgentRunService } from './studio/canvas-agent-run.service.js';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 import { normalizeWorkflowNodes } from './workflow-graph.js';
 
@@ -39,6 +40,7 @@ export class WorkflowScheduleListener {
   constructor(
     private readonly prisma: PrismaService,
     private readonly engine: WorkflowEngineService,
+    private readonly canvasAgents: CanvasAgentRunService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE, { name: 'workflow-cron-sweep' })
@@ -60,6 +62,20 @@ export class WorkflowScheduleListener {
         );
     }
     if (due.length) this.logger.log(`Fired ${due.length} scheduled workflow run(s).`);
+
+    // Studio canvas agents someone switched on, read from their current graph.
+    let canvasDue: Awaited<ReturnType<CanvasAgentRunService['dueScheduledRuns']>> = [];
+    try {
+      canvasDue = await this.canvasAgents.dueScheduledRuns(now, isCronDue);
+    } catch (error) {
+      this.logger.warn(`Checking scheduled canvas agents failed: ${String(error)}`);
+    }
+    for (const run of canvasDue) {
+      this.engine
+        .executeWorkflow(run.workflowId, { trigger: 'CRON', firedAt: now.toISOString() }, { startedBy: 'schedule', limits: run.limits })
+        .catch((error) => this.logger.warn(`Scheduled agent '${run.name}' (${run.agentId}) failed: ${String(error)}`));
+    }
+    if (canvasDue.length) this.logger.log(`Fired ${canvasDue.length} scheduled agent run(s).`);
   }
 
   @OnEvent(AppEvent.WorkflowApprovalDecided)

@@ -33,13 +33,13 @@ import {
   Pin,
   Plus,
   Search,
-  Sparkles,
   Upload,
   Wand2,
   Wrench,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { HomePrompt } from '../components/agent-architect/home-prompt.js';
 import { STUDIO_TEMPLATES } from '../data/templates.js';
 import { useStudioSession } from '../session-guard.js';
 
@@ -70,9 +70,6 @@ export function OverviewPage() {
   });
 
   // Modals
-  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
-  const [promptText, setPromptText] = useState('');
-  const [isGeneratingPromptAgent, setIsGeneratingPromptAgent] = useState(false);
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
@@ -147,32 +144,6 @@ export function OverviewPage() {
       });
   }, [agents, statusFilter, search, pinnedAgentIds]);
 
-  // Create with Natural Language
-  const handleGenerateFromPrompt = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!promptText.trim()) return;
-    setIsGeneratingPromptAgent(true);
-    try {
-      const generatedName = promptText.split(' ').slice(0, 3).join(' ') + ' Agent';
-      const newAgent = await agentService.createAgent(activeWorkspace.id, {
-        name: generatedName,
-        role: 'Autonomous Specialist',
-        description: promptText,
-        systemPrompt: `You are an AI Agent created to execute the following task: "${promptText}". Use available tools to solve user queries diligently.`,
-        model: 'gpt-4o',
-      });
-      queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
-      setIsPromptModalOpen(false);
-      setPromptText('');
-      toast.success(`Agent "${generatedName}" generated from prompt!`);
-      navigate(`/agents/${newAgent.id}`);
-    } catch {
-      toast.error('Failed to generate agent');
-    } finally {
-      setIsGeneratingPromptAgent(false);
-    }
-  };
-
   // Import Workflow JSON
   const handleImportJson = async () => {
     try {
@@ -237,7 +208,7 @@ export function OverviewPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsPromptModalOpen(true)}
+              onClick={() => navigate('/create')}
               className="gap-1.5"
             >
               <Wand2 className="size-3.5" /> Build with AI
@@ -252,6 +223,8 @@ export function OverviewPage() {
           </>
         }
       />
+
+      <HomePrompt workspaceId={activeWorkspace.id} />
 
       <PageSection title="Studio KPIs">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -635,68 +608,6 @@ export function OverviewPage() {
           </div>
         </div>
       </div>
-
-      {/* MODAL 1: Natural Language Prompt-to-Agent Creation */}
-      <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Wand2 className="size-5 text-primary" />
-              Generate Agent with Natural Language
-            </DialogTitle>
-            <DialogDescription>
-              Describe the business task or autonomous workflow you want to create. AI will configure the nodes, model instructions, and tool bindings automatically.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleGenerateFromPrompt}>
-            <DialogBody className="space-y-3 py-4">
-              <textarea
-                rows={5}
-                value={promptText}
-                onChange={(e) => setPromptText(e.target.value)}
-                placeholder="e.g. Create a Customer Support Agent that handles refund inquiries, searches knowledge base docs, verifies purchase orders via database, and requests human manager approval if refund is over $200."
-                className="w-full rounded-lg border border-border bg-surface-raised p-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                required
-              />
-              <div className="flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
-                <span className="font-semibold text-foreground">Try asking for:</span>
-                <button
-                  type="button"
-                  onClick={() => setPromptText('Create a Competitor Research Agent that scrapes web pricing via Firecrawl, compares tier features, and writes an executive markdown brief.')}
-                  className="rounded bg-surface px-1.5 py-0.5 border border-border hover:border-primary transition-colors"
-                >
-                  Competitor Research
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPromptText('Create an Inbound Lead Qualification agent that scores company size, checks CRM records, and notifies sales in Slack.')}
-                  className="rounded bg-surface px-1.5 py-0.5 border border-border hover:border-primary transition-colors"
-                >
-                  Lead Qualifier
-                </button>
-              </div>
-            </DialogBody>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setIsPromptModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                loading={isGeneratingPromptAgent}
-                disabled={!promptText.trim()}
-                className="gap-1.5"
-              >
-                <Sparkles className="size-4" />
-                Generate Agent
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* MODAL 2: Import Workflow JSON */}
       <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>

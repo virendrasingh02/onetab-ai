@@ -395,6 +395,23 @@ describe('WorkflowEngineService', () => {
     expect(state().aiExecution['stateJson']).toMatchObject({ __mode: 'test' });
   });
 
+  it('a canvas MCP card naming a built-in tool is gated by what the tool does (reads run in a test)', async () => {
+    const { engine, registry, steps } = makeEngine(
+      [
+        node('start', 'START'),
+        node('read', 'MCP_TOOL', { toolName: 'find_tasks', input: '{}' }),
+        node('save', 'MCP_TOOL', { toolName: 'create_doc', input: '{"title":"Report"}' }),
+      ],
+      [edge('start', 'read'), edge('read', 'save')],
+      { tools: ['find_tasks', 'create_doc'] },
+    );
+    const result = await engine.executeWorkflow('wf_1', {}, { mode: 'test' });
+    expect(result.status).toBe('SUCCESS');
+    expect(registry.executeTool).toHaveBeenCalledTimes(1);
+    expect(registry.executeTool).toHaveBeenCalledWith('find_tasks', {}, expect.anything());
+    expect(steps.find((s) => s.stepId === 'save')).toMatchObject({ status: 'SKIPPED', outputJson: expect.objectContaining({ dryRun: true, wouldRun: 'create_doc' }) });
+  });
+
   it('retries a transient failure, but not a missing connection', async () => {
     const { engine, registry } = makeEngine(
       [node('start', 'START'), node('read', 'TOOL', { toolName: 'find_tasks', input: '{}', retries: 2 })],

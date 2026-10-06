@@ -296,6 +296,11 @@ import type {
   CanvasAgentRunDetail,
   CanvasAgentRunSummary,
   StudioGraphIssue,
+  ArchitectUnderstandResult,
+  ArchitectEditResult,
+  ArchitectDiagnosisResult,
+  ArchitectOptimizeResult,
+  CanvasAgentActivation,
 } from '@org/types';
 
 import type {
@@ -2415,6 +2420,34 @@ export const agentGraphsApi = {
 
   getRun: (workspaceId: string, runId: string) =>
     request<CanvasAgentRunDetail>(http.get(`/workspaces/${workspaceId}/agent-graphs/runs/${runId}`)),
+
+  /** Whether the agent runs by itself on its schedule. */
+  activation: (workspaceId: string, agentId: string) =>
+    request<CanvasAgentActivation>(http.get(`/workspaces/${workspaceId}/agent-graphs/${agentId}/activation`)),
+
+  /** Switches scheduled runs on or off (owner or admin). */
+  setActivation: (workspaceId: string, agentId: string, active: boolean) =>
+    request<CanvasAgentActivation>(http.post(`/workspaces/${workspaceId}/agent-graphs/${agentId}/activation`, { active })),
+};
+
+/**
+ * "Create with one prompt" and editing agents in plain words. Every call here
+ * plans or proposes — agents are created and saved through `agentsApi`.
+ */
+export const agentArchitectApi = {
+  /** A request → what it understood, the plan, what's missing, and the workflow. Can take ~a minute (model planning). */
+  understand: (workspaceId: string, body: { prompt: string; templateId?: string }) =>
+    request<ArchitectUnderstandResult>(http.post(`/workspaces/${workspaceId}/agent-architect/understand`, body, { timeout: 150_000 })),
+
+  /** A change in words → the changed graph and what changed. */
+  edit: (workspaceId: string, body: { command: string; graphJson: string }) =>
+    request<ArchitectEditResult>(http.post(`/workspaces/${workspaceId}/agent-architect/edit`, body, { timeout: 90_000 })),
+
+  diagnose: (workspaceId: string, agentId: string, graphJson?: string) =>
+    request<ArchitectDiagnosisResult>(http.post(`/workspaces/${workspaceId}/agent-architect/${agentId}/diagnose`, { graphJson })),
+
+  optimize: (workspaceId: string, agentId: string, graphJson: string) =>
+    request<ArchitectOptimizeResult>(http.post(`/workspaces/${workspaceId}/agent-architect/${agentId}/optimize`, { graphJson })),
 };
 
 export const agentsApi = {

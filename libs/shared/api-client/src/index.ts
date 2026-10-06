@@ -15,6 +15,7 @@ export {
   adminApi,
   aiEntitiesApi,
   agentGraphsApi,
+  agentArchitectApi,
   agentsApi,
   aiApi,
   analyticsApi,

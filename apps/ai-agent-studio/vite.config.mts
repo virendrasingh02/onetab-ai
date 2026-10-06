@@ -112,6 +112,20 @@ export default defineConfig(() => ({
     },
   },
   optimizeDeps: {
+    // @org/* libs are served as live source (excluded below), so the deps
+    // only they import aren't found by the start-up scan and get served raw.
+    // `@org/ui`'s model icons (`@lobehub/icons` → `@emotion/react`) reach the
+    // CJS-only `hoist-non-react-statics`, whose raw `module.exports` has no
+    // `default` for the browser's ESM loader — a blank Studio. Pre-bundling
+    // the chain gives it esbuild's interop (see apps/web/vite.config.mts).
+    include: [
+      'react',
+      'react-dom',
+      'use-sync-external-store/shim/with-selector.js',
+      '@lobehub/icons',
+      '@emotion/react',
+      'hoist-non-react-statics',
+    ],
     exclude: ORG_WORKSPACE_PACKAGES,
   },
   plugins: [react(), tailwindcss(), workspaceLiveSourcePlugin()],

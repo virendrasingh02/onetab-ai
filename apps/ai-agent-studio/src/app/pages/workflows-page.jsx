@@ -31,7 +31,6 @@ import {
   Zap,
 } from 'lucide-react';
 import { agentService } from '../services/agentService.js';
-import { naturalLanguageService } from '../services/naturalLanguageService.js';
 import { useStudioSession } from '../session-guard.js';
 
 export function WorkflowsPage() {
@@ -45,7 +44,7 @@ export function WorkflowsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAiCreateOpen, setIsAiCreateOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const isGeneratingAi = false;
 
   // New workflow form state
   const [newTitle, setNewTitle] = useState('');
@@ -98,24 +97,11 @@ export function WorkflowsPage() {
     });
   };
 
-  const handleAiGenerateSubmit = async (e) => {
+  // Planned for real against the workspace's tools and apps by "Create with one prompt".
+  const handleAiGenerateSubmit = (e) => {
     e.preventDefault();
     if (!aiPrompt.trim()) return;
-    setIsGeneratingAi(true);
-    try {
-      const generated = await naturalLanguageService.generateWorkflowFromPrompt(aiPrompt);
-      createMutation.mutate({
-        name: generated.agentName,
-        role: generated.role,
-        description: generated.description,
-        model: generated.model,
-        graphJson: JSON.stringify({ nodes: generated.nodes, edges: generated.edges }),
-      });
-    } catch {
-      toast.error('Failed to generate workflow from prompt');
-    } finally {
-      setIsGeneratingAi(false);
-    }
+    navigate(`/create?prompt=${encodeURIComponent(aiPrompt.trim())}&go=1`);
   };
 
   const filteredWorkflows = useMemo(() => {

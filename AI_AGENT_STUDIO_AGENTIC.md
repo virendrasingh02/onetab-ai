@@ -126,7 +126,7 @@ Gotcha: the Studio's Vite server serves `@org/*` libs through `node_modules`, wh
 ## Next passes, most valuable first
 
 1. **Strip the remaining mock fallbacks**, starting with `agentService` (library and list), Tools / MCP (`integrationService` → `integrationsApi` / `mcpApi`) and Knowledge.
-2. **Canvas triggers**: compile schedule and app-event trigger nodes into engine triggers, so canvas agents run unattended.
+2. **Canvas triggers**: schedule cards now run unattended once switched on (see `AI_AGENT_STUDIO_PROMPT_TO_AGENT.md`). App-event, webhook, email and form triggers are still open.
 3. **Agentic Mode**: a plan → act → evaluate → replan loop with completion criteria, on top of the team budget.
 4. **Reviewer / critic and debate patterns** as delegation modes: a member's output is checked, and a retry is fed back.
 5. **Agent Operations** dashboard with Recharts from `AIExecution` + `AgentTask`, plus per-agent and per-workspace cost limits.

@@ -282,6 +282,14 @@ export default defineConfig(() => ({
       // above: served raw, the browser's native ESM loader finds no `default`
       // export and throws a SyntaxError that blanks the whole app in dev.
       'axe-core',
+      // `@org/ui`'s model icons (`@lobehub/icons` → `@emotion/react`) reach the
+      // CJS-only `hoist-non-react-statics` through emotion's `_isolated-hnrs`
+      // file. Served raw (deps of excluded @org/* libs are missed by the
+      // start-up scan), it has no `default` export for the browser's ESM
+      // loader and the app renders blank. Pre-bundling the chain fixes that.
+      '@lobehub/icons',
+      '@emotion/react',
+      'hoist-non-react-statics',
     ],
     // See ORG_WORKSPACE_PACKAGES above: keeps every @org/* lib off the
     // pre-bundle path so edits to their source show up without a restart.

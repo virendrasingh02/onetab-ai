@@ -23,6 +23,7 @@ import {
   PopoverTrigger,
   toast,
 } from '@org/ui';
+import { diffStudioGraphs, type StudioCanvasGraph } from '@org/types';
 import { cn } from '@org/utils';
 import {
   addEdge,
@@ -114,7 +115,7 @@ import { NodeCatalogModal } from '../components/workflow-canvas/node-catalog-mod
 import { NodeInspector, type NodeSnapshot } from '../components/workflow-canvas/node-inspector.js';
 import { ValidationModal } from '../components/workflow-canvas/validation-modal.js';
 import { RunConsoleDrawer, type CanvasNodeStatus } from '../components/workflow-canvas/run-console-drawer.js';
-import { NaturalLanguagePanel } from '../components/workflow-canvas/natural-language-panel.jsx';
+import { AgentCopilotPanel } from '../components/agent-architect/agent-copilot-panel.js';
 import { MultiAgentTab } from '../components/agent-detail/multi-agent-tab.jsx';
 import { MemoryTab } from '../components/agent-detail/memory-tab.jsx';
 import { VariablesTab } from '../components/agent-detail/variables-tab.jsx';
@@ -919,7 +920,9 @@ export function AgentDetailPage() {
     },
     [setSearchParams],
   );
-  const [showAiPanel, setShowAiPanel] = useState(false);
+  // `?copilot=1` (an agent fresh from "Create with one prompt") opens the Copilot.
+  const [showAiPanel, setShowAiPanel] = useState(() => searchParams.get('copilot') === '1');
+  const copilotWelcome = useRef(searchParams.get('copilot') === '1').current;
   const [isCanvasLocked, setIsCanvasLocked] = useState(false);
   // Bumped when a different graph is loaded, remounting the canvas so it fits the new graph
   const [canvasEpoch, setCanvasEpoch] = useState(0);
@@ -1248,13 +1251,14 @@ export function AgentDetailPage() {
     toast.success(`Category "${trimmed}" added`);
   };
 
-  /** Persists the canvas and the settings form in one request. */
-  const persistAgent = async () => {
+  /** Persists the canvas (or the given graph) and the settings form in one request. */
+  const persistAgent = async (graph?: { nodes: Node[]; edges: Edge[] }) => {
     if (!agentId) return;
     const config = (agent?.configuration || {}) as any;
+    const current = graph ?? { nodes, edges };
     const patch: any = {
       // A run's live status rings are view state, not part of the graph.
-      graphJson: JSON.stringify({ nodes: nodes.map(withoutRunStatus), edges }),
+      graphJson: JSON.stringify({ nodes: current.nodes.map(withoutRunStatus), edges: current.edges }),
       ...(settingsDraft
         ? {
             name: settingsDraft.name.trim() || agent?.name,
@@ -1284,6 +1288,68 @@ export function AgentDetailPage() {
     setIsDirty(false);
   };
 
+  /** The canvas as the Copilot reads it: run status rings left out. */
+  const copilotGraph = useMemo<StudioCanvasGraph>(
+    () => ({
+      nodes: nodes.map((n) => {
+        const clean = withoutRunStatus(n);
+        const data = (clean.data ?? {}) as Record<string, unknown>;
+        return {
+          id: clean.id,
+          type: String(clean.type ?? ''),
+          position: clean.position,
+          data: { ...data, label: typeof data['label'] === 'string' ? data['label'] : String(clean.type ?? ''), config: (data['config'] as Record<string, unknown>) ?? {} },
+        };
+      }),
+      edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null, ...(typeof e.label === 'string' ? { label: e.label } : {}) })),
+    }),
+    [nodes, edges],
+  );
+
+  /**
+   * Puts a Copilot change on the canvas, saves it and records a version named
+   * after it. A change that adds or removes steps is laid out again.
+   */
+  const applyCopilotGraph = useCallback(
+    async (graph: StudioCanvasGraph, summary: string): Promise<number | undefined> => {
+      if (!agentId) return undefined;
+      const diff = diffStudioGraphs(copilotGraph, graph);
+      const nextEdges = graph.edges as unknown as Edge[];
+      const placed = graph.nodes as unknown as Node[];
+      const nextNodes = diff.added.length || diff.removed.length ? layoutWorkflow(placed, nextEdges, 'LR') : placed;
+      const previous = { nodes: graphRef.current.nodes, edges: graphRef.current.edges };
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      try {
+        // Only the graph: the Copilot changes nothing else, and the settings
+        // form's fields (model, configuration) are plan-gated on some tiers.
+        await agentsApi.update(activeWorkspace.id, agentId, {
+          graphJson: JSON.stringify({ nodes: nextNodes.map(withoutRunStatus), edges: nextEdges }),
+        });
+      } catch (err) {
+        // Not saved, so not on the canvas either.
+        setNodes(previous.nodes);
+        setEdges(previous.edges);
+        throw err;
+      }
+      queryClient.invalidateQueries({ queryKey: agentQueryKey });
+      const version = await agentsApi.createVersion(activeWorkspace.id, agentId, summary);
+      queryClient.invalidateQueries({ queryKey: ['agent-versions', activeWorkspace.id, agentId] });
+      return (version as { version?: number } | undefined)?.version;
+    },
+    // agentQueryKey is rebuilt every render from these same ids.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [agentId, activeWorkspace.id, copilotGraph, queryClient],
+  );
+
+  // `?test=1` (from "Create with one prompt") opens the run console once the agent is loaded.
+  const openedTest = useRef(false);
+  useEffect(() => {
+    if (openedTest.current || !agent || searchParams.get('test') !== '1') return;
+    openedTest.current = true;
+    setIsTestDrawerOpen(true);
+  }, [agent, searchParams]);
+
   /** Shows a run's progress on the canvas (null clears it) without marking the graph edited. */
   const showRunStatuses = useCallback((statuses: Record<string, CanvasNodeStatus> | null) => {
     setNodes((current) =>
@@ -1301,7 +1367,7 @@ export function AgentDetailPage() {
 
   // Mutations
   const saveMutation = useMutation({
-    mutationFn: persistAgent,
+    mutationFn: () => persistAgent(),
     onSuccess: () => {
       toast.success('Agent saved');
       queryClient.invalidateQueries({ queryKey: agentQueryKey });
@@ -2192,9 +2258,10 @@ export function AgentDetailPage() {
               "h-8 gap-1.5 text-xs font-medium rounded-lg",
               showAiPanel ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             )}
-            title="Toggle AI Copilot"
+            title="Agent Copilot"
+            aria-pressed={showAiPanel}
           >
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            <Sparkles className={cn('h-3.5 w-3.5', showAiPanel ? 'text-primary-foreground' : 'text-primary')} />
             <span className="hidden 2xl:inline">Copilot</span>
           </Button>
 
@@ -2501,24 +2568,17 @@ export function AgentDetailPage() {
             </div>
 
             {/* Right 4th Panel: AI Copilot Prompt Assistant (if open) */}
-            {showAiPanel && (
-              <NaturalLanguagePanel
-                nodes={nodes}
-                edges={edges}
-                onApplyDiff={(diff) => {
-                  if (diff.addedNodes && diff.addedNodes.length > 0) {
-                    setNodes((nds) => [...nds, ...diff.addedNodes]);
-                  }
-                  if (diff.modifiedNodes && diff.modifiedNodes.length > 0) {
-                    setNodes((nds) =>
-                      nds.map((n) => {
-                        const match = diff.modifiedNodes.find((m) => m.id === n.id);
-                        return match || n;
-                      }),
-                    );
-                  }
-                  setIsDirty(true);
-                }}
+            {/* Mounted once the agent's own graph is on the canvas (the settings draft is filled in the same pass). */}
+            {showAiPanel && agentId && settingsDraft && (
+              <AgentCopilotPanel
+                workspaceId={activeWorkspace.id}
+                workspaceSlug={activeWorkspace.slug}
+                agentId={agentId}
+                agentName={agent?.name ?? 'this agent'}
+                graph={copilotGraph}
+                welcome={copilotWelcome}
+                onApply={applyCopilotGraph}
+                onRunTest={() => setIsTestDrawerOpen(true)}
                 onClose={() => setShowAiPanel(false)}
               />
             )}

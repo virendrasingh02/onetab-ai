@@ -54,7 +54,6 @@ import {
 } from '../data/agent-metadata.js';
 import { STUDIO_TEMPLATES } from '../data/templates.js';
 import { useStudioSession } from '../session-guard.js';
-import { AIModeAgentBuilder } from '../components/ai-mode/ai-mode-agent-builder.js';
 
 type AgentStatus = 'draft' | 'testing' | 'published' | 'paused' | 'archived';
 type AgentEnvironment = 'development' | 'staging' | 'production';
@@ -86,7 +85,6 @@ export function AgentsListPage() {
     searchParams.get('create') === 'blank' || searchParams.get('create') === 'true',
   );
   const [createMode, setCreateMode] = useState<'scratch' | 'prompt' | 'template' | 'existing'>('scratch');
-  const [isAiModeOpen, setIsAiModeOpen] = useState(false);
 
   // Create Form State
   const [newName, setNewName] = useState('');
@@ -116,7 +114,7 @@ export function AgentsListPage() {
   const [renameNameInput, setRenameNameInput] = useState('');
 
   // Import JSON Modal
-  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(searchParams.get('import') === '1');
   const [importJson, setImportJson] = useState('');
 
   // Load agents
@@ -253,26 +251,10 @@ export function AgentsListPage() {
 
     // 1. Natural Language Creation
     if (createMode === 'prompt') {
+      // A prompt is planned for real (tools, apps, missing setup) by "Create with one prompt".
       if (!nlPrompt.trim()) return;
-      const autoName = nlPrompt.split(' ').slice(0, 3).join(' ') + ' Agent';
-      createMutation.mutate({
-        name: autoName,
-        role: 'Autonomous Specialist',
-        description: nlPrompt,
-        systemPrompt: `You are an AI Agent with the directive: "${nlPrompt}". Reason step-by-step and call appropriate tools.`,
-        model: newModel,
-        avatarUrl: newAvatarUrl || null,
-        configuration: {
-          category: newCategory,
-          environment: newEnvironment,
-          status: 'draft',
-          theme: newTheme,
-          icon: newIcon,
-          avatar: newAvatarUrl || '',
-          tags: newTags.split(',').map((t) => t.trim()).filter(Boolean),
-          owner: ownerObj,
-        },
-      });
+      setIsCreateOpen(false);
+      navigate(`/create?prompt=${encodeURIComponent(nlPrompt.trim())}&go=1`);
       return;
     }
 
@@ -524,10 +506,10 @@ export function AgentsListPage() {
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              onClick={() => setIsAiModeOpen(true)}
+              onClick={() => navigate('/create')}
               className="gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
             >
-              <Wand2 className="size-3.5" /> AI Mode (Agent Builder)
+              <Wand2 className="size-3.5" /> Create with one prompt
             </Button>
             <Button
               variant="outline"
@@ -1370,8 +1352,8 @@ export function AgentsListPage() {
                     <div className="flex items-center gap-2.5">
                       <Sparkles className="size-4 text-primary shrink-0" />
                       <div className="text-xs">
-                        <span className="font-bold text-foreground">Interactive AI Mode: </span>
-                        <span className="text-muted-foreground">Autonomous planning, requirements & Chat integration</span>
+                        <span className="font-bold text-foreground">Create with one prompt: </span>
+                        <span className="text-muted-foreground">plans the workflow from your tools and apps, and asks only for what’s missing</span>
                       </div>
                     </div>
                     <Button
@@ -1379,12 +1361,12 @@ export function AgentsListPage() {
                       size="xs"
                       onClick={() => {
                         setIsCreateOpen(false);
-                        setIsAiModeOpen(true);
+                        navigate(nlPrompt.trim() ? `/create?prompt=${encodeURIComponent(nlPrompt.trim())}&go=1` : '/create');
                       }}
                       className="gap-1 text-xs bg-primary text-primary-foreground font-semibold"
                     >
                       <Wand2 className="size-3" />
-                      <span>Launch AI Mode</span>
+                      <span>Plan it</span>
                     </Button>
                   </div>
 
@@ -1562,16 +1544,6 @@ export function AgentsListPage() {
         </DialogContent>
       </Dialog>
 
-      {/* AI MODE AGENTIC APP BUILDER */}
-      <AIModeAgentBuilder
-        workspaceId={activeWorkspace.id}
-        isOpen={isAiModeOpen}
-        onClose={() => setIsAiModeOpen(false)}
-        onAgentCreated={(agentId) => {
-          queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
-          navigate(`/agents/${agentId}`);
-        }}
-      />
     </Page>
   );
 }

@@ -408,7 +408,19 @@ export function compileStudioGraph(graph: {
       config,
     });
 
-    if (type === 'START' || type === 'TRIGGER' || type.startsWith('TRIGGER_')) return step('TRIGGER', { trigger: type });
+    if (type === 'START' || type === 'TRIGGER' || type.startsWith('TRIGGER_')) {
+      // A schedule card carries its cron (read in its zone) so an agent that
+      // is switched on runs by itself (`WorkflowScheduleListener`).
+      const cron = type === 'TRIGGER_SCHEDULE' ? asText(cfg['cron']) : undefined;
+      if (type === 'TRIGGER_SCHEDULE' && (!cron || cron.split(/\s+/).length !== 5)) {
+        issues.push({ nodeId: node.id, level: 'warning', message: `${label ?? 'Schedule'} has no valid schedule, so it only runs when started by hand.` });
+      }
+      return step('TRIGGER', {
+        trigger: type,
+        ...(cron && cron.split(/\s+/).length === 5 ? { cron, ...(asText(cfg['timezone']) ? { timezone: asText(cfg['timezone']) } : {}) } : {}),
+        ...(type === 'TRIGGER_APP_EVENT' && asText(cfg['event']) ? { event: asText(cfg['event']) } : {}),
+      });
+    }
 
     if (AGENT_TYPES.has(type)) {
       const spec = buildAgent(node, {}, new Set());
@@ -533,7 +545,14 @@ export function compileStudioGraph(graph: {
       case 'MCP':
       case 'MCP_TOOL':
         if (!asText(cfg['toolName']) && !asText(cfg['tool']) && !asText(cfg['mcpTool'])) {
-          issues.push({ nodeId: node.id, level: 'error', message: `${label ?? 'Tool'} has no tool picked.` });
+          const app = asText(cfg['needsConnection']);
+          issues.push({
+            nodeId: node.id,
+            level: 'error',
+            message: app
+              ? `${label ?? 'Tool'} needs ${app.charAt(0) + app.slice(1).toLowerCase().replace(/_/g, ' ')}: connect it, then pick the action — this step has no tool picked yet.`
+              : `${label ?? 'Tool'} has no tool picked.`,
+          });
         }
         return step(type, { ...cfg });
       case 'DB_QUERY':
@@ -573,7 +592,15 @@ export function compileStudioGraph(graph: {
   };
 
   const runNodes = nodes.filter((n) => !attached.has(n.id) && !DECORATIVE_TYPES.has(typeOf(n)));
-  const compiled = runNodes.map(compileStep);
+  // A retry count set on any card applies, whatever the card compiles to.
+  const compiled = runNodes.map((node) => {
+    const out = compileStep(node);
+    const retries = asNumber(configOf(node)['retries']);
+    if (retries !== undefined && out.config['retries'] === undefined && out.type !== 'TRIGGER' && out.type !== 'UNSUPPORTED') {
+      out.config = { ...out.config, retries: clamp(Math.round(retries), 0, 5) };
+    }
+    return out;
+  });
   const runIds = new Set(compiled.map((n) => n.id));
   const compiledById = new Map(compiled.map((n) => [n.id, n]));
 

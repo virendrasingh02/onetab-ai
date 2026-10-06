@@ -110,8 +110,13 @@ export function scopeForNode(
       return tool ? scopeForTool(tool, appAccess) : null;
     }
     case 'MCP':
-    case 'MCP_TOOL':
-      return 'app:mcp:write';
+    case 'MCP_TOOL': {
+      // A tool on a connected MCP server; otherwise the card names a built-in
+      // tool or an app action, which needs exactly what that tool needs.
+      if (config['mcpConnectionId'] || config['mcpTool']) return 'app:mcp:write';
+      const tool = String(config['toolName'] || config['tool'] || '').trim();
+      return tool ? scopeForTool(tool, appAccess) : 'app:mcp:write';
+    }
     case 'AGENT':
     case 'AI_COWORKER':
       return 'agents:run';

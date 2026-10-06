@@ -6,6 +6,7 @@ import { StudioSidebar } from './components/studio-sidebar.js';
 import { AgentDetailPage } from './pages/agent-detail-page.js';
 import { AgentsListPage } from './pages/agents-list-page.js';
 import { AnalyticsPage } from './pages/analytics-page.jsx';
+import { CreateAgentPage } from './pages/create-agent-page.js';
 import { ApprovalsPage } from './pages/approvals-page.js';
 import { DeveloperPage } from './pages/developer-page.jsx';
 import { ExecutionsPage } from './pages/executions-page.js';
@@ -23,6 +24,7 @@ import { SessionGuard } from './session-guard.js';
 const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/': { section: 'Platform', page: 'Studio Overview' },
   '/overview': { section: 'Platform', page: 'Studio Overview' },
+  '/create': { section: 'Build & Orchestrate', page: 'Create with AI' },
   '/agents': { section: 'Build & Orchestrate', page: 'My Agents' },
   '/workflows': { section: 'Build & Orchestrate', page: 'Visual Workflows' },
   '/templates': { section: 'Build & Orchestrate', page: 'Agent Templates' },
@@ -136,6 +138,7 @@ function StudioShell() {
               <Routes>
                 <Route path="/" element={<Navigate to="/overview" replace />} />
                 <Route path="/overview" element={<OverviewPage />} />
+                <Route path="/create" element={<CreateAgentPage />} />
                 <Route path="/agents" element={<AgentsListPage />} />
                 <Route path="/workflows" element={<WorkflowsPage />} />
                 <Route path="/templates" element={<TemplatesPage />} />

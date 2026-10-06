@@ -78,7 +78,8 @@ export interface PlanResult {
   understanding: PlanUnderstanding;
 }
 
-const MAX_PLAN_TOKENS = 3_500;
+/** Reasoning models spend part of this thinking; 3.5k cut off multi-part plans mid-JSON. */
+const MAX_PLAN_TOKENS = 6_000;
 /**
  * Per provider. A plan the model can't draft in this long starts from a
  * template instead. Large models routinely need 30–40 s for a full plan; two
@@ -294,9 +295,11 @@ export class AgentPlannerService {
     workspaceId: string,
     userId: string,
     input: { prompt: string; templateId?: string; timezone?: string },
+    /** Already loaded by the caller — saves listing the apps twice. */
+    preloaded?: StudioCatalog,
   ): Promise<PlanResult> {
     const started = Date.now();
-    const catalog = await this.catalog(workspaceId, userId);
+    const catalog = preloaded ?? (await this.catalog(workspaceId, userId));
     const timezone = input.timezone || (await this.userTimezone(userId));
 
     let blueprint: AgentBlueprint | null = null;

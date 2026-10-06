@@ -179,6 +179,14 @@ export default defineConfig(() => ({
       'react-dom',
       'use-sync-external-store/shim/with-selector.js',
       'recharts',
+      // `@org/ui`'s model icons (`@lobehub/icons` → `@emotion/react`) reach the
+      // CJS-only `hoist-non-react-statics` through emotion's `_isolated-hnrs`
+      // file. Served raw (deps of excluded @org/* libs are missed by the
+      // start-up scan), it has no `default` export for the browser's ESM
+      // loader and the app renders blank. Pre-bundling the chain fixes that.
+      '@lobehub/icons',
+      '@emotion/react',
+      'hoist-non-react-statics',
     ],
     // Keeps every @org/* lib off the pre-bundle path — see
     // ORG_WORKSPACE_PACKAGES above.

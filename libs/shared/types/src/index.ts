@@ -502,4 +502,10 @@ export * from './lib/agent-studio-api.js';
  * multi-agent teams (inline agents and their sub-agents) and run limits.
  */
 export * from './lib/studio-graph.js';
+
+/*
+ * AI Agent Studio — prompt-to-agent: requirements, the structured agent spec,
+ * spec → canvas graph, plain-language edit ops, diffs and optimisation.
+ */
+export * from './lib/agent-architect.js';
 export * from './lib/migration.js';

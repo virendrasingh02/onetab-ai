@@ -4,7 +4,7 @@ import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, RequireWorkspacePermissions, WorkspaceId, WorkspacePermissions, zodBody } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { canManageOwnedAIResource, WorkspacePermission } from '@org/types';
-import { runCanvasAgentSchema, validateAgentGraphSchema, type RunCanvasAgentInput } from '@org/validation';
+import { runCanvasAgentSchema, setCanvasActivationSchema, validateAgentGraphSchema, type RunCanvasAgentInput } from '@org/validation';
 import { CanvasAgentRunService } from './canvas-agent-run.service.js';
 
 /**
@@ -51,6 +51,32 @@ export class CanvasAgentRunController {
       }
     }
     return this.runs.run(workspaceId, agentId, userId, body);
+  }
+
+  /** Whether the agent runs by itself on its schedule. */
+  @Get(':agentId/activation')
+  activation(@WorkspaceId() workspaceId: string, @Param('agentId') agentId: string) {
+    return this.runs.activation(workspaceId, agentId);
+  }
+
+  /**
+   * Switches scheduled runs on or off. Scheduled runs are live and act with
+   * the owner's access, so only the owner or an admin may switch them.
+   */
+  @Post(':agentId/activation')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  async setActivation(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @CurrentUser('id') userId: string,
+    @WorkspacePermissions() permissions: readonly WorkspacePermission[] | undefined,
+    @Body(zodBody(setCanvasActivationSchema)) body: { active: boolean },
+  ) {
+    const agent = await this.prisma.aIAgent.findFirst({ where: { id: agentId, workspaceId }, select: { creatorId: true } });
+    if (agent && !canManageOwnedAIResource(agent.creatorId, { userId, permissions: permissions ?? [] })) {
+      throw new ForbiddenException('Only the agent’s owner or a workspace admin can switch its scheduled runs on or off.');
+    }
+    return this.runs.setActive(workspaceId, agentId, body.active);
   }
 
   @Get(':agentId/runs')

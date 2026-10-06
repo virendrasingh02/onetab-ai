@@ -50,6 +50,10 @@ describe('scopes', () => {
     expect(scopeForNode('TOOL', { toolName: 'GMAIL.send_message' }, 'write')).toBe('app:gmail:write');
     expect(scopeForNode('TOOL', { toolName: 'GMAIL.search' }, 'read')).toBe('app:gmail:read');
     expect(scopeForNode('AGENT', {})).toBe('agents:run');
+    // A canvas MCP card naming a built-in tool or app action needs what that tool needs.
+    expect(scopeForNode('MCP_TOOL', { toolName: 'find_tasks' })).toBe('tasks:read');
+    expect(scopeForNode('MCP_TOOL', { toolName: 'SLACK.send_message' }, 'write')).toBe('app:slack:write');
+    expect(scopeForNode('MCP_TOOL', { mcpTool: 'conn1::search' })).toBe('app:mcp:write');
     expect(scopeForNode('HTTP_REQUEST', {})).toBe('app:http:write');
     expect(scopeForNode('LLM', {})).toBeNull();
   });

@@ -19,3 +19,4 @@ export * from './lib/reminders.schema.js';
 export * from './lib/ai-workspace.schema.js';
 export * from './lib/agent-spec.schema.js';
 export * from './lib/agent-blueprint.schema.js';
+export * from './lib/agent-architect.schema.js';
