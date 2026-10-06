@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
+import { CANVAS_AGENT_TRIGGER } from '@org/types';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 import { normalizeWorkflowNodes } from './workflow-graph.js';
 
@@ -33,7 +34,7 @@ export class AutomationsService {
 
   async getWorkflows(workspaceId: string) {
     return this.prisma.automationWorkflow.findMany({
-      where: { workspaceId },
+      where: { workspaceId, triggerType: { not: CANVAS_AGENT_TRIGGER } },
       include: { _count: { select: { executions: true } } },
       orderBy: { updatedAt: 'desc' },
     });

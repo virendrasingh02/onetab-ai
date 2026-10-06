@@ -10,6 +10,7 @@ import {
   DialogTitle,
   EmptyState,
   Input,
+  ErrorState,
   LoadingState,
   Page,
   PageHeader,
@@ -33,7 +34,6 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
-import { executionService } from '../services/executionService.js';
 import { useStudioSession } from '../session-guard.js';
 
 export function ExecutionsPage() {
@@ -43,17 +43,18 @@ export function ExecutionsPage() {
   const [inspectExecution, setInspectExecution] = useState<any | null>(null);
   const [isLoadingSteps, setIsLoadingSteps] = useState(false);
 
-  // Load executions from workspace with fallback
+  // Every run in the workspace: agent turns and workflow / canvas-agent runs.
   const {
     data: executions = [],
     isLoading,
+    isError,
     refetch,
     isRefetching,
   } = useQuery({
     queryKey: ['workspace-executions', activeWorkspace.id],
     queryFn: async () => {
       const results: any[] = [];
-      try {
+      {
         const [agentLogs, engineRuns] = await Promise.allSettled([
           agentsApi.workspaceLogs(activeWorkspace.id),
           aiExecutionsApi.list(activeWorkspace.id),
@@ -86,26 +87,21 @@ export function ExecutionsPage() {
           results.push(...mappedRuns);
         }
 
-        if (results.length > 0) {
-          // Sort latest first
-          return results.sort((a, b) => {
-            const timeA = new Date(a.executedAt || a.startedAt || 0).getTime();
-            const timeB = new Date(b.executedAt || b.startedAt || 0).getTime();
-            return timeB - timeA;
-          });
-        }
-      } catch (err) {
-        console.warn('Live execution retrieval error, falling back:', err);
+        // Both sources down is an outage, not "no runs": say so.
+        if (agentLogs.status === 'rejected' && engineRuns.status === 'rejected') throw engineRuns.reason;
       }
-
-      return executionService.getExecutions();
+      return results.sort((a, b) => {
+        const timeA = new Date(a.executedAt || a.startedAt || 0).getTime();
+        const timeB = new Date(b.executedAt || b.startedAt || 0).getTime();
+        return timeB - timeA;
+      });
     },
   });
 
   const handleInspect = async (log: any) => {
     setInspectExecution(log);
     // If execution does not have steps but has an ID, try fetching detail from aiExecutionsApi
-    if (!log.steps && log.id && !log.id.startsWith('exec-mock')) {
+    if (!log.steps && log.id) {
       setIsLoadingSteps(true);
       try {
         const detail = await aiExecutionsApi.get(activeWorkspace.id, log.id);
@@ -197,6 +193,8 @@ export function ExecutionsPage() {
       <Panel flush>
         {isLoading ? (
           <LoadingState label="Loading execution telemetry…" />
+        ) : isError ? (
+          <ErrorState title="Couldn’t load runs" description="The platform didn’t answer. Try again in a moment." onRetry={() => void refetch()} />
         ) : filteredLogs.length === 0 ? (
           <EmptyState
             icon={<Activity className="size-8 text-muted-foreground" />}

@@ -496,4 +496,10 @@ export * from './lib/agent-spec.js';
 export * from './lib/agent-blueprint.js';
 export * from './lib/agent-templates.js';
 export * from './lib/agent-studio-api.js';
+
+/*
+ * AI Agent Studio canvas graphs — compiled for the workflow engine, with
+ * multi-agent teams (inline agents and their sub-agents) and run limits.
+ */
+export * from './lib/studio-graph.js';
 export * from './lib/migration.js';

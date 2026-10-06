@@ -113,7 +113,7 @@ import { CanvasContextMenu } from '../components/workflow-canvas/canvas-context-
 import { NodeCatalogModal } from '../components/workflow-canvas/node-catalog-modal.js';
 import { NodeInspector, type NodeSnapshot } from '../components/workflow-canvas/node-inspector.js';
 import { ValidationModal } from '../components/workflow-canvas/validation-modal.js';
-import { TestDebuggerDrawer } from '../components/workflow-canvas/test-debugger-drawer.jsx';
+import { RunConsoleDrawer, type CanvasNodeStatus } from '../components/workflow-canvas/run-console-drawer.js';
 import { NaturalLanguagePanel } from '../components/workflow-canvas/natural-language-panel.jsx';
 import { MultiAgentTab } from '../components/agent-detail/multi-agent-tab.jsx';
 import { MemoryTab } from '../components/agent-detail/memory-tab.jsx';
@@ -179,6 +179,12 @@ const INITIAL_EDGES: Edge[] = [
   { id: 'e1-2', source: 'start-1', target: 'agent-1', animated: true },
   { id: 'e2-3', source: 'agent-1', target: 'end-1' },
 ];
+
+/** A node as saved: without the status ring a run painted on it. */
+function withoutRunStatus(node: Node): Node {
+  const { status: _status, ...data } = (node.data ?? {}) as Record<string, unknown>;
+  return { ...node, data };
+}
 
 /** The canvas graph as the API stores it: JSON in `graphJson`. */
 function parseGraph(graphJson: string | null | undefined): { nodes: Node[]; edges: Edge[] } | null {
@@ -1247,7 +1253,8 @@ export function AgentDetailPage() {
     if (!agentId) return;
     const config = (agent?.configuration || {}) as any;
     const patch: any = {
-      graphJson: JSON.stringify({ nodes, edges }),
+      // A run's live status rings are view state, not part of the graph.
+      graphJson: JSON.stringify({ nodes: nodes.map(withoutRunStatus), edges }),
       ...(settingsDraft
         ? {
             name: settingsDraft.name.trim() || agent?.name,
@@ -1270,15 +1277,24 @@ export function AgentDetailPage() {
           }
         : {}),
     };
-    try {
-      await agentsApi.update(activeWorkspace.id, agentId, patch);
-    } catch {
-      await agentService.updateAgent(activeWorkspace.id, agentId, patch);
-    }
+    // No local fallback: a save that didn't reach the server must say so.
+    await agentsApi.update(activeWorkspace.id, agentId, patch);
     queryClient.invalidateQueries({ queryKey: agentQueryKey });
     queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
     setIsDirty(false);
   };
+
+  /** Shows a run's progress on the canvas (null clears it) without marking the graph edited. */
+  const showRunStatuses = useCallback((statuses: Record<string, CanvasNodeStatus> | null) => {
+    setNodes((current) =>
+      current.map((n) => {
+        const status = statuses?.[n.id] ?? 'idle';
+        return (n.data as { status?: string }).status === status || (!statuses && !(n.data as { status?: string }).status)
+          ? n
+          : { ...n, data: { ...n.data, status } };
+      }),
+    );
+  }, []);
 
   const errorMessage = (err: unknown, fallback: string) =>
     err instanceof Error && err.message ? err.message : fallback;
@@ -3342,13 +3358,19 @@ export function AgentDetailPage() {
       />
 
       {/* Live Test Execution & Debugger Drawer */}
-      <TestDebuggerDrawer
-        agent={agent}
-        nodes={nodes}
-        edges={edges}
-        isOpen={isTestDrawerOpen}
-        onClose={() => setIsTestDrawerOpen(false)}
-      />
+      {agentId && (
+        <RunConsoleDrawer
+          agentId={agentId}
+          agentName={agent?.name ?? 'Agent'}
+          nodes={nodes}
+          isOpen={isTestDrawerOpen}
+          onClose={() => setIsTestDrawerOpen(false)}
+          onBeforeRun={async () => {
+            if (isDirty) await persistAgent();
+          }}
+          onNodeStatuses={showRunStatuses}
+        />
+      )}
 
       {/* Snapshot Version Dialog */}
       <Dialog open={isSnapshotDialogOpen} onOpenChange={setIsSnapshotDialogOpen}>

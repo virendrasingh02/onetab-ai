@@ -1,6 +1,5 @@
 import { agentsApi } from '@org/api-client';
 import { agentService } from '../services/agentService.js';
-import { executionService } from '../services/executionService.js';
 import {
   Badge,
   Button,
@@ -94,15 +93,7 @@ export function OverviewPage() {
   // Load workspace execution logs
   const { data: logs = [], isLoading: isLoadingLogs } = useQuery({
     queryKey: ['workspace-logs', activeWorkspace.id],
-    queryFn: async () => {
-      try {
-        const live = await agentsApi.workspaceLogs(activeWorkspace.id);
-        if (live && live.length > 0) return live;
-      } catch {
-        // Fallback
-      }
-      return executionService.getExecutions();
-    },
+    queryFn: () => agentsApi.workspaceLogs(activeWorkspace.id),
   });
 
   const togglePinAgent = (agentId: string, e: React.MouseEvent) => {
@@ -122,18 +113,13 @@ export function OverviewPage() {
   const draftAgents = agents.filter(
     (a) => (a.configuration as any)?.status !== 'published' && (a.configuration as any)?.status !== 'archived',
   );
-  const archivedAgents = agents.filter(
-    (a) => (a.configuration as any)?.status === 'archived',
-  );
-
   const totalTokens = logs.reduce((acc, l) => acc + (l.tokensUsed || 0), 0);
-  const estimatedCost = ((totalTokens / 1000) * 0.003).toFixed(2);
+  // The rate the platform's credit ledger charges (AIRuntimeService).
+  const estimatedCost = (totalTokens * 0.000002).toFixed(2);
   const successfulRuns = logs.filter((l) => l.status === 'SUCCESS').length;
   const failedRuns = logs.filter((l) => l.status === 'FAILED').length;
-  const successRate = logs.length > 0 ? Math.round((successfulRuns / logs.length) * 100) : 100;
-  const avgLatencyMs = logs.length > 0
-    ? Math.round(logs.reduce((acc, l) => acc + (l.durationMs || 420), 0) / logs.length)
-    : 420;
+  // No runs yet is "no rate", not 100%.
+  const successRate = logs.length > 0 ? `${Math.round((successfulRuns / logs.length) * 100)}%` : '—';
 
   // Filter and sort agents
   const filteredAgents = useMemo(() => {
@@ -277,7 +263,7 @@ export function OverviewPage() {
           />
           <StatCard
             label="Success rate"
-            value={`${successRate}%`}
+            value={successRate}
             icon={Activity}
             accent="blue"
             hint={`${successfulRuns} succeeded · ${failedRuns} failed of ${logs.length}`}
@@ -295,7 +281,7 @@ export function OverviewPage() {
             value={`$${estimatedCost}`}
             icon={DollarSign}
             accent="amber"
-            hint={`Avg response ${avgLatencyMs} ms`}
+            hint="At the credit ledger's rate"
           />
         </div>
       </PageSection>
@@ -559,7 +545,6 @@ export function OverviewPage() {
                     </div>
 
                     <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono">
-                      <span>{log.durationMs || 340}ms</span>
                       <span>{log.tokensUsed?.toLocaleString() || 0} tokens</span>
                       <Badge
                         variant={log.status === 'SUCCESS' ? 'success' : 'destructive'}

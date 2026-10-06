@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaService } from '@org/database';
-import type { SearchCategory, SearchResultItem } from '@org/types';
+import { CANVAS_AGENT_TRIGGER, type SearchCategory, type SearchResultItem } from '@org/types';
 import { docContentToText } from '@org/utils';
 
 // One definition, shared with the web client.
@@ -424,6 +424,7 @@ export class SearchService {
           where: {
             workspaceId,
             archivedAt: null,
+            triggerType: { not: CANVAS_AGENT_TRIGGER },
             OR: [{ name: contains }, { description: contains }],
           },
           select: { id: true, name: true, description: true, isActive: true, agentProfile: true, updatedAt: true },

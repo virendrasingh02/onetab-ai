@@ -97,11 +97,12 @@ function makeEngine(
     executeTool: vi.fn().mockResolvedValue({ ok: true }),
   };
   const events = { emit: vi.fn() };
+  const aiRuntime = { executeTurn: vi.fn() };
   const engine = new WorkflowEngineService(
     prisma,
     aiService as any,
     { retrieve: vi.fn().mockResolvedValue([]) } as any,
-    { executeTurn: vi.fn() } as any,
+    aiRuntime as any,
     registry as any,
     { getActions: vi.fn(), executeAction: vi.fn() } as any,
     { resolve: vi.fn().mockReturnValue({ provider: 'openai', model: 'gpt-4o' }) } as any,
@@ -114,6 +115,7 @@ function makeEngine(
     engine,
     prisma,
     aiService,
+    aiRuntime,
     registry,
     events,
     steps,
@@ -479,5 +481,174 @@ describe('WorkflowEngineService', () => {
       'ai.run.finished',
       expect.objectContaining({ runId: 'exec_1', status: 'COMPLETED', startedBy: 'schedule', ownerId: 'u_1', test: false }),
     );
+  });
+});
+
+describe('WorkflowEngineService — agentic execution', () => {
+  it('runs independent branches at the same time, then joins them', async () => {
+    const { engine, aiService, steps } = makeEngine(
+      [
+        node('start', 'START'),
+        node('fork', 'PARALLEL'),
+        node('a', 'LLM', { prompt: 'A' }),
+        node('b', 'LLM', { prompt: 'B' }),
+        node('join', 'MERGE'),
+        node('end', 'OUTPUT'),
+      ],
+      [edge('start', 'fork'), edge('fork', 'a'), edge('fork', 'b'), edge('a', 'join'), edge('b', 'join'), edge('join', 'end')],
+    );
+    let running = 0;
+    let peak = 0;
+    aiService.chat.mockImplementation(async ({ messages }: any) => {
+      running++;
+      peak = Math.max(peak, running);
+      await new Promise((r) => setTimeout(r, 20));
+      running--;
+      return { message: { content: `said ${messages[0].content}` }, usage: { totalTokens: 5 } };
+    });
+
+    const run = await engine.executeWorkflow('wf_1', {});
+
+    expect(run.status).toBe('SUCCESS');
+    expect(peak).toBe(2);
+    const join = run.results.find((r) => r.stepId === 'join')!;
+    expect((join.output as any).merged).toMatchObject({ a: expect.objectContaining({ aiOutput: 'said A' }), b: expect.objectContaining({ aiOutput: 'said B' }) });
+    expect((join.output as any).output).toContain('### a\nsaid A');
+    expect(steps.filter((s) => s.stepId === 'join')).toHaveLength(1);
+  });
+
+  it('feeds each step the previous step’s text by default', async () => {
+    const { engine, aiService } = makeEngine(
+      [node('start', 'START'), node('one', 'LLM', { prompt: 'Summarise: {{__last}}' }), node('two', 'LLM', { prompt: 'Translate: {{__last}}' })],
+      [edge('start', 'one'), edge('one', 'two')],
+    );
+    aiService.chat
+      .mockResolvedValueOnce({ message: { content: 'short version' }, usage: { totalTokens: 1 } })
+      .mockResolvedValueOnce({ message: { content: 'version courte' }, usage: { totalTokens: 1 } });
+
+    await engine.executeWorkflow('wf_1', { message: 'a long text' });
+
+    expect(aiService.chat.mock.calls[0][0].messages[0].content).toBe('Summarise: a long text');
+    expect(aiService.chat.mock.calls[1][0].messages[0].content).toBe('Translate: short version');
+  });
+
+  it('runs a loop’s each-branch once per item and continues after it', async () => {
+    const { engine, aiService, steps } = makeEngine(
+      [node('start', 'START'), node('loop', 'LOOP', { itemsKey: 'rows' }), node('each', 'LLM', { prompt: 'Handle {{item}} #{{index}}' }), node('after', 'OUTPUT')],
+      [edge('start', 'loop'), edge('loop', 'each', 'each'), edge('loop', 'after')],
+    );
+    aiService.chat.mockImplementation(async ({ messages }: any) => ({ message: { content: `done ${messages[0].content}` }, usage: { totalTokens: 2 } }));
+
+    const run = await engine.executeWorkflow('wf_1', { rows: ['x', 'y', 'z'] });
+
+    expect(run.status).toBe('SUCCESS');
+    const prompts = aiService.chat.mock.calls.map((c: any) => c[0].messages[0].content);
+    expect(prompts).toEqual(['Handle x #0', 'Handle y #1', 'Handle z #2']);
+    const loop = run.results.find((r) => r.stepId === 'loop')!;
+    expect(loop.output).toMatchObject({ iterations: 3, loopResults: ['done Handle x #0', 'done Handle y #1', 'done Handle z #2'], tokensUsed: 6 });
+    // The body ran inside the loop, not again afterwards.
+    expect(steps.filter((s) => s.stepId === 'each')).toHaveLength(3);
+    expect(steps.map((s) => s.stepId)).toContain('after');
+  });
+
+  it('refuses a loop over something that is not a list, and an approval inside a loop', async () => {
+    const notList = makeEngine(
+      [node('start', 'START'), node('loop', 'LOOP', { itemsKey: 'rows' }), node('each', 'LLM')],
+      [edge('start', 'loop'), edge('loop', 'each', 'each')],
+    );
+    const bad = await notList.engine.executeWorkflow('wf_1', { rows: 42 });
+    expect(bad.status).toBe('FAILED');
+
+    const gated = makeEngine(
+      [node('start', 'START'), node('loop', 'LOOP', { itemsKey: 'rows' }), node('ok', 'HUMAN_APPROVAL')],
+      [edge('start', 'loop'), edge('loop', 'ok', 'each')],
+    );
+    const refused = await gated.engine.executeWorkflow('wf_1', { rows: [1] });
+    expect(refused.status).toBe('FAILED');
+    expect((refused.results.find((r) => r.stepId === 'loop')!.output as any).error).toMatch(/Approvals inside a loop/);
+  });
+
+  it('stops a run at its step limit', async () => {
+    const { engine } = makeEngine(
+      [node('start', 'START'), node('loop', 'LOOP', { itemsKey: 'rows' }), node('each', 'VARIABLE', { name: 'v', value: '{{item}}' })],
+      [edge('start', 'loop'), edge('loop', 'each', 'each')],
+    );
+    const run = await (engine as any).executeWorkflow('wf_1', { rows: [1, 2, 3, 4, 5] }, { limits: { maxSteps: 4 } });
+    expect(run.status).toBe('FAILED');
+    expect((run.results.find((r: any) => r.stepId === 'loop').output as any).error).toMatch(/at most 4/);
+  });
+
+  it('skips a step the canvas can’t run yet, visibly, and carries on', async () => {
+    const { engine, steps } = makeEngine(
+      [node('start', 'START'), node('g', 'UNSUPPORTED', { reason: 'Not yet.', originalType: 'AI_GUARDRAIL' }), node('end', 'OUTPUT')],
+      [edge('start', 'g'), edge('g', 'end')],
+    );
+    const run = await engine.executeWorkflow('wf_1', {});
+    expect(run.status).toBe('SUCCESS');
+    expect(run.results.find((r) => r.stepId === 'g')).toMatchObject({ status: 'SKIPPED', type: 'AI_GUARDRAIL', output: { reason: 'Not yet.' } });
+    expect(steps.map((s) => s.stepId)).toContain('end');
+  });
+
+  it('keeps a branch that was ready beside an approval, and runs it once approved', async () => {
+    const { engine, prisma, steps } = makeEngine(
+      [node('start', 'START'), node('fork', 'PARALLEL'), node('ok', 'HUMAN_APPROVAL'), node('slow1', 'VARIABLE', { name: 'a', value: '1' }), node('slow2', 'VARIABLE', { name: 'b', value: '2' }), node('after', 'OUTPUT')],
+      [edge('start', 'fork'), edge('fork', 'ok'), edge('fork', 'slow1'), edge('slow1', 'slow2'), edge('ok', 'after')],
+    );
+    let payload: Record<string, unknown> = {};
+    prisma.approvalRequest.create.mockImplementation(async ({ data }: any) => {
+      payload = data.proposedPayload;
+      return { id: 'ap_1' };
+    });
+    prisma.approvalRequest.findFirst = vi.fn().mockResolvedValue({ id: 'ap_1', proposedPayload: {} });
+    prisma.approvalRequest.update = vi.fn().mockImplementation(async ({ data }: any) => {
+      payload = { ...payload, ...data.proposedPayload };
+      return {};
+    });
+
+    const paused = await engine.executeWorkflow('wf_1', {});
+    expect(paused.status).toBe('WAITING_APPROVAL');
+    // The other lane ran first; the approval waited until nothing else was ready.
+    expect(steps.map((s) => s.stepId)).toEqual(expect.arrayContaining(['slow1', 'slow2']));
+
+    await engine.resumeAfterApproval({
+      workflowId: 'wf_1',
+      executionId: 'exec_1',
+      stepId: 'ok',
+      decision: 'APPROVED',
+      approverId: 'u_2',
+      comment: null,
+      proposedPayload: payload,
+    });
+    expect(steps.map((s) => s.stepId)).toContain('after');
+  });
+
+  it('runs a canvas agent as its host agent, sharing one team budget across the run', async () => {
+    const spec = { key: 'a1', name: 'Researcher', instructions: 'x', tools: [], knowledge: [], delegation: 'router', members: [] };
+    const { engine, aiRuntime } = makeEngine(
+      [node('start', 'START'), node('a1', 'AGENT', { inlineAgent: spec, hostAgentId: 'host_1', goal: 'Look into {{__last}}' }), node('a2', 'AGENT', { inlineAgent: { ...spec, key: 'a2' }, hostAgentId: 'host_1' })],
+      [edge('start', 'a1'), edge('a1', 'a2')],
+    );
+    aiRuntime.executeTurn.mockResolvedValue({ result: 'findings', tools: [], tokensUsed: 12 });
+
+    const run = await engine.executeWorkflow('wf_1', { message: 'solar panels' }, { mode: 'test' });
+
+    expect(run.status).toBe('SUCCESS');
+    const [first, second] = aiRuntime.executeTurn.mock.calls;
+    expect(first[1]).toBe('host_1');
+    expect(first[2]).toBe('Look into solar panels');
+    expect(first[3]).toMatchObject({ inlineAgent: spec, readOnly: true, requesterId: 'u_1', team: expect.objectContaining({ executionId: 'exec_1' }) });
+    expect(second[3].team).toBe(first[3].team);
+    expect(second[2]).toBe('Do your task using what the run has so far.');
+    expect(run.results.find((r) => r.stepId === 'a1')!.output).toMatchObject({ entityResponse: 'findings', tokensUsed: 12 });
+  });
+
+  it('fails a canvas agent that isn’t attached to a saved agent, instead of guessing', async () => {
+    const { engine, aiRuntime } = makeEngine(
+      [node('start', 'START'), node('a1', 'AGENT', { inlineAgent: { key: 'a1', name: 'Solo', instructions: '', tools: [], knowledge: [], delegation: 'router', members: [] } })],
+      [edge('start', 'a1')],
+    );
+    const run = await engine.executeWorkflow('wf_1', {});
+    expect(run.status).toBe('FAILED');
+    expect(aiRuntime.executeTurn).not.toHaveBeenCalled();
   });
 });

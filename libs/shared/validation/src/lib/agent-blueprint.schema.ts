@@ -214,9 +214,20 @@ export const setAgentStateSchema = z.object({
   state: z.enum(['active', 'paused', 'archived', 'draft']),
 });
 
+/** Running an agent drawn on the Studio canvas (`POST …/agent-graphs/:agentId/run`). */
+export const runCanvasAgentSchema = z.object({
+  /** What the agent is asked; becomes the trigger's `message`. */
+  message: z.string().max(20_000).optional(),
+  /** Structured input beside (or instead of) the message. */
+  input: z.record(z.string(), z.unknown()).optional(),
+  /** `test` reads for real but writes nothing and simulates approvals. */
+  mode: z.enum(['live', 'test']).default('test'),
+});
+
 export type PlanAgentInput = z.infer<typeof planAgentSchema>;
 export type CreateStudioAgentInput = z.infer<typeof createStudioAgentSchema>;
 export type UpdateStudioAgentInput = z.infer<typeof updateStudioAgentSchema>;
 export type RunStudioAgentInput = z.infer<typeof runStudioAgentSchema>;
 export type RestartRunInput = z.infer<typeof restartRunSchema>;
+export type RunCanvasAgentInput = z.infer<typeof runCanvasAgentSchema>;
 export type SetAgentStateInput = z.infer<typeof setAgentStateSchema>;

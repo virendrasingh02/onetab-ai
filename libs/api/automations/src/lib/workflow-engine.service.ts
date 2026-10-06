@@ -16,15 +16,21 @@ import {
   ModelResolverService,
   ProviderRegistryService,
 } from '@org/api-ai';
-import { AIRuntimeService, MCPToolRegistryService } from '@org/api-agents';
+import { AIRuntimeService, MCPToolRegistryService, newAgentTeamRun, type AgentTeamRun } from '@org/api-agents';
 import { IntegrationsService } from '@org/api-integrations';
 import { RealtimeGatewayService } from '@org/api-realtime';
 import {
+  DEFAULT_AGENT_RUN_LIMITS,
+  LAST_OUTPUT_KEY,
+  LOOP_EACH_HANDLE,
+  MAX_LOOP_ITERATIONS,
   PLANS_CONFIG,
   normalizePlanTier,
   type AgentProfile,
+  type AgentRunLimits,
   type AgentScope,
   type AIChatMessage,
+  type InlineAgentSpec,
 } from '@org/types';
 import {
   conditionSpecFrom,
@@ -98,7 +104,94 @@ export const ENGINE_CONTEXT_KEYS = [
   '__resume',
   '__startedBy',
   '__depth',
+  LAST_OUTPUT_KEY,
+  '__pending',
 ];
+/** Independent steps that may run at the same moment in one run. */
+const MAX_PARALLEL_STEPS = 4;
+/** Steps that wait for a person run on their own, after everything else ready. */
+const HUMAN_STEP_TYPES = new Set(['HUMAN_APPROVAL', 'HUMAN_INPUT']);
+/** Steps whose output is routing or bookkeeping, not something the next step should work on. */
+const CONTROL_STEP_TYPES = new Set([
+  'START',
+  'TRIGGER',
+  'USER_INPUT',
+  'CONDITION',
+  'SWITCH',
+  'PARALLEL',
+  'DELAY',
+  'VARIABLE',
+  'HUMAN_APPROVAL',
+  'HUMAN_INPUT',
+  'UNSUPPORTED',
+  'CODE',
+  'DATABASE',
+]);
+
+/**
+ * The text a step produced, for the next step to work on by default
+ * (`{{__last}}`): the model's answer, the agent's reply, the tool's result…
+ */
+export function lastOutputText(output: unknown): string | undefined {
+  if (output === null || output === undefined) return undefined;
+  if (typeof output === 'string') return output;
+  if (typeof output !== 'object') return String(output);
+  const o = output as Record<string, unknown>;
+  for (const key of ['aiOutput', 'entityResponse', 'output', 'result', 'merged', 'toolResult', 'extracted', 'searchResult', 'scrapeResult', 'crawlResult', 'extractedResult', 'retrievedDocuments', 'loopResults', 'body', 'classification']) {
+    const value = o[key];
+    if (value === undefined || value === null || value === '') continue;
+    return typeof value === 'string' ? value : JSON.stringify(value, null, 2).slice(0, 20_000);
+  }
+  return undefined;
+}
+
+/** What a run's input says, as the first step's default input. */
+function inputText(payload: Record<string, unknown>): string {
+  for (const key of ['message', 'input', 'prompt', 'query', 'text']) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) return value;
+  }
+  const visible = Object.fromEntries(Object.entries(payload).filter(([k]) => !k.startsWith('__')));
+  return Object.keys(visible).length ? JSON.stringify(visible, null, 2) : '';
+}
+
+/** Every step that can lead into `nodeId`. */
+function ancestorsOf(nodeId: string, edges: WorkflowEdge[]): Set<string> {
+  const seen = new Set<string>();
+  const stack = [nodeId];
+  while (stack.length) {
+    const id = stack.pop() as string;
+    for (const e of edges) {
+      if (e.target === id && !seen.has(e.source)) {
+        seen.add(e.source);
+        stack.push(e.source);
+      }
+    }
+  }
+  return seen;
+}
+
+/** Runs `fn` over `items`, at most `limit` at a time, keeping order. */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      out[index] = await fn(items[index]!);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
+/** What one run may still spend — shared by its loops and agent teams. */
+interface RunBudget {
+  limits: AgentRunLimits;
+  steps: number;
+  tokens: number;
+  deadline: number;
+}
 const MODEL_NODE_TYPES = new Set(['LLM', 'AI_ACTION', 'AGENT', 'AI_COWORKER', 'CLASSIFIER', 'STRUCTURED_OUTPUT', 'EXTRACT_DATA']);
 
 function num(value: unknown, fallback: number): number {
@@ -148,6 +241,8 @@ export interface RunOptions {
   startAt?: string[];
   /** Context carried over from an earlier run (restart from a step). */
   carriedContext?: Record<string, unknown>;
+  /** Ceilings for this run; defaults to {@link DEFAULT_AGENT_RUN_LIMITS}. */
+  limits?: Partial<AgentRunLimits>;
 }
 
 /** Everything about one run that its steps need to know. */
@@ -162,6 +257,11 @@ interface RunEnv {
   startedBy: RunStartedBy;
   depth: number;
   timezone: string;
+  limits?: AgentRunLimits;
+  /** Created on the first graph walk of this process's share of the run. */
+  budget?: RunBudget;
+  /** The budget and task record agent teams in this run share. */
+  team?: AgentTeamRun;
 }
 
 type RunOutcome = 'SUCCESS' | 'FAILED' | 'WAITING_APPROVAL' | 'CANCELLED' | 'PAUSED';
@@ -308,6 +408,7 @@ export class WorkflowEngineService {
       startedBy: options.startedBy ?? 'person',
       depth: options.depth ?? 0,
       timezone,
+      limits: { ...DEFAULT_AGENT_RUN_LIMITS, ...(options.limits ?? {}) },
     };
 
     const context: Record<string, unknown> = {
@@ -315,6 +416,7 @@ export class WorkflowEngineService {
       ...initialPayload,
       ...this.engineContext(env, new Date()),
     };
+    if (context[LAST_OUTPUT_KEY] === undefined) context[LAST_OUTPUT_KEY] = inputText(initialPayload);
 
     let starts = options.startAt?.length ? options.startAt : this.startNodes(nodes, edges);
     if (starts.length === 0 && nodes.length > 0) starts = [nodes[0]!.id];
@@ -531,7 +633,13 @@ export class WorkflowEngineService {
     const nodes = normalizeWorkflowNodes(this.parse<unknown>(workflow.nodesJson, []));
     const edges = this.parse<WorkflowEdge[]>(workflow.edgesJson, []);
     context['approval'] = { approverId: event.approverId, comment: event.comment };
-    const next = edges.filter((e) => e.source === event.stepId && e.sourceHandle !== 'error').map((e) => e.target);
+    // Steps that were ready beside the approval when it paused the run.
+    const pending = Array.isArray(context['__pending']) ? (context['__pending'] as string[]) : [];
+    delete context['__pending'];
+    const next = [
+      ...edges.filter((e) => e.source === event.stepId && e.sourceHandle !== 'error').map((e) => e.target),
+      ...pending,
+    ];
 
     await this.prisma.aIExecution.update({ where: { id: aiExecution.id }, data: { status: 'RUNNING' } });
     await this.emitRunUpdate(env, { status: 'RUNNING', step: { stepId: event.stepId, status: decisionStep.status } });
@@ -709,9 +817,19 @@ export class WorkflowEngineService {
   /**
    * Walks the graph from `startIds`, running each reachable step once per
    * visit and following only the branch a CONDITION/SWITCH/CLASSIFIER chose.
+   *
+   * Steps that are ready together (a PARALLEL fork's lanes, or any branches
+   * that split) run at the same time, a few at once; a MERGE waits for every
+   * started branch and joins their results. A LOOP runs its `each` branch
+   * once per item. Steps that wait for a person run alone, after the rest of
+   * the ready work, so the run pauses at a clean point.
+   *
    * A failed step with an `error` edge continues down it (a fallback);
    * otherwise the run stops at the first failure, at a step that waits for a
-   * person, or when someone pauses or cancels it between steps.
+   * person, when someone pauses or cancels it between steps, or when it hits
+   * one of its limits (steps, time, tokens).
+   *
+   * `scope` confines the walk to a loop's body, for one item.
    */
   private async runGraph(
     env: RunEnv,
@@ -719,9 +837,11 @@ export class WorkflowEngineService {
     edges: WorkflowEdge[],
     startIds: string[],
     executionContext: Record<string, unknown>,
+    scope?: { only: Set<string>; iteration: number },
   ): Promise<{ status: RunOutcome; results: WorkflowStepResult[]; tokens: number; error?: string }> {
     const nodeById = new Map(nodes.map((n) => [n.id, n]));
     const results: WorkflowStepResult[] = [];
+    const budget = this.budgetFor(env);
     let status: RunOutcome = 'SUCCESS';
     let tokens = 0;
     let error: string | undefined;
@@ -735,77 +855,113 @@ export class WorkflowEngineService {
       const deferrals = new Map<string, number>();
 
       while (queue.length > 0) {
-        const nodeId = queue.shift()!;
-        const node = nodeById.get(nodeId);
-        if (!node || done.has(nodeId)) continue;
-
-        // A MERGE (join) waits until every branch that was started and leads
-        // into it has finished, so it sees all of their outputs.
-        if (node.type === 'MERGE') {
-          const pending = edges.some(
-            (e) => e.target === nodeId && activated.has(e.source) && !done.has(e.source),
-          );
-          const waited = (deferrals.get(nodeId) ?? 0) + 1;
-          if (pending && waited <= MAX_NODE_VISITS) {
-            deferrals.set(nodeId, waited);
-            queue.push(nodeId);
-            continue;
+        // Everything ready now, minus joins still waiting for a branch.
+        const ready: WorkflowNode[] = [];
+        const later: string[] = [];
+        for (const nodeId of queue.splice(0)) {
+          const node = nodeById.get(nodeId);
+          if (!node || done.has(nodeId) || ready.includes(node) || (scope && !scope.only.has(nodeId))) continue;
+          if (node.type === 'MERGE') {
+            // A join waits while any started step can still lead into it —
+            // not just its direct inputs, which may not have been reached yet.
+            const upstream = ancestorsOf(nodeId, edges);
+            const pending = [...activated].some((id) => id !== nodeId && !done.has(id) && upstream.has(id));
+            const waited = (deferrals.get(nodeId) ?? 0) + 1;
+            if (pending && waited <= MAX_NODE_VISITS * 10) {
+              deferrals.set(nodeId, waited);
+              later.push(nodeId);
+              continue;
+            }
           }
+          ready.push(node);
         }
+        const work = ready.filter((n) => !HUMAN_STEP_TYPES.has(n.type));
+        const humans = ready.filter((n) => HUMAN_STEP_TYPES.has(n.type));
+        const batch = work.length ? work : humans.slice(0, 1);
+        queue.push(...(work.length ? humans : humans.slice(1)).map((n) => n.id), ...later);
+        if (batch.length === 0) continue;
 
-        // Someone paused or cancelled the run while the previous step ran.
+        // Someone paused or cancelled the run while the previous steps ran.
         const interrupted = await this.interruption(env.runId);
         if (interrupted) {
           status = interrupted;
-          if (interrupted === 'PAUSED') await this.rememberResumePoint(env.runId, [nodeId, ...queue.filter((q) => q !== nodeId)], executionContext);
-          break;
-        }
-        done.add(nodeId);
-
-        const stepRowId = await this.openStep(env, node);
-        const stepStart = Date.now();
-        const step = await runInAgentScope(
-          { workflowId: env.workflow.id, runId: env.runId, agentName: env.workflow.name, depth: env.depth, test: env.mode === 'test' },
-          () => this.runNode(node, executionContext, env),
-        );
-        const stepLatency = Date.now() - stepStart;
-        results.push(step);
-
-        const stepTokensUsed = (step.output as any)?.tokensUsed ?? 0;
-        tokens += stepTokensUsed;
-        await this.closeStep(env, node, stepRowId, step, stepLatency, stepTokensUsed);
-
-        if (step.status === 'WAITING') {
-          status = 'WAITING_APPROVAL';
-          break;
-        }
-        if (step.status === 'FAILED') {
-          const fallbacks = edges.filter((e) => e.source === nodeId && e.sourceHandle === 'error');
-          if (fallbacks.length === 0) {
-            status = 'FAILED';
-            error = `${node.label || node.id}: ${String((step.output as any)?.error ?? 'failed')}`;
-            break;
+          if (interrupted === 'PAUSED' && !scope) {
+            await this.rememberResumePoint(env.runId, [...batch.map((n) => n.id), ...queue], executionContext);
           }
-          // Recovered: later steps can see what went wrong and say so.
-          executionContext[node.id] = step.output;
-          for (const edge of fallbacks) {
+          break;
+        }
+        const overLimit = this.limitReached(budget, batch.length);
+        if (overLimit) {
+          status = 'FAILED';
+          error = overLimit;
+          break;
+        }
+        budget.steps += batch.length;
+        batch.forEach((n) => done.add(n.id));
+
+        const outcomes = await mapLimit(batch, MAX_PARALLEL_STEPS, (node) =>
+          this.runStep(env, node, nodes, edges, executionContext, scope),
+        );
+
+        let waitingAt: string | null = null;
+        let failed = false;
+        batch.forEach((node, i) => {
+          const step = outcomes[i]!;
+          results.push(step);
+          const stepTokens = Number((step.output as any)?.tokensUsed ?? 0) || 0;
+          tokens += stepTokens;
+          budget.tokens += stepTokens;
+
+          if (step.status === 'WAITING') {
+            waitingAt = node.id;
+            return;
+          }
+          if (step.status === 'FAILED') {
+            const fallbacks = edges.filter((e) => e.source === node.id && e.sourceHandle === 'error');
+            if (fallbacks.length === 0) {
+              if (!failed) error = `${node.label || node.id}: ${String((step.output as any)?.error ?? 'failed')}`;
+              failed = true;
+              return;
+            }
+            // Recovered: later steps can see what went wrong and say so.
+            executionContext[node.id] = step.output;
+            for (const edge of fallbacks) {
+              activated.add(edge.target);
+              queue.push(edge.target);
+            }
+            return;
+          }
+
+          // Merge step output into context for downstream variable resolution
+          if (step.output && typeof step.output === 'object') {
+            Object.assign(executionContext, step.output);
+            executionContext[node.id] = step.output;
+          }
+          if (step.status === 'SUCCESS' && !CONTROL_STEP_TYPES.has(node.type)) {
+            const text = lastOutputText(step.output);
+            if (text !== undefined) executionContext[LAST_OUTPUT_KEY] = text;
+          }
+
+          for (const edge of edges) {
+            if (edge.source !== node.id || edge.sourceHandle === 'error') continue;
+            // A loop's per-item branch already ran inside the loop step.
+            if (node.type === 'LOOP' && edge.sourceHandle === LOOP_EACH_HANDLE) continue;
+            if (step.branch && edge.sourceHandle && edge.sourceHandle !== step.branch) continue;
             activated.add(edge.target);
             queue.push(edge.target);
           }
-          continue;
-        }
+        });
 
-        // Merge step output into context for downstream variable resolution
-        if (step.output && typeof step.output === 'object') {
-          Object.assign(executionContext, step.output);
-          executionContext[node.id] = step.output;
+        if (failed) {
+          status = 'FAILED';
+          break;
         }
-
-        for (const edge of edges) {
-          if (edge.source !== nodeId || edge.sourceHandle === 'error') continue;
-          if (step.branch && edge.sourceHandle && edge.sourceHandle !== step.branch) continue;
-          activated.add(edge.target);
-          queue.push(edge.target);
+        if (waitingAt) {
+          status = 'WAITING_APPROVAL';
+          // Other branches ready beside the approval continue after it.
+          const pending = [...new Set(queue)].filter((id) => !done.has(id));
+          if (pending.length) await this.rememberPendingBranches(env.runId, waitingAt, pending);
+          break;
         }
       }
     } catch (err) {
@@ -820,6 +976,181 @@ export class WorkflowEngineService {
     }
 
     return { status, results, tokens, ...(error ? { error } : {}) };
+  }
+
+  /** One step with its run record: opened as running, closed with its outcome. */
+  private async runStep(
+    env: RunEnv,
+    node: WorkflowNode,
+    nodes: WorkflowNode[],
+    edges: WorkflowEdge[],
+    context: Record<string, unknown>,
+    scope?: { only: Set<string>; iteration: number },
+  ): Promise<WorkflowStepResult> {
+    const shown = scope ? { ...node, label: `${node.label || node.id} · item ${scope.iteration + 1}` } : node;
+    const stepRowId = await this.openStep(env, shown);
+    const started = Date.now();
+    const step = await runInAgentScope(
+      { workflowId: env.workflow.id, runId: env.runId, agentName: env.workflow.name, depth: env.depth, test: env.mode === 'test' },
+      () =>
+        node.type === 'MERGE'
+          ? Promise.resolve(this.mergeStep(node, edges, nodes, context))
+          : node.type === 'LOOP' && edges.some((e) => e.source === node.id && e.sourceHandle === LOOP_EACH_HANDLE)
+            ? this.runLoop(env, node, nodes, edges, context)
+            : this.runNode(node, context, env),
+    );
+    await this.closeStep(env, shown, stepRowId, step, Date.now() - started, Number((step.output as any)?.tokensUsed ?? 0) || 0);
+    return step;
+  }
+
+  /** A join: what each incoming branch produced, by step name. */
+  private mergeStep(node: WorkflowNode, edges: WorkflowEdge[], nodes: WorkflowNode[], context: Record<string, unknown>): WorkflowStepResult {
+    const merged: Record<string, unknown> = {};
+    const parts: string[] = [];
+    for (const edge of edges.filter((e) => e.target === node.id)) {
+      const source = nodes.find((n) => n.id === edge.source);
+      const output = context[edge.source];
+      if (output === undefined) continue;
+      const name = source?.label || edge.source;
+      merged[name] = output;
+      const text = lastOutputText(output);
+      if (text) parts.push(`### ${name}\n${text}`);
+    }
+    return {
+      stepId: node.id,
+      type: node.type,
+      status: 'SUCCESS',
+      output: { merged, ...(parts.length ? { output: parts.join('\n\n') } : {}) },
+    };
+  }
+
+  /**
+   * Runs a loop's `each` branch once per item of the list at `itemsKey`, each
+   * item seeing `{{item}}` and `{{index}}`. The body is everything reachable
+   * from the `each` branch; it may not wait for a person (a paused loop
+   * couldn't pick up where it stopped).
+   */
+  private async runLoop(
+    env: RunEnv,
+    node: WorkflowNode,
+    nodes: WorkflowNode[],
+    edges: WorkflowEdge[],
+    context: Record<string, unknown>,
+  ): Promise<WorkflowStepResult> {
+    const fail = (message: string): WorkflowStepResult => ({ stepId: node.id, type: node.type, status: 'FAILED', output: { error: message } });
+    const itemsKey = String(node.config['itemsKey'] || 'items');
+    let items: unknown = readPath(context, itemsKey);
+    if (typeof items === 'string') {
+      const text: string = items;
+      try {
+        items = JSON.parse(text);
+      } catch {
+        // A plain list: one item per line.
+        items = text.split('\n').map((line) => line.trim()).filter(Boolean);
+      }
+    }
+    if (!Array.isArray(items)) return fail(`The loop needs a list at {{${itemsKey}}}, but found ${items === undefined ? 'nothing' : typeof items}.`);
+
+    const bodyStarts = edges.filter((e) => e.source === node.id && e.sourceHandle === LOOP_EACH_HANDLE).map((e) => e.target);
+    const body = new Set<string>();
+    const stack = [...bodyStarts];
+    while (stack.length) {
+      const id = stack.pop() as string;
+      if (id === node.id || body.has(id)) continue;
+      body.add(id);
+      stack.push(...edges.filter((e) => e.source === id).map((e) => e.target));
+    }
+    if (nodes.some((n) => body.has(n.id) && HUMAN_STEP_TYPES.has(n.type))) {
+      return fail('Approvals inside a loop aren’t supported yet. Put the approval before or after the loop.');
+    }
+
+    const cap = Math.min(Math.max(num(node.config['maxIterations'], MAX_LOOP_ITERATIONS), 1), MAX_LOOP_ITERATIONS);
+    const loopResults: unknown[] = [];
+    let tokens = 0;
+    for (const [index, item] of items.slice(0, cap).entries()) {
+      const iteration: Record<string, unknown> = {
+        ...context,
+        item,
+        index,
+        loop: { item, index, count: Math.min(items.length, cap) },
+        [LAST_OUTPUT_KEY]: typeof item === 'string' ? item : JSON.stringify(item),
+      };
+      const outcome = await this.runGraph(env, nodes, edges, bodyStarts, iteration, { only: body, iteration: index });
+      tokens += outcome.tokens;
+      if (outcome.status !== 'SUCCESS') {
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'FAILED',
+          output: { error: `Item ${index + 1}: ${outcome.error ?? outcome.status.toLowerCase()}`, loopResults, tokensUsed: tokens },
+        };
+      }
+      loopResults.push(iteration[LAST_OUTPUT_KEY]);
+    }
+    return {
+      stepId: node.id,
+      type: node.type,
+      status: 'SUCCESS',
+      output: {
+        loopResults,
+        iterations: loopResults.length,
+        ...(items.length > cap ? { truncated: `Only the first ${cap} of ${items.length} items ran.` } : {}),
+        tokensUsed: tokens,
+      },
+    };
+  }
+
+  /** The run's budget, created on first use from its limits. */
+  private budgetFor(env: RunEnv): RunBudget {
+    if (!env.budget) {
+      const limits = env.limits ?? DEFAULT_AGENT_RUN_LIMITS;
+      env.budget = { limits, steps: 0, tokens: 0, deadline: Date.now() + limits.maxDurationMs };
+    }
+    return env.budget;
+  }
+
+  /** The agent-team budget this run's canvas agents share. */
+  private teamFor(env: RunEnv): AgentTeamRun {
+    if (!env.team) {
+      const budget = this.budgetFor(env);
+      env.team = newAgentTeamRun(env.runId, {
+        maxDelegations: budget.limits.maxDelegations,
+        ...(budget.limits.maxTokens ? { maxTokens: budget.limits.maxTokens } : {}),
+        maxDurationMs: Math.max(budget.deadline - Date.now(), 0),
+      });
+    }
+    return env.team;
+  }
+
+  /** Why the run must stop before the next steps, or null. */
+  private limitReached(budget: RunBudget, nextSteps: number): string | null {
+    if (budget.steps + nextSteps > budget.limits.maxSteps) {
+      return `Stopped after ${budget.steps} steps: this run may take at most ${budget.limits.maxSteps}. Raise the limit or simplify the flow.`;
+    }
+    if (Date.now() > budget.deadline) {
+      return `Stopped: the run went over its ${Math.round(budget.limits.maxDurationMs / 60_000)}-minute time limit.`;
+    }
+    if (budget.limits.maxTokens && budget.tokens >= budget.limits.maxTokens) {
+      return `Stopped: the run used its ${budget.limits.maxTokens.toLocaleString('en-US')}-token budget.`;
+    }
+    return null;
+  }
+
+  /** Records the branches that were ready beside an approval, so deciding it continues them too. */
+  private async rememberPendingBranches(runId: string, stepId: string, pending: string[]) {
+    try {
+      const approval = await this.prisma.approvalRequest.findFirst({
+        where: { executionId: runId, stepId, state: 'PENDING' },
+        select: { id: true, proposedPayload: true },
+      });
+      if (!approval) return;
+      await this.prisma.approvalRequest.update({
+        where: { id: approval.id },
+        data: { proposedPayload: { ...((approval.proposedPayload as Record<string, unknown>) ?? {}), __pending: pending } as any },
+      });
+    } catch (error) {
+      this.logger.warn(`Could not record the branches waiting on ${stepId}: ${String(error)}`);
+    }
   }
 
   /** PAUSED or CANCELLED when someone stopped the run since the last step. */
@@ -1130,6 +1461,9 @@ export class WorkflowEngineService {
 
       case 'AGENT':
         this.gateScopeOnly(node, env);
+        if (cfg['inlineAgent'] && typeof cfg['inlineAgent'] === 'object') {
+          return this.runInlineAgentNode(node, context, env, cfg['inlineAgent'] as InlineAgentSpec);
+        }
         return this.runEntityNode(
           node,
           context,
@@ -1280,12 +1614,25 @@ export class WorkflowEngineService {
       }
 
       case 'PARALLEL':
-      case 'MERGE':
+        // A fork: every outgoing branch runs, at the same time (see runGraph).
         return {
           stepId: node.id,
           type: node.type,
           status: 'SUCCESS',
-          output: { merged: true },
+          output: { branches: true },
+        };
+
+      case 'MERGE':
+        // Joined in runGraph, which knows the branches; reached here only
+        // without one (e.g. a restart that began at the merge).
+        return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { merged: {} } };
+
+      case 'UNSUPPORTED':
+        return {
+          stepId: node.id,
+          type: String(cfg['originalType'] || node.type),
+          status: 'SKIPPED',
+          output: { skipped: true, reason: String(cfg['reason'] || 'This step can’t run yet.') },
         };
 
       case 'DELAY': {
@@ -1608,7 +1955,55 @@ export class WorkflowEngineService {
       stepId: node.id,
       type: node.type,
       status: 'SUCCESS',
-      output: { entityResponse: run.result, toolCalls: run.tools, ...(env.mode === 'test' ? { readOnly: true } : {}) },
+      output: {
+        entityResponse: run.result,
+        toolCalls: run.tools,
+        tokensUsed: run.tokensUsed,
+        ...(env.mode === 'test' ? { readOnly: true } : {}),
+      },
+    };
+  }
+
+  /**
+   * An agent drawn on the Studio canvas (with its team, if it leads one).
+   * It runs as the agent the canvas belongs to (`hostAgentId`), with the
+   * run's shared team budget, so its delegations are recorded on this run.
+   */
+  private async runInlineAgentNode(
+    node: WorkflowNode,
+    context: Record<string, unknown>,
+    env: RunEnv,
+    spec: InlineAgentSpec,
+  ): Promise<WorkflowStepResult> {
+    const hostId = String(node.config['hostAgentId'] || '');
+    if (!hostId) {
+      return {
+        stepId: node.id,
+        type: node.type,
+        status: 'FAILED',
+        output: { error: `${spec.name} isn’t attached to a saved agent. Save the agent, then run it again.` },
+      };
+    }
+    const prompt = interpolateVariables(String(node.config['goal'] || ''), context).trim() || 'Do your task using what the run has so far.';
+    const run = await this.aiRuntime.executeTurn(env.workflow.workspaceId, hostId, prompt, {
+      inlineAgent: spec,
+      team: this.teamFor(env),
+      ...(env.mode === 'test' ? { readOnly: true } : {}),
+      ...(env.workflow.creatorId ? { requesterId: env.workflow.creatorId } : {}),
+      source: 'workflow',
+    });
+    return {
+      stepId: node.id,
+      type: node.type,
+      status: 'SUCCESS',
+      output: {
+        entityResponse: run.result,
+        agent: spec.name,
+        toolCalls: run.tools,
+        tokensUsed: run.tokensUsed,
+        ...(run.notices?.length ? { notices: run.notices } : {}),
+        ...(env.mode === 'test' ? { readOnly: true } : {}),
+      },
     };
   }
 

@@ -1424,8 +1424,10 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
 ConditionNode.displayName = 'ConditionNode';
 
 // 7. While Loop Node
-export const WhileLoopNode = memo(({ id, data, selected }: NodeProps) => {
+export const WhileLoopNode = memo(({ id, type, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
+  const isLoop = ['LOOP', 'WHILE_LOOP'].includes(String(type).toUpperCase());
+  if (isLoop) return <LoopNode id={id} nodeData={nodeData} selected={!!selected} />;
   return (
     <div
       className={cn(
@@ -1465,6 +1467,65 @@ export const WhileLoopNode = memo(({ id, data, selected }: NodeProps) => {
   );
 });
 WhileLoopNode.displayName = 'WhileLoopNode';
+
+/**
+ * A loop: the "Each item" branch runs once per item of the list (seeing
+ * `{{item}}` and `{{index}}`), then "When done" continues with every item's
+ * result in `{{loopResults}}`.
+ */
+function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNodePayload; selected: boolean }) {
+  const itemsKey = String((nodeData.config as { itemsKey?: string } | undefined)?.itemsKey || 'items');
+  return (
+    <div
+      className={cn(
+        'group relative min-w-[220px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
+        selected ? 'ring-2 ring-accent-violet border-accent-violet shadow-md' : 'hover:border-accent-violet/50',
+        statusBorderClasses[nodeData.status || 'idle'],
+      )}
+    >
+      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
+      />
+      <div className="flex items-center gap-2.5">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-violet/15 text-accent-violet">
+          <Repeat className="size-4" />
+        </div>
+        <div>
+          <div className="text-xs font-bold text-foreground">{nodeData.label || 'Loop'}</div>
+          <div className="text-[11px] text-muted-foreground">
+            For each in <span className="font-mono">{`{{${itemsKey}}}`}</span>
+          </div>
+        </div>
+      </div>
+      {/* "When done" comes first in the DOM: edges saved without a handle bind to the first one. */}
+      <div className="mt-3 flex flex-col-reverse gap-1.5 text-[10px] font-semibold">
+        <div className="relative flex items-center justify-end pr-2 text-muted-foreground">
+          <span>When done</span>
+          <SourceHandleWithQuickAdd
+            position={Position.Right}
+            // On the node's edge, not the row's (14px padding + 1px border)
+            style={{ right: -15 }}
+            onConnectNext={nodeData.onConnectNext}
+            className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
+          />
+        </div>
+        <div className="relative flex items-center justify-end pr-2 text-accent-violet">
+          <span>Each item</span>
+          <SourceHandleWithQuickAdd
+            id="each"
+            position={Position.Right}
+            style={{ right: -15 }}
+            onConnectNext={nodeData.onConnectNext}
+            className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // 8. User Approval Node (Human in the loop)
 export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {

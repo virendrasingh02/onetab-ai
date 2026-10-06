@@ -13,6 +13,8 @@ import { AutomationsService } from './automations.service.js';
 import { AgentPlannerService } from './studio/agent-planner.service.js';
 import { AgentStudioController } from './studio/agent-studio.controller.js';
 import { AgentStudioService } from './studio/agent-studio.service.js';
+import { CanvasAgentRunController } from './studio/canvas-agent-run.controller.js';
+import { CanvasAgentRunService } from './studio/canvas-agent-run.service.js';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
 
@@ -27,7 +29,7 @@ import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
     // Live run updates (`ai.run.updated`) for the Studio.
     RealtimeModule,
   ],
-  controllers: [AutomationsController, AIRunsController, AgentStudioController],
+  controllers: [AutomationsController, AIRunsController, AgentStudioController, CanvasAgentRunController],
   providers: [
     AutomationsService,
     WorkflowEngineService,
@@ -35,6 +37,7 @@ import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
     WorkflowScheduleListener,
     AgentPlannerService,
     AgentStudioService,
+    CanvasAgentRunService,
   ],
   exports: [AutomationsService, WorkflowEngineService, AgentStudioService],
 })

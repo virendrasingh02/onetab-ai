@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
-import type { AIStudioOverview } from '@org/types';
+import { CANVAS_AGENT_TRIGGER, type AIStudioOverview } from '@org/types';
 
 @Injectable()
 export class AIStudioService {
@@ -45,7 +45,7 @@ export class AIStudioService {
         orderBy: { updatedAt: 'desc' },
       }),
       this.prisma.automationWorkflow.findMany({
-        where: { workspaceId },
+        where: { workspaceId, triggerType: { not: CANVAS_AGENT_TRIGGER } },
         select: { id: true, name: true, isActive: true, updatedAt: true },
         take: 10,
         orderBy: { updatedAt: 'desc' },

@@ -293,6 +293,9 @@ import type {
   MigrationLiveProgress,
   MigrationFinalReport,
   MigrationSessionDto,
+  CanvasAgentRunDetail,
+  CanvasAgentRunSummary,
+  StudioGraphIssue,
 } from '@org/types';
 
 import type {
@@ -2387,6 +2390,33 @@ export const aiEntitiesApi = {
 };
 
 /** AI agents. Every route is workspace-scoped. */
+/**
+ * Agents drawn on the Studio canvas: compiled and run by the workflow engine,
+ * with agent teams, live updates (`ai.run.updated`, `agent.task.updated`,
+ * `agent.message.created`) and the shared run controls (`ai-executions`).
+ */
+export const agentGraphsApi = {
+  validate: (workspaceId: string, agentId: string, graphJson?: string) =>
+    request<{ valid: boolean; issues: StudioGraphIssue[] }>(
+      http.post(`/workspaces/${workspaceId}/agent-graphs/${agentId}/validate`, { graphJson }),
+    ),
+
+  run: (
+    workspaceId: string,
+    agentId: string,
+    body: { message?: string; input?: Record<string, unknown>; mode: 'live' | 'test' },
+  ) =>
+    request<{ runId: string; status: 'RUNNING'; workflowId: string; issues: StudioGraphIssue[] }>(
+      http.post(`/workspaces/${workspaceId}/agent-graphs/${agentId}/run`, body),
+    ),
+
+  listRuns: (workspaceId: string, agentId: string) =>
+    request<CanvasAgentRunSummary[]>(http.get(`/workspaces/${workspaceId}/agent-graphs/${agentId}/runs`)),
+
+  getRun: (workspaceId: string, runId: string) =>
+    request<CanvasAgentRunDetail>(http.get(`/workspaces/${workspaceId}/agent-graphs/runs/${runId}`)),
+};
+
 export const agentsApi = {
   list: (workspaceId: string) =>
     request<AIAgentDetail[]>(http.get(`/workspaces/${workspaceId}/agents`)),

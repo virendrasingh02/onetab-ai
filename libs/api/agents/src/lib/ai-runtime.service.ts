@@ -15,6 +15,7 @@ import {
   AIInfrastructureService,
   KnowledgeService,
   MCPService,
+  ModelResolverService,
   type MCPToolBinding,
 } from '@org/api-ai';
 import { IntegrationsService } from '@org/api-integrations';
@@ -27,11 +28,14 @@ import type {
   AIProvider,
   CoworkerPermissions,
   CoworkerStatus,
+  InlineAgentSpec,
 } from '@org/types';
 import {
   agentToolNeedsApproval,
   isAIEntityType,
   OWNER_PRIVATE_AGENT_TOOLS,
+  DEFAULT_AGENT_RUN_LIMITS,
+  MAX_AGENT_TOOL_ROUNDS,
   readAgentRuntime,
   READ_ONLY_AGENT_TOOLS,
   resolveCoworkerCollaborators,
@@ -89,6 +93,18 @@ function schemaName(schema: Record<string, unknown>): string {
 
 const DELEGATE_TOOL_PREFIX = 'consult_agent_';
 
+/** The delegation tool for a team member: readable, unique, within tool-name limits. */
+export function memberToolName(member: { name: string }, index: number): string {
+  const slug = member.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'agent';
+  return `delegate_to_${index + 1}_${slug}`;
+}
+
+/** The supervisor's prompt once its team has worked: the request, then each member's result. */
+export function composeTeamPrompt(request: string, outcomes: Array<{ name: string; ok: boolean; result: string }>): string {
+  const parts = outcomes.map((o) => `### ${o.name}\n${o.ok ? o.result : `(could not finish: ${o.result})`}`);
+  return `${request}\n\nYour team has done its part. Use their work to produce the final answer, and say plainly if any part is missing:\n\n${parts.join('\n\n')}`;
+}
+
 /** A coworker handing work to another coworker it collaborates with. */
 const HANDOFF_TOOL_PREFIX = 'handoff_to_coworker_';
 
@@ -129,6 +145,61 @@ export interface AIEntityTurnContext {
   source?: CoworkerTurnSource;
   /** The coworker that handed this work over (`source: 'handoff'`). */
   fromCoworkerId?: string;
+  /**
+   * Run as an agent drawn on the Studio canvas rather than the entity's own
+   * configuration. The entity (an agent) is the host: the turn is logged,
+   * billed and acts as it, with the canvas agent's instructions, model,
+   * tools, knowledge and team.
+   */
+  inlineAgent?: InlineAgentSpec;
+  /**
+   * The budget and record a whole agent team shares in one run. Created on
+   * the first canvas-agent turn when the caller doesn't pass one; the
+   * workflow engine passes its own so tasks land on the workflow run.
+   */
+  team?: AgentTeamRun;
+  /** The task this turn is doing, so a member's own delegations nest under it. */
+  teamTaskId?: string;
+}
+
+/**
+ * What an agent team shares across one run: where its tasks are recorded and
+ * how much delegating it may still do. Mutated in place by every member.
+ */
+export interface AgentTeamRun {
+  /** The run record tasks and messages are written to; null = not recorded. */
+  executionId: string | null;
+  maxDelegations: number;
+  delegations: number;
+  /** Tokens across every member's turns; unset = no team-level cap. */
+  maxTokens?: number;
+  tokens: number;
+  /** Epoch ms after which nobody may delegate any more. */
+  deadline: number;
+}
+
+/** A team's starting budget, from run limits. */
+export function newAgentTeamRun(
+  executionId: string | null,
+  limits: { maxDelegations?: number; maxTokens?: number; maxDurationMs?: number } = {},
+): AgentTeamRun {
+  return {
+    executionId,
+    maxDelegations: limits.maxDelegations ?? DEFAULT_AGENT_RUN_LIMITS.maxDelegations,
+    delegations: 0,
+    ...(limits.maxTokens ? { maxTokens: limits.maxTokens } : {}),
+    tokens: 0,
+    deadline: Date.now() + (limits.maxDurationMs ?? DEFAULT_AGENT_RUN_LIMITS.maxDurationMs),
+  };
+}
+
+/** What one team member produced (or why it couldn't). */
+interface MemberOutcome {
+  key: string;
+  name: string;
+  ok: boolean;
+  result: string;
+  taskId: string | null;
 }
 
 export interface AIEntityRunResult {
@@ -159,12 +230,18 @@ interface TurnPlan {
   handoffTargets: Map<string, string>;
   runtime: AgentRuntimeConfig;
   sampling: { temperature?: number; maxTokens?: number };
+  /** Team members this agent may delegate to, by tool name (router teams). */
+  members?: Map<string, InlineAgentSpec>;
+  /** Model ↔ tool rounds; defaults to {@link AIRuntimeService.MAX_TOOL_ROUNDS}. */
+  maxRounds?: number;
 }
 
 /** Mutable bookkeeping one turn carries through its tool calls. */
 interface TurnState {
   executionId: string | null;
   pendingApprovals: number;
+  /** Tokens team members spent for this turn (their own members included). */
+  memberTokens?: number;
 }
 
 const RESPONSE_FORMAT_INSTRUCTION: Record<string, string> = {
@@ -208,6 +285,7 @@ export class AIRuntimeService {
     private readonly mcpServers: MCPService,
     private readonly knowledge: KnowledgeService,
     @Optional() private readonly events?: EventEmitter2,
+    @Optional() private readonly modelResolver?: ModelResolverService,
   ) {}
 
   /**
@@ -270,6 +348,10 @@ export class AIRuntimeService {
       throw new Error(`Invalid entity type '${entity.type}'. Expected 'agent' or 'coworker'.`);
     }
 
+    if (context.inlineAgent && entity.type !== 'agent') {
+      throw new Error(`Canvas agents run on an agent, not a ${entity.type}.`);
+    }
+
     await this.assertCreditsAvailable(workspaceId);
 
     const startedAt = Date.now();
@@ -277,6 +359,9 @@ export class AIRuntimeService {
       executionId: await this.startExecution(workspaceId, entity, promptText, context),
       pendingApprovals: 0,
     };
+    if (context.inlineAgent) {
+      return this.executeInlineAgentTurn(entity, workspaceId, promptText, context, state, startedAt, onToolUpdate, delegationDepth);
+    }
     const lifecycle: CoworkerRunEvent | null =
       entity.type === 'coworker'
         ? {
@@ -693,6 +778,17 @@ export class AIRuntimeService {
     const gatedByPolicy = !!runtime.toolPolicies[name]?.requiresApproval || runtime.autonomy === 'supervised';
 
     try {
+      const member = plan.members?.get(name);
+      if (member) {
+        const request = typeof input['request'] === 'string' ? (input['request'] as string).trim() : '';
+        const outcome = await this.runMember(entity, member, request, workspaceId, context, state, delegationDepth);
+        entry.status = outcome.ok ? 'success' : 'failed';
+        entry.output = { agent: outcome.name, result: outcome.result };
+        if (!outcome.ok) entry.error = outcome.result;
+        entry.durationMs = Date.now() - startedAt;
+        return JSON.stringify(outcome.ok ? { agent: outcome.name, result: outcome.result } : { agent: outcome.name, error: outcome.result });
+      }
+
       if (plan.kind === 'coworker' && name.startsWith(DELEGATE_TOOL_PREFIX)) {
         const targetAgentId = name.slice(DELEGATE_TOOL_PREFIX.length);
         const request =
@@ -854,11 +950,14 @@ export class AIRuntimeService {
     let chatResult = await callModel();
     for (
       let round = 0;
-      round < AIRuntimeService.MAX_TOOL_ROUNDS && (chatResult.message.toolCalls?.length ?? 0) > 0;
+      round < (plan.maxRounds ?? AIRuntimeService.MAX_TOOL_ROUNDS) && (chatResult.message.toolCalls?.length ?? 0) > 0;
       round++
     ) {
       messages.push(chatResult.message);
-      for (const call of chatResult.message.toolCalls ?? []) {
+      const calls = chatResult.message.toolCalls ?? [];
+      const contents: string[] = new Array(calls.length);
+      const run = async (index: number) => {
+        const call = calls[index]!;
         const input = parseToolArguments(call.function.arguments);
         const entry: AgentToolExecution = {
           id: call.id,
@@ -868,20 +967,17 @@ export class AIRuntimeService {
         };
         toolTrace.push(entry);
         await emitProgress('running');
-        const content = await this.runToolCall(
-          entry,
-          call,
-          input,
-          entity,
-          workspaceId,
-          context,
-          plan,
-          state,
-          delegationDepth,
-        );
-        messages.push({ role: 'tool', toolCallId: call.id, name: call.function.name, content });
+        contents[index] = await this.runToolCall(entry, call, input, entity, workspaceId, context, plan, state, delegationDepth);
         await emitProgress('running');
-      }
+      };
+      // Delegations asked for in the same round are independent: the team
+      // works on them at once. Other tools keep their order — a model may
+      // create something and then use it.
+      const delegations = calls.map((c, i) => (plan.members?.has(c.function.name) ? i : -1)).filter((i) => i >= 0);
+      const team = Promise.all(delegations.map(run));
+      for (let i = 0; i < calls.length; i++) if (!delegations.includes(i)) await run(i);
+      await team;
+      calls.forEach((call, i) => messages.push({ role: 'tool', toolCallId: call.id, name: call.function.name, content: contents[i]! }));
       chatResult = await callModel();
     }
     return { content: chatResult.message.content, tokensUsed };
@@ -922,26 +1018,59 @@ export class AIRuntimeService {
     const runtime = readAgentRuntime(entity.configuration);
     const allowedToolNames = parseToolNames(entity.tools);
     const readOnly = context.readOnly === true;
+    // A canvas agent has exactly the tools drawn on it — none means none,
+    // where an agent row with an empty list gets the default set.
+    const inline = entity.__inline as InlineAgentSpec | undefined;
     const integrationSchemas = (
       await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId)
-    ).filter((t) => !readOnly || t.definition.permissionLevel === 'read');
+    ).filter(
+      (t) => (!readOnly || t.definition.permissionLevel === 'read') && (!inline || allowedToolNames.includes(t.name)),
+    );
     const mcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
     const builtinSchemas = (
       allowedToolNames.length > 0
         ? this.mcpRegistry.getToolSchemasFor(allowedToolNames)
-        : // With no explicit list, every tool — except the owner-private reads.
-          this.mcpRegistry.getToolSchemas().filter((s) => !OWNER_PRIVATE_AGENT_TOOLS.includes(schemaName(s)))
+        : inline
+          ? []
+          : // With no explicit list, every tool — except the owner-private reads.
+            this.mcpRegistry.getToolSchemas().filter((s) => !OWNER_PRIVATE_AGENT_TOOLS.includes(schemaName(s)))
     ).filter((s) => !readOnly || READ_ONLY_AGENT_TOOLS.includes(schemaName(s)));
 
     const memoryContext = runtime.useWorkspaceMemory ? await this.buildMemoryContext(workspaceId) : '';
     const knowledgeContext = await this.buildKnowledgeContext(workspaceId, runtime, promptText);
     const format = runtime.responseFormat ? `\n\n${RESPONSE_FORMAT_INSTRUCTION[runtime.responseFormat] ?? ''}` : '';
 
+    // A supervisor's team: delegation tools the model chooses from (router),
+    // or members that all work before the supervisor writes (sequential / parallel).
+    const members = inline?.members ?? [];
+    const routed = members.length > 0 && inline?.delegation === 'router';
+    const memberTools = new Map(routed ? members.map((m, i) => [memberToolName(m, i), m] as const) : []);
+    const memberSchemas = [...memberTools.entries()].map(([toolName, member]) => ({
+      type: 'function',
+      function: {
+        name: toolName,
+        description: `Delegate a task to ${member.name}${member.role ? ` (${member.role})` : ''}, a member of your team, and get their result back.${
+          member.instructions ? ` They: ${member.instructions.slice(0, 200)}` : ''
+        }`,
+        parameters: {
+          type: 'object',
+          properties: {
+            request: { type: 'string', description: `What ${member.name} should do, with every detail they need.` },
+          },
+          required: ['request'],
+        },
+      },
+    }));
+    const teamGuidance = routed
+      ? `\n\nYou lead a team: ${members.map((m) => m.name).join(', ')}. Delegate the parts that are their speciality with the delegate_to_* tools (independent parts in the same round, so they run together), then combine their results into your answer.`
+      : '';
+
     const plan: TurnPlan = {
       kind: 'agent',
-      systemPrompt: `${entity.systemPrompt}${format}\n\nWorkspace ID: ${workspaceId}${memoryContext}${knowledgeContext}`,
+      systemPrompt: `${entity.systemPrompt}${format}${teamGuidance}\n\nWorkspace ID: ${workspaceId}${memoryContext}${knowledgeContext}`,
       toolSchemas: [
         ...builtinSchemas,
+        ...memberSchemas,
         ...integrationSchemas.map((t) => t.schema),
         ...[...mcpTools.values()].map((t) => t.schema),
       ],
@@ -951,6 +1080,8 @@ export class AIRuntimeService {
       handoffTargets: new Map(),
       runtime,
       sampling: this.samplingFor(runtime),
+      ...(memberTools.size ? { members: memberTools } : {}),
+      ...(inline?.maxSteps ? { maxRounds: Math.min(inline.maxSteps, MAX_AGENT_TOOL_ROUNDS) } : {}),
     };
 
     const toolTrace: AgentToolExecution[] = [];
@@ -966,10 +1097,15 @@ export class AIRuntimeService {
     };
 
     try {
+      let turnPrompt = promptText;
+      if (members.length > 0 && !routed && inline) {
+        const outcomes = await this.runTeam(entity, members, inline.delegation, promptText, workspaceId, context, state, delegationDepth);
+        turnPrompt = composeTeamPrompt(promptText, outcomes);
+      }
       const { content, tokensUsed } = await this.runModelLoop(
         entity,
         workspaceId,
-        promptText,
+        turnPrompt,
         context,
         plan,
         state,
@@ -977,11 +1113,14 @@ export class AIRuntimeService {
         emitProgress,
         delegationDepth,
       );
+      if (inline && context.team) context.team.tokens += tokensUsed;
       const guarded = applyPiiGuardrail(content, runtime.guardrails.pii);
       const log = await this.writeLog(entity.id, 'SUCCESS', promptText, guarded.text, toolTrace, tokensUsed);
+      // Members were billed for their own turns; this bills the agent's.
       await this.deductRunCredits(workspaceId, entity.id, tokensUsed, entity.name);
       await emitProgress('completed');
 
+      const notices = [...((entity.__notices as string[] | undefined) ?? []), ...(guarded.notice ? [guarded.notice] : [])];
       return {
         entityId: entity.id,
         entityName: entity.name,
@@ -989,8 +1128,8 @@ export class AIRuntimeService {
         result: guarded.text,
         logId: log.id,
         tools: toolTrace,
-        tokensUsed,
-        ...(guarded.notice ? { notices: [guarded.notice] } : {}),
+        tokensUsed: tokensUsed + (state.memberTokens ?? 0),
+        ...(notices.length ? { notices } : {}),
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -1185,6 +1324,330 @@ export class AIRuntimeService {
       });
       await emitProgress('failed');
       throw err;
+    }
+  }
+
+  /* ------------------------------------------------- canvas agents & teams -- */
+
+  /**
+   * One turn of an agent drawn on the Studio canvas, run as its host agent.
+   * The agent's own work is the root task of the run's task tree; everything
+   * it delegates nests below it.
+   */
+  private async executeInlineAgentTurn(
+    host: any,
+    workspaceId: string,
+    promptText: string,
+    context: AIEntityTurnContext,
+    state: TurnState,
+    startedAt: number,
+    onToolUpdate: ((tools: AgentToolExecution[]) => void | Promise<void>) | undefined,
+    delegationDepth: number,
+  ): Promise<AIEntityRunResult> {
+    const spec = context.inlineAgent as InlineAgentSpec;
+    const team = context.team ?? newAgentTeamRun(state.executionId);
+    const taskId = await this.openTask(workspaceId, team, {
+      agent: spec,
+      request: promptText,
+      parentTaskId: context.teamTaskId ?? null,
+      delegatedBy: null,
+    });
+    const agent = await this.withInlineAgent(host, spec, workspaceId);
+    try {
+      const run = await this.executeAgentTurn(
+        agent,
+        workspaceId,
+        promptText,
+        { ...context, team, ...(taskId ? { teamTaskId: taskId } : {}) },
+        state,
+        onToolUpdate,
+        delegationDepth,
+      );
+      await this.closeTask(workspaceId, team, taskId, {
+        status: state.pendingApprovals > 0 ? 'APPROVAL_REQUIRED' : 'COMPLETED',
+        output: { result: run.result.slice(0, 20_000), tools: run.tools.map((t) => t.name) },
+        tokensUsed: run.tokensUsed,
+      });
+      await this.finishExecution(state, startedAt, promptText, agent.model, run);
+      return { ...run, entityName: spec.name, executionId: state.executionId };
+    } catch (err) {
+      await this.closeTask(workspaceId, team, taskId, {
+        status: 'FAILED',
+        error: err instanceof Error ? err.message : String(err),
+      });
+      await this.finishExecution(state, startedAt, promptText, agent.model, undefined, err);
+      throw err;
+    }
+  }
+
+  /**
+   * The host agent dressed as a canvas agent: its instructions, tools,
+   * knowledge and model. Governance (autonomy, tool policies, guardrails)
+   * stays the host's. A model the workspace has no key for falls back to the
+   * host's, and the run says so.
+   */
+  private async withInlineAgent(host: any, spec: InlineAgentSpec, workspaceId: string): Promise<any> {
+    const base = host.__host ?? host;
+    const notices: string[] = [];
+    let provider = base.provider;
+    let model = base.model;
+    if (spec.model && this.modelResolver) {
+      const wanted = this.modelResolver.resolve({ requestedModel: spec.model });
+      let usable = wanted.provider === base.provider;
+      if (!usable) {
+        try {
+          usable = !!(await this.credentialService.resolveCredential(wanted.provider as AIProvider, { workspaceId })).apiKey;
+        } catch {
+          usable = false;
+        }
+      }
+      if (usable) {
+        provider = wanted.provider;
+        model = wanted.model;
+      } else {
+        notices.push(`${spec.name} is set to ${spec.model}, but ${wanted.provider} isn’t connected in this workspace, so it used ${base.model}.`);
+      }
+    }
+    const runtime = readAgentRuntime(base.configuration);
+    const instructions =
+      spec.instructions ||
+      `You are ${spec.name}${spec.role ? `, the team's ${spec.role}` : ''}. Do the task you are given and report the result clearly.`;
+    return {
+      ...base,
+      name: spec.name,
+      role: spec.role ?? base.role,
+      systemPrompt: instructions,
+      tools: JSON.stringify(spec.tools),
+      provider,
+      model,
+      configuration: {
+        ...((base.configuration as Record<string, unknown>) ?? {}),
+        runtime: {
+          ...runtime,
+          knowledge: spec.knowledge,
+          ...(spec.temperature !== undefined ? { temperature: spec.temperature } : {}),
+          ...(spec.maxTokens !== undefined ? { maxTokens: spec.maxTokens } : {}),
+        },
+      },
+      __inline: spec,
+      __host: base,
+      __notices: notices,
+    };
+  }
+
+  /** Why a team may not delegate any more, or null when it may. */
+  private teamRefusal(team: AgentTeamRun, delegationDepth: number): string | null {
+    if (delegationDepth + 1 > MAX_DELEGATION_DEPTH) {
+      return `A team can delegate at most ${MAX_DELEGATION_DEPTH} levels down, so this agent can’t delegate further. Do the work yourself.`;
+    }
+    if (team.delegations >= team.maxDelegations) {
+      return `The team has used all ${team.maxDelegations} delegations allowed in one run. Finish with what you have.`;
+    }
+    if (Date.now() > team.deadline) return 'The run is out of time, so no more work can be delegated. Finish with what you have.';
+    if (team.maxTokens && team.tokens >= team.maxTokens) {
+      return `The team has used its ${team.maxTokens.toLocaleString('en-US')}-token budget. Finish with what you have.`;
+    }
+    return null;
+  }
+
+  /**
+   * Hands one task to a team member and waits for the result: a task row,
+   * the request and the reply as messages, and the member's own full turn
+   * (tools, knowledge, its own team) under the shared budget.
+   */
+  private async runMember(
+    supervisor: any,
+    member: InlineAgentSpec,
+    request: string,
+    workspaceId: string,
+    context: AIEntityTurnContext,
+    state: TurnState,
+    delegationDepth: number,
+    dependencies: string[] = [],
+  ): Promise<MemberOutcome> {
+    const team = context.team ?? newAgentTeamRun(state.executionId);
+    const from = { key: (supervisor.__inline as InlineAgentSpec | undefined)?.key ?? supervisor.id, name: supervisor.name as string };
+    const task = request.trim();
+    if (!task) return { key: member.key, name: member.name, ok: false, result: `Say what ${member.name} should do.`, taskId: null };
+
+    const refusal = this.teamRefusal(team, delegationDepth);
+    if (refusal) return { key: member.key, name: member.name, ok: false, result: refusal, taskId: null };
+    team.delegations++;
+
+    const taskId = await this.openTask(workspaceId, team, {
+      agent: member,
+      request: task,
+      parentTaskId: context.teamTaskId ?? null,
+      delegatedBy: from.key,
+      dependencies,
+    });
+    await this.recordMessage(workspaceId, team, { taskId, from, to: { key: member.key, name: member.name }, kind: 'task', content: task });
+    this.logger.log(`Team: '${from.name}' delegated to '${member.name}' (depth ${delegationDepth + 1})`);
+
+    const memberState: TurnState = { executionId: state.executionId, pendingApprovals: 0, memberTokens: 0 };
+    try {
+      const agent = await this.withInlineAgent(supervisor, member, workspaceId);
+      const run = await this.executeAgentTurn(
+        agent,
+        workspaceId,
+        `${from.name} (who leads your team) asks you: ${task}`,
+        { ...context, inlineAgent: member, team, ...(taskId ? { teamTaskId: taskId } : {}) },
+        memberState,
+        undefined,
+        delegationDepth + 1,
+      );
+      state.pendingApprovals += memberState.pendingApprovals;
+      state.memberTokens = (state.memberTokens ?? 0) + run.tokensUsed;
+      const waiting = memberState.pendingApprovals > 0;
+      await this.closeTask(workspaceId, team, taskId, {
+        status: waiting ? 'APPROVAL_REQUIRED' : 'COMPLETED',
+        output: {
+          result: run.result.slice(0, 20_000),
+          tools: run.tools.map((t) => t.name),
+          ...(run.notices?.length ? { notices: run.notices } : {}),
+        },
+        tokensUsed: run.tokensUsed,
+        approvalRequired: waiting,
+      });
+      await this.recordMessage(workspaceId, team, {
+        taskId,
+        from: { key: member.key, name: member.name },
+        to: from,
+        kind: 'result',
+        content: run.result.slice(0, 20_000),
+        data: { tools: run.tools.map((t) => ({ name: t.name, status: t.status })), tokensUsed: run.tokensUsed },
+      });
+      return { key: member.key, name: member.name, ok: true, result: run.result, taskId };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await this.closeTask(workspaceId, team, taskId, { status: 'FAILED', error: message });
+      await this.recordMessage(workspaceId, team, {
+        taskId,
+        from: { key: member.key, name: member.name },
+        to: from,
+        kind: 'error',
+        content: message.slice(0, 4_000),
+      });
+      return { key: member.key, name: member.name, ok: false, result: message, taskId };
+    }
+  }
+
+  /**
+   * A whole team working before its supervisor answers: one after another
+   * (each seeing the work before it), or all at once.
+   */
+  private async runTeam(
+    supervisor: any,
+    members: InlineAgentSpec[],
+    mode: 'sequential' | 'parallel' | 'router',
+    request: string,
+    workspaceId: string,
+    context: AIEntityTurnContext,
+    state: TurnState,
+    delegationDepth: number,
+  ): Promise<MemberOutcome[]> {
+    if (mode === 'parallel') {
+      return Promise.all(members.map((m) => this.runMember(supervisor, m, request, workspaceId, context, state, delegationDepth)));
+    }
+    const outcomes: MemberOutcome[] = [];
+    for (const member of members) {
+      const previous = outcomes[outcomes.length - 1];
+      const ask = previous?.ok ? `${request}\n\nWhat ${previous.name} produced before you:\n${previous.result}` : request;
+      outcomes.push(
+        await this.runMember(supervisor, member, ask, workspaceId, context, state, delegationDepth, previous?.taskId ? [previous.taskId] : []),
+      );
+    }
+    return outcomes;
+  }
+
+  /** Opens a task row (best-effort: a telemetry write never stops the work). */
+  private async openTask(
+    workspaceId: string,
+    team: AgentTeamRun,
+    task: { agent: InlineAgentSpec; request: string; parentTaskId: string | null; delegatedBy: string | null; dependencies?: string[] },
+  ): Promise<string | null> {
+    if (!team.executionId) return null;
+    try {
+      const row = await this.prisma.agentTask.create({
+        data: {
+          workspaceId,
+          executionId: team.executionId,
+          parentTaskId: task.parentTaskId,
+          agentKey: task.agent.key,
+          agentName: task.agent.name,
+          delegatedBy: task.delegatedBy,
+          title: task.request.split('\n')[0]!.slice(0, 200) || task.agent.name,
+          description: task.request.slice(0, 8_000),
+          status: 'RUNNING',
+          input: { request: task.request.slice(0, 8_000) },
+          dependencies: task.dependencies ?? [],
+          startedAt: new Date(),
+        },
+      });
+      await this.broadcast(workspaceId, 'agent.task.updated', { executionId: team.executionId, task: row });
+      return row.id;
+    } catch (error) {
+      this.logger.warn(`Could not record a task for ${task.agent.name}: ${String(error)}`);
+      return null;
+    }
+  }
+
+  private async closeTask(
+    workspaceId: string,
+    team: AgentTeamRun,
+    taskId: string | null,
+    outcome: { status: string; output?: Record<string, unknown>; error?: string; tokensUsed?: number; approvalRequired?: boolean },
+  ): Promise<void> {
+    if (!taskId) return;
+    try {
+      const row = await this.prisma.agentTask.update({
+        where: { id: taskId },
+        data: {
+          status: outcome.status,
+          ...(outcome.output ? { output: outcome.output as any } : {}),
+          ...(outcome.error ? { error: outcome.error.slice(0, 4_000) } : {}),
+          ...(outcome.tokensUsed !== undefined ? { tokensUsed: outcome.tokensUsed } : {}),
+          ...(outcome.approvalRequired ? { approvalRequired: true } : {}),
+          completedAt: outcome.status === 'APPROVAL_REQUIRED' ? null : new Date(),
+        },
+      });
+      await this.broadcast(workspaceId, 'agent.task.updated', { executionId: team.executionId, task: row });
+    } catch (error) {
+      this.logger.warn(`Could not close task ${taskId}: ${String(error)}`);
+    }
+  }
+
+  private async recordMessage(
+    workspaceId: string,
+    team: AgentTeamRun,
+    message: {
+      taskId: string | null;
+      from: { key: string; name: string };
+      to: { key: string; name: string };
+      kind: 'task' | 'result' | 'error' | 'status';
+      content: string;
+      data?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    if (!team.executionId) return;
+    try {
+      const row = await this.prisma.agentMessage.create({
+        data: {
+          workspaceId,
+          executionId: team.executionId,
+          taskId: message.taskId,
+          fromAgent: message.from.key,
+          fromName: message.from.name,
+          toAgent: message.to.key,
+          toName: message.to.name,
+          kind: message.kind,
+          content: message.content,
+          ...(message.data ? { data: message.data as any } : {}),
+        },
+      });
+      await this.broadcast(workspaceId, 'agent.message.created', { executionId: team.executionId, message: row });
+    } catch (error) {
+      this.logger.warn(`Could not record an agent message: ${String(error)}`);
     }
   }
 

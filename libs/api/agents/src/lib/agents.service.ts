@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppEvent } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import { deriveAgentFromGraph, type AgentToolExecution } from '@org/types';
+import { compileStudioGraph, deriveAgentFromGraph, isStudioGraph, type AgentToolExecution } from '@org/types';
 import { AIEntitiesService } from './ai-entities.service.js';
 import { AIRuntimeService } from './ai-runtime.service.js';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
@@ -122,6 +122,14 @@ export class AgentsService {
 
     if (!graphJson) {
       return { valid: false, errors: ['The canvas is empty.'], warnings: [] };
+    }
+
+    // A Studio canvas graph runs through the workflow engine; judge it by
+    // what the engine will run (the same compile the run endpoint uses).
+    if (isStudioGraph(graphJson)) {
+      const { issues } = compileStudioGraph(JSON.parse(graphJson) as Record<string, unknown>);
+      const errors = issues.filter((i) => i.level === 'error').map((i) => i.message);
+      return { valid: errors.length === 0, errors, warnings: issues.filter((i) => i.level === 'warning').map((i) => i.message) };
     }
 
     const derived = deriveAgentFromGraph(graphJson);

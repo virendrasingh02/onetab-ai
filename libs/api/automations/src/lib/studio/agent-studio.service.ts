@@ -7,6 +7,7 @@ import {
 import { PrismaService, type AutomationWorkflow } from '@org/database';
 import {
   AGENT_TEMPLATES,
+  CANVAS_AGENT_TRIGGER,
   blueprintBlockers,
   compileAgentBlueprint,
   describeTriggerShort,
@@ -216,7 +217,7 @@ export class AgentStudioService {
   /** Every workflow in the workspace with its state, trigger, last run and next run — the library. */
   async list(workspaceId: string, viewerId: string) {
     const workflows = await this.prisma.automationWorkflow.findMany({
-      where: { workspaceId },
+      where: { workspaceId, triggerType: { not: CANVAS_AGENT_TRIGGER } },
       orderBy: { updatedAt: 'desc' },
     });
     return this.summaries(workspaceId, viewerId, workflows);

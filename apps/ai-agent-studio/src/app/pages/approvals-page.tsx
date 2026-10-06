@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   EmptyState,
+  ErrorState,
   Input,
   LoadingState,
   Page,
@@ -30,7 +31,6 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
-import { approvalService } from '../services/approvalService.js';
 import {
   fetchWorkspaceApprovals,
   workspaceApprovalsKey,
@@ -47,6 +47,7 @@ export function ApprovalsPage() {
   const {
     data: approvals = [],
     isLoading,
+    isError,
     refetch,
     isRefetching,
   } = useQuery({
@@ -64,14 +65,10 @@ export function ApprovalsPage() {
       decision: 'APPROVED' | 'REJECTED';
       reason?: string;
     }) => {
-      try {
-        return await approvalsApi.decide(activeWorkspace.id, id, {
-          decision,
-          comment: reason,
-        });
-      } catch {
-        return approvalService.decideApproval(id, decision, reason);
-      }
+      return approvalsApi.decide(activeWorkspace.id, id, {
+        decision,
+        comment: reason,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspace-approvals'] });
@@ -156,6 +153,8 @@ export function ApprovalsPage() {
       {/* Content Area */}
       {isLoading ? (
         <LoadingState label="Loading approval requests..." />
+      ) : isError ? (
+        <ErrorState title="Couldn’t load approvals" description="The platform didn’t answer. Try again in a moment." onRetry={() => void refetch()} />
       ) : approvals.length === 0 ? (
         <EmptyState
           icon={<UserCheck className="size-8 text-muted-foreground" />}
