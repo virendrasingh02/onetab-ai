@@ -1,6 +1,6 @@
 import { Button, AIModelIcon } from '@org/ui';
 import { cn } from '@org/utils';
-import { TriangleAlert, User } from 'lucide-react';
+import { Sparkles, TriangleAlert, User } from 'lucide-react';
 import { MarkdownMessage } from './markdown-message.js';
 
 /**

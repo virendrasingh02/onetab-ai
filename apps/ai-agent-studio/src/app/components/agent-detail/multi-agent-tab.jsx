@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import { useStudioSession } from '../../session-guard.js';
 
+/**
+ * @param {{ agent: any; onSave: (patch: Record<string, any>) => void | Promise<void> }} props
+ */
 export function MultiAgentTab({ agent, onSave }) {
   const { activeWorkspace } = useStudioSession();
 

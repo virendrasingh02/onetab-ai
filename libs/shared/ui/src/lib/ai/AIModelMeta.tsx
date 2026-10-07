@@ -1,20 +1,28 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { cn } from '@org/utils';
-import { normalizeModel } from './model-normalizer.js';
+import { normalizeModel, type ModelInput } from './model-normalizer.js';
 
 /**
  * AIModelMeta
  * Renders badges / chips for model specs (Context Window, Reasoning, Vision, Speed, Cost)
  */
+export interface AIModelMetaProps {
+  modelId?: ModelInput;
+  model?: ModelInput;
+  provider?: string | null;
+  showAll?: boolean;
+  className?: string;
+}
+
 export const AIModelMeta = memo(function AIModelMeta({
   modelId,
   model,
   provider,
   showAll = false,
   className,
-}) {
+}: AIModelMetaProps) {
   const targetModel = modelId || model;
-  const meta = normalizeModel(targetModel, provider);
+  const meta = normalizeModel(targetModel, provider ?? null);
 
   return (
     <div className={cn('flex flex-wrap items-center gap-1.5 text-[10px]', className)}>

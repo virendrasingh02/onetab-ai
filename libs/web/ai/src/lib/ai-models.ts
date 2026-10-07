@@ -6,7 +6,17 @@ import type { AIProvider } from '@org/types';
  * "Auto" sends no provider or model at all, which lets the API pick its own
  * default (NVIDIA Nemotron 3 Super) rather than hard-coding one.
  */
-export const AI_MODELS = [
+export interface AIModelPickerOption<V extends string = string> {
+  value: V;
+  label: string;
+  provider?: AIProvider;
+  model?: string;
+  category?: string;
+  badge?: string;
+  description?: string;
+}
+
+const MODEL_LIST = [
   {
     value: 'auto',
     label: 'Auto (Default)',
@@ -72,24 +82,15 @@ export const AI_MODELS = [
   // OpenRouter (auto) ... provider: 'openrouter', model: 'auto'
   // Command R+ (Cohere) . provider: 'cohere',     model: 'command-r-plus-08-2024'
   // Ollama Llama 3 ...... provider: 'ollama',     model: 'llama3'
-] as const satisfies ReadonlyArray<{
-  value: string;
-  label: string;
-  provider?: AIProvider;
-  model?: string;
-  category?: string;
-  badge?: string;
-  description?: string;
-}>;
+] as const satisfies ReadonlyArray<AIModelPickerOption>;
 
-export type AIModelValue = (typeof AI_MODELS)[number]['value'];
+export type AIModelValue = (typeof MODEL_LIST)[number]['value'];
+
+export const AI_MODELS: ReadonlyArray<AIModelPickerOption<AIModelValue>> = MODEL_LIST;
 
 export function resolveModel(value: AIModelValue) {
   const entry = AI_MODELS.find((option) => option.value === value);
-  return {
-    provider: entry && 'provider' in entry ? entry.provider : undefined,
-    model: entry && 'model' in entry ? entry.model : undefined,
-  };
+  return { provider: entry?.provider, model: entry?.model };
 }
 
 export function modelLabelFor(value: AIModelValue) {

@@ -4964,11 +4964,17 @@ export const aiSecretsApi = {
 };
 
 export const aiMemoryApi = {
-  list: (workspaceId: string) =>
-    request<AIMemoryEntry[]>(http.get(`/workspaces/${workspaceId}/ai/memory`)),
+  list: (workspaceId: string, params?: { search?: string; scope?: string; agentId?: string }) =>
+    request<AIMemoryEntry[]>(http.get(`/workspaces/${workspaceId}/ai/memory`, { params })),
+
+  set: (workspaceId: string, data: { key: string; value: string; scope?: string; agentId?: string }) =>
+    request<AIMemoryEntry>(http.post(`/workspaces/${workspaceId}/ai/memory`, data)),
 
   delete: (workspaceId: string, key: string) =>
     request<void>(http.delete(`/workspaces/${workspaceId}/ai/memory/${encodeURIComponent(key)}`)),
+
+  forgetAgent: (workspaceId: string, agentId: string) =>
+    request<{ count: number }>(http.delete(`/workspaces/${workspaceId}/ai/memory/agents/${encodeURIComponent(agentId)}`)),
 };
 
 export const mcpApi = {

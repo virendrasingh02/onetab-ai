@@ -18,17 +18,21 @@
  * the same issues to warn before anyone runs anything.
  */
 
+import type { AgentAutonomy, AgentStructuredRules, AutonomyLevel } from './agent-config.js';
+
 /* ---------------------------------------------------------------- agents -- */
 
 /**
  * How a supervisor uses its team:
  * - `router` — the supervisor's model decides whom to delegate to, as tools;
  * - `sequential` — every member works in order, each seeing the previous result;
- * - `parallel` — every member works at once; the supervisor merges the results.
+ * - `parallel` — every member works at once; the supervisor merges the results;
+ * - `review_loop` — the workers go in order, then the reviewer (the member
+ *   whose role/name says review/critic/QA, else the last) checks all of it.
  */
-export type AgentDelegationMode = 'router' | 'sequential' | 'parallel';
+export type AgentDelegationMode = 'router' | 'sequential' | 'parallel' | 'review_loop';
 
-export const AGENT_DELEGATION_MODES: readonly AgentDelegationMode[] = ['router', 'sequential', 'parallel'];
+export const AGENT_DELEGATION_MODES: readonly AgentDelegationMode[] = ['router', 'sequential', 'parallel', 'review_loop'];
 
 /** An agent defined on the canvas (not its own `AIAgent` row). */
 export interface InlineAgentSpec {
@@ -47,6 +51,10 @@ export interface InlineAgentSpec {
   members: InlineAgentSpec[];
   /** Model ↔ tool rounds this agent may take in one turn. */
   maxSteps?: number;
+  /** Canvas-level governance; unset keeps the host agent's. */
+  autonomy?: AgentAutonomy;
+  autonomyLevel?: AutonomyLevel;
+  rules?: AgentStructuredRules;
 }
 
 /** Hard ceilings on one run, so an agentic run can never loop forever. */
@@ -358,6 +366,13 @@ export function compileStudioGraph(graph: {
       ? (cfg['delegation'] as AgentDelegationMode)
       : 'router';
     const steps = asNumber(cfg['maxSteps']) ?? asNumber(cfg['maxIterations']);
+    const autonomy = (['supervised', 'semi', 'autonomous'] as const).find((a) => a === cfg['autonomy']);
+    const autonomyLevel = ([0, 1, 2, 3, 4] as const).find((l) => l === cfg['autonomyLevel']);
+    const rulesCfg = cfg['rules'] && typeof cfg['rules'] === 'object' ? (cfg['rules'] as Record<string, unknown>) : undefined;
+    const ruleList = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '') : []);
+    const rules: AgentStructuredRules | undefined = rulesCfg
+      ? { always: ruleList(rulesCfg['always']), askBefore: ruleList(rulesCfg['askBefore']), never: ruleList(rulesCfg['never']) }
+      : undefined;
 
     return {
       key: node.id,
@@ -372,6 +387,9 @@ export function compileStudioGraph(graph: {
       delegation,
       members,
       ...(steps !== undefined && steps > 0 ? { maxSteps: clamp(Math.round(steps), 1, MAX_AGENT_TOOL_ROUNDS) } : {}),
+      ...(autonomy ? { autonomy } : {}),
+      ...(autonomyLevel !== undefined ? { autonomyLevel } : {}),
+      ...(rules && (rules.always!.length || rules.askBefore!.length || rules.never!.length) ? { rules } : {}),
     };
   };
 

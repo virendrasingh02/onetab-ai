@@ -2133,7 +2133,6 @@ export function AgentDetailPage() {
                 className="flex items-center gap-1 shrink-0"
               >
                 <Input
-                  size="sm"
                   value={headerNameInput}
                   onChange={(e) => setHeaderNameInput(e.target.value)}
                   className="h-7 text-xs font-semibold w-36 bg-background"
@@ -3539,7 +3538,7 @@ export function AgentDetailPage() {
                         <div key={n.id} className="flex items-center justify-between p-2.5 bg-success/5">
                           <div className="flex items-center gap-2">
                             <span className="size-2 rounded-full bg-success" />
-                            <span className="font-semibold text-foreground">{n.data?.label || n.id}</span>
+                            <span className="font-semibold text-foreground">{String(n.data?.label ?? n.id)}</span>
                             <span className="font-mono text-[10px] text-muted-foreground">({n.type})</span>
                           </div>
                           <Badge variant="success" className="text-[10px]">Added in Current</Badge>
@@ -3550,7 +3549,7 @@ export function AgentDetailPage() {
                         <div key={n.id} className="flex items-center justify-between p-2.5 bg-warning/5">
                           <div className="flex items-center gap-2">
                             <span className="size-2 rounded-full bg-warning" />
-                            <span className="font-semibold text-foreground">{n.data?.label || n.id}</span>
+                            <span className="font-semibold text-foreground">{String(n.data?.label ?? n.id)}</span>
                             <span className="font-mono text-[10px] text-muted-foreground">({n.type})</span>
                           </div>
                           <Badge variant="warning" className="text-[10px]">Parameters Modified</Badge>
@@ -3561,7 +3560,7 @@ export function AgentDetailPage() {
                         <div key={n.id} className="flex items-center justify-between p-2.5 bg-destructive/5">
                           <div className="flex items-center gap-2">
                             <span className="size-2 rounded-full bg-destructive" />
-                            <span className="font-semibold text-foreground">{n.data?.label || n.id}</span>
+                            <span className="font-semibold text-foreground">{String(n.data?.label ?? n.id)}</span>
                             <span className="font-mono text-[10px] text-muted-foreground">({n.type})</span>
                           </div>
                           <Badge variant="destructive" className="text-[10px]">Missing in Current</Badge>

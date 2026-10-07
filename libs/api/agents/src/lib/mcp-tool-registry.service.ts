@@ -49,6 +49,25 @@ export interface MCPToolDescriptor {
   meta?: PlatformToolInfo;
 }
 
+const MEMORY_SCOPES = ['workspace', 'user', 'agent', 'project', 'conversation', 'task'] as const;
+
+/** A known memory scope, or undefined (unknown names are ignored, not stored in keys). */
+function memoryScope(raw: unknown): string | undefined {
+  const s = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  return (MEMORY_SCOPES as readonly string[]).includes(s) ? s : undefined;
+}
+
+/** Scoped keys are `[scope] key` / `[scope:id] key`; unprefixed keys are workspace-wide. */
+function memoryScopeWhere(scope: string): Record<string, unknown> {
+  const prefixed = [{ key: { startsWith: `[${scope}]` } }, { key: { startsWith: `[${scope}:` } }];
+  return { OR: scope === 'workspace' ? [...prefixed, { NOT: { key: { startsWith: '[' } } }] : prefixed };
+}
+
+function clampLimit(raw: unknown, fallback: number, max: number): number {
+  const n = typeof raw === 'number' && Number.isFinite(raw) ? Math.floor(raw) : fallback;
+  return Math.min(Math.max(n, 1), max);
+}
+
 @Injectable()
 export class MCPToolRegistryService {
   private readonly logger = new Logger(MCPToolRegistryService.name);
@@ -321,16 +340,22 @@ export class MCPToolRegistryService {
     this.tools.set('save_memory', {
       name: 'save_memory',
       description:
-        'Remember a useful fact for this workspace so future conversations (with any agent or coworker) can recall it — e.g. a preference, a decision, a recurring detail. Overwrites any existing memory with the same key.',
+        'Remember a useful fact for this workspace so future conversations (with any agent or coworker) can recall it — e.g. a preference, a decision, a recurring detail, or learned procedure. Overwrites any existing memory with the same key.',
       parameters: {
-        key: { type: 'string' },
-        value: { type: 'string' },
+        key: { type: 'string', description: 'Unique identifier or subject for the fact' },
+        value: { type: 'string', description: 'The fact or procedure to remember' },
+        scope: { type: 'string', description: `Optional scope: ${MEMORY_SCOPES.join(', ')} (default workspace)` },
       },
-      handler: async (params: { key?: string; value?: string }, { workspaceId }) => {
-        const key = params.key?.trim();
+      optional: ['scope'],
+      handler: async (params: { key?: string; value?: string; scope?: string }, { workspaceId }) => {
+        let key = params.key?.trim();
         const value = params.value?.trim();
         if (!key || !value) {
           throw new Error('key and value are both required.');
+        }
+        const scope = memoryScope(params.scope);
+        if (scope && scope !== 'workspace' && !key.startsWith('[')) {
+          key = `[${scope}] ${key}`;
         }
         await this.prisma.aIMemory.upsert({
           where: { workspaceId_key: { workspaceId, key } },
@@ -345,14 +370,66 @@ export class MCPToolRegistryService {
     this.tools.set('list_memory', {
       name: 'list_memory',
       description: 'List facts previously saved to workspace memory via save_memory.',
-      parameters: {},
-      handler: async (_params: unknown, { workspaceId }) => {
+      parameters: {
+        scope: { type: 'string', description: `Optional scope filter: ${MEMORY_SCOPES.join(', ')}` },
+        limit: { type: 'number', description: 'Maximum number of items to return (default 50, max 100)' },
+      },
+      optional: ['scope', 'limit'],
+      handler: async (params: { scope?: string; limit?: number } | undefined, { workspaceId }) => {
+        const scope = memoryScope(params?.scope);
         return this.prisma.aIMemory.findMany({
-          where: { workspaceId },
-          select: { key: true, value: true, updatedAt: true },
+          where: { workspaceId, ...(scope ? memoryScopeWhere(scope) : {}) },
+          select: { key: true, value: true, updatedAt: true, source: true },
           orderBy: { updatedAt: 'desc' },
-          take: 50,
+          take: clampLimit(params?.limit, 50, 100),
         });
+      },
+    });
+
+    // 9b. Search Memory
+    this.tools.set('search_memory', {
+      name: 'search_memory',
+      description: 'Search previously saved facts, preferences, decisions, and procedures in workspace memory by keyword.',
+      parameters: {
+        query: { type: 'string', description: 'The keyword or phrase to look for in keys and values' },
+        scope: { type: 'string', description: `Optional scope filter: ${MEMORY_SCOPES.join(', ')}` },
+        limit: { type: 'number', description: 'Maximum number of results to return (default 10, max 50)' },
+      },
+      optional: ['scope', 'limit'],
+      handler: async (params: { query?: string; scope?: string; limit?: number }, { workspaceId }) => {
+        const q = params?.query?.trim();
+        if (!q) throw new Error('query is required.');
+        const scope = memoryScope(params?.scope);
+        return this.prisma.aIMemory.findMany({
+          where: {
+            workspaceId,
+            AND: [
+              { OR: [{ key: { contains: q, mode: 'insensitive' } }, { value: { contains: q, mode: 'insensitive' } }] },
+              ...(scope ? [memoryScopeWhere(scope)] : []),
+            ],
+          },
+          select: { key: true, value: true, updatedAt: true, source: true },
+          orderBy: { updatedAt: 'desc' },
+          take: clampLimit(params?.limit, 10, 50),
+        });
+      },
+    });
+
+    // 9c. Forget Memory
+    this.tools.set('forget_memory', {
+      name: 'forget_memory',
+      description: 'Forget a specific fact from workspace memory by its exact key (as returned by list_memory/search_memory).',
+      parameters: {
+        key: { type: 'string', description: 'The exact key of the memory fact to remove' },
+      },
+      handler: async (params: { key?: string }, { workspaceId }) => {
+        const key = params?.key?.trim();
+        if (!key) throw new Error('key is required.');
+        const res = await this.prisma.aIMemory.deleteMany({
+          where: { workspaceId, key },
+        });
+        if (res.count === 0) throw new Error(`No memory is saved under '${key}'.`);
+        return { forgotten: true, key };
       },
     });
 

@@ -13,7 +13,6 @@ import {
   Page,
   PageHeader,
   AIProviderIcon,
-  AIModelIcon,
   AIModelBadge,
   toast,
 } from '@org/ui';
@@ -140,7 +139,6 @@ export function SettingsPage() {
   // Query workspace providers
   const {
     data: liveProviders = [],
-    isLoading: isLoadingProviders,
     refetch: refetchProviders,
   } = useQuery({
     queryKey: ['workspace-ai-providers', activeWorkspace.id],
@@ -181,10 +179,10 @@ export function SettingsPage() {
     setIsTestingProvider(true);
     try {
       const res = await aiApi.testProvider(activeWorkspace.id, provider, model);
-      if (res.success) {
-        toast.success(`Connection to ${provider.toUpperCase()} succeeded! (${res.latencyMs || 120}ms)`);
+      if (res.status === 'CONNECTED') {
+        toast.success(`Connection to ${provider.toUpperCase()} succeeded!${res.latencyMs != null ? ` (${res.latencyMs}ms)` : ''}`);
       } else {
-        toast.error(`Connection failed: ${res.error || 'Unknown error'}`);
+        toast.error(`Connection failed: ${res.detail || res.status}`);
       }
     } catch (err: any) {
       toast.error(`Connection test failed`, { description: err?.message || 'Server timeout or invalid key' });
@@ -250,6 +248,7 @@ export function SettingsPage() {
       email: inviteEmail.trim(),
       role: inviteRole,
       status: 'invited',
+      avatar: '',
     };
     setMembers([...members, newMember]);
     setIsInviteOpen(false);
@@ -274,13 +273,13 @@ export function SettingsPage() {
   };
 
   const openConfigModal = (p: typeof PROVIDER_METADATA_FALLBACK[0]) => {
-    const existing = liveProviders.find((x) => x.provider === p.provider);
+    const existing = liveProviders.find((x) => x.id === p.provider);
     setSelectedProvider(p.provider);
     setProviderForm({
       provider: p.provider,
       apiKey: '',
-      baseUrl: (existing as any)?.baseUrl || p.defaultBaseUrl || '',
-      defaultModel: (existing as any)?.defaultModel || p.models[0] || '',
+      baseUrl: existing?.baseUrl || p.defaultBaseUrl || '',
+      defaultModel: existing?.defaultModel || p.models[0] || '',
     });
   };
 
@@ -346,8 +345,8 @@ export function SettingsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {PROVIDER_METADATA_FALLBACK.map((meta) => {
-              const live = liveProviders.find((p) => p.provider === meta.provider);
-              const isConfigured = Boolean(live?.isConfigured || live?.enabled);
+              const live = liveProviders.find((p) => p.id === meta.provider);
+              const isConfigured = Boolean(live?.configured);
 
               return (
                 <div

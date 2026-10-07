@@ -1,13 +1,29 @@
-import React, { memo } from 'react';
+import { memo, type HTMLAttributes } from 'react';
 import { cn } from '@org/utils';
-import { AIModelIcon } from './AIModelIcon.jsx';
-import { normalizeModel } from './model-normalizer.js';
+import { AIModelIcon } from './AIModelIcon.js';
+import type { AIIconVariant } from './model-icon-map.js';
+import { normalizeModel, type ModelInput } from './model-normalizer.js';
 
 /**
  * AIModelIdentity
  * Combined visual presentation of AI Model Identity (Icon + Name + Provider + Metadata)
  * Pixel-consistent, responsive, and adheres to shadcn/ui typography.
  */
+export interface AIModelIdentityProps extends HTMLAttributes<HTMLDivElement> {
+  modelId?: ModelInput;
+  model?: ModelInput;
+  provider?: string | null;
+  variant?: AIIconVariant;
+  size?: 'xs' | 'sm' | 'md' | 'lg';
+  showProvider?: boolean;
+  showCapabilities?: boolean;
+  showContext?: boolean;
+  showSpeed?: boolean;
+  layout?: 'inline' | 'stacked';
+  nameClassName?: string;
+  metaClassName?: string;
+}
+
 export const AIModelIdentity = memo(function AIModelIdentity({
   modelId,
   model,
@@ -23,18 +39,18 @@ export const AIModelIdentity = memo(function AIModelIdentity({
   nameClassName,
   metaClassName,
   ...props
-}) {
+}: AIModelIdentityProps) {
   const targetModel = modelId || model;
-  const meta = normalizeModel(targetModel, provider);
+  const meta = normalizeModel(targetModel, provider ?? null);
 
-  const iconSizes = {
+  const iconSizes: Record<string, number> = {
     xs: 14,
     sm: 16,
     md: 20,
     lg: 24,
   };
 
-  const textSizes = {
+  const textSizes: Record<string, string> = {
     xs: 'text-xs',
     sm: 'text-xs',
     md: 'text-sm font-medium',
@@ -45,7 +61,7 @@ export const AIModelIdentity = memo(function AIModelIdentity({
   const textClass = textSizes[size] || 'text-xs font-medium';
 
   // Format active capabilities
-  const activeCaps = [];
+  const activeCaps: string[] = [];
   if (meta.capabilities?.reasoning) activeCaps.push('Reasoning');
   if (meta.capabilities?.vision) activeCaps.push('Vision');
   if (meta.capabilities?.toolCalling) activeCaps.push('Tools');

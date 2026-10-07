@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { useStudioSession } from '../../session-guard.js';
 
+/**
+ * @param {{ agent: any; onUpdate?: (patch: Record<string, any>) => void | Promise<void> }} props
+ */
 export function EvaluationsTab({ agent, onUpdate }) {
   const { activeWorkspace } = useStudioSession();
 

@@ -203,12 +203,13 @@ function overlaps(n: Node, x: number, y: number): boolean {
   );
 }
 
-export type DelegationMode = 'router' | 'sequential' | 'parallel';
+export type DelegationMode = 'router' | 'sequential' | 'parallel' | 'review_loop';
 
 export const DELEGATION_MODES: { value: DelegationMode; label: string; hint: string }[] = [
   { value: 'router', label: 'Router', hint: 'Picks the best sub-agent for each request' },
   { value: 'sequential', label: 'Sequential', hint: 'Hands work down the team in order' },
   { value: 'parallel', label: 'Parallel', hint: 'Runs every sub-agent and merges their answers' },
+  { value: 'review_loop', label: 'Review', hint: 'Workers go in order, then the reviewer checks their work' },
 ];
 
 export interface AgentTreeNode {

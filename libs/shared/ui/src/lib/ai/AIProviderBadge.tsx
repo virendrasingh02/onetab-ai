@@ -1,9 +1,12 @@
-import React, { memo } from 'react';
+import { memo, type HTMLAttributes } from 'react';
 import { cn } from '@org/utils';
-import { AIProviderIcon } from './AIProviderIcon.jsx';
+import { AIProviderIcon } from './AIProviderIcon.js';
+import type { AIIconVariant } from './model-icon-map.js';
 import { normalizeProvider } from './model-normalizer.js';
 
-const VARIANT_STYLES = {
+export type AIProviderBadgeVariant = 'subtle' | 'compact' | 'outline' | 'filled';
+
+const VARIANT_STYLES: Record<AIProviderBadgeVariant, string> = {
   subtle: 'bg-surface-raised border border-border/80 text-foreground',
   compact: 'bg-surface-inset border border-border/60 text-foreground text-[10px] py-0 px-1.5 h-5 gap-1',
   outline: 'border border-border text-foreground bg-transparent',
@@ -14,6 +17,13 @@ const VARIANT_STYLES = {
  * AIProviderBadge
  * Reusable AI Provider Badge with official LobeHub logo and normalized label.
  */
+export interface AIProviderBadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  provider?: string | null;
+  providerId?: string | null;
+  variant?: AIProviderBadgeVariant;
+  iconVariant?: AIIconVariant;
+}
+
 export const AIProviderBadge = memo(function AIProviderBadge({
   provider,
   providerId,
@@ -21,7 +31,7 @@ export const AIProviderBadge = memo(function AIProviderBadge({
   iconVariant = 'color',
   className,
   ...props
-}) {
+}: AIProviderBadgeProps) {
   const targetProvider = provider || providerId;
   const { name } = normalizeProvider(targetProvider);
   const isCompact = variant === 'compact';

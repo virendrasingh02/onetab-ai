@@ -25,6 +25,88 @@
  */
 export type AgentAutonomy = 'supervised' | 'semi' | 'autonomous';
 
+/**
+ * Autonomy Levels (0 to 4):
+ * Level 0 — Observe: Read-only, no active tool execution or modifications
+ * Level 1 — Recommend: Proposes recommendations without execution
+ * Level 2 — Draft: Prepares draft payloads; all outward writes paused for review
+ * Level 3 — Execute with Approval: Executes safe actions, outward/high-risk actions require approval
+ * Level 4 — Execute Automatically: Fully autonomous execution within defined guardrails and policies
+ */
+export type AutonomyLevel = 0 | 1 | 2 | 3 | 4;
+
+export function autonomyLevelToLegacy(level: AutonomyLevel): AgentAutonomy {
+  if (level <= 1) return 'supervised';
+  if (level <= 3) return 'semi';
+  return 'autonomous';
+}
+
+export function legacyToAutonomyLevel(autonomy: AgentAutonomy): AutonomyLevel {
+  // Supervised agents still act — every action just waits for a person.
+  if (autonomy === 'supervised') return 3;
+  if (autonomy === 'semi') return 3;
+  return 4;
+}
+
+export type AgentExecutionMode = 'workflow' | 'autonomous' | 'hybrid';
+export type AgentLifecycleMode = 'manual' | 'scheduled' | 'event_driven' | 'always_on';
+
+export type AgentRulePolicy = 'auto_allow' | 'pre_approved' | 'ask_user' | 'human_handoff' | 'blocked';
+
+export interface AgentStructuredRules {
+  always?: string[];
+  askBefore?: string[];
+  never?: string[];
+  policies?: Record<string, AgentRulePolicy>;
+}
+
+export interface AgentModelsConfig {
+  primaryModel?: string;
+  fallbackModel?: string;
+  fastModel?: string;
+  reasoningModel?: string;
+  visionModel?: string;
+  embeddingModel?: string;
+}
+
+export interface AgentMemoryConfig {
+  enabled?: boolean;
+  scopes?: Array<'user' | 'workspace' | 'agent' | 'project' | 'conversation' | 'task'>;
+  types?: Array<
+    | 'preferences'
+    | 'decisions'
+    | 'context'
+    | 'contacts'
+    | 'projects'
+    | 'procedures'
+    | 'failures'
+    | 'tasks'
+    | 'patterns'
+  >;
+}
+
+export interface AgentLimitsConfig {
+  maxTokens?: number;
+  maxSteps?: number;
+  maxExecutionTimeSec?: number;
+  maxToolCalls?: number;
+  dailyBudgetUsd?: number;
+  monthlyBudgetUsd?: number;
+}
+
+export type AgentExecutionState =
+  | 'DRAFT'
+  | 'READY'
+  | 'PLANNING'
+  | 'RUNNING'
+  | 'WAITING_FOR_TOOL'
+  | 'WAITING_FOR_APPROVAL'
+  | 'WAITING_FOR_HUMAN'
+  | 'PAUSED'
+  | 'FAILED'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
 export interface AgentToolPolicy {
   requiresApproval?: boolean;
 }
@@ -64,6 +146,13 @@ export type AgentResponseFormat = 'markdown' | 'json' | 'plain';
 export interface AgentRuntimeConfig {
   version: 1;
   autonomy: AgentAutonomy;
+  autonomyLevel?: AutonomyLevel;
+  executionMode?: AgentExecutionMode;
+  lifecycleMode?: AgentLifecycleMode;
+  rules?: AgentStructuredRules;
+  models?: AgentModelsConfig;
+  memory?: AgentMemoryConfig;
+  limits?: AgentLimitsConfig;
   temperature?: number;
   maxTokens?: number;
   responseFormat?: AgentResponseFormat;
@@ -80,6 +169,14 @@ export interface AgentRuntimeConfig {
 export const DEFAULT_AGENT_RUNTIME: AgentRuntimeConfig = {
   version: 1,
   autonomy: 'autonomous',
+  executionMode: 'workflow',
+  lifecycleMode: 'manual',
+  rules: {
+    always: [],
+    askBefore: [],
+    never: [],
+    policies: {},
+  },
   useWorkspaceMemory: true,
   knowledge: [],
   toolPolicies: {},
@@ -99,6 +196,7 @@ export const READ_ONLY_AGENT_TOOLS: readonly string[] = [
   'list_tasks',
   'list_channels',
   'list_memory',
+  'search_memory',
   'find_tasks',
   'get_project_overview',
   'list_meetings',
@@ -126,13 +224,42 @@ export const OWNER_PRIVATE_AGENT_TOOLS: readonly string[] = [
   'search_email',
 ];
 
-/** Whether a tool call must wait for a person under `runtime`. */
-export function agentToolNeedsApproval(runtime: AgentRuntimeConfig, toolName: string): boolean {
-  if (runtime.toolPolicies[toolName]?.requiresApproval) return true;
-  if (runtime.autonomy === 'supervised') return true;
-  if (runtime.autonomy === 'semi') return !READ_ONLY_AGENT_TOOLS.includes(toolName);
-  return false;
+export type AgentToolGate = 'allow' | 'approval' | 'blocked';
+
+/**
+ * What `runtime` lets a tool call do — the one rule every tool source
+ * (built-in, integration action, MCP) answers to. `readOnly` says whether the
+ * tool only reads. A per-tool rule policy is the owner's explicit choice and
+ * wins; otherwise the stricter of the legacy `autonomy` and the 0–4
+ * `autonomyLevel` applies. Source-specific gates (a destructive integration
+ * action, an MCP server without read-only hints) are applied on top by the
+ * caller and are never loosened by this.
+ */
+export function agentToolGate(runtime: AgentRuntimeConfig, toolName: string, readOnly: boolean): AgentToolGate {
+  const policy = runtime.rules?.policies?.[toolName];
+  if (policy === 'blocked') return 'blocked';
+  if (policy === 'auto_allow' || policy === 'pre_approved') return 'allow';
+  if (policy === 'ask_user' || policy === 'human_handoff') return 'approval';
+
+  if (runtime.toolPolicies[toolName]?.requiresApproval) return 'approval';
+  if (runtime.autonomy === 'supervised') return 'approval';
+  if (runtime.autonomy === 'semi' && !readOnly) return 'approval';
+
+  const level = runtime.autonomyLevel;
+  if (level !== undefined) {
+    if (level <= 1) return 'approval'; // Observe / Recommend
+    if (level <= 3 && !readOnly) return 'approval'; // Draft / Execute with approval
+  }
+  return 'allow';
 }
+
+/** Whether a built-in tool call must wait for a person under `runtime`. */
+export function agentToolNeedsApproval(runtime: AgentRuntimeConfig, toolName: string): boolean {
+  return agentToolGate(runtime, toolName, READ_ONLY_AGENT_TOOLS.includes(toolName)) !== 'allow';
+}
+
+const isAutonomyLevel = (v: unknown): v is AutonomyLevel => v === 0 || v === 1 || v === 2 || v === 3 || v === 4;
+const stringList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
 /** Reads `AIAgent.configuration.runtime`, filling anything missing with defaults. */
 export function readAgentRuntime(configuration: unknown): AgentRuntimeConfig {
@@ -141,9 +268,19 @@ export function readAgentRuntime(configuration: unknown): AgentRuntimeConfig {
       ? ((configuration as Record<string, unknown>)['runtime'] as Partial<AgentRuntimeConfig> | undefined)
       : undefined;
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_AGENT_RUNTIME };
-  return {
+  const rules = raw.rules && typeof raw.rules === 'object' ? raw.rules : {};
+  const runtime: AgentRuntimeConfig = {
     ...DEFAULT_AGENT_RUNTIME,
     ...raw,
+    autonomy: raw.autonomy ?? DEFAULT_AGENT_RUNTIME.autonomy,
+    executionMode: raw.executionMode ?? 'workflow',
+    lifecycleMode: raw.lifecycleMode ?? 'manual',
+    rules: {
+      always: stringList(rules.always),
+      askBefore: stringList(rules.askBefore),
+      never: stringList(rules.never),
+      policies: rules.policies && typeof rules.policies === 'object' ? rules.policies : {},
+    },
     knowledge: Array.isArray(raw.knowledge) ? raw.knowledge : [],
     toolPolicies: raw.toolPolicies && typeof raw.toolPolicies === 'object' ? raw.toolPolicies : {},
     guardrails: raw.guardrails && typeof raw.guardrails === 'object' ? raw.guardrails : {},
@@ -151,6 +288,11 @@ export function readAgentRuntime(configuration: unknown): AgentRuntimeConfig {
     schedules: Array.isArray(raw.schedules) ? raw.schedules : [],
     version: 1,
   };
+  // Only an explicitly chosen level counts — agents saved before levels
+  // existed keep exactly the behaviour their `autonomy` gave them.
+  if (isAutonomyLevel(raw.autonomyLevel)) runtime.autonomyLevel = raw.autonomyLevel;
+  else delete runtime.autonomyLevel;
+  return runtime;
 }
 
 /* ------------------------------------------------------------ the graph ---- */

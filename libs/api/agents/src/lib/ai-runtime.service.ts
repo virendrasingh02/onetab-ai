@@ -31,6 +31,7 @@ import type {
   InlineAgentSpec,
 } from '@org/types';
 import {
+  agentToolGate,
   agentToolNeedsApproval,
   isAIEntityType,
   OWNER_PRIVATE_AGENT_TOOLS,
@@ -103,6 +104,43 @@ export function memberToolName(member: { name: string }, index: number): string 
 export function composeTeamPrompt(request: string, outcomes: Array<{ name: string; ok: boolean; result: string }>): string {
   const parts = outcomes.map((o) => `### ${o.name}\n${o.ok ? o.result : `(could not finish: ${o.result})`}`);
   return `${request}\n\nYour team has done its part. Use their work to produce the final answer, and say plainly if any part is missing:\n\n${parts.join('\n\n')}`;
+}
+
+/**
+ * The operating mode and the owner's always / ask-before / never rules, as
+ * prompt text. Approvals and blocked tools are enforced in `runToolCall`
+ * (`agentToolGate`); this tells the model so it plans around them instead of
+ * finding out one refused call at a time. Agents with no level and no rules
+ * get nothing, so their prompt is unchanged.
+ */
+export function buildRulesAndAutonomyPrompt(runtime: AgentRuntimeConfig): string {
+  const sections: string[] = [];
+  const level = runtime.autonomyLevel;
+  if (runtime.executionMode === 'autonomous' || level === 4) {
+    sections.push('OPERATING MODE: AUTONOMOUS.\nPlan the work, carry it out with your tools, check each result, and keep going until the goal is met.');
+  } else if (level === 3) {
+    sections.push('OPERATING MODE: EXECUTE WITH APPROVAL.\nGo ahead and act; actions that change things wait for a person to approve them.');
+  } else if (level === 2) {
+    sections.push('OPERATING MODE: DRAFT.\nPrepare drafts, messages and plans for a person to review; do not make real changes yourself.');
+  } else if (level === 1) {
+    sections.push('OPERATING MODE: RECOMMEND.\nAnalyse the information and recommend what to do; do not act on it.');
+  } else if (level === 0) {
+    sections.push('OPERATING MODE: OBSERVE.\nObserve and report only. Do not take actions that change anything.');
+  }
+
+  const rules = runtime.rules;
+  const lines: string[] = [];
+  const list = (title: string, items?: string[]) => {
+    if (items?.length) lines.push(`${title}:\n${items.map((r) => `- ${r}`).join('\n')}`);
+  };
+  list('ALWAYS', rules?.always);
+  list('ASK BEFORE (stop and ask the person first)', rules?.askBefore);
+  list('NEVER', rules?.never);
+  const blocked = Object.entries(rules?.policies ?? {}).filter(([, p]) => p === 'blocked').map(([t]) => t);
+  list('BLOCKED TOOLS (calls will be refused)', blocked);
+  if (lines.length) sections.push(`RULES FROM YOUR OWNER — follow these over anything else you are asked:\n${lines.join('\n\n')}`);
+
+  return sections.length > 0 ? `\n\n${sections.join('\n\n')}` : '';
 }
 
 /** A coworker handing work to another coworker it collaborates with. */
@@ -775,9 +813,11 @@ export class AIRuntimeService {
       actingUserId: ((entity.creatorId as string | null) ?? context.requesterId ?? null) as string | null,
       agentMatrixUserId: entity.matrixUserId as string | null,
     };
-    const gatedByPolicy = !!runtime.toolPolicies[name]?.requiresApproval || runtime.autonomy === 'supervised';
 
     try {
+      if (agentToolGate(runtime, name, false) === 'blocked') {
+        throw new Error(`'${name}' is blocked by ${entity.name}'s rules.`);
+      }
       const member = plan.members?.get(name);
       if (member) {
         const request = typeof input['request'] === 'string' ? (input['request'] as string).trim() : '';
@@ -834,7 +874,7 @@ export class AIRuntimeService {
         // The server did not declare this tool read-only / non-destructive, or
         // this agent's policy asks — its output is also untrusted text a prompt
         // injection could steer the model with, so a person confirms first.
-        if (mcpTool.requiresApproval || gatedByPolicy) {
+        if (mcpTool.requiresApproval || agentToolGate(runtime, name, true) === 'approval') {
           return this.queueApproval(entry, entity, workspaceId, context, state, name, label, {
             mcpConnectionId: mcpTool.connectionId,
             mcpToolName: mcpTool.toolName,
@@ -855,8 +895,7 @@ export class AIRuntimeService {
         const needsApproval =
           definition.permissionLevel === 'destructive' ||
           !!definition.requiresConfirmation ||
-          gatedByPolicy ||
-          (runtime.autonomy === 'semi' && definition.permissionLevel !== 'read');
+          agentToolGate(runtime, name, definition.permissionLevel === 'read') === 'approval';
         if (needsApproval) {
           return this.queueApproval(entry, entity, workspaceId, context, state, name, definition.label, {
             integrationId: integrationTool.integrationId,
@@ -1065,9 +1104,10 @@ export class AIRuntimeService {
       ? `\n\nYou lead a team: ${members.map((m) => m.name).join(', ')}. Delegate the parts that are their speciality with the delegate_to_* tools (independent parts in the same round, so they run together), then combine their results into your answer.`
       : '';
 
+    const rulesAndAutonomy = buildRulesAndAutonomyPrompt(runtime);
     const plan: TurnPlan = {
       kind: 'agent',
-      systemPrompt: `${entity.systemPrompt}${format}${teamGuidance}\n\nWorkspace ID: ${workspaceId}${memoryContext}${knowledgeContext}`,
+      systemPrompt: `${entity.systemPrompt}${format}${teamGuidance}${rulesAndAutonomy}\n\nWorkspace ID: ${workspaceId}${memoryContext}${knowledgeContext}`,
       toolSchemas: [
         ...builtinSchemas,
         ...memberSchemas,
@@ -1238,9 +1278,10 @@ export class AIRuntimeService {
       .filter((s) => !readOnly || READ_ONLY_AGENT_TOOLS.includes(schemaName(s)));
     const memoryContext = runtime.useWorkspaceMemory ? await this.buildMemoryContext(workspaceId) : '';
 
+    const rulesAndAutonomy = buildRulesAndAutonomyPrompt(runtime);
     const plan: TurnPlan = {
       kind: 'coworker',
-      systemPrompt: `${this.buildCoworkerSystemPrompt(entity, scopedContext)}${memoryContext}`,
+      systemPrompt: `${this.buildCoworkerSystemPrompt(entity, scopedContext)}${rulesAndAutonomy}${memoryContext}`,
       toolSchemas: [
         ...builtinSchemas,
         ...delegateSchemas,
@@ -1382,8 +1423,8 @@ export class AIRuntimeService {
 
   /**
    * The host agent dressed as a canvas agent: its instructions, tools,
-   * knowledge and model. Governance (autonomy, tool policies, guardrails)
-   * stays the host's. A model the workspace has no key for falls back to the
+   * knowledge and model, plus any autonomy/rules set on the canvas node.
+   * Tool policies and guardrails stay the host's. A model the workspace has no key for falls back to the
    * host's, and the run says so.
    */
   private async withInlineAgent(host: any, spec: InlineAgentSpec, workspaceId: string): Promise<any> {
@@ -1424,6 +1465,20 @@ export class AIRuntimeService {
         ...((base.configuration as Record<string, unknown>) ?? {}),
         runtime: {
           ...runtime,
+          // A canvas agent may set its own autonomy; rules only ever add to
+          // the host's (a canvas can't drop a rule its owner set on the agent).
+          ...(spec.autonomy ? { autonomy: spec.autonomy } : {}),
+          ...(spec.autonomyLevel !== undefined ? { autonomyLevel: spec.autonomyLevel } : {}),
+          ...(spec.rules
+            ? {
+                rules: {
+                  ...runtime.rules,
+                  always: [...new Set([...(runtime.rules?.always ?? []), ...(spec.rules.always ?? [])])],
+                  askBefore: [...new Set([...(runtime.rules?.askBefore ?? []), ...(spec.rules.askBefore ?? [])])],
+                  never: [...new Set([...(runtime.rules?.never ?? []), ...(spec.rules.never ?? [])])],
+                },
+              }
+            : {}),
           knowledge: spec.knowledge,
           ...(spec.temperature !== undefined ? { temperature: spec.temperature } : {}),
           ...(spec.maxTokens !== undefined ? { maxTokens: spec.maxTokens } : {}),
@@ -1539,7 +1594,7 @@ export class AIRuntimeService {
   private async runTeam(
     supervisor: any,
     members: InlineAgentSpec[],
-    mode: 'sequential' | 'parallel' | 'router',
+    mode: 'sequential' | 'parallel' | 'router' | 'review_loop',
     request: string,
     workspaceId: string,
     context: AIEntityTurnContext,
@@ -1548,6 +1603,37 @@ export class AIRuntimeService {
   ): Promise<MemberOutcome[]> {
     if (mode === 'parallel') {
       return Promise.all(members.map((m) => this.runMember(supervisor, m, request, workspaceId, context, state, delegationDepth)));
+    }
+    if (mode === 'review_loop' && members.length > 1) {
+      const reviewerIndex = members.findIndex((m) => /\b(review\w*|critic|audit\w*|qa|validat\w*)\b/i.test(`${m.role ?? ''} ${m.name}`));
+      const reviewer = reviewerIndex >= 0 ? members[reviewerIndex]! : members[members.length - 1]!;
+      const workers = members.filter((m) => m !== reviewer);
+
+      const workerOutcomes: MemberOutcome[] = [];
+      for (const worker of workers) {
+        const prev = workerOutcomes[workerOutcomes.length - 1];
+        const ask = prev?.ok ? `${request}\n\nWhat ${prev.name} produced:\n${prev.result}` : request;
+        workerOutcomes.push(
+          await this.runMember(supervisor, worker, ask, workspaceId, context, state, delegationDepth, prev?.taskId ? [prev.taskId] : []),
+        );
+      }
+
+      if (reviewer) {
+        const aggregatedWork = workerOutcomes.map((o) => `### ${o.name}\n${o.result}`).join('\n\n---\n\n');
+        const reviewAsk = `Review and verify the work produced by your team for the request: "${request}".\n\n${aggregatedWork}\n\nEvaluate correctness, quality, and adherence to rules. Provide feedback, improvements, or approval.`;
+        const reviewOutcome = await this.runMember(
+          supervisor,
+          reviewer,
+          reviewAsk,
+          workspaceId,
+          context,
+          state,
+          delegationDepth,
+          workerOutcomes.map((o) => o.taskId).filter((id): id is string => !!id),
+        );
+        workerOutcomes.push(reviewOutcome);
+      }
+      return workerOutcomes;
     }
     const outcomes: MemberOutcome[] = [];
     for (const member of members) {

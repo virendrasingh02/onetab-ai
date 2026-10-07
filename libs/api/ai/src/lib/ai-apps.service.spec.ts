@@ -69,7 +69,7 @@ describe("AIAppsService", () => {
   it("refuses to run an app rather than fabricating a result", async () => {
     await expect(
       service.executeApp("ws-1", "u-1", "app-1", { query: "hello" }),
-    ).rejects.toThrow(/cannot be run yet/);
+    ).rejects.toThrow(/does not have an associated agent or workflow/);
     expect(mockPrisma.aIExecution.create).not.toHaveBeenCalled();
   });
 });

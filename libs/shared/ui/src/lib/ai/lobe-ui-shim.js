@@ -60,7 +60,8 @@ export const CopyButton = () => null;
 export const Segmented = () => null;
 export const StoryBook = () => null;
 export const Highlight = ({ children }) => React.createElement('span', null, children);
-export const useCopied = () => [false, () => {}];
+const noop = () => undefined;
+export const useCopied = () => [false, noop];
 export const ProviderIcon = () => null;
 
 // --- antd shim for antd-style ---

@@ -249,9 +249,7 @@ export const agentService = {
       };
       saveCachedAgents(agents);
       if (workspaceId) {
-        try {
-          await agentsApi.update(workspaceId, agentId, { isActive: true });
-        } catch {}
+        await agentsApi.update(workspaceId, agentId, { isActive: true });
       }
       return agents[index];
     }
@@ -260,9 +258,7 @@ export const agentService = {
 
   async permanentDeleteAgent(workspaceId, agentId) {
     if (workspaceId && agentId) {
-      try {
-        await agentsApi.remove(workspaceId, agentId);
-      } catch {}
+      await agentsApi.remove(workspaceId, agentId);
     }
     const agents = loadCachedAgents();
     const filtered = agents.filter((a) => a.id !== agentId);

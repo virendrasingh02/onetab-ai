@@ -2,7 +2,6 @@ import { cn } from '@org/utils';
 import {
   Activity,
   Bot,
-  Cpu,
   MessageSquare,
   MoreVertical,
   Play,
@@ -15,7 +14,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './dropdown-menu.js';
-import { AIModelBadge } from '../ai/AIModelBadge.jsx';
+import { AIModelBadge } from '../ai/AIModelBadge.js';
 
 export type AgentStatus = 'online' | 'idle' | 'running' | 'offline' | 'error';
 
@@ -48,7 +47,7 @@ export function AIAgentCard({
   avatarUrl,
   icon,
   model = 'GPT-4o',
-  provider: _provider = 'OpenAI',
+  provider,
   capabilities = [],
   tools = [],
   runsCount,

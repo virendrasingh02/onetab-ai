@@ -40,6 +40,7 @@ import {
   type WorkflowNode,
 } from './workflow-graph.js';
 import { chatWithFailover, modelLabel } from './model-failover.js';
+import { executeSandboxedCode } from './sandboxed-code-runner.js';
 import {
   backoffMs,
   classifyStepError,
@@ -1683,20 +1684,32 @@ export class WorkflowEngineService {
         };
       }
 
-      case 'CODE':
-        // There is no sandbox to run member-authored code in, and running it
-        // unsandboxed on the API host is not an option. This used to report
-        // SUCCESS with `{ computed: true }` without running anything; skip it
-        // visibly instead so the run log says what actually happened.
+      case 'CODE': {
+        const rawCode = String(cfg['code'] ?? cfg['script'] ?? '');
+        if (!rawCode.trim()) {
+          return {
+            stepId: node.id,
+            type: node.type,
+            status: 'SKIPPED',
+            output: { skipped: true, reason: 'No code specified on this step.' },
+          };
+        }
+        const runRes = await executeSandboxedCode(rawCode, context, { timeoutMs: 2000 });
+        if (!runRes.success) {
+          return {
+            stepId: node.id,
+            type: node.type,
+            status: 'FAILED',
+            output: { error: runRes.error, logs: runRes.logs, durationMs: runRes.durationMs },
+          };
+        }
         return {
           stepId: node.id,
           type: node.type,
-          status: 'SKIPPED',
-          output: {
-            skipped: true,
-            reason: 'Code steps are not executed. Use a Template or Variable step to shape data.',
-          },
+          status: 'SUCCESS',
+          output: { result: runRes.result, logs: runRes.logs, durationMs: runRes.durationMs },
         };
+      }
 
       case 'HTTP_REQUEST':
       case 'API_CALL':

@@ -52,7 +52,7 @@ export const variableService = {
     try {
       if (!expression || typeof expression !== 'string') return '';
       // Simple mock evaluator replacing {{ $vars.KEY }}
-      let evaluated = expression.replace(/\{\{\s*\$vars\.([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => {
+      const evaluated = expression.replace(/\{\{\s*\$vars\.([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => {
         const v = loadVariables().find((x) => x.key === key);
         return v ? v.value : `[undefined var: ${key}]`;
       });

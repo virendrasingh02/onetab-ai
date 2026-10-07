@@ -1,9 +1,11 @@
-import React, { memo } from 'react';
+import { memo, type CSSProperties, type HTMLAttributes } from 'react';
 import { cn } from '@org/utils';
-import { resolveProviderIconComponent } from './model-icon-map.js';
+import { resolveProviderIconComponent, type AIIconVariant } from './model-icon-map.js';
 import { normalizeProvider } from './model-normalizer.js';
 
-const SIZE_PRESETS = {
+import type { AIIconSize } from './AIModelIcon.js';
+
+const SIZE_PRESETS: Record<string, number> = {
   xs: 14,
   sm: 16,
   md: 20,
@@ -25,6 +27,17 @@ const SIZE_PRESETS = {
  * @param {string} [ariaLabel] - Accessible label
  * @param {boolean} [ariaHidden] - Whether hidden from screen readers
  */
+export interface AIProviderIconProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'style'> {
+  provider?: string | null;
+  /** Alias of `provider`. */
+  providerId?: string | null;
+  variant?: AIIconVariant;
+  size?: AIIconSize;
+  style?: CSSProperties;
+  ariaLabel?: string;
+  ariaHidden?: boolean;
+}
+
 export const AIProviderIcon = memo(function AIProviderIcon({
   provider,
   providerId,
@@ -35,7 +48,7 @@ export const AIProviderIcon = memo(function AIProviderIcon({
   ariaLabel,
   ariaHidden,
   ...props
-}) {
+}: AIProviderIconProps) {
   const targetProvider = provider || providerId;
   const { name } = normalizeProvider(targetProvider);
   const IconComponent = resolveProviderIconComponent(targetProvider, variant);

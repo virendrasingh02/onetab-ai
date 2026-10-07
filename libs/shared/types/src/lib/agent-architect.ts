@@ -29,6 +29,7 @@ import {
   type AgentStepKind,
 } from './agent-blueprint.js';
 import { AGENT_DELEGATION_MODES, type AgentDelegationMode, type CanvasGraphEdge } from './studio-graph.js';
+import { legacyToAutonomyLevel, type AgentAutonomy, type AutonomyLevel } from './agent-config.js';
 
 /* ---------------------------------------------------------------- domain -- */
 
@@ -1090,6 +1091,10 @@ export type GraphEditOp =
   | { op: 'set_model'; model: string; nodeIds?: string[] }
   | { op: 'set_retries'; retries: number; nodeIds?: string[] }
   | { op: 'insert_approval_before'; nodeIds: string[]; label?: string }
+  | { op: 'remove_approval_before'; nodeIds?: string[]; toolName?: string; label?: string }
+  | { op: 'set_autonomy'; autonomy: AgentAutonomy; level?: AutonomyLevel }
+  | { op: 'add_reviewer'; reviewerName?: string; instructions?: string }
+  | { op: 'set_rule'; ruleType: 'always' | 'askBefore' | 'never'; text: string }
   | { op: 'attach_knowledge'; knowledgeBaseId?: string; name?: string }
   | { op: 'convert_to_team'; mode: AgentDelegationMode; members?: Array<{ name: string; role: string; instructions: string }> }
   | { op: 'merge_steps'; keep: string; remove: string };
@@ -1234,6 +1239,107 @@ export function applyGraphEdits(input: StudioCanvasGraph, ops: readonly GraphEdi
             { id: freshId(`approve_${id}`, graph), type: 'USER_APPROVAL', position: { x: 0, y: 0 }, data: { label: op.label ?? `Approve: ${nodeLabel(target)}`, subtitle: 'Waits for a person', config: { action: nodeLabel(target), required: true, gates: id } } },
             { before: id },
           );
+        }
+        break;
+      }
+      case 'remove_approval_before': {
+        const approvalNodesToRemove = new Set<string>();
+        // Find approvals matching specified nodeIds or toolName/CRM
+        for (const node of graph.nodes) {
+          if (!isApproval(node.type)) continue;
+          const gatedTarget = String(node.data.config?.['gates'] ?? '');
+          const outgoing = graph.edges.filter((e) => e.source === node.id && isFlowEdge(e));
+          const directTarget = outgoing[0]?.target;
+          const targetNode = find(gatedTarget) ?? (directTarget ? find(directTarget) : undefined);
+
+          // No target named → every approval step goes.
+          let matches = !op.nodeIds?.length && !op.toolName;
+          if (op.nodeIds?.length) {
+            matches = op.nodeIds.includes(node.id) || (targetNode ? op.nodeIds.includes(targetNode.id) : false);
+          } else if (op.toolName) {
+            const needle = op.toolName.toLowerCase();
+            const label = ((targetNode ? nodeLabel(targetNode) : '') + ' ' + (node.data.label ?? '')).toLowerCase();
+            const tool = String(targetNode?.data.config?.['toolName'] ?? '').toLowerCase();
+            const app = String(targetNode?.data.config?.['needsConnection'] ?? '').toLowerCase();
+            matches = label.includes(needle) || tool.includes(needle) || app.includes(needle);
+            if (!matches && needle === 'crm') {
+              matches = label.includes('crm') || label.includes('lead') || label.includes('salesforce') || label.includes('hubspot');
+            }
+          }
+          if (matches) approvalNodesToRemove.add(node.id);
+        }
+
+        if (approvalNodesToRemove.size === 0) {
+          errors.push('There is no matching approval step to remove.');
+          break;
+        }
+
+        for (const approvalId of approvalNodesToRemove) {
+          const approvalNode = find(approvalId);
+          if (!approvalNode) continue;
+          const incoming = graph.edges.filter((e) => e.target === approvalId && isFlowEdge(e));
+          const outgoing = graph.edges.filter((e) => e.source === approvalId && isFlowEdge(e));
+          graph.edges = graph.edges.filter((e) => e.source !== approvalId && e.target !== approvalId);
+          for (const i of incoming) {
+            for (const o of outgoing) {
+              if (!graph.edges.some((e) => e.source === i.source && e.target === o.target)) {
+                graph.edges.push({ id: `e-${i.source}-${o.target}`, source: i.source, target: o.target, animated: true });
+              }
+            }
+          }
+          graph.nodes = graph.nodes.filter((n) => n.id !== approvalId);
+        }
+        break;
+      }
+      case 'set_autonomy': {
+        const agentNodes = graph.nodes.filter((n) => AGENTIC(n.type));
+        for (const n of agentNodes) {
+          n.data.config = {
+            ...(n.data.config ?? {}),
+            autonomy: op.autonomy,
+            autonomyLevel: op.level ?? legacyToAutonomyLevel(op.autonomy),
+          };
+        }
+        break;
+      }
+      case 'add_reviewer': {
+        const coord = graph.nodes.find((n) => n.type === 'AGENT_COORDINATOR');
+        const reviewerLabel = op.reviewerName ?? 'Reviewer Agent';
+        const instructions = op.instructions ?? 'Review previous outputs against accuracy, quality, and policy rules. Suggest improvements or approve.';
+        if (coord) {
+          const id = freshId('reviewer', graph);
+          const at = coord.position;
+          graph.nodes.push({
+            id,
+            type: 'SUB_AGENT',
+            position: { x: at.x + 240, y: at.y + 260 },
+            data: { label: reviewerLabel, subtitle: 'Reviewer', config: { role: 'Reviewer', instructions } },
+          });
+          graph.edges.push({ id: `e-${coord.id}-${id}-agents`, source: coord.id, target: id, sourceHandle: 'agents' });
+          // The team now ends with a review pass over the workers' output.
+          coord.data.config = { ...(coord.data.config ?? {}), delegation: 'review_loop' };
+        } else {
+          const lastAgent = [...mainPath(graph)].reverse().find((n) => AGENTIC(n.type));
+          const node: StudioCanvasNode = {
+            id: freshId('reviewer', graph),
+            type: 'AGENT',
+            position: { x: 0, y: 0 },
+            data: { label: reviewerLabel, subtitle: 'Reviews & verifies work', config: { goal: instructions, role: 'Reviewer' } },
+          };
+          insertNode(graph, node, lastAgent ? { after: lastAgent.id } : {});
+        }
+        break;
+      }
+      case 'set_rule': {
+        const agentNodes = graph.nodes.filter((n) => AGENTIC(n.type));
+        for (const n of agentNodes) {
+          const existingRules = (n.data.config?.['rules'] as Record<string, unknown>) ?? { always: [], askBefore: [], never: [], policies: {} };
+          const list = Array.isArray(existingRules[op.ruleType]) ? [...(existingRules[op.ruleType] as string[])] : [];
+          if (!list.includes(op.text)) list.push(op.text);
+          n.data.config = {
+            ...(n.data.config ?? {}),
+            rules: { ...existingRules, [op.ruleType]: list },
+          };
         }
         break;
       }
@@ -1457,8 +1563,56 @@ export function interpretEditCommand(text: string, graph: StudioCanvasGraph, ctx
   const end = graph.nodes.find((n) => n.id === 'result') ?? [...path].reverse().find((n) => n.type === 'END' || n.type === 'OUTPUT');
   const lastAgent = [...path].reverse().find((n) => AGENTIC(n.type));
 
+  // Pausing/resuming is about runs, not the design — an edit can't do it, so
+  // say so rather than claim it happened. Only a command that is *just* that.
+  if (/^(please )?(pause|resume|halt|stop working|stop|continue)( (this|the) agent| it| working| execution)?[.!]*$/.test(t)) {
+    explain.push('Editing the design can’t pause or resume this agent.');
+    notes.push('Turn its schedule off, or stop a run from the run console, to pause it.');
+    return { ops: [], explanation: explain.join(' '), notes };
+  }
+
+  // Remove approval or "don't ask before <action>"
+  const removeApproval = /\b(don'?t ask|do not ask|skip (the )?approval|remove (the )?approval|no approval|stop asking|without approval)\b/.test(t);
+  if (removeApproval) {
+    const isCrm = /\b(crm|lead|hubspot|salesforce|contact|record)\b/.test(t);
+    const targetTool = isCrm ? 'crm' : undefined;
+    ops.push({ op: 'remove_approval_before', toolName: targetTool });
+    explain.push(isCrm ? 'I’ll remove the approval step before CRM updates so records are updated automatically.' : 'I’ll remove the approval requirement.');
+    notes.push('Other approval rules remain unchanged.');
+  }
+
+  // Autonomy command ("make this agent autonomous")
+  if (/\b(make (this |the |it )?agent autonomous|make it autonomous|set autonomy to autonomous|autonomous mode|enable autonomy)\b/.test(t)) {
+    ops.push({ op: 'set_autonomy', autonomy: 'autonomous', level: 4 });
+    explain.push('I’ll set this agent to Autonomous mode (Level 4). It will plan work and execute actions automatically within defined boundaries.');
+    notes.push('High-risk and sensitive actions will still respect configured approval policies.');
+  }
+
+  // Add reviewer agent ("add a reviewer agent")
+  if (/\b(add|include|attach)\b.*\b(reviewer|critic|review agent|reviewer agent|review step)\b/.test(t)) {
+    ops.push({ op: 'add_reviewer', reviewerName: 'Reviewer Agent' });
+    explain.push('I’ll add a Reviewer agent to inspect outputs and ensure quality before concluding tasks.');
+  }
+
+  // Structured rules: "always ...", "never ...", "stop deleting ..."
+  // Approval phrasing ("always ask me before…", "stop asking before…") is
+  // handled as approval steps, not as free-text rules.
+  const approvalPhrasing = removeApproval || /\b(ask (me|us|first)|approv\w*|check with me|sign[- ]off)\b/.test(t);
+  const neverRule = approvalPhrasing ? null : t.match(/\b(?:never|stop)\s+([a-z0-9][a-z0-9 _-]{2,80})/);
+  if (neverRule && !/\b(working|execution|this agent|halt)\b/.test(neverRule[1]!)) {
+    const ruleText = neverRule[1]!.trim();
+    ops.push({ op: 'set_rule', ruleType: 'never', text: ruleText });
+    explain.push(`I’ll add a rule to never ${ruleText}.`);
+  }
+  const alwaysRule = approvalPhrasing ? null : t.match(/\b(?:always|ensure you|make sure to)\s+([a-z0-9][a-z0-9 _-]{2,80})/);
+  if (alwaysRule) {
+    const ruleText = alwaysRule[1]!.trim();
+    ops.push({ op: 'set_rule', ruleType: 'always', text: ruleText });
+    explain.push(`I’ll add a rule to always ${ruleText}.`);
+  }
+
   // Approval before sending / before anything.
-  const wantsApproval = /\b(approv\w*|human (in the loop|review)|review (it |them )?before|sign[- ]off|check with me)\b/.test(t);
+  const wantsApproval = !removeApproval && /\b(approv\w*|human (in the loop|review)|review (it |them )?before|sign[- ]off|check with me|ask me before)\b/.test(t);
   if (wantsApproval) {
     const outward = path.filter(OUTWARD_NODE);
     const candidates = /\b(anything|everything|all actions|any action)\b/.test(t) ? path.filter((n) => OUTWARD_NODE(n) || (n.type === 'MCP_TOOL' && !PLATFORM_TOOLS[String(n.data.config?.['toolName'] ?? '')]?.scope.endsWith(':read'))) : outward;
@@ -1654,6 +1808,36 @@ export function sanitizeEditOps(raw: unknown, graph: StudioCanvasGraph, ctx: Pic
       case 'insert_approval_before': {
         const nodeIds = (Array.isArray(o['nodeIds']) ? o['nodeIds'] : []).filter((id): id is string => typeof id === 'string' && ids.has(id));
         if (nodeIds.length) { ops.push({ op: 'insert_approval_before', nodeIds }); continue; }
+        break;
+      }
+      case 'remove_approval_before': {
+        const nodeIds = (Array.isArray(o['nodeIds']) ? o['nodeIds'] : []).filter((id): id is string => typeof id === 'string' && ids.has(id));
+        const toolName = str(o['toolName'], 80);
+        ops.push({ op: 'remove_approval_before', ...(nodeIds.length ? { nodeIds } : {}), ...(toolName ? { toolName } : {}) });
+        continue;
+      }
+      case 'set_autonomy': {
+        const autonomy = str(o['autonomy'], 40) as 'supervised' | 'semi' | 'autonomous' | undefined;
+        if (autonomy && ['supervised', 'semi', 'autonomous'].includes(autonomy)) {
+          const level = typeof o['level'] === 'number' && [0, 1, 2, 3, 4].includes(o['level']) ? (o['level'] as AutonomyLevel) : legacyToAutonomyLevel(autonomy);
+          ops.push({ op: 'set_autonomy', autonomy, level });
+          continue;
+        }
+        break;
+      }
+      case 'add_reviewer': {
+        const reviewerName = str(o['reviewerName'], 120);
+        const instructions = str(o['instructions'], 2_000);
+        ops.push({ op: 'add_reviewer', ...(reviewerName ? { reviewerName } : {}), ...(instructions ? { instructions } : {}) });
+        continue;
+      }
+      case 'set_rule': {
+        const ruleType = str(o['ruleType'], 40) as 'always' | 'askBefore' | 'never' | undefined;
+        const ruleText = str(o['text'], 500);
+        if (ruleType && ruleText && ['always', 'askBefore', 'never'].includes(ruleType)) {
+          ops.push({ op: 'set_rule', ruleType, text: ruleText });
+          continue;
+        }
         break;
       }
       case 'attach_knowledge': {

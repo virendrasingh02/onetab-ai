@@ -535,26 +535,18 @@ export class MigrationWorkerService {
         const destUserId = userMap.get(msg.userId) || 'system';
         const normalizedText = this.normalizeSlackFormatting(msg.text, userMap);
 
-        // If backed by Matrix room and available, send historic message with origin_server_ts
-        let destMessageId = `hist_${msg.id}`;
-        if (matrixRoomId) {
-          try {
-            const historicTs = Math.round(Number(msg.timestamp) * 1000);
-            await this.matrixAdmin.sendEventAs(
-              `@user_${destUserId}:homeserver`,
-              matrixRoomId,
-              'm.room.message',
-              {
-                msgtype: 'm.text',
-                body: normalizedText,
-                'org.onetab.historical_migration': true, // Flags suppression of notifications
-                origin_server_ts: historicTs,
-              },
-            );
-          } catch {
-            // Silently fallback to recording mapping
-          }
-        }
+        // Post into the channel's Matrix room as the mapped user. The mapping
+        // keeps the real event id when it got there; otherwise a placeholder,
+        // marked undelivered so it isn't mistaken for a migrated message.
+        const eventId = matrixRoomId
+          ? await this.sendHistoricMessage(matrixRoomId, destUserId, {
+              msgtype: 'm.text',
+              body: normalizedText,
+              'org.onetab.historical_migration': true, // Flags suppression of notifications
+              origin_server_ts: Math.round(Number(msg.timestamp) * 1000),
+            })
+          : null;
+        const destMessageId = eventId ?? `hist_${msg.id}`;
 
         await this.mappingService.recordMapping(
           migrationId,
@@ -562,7 +554,7 @@ export class MigrationWorkerService {
           'MESSAGE',
           msg.id,
           destMessageId,
-          { timestamp: msg.timestamp },
+          { timestamp: msg.timestamp, delivered: eventId !== null },
         );
 
         // Migrate thread replies if this is a thread root with replies
@@ -646,36 +638,26 @@ export class MigrationWorkerService {
         const destUserId = userMap.get(reply.userId) || 'system';
         const normalizedText = this.normalizeSlackFormatting(reply.text, userMap);
 
-        if (matrixRoomId) {
-          try {
-            const historicTs = Math.round(Number(reply.timestamp) * 1000);
-            await this.matrixAdmin.sendEventAs(
-              `@user_${destUserId}:homeserver`,
-              matrixRoomId,
-              'm.room.message',
-              {
-                msgtype: 'm.text',
-                body: normalizedText,
-                'm.relates_to': {
-                  rel_type: 'm.thread',
-                  event_id: rootDestMessageId,
-                },
-                'org.onetab.historical_migration': true,
-                origin_server_ts: historicTs,
-              },
-            );
-          } catch {
-            // fallback
-          }
-        }
+        // Only a real root event can carry a thread; a placeholder root means
+        // the root never reached Matrix, so the reply posts unthreaded.
+        const rootIsEvent = rootDestMessageId.startsWith('$');
+        const eventId = matrixRoomId
+          ? await this.sendHistoricMessage(matrixRoomId, destUserId, {
+              msgtype: 'm.text',
+              body: normalizedText,
+              ...(rootIsEvent ? { 'm.relates_to': { rel_type: 'm.thread', event_id: rootDestMessageId } } : {}),
+              'org.onetab.historical_migration': true,
+              origin_server_ts: Math.round(Number(reply.timestamp) * 1000),
+            })
+          : null;
 
         await this.mappingService.recordMapping(
           migrationId,
           destChannelId,
           'THREAD',
           reply.id,
-          `thread_${reply.id}`,
-          { threadTs, parentId: rootDestMessageId },
+          eventId ?? `thread_${reply.id}`,
+          { threadTs, parentId: rootDestMessageId, delivered: eventId !== null },
         );
 
         this.recordProgressItem(migrationId, 'threads');
@@ -707,6 +689,30 @@ export class MigrationWorkerService {
     out = out.replace(/<(https?:\/\/[^>]+)>/g, '$1');
 
     return out;
+  }
+
+  /**
+   * Sends one historical message into a Matrix room as the mapped platform
+   * user. Returns the event id, or null (logged) when it could not be sent —
+   * e.g. an unmapped author, or a user with no Matrix identity yet.
+   */
+  private async sendHistoricMessage(
+    matrixRoomId: string,
+    destUserId: string,
+    content: Record<string, unknown>,
+  ): Promise<string | null> {
+    if (destUserId === 'system') return null;
+    try {
+      return await this.matrixAdmin.sendEventAs(
+        matrixRoomId,
+        this.matrixAdmin.matrixUserIdFor(destUserId),
+        'm.room.message',
+        content,
+      );
+    } catch (e: any) {
+      this.logger.warn(`Could not post a migrated message to ${matrixRoomId}: ${e?.message ?? e}`);
+      return null;
+    }
   }
 
   private recordProgressItem(

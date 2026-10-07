@@ -14,7 +14,6 @@ import {
   toast,
   AIModelIdentity,
   AIModelBadge,
-  AIProviderBadge,
   type RightPanelProfile,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';

@@ -32,46 +32,24 @@ import type {
 } from '@org/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Activity,
   AlertCircle,
   AlertTriangle,
-  Bot,
   Check,
   CheckCircle2,
-  Cpu,
   Eye,
   EyeOff,
-  Globe,
   Key,
   Lock,
   Play,
   RefreshCw,
-  Server,
   ShieldCheck,
-  Sparkles,
   Trash2,
-  Zap,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export interface AIProvidersSettingsProps {
   workspaceId: string;
 }
-
-const PROVIDER_ICONS: Record<AIProvider, React.ElementType> = {
-  nvidia: Cpu,
-  openai: Sparkles,
-  anthropic: Bot,
-  gemini: Globe,
-  deepseek: Zap,
-  groq: Activity,
-  mistral: ShieldCheck,
-  xai: Sparkles,
-  together: Server,
-  openrouter: Globe,
-  cohere: Key,
-  ollama: Server,
-};
 
 export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
   const queryClient = useQueryClient();
@@ -292,7 +270,6 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
       {/* Provider Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {providers.map((provider) => {
-          const Icon = PROVIDER_ICONS[provider.id] || Cpu;
           const isTesting = testingProviderId === provider.id;
           const isDefault = provider.id === 'nvidia';
 

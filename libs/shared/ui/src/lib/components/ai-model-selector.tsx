@@ -14,9 +14,8 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { Badge } from './badge.js';
-import { AIModelIcon } from '../ai/AIModelIcon.jsx';
-import { AIProviderIcon } from '../ai/AIProviderIcon.jsx';
-import { normalizeModel } from '../ai/model-normalizer.js';
+import { AIModelIcon } from '../ai/AIModelIcon.js';
+import { AIProviderIcon } from '../ai/AIProviderIcon.js';
 
 export interface AIModelOption {
   id: string;
@@ -162,10 +161,6 @@ export function AIModelSelector({
     return models.find((m) => m.id === value) ?? models[0];
   }, [models, value]);
 
-  const selectedMeta = useMemo(() => {
-    return normalizeModel(selectedModel.id, selectedModel.provider);
-  }, [selectedModel]);
-
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -228,6 +223,8 @@ export function AIModelSelector({
         className={cn(
           'flex h-7 items-center gap-1.5 rounded-btn border border-border bg-surface px-2.5 text-xs text-foreground shadow-xs cursor-pointer',
           'transition-all duration-(--duration-fast) hover:bg-accent hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+          variant === 'compact' && 'h-6 gap-1 px-1.5',
+          variant === 'subtle' && 'border-transparent bg-transparent shadow-none',
           isOpen && 'border-primary ring-1 ring-primary/30'
         )}
       >

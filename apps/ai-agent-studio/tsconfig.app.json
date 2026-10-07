@@ -12,6 +12,8 @@
       "vite/client"
     ],
     "rootDir": "src",
+    "allowJs": true,
+    "checkJs": false,
     "module": "esnext",
     "moduleResolution": "bundler"
   },

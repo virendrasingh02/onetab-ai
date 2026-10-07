@@ -1,9 +1,13 @@
-import React, { memo } from 'react';
+import { memo, type CSSProperties, type HTMLAttributes } from 'react';
 import { cn } from '@org/utils';
-import { AIModelIcon } from './AIModelIcon.jsx';
-import { normalizeModel } from './model-normalizer.js';
+import { AIModelIcon } from './AIModelIcon.js';
+import type { AIIconVariant } from './model-icon-map.js';
+import { normalizeModel, type ModelInput } from './model-normalizer.js';
 
-const AVATAR_SIZES = {
+export type AIModelAvatarSize = 'inline' | 'compact' | 'standard' | 'list' | 'card' | 'hero';
+export type AIModelAvatarShape = 'circle' | 'rounded' | 'square';
+
+const AVATAR_SIZES: Record<AIModelAvatarSize, { container: number; icon: number }> = {
   inline: { container: 16, icon: 10 },
   compact: { container: 20, icon: 12 },
   standard: { container: 24, icon: 14 },
@@ -12,7 +16,7 @@ const AVATAR_SIZES = {
   hero: { container: 40, icon: 22 },
 };
 
-const SHAPES = {
+const SHAPES: Record<AIModelAvatarShape, string> = {
   circle: 'rounded-full',
   rounded: 'rounded-lg',
   square: 'rounded-md',
@@ -30,6 +34,16 @@ const SHAPES = {
  * @param {'color'|'mono'} [variant='color'] - Color vs Mono
  * @param {string} [className] - Optional container classes
  */
+export interface AIModelAvatarProps extends Omit<HTMLAttributes<HTMLDivElement>, 'style'> {
+  modelId?: ModelInput;
+  model?: ModelInput;
+  provider?: string | null;
+  size?: AIModelAvatarSize;
+  shape?: AIModelAvatarShape;
+  variant?: AIIconVariant;
+  style?: CSSProperties;
+}
+
 export const AIModelAvatar = memo(function AIModelAvatar({
   modelId,
   model,
@@ -40,9 +54,9 @@ export const AIModelAvatar = memo(function AIModelAvatar({
   className,
   style,
   ...props
-}) {
+}: AIModelAvatarProps) {
   const targetModel = modelId || model;
-  const meta = normalizeModel(targetModel, provider);
+  const meta = normalizeModel(targetModel, provider ?? null);
   const sizeConfig = AVATAR_SIZES[size] || AVATAR_SIZES.standard;
   const shapeClass = SHAPES[shape] || SHAPES.circle;
 

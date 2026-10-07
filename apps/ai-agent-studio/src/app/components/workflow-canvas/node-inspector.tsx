@@ -1,4 +1,4 @@
-import { Button, CodeBlock, Input, AIModelBadge, AIModelIcon, toast } from '@org/ui';
+import { Button, CodeBlock, Input, AIModelBadge, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Connection, Edge, Node } from '@xyflow/react';
 import {

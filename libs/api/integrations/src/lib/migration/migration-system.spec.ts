@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '@org/database';
 import { MigrationAiAdvisorService } from './migration-ai-advisor.service.js';
 import { MigrationMappingService } from './migration-mapping.service.js';
-import { MigrationReadinessService } from './migration-readiness.service.js';
 import { MigrationValidationService } from './migration-validation.service.js';
 import { SlackCapabilityChecker } from './slack-capability-checker.service.js';
 import type { MigrationProvider } from './migration-provider.interface.js';

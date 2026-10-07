@@ -170,6 +170,8 @@ export const PLATFORM_TOOLS: Record<string, PlatformToolInfo> = {
   notify_user: { label: 'Notify you', activity: 'Sending you a notification', scope: 'notify:send', app: 'notifications' },
   save_memory: { label: 'Save to memory', activity: 'Saving to memory', scope: 'memory:write', app: 'memory' },
   list_memory: { label: 'Read memory', activity: 'Reading memory', scope: 'memory:read', app: 'memory' },
+  search_memory: { label: 'Search memory', activity: 'Searching memory', scope: 'memory:read', app: 'memory' },
+  forget_memory: { label: 'Forget memory', activity: 'Pruning memory', scope: 'memory:write', app: 'memory' },
   search_email: { label: 'Search email', activity: 'Reading email', scope: 'app:gmail:read', app: 'email' },
   firecrawl_search: { label: 'Search the web', activity: 'Searching the web', scope: 'web:read', app: 'web' },
   firecrawl_scrape: { label: 'Read a web page', activity: 'Reading a web page', scope: 'web:read', app: 'web' },

@@ -10,6 +10,26 @@ import {
   Info,
 } from 'lucide-react';
 
+/**
+ * @typedef {import('@xyflow/react').Node} FlowNode
+ * @typedef {{
+ *   isOpen: boolean;
+ *   x: number;
+ *   y: number;
+ *   targetNode?: FlowNode | null;
+ *   onClose: () => void;
+ *   onAutoLayout?: () => void;
+ *   onFitView?: () => void;
+ *   onAddNode?: (pos: { x: number; y: number }) => void;
+ *   onDuplicateNode?: (node: FlowNode) => void;
+ *   onDeleteNode?: (id: string) => void;
+ *   onTestNode?: (node: FlowNode) => void;
+ *   onInspectNode?: (node: FlowNode) => void;
+ *   onExportJson?: () => void;
+ * }} CanvasContextMenuProps
+ */
+
+/** @param {CanvasContextMenuProps} props */
 export function CanvasContextMenu({
   isOpen,
   x,

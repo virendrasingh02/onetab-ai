@@ -47,14 +47,28 @@ import {
   Anthropic,
   Fal,
 } from '@lobehub/icons';
+import type { ComponentType } from 'react';
 import { Bot, Sparkles, Cpu } from 'lucide-react';
-import { normalizeModel, normalizeProvider } from './model-normalizer.js';
+import { normalizeModel, normalizeProvider, type ModelInput } from './model-normalizer.js';
+
+/** Props every brand icon (and the lucide fallbacks) accepts. */
+export interface AIIconProps {
+  size?: number | string;
+  className?: string;
+  'aria-hidden'?: boolean | 'true' | 'false';
+}
+
+export type AIIconComponent = ComponentType<AIIconProps>;
+export type AIIconVariant = 'color' | 'mono';
+
+/** A LobeHub brand icon: mono by default, with an optional `.Color` variant. */
+type BrandIcon = AIIconComponent & { Color?: AIIconComponent };
 
 /**
  * Model-specific icon registry
  * Maps canonical model IDs to their dedicated LobeHub icon components.
  */
-export const MODEL_ICONS = {
+export const MODEL_ICONS: Record<string, BrandIcon> = {
   // OpenAI & siblings
   'gpt-4o': OpenAI,
   'gpt-4o-mini': OpenAI,
@@ -130,7 +144,7 @@ export const MODEL_ICONS = {
  * Provider-specific icon registry
  * Maps provider canonical identifiers to their official LobeHub provider icon components.
  */
-export const PROVIDER_ICONS = {
+export const PROVIDER_ICONS: Record<string, BrandIcon> = {
   openai: OpenAI,
   anthropic: Anthropic,
   google: Google,
@@ -171,8 +185,8 @@ export const PROVIDER_ICONS = {
 /**
  * Fallback Component
  */
-export const GenericAIFallback = Sparkles;
-export const GenericAgentFallback = Bot;
+export const GenericAIFallback: AIIconComponent = Sparkles;
+export const GenericAgentFallback: AIIconComponent = Bot;
 
 /**
  * Resolves the appropriate React component for an AI Model according to the fallback rule:
@@ -183,7 +197,11 @@ export const GenericAgentFallback = Bot;
  * @param {'color'|'mono'} [variant='color'] - Color or Mono visual style
  * @returns {React.ComponentType} The component ready to render
  */
-export function resolveModelIconComponent(modelInput, providerInput = null, variant = 'color') {
+export function resolveModelIconComponent(
+  modelInput: ModelInput,
+  providerInput: string | null = null,
+  variant: AIIconVariant = 'color',
+): AIIconComponent {
   try {
     const meta = normalizeModel(modelInput, providerInput);
 
@@ -219,7 +237,7 @@ export function resolveModelIconComponent(modelInput, providerInput = null, vari
  * @param {'color'|'mono'} [variant='color'] - Color or Mono visual style
  * @returns {React.ComponentType}
  */
-export function resolveProviderIconComponent(providerInput, variant = 'color') {
+export function resolveProviderIconComponent(providerInput: unknown, variant: AIIconVariant = 'color'): AIIconComponent {
   try {
     const { id } = normalizeProvider(providerInput);
     const BaseIcon = PROVIDER_ICONS[id];

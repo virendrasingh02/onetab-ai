@@ -10,6 +10,9 @@ import {
 } from 'lucide-react';
 import { deploymentService } from '../../services/deploymentService.js';
 
+/**
+ * @param {{ agent: any; onUpdate?: (patch: Record<string, any>) => void | Promise<void> }} props
+ */
 export function WidgetBuilder({ agent, onUpdate }) {
   const navigate = useNavigate();
   const [config, setConfig] = useState(() => {

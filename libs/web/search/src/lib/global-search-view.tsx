@@ -283,13 +283,8 @@ export function GlobalSearchView() {
 
 function ResultRow({ item }: { item: FederatedSearchResultItem }) {
   const Icon = SEARCH_CATEGORY_META[item.category]?.icon ?? Search;
-  const isAiCategory =
-    item.category === 'coworkers' ||
-    item.category === 'agents' ||
-    item.category === 'workflows';
-  const modelId = (item.metadata?.model ||
-    item.metadata?.modelId ||
-    item.metadata?.provider) as string | undefined;
+  const modelId = (item.metadata?.model || item.metadata?.modelId) as string | undefined;
+  const provider = item.metadata?.provider as string | undefined;
 
   return (
     <Link
@@ -299,13 +294,9 @@ function ResultRow({ item }: { item: FederatedSearchResultItem }) {
         'hover:bg-accent hover:text-accent-foreground',
       )}
     >
-      {isAiCategory || modelId ? (
+      {modelId || provider ? (
         <span className="flex size-4 shrink-0 items-center justify-center">
-          <AIModelIcon
-            modelId={modelId || (item.category === 'coworkers' ? 'claude-3-5-sonnet' : 'gpt-4o')}
-            size="xs"
-            fallback={<Icon className="size-4 shrink-0 text-muted-foreground" />}
-          />
+          <AIModelIcon modelId={modelId} provider={provider} size="xs" />
         </span>
       ) : (
         <Icon className="size-4 shrink-0 text-muted-foreground" />

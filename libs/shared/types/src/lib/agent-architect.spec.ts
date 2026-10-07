@@ -306,6 +306,126 @@ describe('editing in plain words', () => {
   it('diff of an unchanged graph says nothing changed', () => {
     expect(diffStudioGraphs(existingGraph(), existingGraph()).changedAnything).toBe(false);
   });
+
+  it('removes approval gate when asked: don’t ask before updating CRM', () => {
+    const graph = existingGraph();
+    // Insert an approval node before post
+    graph.nodes.splice(3, 0, {
+      id: 'appr',
+      type: 'USER_APPROVAL',
+      position: { x: 750, y: 0 },
+      data: { label: 'Approve CRM update', config: { gates: 'post', action: 'Update CRM' } },
+    });
+    graph.edges = [
+      { id: 'e1', source: 'trigger', target: 'read' },
+      { id: 'e2', source: 'read', target: 'write' },
+      { id: 'e3', source: 'write', target: 'appr' },
+      { id: 'e3b', source: 'appr', target: 'post' },
+      { id: 'e4', source: 'post', target: 'result' },
+    ];
+    // Set post node to have CRM in label or toolName
+    graph.nodes.find((n) => n.id === 'post')!.data.label = 'Update CRM';
+
+    const plan = interpretEditCommand("don't ask before updating CRM", graph, editCtx);
+    expect(plan).not.toBeNull();
+    expect(plan?.ops).toEqual(
+      expect.arrayContaining([expect.objectContaining({ op: 'remove_approval_before', toolName: 'crm' })])
+    );
+    const { graph: next, errors } = applyGraphEdits(graph, plan!.ops);
+    expect(errors).toEqual([]);
+    expect(next.nodes.some((n) => n.id === 'appr')).toBe(false);
+    expect(describeFlowLine(next)).toBe('When you run it → Read tasks → Write report → Update CRM → Result');
+  });
+
+  it('sets agent autonomy to autonomous when commanded: make this agent autonomous', () => {
+    const graph = existingGraph();
+    const plan = interpretEditCommand('make this agent autonomous', graph, editCtx);
+    expect(plan).not.toBeNull();
+    expect(plan?.ops).toEqual(
+      expect.arrayContaining([expect.objectContaining({ op: 'set_autonomy', autonomy: 'autonomous', level: 4 })])
+    );
+    const { graph: next, errors } = applyGraphEdits(graph, plan!.ops);
+    expect(errors).toEqual([]);
+    const writeNode = next.nodes.find((n) => n.id === 'write');
+    expect(writeNode?.data.config['autonomy']).toBe('autonomous');
+    expect(writeNode?.data.config['autonomyLevel']).toBe(4);
+  });
+
+  it('adds a reviewer agent into the workflow when commanded: add a reviewer agent', () => {
+    const graph = existingGraph();
+    const plan = interpretEditCommand('add a reviewer agent', graph, editCtx);
+    expect(plan).not.toBeNull();
+    expect(plan?.ops).toEqual(
+      expect.arrayContaining([expect.objectContaining({ op: 'add_reviewer' })])
+    );
+    const { graph: next, errors } = applyGraphEdits(graph, plan!.ops);
+    expect(errors).toEqual([]);
+    expect(next.nodes.some((n) => n.data.label === 'Reviewer Agent')).toBe(true);
+    expect(describeFlowLine(next)).toContain('Reviewer Agent');
+  });
+
+  it('configures structured rules when commanded: never delete records', () => {
+    const graph = existingGraph();
+    const plan = interpretEditCommand('never delete records', graph, editCtx);
+    expect(plan).not.toBeNull();
+    expect(plan?.ops).toEqual(
+      expect.arrayContaining([expect.objectContaining({ op: 'set_rule', ruleType: 'never', text: 'delete records' })])
+    );
+    const { graph: next, errors } = applyGraphEdits(graph, plan!.ops);
+    expect(errors).toEqual([]);
+    const writeNode = next.nodes.find((n) => n.id === 'write');
+    const rules = writeNode?.data.config['rules'] as { never: string[] };
+    expect(rules?.never).toContain('delete records');
+  });
+});
+
+describe('editing in plain words — guard rails', () => {
+  const withApproval = () => {
+    const graph = existingGraph();
+    graph.nodes.splice(3, 0, {
+      id: 'appr',
+      type: 'USER_APPROVAL',
+      position: { x: 750, y: 0 },
+      data: { label: 'Approve post', config: { gates: 'post' } },
+    });
+    graph.edges = [
+      { id: 'e1', source: 'trigger', target: 'read' },
+      { id: 'e2', source: 'read', target: 'write' },
+      { id: 'e3', source: 'write', target: 'appr' },
+      { id: 'e3b', source: 'appr', target: 'post' },
+      { id: 'e4', source: 'post', target: 'result' },
+    ];
+    return graph;
+  };
+
+  it('"remove approval" with no target removes the approval step', () => {
+    const plan = interpretEditCommand('remove approval', withApproval(), editCtx);
+    const { graph: next, errors } = applyGraphEdits(withApproval(), plan!.ops);
+    expect(errors).toEqual([]);
+    expect(next.nodes.some((n) => n.id === 'appr')).toBe(false);
+  });
+
+  it('removing a CRM approval leaves unrelated approvals alone', () => {
+    const { graph: next, errors } = applyGraphEdits(withApproval(), [{ op: 'remove_approval_before', toolName: 'crm' }]);
+    expect(errors).toHaveLength(1);
+    expect(next.nodes.some((n) => n.id === 'appr')).toBe(true);
+  });
+
+  it('"stop asking before posting" is not turned into a never-rule', () => {
+    const plan = interpretEditCommand('stop asking before posting', withApproval(), editCtx);
+    expect(plan?.ops.some((o) => o.op === 'set_rule')).toBe(false);
+  });
+
+  it('a sentence that merely contains "continue" is still edited', () => {
+    const plan = interpretEditCommand('continue as before but never delete records', existingGraph(), editCtx);
+    expect(plan?.ops).toEqual(expect.arrayContaining([expect.objectContaining({ op: 'set_rule', ruleType: 'never' })]));
+  });
+
+  it('does not claim to pause the agent', () => {
+    const plan = interpretEditCommand('pause this agent', existingGraph(), editCtx);
+    expect(plan?.ops).toEqual([]);
+    expect(plan?.explanation).toMatch(/can’t pause/);
+  });
 });
 
 describe('explain and optimise', () => {

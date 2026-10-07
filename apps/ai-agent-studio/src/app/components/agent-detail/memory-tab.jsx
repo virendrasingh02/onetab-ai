@@ -1,16 +1,20 @@
 import { useState } from 'react';
-import { Badge, Button, Input, toast, LoadingState } from '@org/ui';
+import { Badge, Button, ErrorState, Input, toast, LoadingState } from '@org/ui';
 import { cn } from '@org/utils';
 import { aiMemoryApi } from '@org/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Brain,
+  Plus,
   RefreshCw,
   Search,
   Trash2,
 } from 'lucide-react';
 import { useStudioSession } from '../../session-guard.js';
 
+/**
+ * @param {{ agent: any; onUpdate?: (patch: Record<string, any>) => void | Promise<void> }} props
+ */
 export function MemoryTab({ agent, onUpdate }) {
   const { activeWorkspace } = useStudioSession();
   const queryClient = useQueryClient();
@@ -21,69 +25,53 @@ export function MemoryTab({ agent, onUpdate }) {
   const [autoSummarize, setAutoSummarize] = useState(agent?.memoryConfig?.autoSummarize ?? true);
   const [userSpecific, setUserSpecific] = useState(agent?.memoryConfig?.userSpecific ?? true);
   const [memorySearch, setMemorySearch] = useState('');
+  const [scopeFilter, setScopeFilter] = useState('all');
 
-  // Local fallback memories for standalone preview
-  const [storedMemories, setStoredMemories] = useState([
-    {
-      id: 'mem-1',
-      key: 'Customer SSO Integration Preference',
-      source: 'usr-sarah-421',
-      value: 'Customer preferred Okta SAML setup with automatic SCIM provisioning.',
-      createdAt: new Date(Date.now() - 7200000).toISOString(),
-    },
-    {
-      id: 'mem-2',
-      key: 'Billing Exception Policy',
-      source: 'usr-marcus-109',
-      value: 'Enterprise discount negotiated at 15% annual commitment.',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: 'mem-3',
-      key: 'Firecrawl Crawl Frequency',
-      source: 'global-workspace',
-      value: 'Target pricing crawl throttled to daily run at 06:00 UTC to prevent rate-limit 429.',
-      createdAt: new Date(Date.now() - 259200000).toISOString(),
-    },
-  ]);
+  // New Memory creation form state
+  const [isAddingMemory, setIsAddingMemory] = useState(false);
+  const [newKey, setNewKey] = useState('');
+  const [newValue, setNewValue] = useState('');
+  const [newScope, setNewScope] = useState('agent');
 
-  // Query live memories from backend
+  const memoriesKey = ['workspace-ai-memories', activeWorkspace?.id];
+
   const {
-    data: remoteMemories,
+    data: memories = [],
     isLoading: isLoadingMemories,
+    isError: memoriesFailed,
+    error: memoriesError,
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ['workspace-ai-memories', activeWorkspace?.id],
-    queryFn: async () => {
-      if (!activeWorkspace?.id) return [];
-      try {
-        const res = await aiMemoryApi.list(activeWorkspace.id);
-        if (Array.isArray(res) && res.length > 0) return res;
-      } catch (err) {
-        console.warn('aiMemoryApi.list query error:', err);
-      }
-      return null;
-    },
+    queryKey: memoriesKey,
+    queryFn: () => aiMemoryApi.list(activeWorkspace.id),
     enabled: Boolean(activeWorkspace?.id),
   });
 
-  const activeMemories = remoteMemories && remoteMemories.length > 0 ? remoteMemories : storedMemories;
-
-  // Prune / delete memory mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (mem) => {
-      if (activeWorkspace?.id && mem.key) {
-        try {
-          await aiMemoryApi.delete(activeWorkspace.id, mem.key);
-        } catch (e) {
-          console.warn('Remote memory deletion fallback', e);
-        }
-      }
-      setStoredMemories((prev) => prev.filter((m) => m.id !== mem.id && m.key !== mem.key));
-    },
+  const addMutation = useMutation({
+    mutationFn: ({ key, value, scope }) =>
+      aiMemoryApi.set(activeWorkspace.id, {
+        key,
+        value,
+        scope,
+        agentId: scope === 'agent' ? agent?.id : undefined,
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workspace-ai-memories', activeWorkspace?.id] });
+      queryClient.invalidateQueries({ queryKey: memoriesKey });
+      setIsAddingMemory(false);
+      setNewKey('');
+      setNewValue('');
+      toast.success('Memory fact stored');
+    },
+    onError: (err) => {
+      toast.error('Failed to store memory fact', { description: err?.message });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (mem) => aiMemoryApi.delete(activeWorkspace.id, mem.key),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: memoriesKey });
       toast.success('Memory fact pruned');
     },
     onError: (err) => {
@@ -91,13 +79,22 @@ export function MemoryTab({ agent, onUpdate }) {
     },
   });
 
-  const filteredMemories = activeMemories.filter((m) => {
+  // Scoped keys are stored as `[scope] key` or `[scope:id] key`; anything
+  // unprefixed is workspace-wide (matches the API's scope filter).
+  const scopeOf = (key) => /^\[([a-z_]+)[\]:]/i.exec(key || '')?.[1]?.toLowerCase() ?? 'workspace';
+
+  const filteredMemories = memories.filter((m) => {
+    if (scopeFilter === 'agent') {
+      // This agent's own facts plus unattributed agent-scoped ones.
+      const key = m.key || '';
+      if (!(key.startsWith(`[agent:${agent?.id}]`) || key.startsWith('[agent]'))) return false;
+    } else if (scopeFilter !== 'all' && scopeOf(m.key) !== scopeFilter) {
+      return false;
+    }
+
     if (!memorySearch.trim()) return true;
     const q = memorySearch.toLowerCase();
-    const key = (m.key || '').toLowerCase();
-    const val = (m.value || '').toLowerCase();
-    const src = (m.source || '').toLowerCase();
-    return key.includes(q) || val.includes(q) || src.includes(q);
+    return [m.key, m.value, m.source].some((f) => (f || '').toLowerCase().includes(q));
   });
 
   const handleSaveSettings = () => {
@@ -114,6 +111,16 @@ export function MemoryTab({ agent, onUpdate }) {
     toast.success('Agent memory policies updated and applied');
   };
 
+  const handleAddSubmit = (e) => {
+    e.preventDefault();
+    if (!activeWorkspace?.id) return;
+    if (!newKey.trim() || !newValue.trim()) {
+      toast.error('Please enter both key and value');
+      return;
+    }
+    addMutation.mutate({ key: newKey.trim(), value: newValue.trim(), scope: newScope });
+  };
+
   return (
     <div className="flex-1 space-y-6 overflow-y-auto p-6 max-w-4xl mx-auto">
       {/* Header */}
@@ -124,7 +131,7 @@ export function MemoryTab({ agent, onUpdate }) {
           </div>
           <h2 className="text-lg font-bold text-foreground">Agent Memory & Context Retention</h2>
           <Badge variant="outline" className="text-xs text-primary border-primary/30">
-            Vector + Buffer
+            Vector + Episodic
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
@@ -230,9 +237,18 @@ export function MemoryTab({ agent, onUpdate }) {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Stored Episodic & Semantic Memories</h3>
-            <p className="text-xs text-muted-foreground">Inspect and prune stored facts from agent turns</p>
+            <p className="text-xs text-muted-foreground">Inspect, search, and prune stored facts from agent turns</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => setIsAddingMemory(!isAddingMemory)}
+              className="gap-1.5"
+            >
+              <Plus className="size-3.5" />
+              <span>Add Memory</span>
+            </Button>
             <Button
               variant="outline"
               size="icon-xs"
@@ -242,7 +258,7 @@ export function MemoryTab({ agent, onUpdate }) {
             >
               <RefreshCw className="size-3.5" />
             </Button>
-            <div className="relative w-64">
+            <div className="relative w-56">
               <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search memories..."
@@ -254,11 +270,86 @@ export function MemoryTab({ agent, onUpdate }) {
           </div>
         </div>
 
+        {/* Scope Filter Tabs */}
+        <div className="flex items-center gap-1.5 border-b border-border pb-2 text-xs">
+          {['all', 'agent', 'workspace', 'user'].map((scope) => (
+            <button
+              key={scope}
+              type="button"
+              onClick={() => setScopeFilter(scope)}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-xs font-medium capitalize transition-colors',
+                scopeFilter === scope
+                  ? 'bg-primary/10 text-primary font-semibold'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised',
+              )}
+            >
+              {scope === 'all' ? 'All Scopes' : `${scope} Scope`}
+            </button>
+          ))}
+        </div>
+
+        {/* Add Memory Card */}
+        {isAddingMemory && (
+          <form
+            onSubmit={handleAddSubmit}
+            className="rounded-xl border border-primary/40 bg-surface p-4 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-foreground">Remember New Fact / Preference</span>
+              <button
+                type="button"
+                onClick={() => setIsAddingMemory(false)}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Input
+                placeholder="Key / Subject (e.g. Preferred Tone)"
+                value={newKey}
+                onChange={(e) => setNewKey(e.target.value)}
+                className="text-xs h-8"
+              />
+              <Input
+                placeholder="Value / Procedure"
+                value={newValue}
+                onChange={(e) => setNewValue(e.target.value)}
+                className="text-xs h-8 sm:col-span-2"
+              />
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-muted-foreground">Scope:</span>
+                <select
+                  value={newScope}
+                  onChange={(e) => setNewScope(e.target.value)}
+                  className="rounded border border-border bg-surface px-2 py-1 text-xs text-foreground"
+                >
+                  <option value="agent">Agent Scope</option>
+                  <option value="workspace">Workspace Scope</option>
+                  <option value="user">User Scope</option>
+                </select>
+              </div>
+              <Button size="xs" type="submit" loading={addMutation.isPending}>
+                Save Fact
+              </Button>
+            </div>
+          </form>
+        )}
+
         {isLoadingMemories ? (
           <LoadingState label="Loading agent memories..." />
+        ) : memoriesFailed ? (
+          <ErrorState
+            title="Couldn't load memories"
+            description={memoriesError?.message}
+            onRetry={() => refetch()}
+          />
         ) : filteredMemories.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center text-xs text-muted-foreground">
-            No memories match your query. Run agent turns with memory enabled to store episodic facts.
+            No memories match your query. Run agent turns with memory enabled or click &ldquo;Add Memory&rdquo; to store episodic facts.
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-surface overflow-hidden divide-y divide-border">

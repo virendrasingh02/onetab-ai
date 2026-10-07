@@ -69,7 +69,7 @@ function countTools(tools: string | null | undefined): number {
 }
 
 export function AgentsListPage() {
-  const { activeWorkspace, session } = useStudioSession();
+  const { activeWorkspace, user } = useStudioSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
@@ -101,8 +101,8 @@ export function AgentsListPage() {
   const [newAvatarUrl, setNewAvatarUrl] = useState('');
   const [avatarMode, setAvatarMode] = useState<'icon' | 'upload' | 'url'>('icon');
   const [newTags, setNewTags] = useState('support, autonomous');
-  const [newOwnerName, setNewOwnerName] = useState(session?.user?.name || 'Workspace Owner');
-  const [newOwnerEmail, setNewOwnerEmail] = useState(session?.user?.email || 'owner@onetab.ai');
+  const [newOwnerName, setNewOwnerName] = useState(user?.name || 'Workspace Owner');
+  const [newOwnerEmail, setNewOwnerEmail] = useState(user?.email || 'owner@onetab.ai');
 
   // Natural Language & Template & Existing Workflow States
   const [nlPrompt, setNlPrompt] = useState('');
@@ -207,6 +207,9 @@ export function AgentsListPage() {
       queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
       toast.success('Agent restored from Trash');
     },
+    onError: (err: any) => {
+      toast.error('Could not restore agent', { description: err?.message });
+    },
   });
 
   // Permanent Delete Mutation
@@ -217,6 +220,9 @@ export function AgentsListPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
       toast.success('Agent permanently deleted');
+    },
+    onError: (err: any) => {
+      toast.error('Could not delete agent', { description: err?.message });
     },
   });
 
@@ -235,8 +241,8 @@ export function AgentsListPage() {
     setNewAvatarUrl('');
     setAvatarMode('icon');
     setNewTags('support, autonomous');
-    setNewOwnerName(session?.user?.name || 'Workspace Owner');
-    setNewOwnerEmail(session?.user?.email || 'owner@onetab.ai');
+    setNewOwnerName(user?.name || 'Workspace Owner');
+    setNewOwnerEmail(user?.email || 'owner@onetab.ai');
     setNlPrompt('');
     setSelectedExistingAgentId('');
   };
@@ -245,8 +251,8 @@ export function AgentsListPage() {
     e.preventDefault();
 
     const ownerObj = {
-      name: newOwnerName.trim() || session?.user?.name || 'Workspace Owner',
-      email: newOwnerEmail.trim() || session?.user?.email || 'owner@onetab.ai',
+      name: newOwnerName.trim() || user?.name || 'Workspace Owner',
+      email: newOwnerEmail.trim() || user?.email || 'owner@onetab.ai',
     };
 
     // 1. Natural Language Creation
@@ -487,7 +493,6 @@ export function AgentsListPage() {
     return Array.from(new Set([...DEFAULT_CATEGORIES, ...fromAgents]));
   }, [rawAgents]);
 
-  const _activeAgentsCount = rawAgents.filter((a: any) => !a.deletedAt).length;
   const deletedAgentsCount = rawAgents.filter((a: any) => Boolean(a.deletedAt) || a.configuration?.status === 'deleted').length;
 
   if (isLoading) {
@@ -650,8 +655,6 @@ export function AgentsListPage() {
             const config = agent.configuration || {};
             const status: AgentStatus = config.status || 'draft';
             const env: AgentEnvironment = config.environment || 'development';
-            const themeKey = config.theme || 'emerald';
-            const _theme = THEME_COLORS[themeKey] || THEME_COLORS.emerald;
             const tags = config.tags || [];
             const owner = config.owner || { name: 'Workspace Admin', email: 'admin@onetab.ai' };
             const isDeleted = Boolean(agent.deletedAt) || status === ('deleted' as any);
@@ -1235,8 +1238,8 @@ export function AgentsListPage() {
                         <div className="pt-1 flex items-center justify-between">
                           <span className="text-[10px] text-muted-foreground font-medium">Theme Color:</span>
                           <div className="flex items-center gap-1.5">
-                            {Object.keys(THEME_COLORS).map((color) => {
-                              const item = THEME_COLORS[color];
+                            {THEME_COLORS.map((item) => {
+                              const color = item.id;
                               return (
                                 <button
                                   key={color}

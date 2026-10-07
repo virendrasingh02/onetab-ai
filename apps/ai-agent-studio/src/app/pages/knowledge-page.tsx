@@ -26,7 +26,7 @@ import {
   Sparkles,
   Upload,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
 
 export function KnowledgePage() {

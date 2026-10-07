@@ -16,7 +16,7 @@ import {
   PageHeader,
   toast,
 } from '@org/ui';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   AppWindow,
   CheckCircle2,
@@ -36,7 +36,6 @@ import { integrationService } from '../services/integrationService.js';
 
 export function ToolsPage() {
   const { activeWorkspace } = useStudioSession();
-  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<'catalog' | 'marketplace' | 'custom'>('catalog');
 
@@ -64,28 +63,9 @@ export function ToolsPage() {
   const [customTestResult, setCustomTestResult] = useState<any | null>(null);
   const [isTestingCustom, setIsTestingCustom] = useState(false);
 
-  // Load MCP tool definitions with fallback
   const { data: tools = [], isLoading: isLoadingTools } = useQuery({
     queryKey: ['studio-tools', activeWorkspace.id],
-    queryFn: async () => {
-      try {
-        const live = await agentsApi.listMcpTools(activeWorkspace.id);
-        if (live && live.length > 0) return live;
-      } catch {
-        // Fallback
-      }
-      return [
-        { name: 'firecrawl_search', description: 'Semantic web search returning top markdown documents & citations' },
-        { name: 'firecrawl_scrape', description: 'Extracts clean reader markdown and metadata from any public URL' },
-        { name: 'firecrawl_crawl', description: 'Recursively crawls domains up to depth limits and indexes pages' },
-        { name: 'firecrawl_extract', description: 'Structured JSON schema extraction from web pages using LLM models' },
-        { name: 'search_docs', description: 'Vector similarity search over uploaded workspace knowledge collections' },
-        { name: 'list_projects', description: 'Queries active workspace projects, milestones, and metadata' },
-        { name: 'list_memory', description: 'Retrieves long-term facts and associative entity memory for user' },
-        { name: 'execute_sql_readonly', description: 'Executes guarded read-only analytical queries against replica' },
-        { name: 'send_slack_message', description: 'Dispatches interactive blocks and markdown to Slack channels' },
-      ];
-    },
+    queryFn: () => agentsApi.listMcpTools(activeWorkspace.id),
   });
 
   // Load marketplace integrations
@@ -105,7 +85,7 @@ export function ToolsPage() {
     setIsExecuting(true);
     setTestResult(null);
 
-    let params: any = {};
+    let params: Record<string, unknown>;
     if (selectedTool === 'firecrawl_search') {
       params = { query: testParam, limit: 3 };
     } else if (selectedTool === 'firecrawl_scrape' || selectedTool === 'firecrawl_crawl') {
@@ -119,28 +99,7 @@ export function ToolsPage() {
     }
 
     try {
-      let res: any;
-      try {
-        res = await agentsApi.testMcpTool(activeWorkspace.id, selectedTool, params);
-      } catch {
-        // Mock fallback response
-        await new Promise((r) => setTimeout(r, 600));
-        res = {
-          success: true,
-          tool: selectedTool,
-          invokedAt: new Date().toISOString(),
-          parameters: params,
-          output: {
-            title: `Extracted results for ${testParam}`,
-            matches: 3,
-            snippets: [
-              `Relevant intelligence payload matching: "${testParam}"`,
-              'Normalized metadata and high-confidence citations extracted by Firecrawl crawler.',
-            ],
-            metrics: { tokens: 184, latencyMs: 240, status: 'HTTP 200' },
-          },
-        };
-      }
+      const res = await agentsApi.testMcpTool(activeWorkspace.id, selectedTool, params);
       setTestResult(res);
       toast.success(`Tool "${selectedTool}" executed successfully!`);
     } catch (err: any) {
@@ -180,7 +139,7 @@ export function ToolsPage() {
     e.preventDefault();
     if (!toolName.trim() || !toolEndpoint.trim()) return;
 
-    let headersObj = {};
+    let headersObj: Record<string, unknown>;
     try {
       headersObj = JSON.parse(toolHeaders);
     } catch {
@@ -379,6 +338,9 @@ export function ToolsPage() {
                   <span className="text-[11px] font-bold text-foreground">
                     Execution Output
                   </span>
+                  <Button variant="ghost" size="xs" onClick={copyResult}>
+                    Copy
+                  </Button>
                 </div>
                 <CodeBlock
                   variant="compact"

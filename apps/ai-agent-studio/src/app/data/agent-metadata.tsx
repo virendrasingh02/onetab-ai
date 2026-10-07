@@ -21,7 +21,6 @@ import {
   Wrench,
   Zap,
 } from 'lucide-react';
-import React from 'react';
 
 export const AGENT_ICONS = [
   { id: 'Bot', label: 'Bot', icon: Bot, name: 'Bot' },
@@ -76,7 +75,8 @@ const THEME_COLOR_MAP: Record<string, ThemeColorItem> = {
 
 const THEME_COLOR_LIST: ThemeColorItem[] = Object.values(THEME_COLOR_MAP);
 
-export const THEME_COLORS: any = Object.assign([...THEME_COLOR_LIST], THEME_COLOR_MAP);
+/** Iterable as a list, and indexable by theme key. */
+export const THEME_COLORS: ThemeColorItem[] & Record<string, ThemeColorItem | undefined> = Object.assign([...THEME_COLOR_LIST], THEME_COLOR_MAP);
 
 export const DEFAULT_CATEGORIES = [
   'Customer Support',

@@ -7,6 +7,7 @@ import {
 } from '@xyflow/react';
 import { X } from 'lucide-react';
 
+/** @param {import('@xyflow/react').EdgeProps} props */
 export function WorkflowEdge({
   id,
   sourceX,
@@ -117,6 +118,7 @@ export function WorkflowEdge({
   );
 }
 
+/** @type {import('@xyflow/react').EdgeTypes} */
 export const STUDIO_EDGE_TYPES = {
   workflow: WorkflowEdge,
   default: WorkflowEdge,

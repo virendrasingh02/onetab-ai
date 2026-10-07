@@ -3,13 +3,53 @@
  * Normalizes varied model ID strings, API paths, and provider prefixes into a unified metadata contract.
  */
 
+export type ModelSpeed = 'fast' | 'balanced' | 'deep' | (string & {});
+
+export interface ModelCapabilities {
+  reasoning: boolean;
+  vision: boolean;
+  toolCalling: boolean;
+  coding: boolean;
+  structuredOutput: boolean;
+}
+
+/** Canonical metadata for one model, as the AI model UI renders it. */
+export interface NormalizedModel {
+  /** The id as it was passed in. */
+  id: string;
+  canonicalId: string;
+  providerId: string;
+  providerName: string;
+  family: string;
+  displayName: string;
+  contextWindow: string;
+  speed: ModelSpeed;
+  costTier: string;
+  capabilities: ModelCapabilities;
+  description: string;
+}
+
+export interface NormalizedProvider {
+  id: string;
+  name: string;
+}
+
+/** A model id, or a model option object carrying one. */
+export type ModelInput =
+  | string
+  | { id?: string; value?: string; model?: string; name?: string }
+  | null
+  | undefined;
+
+type CanonicalModel = Omit<NormalizedModel, 'id'>;
+
 // In-memory cache to prevent repeated regex and parsing overhead across frequent renders
-const normalizerCache = new Map();
+const normalizerCache = new Map<string, NormalizedModel>();
 
 /**
  * Standard Model Metadata Database for canonical models
  */
-const CANONICAL_MODELS = {
+const CANONICAL_MODELS: Record<string, CanonicalModel> = {
   // --- OpenAI / GPT Models ---
   'gpt-4o': {
     canonicalId: 'gpt-4o',
@@ -518,7 +558,7 @@ const CANONICAL_MODELS = {
 /**
  * Standard Provider Names
  */
-export const PROVIDER_NAMES = {
+export const PROVIDER_NAMES: Record<string, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic',
   google: 'Google',
@@ -557,7 +597,7 @@ export const PROVIDER_NAMES = {
 /**
  * Cleans a model ID string: trims, removes quotes, lowercases, removes tag suffixes like :latest
  */
-export function cleanModelString(raw) {
+export function cleanModelString(raw: unknown): string {
   if (!raw || typeof raw !== 'string') return '';
   return raw
     .trim()
@@ -569,14 +609,14 @@ export function cleanModelString(raw) {
 /**
  * Splits prefix: "provider/model" or "provider:model"
  */
-function extractProviderAndModel(raw) {
+function extractProviderAndModel(raw: string): { prefixProvider: string | null; cleanModel: string } {
   const cleaned = cleanModelString(raw);
   if (!cleaned) return { prefixProvider: null, cleanModel: '' };
 
   const delimiterMatch = cleaned.match(/^([a-z0-9_-]+)[/:](.+)$/i);
   if (delimiterMatch) {
-    const rawProvider = delimiterMatch[1].toLowerCase();
-    const rest = delimiterMatch[2];
+    const rawProvider = delimiterMatch[1]!.toLowerCase();
+    const rest = delimiterMatch[2]!;
     return { prefixProvider: rawProvider, cleanModel: rest };
   }
 
@@ -590,24 +630,24 @@ function extractProviderAndModel(raw) {
  * @param {string} [explicitProvider] - Optional explicit provider name/id (e.g. "anthropic", "openai", "google")
  * @returns {object} Normalized model identity object
  */
-export function normalizeModel(rawModelInput, explicitProvider = null) {
+export function normalizeModel(rawModelInput: ModelInput, explicitProvider: string | null = null): NormalizedModel {
   const inputStr = typeof rawModelInput === 'object' && rawModelInput !== null
     ? String(rawModelInput.id || rawModelInput.value || rawModelInput.model || rawModelInput.name || '')
     : String(rawModelInput || '');
 
   const cacheKey = `${inputStr}:::${explicitProvider || ''}`;
-  if (normalizerCache.has(cacheKey)) {
-    return normalizerCache.get(cacheKey);
-  }
+  const cached = normalizerCache.get(cacheKey);
+  if (cached) return cached;
 
   const { prefixProvider, cleanModel } = extractProviderAndModel(inputStr);
   const providerHint = (explicitProvider || prefixProvider || '').toLowerCase().trim();
   const lowerModel = cleanModel.toLowerCase();
 
   // 1. Direct match in Canonical Models
-  if (CANONICAL_MODELS[lowerModel]) {
-    const result = {
-      ...CANONICAL_MODELS[lowerModel],
+  const direct = CANONICAL_MODELS[lowerModel];
+  if (direct) {
+    const result: NormalizedModel = {
+      ...direct,
       id: inputStr || cleanModel,
     };
     normalizerCache.set(cacheKey, result);
@@ -615,7 +655,7 @@ export function normalizeModel(rawModelInput, explicitProvider = null) {
   }
 
   // 2. Pattern Matching / Resolution Heuristics
-  let matchedCanonical = null;
+  let matchedCanonical: CanonicalModel | null | undefined = null;
 
   // GPT / OpenAI
   if (/^gpt-?5/i.test(lowerModel)) {
@@ -736,7 +776,7 @@ export function normalizeModel(rawModelInput, explicitProvider = null) {
   }
 
   if (matchedCanonical) {
-    const result = {
+    const result: NormalizedModel = {
       ...matchedCanonical,
       id: inputStr || cleanModel,
       // If user passed a specific version suffix, preserve it in displayName if useful
@@ -772,7 +812,7 @@ export function normalizeModel(rawModelInput, explicitProvider = null) {
         .join(' ')
     : 'Unknown Model';
 
-  const fallbackResult = {
+  const fallbackResult: NormalizedModel = {
     id: inputStr || 'unknown',
     canonicalId: lowerModel || 'unknown',
     providerId: derivedProvider,
@@ -799,7 +839,7 @@ export function normalizeModel(rawModelInput, explicitProvider = null) {
 /**
  * Normalizes provider identifier into standard lowercase ID and display name
  */
-export function normalizeProvider(providerInput) {
+export function normalizeProvider(providerInput: unknown): NormalizedProvider {
   if (!providerInput || typeof providerInput !== 'string') {
     return { id: 'generic', name: 'AI Provider' };
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  agentToolGate,
   agentToolNeedsApproval,
   convertLegacyAgentGraph,
   DEFAULT_AGENT_RUNTIME,
@@ -187,5 +188,30 @@ describe('convertLegacyAgentGraph', () => {
 
   it('leaves builder graphs alone', () => {
     expect(convertLegacyAgentGraph(builderGraph(), { name: 'X' })).toBeNull();
+  });
+});
+
+describe('agentToolGate', () => {
+  const rt = (raw: Record<string, unknown>) => readAgentRuntime({ runtime: raw });
+
+  it('blocks a tool the owner blocked, whatever the autonomy', () => {
+    expect(agentToolGate(rt({ autonomy: 'autonomous', rules: { policies: { create_task: 'blocked' } } }), 'create_task', false)).toBe('blocked');
+  });
+
+  it('gates writes at levels 2–3 and everything at 0–1', () => {
+    expect(agentToolGate(rt({ autonomyLevel: 3 }), 'create_task', false)).toBe('approval');
+    expect(agentToolGate(rt({ autonomyLevel: 3 }), 'search_docs', true)).toBe('allow');
+    expect(agentToolGate(rt({ autonomyLevel: 0 }), 'search_docs', true)).toBe('approval');
+  });
+
+  it('keeps legacy agents exactly as their autonomy said', () => {
+    const legacy = rt({ autonomy: 'autonomous' });
+    expect(legacy.autonomyLevel).toBeUndefined();
+    expect(agentToolGate(legacy, 'create_task', false)).toBe('allow');
+    expect(agentToolGate(rt({ autonomy: 'supervised', autonomyLevel: 4 }), 'search_docs', true)).toBe('approval');
+  });
+
+  it('lets an explicit per-tool allow win over the autonomy gate', () => {
+    expect(agentToolNeedsApproval(rt({ autonomy: 'semi', rules: { policies: { create_task: 'auto_allow' } } }), 'create_task')).toBe(false);
   });
 });

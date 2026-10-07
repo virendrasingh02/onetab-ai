@@ -1,13 +1,22 @@
-import React, { memo } from 'react';
+import { memo, type HTMLAttributes } from 'react';
 import { cn } from '@org/utils';
 import { Check } from 'lucide-react';
-import { AIModelIcon } from './AIModelIcon.jsx';
-import { normalizeModel } from './model-normalizer.js';
+import { AIModelIcon } from './AIModelIcon.js';
+import { normalizeModel, type ModelInput, type NormalizedModel } from './model-normalizer.js';
 
 /**
  * AIModelListItem
  * Standardized row for Model Selector dropdowns, command palettes, and model lists.
  */
+export interface AIModelListItemProps extends Omit<HTMLAttributes<HTMLButtonElement>, 'onSelect'> {
+  modelId?: ModelInput;
+  model?: ModelInput;
+  provider?: string | null;
+  isSelected?: boolean;
+  isRecommended?: boolean;
+  onSelect?: (meta: NormalizedModel) => void;
+}
+
 export const AIModelListItem = memo(function AIModelListItem({
   modelId,
   model,
@@ -17,11 +26,11 @@ export const AIModelListItem = memo(function AIModelListItem({
   onSelect,
   className,
   ...props
-}) {
+}: AIModelListItemProps) {
   const targetModel = modelId || model;
-  const meta = normalizeModel(targetModel, provider);
+  const meta = normalizeModel(targetModel, provider ?? null);
 
-  const activeCaps = [];
+  const activeCaps: string[] = [];
   if (meta.capabilities?.reasoning) activeCaps.push('Reasoning');
   if (meta.capabilities?.vision) activeCaps.push('Vision');
   if (meta.capabilities?.toolCalling) activeCaps.push('Tools');

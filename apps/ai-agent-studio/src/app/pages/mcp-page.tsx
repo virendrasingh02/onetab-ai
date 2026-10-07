@@ -17,6 +17,7 @@ import {
   Page,
   PageHeader,
   toast,
+  ErrorState,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -28,7 +29,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
-import { integrationService } from '../services/integrationService.js';
 import { useStudioSession } from '../session-guard.js';
 
 export function McpPage() {
@@ -40,48 +40,26 @@ export function McpPage() {
   const [serverUrl, setServerUrl] = useState('');
   const [transport, setTransport] = useState<MCPTransport>('SSE');
 
-  // Load MCP connections with fallback
   const {
     data: connections = [],
     isLoading,
+    isError,
+    error,
     refetch,
     isRefetching,
   } = useQuery({
     queryKey: ['mcp-connections', activeWorkspace.id],
-    queryFn: async () => {
-      try {
-        const live = await mcpApi.listConnections(activeWorkspace.id);
-        if (live && live.length > 0) return live;
-      } catch {
-        // Fallback
-      }
-      const mockServers = await integrationService.getMcpServers();
-      return mockServers.map((s: any) => ({
-        id: s.id,
-        name: s.name,
-        serverUrl: s.url,
-        transport: s.transport,
-        tools: s.tools || [],
-      }));
-    },
+    queryFn: () => mcpApi.listConnections(activeWorkspace.id),
   });
 
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async () => {
-      try {
-        return await mcpApi.createConnection(activeWorkspace.id, {
-          name: serverName.trim(),
-          serverUrl: serverUrl.trim(),
-          transport,
-        });
-      } catch {
-        return integrationService.addMcpServer({
-          name: serverName.trim(),
-          url: serverUrl.trim(),
-          transport,
-        });
-      }
+      return mcpApi.createConnection(activeWorkspace.id, {
+        name: serverName.trim(),
+        serverUrl: serverUrl.trim(),
+        transport,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -100,11 +78,7 @@ export function McpPage() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      try {
-        return await mcpApi.deleteConnection(activeWorkspace.id, id);
-      } catch {
-        return integrationService.removeMcpServer(id);
-      }
+      return mcpApi.deleteConnection(activeWorkspace.id, id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -112,23 +86,24 @@ export function McpPage() {
       });
       toast.success('MCP server removed');
     },
+    onError: (err: any) => {
+      toast.error('Could not remove MCP server', { description: err?.message });
+    },
   });
 
   // Sync mutation
   const syncMutation = useMutation({
     mutationFn: async (id: string) => {
-      try {
-        return await mcpApi.syncTools(activeWorkspace.id, id);
-      } catch {
-        await new Promise((r) => setTimeout(r, 400));
-        return { synced: true };
-      }
+      return mcpApi.syncTools(activeWorkspace.id, id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['mcp-connections', activeWorkspace.id],
       });
       toast.success('MCP tools synced from server');
+    },
+    onError: (err: any) => {
+      toast.error('Could not sync tools from this server', { description: err?.message });
     },
   });
 
@@ -197,6 +172,12 @@ export function McpPage() {
       {/* External MCP Servers */}
       {isLoading ? (
         <LoadingState label="Loading MCP servers…" />
+      ) : isError ? (
+        <ErrorState
+          title="Couldn't load MCP servers"
+          description={(error as Error | null)?.message}
+          onRetry={() => refetch()}
+        />
       ) : connections.length === 0 ? (
         <EmptyState
           icon={<Plug className="size-8 text-muted-foreground" />}
@@ -246,14 +227,18 @@ export function McpPage() {
                     </Badge>
                   </div>
 
-                  {Array.isArray((conn as any).tools) &&
-                    (conn as any).tools.length > 0 && (
+                  {conn.lastError && (
+                    <p className="mt-2 text-[10px] text-destructive line-clamp-2" title={conn.lastError}>
+                      {conn.lastError}
+                    </p>
+                  )}
+                  {conn.discoveredToolsJson.length > 0 && (
                       <div className="mt-2 space-y-1">
                         <div className="text-[10px] font-semibold text-muted-foreground uppercase">
-                          Discovered Tools ({(conn as any).tools.length})
+                          Discovered Tools ({conn.discoveredToolsJson.length})
                         </div>
                         <div className="flex flex-wrap gap-1">
-                          {(conn as any).tools.map((t: any) => (
+                          {conn.discoveredToolsJson.map((t) => (
                             <span
                               key={t.name}
                               title={t.description}
