@@ -19,6 +19,7 @@ import {
   type MessageListHandle,
   MessageRenderer,
   PinnedPanel,
+  ReactorDirectoryProvider,
   ThreadListPanel,
   ThreadPanel,
   TypingIndicator,
@@ -1610,6 +1611,25 @@ export function ChatSurface({
     title,
   ]);
 
+  // Names for the reaction hover card ("Alice and Bob reacted with 👍"):
+  // room members first, then the wider workspace for people who have left.
+  const workspaceMemberById = useMemo(
+    () =>
+      new Map(
+        (mainControl.workspaceMembers ?? []).map((member) => [member.userId, member]),
+      ),
+    [mainControl.workspaceMembers],
+  );
+  const resolveReactor = useCallback(
+    (userId: string) => {
+      const name =
+        memberById.get(userId)?.displayName ??
+        workspaceMemberById.get(userId)?.displayName;
+      return name ? { name } : undefined;
+    },
+    [memberById, workspaceMemberById],
+  );
+
   const headerActions = (
     <>
       {huddlesEnabled && !huddle.huddle && !huddleJoined ? (
@@ -1671,6 +1691,7 @@ export function ChatSurface({
   );
 
   return (
+    <ReactorDirectoryProvider resolve={resolveReactor} myUserId={myUserId}>
     <ChatLayout
       banner={banner}
       header={
@@ -2079,5 +2100,6 @@ export function ChatSurface({
         onCopyLink={(message) => copyMessageLink(message, 'Link copied')}
       />
     </ChatLayout>
+    </ReactorDirectoryProvider>
   );
 }

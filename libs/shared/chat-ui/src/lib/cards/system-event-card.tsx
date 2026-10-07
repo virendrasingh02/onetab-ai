@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { ReactionPicker, formatFullTimestamp, formatShortTimestamp } from '../chat-bubble.js';
+import { ReactionBar } from '../reaction-bar.js';
 
 export interface SystemEventCardProps {
   message: Message;
@@ -554,27 +555,10 @@ export function SystemEventCard({
         <SystemEventAction event={event} onViewEntity={onViewEntity} />
 
         {message.reactions.length > 0 ? (
-          <ul className="mt-1.5 flex flex-wrap gap-1">
-            {message.reactions.map((reaction) => (
-              <li key={reaction.key}>
-                <button
-                  type="button"
-                  onClick={() => onReact?.(reaction.key)}
-                  aria-pressed={reaction.reactedByMe}
-                  aria-label={`${reaction.count} reaction${reaction.count === 1 ? '' : 's'} with ${reaction.key}${reaction.reactedByMe ? ' (you reacted)' : ''}`}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors',
-                    reaction.reactedByMe
-                      ? 'border-primary bg-primary/15 text-foreground shadow-xs'
-                      : 'border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  <span aria-hidden="true">{reaction.key}</span>
-                  <span className="tabular-nums">{reaction.count}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <ReactionBar
+            reactions={message.reactions}
+            onToggle={onReact ? (key) => onReact(key) : undefined}
+          />
         ) : null}
       </div>
 

@@ -38,6 +38,7 @@ import {
   RotateCw,
   Search,
   Smile,
+  SmilePlus,
   Video,
   X,
 } from 'lucide-react';
@@ -47,6 +48,7 @@ import { createPortal } from 'react-dom';
 import { AttachmentRenderer } from './attachments.js';
 import { BookmarkFavicon } from './bookmark-favicon.js';
 import { ReactionPicker } from './chat-bubble.js';
+import { ReactionBar, reactionAddButtonClass } from './reaction-bar.js';
 import { MarkdownMessage } from './markdown-message.js';
 
 /* --- channel bookmarks ---------------------------------------------------- */
@@ -769,44 +771,31 @@ export function PinnedMessageCard({
 
       {/* Reactions row */}
       {message.reactions && message.reactions.length > 0 ? (
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pt-0.5">
-          {message.reactions.map((reaction) => (
-            <button
-              key={reaction.key}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onReact?.(message.id, reaction.key, reaction.reactedByMe);
-              }}
-              aria-pressed={reaction.reactedByMe}
-              className={cn(
-                'gap-1.5 px-2 py-0.5 text-xs font-medium flex items-center rounded-md border transition-colors',
-                reaction.reactedByMe
-                  ? 'border-primary/50 bg-primary/15 text-primary'
-                  : 'border-border/80 bg-surface-raised/70 text-muted-foreground hover:border-border hover:bg-surface-raised hover:text-foreground',
-              )}
-            >
-              <span aria-hidden>{reaction.key}</span>
-              <span className="tabular-nums text-[11px] font-semibold">
-                {reaction.count}
-              </span>
-            </button>
-          ))}
-          {onReact ? (
-            <ReactionPicker
-              onSelect={(emoji) => onReact(message.id, emoji, false)}
-            >
-              <button
-                type="button"
-                aria-label="Add reaction"
-                onClick={(e) => e.stopPropagation()}
-                className="size-6 flex items-center justify-center rounded-md border border-border/80 bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border hover:bg-surface-raised hover:text-foreground"
+        <ReactionBar
+          className="mt-2.5"
+          reactions={message.reactions}
+          onToggle={
+            onReact
+              ? (key, reactedByMe) => onReact(message.id, key, reactedByMe)
+              : undefined
+          }
+          addButton={
+            onReact ? (
+              <ReactionPicker
+                onSelect={(emoji) => onReact(message.id, emoji, false)}
               >
-                <Smile className="size-3" />
-              </button>
-            </ReactionPicker>
-          ) : null}
-        </div>
+                <button
+                  type="button"
+                  aria-label="Add reaction"
+                  onClick={(e) => e.stopPropagation()}
+                  className={reactionAddButtonClass}
+                >
+                  <SmilePlus className="size-4" />
+                </button>
+              </ReactionPicker>
+            ) : null
+          }
+        />
       ) : null}
     </div>
   );

@@ -15,6 +15,14 @@ export {
   type ChatBubbleProps,
 } from './lib/chat-bubble.js';
 export {
+  ReactionBar,
+  ReactorDirectoryProvider,
+  describeReactors,
+  reactionAddButtonClass,
+  type ReactionBarProps,
+  type ReactorProfile,
+} from './lib/reaction-bar.js';
+export {
   describeReminderTime,
   reminderPresets,
   type ReminderPreset,

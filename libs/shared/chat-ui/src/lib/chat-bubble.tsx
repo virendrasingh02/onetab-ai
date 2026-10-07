@@ -79,6 +79,7 @@ import { LinkPreviewCard } from './link-preview-card.js';
 import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
 import { useMediaPreview } from '@org/media-preview';
 import { MarkdownMessage } from './markdown-message.js';
+import { ReactionBar, reactionAddButtonClass } from './reaction-bar.js';
 import { ForwardedMessageCard } from './forwarded-message-card.js';
 import { reminderPresets } from './reminder-presets.js';
 import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
@@ -395,6 +396,8 @@ function ThreadRepliesButton({
         />
       ) : null}
       {participants && participants.length > 0 ? (
+        // Who replied, not who is online: no presence dots in this stack
+        // (same as the channel thread list and Threads tab).
         <span className="-space-x-1.5 flex items-center">
           {participants.slice(0, 3).map((participant) => (
             <UserAvatar
@@ -403,9 +406,18 @@ function ThreadRepliesButton({
               src={participant.avatarUrl}
               seed={participant.userId}
               size="xs"
+              indicator={false}
               className="ring-2 ring-surface"
             />
           ))}
+          {participants.length > 3 ? (
+            <span
+              className="size-5 relative flex shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground ring-2 ring-surface tabular-nums"
+              aria-label={`${participants.length - 3} more`}
+            >
+              +{participants.length - 3}
+            </span>
+          ) : null}
         </span>
       ) : null}
       <span>
@@ -1317,41 +1329,23 @@ export function ChatBubble({
 
         {/* Discord Reactions Row */}
         {message.reactions.length > 0 ? (
-          <ul className="mt-1.5 gap-1 flex flex-wrap">
-            {message.reactions.map((reaction) => (
-              <li key={reaction.key}>
-                <button
-                  type="button"
-                  onClick={() => onReact?.(reaction.key)}
-                  aria-pressed={reaction.reactedByMe}
-                  aria-label={`${reaction.count} reaction${reaction.count === 1 ? '' : 's'} with ${reaction.key}${reaction.reactedByMe ? ' (you reacted)' : ''}`}
-                  className={cn(
-                    'gap-1.5 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border transition-colors',
-                    reaction.reactedByMe
-                      ? 'border-primary bg-primary/15 text-foreground shadow-xs'
-                      : 'border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  <span aria-hidden="true">{reaction.key}</span>
-                  <span className="tabular-nums">{reaction.count}</span>
-                </button>
-              </li>
-            ))}
-
-            {onReact ? (
-              <li>
+          <ReactionBar
+            reactions={message.reactions}
+            onToggle={onReact ? (key) => onReact(key) : undefined}
+            addButton={
+              onReact ? (
                 <ReactionPicker onSelect={onReact}>
                   <button
                     type="button"
                     aria-label="Add a reaction"
-                    className="px-1.5 py-0.5 flex items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className={reactionAddButtonClass}
                   >
-                    <Smile className="size-3.5" aria-hidden="true" />
+                    <SmilePlus className="size-4" aria-hidden="true" />
                   </button>
                 </ReactionPicker>
-              </li>
-            ) : null}
-          </ul>
+              ) : null
+            }
+          />
         ) : null}
 
         {/* Thread replies summary */}

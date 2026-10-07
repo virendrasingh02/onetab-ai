@@ -58,7 +58,7 @@ describe('PinnedPanel', () => {
     const onReact = vi.fn();
     const msg = baseMessage({
       reactions: [
-        { key: '👍', count: 2, reactedByMe: false, senders: [] },
+        { key: '👍', count: 2, reactedByMe: false, userIds: ['@a:x', '@b:x'] as any },
       ],
     });
 

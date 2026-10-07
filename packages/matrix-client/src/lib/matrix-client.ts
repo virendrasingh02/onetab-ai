@@ -125,6 +125,8 @@ export class OneTabMatrixClient {
   private readonly options: Required<Omit<MatrixClientOptions, 'sessionStore'>>;
   /** Local echoes awaiting acknowledgement, keyed by transaction id. */
   private readonly pendingEchoes = new Map<string, Message>();
+  /** Reaction event id → the message it reacts to (see the redaction handler). */
+  private readonly reactionTargets = new Map<string, string>();
   /** Rooms whose automatic read receipts are held after "Mark unread". */
   private readonly readHolds = new Set<RoomId>();
   private readonly verification = new VerificationManager(
@@ -495,9 +497,18 @@ export class OneTabMatrixClient {
     });
 
     sdk.on(RoomEvent.Timeline, (event, room, toStartOfTimeline) => {
+      const type = event.getType();
+      // Remember what every reaction we see points at, backfill included: by
+      // the time `RoomEvent.Redaction` fires the SDK has stripped the
+      // reaction's content, relation and all (see the handler below).
+      if (type === 'm.reaction') {
+        const reactionId = event.getId();
+        const targetId = event.getRelation()?.event_id;
+        if (reactionId && targetId) this.reactionTargets.set(reactionId, targetId);
+      }
+
       // Backfill is delivered through pagination, not the live stream.
       if (toStartOfTimeline || !room) return;
-      const type = event.getType();
 
       // When a reaction arrives, find the target message and emit an update for it
       if (type === 'm.reaction') {
@@ -567,9 +578,14 @@ export class OneTabMatrixClient {
           eventId: redactedId,
         });
 
-        // If the redacted event was a reaction, re-emit an update for the target message
+        // If the redacted event was a reaction, re-emit an update for the
+        // target message. The redaction has already been applied, so the
+        // reaction's own relation is usually gone — fall back to the record.
         const redactedEvent = room.findEventById(redactedId);
-        const parentId = redactedEvent?.getRelation()?.event_id;
+        const parentId =
+          redactedEvent?.getRelation()?.event_id ??
+          this.reactionTargets.get(redactedId);
+        this.reactionTargets.delete(redactedId);
         if (parentId) {
           const parentEvent = room.findEventById(parentId);
           if (parentEvent) {
@@ -1576,7 +1592,14 @@ export class OneTabMatrixClient {
       );
 
     const reactionId = mine?.getId();
-    if (reactionId) await this.deleteMessage(roomId, reactionId);
+    if (!reactionId) return;
+    await this.deleteMessage(roomId, reactionId);
+
+    // Refresh the message now rather than trusting the redaction echo to find
+    // its way back to it.
+    const target = room.findEventById(eventId);
+    const message = target ? toMessage(sdk, target, room) : null;
+    if (message) this.emit({ type: 'message.updated', message });
   }
 
   // --- threads -------------------------------------------------------------
