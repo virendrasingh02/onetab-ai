@@ -1,6 +1,6 @@
 import type { MatrixClient as SdkClient } from 'matrix-js-sdk';
 import type { MatrixEvent } from 'matrix-js-sdk';
-import { NotificationCountType } from 'matrix-js-sdk';
+import { Direction, NotificationCountType } from 'matrix-js-sdk';
 import type {
   Room as SdkRoom,
   RoomMember as SdkRoomMember,
@@ -898,6 +898,11 @@ export function toThread(room: SdkRoom, thread: SdkThread): Thread {
     rootId: thread.id,
     roomId: room.roomId,
     replyCount: thread.length,
+    // Until its first page lands, or while older pages remain, the thread's
+    // loaded events undercount it.
+    hasOlderReplies:
+      !thread.initialEventsFetched ||
+      !!thread.liveTimeline.getPaginationToken(Direction.Backward),
     latestReplyAt: thread.replyToEvent?.getTs(),
     participantIds: [
       ...new Set(

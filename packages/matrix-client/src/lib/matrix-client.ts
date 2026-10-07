@@ -9,12 +9,14 @@ import {
   RoomMemberEvent,
   RoomStateEvent,
   SyncState,
+  ThreadEvent,
   ConditionKind,
   PushRuleKind,
   createClient,
   type MatrixClient as SdkClient,
   type MatrixEvent,
   type Room as SdkRoom,
+  type Thread as SdkThread,
   type MatrixCall,
 } from 'matrix-js-sdk';
 // Crypto lives in its own entry point: `matrix-js-sdk` does not re-export it.
@@ -86,6 +88,9 @@ import {
   type StructuredChatMessage,
   formatSystemEventFallbackText,
 } from './types.js';
+
+/** Cap on 50-reply pages fetched when a thread is opened (2,500 replies). */
+const MAX_THREAD_PAGES = 50;
 
 export interface MatrixClientOptions {
   homeserverUrl: string;
@@ -648,7 +653,30 @@ export class OneTabMatrixClient {
       this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
     });
 
+    /*
+     * With `threadSupport` the SDK keeps thread replies in per-thread
+     * timelines, and loads each thread's replies on its own after sync (or
+     * after older history is paged in). Those loads arrive as backfill, which
+     * the timeline listener above skips, and `Thread.*` events are emitted on
+     * the room only — the client does not re-emit them. Without this a reply
+     * sent before the last reload never reached the thread panel, the Threads
+     * page or the "N replies" count.
+     */
+    const watchedRooms = new WeakSet<SdkRoom>();
+    const watchThreads = (room: SdkRoom) => {
+      if (watchedRooms.has(room)) return;
+      watchedRooms.add(room);
+      const onThread = (thread: SdkThread) => {
+        if (this.sdk !== sdk) return;
+        this.emit({ type: 'thread.updated', thread: toThread(room, thread) });
+      };
+      room.on(ThreadEvent.New, onThread);
+      room.on(ThreadEvent.Update, onThread);
+    };
+    for (const room of sdk.getRooms()) watchThreads(room);
+
     sdk.on(ClientEvent.Room, (room: SdkRoom) => {
+      watchThreads(room);
       this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
     });
 
@@ -960,6 +988,21 @@ export class OneTabMatrixClient {
       })
       .map((event) => toMessage(sdk, event, room))
       .filter((message): message is Message => message !== null);
+
+    /*
+     * Thread replies live in their threads' timelines, not the room's (see
+     * `threadSupport` in `start`), yet every surface derives threads from this
+     * list: the panel, "N replies", the Threads tab. Appended after the main
+     * timeline, oldest first — they never render in it (a reply is filtered
+     * out by its `threadRootId`), so where they sit only matters to grouping.
+     */
+    const seen = new Set(messages.map((message) => message.id));
+    const replies = room
+      .getThreads()
+      .flatMap((thread) => this.loadedThreadReplies(sdk, room, thread.id))
+      .filter((reply) => !seen.has(reply.id));
+    replies.sort((a, b) => a.timestamp - b.timestamp);
+    messages.push(...replies);
 
     // Append pending local echoes for this room that aren't already present
     for (const pending of this.pendingEchoes.values()) {
@@ -1546,6 +1589,29 @@ export class OneTabMatrixClient {
     return room.getThreads().map((thread) => toThread(room, thread));
   }
 
+  /**
+   * The replies of one thread the client already holds, oldest first, without
+   * fetching anything — what a room view merges in on `thread.updated`.
+   */
+  getThreadReplies(roomId: RoomId, rootId: EventId): Message[] {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    return room ? this.loadedThreadReplies(sdk, room, rootId) : [];
+  }
+
+  private loadedThreadReplies(
+    sdk: SdkClient,
+    room: SdkRoom,
+    rootId: EventId,
+  ): Message[] {
+    const thread = room.getThread(rootId);
+    if (!thread) return [];
+    return thread.events
+      .filter((event) => event.getId() !== rootId)
+      .map((event) => toMessage(sdk, event, room))
+      .filter((message): message is Message => message !== null);
+  }
+
   async getThreadMessages(roomId: RoomId, rootId: EventId): Promise<Message[]> {
     const sdk = this.require();
     const room = sdk.getRoom(roomId);
@@ -1554,9 +1620,51 @@ export class OneTabMatrixClient {
     const thread = room.getThread(rootId);
     if (!thread) return [];
 
-    return thread.events
+    /*
+     * The SDK only loads a thread's newest page on its own. Page the rest in
+     * so a long thread opens complete — once the initial load has landed
+     * (paging before it would race the SDK's own reset of the timeline).
+     */
+    let pagedIn = false;
+    if (thread.initialEventsFetched) {
+      for (let page = 0; page < MAX_THREAD_PAGES; page++) {
+        if (!thread.liveTimeline.getPaginationToken(Direction.Backward)) break;
+        const before = thread.events.length;
+        const more = await withRetry(() =>
+          sdk.paginateEventTimeline(thread.liveTimeline, {
+            backwards: true,
+            limit: 50,
+          }),
+        );
+        if (thread.events.length > before) pagedIn = true;
+        if (!more) break;
+      }
+    }
+
+    const messages = thread.events
       .map((event) => toMessage(sdk, event, room))
       .filter((message): message is Message => message !== null);
+
+    // A reply still on its way up shows straight away, as in the room.
+    for (const pending of this.pendingEchoes.values()) {
+      if (
+        pending.roomId === roomId &&
+        pending.threadRootId === rootId &&
+        !messages.some(
+          (m) =>
+            m.id === pending.id ||
+            (!!pending.transactionId && m.transactionId === pending.transactionId),
+        )
+      ) {
+        messages.push(pending);
+      }
+    }
+
+    // Older replies came in as backfill, which no live listener reports:
+    // tell the room views so their copy of the thread fills in too.
+    if (pagedIn) this.emit({ type: 'thread.updated', thread: toThread(room, thread) });
+
+    return messages;
   }
 
   // --- presence, typing, receipts -----------------------------------------

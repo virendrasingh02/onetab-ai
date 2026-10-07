@@ -39,6 +39,7 @@ import type {
   RoomMember,
   StructuredMessageAction,
   SystemEventEntity,
+  Thread,
 } from '@org/matrix-client';
 import { toPlatformUserId, type ComposerContext } from '@org/types';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -81,7 +82,7 @@ import {
 } from './forward-message-dialog.js';
 import { useRegisterActiveConversation } from './active-conversation.js';
 import { deriveAttachmentBursts } from './derive-attachment-bursts.js';
-import { deriveThreads, groupReplies } from './derive-threads.js';
+import { deriveThreads, groupReplies, threadReplyCount } from './derive-threads.js';
 import { useHuddleSession } from './use-huddle.js';
 import { useMentionNavigation } from './use-mention-navigation.js';
 import { useMessageScrollTarget } from './use-message-scroll-target.js';
@@ -244,6 +245,11 @@ export interface ChatSurfaceProps {
   deepLinkMessageId?: string | null;
   /** Root ids of threads with replies the reader has not caught up to. */
   unreadThreadRootIds?: readonly string[];
+  /**
+   * The client's thread summaries for this room. Before a thread is opened
+   * only its newest replies are loaded; these carry the real reply count.
+   */
+  threadSummaries?: readonly Thread[];
   /** Called while a thread panel is open, so the host can mark it read. */
   onThreadRead?: (threadRootId: string) => void;
   /** Marks the whole conversation read — from the sticky "new messages" bar. */
@@ -397,6 +403,7 @@ export function ChatSurface({
   onDeepLinkThreadChange,
   deepLinkMessageId,
   unreadThreadRootIds,
+  threadSummaries,
   onThreadRead,
   onMarkRead,
   unreadMentions = NO_MENTIONS,
@@ -588,6 +595,11 @@ export function ChatSurface({
     [rootMessages],
   );
 
+  const threadSummaryById = useMemo(
+    () => new Map((threadSummaries ?? []).map((thread) => [thread.rootId, thread])),
+    [threadSummaries],
+  );
+
   const threads = useMemo(
     () =>
       deriveThreads(messages, members, {
@@ -595,8 +607,9 @@ export function ChatSurface({
         lastReadAt: firstUnreadId
           ? (byId.get(firstUnreadId)?.timestamp ?? 0)
           : Date.now(),
+        summaries: threadSummaryById,
       }),
-    [messages, members, myUserId, firstUnreadId, byId],
+    [messages, members, myUserId, firstUnreadId, byId, threadSummaryById],
   );
 
   // Newest pin first, like the rest of the side panels.
@@ -764,6 +777,14 @@ export function ChatSurface({
   const threadReplies = threadRootId
     ? (repliesByRoot.get(threadRootId) ?? [])
     : [];
+
+  // The client only holds a thread's newest replies until it is opened; this
+  // pages in the rest, which reach `messages` through `thread.updated`.
+  const threadRoomId = threadRoot?.roomId;
+  useEffect(() => {
+    if (panel !== 'thread' || !client || !threadRoomId || !threadRootId) return;
+    void client.getThreadMessages(threadRoomId, threadRootId).catch(() => undefined);
+  }, [panel, client, threadRoomId, threadRootId]);
 
   const { slug: workspaceSlug } = useCurrentWorkspace();
   const navigate = useNavigate();
@@ -1231,7 +1252,10 @@ export function ChatSurface({
           mentionProfiles={mentionProfiles}
           isPinned={pinnedIds.includes(message.id)}
           isSaved={savedIds.includes(message.id)}
-          threadReplyCount={replies.length}
+          threadReplyCount={threadReplyCount(
+            replies.length,
+            threadSummaryById.get(message.id),
+          )}
           showThreadConnector={!inThread}
           threadHasUnread={unreadThreadRoots.has(
             message.threadRootId ?? message.id,
@@ -1468,6 +1492,7 @@ export function ChatSurface({
     [
       attachmentBursts,
       repliesByRoot,
+      threadSummaryById,
       memberById,
       myUserId,
       messageDensity,
@@ -1813,7 +1838,10 @@ export function ChatSurface({
           ? createPortal(
               panel === 'thread' && threadRoot ? (
                 <ThreadPanel
-                  replyCount={threadReplies.length}
+                  replyCount={threadReplyCount(
+                    threadReplies.length,
+                    threadSummaryById.get(threadRoot.id),
+                  )}
                   viewportRef={setThreadScrollEl}
                   overlaySlot={
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">

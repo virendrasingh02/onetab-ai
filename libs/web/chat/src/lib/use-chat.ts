@@ -185,6 +185,44 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
           }));
           break;
 
+        case 'thread.updated': {
+          // A thread's replies were (re)loaded — after a reload, older history
+          // paging in, or the thread being opened. They arrive as backfill,
+          // never as `message.received`, so merge the thread's copy in here.
+          if (event.thread.roomId !== roomId) return;
+          let replies: Message[];
+          try {
+            replies = client.getThreadReplies(roomId, event.thread.rootId);
+          } catch {
+            return;
+          }
+          if (replies.length === 0) return;
+          setState((current) => {
+            const byId = new Map(replies.map((reply) => [reply.id, reply]));
+            const byTxn = new Map(
+              replies
+                .filter((reply) => reply.transactionId)
+                .map((reply) => [reply.transactionId, reply]),
+            );
+            let changed = false;
+            const messages = current.messages.map((message) => {
+              const fresh =
+                byId.get(message.id) ??
+                (message.transactionId ? byTxn.get(message.transactionId) : undefined);
+              if (!fresh) return message;
+              byId.delete(fresh.id);
+              changed = true;
+              return fresh;
+            });
+            if (byId.size > 0) {
+              changed = true;
+              messages.push(...byId.values());
+            }
+            return changed ? { ...current, messages } : current;
+          });
+          break;
+        }
+
         case 'typing':
           if (event.update.roomId !== roomId) return;
           setState((current) => ({
@@ -224,7 +262,13 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
 
   useEffect(() => {
     if (!client || !roomId || !readReceiptsEnabled || !trackRead) return;
-    const latest = state.messages[state.messages.length - 1];
+    // The room's own receipt goes on its newest main-timeline message: thread
+    // replies sit at the end of `messages` too, but they are not in the room
+    // timeline, so a receipt on one never moved the room's unread state.
+    let latest: Message | undefined;
+    for (let i = state.messages.length - 1; i >= 0 && !latest; i--) {
+      if (!state.messages[i].threadRootId) latest = state.messages[i];
+    }
     if (latest && latest.sendState !== 'sending') {
       void client.markRead(roomId, latest.id);
     }

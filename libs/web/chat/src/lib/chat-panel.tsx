@@ -874,6 +874,7 @@ export function ChatPanel({
       deepLinkMessageId={messageParam}
       firstUnreadId={firstUnreadId}
       unreadThreadRootIds={unreadThreadRootIds}
+      threadSummaries={threads}
       unreadMentions={{
         ids: mentions.ids,
         count: mentions.count,

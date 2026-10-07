@@ -1,5 +1,16 @@
 import type { ThreadSummaryItem } from '@org/chat-ui';
-import type { Message, RoomMember } from '@org/matrix-client';
+import type { Message, RoomMember, Thread } from '@org/matrix-client';
+
+/**
+ * How many replies a thread has. Counting the loaded replies is exact once the
+ * whole thread is in (deleted replies already dropped), but before the thread
+ * is opened the client holds only its newest page — then the server's count
+ * is the truth.
+ */
+export function threadReplyCount(loaded: number, summary?: Thread): number {
+  if (!summary?.hasOlderReplies) return loaded;
+  return Math.max(loaded, summary.replyCount);
+}
 
 /** Words that address the reader or the whole channel. */
 const MENTION_TRIGGERS = ['@here', '@channel', '@everyone'];
@@ -24,6 +35,13 @@ export function groupReplies(messages: Message[]): Map<string, Message[]> {
     else grouped.set(message.threadRootId, [message]);
   }
 
+  // Older replies can land after newer ones (a thread's history is loaded
+  // after its live replies have already arrived), so order by time. Stable,
+  // so equal timestamps keep their arrival order.
+  for (const replies of grouped.values()) {
+    replies.sort((a, b) => a.timestamp - b.timestamp);
+  }
+
   return grouped;
 }
 
@@ -38,7 +56,12 @@ export function groupReplies(messages: Message[]): Map<string, Message[]> {
 export function deriveThreads(
   messages: Message[],
   members: RoomMember[],
-  options: { myUserId?: string; lastReadAt?: number } = {},
+  options: {
+    myUserId?: string;
+    lastReadAt?: number;
+    /** The client's per-thread summaries, for counts of partly loaded threads. */
+    summaries?: ReadonlyMap<string, Thread>;
+  } = {},
 ): ThreadSummaryItem[] {
   const byId = new Map(messages.map((message) => [message.id, message]));
   const memberById = new Map(members.map((member) => [member.userId, member]));
@@ -57,7 +80,7 @@ export function deriveThreads(
 
     summaries.push({
       root,
-      replyCount: thread.length,
+      replyCount: threadReplyCount(thread.length, options.summaries?.get(rootId)),
       participants: participantIds
         .map((userId) => memberById.get(userId))
         .filter((member): member is RoomMember => !!member),

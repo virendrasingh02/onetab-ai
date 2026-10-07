@@ -558,7 +558,13 @@ export interface CallSummaryMessageContent {
 export interface Thread {
   rootId: EventId;
   roomId: RoomId;
+  /** The server's count, right even when only some replies are loaded. */
   replyCount: number;
+  /**
+   * True while the client holds only the newest replies (a thread is loaded
+   * fully once it is opened) — so `replyCount` beats counting loaded ones.
+   */
+  hasOlderReplies?: boolean;
   latestReplyAt?: Timestamp;
   participantIds: MatrixUserId[];
   hasUnread: boolean;

@@ -9,7 +9,6 @@ import {
   TooltipTrigger,
   AIModelIcon,
   AIModelBadge,
-  AIModelIdentity,
   type AppSelectOption,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -675,13 +674,12 @@ function SlotAddButton({
   );
 }
 
-/** One row on an agent: label, what's attached, "+" and the slot's source handle on the node edge. */
+/** One row on an agent: label, what's attached and "+". Wires leave from the agent's single output dot. */
 function SlotRow({
   label,
   summary,
   count = 0,
   empty,
-  handleId,
   addButton,
   children,
 }: {
@@ -689,42 +687,34 @@ function SlotRow({
   summary: string | null;
   count?: number;
   empty: string;
-  handleId?: string;
   addButton?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
-    <div className="relative">
-      <div className="rounded-lg border border-border bg-surface-raised/50 px-2.5 py-1.5">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn('size-1.5 shrink-0 rounded-full', summary ? 'bg-primary' : 'bg-muted-foreground/40')}
-            aria-hidden
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
-              {label}
-              {count > 1 && <Badge variant="primary" className="h-4 px-1 text-[9px]">{count}</Badge>}
-            </div>
-            <div className={cn('truncate text-[10px]', summary ? 'text-primary' : 'text-muted-foreground/70')}>
-              {summary || empty}
-            </div>
+    <div className="rounded-lg border border-border bg-surface-raised/50 px-2.5 py-1.5">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn('size-1.5 shrink-0 rounded-full', summary ? 'bg-primary' : 'bg-muted-foreground/40')}
+          aria-hidden
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
+            {label}
+            {count > 1 && <Badge variant="primary" className="h-4 px-1 text-[9px]">{count}</Badge>}
           </div>
-          {addButton}
+          <div className={cn('truncate text-[10px]', summary ? 'text-primary' : 'text-muted-foreground/70')}>
+            {summary || empty}
+          </div>
         </div>
-        {children}
+        {addButton}
       </div>
-      <Handle
-        type="source"
-        id={handleId}
-        position={Position.Right}
-        // Sit on the node's edge, not the row's (node has 14px padding + 1px border)
-        style={{ right: -15 }}
-        className="!size-2.5 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
-      />
+      {children}
     </div>
   );
 }
+
+/** Vertical centre of the agent header, shared by the input and output dots. */
+const AGENT_HANDLE_TOP = 32;
 
 export const MODEL_OPTIONS: AppSelectOption[] = [
   { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
@@ -804,9 +794,29 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
       <Handle
         type="target"
         position={Position.Left}
-        style={{ top: 32 }}
+        style={{ top: AGENT_HANDLE_TOP }}
         className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
       />
+      {/* One output dot. It comes first so edges without a sourceHandle (the next step) bind to it,
+          and sits on top so dragging from it starts a normal flow edge (slots are filled via "+"). */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ top: AGENT_HANDLE_TOP, zIndex: 2 }}
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
+      />
+      {/* Slot handles share the dot's spot (invisible) so every attachment wire leaves from that one dot */}
+      {AGENT_SLOTS.map((slot) => (
+        <Handle
+          key={slot.id}
+          type="source"
+          id={slot.id}
+          position={Position.Right}
+          isConnectableStart={false}
+          style={{ top: AGENT_HANDLE_TOP, zIndex: 1 }}
+          className="!pointer-events-none !size-3 !border-0 !opacity-0"
+        />
+      ))}
 
       <div className="flex items-center gap-2.5">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -865,9 +875,6 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
       {collapsed ? (
         // Collapsed: one compact summary; the hidden nodes' wires gather on this row
         <div className="mt-3 flex flex-col gap-1.5">
-          <div className="order-last">
-            <SlotRow label="Output" summary={null} empty="Next step in the flow" />
-          </div>
           <div className="relative rounded-lg border border-dashed border-border px-2.5 py-1.5 text-[10px] text-muted-foreground">
             {totalAttached} plugged in
             {team && team.hiddenCount > totalAttached ? ` · ${team.hiddenCount} steps hidden` : ''} ·{' '}
@@ -877,16 +884,11 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
           </div>
         </div>
       ) : (
-        /* Output comes first in the DOM (shown last): edges without a sourceHandle bind to the first handle */
         <div className="mt-3 flex flex-col gap-1.5">
-          <div className="order-last">
-            <SlotRow label="Output" summary={null} empty="Next step in the flow" />
-          </div>
           {AGENT_SLOTS.map((slot) => (
             <SlotRow
               key={slot.id}
               label={slot.label}
-              handleId={slot.id}
               summary={summaryFor(slot.id)}
               count={slots[slot.id]?.length ?? 0}
               empty={fallbackFor(slot.id)}
@@ -910,14 +912,6 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
             </SlotRow>
-          ))}
-        </div>
-      )}
-      {collapsed && (
-        // Keep every slot handle mounted so the wires of hidden nodes don't error
-        <div className="hidden">
-          {AGENT_SLOTS.map((slot) => (
-            <Handle key={slot.id} type="source" id={slot.id} position={Position.Right} />
           ))}
         </div>
       )}
