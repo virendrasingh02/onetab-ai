@@ -1,8 +1,18 @@
 import { invitationApi, memberApi, queryKeys } from '@org/api-client';
-import type { ChannelMember, ChannelSummary, WorkspaceMember } from '@org/types';
+import {
+  CHANNEL_NOTIFICATION_LEVEL_LABELS,
+  channelNotificationLevel,
+  channelNotificationLevelInput,
+  isGeneralChannel,
+  type ChannelMember,
+  type ChannelNotificationLevel,
+  type ChannelSummary,
+  type WorkspaceMember,
+} from '@org/types';
 import {
   Badge,
   Button,
+  copyToClipboard,
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -11,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
+  entityUrl,
   Hint,
   Input,
   ScrollArea,
@@ -26,6 +37,9 @@ import {
 import { cn, formatDate, formatRelative } from '@org/utils';
 import { useQuery } from '@tanstack/react-query';
 import {
+  Archive,
+  ArchiveRestore,
+  AtSign,
   Bell,
   BellOff,
   Blocks,
@@ -50,6 +64,7 @@ import {
   Star,
   UserMinus,
   UserPlus,
+  Users,
   Workflow,
   X,
   type LucideIcon,
@@ -71,6 +86,12 @@ import {
 } from '../use-channels.js';
 import { useChannelAgents, useChannelAgentMutations } from '../use-channel-agents.js';
 import { useChannelApps, useChannelAppMutations } from '../use-channel-apps.js';
+import {
+  archiveChannelConfirm,
+  channelPath,
+  leaveChannelConfirm,
+} from '../channel-actions.js';
+import { useCanManageChannel } from '../use-can-manage-channel.js';
 import { ChannelSettingsTab } from './channel-settings-tab.js';
 
 export type ChannelDetailsTab =
@@ -148,6 +169,8 @@ export function ChannelDetailsPanel({
     setActiveTab(initialTab);
   }, [initialTab]);
 
+  const canManage = useCanManageChannel(channel);
+
   const ChannelIcon = channel.visibility === 'PRIVATE' ? Lock : Hash;
 
   return (
@@ -164,7 +187,9 @@ export function ChannelDetailsPanel({
         <ChannelSettingsDropdown
           channel={channel}
           workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
           currentUserId={currentUserId}
+          canManage={canManage}
           onEditDetails={onEditDetails}
         />
 
@@ -238,7 +263,9 @@ export function ChannelDetailsPanel({
             workspaceId={workspaceId}
             currentUserId={currentUserId}
             createdByName={createdByName}
+            canManage={canManage}
             onEditDetails={onEditDetails}
+            onNavigateToTab={setActiveTab}
           />
         </TabsContent>
 
@@ -590,14 +617,16 @@ function FavoriteMenu({
 }
 
 /**
- * The channel's notification level.
- *
- * Two levels, not three. Slack's middle option — "just @mentions" for this one
- * channel — has nothing behind it here: mentions-only is a *workspace* setting
- * in our notification preferences, and a per-channel version would need a
- * column that does not exist. Offering it would have meant a control that
- * silently did nothing, so the menu links to the real setting instead.
+ * The channel's notification level: all new posts, just mentions, or nothing.
+ * Stored on the membership (`isMuted` + `mentionsOnly`), so it follows the user
+ * to every device — see `channelNotificationLevel`.
  */
+const LEVEL_ICON: Record<ChannelNotificationLevel, LucideIcon> = {
+  all: Bell,
+  mentions: AtSign,
+  nothing: BellOff,
+};
+
 function NotificationMenu({
   channel,
   workspaceId,
@@ -608,10 +637,16 @@ function NotificationMenu({
   workspaceSlug: string;
 }) {
   const preferences = useChannelPreferences(workspaceId);
-  const isMuted = channel.membership?.isMuted ?? false;
+  const level = channelNotificationLevel(channel.membership);
+  const LevelIcon = LEVEL_ICON[level];
 
-  const setMuted = (muted: boolean) =>
-    preferences.mutate({ channelId: channel.id, input: { isMuted: muted } });
+  const setLevel = (next: ChannelNotificationLevel) => {
+    if (next === level) return;
+    preferences.mutate({
+      channelId: channel.id,
+      input: channelNotificationLevelInput(next),
+    });
+  };
 
   return (
     <DropdownMenu>
@@ -619,14 +654,16 @@ function NotificationMenu({
         <Button
           variant="outline"
           size="sm"
+          disabled={!channel.membership}
           className="h-7 gap-1.5 px-2 text-xs"
         >
-          {isMuted ? (
-            <BellOff className="size-3.5 text-muted-foreground" />
-          ) : (
-            <Bell className="size-3.5" />
-          )}
-          <span>{isMuted ? 'Muted' : 'All new messages'}</span>
+          <LevelIcon
+            className={cn(
+              'size-3.5',
+              level === 'nothing' && 'text-muted-foreground',
+            )}
+          />
+          <span>{CHANNEL_NOTIFICATION_LEVEL_LABELS[level]}</span>
           <ChevronDown className="size-3 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
@@ -636,20 +673,16 @@ function NotificationMenu({
           Notify me about
         </DropdownMenuLabel>
 
-        <DropdownMenuCheckboxItem
-          checked={!isMuted}
-          onSelect={() => setMuted(false)}
-          className="text-xs"
-        >
-          All new messages
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={isMuted}
-          onSelect={() => setMuted(true)}
-          className="text-xs"
-        >
-          Nothing
-        </DropdownMenuCheckboxItem>
+        {(['all', 'mentions', 'nothing'] as const).map((value) => (
+          <DropdownMenuCheckboxItem
+            key={value}
+            checked={level === value}
+            onSelect={() => setLevel(value)}
+            className="text-xs"
+          >
+            {CHANNEL_NOTIFICATION_LEVEL_LABELS[value]}
+          </DropdownMenuCheckboxItem>
+        ))}
 
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="gap-2 text-xs">
@@ -670,42 +703,92 @@ function AboutTab({
   workspaceId,
   currentUserId,
   createdByName,
+  canManage,
   onEditDetails,
+  onNavigateToTab,
 }: {
   channel: ChannelSummary;
   workspaceId: string | undefined;
   currentUserId: string;
   createdByName?: string;
+  canManage: boolean;
   onEditDetails: () => void;
+  onNavigateToTab: (tab: ChannelDetailsTab) => void;
 }) {
+  const isPrivate = channel.visibility === 'PRIVATE';
+
   return (
     <ScrollArea className="min-h-0 flex-1" contentClassName="space-y-3 p-3">
+      {/* The facts the header above doesn't already show: who can see the
+          channel, whether it's archived, and how many people are in it. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge variant={isPrivate ? 'neutral' : 'outline'} className="gap-1">
+          {isPrivate ? (
+            <Lock className="size-3" aria-hidden />
+          ) : (
+            <Hash className="size-3" aria-hidden />
+          )}
+          {isPrivate ? 'Private channel' : 'Public channel'}
+        </Badge>
+        {channel.isArchived ? (
+          <Badge variant="destructive">Archived</Badge>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => onNavigateToTab('members')}
+          className="gap-1 px-2 py-0.5 text-xs flex items-center rounded-full border border-border bg-surface text-muted-foreground outline-none transition-colors hover:border-border-strong hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <Users className="size-3" aria-hidden />
+          {channel.memberCount} {channel.memberCount === 1 ? 'member' : 'members'}
+        </button>
+      </div>
+
       {/* One bordered card of divided rows, so the fields read as one object
           rather than five loose paragraphs in a narrow column. */}
       <div className="divide-y divide-border rounded-card border border-border bg-surface-inset/40">
-        <DetailRow label="Topic" onEdit={onEditDetails}>
+        <DetailRow
+          label="Topic"
+          onEdit={canManage ? onEditDetails : undefined}
+        >
           {channel.topic ? (
             <LinkifiedText text={channel.topic} />
           ) : (
-            <span className="text-muted-foreground">Add a topic</span>
+            <span className="text-muted-foreground">
+              {canManage ? 'Add a topic' : 'No topic'}
+            </span>
           )}
         </DetailRow>
 
-        <DetailRow label="Description" onEdit={onEditDetails}>
+        <DetailRow
+          label="Description"
+          onEdit={canManage ? onEditDetails : undefined}
+        >
           {channel.description ? (
             <LinkifiedText text={channel.description} />
           ) : (
-            <span className="text-muted-foreground">Add a description</span>
+            <span className="text-muted-foreground">
+              {canManage ? 'Add a description' : 'No description'}
+            </span>
           )}
         </DetailRow>
+
+        {channel.welcomeMessage ? (
+          <DetailRow
+            label="Welcome message"
+            onEdit={canManage ? onEditDetails : undefined}
+          >
+            <LinkifiedText text={channel.welcomeMessage} />
+          </DetailRow>
+        ) : null}
 
         <DetailRow
           label="Managed by"
           hint="Channel managers can rename the channel, edit its details and archive it."
         >
           <span className="text-muted-foreground">
-            Got questions? Ask an Admin to add a Channel Manager to help things
-            run smoothly.
+            {canManage
+              ? 'You have channel management permissions.'
+              : 'Channel managers and workspace admins manage this channel.'}
           </span>
         </DetailRow>
 
@@ -807,17 +890,10 @@ function LeaveChannelButton({
   const { remove } = useChannelMemberMutations(workspaceId);
   const prompts = usePromptDialog();
 
-  if (!channel.membership) return null;
+  if (!channel.membership || isGeneralChannel(channel)) return null;
 
   const leave = async () => {
-    const confirmed = await prompts.confirmAction({
-      title: `Leave #${channel.name}?`,
-      description:
-        'You will stop receiving messages from this channel. You can rejoin later if it is public.',
-      confirmLabel: 'Leave channel',
-      destructive: true,
-    });
-    if (!confirmed) return;
+    if (!(await prompts.confirmAction(leaveChannelConfirm(channel)))) return;
 
     remove.mutate(
       { channelId: channel.id, userId: currentUserId },
@@ -1503,43 +1579,33 @@ function MembersTab({
 function ChannelSettingsDropdown({
   channel,
   workspaceId,
+  workspaceSlug,
   currentUserId,
+  canManage,
   onEditDetails,
 }: {
   channel: ChannelSummary;
   workspaceId: string | undefined;
+  workspaceSlug: string;
   currentUserId: string;
+  canManage: boolean;
   onEditDetails: () => void;
 }) {
   const archive = useArchiveChannel(workspaceId);
   const { remove } = useChannelMemberMutations(workspaceId);
   const prompts = usePromptDialog();
+  const isGeneral = isGeneralChannel(channel);
 
   const toggleArchive = async () => {
-    const confirmed = await prompts.confirmAction({
-      title: channel.isArchived
-        ? `Unarchive #${channel.name}?`
-        : `Archive #${channel.name}?`,
-      description: channel.isArchived
-        ? 'The channel becomes active again and reappears in the sidebar.'
-        : 'The channel becomes read-only and leaves the sidebar. Its history is kept.',
-      confirmLabel: channel.isArchived ? 'Unarchive' : 'Archive',
-      destructive: !channel.isArchived,
-    });
-    if (!confirmed) return;
-
-    archive.mutate({ channelId: channel.id, archived: !channel.isArchived });
+    const archived = !channel.isArchived;
+    if (!(await prompts.confirmAction(archiveChannelConfirm(channel, archived)))) {
+      return;
+    }
+    archive.mutate({ channelId: channel.id, archived });
   };
 
   const handleLeave = async () => {
-    const confirmed = await prompts.confirmAction({
-      title: `Leave #${channel.name}?`,
-      description:
-        'You will stop receiving messages from this channel. You can rejoin later if it is public.',
-      confirmLabel: 'Leave channel',
-      destructive: true,
-    });
-    if (!confirmed) return;
+    if (!(await prompts.confirmAction(leaveChannelConfirm(channel)))) return;
 
     remove.mutate(
       { channelId: channel.id, userId: currentUserId },
@@ -1593,26 +1659,32 @@ function ChannelSettingsDropdown({
         align="end"
         className="w-64 p-1.5 rounded-xl shadow-2xl border-border bg-surface text-foreground"
       >
-        <DropdownMenuItem
-          onSelect={onEditDetails}
-          className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
-        >
-          <Settings className="size-4 text-muted-foreground shrink-0" />
-          <div className="flex flex-col min-w-0">
-            <span className="font-semibold text-foreground">
-              Edit channel details
-            </span>
-            <span className="text-[10px] text-muted-foreground truncate">
-              Name, topic and description
-            </span>
-          </div>
-        </DropdownMenuItem>
+        {canManage && (
+          <DropdownMenuItem
+            onSelect={onEditDetails}
+            className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
+          >
+            <Settings className="size-4 text-muted-foreground shrink-0" />
+            <div className="flex flex-col min-w-0">
+              <span className="font-semibold text-foreground">
+                Edit channel details
+              </span>
+              <span className="text-[10px] text-muted-foreground truncate">
+                Name, topic and description
+              </span>
+            </div>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuItem
-          onSelect={() => {
-            void navigator.clipboard?.writeText(window.location.href);
-            toast.success('Channel link copied to clipboard');
-          }}
+          // The panel also opens as a dialog away from the channel, so copy
+          // the channel's own URL rather than whatever page is underneath.
+          onSelect={() =>
+            copyToClipboard(
+              entityUrl(channelPath(workspaceSlug, channel)),
+              'Channel link',
+            ).catch(() => toast.error('Could not copy the link.'))
+          }
           className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
         >
           <Link2 className="size-4 text-muted-foreground shrink-0" />
@@ -1641,28 +1713,30 @@ function ChannelSettingsDropdown({
           </div>
         </DropdownMenuItem>
 
-        <DropdownMenuItem
-          onSelect={() => void toggleArchive()}
-          className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
-        >
-          {channel.isArchived ? (
-            <Bell className="size-4 text-muted-foreground shrink-0" />
-          ) : (
-            <BellOff className="size-4 text-muted-foreground shrink-0" />
-          )}
-          <div className="flex flex-col min-w-0">
-            <span className="font-semibold text-foreground">
-              {channel.isArchived ? 'Unarchive channel' : 'Archive channel'}
-            </span>
-            <span className="text-[10px] text-muted-foreground truncate">
-              {channel.isArchived
-                ? 'Make the channel active again'
-                : 'Keep the history, close the conversation'}
-            </span>
-          </div>
-        </DropdownMenuItem>
+        {canManage && !isGeneral && (
+          <DropdownMenuItem
+            onSelect={() => void toggleArchive()}
+            className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
+          >
+            {channel.isArchived ? (
+              <ArchiveRestore className="size-4 text-muted-foreground shrink-0" />
+            ) : (
+              <Archive className="size-4 text-muted-foreground shrink-0" />
+            )}
+            <div className="flex flex-col min-w-0">
+              <span className="font-semibold text-foreground">
+                {channel.isArchived ? 'Unarchive channel' : 'Archive channel'}
+              </span>
+              <span className="text-[10px] text-muted-foreground truncate">
+                {channel.isArchived
+                  ? 'Make the channel active again'
+                  : 'Keep the history, close the conversation'}
+              </span>
+            </div>
+          </DropdownMenuItem>
+        )}
 
-        {channel.membership && (
+        {channel.membership && !isGeneral && (
           <>
             <DropdownMenuSeparator className="my-1 bg-border/60" />
             <DropdownMenuItem
@@ -1675,7 +1749,9 @@ function ChannelSettingsDropdown({
                   Leave this channel
                 </span>
                 <span className="text-[10px] text-destructive/80 truncate">
-                  Leave channel
+                  {channel.visibility === 'PRIVATE'
+                    ? 'You’ll need an invite to rejoin'
+                    : 'Rejoin any time from Browse channels'}
                 </span>
               </div>
             </DropdownMenuItem>

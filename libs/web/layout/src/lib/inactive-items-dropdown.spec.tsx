@@ -25,6 +25,7 @@ import {
   THIRTY_DAYS_MS,
   toEpoch,
 } from './inactivity-utils.js';
+import { EMPTY_SIGNAL } from './navigation/sidebar-sections.js';
 
 const NOW = 1700000000000;
 const DAY = 24 * 60 * 60 * 1000;
@@ -148,6 +149,47 @@ describe('30-day inactivity logic (inactivity-utils)', () => {
     });
     expect(result.active.map((c) => c.id)).toEqual(['c-fav', 'c-open']);
     expect(result.inactive.map((c) => c.id)).toEqual(['c-stale']);
+  });
+
+  it('files hand-hidden channels under Inactive whatever their activity', () => {
+    const hidden = { ...EMPTY_SIGNAL, hidden: true };
+    const result = partitionChannelsByInactivity({
+      channels: [
+        channel('c-hidden-busy', TWENTY_DAYS_AGO),
+        channel('c-hidden-fav', TWENTY_DAYS_AGO, {
+          membership: { isFavorite: true } as ChannelSummary['membership'],
+        }),
+        channel('c-hidden-open', TWENTY_DAYS_AGO),
+        channel('c-visible', TWENTY_DAYS_AGO),
+      ],
+      signals: {
+        'c-hidden-busy': hidden,
+        'c-hidden-fav': hidden,
+        'c-hidden-open': hidden,
+      },
+      activity: { 'c-hidden-busy': { level: 'activity', count: 2, mentionCount: 0 } },
+      keepActive: (id) => id === 'c-hidden-open',
+      now: NOW,
+    });
+
+    // The open one stays put so hiding it doesn't lose the user's place.
+    expect(result.active.map((c) => c.id)).toEqual(['c-hidden-open', 'c-visible']);
+    expect(result.inactive.map((c) => c.id).sort()).toEqual([
+      'c-hidden-busy',
+      'c-hidden-fav',
+    ]);
+    expect(result.lastActiveAt['c-hidden-busy']).toBe(TWENTY_DAYS_AGO);
+  });
+
+  it('hides hand-hidden channels even before activity data is ready', () => {
+    const result = partitionChannelsByInactivity({
+      channels: [channel('c-hidden', TWENTY_DAYS_AGO), channel('c-other', TWENTY_DAYS_AGO)],
+      signals: { 'c-hidden': { ...EMPTY_SIGNAL, hidden: true } },
+      ready: false,
+      now: NOW,
+    });
+    expect(result.active.map((c) => c.id)).toEqual(['c-other']);
+    expect(result.inactive.map((c) => c.id)).toEqual(['c-hidden']);
   });
 
   it('orders inactive items most recently active first', () => {

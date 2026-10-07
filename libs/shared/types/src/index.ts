@@ -178,6 +178,7 @@ export {
   canDeleteChannel,
   canManageChannelTabs,
   isChannelTabId,
+  isGeneralChannel,
   normalizeChannelTabLayout,
   resolveChannelTabs,
 } from './lib/channel-settings.js';
@@ -185,6 +186,15 @@ export type {
   ChannelTabId,
   ResolvedChannelTab,
 } from './lib/channel-settings.js';
+export {
+  CHANNEL_NOTIFICATION_LEVEL_LABELS,
+  channelNotificationLevel,
+  channelNotificationLevelInput,
+} from './lib/channel-notifications.js';
+export type {
+  ChannelNotificationFlags,
+  ChannelNotificationLevel,
+} from './lib/channel-notifications.js';
 
 export {
   mergeFederatedResults,

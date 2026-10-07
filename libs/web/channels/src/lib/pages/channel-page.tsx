@@ -84,6 +84,7 @@ import {
   CustomizeChannelTabsDialog,
 } from '../components/channel-tabs.js';
 import { AddAppDialog } from '../components/add-app-dialog.js';
+import { channelComposerLocks } from '../channel-composer-locks.js';
 import { JoinChannelControl } from '../components/join-channel-control.js';
 import { TemporaryMembershipBanner } from '../components/temporary-membership-banner.js';
 import { AnonymousModerationDialog } from '../components/anonymous-moderation-dialog.js';
@@ -1104,26 +1105,7 @@ export function ChannelPage() {
             /* The roster lives in the right rail's details panel. */
             showMembers={false}
             huddleRequest={huddleRequest}
-            composerReadOnlyMessage={
-              /* Lock only on an explicit `false` — a channel cached before this
-                 shipped has `canPost === undefined` and should not flash the
-                 bar until the next refetch fills it in. */
-              channel.membership && channel.canPost === false
-                ? channel.mode === 'ANNOUNCEMENT'
-                  ? 'Only admins and designated members can post in this announcement channel.'
-                  : 'You don’t have permission to post in this channel.'
-                : undefined
-            }
-            threadComposerReadOnlyMessage={
-              /* Distinct from the main composer: an announcement channel can
-                 allow top-level posts while replies are switched off
-                 (`allowReplies`), which `canPost` alone would miss. */
-              channel.membership && channel.canReply === false
-                ? channel.canPost === false
-                  ? 'Only admins and designated members can post in this announcement channel.'
-                  : 'Replies are turned off in this announcement channel.'
-                : undefined
-            }
+            {...channelComposerLocks(channel)}
             anonymousPosting={
               anonSettings.data?.canPostAnonymously
                 ? {

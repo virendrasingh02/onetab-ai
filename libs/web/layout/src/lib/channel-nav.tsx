@@ -1,14 +1,12 @@
 import {
   ActionDropdownMenu,
   Button,
-  copyToClipboard,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EntityContextMenu,
-  entityUrl,
   Hint,
   type EntityAction,
   SidebarActivityIndicator,
@@ -21,21 +19,29 @@ import {
 } from '@org/ui';
 import type { ActivityIndicator } from '@org/notifications';
 import { useMarkChannelSeen, useMarkChannelUnread } from '@org/notifications';
+import { useSplitViewStore } from './split-view/split-view-store.js';
 import { useCurrentUser } from '@org/auth';
-import { WorkspacePermission } from '@org/types';
-import type { ChannelSummary } from '@org/types';
+import {
+  channelNotificationLevelInput,
+  type ChannelNotificationLevel,
+  type ChannelSummary,
+} from '@org/types';
 import { cn } from '@org/utils';
 import { useAgents, useAgentMutations } from '@org/web-agents';
 import { useWorkflows, useWorkflowMutations } from '@org/web-automations';
 import {
   AddPeopleDialog,
+  ChannelDetailsDialog,
   EditChannelDetailsDialog,
+  buildChannelActions,
   useArchiveChannel,
+  useCanManageChannel,
   useChannelMembers,
   useChannelPreferences,
   useLeaveChannel,
   useGroupedChannels,
   useUpdateChannel,
+  type ChannelDetailsTab,
 } from '@org/web-channels';
 import {
   useIntegrations,
@@ -48,14 +54,11 @@ import {
 } from '@org/web-work-tools';
 import {
   persistLastChannel,
-  useWorkspacePermission,
   useWorkspaceStore,
   type WorkspaceState,
 } from '@org/web-workspace';
 import {
   Activity,
-  Archive,
-  Bell,
   BellOff,
   Bookmark,
   Clock,
@@ -63,18 +66,11 @@ import {
   FolderTree,
   HardDrive,
   Hash,
-  Link2,
   Lock,
-  LogOut,
-  Mail,
-  MailOpen,
   MoreHorizontal,
-  Pencil,
   Pin,
   Plus,
-  Settings2,
   SlidersHorizontal,
-  Star,
   Users,
   Video,
 } from 'lucide-react';
@@ -199,7 +195,7 @@ function ChannelRow({
   workspaceSlug,
   activity,
   onToggleFavorite,
-  onToggleMute,
+  onSetNotificationLevel,
   prompts,
   sectionOptions = [],
 }: {
@@ -208,26 +204,34 @@ function ChannelRow({
   workspaceSlug: string;
   activity?: ActivityIndicator;
   onToggleFavorite: (channel: ChannelSummary) => void;
-  onToggleMute: (channel: ChannelSummary) => void;
+  onSetNotificationLevel: (
+    channel: ChannelSummary,
+    level: ChannelNotificationLevel,
+  ) => void;
   prompts: PromptDialog;
   /** Manual sections this channel can be filed under (brief §1.1). */
   sectionOptions?: { id: string; label: string; hasChannel: boolean }[];
 }) {
   const navigate = useNavigate();
   const currentUser = useCurrentUser();
-  const { can } = useWorkspacePermission();
+  const canManage = useCanManageChannel(channel);
   const updateChannel = useUpdateChannel(workspaceId);
   const archiveChannel = useArchiveChannel(workspaceId);
   const leaveChannel = useLeaveChannel(workspaceId);
   const markChannelUnread = useMarkChannelUnread(workspaceId);
   const markChannelSeen = useMarkChannelSeen(workspaceId);
-  const [dialog, setDialog] = useState<'details' | 'members' | null>(null);
+  const openSplitView = useSplitViewStore((s) => s.open);
+  const [dialog, setDialog] = useState<
+    | { kind: 'details'; tab: ChannelDetailsTab }
+    | { kind: 'edit' | 'members' }
+    | null
+  >(null);
 
-  const priority =
-    useSidebarStore(
-      (s) => s.channelMeta[workspaceId]?.[channel.id]?.priority,
-    ) ?? 0;
+  const meta = useSidebarStore((s) => s.channelMeta[workspaceId]?.[channel.id]);
+  const priority = meta?.priority ?? 0;
+  const isHidden = meta?.hidden === true;
   const setChannelPriority = useSidebarStore((s) => s.setChannelPriority);
+  const setChannelHidden = useSidebarStore((s) => s.setChannelHidden);
   const assignChannelToSection = useSidebarStore(
     (s) => s.assignChannelToSection,
   );
@@ -238,11 +242,6 @@ function ChannelRow({
   const isFavorite = channel.membership?.isFavorite ?? false;
   const isMuted = channel.membership?.isMuted ?? false;
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
-  /* Mirrors the server's `assertCanManage` (and the channel page's gate): a
-     channel admin, or a workspace admin/owner holding `manage_settings`. */
-  const canManage =
-    channel.membership?.role === 'ADMIN' ||
-    can(WorkspacePermission.MANAGE_SETTINGS);
 
   /*
    * A muted channel keeps its mention dot but loses its ambient one. Muting
@@ -272,172 +271,89 @@ function ChannelRow({
 
   /*
    * One list drives the row's "⋯" menu, its right-click menu and the touch
-   * action sheet. Management entries are hidden (not merely disabled) for
-   * people who can't use them — the API refuses them either way.
+   * action sheet. The channel's own entries come from `buildChannelActions`;
+   * priority and sections are sidebar organisation, so they are added here.
    */
   const actions: EntityAction[] = channel.membership
-    ? [
-        {
-          id: 'open',
-          group: 'open',
-          label: 'Open channel',
-          icon: Icon,
-          run: () => {
-            persistLastChannel(workspaceId, channel.slug);
-            navigate(channelPath);
+    ? buildChannelActions({
+        channel,
+        workspaceSlug,
+        canManage,
+        hasUnread,
+        isHidden,
+        organizeActions: [
+          {
+            id: 'priority',
+            group: 'organize',
+            label: 'Priority',
+            icon: Flag,
+            children: CHANNEL_PRIORITY_LABELS.map(
+              (label, value): EntityAction => ({
+                id: `priority-${value}`,
+                label,
+                checked: priority === value,
+                run: () =>
+                  setChannelPriority(
+                    workspaceId,
+                    channel.id,
+                    value as ChannelPriority,
+                  ),
+              }),
+            ),
           },
+          {
+            id: 'section',
+            group: 'organize',
+            label: 'Move to section',
+            icon: FolderTree,
+            hidden: sectionOptions.length === 0,
+            children: sectionOptions.map(
+              (section): EntityAction => ({
+                id: `section-${section.id}`,
+                label: section.label,
+                checked: section.hasChannel,
+                run: () =>
+                  section.hasChannel
+                    ? removeChannelFromSection(workspaceId, section.id, channel.id)
+                    : assignChannelToSection(workspaceId, section.id, channel.id),
+              }),
+            ),
+          },
+        ],
+        onOpen: () => {
+          persistLastChannel(workspaceId, channel.slug);
+          navigate(channelPath);
         },
-        hasUnread
-          ? {
-              id: 'mark-read',
-              group: 'state',
-              label: 'Mark as read',
-              icon: MailOpen,
-              shortcut: 'R',
-              run: () => markChannelSeen(channel.id),
+        onOpenSplitView: () =>
+          openSplitView(workspaceId, {
+            id: channel.id,
+            slug: channel.slug,
+            name: channel.name,
+          }),
+        onOpenDetails: (tab) => setDialog({ kind: 'details', tab }),
+        onToggleFavorite: () => onToggleFavorite(channel),
+        onMarkRead: () => markChannelSeen(channel.id),
+        onMarkUnread: () => markChannelUnread(channel.id),
+        onSetNotificationLevel: (next) => onSetNotificationLevel(channel, next),
+        onToggleHidden: () =>
+          setChannelHidden(workspaceId, channel.id, !isHidden),
+        onRename: handleRename,
+        onEditDetails: () => setDialog({ kind: 'edit' }),
+        onAddPeople: () => setDialog({ kind: 'members' }),
+        onSetArchived: (archived) =>
+          archiveChannel.mutateAsync({ channelId: channel.id, archived }),
+        onLeave: currentUser
+          ? async () => {
+              await leaveChannel.mutateAsync({
+                channelId: channel.id,
+                userId: currentUser.id,
+              });
+              if (window.location.pathname.startsWith(channelPath)) {
+                navigate(`/w/${workspaceSlug}/home`);
+              }
             }
-          : {
-              id: 'mark-unread',
-              group: 'state',
-              label: 'Mark as unread',
-              icon: Mail,
-              shortcut: 'U',
-              run: () => markChannelUnread(channel.id),
-              successMessage: `#${channel.name} marked as unread`,
-            },
-        {
-          id: 'favorite',
-          group: 'state',
-          label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
-          icon: Star,
-          shortcut: 'F',
-          run: () => onToggleFavorite(channel),
-        },
-        {
-          id: 'mute',
-          group: 'state',
-          label: isMuted ? 'Unmute channel' : 'Mute channel',
-          icon: isMuted ? Bell : BellOff,
-          shortcut: 'M',
-          description: isMuted
-            ? undefined
-            : 'Hide unread activity. Mentions still notify you.',
-          run: () => onToggleMute(channel),
-        },
-        {
-          id: 'priority',
-          group: 'organize',
-          label: 'Priority',
-          icon: Flag,
-          children: CHANNEL_PRIORITY_LABELS.map(
-            (label, value): EntityAction => ({
-              id: `priority-${value}`,
-              label,
-              checked: priority === value,
-              run: () =>
-                setChannelPriority(
-                  workspaceId,
-                  channel.id,
-                  value as ChannelPriority,
-                ),
-            }),
-          ),
-        },
-        {
-          id: 'section',
-          group: 'organize',
-          label: 'Move to section',
-          icon: FolderTree,
-          hidden: sectionOptions.length === 0,
-          children: sectionOptions.map(
-            (section): EntityAction => ({
-              id: `section-${section.id}`,
-              label: section.label,
-              checked: section.hasChannel,
-              run: () =>
-                section.hasChannel
-                  ? removeChannelFromSection(workspaceId, section.id, channel.id)
-                  : assignChannelToSection(workspaceId, section.id, channel.id),
-            }),
-          ),
-        },
-        {
-          id: 'copy-link',
-          group: 'share',
-          label: 'Copy link',
-          icon: Link2,
-          shortcut: 'C',
-          run: () => copyToClipboard(entityUrl(channelPath)),
-        },
-        {
-          id: 'rename',
-          group: 'manage',
-          label: 'Rename…',
-          icon: Pencil,
-          hidden: !canManage,
-          run: handleRename,
-        },
-        {
-          id: 'details',
-          group: 'manage',
-          label: 'Edit channel details…',
-          icon: Settings2,
-          hidden: !canManage,
-          run: () => setDialog('details'),
-        },
-        {
-          id: 'members',
-          group: 'manage',
-          label: 'Add people…',
-          icon: Users,
-          hidden: !canManage,
-          run: () => setDialog('members'),
-        },
-        {
-          id: 'leave',
-          group: 'danger',
-          label: 'Leave channel…',
-          icon: LogOut,
-          destructive: true,
-          hidden: !currentUser,
-          confirm: {
-            title: `Leave #${channel.name}?`,
-            description:
-              channel.visibility === 'PRIVATE'
-                ? 'This channel is private — you’ll need to be re-invited to rejoin.'
-                : 'You can rejoin from Browse channels at any time.',
-            confirmLabel: 'Leave channel',
-            destructive: true,
-          },
-          run: async () => {
-            if (!currentUser) return;
-            await leaveChannel.mutateAsync({
-              channelId: channel.id,
-              userId: currentUser.id,
-            });
-            if (window.location.pathname.startsWith(channelPath)) {
-              navigate(`/w/${workspaceSlug}/home`);
-            }
-          },
-        },
-        {
-          id: 'archive',
-          group: 'danger',
-          label: 'Archive channel…',
-          icon: Archive,
-          destructive: true,
-          hidden: !canManage || channel.isArchived,
-          confirm: {
-            title: `Archive #${channel.name}?`,
-            description:
-              'The channel will be hidden from the sidebar and marked read-only. Its history is kept, and a workspace admin can unarchive it later.',
-            confirmLabel: 'Archive channel',
-            destructive: true,
-          },
-          run: () =>
-            archiveChannel.mutateAsync({ channelId: channel.id, archived: true }),
-        },
-      ]
+          : undefined,
+      })
     : [];
 
   const row = (
@@ -517,7 +433,18 @@ function ChannelRow({
       >
         {row}
       </EntityContextMenu>
-      {dialog === 'details' ? (
+      {dialog?.kind === 'details' && currentUser ? (
+        <ChannelDetailsDialog
+          open
+          onOpenChange={(open) => !open && setDialog(null)}
+          workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
+          channel={channel}
+          currentUserId={currentUser.id}
+          initialTab={dialog.tab}
+        />
+      ) : null}
+      {dialog?.kind === 'edit' ? (
         <EditChannelDetailsDialog
           open
           onOpenChange={(open) => !open && setDialog(null)}
@@ -525,7 +452,7 @@ function ChannelRow({
           channel={channel}
         />
       ) : null}
-      {dialog === 'members' ? (
+      {dialog?.kind === 'members' ? (
         <ChannelMembersDialog
           workspaceId={workspaceId}
           channel={channel}
@@ -564,7 +491,10 @@ interface SortableChannelRowProps {
   workspaceSlug: string;
   activity?: ActivityIndicator;
   onToggleFavorite: (channel: ChannelSummary) => void;
-  onToggleMute: (channel: ChannelSummary) => void;
+  onSetNotificationLevel: (
+    channel: ChannelSummary,
+    level: ChannelNotificationLevel,
+  ) => void;
   prompts: PromptDialog;
   sectionOptions?: { id: string; label: string; hasChannel: boolean }[];
 }
@@ -717,14 +647,17 @@ export function ChannelNav({
     [preferences],
   );
 
-  const toggleMute = useCallback(
-    (channel: ChannelSummary) =>
+  const setNotificationLevel = useCallback(
+    (channel: ChannelSummary, level: ChannelNotificationLevel) =>
       preferences.mutate({
         channelId: channel.id,
-        input: { isMuted: !channel.membership?.isMuted },
+        input: channelNotificationLevelInput(level),
       }),
     [preferences],
   );
+
+  const setChannelHidden = useSidebarStore((s) => s.setChannelHidden);
+  const openSplitView = useSplitViewStore((s) => s.open);
 
   const startNewChat = useCallback(
     () => navigate(`/w/${workspaceSlug}/home`),
@@ -896,48 +829,43 @@ export function ChannelNav({
     ],
   );
 
+  /*
+   * The Inactive menu's rows get the same channel menu as the list, minus what
+   * needs a mounted row (dialogs, rename). A hand-hidden channel is the one
+   * case with something extra to say: "Show in sidebar" puts it back.
+   */
   const inactiveChannelItems: InactiveDropdownItem[] = useMemo(() => {
     return inactiveChannels.map((channel) => {
-      const isFavorite = channel.membership?.isFavorite ?? false;
-      const isMuted = channel.membership?.isMuted ?? false;
-      const channelPath = `/w/${workspaceSlug}/c/${channel.slug}`;
+      const isHidden = channelSignals[channel.id]?.hidden === true;
       const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
 
       return {
         id: channel.id,
         name: channel.name,
-        to: channelPath,
+        to: `/w/${workspaceSlug}/c/${channel.slug}`,
         lastActiveAt: inactiveChannelLastActive[channel.id],
         icon: (
           <Icon className="size-4 text-muted-foreground shrink-0" aria-hidden />
         ),
         actions: channel.membership
-          ? [
-              {
-                id: 'favorite',
-                group: 'organize',
-                label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
-                icon: Star,
-                shortcut: 'F',
-                run: () => toggleFavorite(channel),
-              },
-              {
-                id: 'mute',
-                group: 'organize',
-                label: isMuted ? 'Unmute channel' : 'Mute channel',
-                icon: isMuted ? Bell : BellOff,
-                shortcut: 'M',
-                run: () => toggleMute(channel),
-              },
-              {
-                id: 'copy-link',
-                group: 'share',
-                label: 'Copy link',
-                icon: Link2,
-                shortcut: 'C',
-                run: () => copyToClipboard(entityUrl(channelPath)),
-              },
-            ]
+          ? buildChannelActions({
+              channel,
+              workspaceSlug,
+              canManage: false,
+              isHidden,
+              onOpenSplitView: () =>
+                openSplitView(workspaceId, {
+                  id: channel.id,
+                  slug: channel.slug,
+                  name: channel.name,
+                }),
+              onToggleFavorite: () => toggleFavorite(channel),
+              onSetNotificationLevel: (level) =>
+                setNotificationLevel(channel, level),
+              onToggleHidden: isHidden
+                ? () => setChannelHidden(workspaceId, channel.id, false)
+                : undefined,
+            })
           : undefined,
         scope: `channel:${channel.id}`,
         entityType: 'channel',
@@ -947,9 +875,13 @@ export function ChannelNav({
   }, [
     inactiveChannels,
     inactiveChannelLastActive,
+    channelSignals,
     workspaceSlug,
+    workspaceId,
     toggleFavorite,
-    toggleMute,
+    setNotificationLevel,
+    setChannelHidden,
+    openSplitView,
   ]);
 
   /* Manual sections the channel-row menu can file a channel under. */
@@ -1098,10 +1030,10 @@ export function ChannelNav({
       workspaceId,
       workspaceSlug,
       onToggleFavorite: toggleFavorite,
-      onToggleMute: toggleMute,
+      onSetNotificationLevel: setNotificationLevel,
       prompts,
     }),
-    [workspaceId, workspaceSlug, toggleFavorite, toggleMute, prompts],
+    [workspaceId, workspaceSlug, toggleFavorite, setNotificationLevel, prompts],
   );
 
   const rawStarredItems = useMemo(() => {

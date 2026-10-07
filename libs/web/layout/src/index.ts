@@ -98,4 +98,10 @@ export {
   type PartitionOptions,
 } from './lib/inactivity-utils.js';
 
+export {
+  useSplitViewChannel,
+  useSplitViewStore,
+  type SplitViewChannel,
+  type SplitViewState,
+} from './lib/split-view/split-view-store.js';
 

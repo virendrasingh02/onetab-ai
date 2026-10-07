@@ -2,7 +2,11 @@ import {
   useNotificationPreferences,
   useWorkspaceSoundMuted,
 } from '@org/notifications';
-import type { ChannelSummary, WorkspaceMember } from '@org/types';
+import {
+  channelNotificationLevel,
+  type ChannelSummary,
+  type WorkspaceMember,
+} from '@org/types';
 import { useFocusStore } from '@org/ui';
 import { useDirectMessagePreferences } from '@org/web-chat';
 import { useMemo } from 'react';
@@ -24,6 +28,8 @@ export interface ChatSoundGate {
   mentionsOnly: boolean;
   mutedChannelNames: ReadonlySet<string>;
   mutedPeerNames: ReadonlySet<string>;
+  /** Channels whose own notification level is "Just mentions". */
+  mentionsOnlyChannelNames: ReadonlySet<string>;
 }
 
 /** `"HH:MM"` (local) → minutes since midnight, or null if unparseable. */
@@ -68,16 +74,23 @@ export function useChatNotificationSoundGate(params: {
   const quietStart = prefs?.quietHoursStart ?? null;
   const quietEnd = prefs?.quietHoursEnd ?? null;
 
-  const mutedChannelNames = useMemo(() => {
+  /*
+   * A channel is silent when it's muted in the notification settings *or* its
+   * own level (the channel's bell menu) is "Nothing"; "Just mentions" lets only
+   * mentions through, and those already ring via the server mention path.
+   */
+  const { mutedChannelNames, mentionsOnlyChannelNames } = useMemo(() => {
     const ids = new Set(mutedChannelIds ?? []);
-    const names = new Set<string>();
-    if (ids.size === 0) return names;
+    const muted = new Set<string>();
+    const mentionsOnly = new Set<string>();
     for (const channel of channels ?? []) {
-      if (ids.has(channel.id) && channel.name) {
-        names.add(channel.name.toLowerCase().trim());
-      }
+      if (!channel.name) continue;
+      const name = channel.name.toLowerCase().trim();
+      const level = channelNotificationLevel(channel.membership);
+      if (ids.has(channel.id) || level === 'nothing') muted.add(name);
+      else if (level === 'mentions') mentionsOnly.add(name);
     }
-    return names;
+    return { mutedChannelNames: muted, mentionsOnlyChannelNames: mentionsOnly };
   }, [mutedChannelIds, channels]);
 
   const mutedPeerNames = useMemo(() => {
@@ -103,5 +116,6 @@ export function useChatNotificationSoundGate(params: {
     mentionsOnly: prefs?.mentionsOnly ?? false,
     mutedChannelNames,
     mutedPeerNames,
+    mentionsOnlyChannelNames,
   };
 }

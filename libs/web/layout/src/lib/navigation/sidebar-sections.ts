@@ -243,6 +243,8 @@ export interface ChannelSignal {
   isFavorite: boolean;
   /** Id of the project whose name this channel's name matches, if any. */
   matchedProjectId: string | null;
+  /** Filed under Inactive by hand ("Hide from sidebar"). */
+  hidden: boolean;
 }
 
 export const EMPTY_SIGNAL: ChannelSignal = {
@@ -254,6 +256,7 @@ export const EMPTY_SIGNAL: ChannelSignal = {
   priority: 0,
   isFavorite: false,
   matchedProjectId: null,
+  hidden: false,
 };
 
 export type ChannelSignalMap = Record<string, ChannelSignal>;
@@ -446,6 +449,10 @@ export interface ResolvedSidebarLayout {
    * Channels not claimed by any *manual* section — the list the built-in
    * "Channels" section renders (still subject to the chosen sort). Smart
    * sections mirror channels without removing them from here.
+   *
+   * Hidden channels are kept out of every section but stay *here*: the
+   * Channels section's inactivity split files them under its Inactive menu,
+   * which is where "Show in sidebar" brings them back from.
    */
   unsectioned: ChannelSummary[];
 }
@@ -471,7 +478,8 @@ export function resolveSidebarLayout(input: {
   now?: number;
 }): ResolvedSidebarLayout {
   const { channels, defs, signals, now = Date.now() } = input;
-  const byId = new Map(channels.map((c) => [c.id, c]));
+  const shown = channels.filter((c) => !signals[c.id]?.hidden);
+  const byId = new Map(shown.map((c) => [c.id, c]));
   const claimed = new Set<string>();
 
   const ordered = [...defs].sort((a, b) => a.order - b.order);
@@ -486,7 +494,7 @@ export function resolveSidebarLayout(input: {
         .filter((c): c is ChannelSummary => !!c);
       for (const c of resolved) claimed.add(c.id);
     } else if (def.rule) {
-      resolved = resolveSmartSection(def.rule, channels, signals, now);
+      resolved = resolveSmartSection(def.rule, shown, signals, now);
     } else {
       resolved = [];
     }
@@ -516,6 +524,8 @@ export interface ChannelVisitEntry {
 
 export interface ChannelMetaEntry {
   priority?: ChannelPriority;
+  /** "Hide from sidebar" — see `ChannelSignal.hidden`. */
+  hidden?: boolean;
 }
 
 /**
@@ -569,6 +579,7 @@ export function buildChannelSignals(input: {
       priority: (meta[channel.id]?.priority ?? 0) as ChannelPriority,
       isFavorite: channel.membership?.isFavorite === true,
       matchedProjectId: projectByNormalizedName.get(normName) ?? null,
+      hidden: meta[channel.id]?.hidden === true,
     };
   }
   return map;

@@ -109,6 +109,14 @@ export interface ChannelInactivityInput extends PartitionOptions {
   ready?: boolean;
 }
 
+/**
+ * Splits joined channels into the Channels list and its Inactive menu.
+ *
+ * Quiet for 30+ days ⇒ inactive, unless unread, starred or open. A channel the
+ * user hid by hand ("Hide from sidebar") is filed under Inactive whatever its
+ * activity — only the one open right now stays put, so hiding it doesn't lose
+ * the user's place.
+ */
 export function partitionChannelsByInactivity({
   channels,
   signals,
@@ -118,36 +126,58 @@ export function partitionChannelsByInactivity({
   now,
   keepActive,
 }: ChannelInactivityInput): InactivityPartition<ChannelSummary> {
-  if (!ready) return { active: [...channels], inactive: [], lastActiveAt: {} };
+  // `createdAt` floors it: a channel made last week isn't stale yet even if
+  // nobody has posted.
+  const latestActivity = (channel: ChannelSummary) =>
+    Math.max(
+      signals?.[channel.id]?.lastActivityAt ?? 0,
+      toEpoch(lastActivityAt[channel.id]),
+      toEpoch(channel.createdAt),
+    );
+
+  const hidden: ChannelSummary[] = [];
+  const candidates: ChannelSummary[] = [];
+  for (const channel of channels) {
+    if (signals?.[channel.id]?.hidden && !keepActive?.(channel.id)) {
+      hidden.push(channel);
+    } else {
+      candidates.push(channel);
+    }
+  }
 
   const favoriteIds = new Set(
-    channels.filter((c) => c.membership?.isFavorite).map((c) => c.id),
+    candidates.filter((c) => c.membership?.isFavorite).map((c) => c.id),
   );
 
-  return partitionByInactivity(
-    channels,
-    (channel) => channel.id,
-    (channel) => {
-      const signal = signals?.[channel.id];
-      if (
-        hasUnread(activity?.[channel.id]) ||
-        (signal && (signal.unreadCount > 0 || signal.mentionCount > 0))
-      ) {
-        return null;
-      }
-      // `createdAt` floors it: a channel made last week isn't stale yet even
-      // if nobody has posted.
-      return Math.max(
-        signal?.lastActivityAt ?? 0,
-        toEpoch(lastActivityAt[channel.id]),
-        toEpoch(channel.createdAt),
-      );
-    },
-    {
-      now,
-      keepActive: (id) => favoriteIds.has(id) || keepActive?.(id) === true,
-    },
+  const partition: InactivityPartition<ChannelSummary> = ready
+    ? partitionByInactivity(
+        candidates,
+        (channel) => channel.id,
+        (channel) => {
+          const signal = signals?.[channel.id];
+          if (
+            hasUnread(activity?.[channel.id]) ||
+            (signal && (signal.unreadCount > 0 || signal.mentionCount > 0))
+          ) {
+            return null;
+          }
+          return latestActivity(channel);
+        },
+        {
+          now,
+          keepActive: (id) => favoriteIds.has(id) || keepActive?.(id) === true,
+        },
+      )
+    : { active: candidates, inactive: [], lastActiveAt: {} };
+
+  if (hidden.length === 0) return partition;
+
+  const lastActiveAt = { ...partition.lastActiveAt };
+  for (const channel of hidden) lastActiveAt[channel.id] = latestActivity(channel);
+  const inactive = [...partition.inactive, ...hidden].sort(
+    (a, b) => lastActiveAt[b.id] - lastActiveAt[a.id],
   );
+  return { active: partition.active, inactive, lastActiveAt };
 }
 
 /* -------------------------------------------------------------------------- */

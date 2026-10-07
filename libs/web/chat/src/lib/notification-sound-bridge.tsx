@@ -20,6 +20,11 @@ export interface NotificationSoundBridgeProps {
   mutedChannelNames?: ReadonlySet<string>;
   /** Lower-cased display names of DM peers this user has muted. */
   mutedPeerNames?: ReadonlySet<string>;
+  /**
+   * Lower-cased names of channels whose own level is "Just mentions": the
+   * channel-level counterpart of `mentionsOnly`.
+   */
+  mentionsOnlyChannelNames?: ReadonlySet<string>;
 }
 
 /**
@@ -46,13 +51,21 @@ export function NotificationSoundBridge({
   mentionsOnly = false,
   mutedChannelNames,
   mutedPeerNames,
+  mentionsOnlyChannelNames,
 }: NotificationSoundBridgeProps) {
   const { client } = useMatrix();
 
   // Keep the latest gate values in a ref so the Matrix subscription does not
   // need to be town down and rebuilt every time a preference changes.
-  const gate = useRef({ suppressed, mentionsOnly, mutedChannelNames, mutedPeerNames });
-  gate.current = { suppressed, mentionsOnly, mutedChannelNames, mutedPeerNames };
+  const gates = {
+    suppressed,
+    mentionsOnly,
+    mutedChannelNames,
+    mutedPeerNames,
+    mentionsOnlyChannelNames,
+  };
+  const gate = useRef(gates);
+  gate.current = gates;
 
   useEffect(() => {
     if (!client) return;
@@ -86,6 +99,7 @@ export function NotificationSoundBridge({
           mentionsOnly: onlyMentions,
           mutedChannelNames: mutedChannels,
           mutedPeerNames: mutedPeers,
+          mentionsOnlyChannelNames: mentionsOnlyChannels,
         } = gate.current;
 
         if (isSuppressed) return;
@@ -118,9 +132,12 @@ export function NotificationSoundBridge({
         // server notification.
         if (!isDirect && message.isMention) return;
 
-        // "Mentions only" — a plain message gets no cue (the mention cue still
-        // comes from the server path above).
-        if (onlyMentions && !message.isMention) return;
+        // "Mentions only" — workspace-wide, or this channel's own level — a
+        // plain message gets no cue (the mention cue still comes from the
+        // server path above).
+        const channelMentionsOnly =
+          !isDirect && !!roomName && !!mentionsOnlyChannels?.has(roomName);
+        if ((onlyMentions || channelMentionsOnly) && !message.isMention) return;
 
         const isViewingConversation =
           getActiveConversation() === message.roomId &&

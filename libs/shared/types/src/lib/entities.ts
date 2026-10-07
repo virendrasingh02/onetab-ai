@@ -358,6 +358,8 @@ export interface ChannelSummary extends Channel {
     role: ChannelRole;
     isFavorite: boolean;
     isMuted: boolean;
+    /** "Just mentions" — only counts while not muted. See `channelNotificationLevel`. */
+    mentionsOnly: boolean;
     lastReadAt: IsoDateString | null;
     /** PERMANENT unless the viewer self-joined for a window (brief §8). */
     membershipType: ChannelMembershipType;

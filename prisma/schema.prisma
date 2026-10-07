@@ -757,6 +757,9 @@ model ChannelMember {
   /// Per-user star, drives the "Favorites" sidebar group.
   isFavorite     Boolean               @default(false)
   isMuted        Boolean               @default(false)
+  /// Per-user "Just mentions" notification level. Only meaningful while
+  /// `isMuted` is false — muting ("Nothing") wins, and unmuting restores it.
+  mentionsOnly   Boolean               @default(false)
   lastReadAt     DateTime?
   joinedAt       DateTime              @default(now())
   /// PERMANENT — a normal member. TEMPORARY — self-joined a public channel for

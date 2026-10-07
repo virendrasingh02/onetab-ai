@@ -86,6 +86,7 @@ export class ChannelService {
               role: true,
               isFavorite: true,
               isMuted: true,
+              mentionsOnly: true,
               lastReadAt: true,
               membershipType: true,
               expiresAt: true,
@@ -118,6 +119,7 @@ export class ChannelService {
               role: true,
               isFavorite: true,
               isMuted: true,
+              mentionsOnly: true,
               lastReadAt: true,
               membershipType: true,
               expiresAt: true,
@@ -161,6 +163,7 @@ export class ChannelService {
         role: string;
         isFavorite: boolean;
         isMuted: boolean;
+        mentionsOnly: boolean;
         lastReadAt: Date | null;
         membershipType: string;
         expiresAt: Date | null;
@@ -182,6 +185,7 @@ export class ChannelService {
             role: membershipRow.role as ChannelRole,
             isFavorite: membershipRow.isFavorite,
             isMuted: membershipRow.isMuted,
+            mentionsOnly: membershipRow.mentionsOnly,
             lastReadAt: membershipRow.lastReadAt?.toISOString() ?? null,
             membershipType:
               membershipRow.membershipType as ChannelMembershipType,
@@ -658,6 +662,14 @@ export class ChannelService {
       // Leaving needs no role, but still needs the channel to be one of this
       // workspace's — otherwise the route accepts any channel id in the world.
       await this.assertChannel(workspaceId, channelId);
+      const channel = await this.prisma.channel.findUniqueOrThrow({
+        where: { id: channelId },
+        select: { slug: true },
+      });
+      // Same rule as archive/delete: #general is everyone's channel.
+      if (channel.slug === 'general') {
+        throw new ConflictException('You cannot leave #general.');
+      }
     }
 
     await this.prisma.channelMember.deleteMany({
@@ -840,7 +852,7 @@ export class ChannelService {
     return this.listMembers(workspaceId, channelId);
   }
 
-  /** Per-user star / mute. Never affects other members. */
+  /** Per-user star / notification level. Never affects other members. */
   async setPreferences(
     workspaceId: string,
     channelId: string,
@@ -864,6 +876,9 @@ export class ChannelService {
           ? { isFavorite: input.isFavorite }
           : {}),
         ...(input.isMuted !== undefined ? { isMuted: input.isMuted } : {}),
+        ...(input.mentionsOnly !== undefined
+          ? { mentionsOnly: input.mentionsOnly }
+          : {}),
         ...(input.memberSuggestions !== undefined
           ? { memberSuggestions: input.memberSuggestions }
           : {}),

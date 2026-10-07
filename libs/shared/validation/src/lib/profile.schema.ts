@@ -351,7 +351,7 @@ export const sidebarPreferencesSchema = z
     channelSort: z.record(z.string(), z.unknown()).optional(),
     /** workspaceId → SidebarSectionDef[]. */
     sectionDefs: z.record(z.string(), z.array(z.unknown())).optional(),
-    /** workspaceId → channelId → { priority }. */
+    /** workspaceId → channelId → { priority, hidden }. */
     channelMeta: z
       .record(z.string(), z.record(z.string(), z.unknown()))
       .optional(),

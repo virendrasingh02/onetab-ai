@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware';
 import { DEFAULT_NAV_ITEMS } from './navigation.config.js';
 import {
   defaultDirectionFor,
+  type ChannelMetaEntry,
   type ChannelPriority,
   type ChannelSortDirection,
   type ChannelSortMode,
@@ -180,8 +181,8 @@ export interface SidebarState {
   channelSort: Record<string, ChannelSortPreference>;
   /** User-created (manual) + rule-driven (smart) channel sections per workspace. */
   sectionDefs: Record<string, SidebarSectionDef[]>;
-  /** Lightweight per-channel metadata (priority) per workspace. */
-  channelMeta: Record<string, Record<string, { priority?: ChannelPriority }>>;
+  /** Lightweight per-channel metadata (priority, hidden) per workspace. */
+  channelMeta: Record<string, Record<string, ChannelMetaEntry>>;
   /** Per-channel open tally per workspace — powers "frequently visited". */
   channelVisits: Record<
     string,
@@ -269,8 +270,33 @@ export interface SidebarState {
     channelId: string,
     priority: ChannelPriority,
   ) => void;
+  /** Files a channel under Inactive by hand, whatever its activity. */
+  setChannelHidden: (
+    workspaceId: string,
+    channelId: string,
+    hidden: boolean,
+  ) => void;
   recordChannelVisit: (workspaceId: string, channelId: string) => void;
   resetChannelOrganization: (workspaceId: string) => void;
+}
+
+/**
+ * Applies `patch` to one channel's meta, dropping default values (priority 0,
+ * not hidden) and then the entry itself once nothing is left — so the synced
+ * blob only ever holds channels the user actually customised.
+ */
+function patchChannelMeta(
+  wsMeta: Record<string, ChannelMetaEntry> | undefined,
+  channelId: string,
+  patch: ChannelMetaEntry,
+): Record<string, ChannelMetaEntry> {
+  const next = { ...(wsMeta ?? {}) };
+  const entry: ChannelMetaEntry = { ...next[channelId], ...patch };
+  if (!entry.priority) delete entry.priority;
+  if (!entry.hidden) delete entry.hidden;
+  if (Object.keys(entry).length === 0) delete next[channelId];
+  else next[channelId] = entry;
+  return next;
 }
 
 /** Keep the visit tally bounded so the synced blob can't grow without limit. */
@@ -711,14 +737,28 @@ export const useSidebarStore = create<SidebarState>()(
         })),
 
       setChannelPriority: (workspaceId, channelId, priority) =>
-        set((state) => {
-          const wsMeta = { ...(state.channelMeta[workspaceId] ?? {}) };
-          if (priority === 0) delete wsMeta[channelId];
-          else wsMeta[channelId] = { ...wsMeta[channelId], priority };
-          return {
-            channelMeta: { ...state.channelMeta, [workspaceId]: wsMeta },
-          };
-        }),
+        set((state) => ({
+          channelMeta: {
+            ...state.channelMeta,
+            [workspaceId]: patchChannelMeta(
+              state.channelMeta[workspaceId],
+              channelId,
+              { priority },
+            ),
+          },
+        })),
+
+      setChannelHidden: (workspaceId, channelId, hidden) =>
+        set((state) => ({
+          channelMeta: {
+            ...state.channelMeta,
+            [workspaceId]: patchChannelMeta(
+              state.channelMeta[workspaceId],
+              channelId,
+              { hidden },
+            ),
+          },
+        })),
 
       recordChannelVisit: (workspaceId, channelId) =>
         set((state) => {

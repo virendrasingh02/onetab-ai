@@ -87,7 +87,22 @@ export {
 export {
   ChannelDetailsPanel,
   type ChannelDetailsPanelProps,
+  type ChannelDetailsTab,
 } from './lib/components/channel-details-panel.js';
+
+export {
+  ChannelDetailsDialog,
+  type ChannelDetailsDialogProps,
+} from './lib/components/channel-details-dialog.js';
+
+export {
+  buildChannelActions,
+  channelPath,
+  openChannelInNewWindow,
+  type BuildChannelActionsOptions,
+} from './lib/channel-actions.js';
+export { useCanManageChannel } from './lib/use-can-manage-channel.js';
+export { channelComposerLocks } from './lib/channel-composer-locks.js';
 
 export { ChannelPage } from './lib/pages/channel-page.js';
 export { CreateChannelPage } from './lib/pages/create-channel-page.js';

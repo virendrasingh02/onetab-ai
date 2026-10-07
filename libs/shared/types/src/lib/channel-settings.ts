@@ -103,3 +103,11 @@ export function canChangeChannelVisibility(
 export function canDeleteChannel(viewer: SettingsViewer): boolean {
   return isWorkspaceAdmin(viewer);
 }
+
+/**
+ * #general is everyone's channel: the API refuses to archive, delete, make
+ * private or leave it, so the UI hides those actions rather than offer them.
+ */
+export function isGeneralChannel(channel: { slug: string }): boolean {
+  return channel.slug === 'general';
+}

@@ -78,6 +78,8 @@ export const addChannelMembersSchema = z.object({
 export const channelPreferencesSchema = z.object({
   isFavorite: z.boolean().optional(),
   isMuted: z.boolean().optional(),
+  /** "Just mentions" notification level; `isMuted` still wins while set. */
+  mentionsOnly: z.boolean().optional(),
   /** Offer to add people who aren't in the channel when you @mention them. */
   memberSuggestions: z.boolean().optional(),
 });

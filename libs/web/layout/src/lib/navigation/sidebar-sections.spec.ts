@@ -58,6 +58,7 @@ const signals: ChannelSignalMap = {
     priority: 1,
     isFavorite: false,
     matchedProjectId: null,
+    hidden: false,
   },
   'c-design': {
     unreadCount: 9,
@@ -68,6 +69,7 @@ const signals: ChannelSignalMap = {
     priority: 3,
     isFavorite: true,
     matchedProjectId: 'p-design',
+    hidden: false,
   },
   'c-random': {
     unreadCount: 0,
@@ -78,6 +80,7 @@ const signals: ChannelSignalMap = {
     priority: 0,
     isFavorite: false,
     matchedProjectId: null,
+    hidden: false,
   },
   'c-alerts': {
     unreadCount: 4,
@@ -88,6 +91,7 @@ const signals: ChannelSignalMap = {
     priority: 2,
     isFavorite: false,
     matchedProjectId: null,
+    hidden: false,
   },
 };
 
@@ -284,6 +288,24 @@ describe('resolveSidebarLayout', () => {
     expect(layout.unsectioned.map((c) => c.id).sort()).toEqual(
       ['c-alerts', 'c-general', 'c-random'].sort(),
     );
+  });
+
+  it('keeps hidden channels out of every section but in the catch-all list', () => {
+    const hiddenSignals: ChannelSignalMap = {
+      ...signals,
+      'c-design': { ...signals['c-design'], hidden: true },
+    };
+    const layout = resolveSidebarLayout({
+      channels: ALL,
+      defs: [manual, { ...smart, rule: { type: 'keyword', value: 'design' } }],
+      signals: hiddenSignals,
+      now: NOW,
+    });
+
+    expect(layout.sections[0].channels).toEqual([]);
+    expect(layout.sections[1].channels.map((c) => c.id)).not.toContain('c-design');
+    // Left in `unsectioned`, where the inactivity split files it under Inactive.
+    expect(layout.unsectioned.map((c) => c.id)).toContain('c-design');
   });
 
   it('orders sections by their `order` field', () => {

@@ -5,7 +5,11 @@ import {
   queryKeys,
   workToolsApi,
 } from '@org/api-client';
-import type { ChannelBookmark, ChannelSummary } from '@org/types';
+import {
+  channelNotificationLevel,
+  type ChannelBookmark,
+  type ChannelSummary,
+} from '@org/types';
 import type { ChatAppEntity } from '@org/chat-ui';
 import { toast } from '@org/ui';
 import type {
@@ -285,7 +289,8 @@ export function useUpdateChannel(workspaceId: string | undefined) {
 }
 
 /**
- * Star/unstar a channel, applied optimistically.
+ * Star/unstar a channel or change its notification level, applied
+ * optimistically.
  *
  * The star is a pure UI affordance in the sidebar; waiting for a round trip
  * makes it feel broken. The previous list is restored if the call fails.
@@ -318,11 +323,24 @@ export function useChannelPreferences(workspaceId: string | undefined) {
         }
       }
 
-      if (input.isMuted !== undefined) {
-        if (input.isMuted) {
-          toast.info(`Muted ${channelName}`);
-        } else {
-          toast.success(`Unmuted ${channelName}`);
+      if (input.isMuted !== undefined || input.mentionsOnly !== undefined) {
+        const before = channelNotificationLevel(targetChannel?.membership);
+        const after = channelNotificationLevel(
+          targetChannel?.membership
+            ? { ...targetChannel.membership, ...input }
+            : { isMuted: input.isMuted ?? false, mentionsOnly: input.mentionsOnly },
+        );
+        if (after !== before) {
+          if (after === 'nothing') toast.info(`Muted ${channelName}`);
+          else if (before === 'nothing' && after === 'all') {
+            toast.success(`Unmuted ${channelName}`);
+          } else {
+            toast.success(
+              after === 'mentions'
+                ? `${channelName} will only notify you about mentions`
+                : `${channelName} will notify you about all new posts`,
+            );
+          }
         }
       }
 

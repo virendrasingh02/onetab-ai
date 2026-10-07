@@ -40,6 +40,8 @@ import {
   type RoomActivityEntry,
 } from '@org/web-chat';
 import { useChatNotificationSoundGate } from './notifications/chat-sound-gate.js';
+import { useSplitViewChannel } from './split-view/split-view-store.js';
+import { ChannelSplitView } from './split-view/channel-split-view.js';
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { GlobalInviteMembersDialog } from '@org/web-invitations';
 import {
@@ -155,6 +157,7 @@ export function AppShell() {
 
   const workspacesQuery = useWorkspaces();
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
+  const splitChannel = useSplitViewChannel(workspaceId);
   const channelsQuery = useChannels(workspaceId);
   const membersQuery = useMembers(workspaceId);
 
@@ -450,6 +453,7 @@ export function AppShell() {
         mentionsOnly={chatSoundGate.mentionsOnly}
         mutedChannelNames={chatSoundGate.mutedChannelNames}
         mutedPeerNames={chatSoundGate.mutedPeerNames}
+        mentionsOnlyChannelNames={chatSoundGate.mentionsOnlyChannelNames}
       />
       <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
         {/* Top Header Bar spanning full width */}
@@ -535,6 +539,19 @@ export function AppShell() {
               </div>
             </main>
           </div>
+
+          {/* Split view: a second channel conversation in its own panel beside
+              the page ("Open in split view"). Desktop only — a phone has no
+              room for two conversations side by side. */}
+          {splitChannel && workspaceId && !isMobile ? (
+            <div className="app-content-panel min-w-80 w-[42%] bg-card shadow-2xs flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border text-card-foreground">
+              <ChannelSplitView
+                workspaceId={workspaceId}
+                workspaceSlug={slug}
+                channel={splitChannel}
+              />
+            </div>
+          ) : null}
 
           {/* Column 3 / Box 3: the switchable side rail — assistant, a
               person, the page's details, or an open Kanban card. */}
