@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import type { BaseEmailProvider } from '../email.provider.js';
+import { BaseEmailProvider } from '../email.provider.js';
 import type { EmailPayload, EmailProviderSendResult } from '../email.types.js';
 import {
   EmailAuthenticationError,
@@ -19,7 +19,7 @@ export interface ResendProviderOptions {
   initialBackoffMs?: number;
 }
 
-export class ResendProvider implements BaseEmailProvider {
+export class ResendProvider extends BaseEmailProvider {
   readonly name = 'resend';
   private readonly logger = new Logger(ResendProvider.name);
   private readonly apiKey?: string;
@@ -31,6 +31,7 @@ export class ResendProvider implements BaseEmailProvider {
   private readonly initialBackoffMs: number;
 
   constructor(options: ResendProviderOptions) {
+    super();
     this.apiKey = options.apiKey;
     this.apiUrl = options.apiUrl;
     this.defaultFrom = options.defaultFrom || 'Mie <noreply@askmie.ai>';
@@ -38,6 +39,10 @@ export class ResendProvider implements BaseEmailProvider {
     this.timeoutMs = options.timeoutMs ?? 15000;
     this.maxRetries = options.maxRetries ?? 3;
     this.initialBackoffMs = options.initialBackoffMs ?? 200;
+  }
+
+  override get configured(): boolean {
+    return Boolean(this.apiKey || this.apiUrl);
   }
 
   async send(payload: EmailPayload): Promise<EmailProviderSendResult> {
@@ -196,5 +201,62 @@ export class ResendProvider implements BaseEmailProvider {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  override async verify(): Promise<boolean> {
+    if (!this.apiKey && !this.apiUrl) return false;
+    try {
+      const statusUrl = (this.apiUrl || 'https://api.resend.com/emails').replace(/\/emails\/?$/, '/api-keys');
+      const res = await fetch(statusUrl, {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${this.apiKey}`,
+        },
+      });
+      return res.status < 500;
+    } catch {
+      return false;
+    }
+  }
+
+  override async getStatus() {
+    const isConfigured = Boolean(this.apiKey || this.apiUrl);
+    return {
+      ready: isConfigured,
+      provider: this.name,
+      isProductionReady: Boolean(this.apiKey),
+      defaultFrom: this.defaultFrom,
+      defaultReplyTo: this.defaultReplyTo,
+      details: {
+        apiUrl: this.apiUrl || 'https://api.resend.com/emails',
+        hasApiKey: Boolean(this.apiKey),
+        timeoutMs: this.timeoutMs,
+        maxRetries: this.maxRetries,
+      },
+    };
+  }
+
+  override async handleWebhook(
+    raw: unknown,
+  ): Promise<{ handled: boolean; event: string; providerMessageId?: string; status?: string }> {
+    if (!raw || typeof raw !== 'object') return { handled: false, event: 'unknown' };
+    const body = raw as { type?: string; data?: { email_id?: string; id?: string } };
+    const eventType = body.type || 'unknown';
+    const emailData = body.data || {};
+    const messageId = emailData.email_id || emailData.id;
+
+    let status = 'SENT';
+    if (eventType === 'email.delivered') status = 'DELIVERED';
+    else if (eventType === 'email.bounced') status = 'BOUNCED';
+    else if (eventType === 'email.complained') status = 'COMPLAINED';
+    else if (eventType === 'email.opened') status = 'OPENED';
+    else if (eventType === 'email.clicked') status = 'CLICKED';
+
+    return {
+      handled: true,
+      event: eventType,
+      providerMessageId: messageId,
+      status,
+    };
   }
 }

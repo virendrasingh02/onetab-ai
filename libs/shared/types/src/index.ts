@@ -532,3 +532,4 @@ export * from './lib/studio-graph.js';
  */
 export * from './lib/agent-architect.js';
 export * from './lib/migration.js';
+export * from './lib/email-templates.js';

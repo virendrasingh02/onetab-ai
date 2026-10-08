@@ -239,11 +239,17 @@ describe('ResendWebhookService', () => {
 
     expect(mockPrisma.emailDelivery.updateMany).toHaveBeenCalledWith({
       where: { providerMessageId: 're_email_abc' },
-      data: expect.objectContaining({
-        status: 'DELIVERED',
-        deliveredAt: expect.any(Date),
-      }),
+      data: { deliveredAt: expect.any(Date) },
     });
+    // The status only moves forward: a late `delivered` must not overwrite
+    // OPENED/CLICKED or undo a bounce.
+    const statusCall = mockPrisma.emailDelivery.updateMany.mock.calls[1][0];
+    expect(statusCall.data).toEqual({ status: 'DELIVERED' });
+    expect(statusCall.where.status.in).toEqual(
+      expect.arrayContaining(['QUEUED', 'SENDING', 'FAILED', 'SENT']),
+    );
+    expect(statusCall.where.status.in).not.toContain('OPENED');
+    expect(statusCall.where.status.in).not.toContain('BOUNCED');
   });
 });
 

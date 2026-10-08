@@ -722,18 +722,27 @@ export const NODE_CATALOG = [
   {
     type: 'EMAIL_SEND',
     category: 'tools',
-    label: 'Email Action (Send)',
-    subtitle: 'Transactional email send',
+    label: 'Transactional Email Action',
+    subtitle: 'Centralized email send',
     icon: 'Mail',
     color: 'orange',
-    description: 'Sends outbound emails with templates, attachments, and tracking headers.',
+    description: 'Dispatches reliable transactional emails via the platform Email Service using template keys or custom content.',
     inputs: [
-      { name: 'to', type: 'string', description: 'Recipient email' },
-      { name: 'subject', type: 'string', description: 'Email subject' },
-      { name: 'html', type: 'string', description: 'Email body' },
+      { name: 'to', type: 'string', description: 'Recipient email address' },
+      { name: 'templateKey', type: 'string', description: 'Template key (e.g. AGENT_APPROVAL_REQUIRED, AGENT_EXECUTION_COMPLETED)' },
+      { name: 'templateData', type: 'object', description: 'Dynamic variables for the template' },
+      { name: 'subject', type: 'string', description: 'Custom subject override (optional)' },
+      { name: 'html', type: 'string', description: 'Custom HTML body override (optional)' },
     ],
-    outputs: [{ name: 'sentMessageId', type: 'string', description: 'Dispatch UUID' }],
-    defaultConfig: { from: 'notifications@agent.onetab.ai' },
+    outputs: [
+      { name: 'sentMessageId', type: 'string', description: 'Dispatch UUID' },
+      { name: 'delivered', type: 'boolean', description: 'Delivery success status' },
+    ],
+    defaultConfig: {
+      templateKey: 'AGENT_RESULT_AVAILABLE',
+      useCentralizedService: true,
+      from: 'notifications@agent.onetab.ai',
+    },
   },
 
   // ==========================================

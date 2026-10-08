@@ -4,6 +4,7 @@ import { AuthModule } from '@org/api-auth';
 import { CacheModule } from '@org/api-cache';
 import { PrismaModule } from '@org/database';
 import { AdminController } from './admin.controller.js';
+import { AdminMailController } from './admin-mail.controller.js';
 import { AdminService } from './admin.service.js';
 import { AdminAnalyticsController } from './admin-analytics.controller.js';
 import { AdminAnalyticsService } from './admin-analytics.service.js';
@@ -15,6 +16,7 @@ import { AppVersionsService } from './app-versions.service.js';
   imports: [ConfigModule, PrismaModule, AuthModule, CacheModule],
   controllers: [
     AdminController,
+    AdminMailController,
     AdminAnalyticsController,
     AdminAppVersionsController,
     AppVersionsPublicController,

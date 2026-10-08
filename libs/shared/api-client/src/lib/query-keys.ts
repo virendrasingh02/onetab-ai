@@ -495,6 +495,13 @@ export const queryKeys = {
     transcripts: (workspaceId: string, callId: string) =>
       ['calls', workspaceId, 'transcripts', callId] as const,
   },
+  emailTemplates: {
+    all: () => ['email-templates'] as const,
+    list: (params?: Record<string, unknown>) => ['email-templates', 'list', params] as const,
+    detail: (key: string, workspaceId?: string) => ['email-templates', 'detail', key, workspaceId] as const,
+    providers: () => ['email-templates', 'providers'] as const,
+    events: () => ['email-templates', 'events'] as const,
+  },
 } as const;
 
 

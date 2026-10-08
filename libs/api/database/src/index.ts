@@ -48,6 +48,8 @@ export {
   AppReleaseStatus,
   CoworkerStatus,
   EmailDeliveryStatus,
+  EmailTemplateCategory,
+  EmailTemplateStatus,
 } from './generated/client.js';
 
 export type {
@@ -129,6 +131,8 @@ export type {
   ProjectCoworker,
   EmailDelivery,
   EmailVerificationToken,
+  EmailTemplate,
+  OtpCode,
   MigrationStatus,
   MigrationStage,
   StepStatus,

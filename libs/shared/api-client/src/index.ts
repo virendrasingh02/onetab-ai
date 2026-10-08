@@ -67,6 +67,7 @@ export {
   aiFeedbackApi,
   callsApi,
   migrationsApi,
+  emailTemplatesApi,
   type AuthResponse,
   type SignInResponse,
   isTwoFactorChallenge,

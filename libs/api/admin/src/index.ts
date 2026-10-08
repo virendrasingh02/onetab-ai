@@ -12,3 +12,4 @@ export {
 export { AdminAnalyticsController } from './lib/admin-analytics.controller.js';
 export { AdminAnalyticsService } from './lib/admin-analytics.service.js';
 
+export { AdminMailController } from './lib/admin-mail.controller.js';

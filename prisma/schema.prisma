@@ -333,6 +333,7 @@ model Workspace {
   calendarEvents            CalendarEvent[]
   channels                  Channel[]
   emailDeliveries           EmailDelivery[]
+  emailTemplates            EmailTemplate[]
   anonymousSettings         ChannelAnonymousSetting[]
   anonymousMessages         AnonymousMessage[]
   anonymousModerationEvents AnonymousModerationEvent[]
@@ -942,6 +943,75 @@ model EmailDelivery {
   @@index([createdAt])
   @@index([providerMessageId])
   @@map("email_deliveries")
+}
+
+enum EmailTemplateCategory {
+  AUTHENTICATION
+  WORKSPACE
+  TEAM
+  PROJECTS
+  TASKS
+  DOCS
+  MESSAGING
+  MEETINGS
+  AI_AGENTS
+  HIRE
+  VOICE
+  BILLING
+  SECURITY
+  SYSTEM
+}
+
+enum EmailTemplateStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+model EmailTemplate {
+  id               String                 @id @default(cuid())
+  templateKey      String
+  name             String
+  category         EmailTemplateCategory  @default(SYSTEM)
+  description      String?
+  subject          String
+  previewText      String?
+  htmlBody         String
+  textBody         String?
+  variablesSchema  Json?
+  status           EmailTemplateStatus    @default(ACTIVE)
+  version          Int                    @default(1)
+  workspaceId      String?
+  isSystemTemplate Boolean                @default(false)
+  isDefault        Boolean                @default(false)
+  createdBy        String?
+  updatedBy        String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  workspace        Workspace?             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([templateKey, workspaceId])
+  @@index([templateKey])
+  @@index([category])
+  @@index([workspaceId])
+  @@map("email_templates")
+}
+
+model OtpCode {
+  id          String    @id @default(cuid())
+  identifier  String
+  codeHash    String
+  purpose     String    @default("LOGIN")
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  usedAt      DateTime?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([identifier, purpose])
+  @@index([expiresAt])
+  @@map("otp_codes")
 }
 
 /// The second step of a sign-in for an account with two-factor on: the first

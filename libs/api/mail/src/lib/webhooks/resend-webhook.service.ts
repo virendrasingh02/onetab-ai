@@ -16,6 +16,19 @@ export interface ResendWebhookPayload {
   };
 }
 
+/** Lifecycle order of a delivery; bounces and complaints are final. */
+const STATUS_RANK: Record<EmailDeliveryStatus, number> = {
+  QUEUED: 0,
+  SENDING: 0,
+  FAILED: 0,
+  SENT: 1,
+  DELIVERED: 2,
+  OPENED: 3,
+  CLICKED: 4,
+  BOUNCED: 5,
+  COMPLAINED: 5,
+};
+
 @Injectable()
 export class ResendWebhookService {
   private readonly logger = new Logger(ResendWebhookService.name);
@@ -132,17 +145,21 @@ export class ResendWebhookService {
     }
 
     try {
-      const updateData: Record<string, unknown> = {
-        status: mapping.status,
-      };
-
       if (mapping.timestampField) {
-        updateData[mapping.timestampField] = new Date();
+        await this.prisma.emailDelivery.updateMany({
+          where: { providerMessageId: emailId },
+          data: { [mapping.timestampField]: new Date() },
+        });
       }
-
+      // Events can arrive out of order; only ever move the status forward so a
+      // late `delivered` cannot overwrite `opened`, nor anything undo a bounce.
+      const rank = STATUS_RANK[mapping.status];
       await this.prisma.emailDelivery.updateMany({
-        where: { providerMessageId: emailId },
-        data: updateData,
+        where: {
+          providerMessageId: emailId,
+          status: { in: (Object.keys(STATUS_RANK) as EmailDeliveryStatus[]).filter((st) => STATUS_RANK[st] < rank) },
+        },
+        data: { status: mapping.status },
       });
     } catch (err) {
       this.logger.error(`Failed to update email delivery from webhook for id ${emailId}`, err);

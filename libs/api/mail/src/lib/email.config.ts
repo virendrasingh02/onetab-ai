@@ -8,6 +8,8 @@ export interface EmailConfig {
   resendApiKey?: string;
   resendApiUrl: string;
   resendWebhookSecret?: string;
+  /** Explicit `MAIL_PROVIDER` choice (resend | sendgrid | smtp | log). */
+  provider?: string;
   appName: string;
   appUrl: string;
   magicLinkExpiresMinutes: number;
@@ -37,6 +39,8 @@ export function resolveEmailConfig(config: ConfigService): EmailConfig {
 
   const appName = config.get<string>('APP_NAME') || 'Mie';
   const appUrl = (config.get<string>('APP_URL') || 'http://localhost:4200').replace(/\/+$/, '');
+  /** Picks the outbound driver when MAIL_TRANSPORT=http; unset = first configured. */
+  const provider = config.get<string>('MAIL_PROVIDER')?.trim().toLowerCase() || undefined;
 
   const from = config.get<string>('MAIL_FROM') || `${appName} <noreply@askmie.ai>`;
   const replyTo = config.get<string>('MAIL_REPLY_TO') || 'support@askmie.ai';
@@ -59,6 +63,7 @@ export function resolveEmailConfig(config: ConfigService): EmailConfig {
     resendApiKey,
     resendApiUrl,
     resendWebhookSecret,
+    provider,
     appName,
     appUrl,
     magicLinkExpiresMinutes,

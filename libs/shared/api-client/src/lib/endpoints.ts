@@ -301,6 +301,10 @@ import type {
   ArchitectDiagnosisResult,
   ArchitectOptimizeResult,
   CanvasAgentActivation,
+  EmailTemplateDefinition,
+  RenderedTemplateResult,
+  EmailSendResult,
+  EmailProvidersOverview,
 } from '@org/types';
 
 import type {
@@ -5090,6 +5094,38 @@ export const migrationsApi = {
       ),
     ),
 };
+
+/** Operator-only (SUPERADMIN) transactional email console. */
+export const emailTemplatesApi = {
+  list: (params: { category?: string; status?: string; search?: string; workspaceId?: string } = {}) =>
+    request<EmailTemplateDefinition[]>(http.get('/admin/mail/templates', { params })),
+
+  get: (key: string, workspaceId?: string) =>
+    request<EmailTemplateDefinition>(http.get(`/admin/mail/templates/${key}`, { params: { workspaceId } })),
+
+  update: (key: string, data: Partial<EmailTemplateDefinition> & { workspaceId?: string | null }) =>
+    request<EmailTemplateDefinition>(http.put(`/admin/mail/templates/${key}`, data)),
+
+  preview: (key: string, body: { data?: Record<string, unknown>; workspaceId?: string | null; customHtml?: string; customSubject?: string }) =>
+    request<RenderedTemplateResult>(http.post(`/admin/mail/templates/${key}/preview`, body)),
+
+  test: (key: string, body: { recipient: string; data?: Record<string, unknown>; workspaceId?: string | null }) =>
+    request<EmailSendResult>(http.post(`/admin/mail/templates/${key}/test`, body)),
+
+  reset: (key: string, workspaceId?: string | null) =>
+    request<EmailTemplateDefinition | { message: string }>(
+      http.post(`/admin/mail/templates/${key}/reset`, {}, { params: { workspaceId: workspaceId ?? undefined } }),
+    ),
+
+  providers: () => request<EmailProvidersOverview>(http.get('/admin/mail/providers')),
+
+  verifyProvider: (provider: string) =>
+    request<{ name: string; verified: boolean; message: string }>(http.post(`/admin/mail/providers/${provider}/verify`)),
+
+  events: () =>
+    request<Array<{ eventName: string; templateKey: string; description: string }>>(http.get('/admin/mail/events')),
+};
+
 
 
 

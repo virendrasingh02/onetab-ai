@@ -25,8 +25,9 @@ export class ResendWebhookController {
     @Body() body: ResendWebhookPayload,
     @Headers() headers: Record<string, string | string[] | undefined>,
   ): Promise<{ received: boolean }> {
-    // If rawBody is attached by express, use it; otherwise stringify body
-    const rawBody = (req as any).rawBody || JSON.stringify(body);
+    // main.ts keeps the raw bytes for webhook routes; the stringify fallback
+    // only serves callers (tests) that bypass that body parser.
+    const rawBody = (req as Request & { rawBody?: Buffer }).rawBody ?? JSON.stringify(body);
 
     const isValid = this.webhookService.verifySignature(rawBody, headers);
     if (!isValid) {

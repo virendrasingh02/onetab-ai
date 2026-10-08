@@ -36,6 +36,7 @@
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
     "@org/api-cache": "*",
+    "@org/api-mail": "*",
     "@org/database": "*",
     "@org/types": "*",
     "@org/utils": "*"

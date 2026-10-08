@@ -96,7 +96,18 @@ async function bootstrap() {
   app.use(compression({ threshold: 1024 }));
 
   // Request body parsing limits
-  app.use(json({ limit: '50mb' }));
+  app.use(
+    json({
+      limit: '50mb',
+      // Signed webhooks (Resend/Svix) must be verified against the exact bytes
+      // received; re-serialising the parsed body does not reproduce them.
+      verify: (req, _res, buf) => {
+        if (req.url?.includes('/webhooks/')) {
+          (req as typeof req & { rawBody?: Buffer }).rawBody = buf;
+        }
+      },
+    }),
+  );
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));

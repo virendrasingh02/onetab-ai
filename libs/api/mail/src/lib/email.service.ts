@@ -1,10 +1,15 @@
 import { Injectable, Logger, Optional, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '@org/database';
+import { PrismaService, type Prisma } from '@org/database';
+import type { SendTransactionalEmailOptions } from '@org/types';
 import { resolveEmailConfig, type EmailConfig } from './email.config.js';
-import { BaseEmailProvider } from './email.provider.js';
-import { ResendProvider } from './providers/resend.provider.js';
-import { LogEmailProvider } from './providers/log.provider.js';
+import { EmailProviderManager } from './providers/provider-manager.js';
+import { TemplateRegistry } from './templates/registry.js';
+import { TemplateRenderer } from './templates/template-renderer.js';
+import { EmailQueue } from './queue/email-queue.js';
+import { OtpManager, type GenerateOtpOptions, type VerifyOtpOptions, type VerifyOtpResult } from './otp/otp.manager.js';
+import { NotificationPreferenceManager } from './preferences/notification-preference.manager.js';
+import { EmailEventRegistry } from './events/email-event.registry.js';
 import {
   EMAIL_TYPES,
   type EmailPayload,
@@ -12,10 +17,7 @@ import {
   type MailMessage,
   type SendEmailOptions,
 } from './email.types.js';
-import {
-  EmailConfigurationError,
-  EmailError,
-} from './email.errors.js';
+import { EmailConfigurationError, EmailError } from './email.errors.js';
 import {
   workspaceInvitationEmail,
   magicSignInEmail,
@@ -33,40 +35,66 @@ import {
   type SecurityAlertEmailVars,
 } from './templates/index.js';
 
+/** Statuses meaning the provider already accepted this message. */
+const ALREADY_SENT = new Set(['SENT', 'DELIVERED', 'OPENED', 'CLICKED']);
+
+function maskRecipient(address: string): string {
+  const [local, domain] = address.split('@');
+  return domain ? `${local.slice(0, 2)}***@${domain}` : '***';
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 @Injectable()
 export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private readonly emailConfig: EmailConfig;
-  private readonly provider: BaseEmailProvider;
+
+  readonly templateRegistry: TemplateRegistry;
+  readonly templateRenderer: TemplateRenderer;
+  readonly providerManager: EmailProviderManager;
+  readonly queue: EmailQueue;
+  readonly otp: OtpManager;
+  readonly preferences: NotificationPreferenceManager;
+  readonly events: EmailEventRegistry;
 
   constructor(
     private readonly config: ConfigService,
     @Optional() private readonly prisma?: PrismaService,
+    @Optional() templateRegistry?: TemplateRegistry,
+    @Optional() templateRenderer?: TemplateRenderer,
+    @Optional() providerManager?: EmailProviderManager,
+    @Optional() queue?: EmailQueue,
+    @Optional() otpManager?: OtpManager,
+    @Optional() preferenceManager?: NotificationPreferenceManager,
+    @Optional() eventRegistry?: EmailEventRegistry,
   ) {
     this.emailConfig = resolveEmailConfig(this.config);
 
-    if (this.emailConfig.transport === 'http' && this.emailConfig.mode !== 'test') {
-      const url = this.config.get<string>('RESEND_API_URL') || this.config.get<string>('MAIL_API_URL');
-      this.provider = new ResendProvider({
-        apiKey: this.emailConfig.resendApiKey,
-        apiUrl: url,
-        defaultFrom: this.emailConfig.from,
-        defaultReplyTo: this.emailConfig.replyTo,
-        maxRetries: 0, // default no extra retries in direct call; transient retry enabled in production
-      });
-    } else {
-      this.provider = new LogEmailProvider(this.emailConfig.mode);
-    }
+    // Collaborators come from DI in the app; the fallbacks keep the service
+    // constructible on its own (tests, scripts).
+    this.templateRegistry = templateRegistry ?? new TemplateRegistry(this.prisma);
+    this.templateRenderer = templateRenderer ?? new TemplateRenderer();
+    this.providerManager = providerManager ?? new EmailProviderManager(this.config);
+    this.queue = queue ?? new EmailQueue();
+    this.otp = otpManager ?? new OtpManager(this.config, this.prisma);
+    this.preferences = preferenceManager ?? new NotificationPreferenceManager(this.prisma);
+    this.events = eventRegistry ?? new EmailEventRegistry();
+
+    this.queue.setProcessor((opts) => this.send(opts));
   }
 
   onModuleInit(): void {
     if (this.emailConfig.isProduction && this.emailConfig.transport === 'http') {
-      if (!this.emailConfig.resendApiKey) {
+      if (!this.providerManager.getPrimaryProvider().configured) {
         throw new EmailConfigurationError(
-          'RESEND_API_KEY is missing. In production with MAIL_TRANSPORT=http, a valid Resend API key is required.',
+          `MAIL_TRANSPORT=http in production but email provider "${this.providerManager.primaryName}" is not configured ` +
+            '(set RESEND_API_KEY or SENDGRID_API_KEY, optionally MAIL_PROVIDER).',
         );
       }
-      if (!this.emailConfig.from) {
+      if (!this.config.get<string>('MAIL_FROM')) {
         throw new EmailConfigurationError(
           'MAIL_FROM is missing. In production with MAIL_TRANSPORT=http, MAIL_FROM must be configured.',
         );
@@ -87,166 +115,241 @@ export class EmailService implements OnModuleInit {
   }
 
   /**
-   * Primary entry point for sending emails.
+   * Primary low-level entry point for sending emails.
    * Never throws to the caller — failures are logged, recorded in audit records,
    * and reflected in `delivered: false`.
    */
   async send(options: SendEmailOptions | MailMessage): Promise<EmailSendResult> {
-    const to = options.to;
-    const recipients = Array.isArray(to) ? to : [to];
-    const recipientStr = recipients.join(',');
-    const subject = options.subject || '';
-    const html = options.html || '';
-    const text = options.text || '';
-    const type = 'type' in options && options.type ? options.type : 'CUSTOM';
-    const userId = 'userId' in options ? options.userId ?? null : null;
-    const workspaceId = 'workspaceId' in options ? options.workspaceId ?? null : null;
-    const idempotencyKey = 'idempotencyKey' in options ? options.idempotencyKey : undefined;
+    const recipients = Array.isArray(options.to) ? options.to : [options.to];
+    const type = options.type || 'CUSTOM';
+    const userId = options.userId ?? null;
+    const workspaceId = options.workspaceId ?? null;
+    const idempotencyKey = options.idempotencyKey || undefined;
+    const metadata = options.metadata as Prisma.InputJsonValue | undefined;
 
-    // Idempotency check: if an email with this idempotency key was already sent, avoid duplicate send
+    // Idempotency: a key the provider already accepted is not sent twice. A
+    // previous FAILED attempt is remembered so the retry updates that row
+    // (the key is unique) instead of failing to record it.
+    let priorAttemptId: string | undefined;
     if (idempotencyKey && this.prisma) {
       try {
         const existing = await this.prisma.emailDelivery.findUnique({
           where: { idempotencyKey },
           select: { id: true, status: true, providerMessageId: true, provider: true },
         });
-
-        if (existing && (existing.status === 'SENT' || existing.status === 'DELIVERED')) {
-          this.logger.log({
-            event: 'email.deduplicated',
-            idempotencyKey,
-            providerMessageId: existing.providerMessageId,
-            type,
-            status: 'skipped_duplicate',
-          });
+        if (existing && ALREADY_SENT.has(existing.status)) {
+          this.logger.log({ event: 'email.deduplicated', idempotencyKey, type });
           const dedupeResult: EmailSendResult = {
             delivered: true,
             transport: this.transport,
             skippedDuplicate: true,
+            deliveryId: existing.id,
           };
           if (existing.providerMessageId) dedupeResult.id = existing.providerMessageId;
           if (existing.provider) dedupeResult.provider = existing.provider;
-          if (existing.id) dedupeResult.deliveryId = existing.id;
           return dedupeResult;
         }
+        priorAttemptId = existing?.id;
       } catch (err) {
-        this.logger.warn(`Idempotency check query failed: ${err instanceof Error ? err.message : String(err)}`);
+        this.logger.warn(`Idempotency check query failed: ${errorMessage(err)}`);
       }
     }
 
     const payload: EmailPayload = {
-      to,
-      subject,
-      html,
-      text,
+      to: options.to,
+      subject: options.subject || '',
+      html: options.html || '',
+      text: options.text || '',
       from: options.from || this.from,
       replyTo: options.replyTo || this.replyTo,
       headers: options.headers,
       idempotencyKey,
       tags: [
-        { name: 'type', value: type },
+        // Resend tag values only allow [A-Za-z0-9_-].
+        { name: 'type', value: String(type).replace(/[^A-Za-z0-9_-]/g, '_') },
         ...(workspaceId ? [{ name: 'workspace_id', value: workspaceId }] : []),
       ],
     };
+    const base = { type, recipient: recipients.join(','), userId, workspaceId, metadata };
 
     try {
-      const sendResult = await this.provider.send(payload);
-
-      // Persist delivery audit record
-      let deliveryRecordId: string | undefined;
-      if (this.prisma) {
-        try {
-          const record = await this.prisma.emailDelivery.create({
-            data: {
-              type,
-              recipient: recipientStr,
-              userId,
-              workspaceId,
-              provider: sendResult.provider,
-              providerMessageId: sendResult.id,
-              status: 'SENT',
-              idempotencyKey: idempotencyKey ?? null,
-              sentAt: new Date(),
-              metadata: 'metadata' in options && options.metadata ? (options.metadata as any) : undefined,
-            },
-            select: { id: true },
-          });
-          deliveryRecordId = record.id;
-        } catch (dbErr) {
-          this.logger.warn(`Failed to persist email delivery record: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`);
-        }
-      }
-
-      // Structured observability log (masking recipient address for privacy)
-      const maskedRecipient = recipients.map((r) => {
-        const parts = r.split('@');
-        return parts.length === 2 ? `${parts[0].slice(0, 2)}***@${parts[1]}` : '***';
-      }).join(', ');
+      const sent = await this.providerManager.send(payload);
+      const deliveryId = await this.recordDelivery(priorAttemptId, idempotencyKey, {
+        ...base,
+        provider: sent.provider,
+        providerMessageId: sent.id || null,
+        status: 'SENT',
+        errorCode: null,
+        errorMessage: null,
+        sentAt: new Date(),
+      });
 
       this.logger.log({
         event: 'email.sent',
         type,
-        provider: sendResult.provider,
-        providerMessageId: sendResult.id,
+        provider: sent.provider,
+        providerMessageId: sent.id,
         workspaceId,
-        recipient: maskedRecipient,
-        status: 'sent',
+        recipient: recipients.map(maskRecipient).join(', '),
       });
 
-      const response: EmailSendResult = {
-        delivered: true,
-        transport: this.transport,
-      };
-      if (this.transport === 'http' && sendResult.id) {
-        response.id = sendResult.id;
-      }
-      if (deliveryRecordId) {
-        response.deliveryId = deliveryRecordId;
-      }
+      const response: EmailSendResult = { delivered: true, transport: this.transport };
+      if (this.transport === 'http' && sent.id) response.id = sent.id;
+      if (deliveryId) response.deliveryId = deliveryId;
       return response;
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       const errorCode = err instanceof EmailError ? err.code : 'SEND_ERROR';
 
-      // Persist failed delivery attempt
-      if (this.prisma) {
-        try {
-          await this.prisma.emailDelivery.create({
-            data: {
-              type,
-              recipient: recipientStr,
-              userId,
-              workspaceId,
-              provider: this.provider.name,
-              status: 'FAILED',
-              idempotencyKey: idempotencyKey ?? null,
-              errorCode,
-              errorMessage: errorMsg.slice(0, 500),
-              metadata: 'metadata' in options && options.metadata ? (options.metadata as any) : undefined,
-            },
-          });
-        } catch (dbErr) {
-          this.logger.warn(`Failed to persist failed email delivery record: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`);
-        }
-      }
+      await this.recordDelivery(priorAttemptId, idempotencyKey, {
+        ...base,
+        provider: this.providerManager.primaryName,
+        status: 'FAILED',
+        errorCode,
+        errorMessage: message.slice(0, 500),
+      });
 
       this.logger.error({
         event: 'email.failed',
         type,
-        provider: this.provider.name,
+        provider: this.providerManager.primaryName,
         workspaceId,
         errorCode,
-        error: errorMsg,
+        error: message,
       });
 
-      return {
-        delivered: false,
-        transport: this.transport,
-      };
+      return { delivered: false, transport: this.transport };
     }
   }
 
-  // --- High-Level Transactional Email Helpers ---
+  /** Writes the audit row; best-effort, never fails the send. */
+  private async recordDelivery(
+    priorAttemptId: string | undefined,
+    idempotencyKey: string | undefined,
+    data: Omit<Prisma.EmailDeliveryUncheckedCreateInput, 'idempotencyKey'>,
+  ): Promise<string | undefined> {
+    if (!this.prisma) return undefined;
+    try {
+      const record = priorAttemptId
+        ? await this.prisma.emailDelivery.update({
+            where: { id: priorAttemptId },
+            data,
+            select: { id: true },
+          })
+        : await this.prisma.emailDelivery.create({
+            data: { ...data, idempotencyKey: idempotencyKey ?? null },
+            select: { id: true },
+          });
+      return record.id;
+    } catch (err) {
+      this.logger.warn(`Failed to persist email delivery record: ${errorMessage(err)}`);
+      return undefined;
+    }
+  }
+
+  /**
+   * Universal transactional email pipeline: preference gate → template
+   * resolution (workspace override → platform override → system default) →
+   * render → send.
+   */
+  async sendTransactionalEmail(options: SendTransactionalEmailOptions): Promise<EmailSendResult> {
+    const { templateKey, recipient, data, workspaceId, userId, idempotencyKey, metadata, branding, forceSend } = options;
+
+    const prefResult = await this.preferences.canSendEmail({ templateKey, userId, workspaceId, forceSend });
+    if (!prefResult.shouldSend) {
+      this.logger.log({
+        event: 'email.suppressed_by_preference',
+        templateKey,
+        userId,
+        workspaceId,
+        reason: prefResult.reason,
+      });
+      return {
+        delivered: false,
+        transport: this.transport,
+        skippedDuplicate: false,
+        error: `Email delivery suppressed by user preferences (${prefResult.reason})`,
+      };
+    }
+
+    const template = await this.templateRegistry.getTemplate(templateKey, workspaceId);
+    if (!template) {
+      this.logger.error(`Template "${templateKey}" not found in registry.`);
+      return { delivered: false, transport: this.transport, error: `Template "${templateKey}" not found` };
+    }
+
+    const workspace = (data.workspace ?? {}) as { name?: string; logo?: string };
+    const rendered = this.templateRenderer.render(template, {
+      data: { appName: this.emailConfig.appName, ...data },
+      branding: {
+        workspaceName: branding?.workspaceName || workspace.name,
+        workspaceLogo: branding?.workspaceLogo || workspace.logo,
+        primaryColor: branding?.primaryColor,
+        customFooter: branding?.customFooter,
+      },
+      timezone: branding?.timezone,
+      locale: branding?.language,
+      appUrl: this.emailConfig.appUrl,
+    });
+
+    return this.send({
+      type: template.templateKey,
+      to: recipient,
+      userId: userId ?? null,
+      workspaceId: workspaceId ?? null,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      replyTo: branding?.replyTo,
+      idempotencyKey,
+      metadata: {
+        ...metadata,
+        templateVersion: template.version,
+        isCustomTemplate: !template.isSystemTemplate,
+      },
+    });
+  }
+
+  /**
+   * Issues a one-time code and mails it to the identifier it was issued for.
+   * The code only ever goes to that address, so whoever can read the inbox is
+   * who can verify it.
+   */
+  async sendOtp(options: GenerateOtpOptions & { appName?: string; loginUrl?: string }): Promise<{
+    recordId: string;
+    expiresInMinutes: number;
+    delivery: EmailSendResult;
+  }> {
+    const otpResult = await this.otp.createOtp(options);
+    const delivery = await this.sendTransactionalEmail({
+      templateKey: 'AUTH_OTP',
+      recipient: options.identifier.trim().toLowerCase(),
+      data: {
+        otp: {
+          code: otpResult.code,
+          expiresIn: `${otpResult.expiresInMinutes} minutes`,
+        },
+        appName: options.appName || this.emailConfig.appName,
+        security: {
+          loginUrl: options.loginUrl || `${this.emailConfig.appUrl}/login`,
+        },
+      },
+      idempotencyKey: `otp:${otpResult.recordId}`,
+      forceSend: true,
+    });
+
+    return {
+      recordId: otpResult.recordId,
+      expiresInMinutes: otpResult.expiresInMinutes,
+      delivery,
+    };
+  }
+
+  async verifyOtp(options: VerifyOtpOptions): Promise<VerifyOtpResult> {
+    return this.otp.verifyOtp(options);
+  }
+
+  // --- High-Level Transactional Email Helpers (Backward Compatibility) ---
 
   async sendWorkspaceInvitation(
     vars: WorkspaceInvitationEmailVars & {
