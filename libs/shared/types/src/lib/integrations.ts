@@ -24,6 +24,8 @@ export interface IntegrationCapabilities {
   displayName: string;
   description: string;
   category: string;
+  /** Precise connector-center category (`email`, `calendar`…); see `@org/types` connectors. */
+  connectorCategory?: string;
   authType: IntegrationAuthType;
   supportsSync: boolean;
   supportsWebhooks: boolean;

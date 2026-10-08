@@ -4,6 +4,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import type {
+  AppActionDefinition,
+  AppActionResult,
+  ConnectorTriggerDefinition,
   IntegrationAccount,
   IntegrationCapabilities,
   IntegrationCustomApiConfig,
@@ -17,14 +20,153 @@ import type {
   SyncResult,
   WebhookProcessResult,
 } from '../core/provider-adapter.interface.js';
+import { IntegrationEncryptionService } from '../core/integration-encryption.service.js';
 import { SSRFGuardService } from '../core/ssrf-guard.service.js';
+
+/**
+ * A custom API connection's request config from its stored metadata, with
+ * the encrypted key / token / password / headers decrypted.
+ */
+export function customApiConfigFromMetadata(
+  metadata: Record<string, unknown>,
+  decrypt: (ciphertext: string) => string,
+): IntegrationCustomApiConfig {
+  const m = metadata as Record<string, any>;
+  return {
+    baseUrl: m.baseUrl,
+    authType: m.authType,
+    apiKey: m.encryptedApiKey ? decrypt(m.encryptedApiKey) : m.apiKey,
+    apiKeyHeader: m.apiKeyHeader,
+    apiKeyQueryParam: m.apiKeyQueryParam,
+    bearerToken: m.encryptedBearer ? decrypt(m.encryptedBearer) : m.bearerToken,
+    basicUsername: m.basicUsername,
+    basicPassword: m.encryptedBasicPass ? decrypt(m.encryptedBasicPass) : m.basicPassword,
+    customHeaders: m.encryptedCustomHeaders
+      ? (JSON.parse(decrypt(m.encryptedCustomHeaders)) as Record<string, string>)
+      : m.customHeaders,
+    queryParams: m.queryParams,
+    timeoutMs: m.timeoutMs,
+    retryAttempts: m.retryAttempts,
+  };
+}
+
+const asRecord = (value: unknown): Record<string, string> | undefined => {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    try {
+      return asRecord(JSON.parse(value));
+    } catch {
+      return undefined;
+    }
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) return undefined;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, String(v)]));
+};
 
 @Injectable()
 export class CustomApiProvider implements ProviderAdapter {
   readonly providerId = 'CUSTOM_API';
   private readonly logger = new Logger(CustomApiProvider.name);
 
-  constructor(private readonly ssrfGuard: SSRFGuardService) {}
+  constructor(
+    private readonly ssrfGuard: SSRFGuardService,
+    private readonly encryption: IntegrationEncryptionService,
+  ) {}
+
+  /**
+   * Two generic actions make any connected REST API usable by agents and
+   * workflows: a read (`get`) and a write (`send`). Paths are relative to the
+   * connection's base URL, which SSRF checks guard on every call.
+   */
+  getActions(): AppActionDefinition[] {
+    return [
+      {
+        id: 'get',
+        label: 'Get data',
+        description: 'Send a GET request to a path on this API and return the JSON it answers with.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'Path after the base URL, e.g. /orders' },
+            query: { type: 'object', description: 'Query parameters as JSON, e.g. {"status":"open"}' },
+          },
+          required: ['path'],
+        },
+        permissionLevel: 'read',
+        requiresConfirmation: false,
+      },
+      {
+        id: 'send',
+        label: 'Send data',
+        description: 'Send a POST, PUT, PATCH or DELETE request to a path on this API.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            method: { type: 'string', enum: ['POST', 'PUT', 'PATCH', 'DELETE'] },
+            path: { type: 'string', description: 'Path after the base URL, e.g. /orders/42' },
+            body: { type: 'object', description: 'JSON body' },
+            query: { type: 'object', description: 'Query parameters as JSON' },
+          },
+          required: ['method', 'path'],
+        },
+        permissionLevel: 'write',
+        requiresConfirmation: true,
+      },
+    ];
+  }
+
+  /** Any path that answers with a JSON list can start an agent. */
+  getTriggers(): ConnectorTriggerDefinition[] {
+    return [
+      {
+        id: 'new_item',
+        label: 'New item',
+        description: 'Starts the agent for each new item in a list this API returns (items need an "id").',
+        pollActionId: 'get',
+        itemsPath: '',
+        idField: 'id',
+      },
+    ];
+  }
+
+  async executeAction(
+    credential: ResolvedCredential,
+    actionId: string,
+    input: Record<string, unknown>,
+  ): Promise<AppActionResult> {
+    const config = customApiConfigFromMetadata(credential.metadata, (c) => this.encryption.decrypt(c));
+    const path = typeof input['path'] === 'string' ? input['path'] : '';
+    const method =
+      actionId === 'get'
+        ? 'GET'
+        : String(input['method'] ?? '').toUpperCase();
+    if (actionId !== 'get' && actionId !== 'send') {
+      throw new BadRequestException(`Unknown custom API action '${actionId}'.`);
+    }
+    if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      throw new BadRequestException('Pick a method: POST, PUT, PATCH or DELETE.');
+    }
+    let body = input['body'];
+    if (typeof body === 'string' && body.trim()) {
+      try {
+        body = JSON.parse(body);
+      } catch {
+        /* send it as text */
+      }
+    }
+    const res = await this.executeCustomRequest(config, {
+      method: method as IntegrationExecuteRequestInput['method'],
+      path,
+      query: asRecord(input['query']),
+      ...(method === 'GET' ? {} : { body }),
+    });
+    const ok = res.status >= 200 && res.status < 300;
+    return {
+      success: ok,
+      message: ok ? `${method} ${path || '/'} → ${res.status} ${res.statusText}` : `${method} ${path || '/'} failed: ${res.status} ${res.statusText}`,
+      data: res.data,
+    };
+  }
 
   getCapabilities(): IntegrationCapabilities {
     return {
@@ -33,6 +175,7 @@ export class CustomApiProvider implements ProviderAdapter {
       description:
         'Connect any external REST API with flexible authentication, SSRF protection, custom headers, and request execution.',
       category: 'Developer Tools',
+      connectorCategory: 'custom',
       authType: 'API_KEY_HEADER',
       supportsSync: true,
       supportsWebhooks: true,

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
   AppActionDefinition,
+  ConnectorTriggerDefinition,
   AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
@@ -50,6 +51,7 @@ export class GoogleDriveProvider implements ProviderAdapter {
       description:
         'Browse, search, and preview files and folders in Google Drive; upload new files the app creates.',
       category: 'Productivity & Project Management',
+      connectorCategory: 'storage',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: false,
@@ -138,6 +140,23 @@ export class GoogleDriveProvider implements ProviderAdapter {
   async handleWebhook(payload: unknown): Promise<WebhookProcessResult> {
     this.logger.log('Google Drive does not have an active push-notification channel registered.');
     return { success: true, eventType: 'google_drive.unsubscribed', data: payload };
+  }
+
+  isServerConfigured(): boolean {
+    return Boolean(this.config.get<string>('GOOGLE_CLIENT_ID') && this.config.get<string>('GOOGLE_CLIENT_SECRET'));
+  }
+
+  getTriggers(): ConnectorTriggerDefinition[] {
+    return [
+      {
+        id: 'file_shared',
+        label: 'File shared with you',
+        description: 'Starts the agent for each new file someone shares with you.',
+        pollActionId: 'list_shared_with_me',
+        itemsPath: 'files',
+        idField: 'id',
+      },
+    ];
   }
 
   getActions(): AppActionDefinition[] {

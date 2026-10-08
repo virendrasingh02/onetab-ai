@@ -62,6 +62,7 @@ describe('AIRuntimeService', () => {
       getToolSchemas: vi.fn().mockReturnValue([]),
       getToolSchemasFor: vi.fn().mockReturnValue([]),
       getToolDefinitions: vi.fn().mockReturnValue([]),
+      hasTool: vi.fn((name: string) => name === 'search_docs'),
       executeTool: vi.fn(),
     };
     integrationTools = {
@@ -283,6 +284,42 @@ describe('AIRuntimeService', () => {
       'agent_1',
       expect.any(String),
     );
+  });
+
+  it('narrows one app to the actions picked for it without taking the built-in tools away', async () => {
+    prisma.aIAgent.findFirst.mockResolvedValue({
+      id: 'agent_1',
+      name: 'Comms Agent',
+      type: 'agent',
+      creatorId: 'user_1',
+      systemPrompt: 'You post updates.',
+      provider: 'nvidia',
+      isActive: true,
+      tools: JSON.stringify(['slack_send_message']),
+      workspace: { name: 'Test WS' },
+    });
+    mcpRegistry.getToolSchemas.mockReturnValue([{ type: 'function', function: { name: 'search_docs' } }]);
+    const tool = (name: string, provider: string) => ({
+      name,
+      provider,
+      integrationId: `int_${provider}`,
+      actionId: name,
+      definition: { id: name, label: name, description: '', inputSchema: {}, permissionLevel: 'read', requiresConfirmation: false },
+      schema: { type: 'function', function: { name, description: name, parameters: {} } },
+    });
+    integrationTools.getToolsForEntity.mockResolvedValue([
+      tool('slack_send_message', 'SLACK'),
+      tool('slack_list_channels', 'SLACK'),
+      tool('github_list_issues', 'GITHUB'),
+    ]);
+    aiService.chat.mockResolvedValueOnce({ message: { content: 'Done.', toolCalls: [] }, usage: { totalTokens: 3 } });
+
+    await service.executeTurn('ws_1', 'agent_1', 'Post the update');
+
+    const offered = aiService.chat.mock.calls[0][0].tools.map((t: any) => t.function.name);
+    // Built-ins kept (default set), Slack narrowed to the picked action, GitHub (nothing picked) whole.
+    expect(offered).toEqual(expect.arrayContaining(['search_docs', 'slack_send_message', 'github_list_issues']));
+    expect(offered).not.toContain('slack_list_channels');
   });
 
   it('raises an approval request instead of executing a destructive integration action', async () => {

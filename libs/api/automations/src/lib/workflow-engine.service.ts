@@ -1488,16 +1488,29 @@ export class WorkflowEngineService {
       case 'KNOWLEDGE_RETRIEVAL': {
         const kbId = String(cfg['knowledgeBaseId'] || '');
         const queryText = interpolateVariables(String(cfg['query'] || 'information'), context);
-        let docs: any[] = [];
-        if (kbId) {
-          try {
-            docs = await this.knowledgeService.retrieve(workspaceId, kbId, {
-              query: queryText,
-              topK: Math.min(Math.max(num(cfg['topK'], 4), 1), 20),
-            });
-          } catch {
-            docs = [];
-          }
+        // No knowledge base, or one that can't be searched, is a failed step —
+        // never an empty "success" the next step would treat as "nothing found".
+        if (!kbId) {
+          return {
+            stepId: node.id,
+            type: node.type,
+            status: 'FAILED',
+            output: { error: `${node.label || 'Knowledge search'} has no knowledge base picked.` },
+          };
+        }
+        let docs: any[];
+        try {
+          docs = await this.knowledgeService.retrieve(workspaceId, kbId, {
+            query: queryText,
+            topK: Math.min(Math.max(num(cfg['topK'], 4), 1), 20),
+          });
+        } catch (error) {
+          return {
+            stepId: node.id,
+            type: node.type,
+            status: 'FAILED',
+            output: { error: `Searching the knowledge base failed: ${error instanceof Error ? error.message : String(error)}` },
+          };
         }
         return {
           stepId: node.id,

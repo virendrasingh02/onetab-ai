@@ -1,12 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IntegrationsService } from '@org/api-integrations';
 import { PrismaService } from '@org/database';
-import type { AppActionDefinition } from '@org/types';
+import { connectorToolName, type AppActionDefinition } from '@org/types';
 
 export interface IntegrationToolSchema {
   /** `<provider>_<actionId>`, namespaced so it can sit in the same OpenAI
    *  `tools` array as the built-in MCP tools without colliding. */
   name: string;
+  /** Upper-case provider key — lets an agent's tool list narrow one app's actions. */
+  provider: string;
   integrationId: string;
   actionId: string;
   definition: AppActionDefinition;
@@ -46,6 +48,12 @@ export class IntegrationToolBridgeService {
     workspaceId: string,
     entityId: string,
     actingUserId: string | null,
+    /**
+     * Apps a canvas agent names on its card (`SLACK`). Each resolves to this
+     * workspace's connection or the acting user's own — the same rule the
+     * engine uses for `PROVIDER.action` steps — never another member's.
+     */
+    providers: readonly string[] = [],
   ): Promise<IntegrationToolSchema[]> {
     if (!actingUserId) return [];
 
@@ -56,6 +64,26 @@ export class IntegrationToolBridgeService {
       },
     });
     const connected = links.filter((link) => link.integration.status === 'CONNECTED');
+    const linked = new Set(connected.map((link) => link.integration.provider.toUpperCase()));
+    const wanted = [...new Set(providers.map((p) => p.toUpperCase()))].filter((p) => !linked.has(p));
+    if (wanted.length > 0) {
+      const rows = await this.prisma.externalIntegration.findMany({
+        where: {
+          provider: { in: wanted },
+          status: 'CONNECTED',
+          OR: [
+            { workspaceId, scopeType: { not: 'USER' } },
+            { scopeType: 'USER', userId: actingUserId },
+          ],
+        },
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, provider: true, status: true },
+      });
+      for (const provider of wanted) {
+        const row = rows.find((r) => r.provider.toUpperCase() === provider);
+        if (row) connected.push({ integration: row } as (typeof connected)[number]);
+      }
+    }
     if (connected.length === 0) return [];
 
     const results: IntegrationToolSchema[] = [];
@@ -68,9 +96,10 @@ export class IntegrationToolBridgeService {
         )) as AppActionDefinition[];
 
         for (const definition of actions) {
-          const name = this.toolName(link.integration.provider, definition.id);
+          const name = connectorToolName(link.integration.provider, definition.id);
           results.push({
             name,
+            provider: link.integration.provider.toUpperCase(),
             integrationId: link.integration.id,
             actionId: definition.id,
             definition,
@@ -84,10 +113,6 @@ export class IntegrationToolBridgeService {
       }
     }
     return results;
-  }
-
-  private toolName(provider: string, actionId: string): string {
-    return `${provider}_${actionId}`.toLowerCase().replace(/[^a-z0-9_]/g, '_');
   }
 
   private toSchema(name: string, def: AppActionDefinition): Record<string, unknown> {

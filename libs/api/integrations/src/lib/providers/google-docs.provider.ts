@@ -75,6 +75,7 @@ export class GoogleDocsProvider implements ProviderAdapter {
       description:
         'Browse, search, and read Google Docs content — full text is available to AI summarization and extraction.',
       category: 'Productivity & Project Management',
+      connectorCategory: 'productivity',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: false,
@@ -162,6 +163,10 @@ export class GoogleDocsProvider implements ProviderAdapter {
   async handleWebhook(payload: unknown): Promise<WebhookProcessResult> {
     this.logger.log('Google Docs does not have an active push-notification channel registered.');
     return { success: true, eventType: 'google_docs.unsubscribed', data: payload };
+  }
+
+  isServerConfigured(): boolean {
+    return Boolean(this.config.get<string>('GOOGLE_CLIENT_ID') && this.config.get<string>('GOOGLE_CLIENT_SECRET'));
   }
 
   getActions(): AppActionDefinition[] {

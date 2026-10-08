@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
-import { handleOrder } from './agent-slots.js';
+import { AGENT_HANDLE_TOP, getSlot, handleOrder, isSlotHost } from './agent-slots.js';
 
 /**
  * Layered ("Sugiyama") auto-layout for the workflow canvas.
@@ -13,6 +13,11 @@ import { handleOrder } from './agent-slots.js';
  * It uses each node's real measured size, keeps If/Else "true" above "false",
  * lays out unconnected flows as separate stacked blocks, keeps sticky notes next
  * to the step they annotate and re-fits stage groups around their members.
+ *
+ * What is plugged into an agent's slots (Prompt, LLM, Embeddings, Tools,
+ * Sub-agents) is not a step of the flow: it sits in a row under its agent —
+ * sub-agents with their own attachments under them — and the agent reserves
+ * that room, so nothing in the flow lands on top of it.
  */
 
 export type LayoutDirection = 'LR' | 'TB';
@@ -25,6 +30,8 @@ const NODE_GAP: Record<LayoutDirection, number> = { LR: 56, TB: 48 };
 const COMPONENT_GAP = 96;
 const GROUP_PADDING = { side: 24, top: 48, bottom: 24 };
 const DEFAULT_SIZE = { width: 240, height: 90 };
+/** Space between an agent and the row of things plugged into it, and within that row. */
+const ATTACH_GAP = { across: 56, along: 24 };
 /** Thickness of an invisible waypoint on a long edge. */
 const WAYPOINT_SIZE = 8;
 const ORDER_SWEEPS = 12;
@@ -84,9 +91,20 @@ function layoutComponent(
   sizes: Map<string, Size>,
   nodeById: Map<string, Node>,
   dir: LayoutDirection,
+  /** Room an agent needs for its attachments: along = row length, beyond = depth past the card. */
+  reserved: Map<string, { along: number; beyond: number }> = new Map(),
 ): ComponentLayout {
   const alongOf = (s: Size) => (dir === 'LR' ? s.width : s.height);
   const acrossOf = (s: Size) => (dir === 'LR' ? s.height : s.width);
+  const beyondOf = (id: string) => reserved.get(id)?.beyond ?? 0;
+  const boxAlongOf = (id: string) => Math.max(alongOf(must(sizes, id)), reserved.get(id)?.along ?? 0);
+  // Where a step's edges attach, measured across from its top: an agent's dots
+  // sit in its header (left to right), everything else in its middle.
+  const anchorOf = (id: string) => {
+    const n = nodeById.get(id);
+    const across = acrossOf(must(sizes, id));
+    return dir === 'LR' && n && isSlotHost(n.type) ? Math.min(AGENT_HANDLE_TOP, across / 2) : across / 2;
+  };
 
   const out = new Map<string, Link[]>(ids.map((id) => [id, []]));
   const indegree = new Map<string, number>(ids.map((id) => [id, 0]));
@@ -232,19 +250,21 @@ function layoutComponent(
   //     then the layer is packed so neighbours keep their order and gap.
   const gap = NODE_GAP[dir];
   const center = new Map<string, number>();
+  // `center` holds each step's anchor line (where its edges attach), not its box centre.
   for (const layer of best) {
     let cursor = 0;
     for (const id of layer) {
       const s = acrossOf(must(sizes, id));
-      center.set(id, cursor + s / 2);
-      cursor += s + gap;
+      center.set(id, cursor + anchorOf(id));
+      cursor += s + beyondOf(id) + gap;
     }
     const shift = cursor / 2;
     layer.forEach((id) => center.set(id, must(center, id) - shift));
   }
   const pack = (layer: string[], desired: number[]) => {
     const s = layer.map((id) => acrossOf(must(sizes, id)));
-    const sep = (i: number) => (s[i] + s[i + 1]) / 2 + gap;
+    // From one anchor to the next: the rest of this card, its attachments, the gap, the top of the next.
+    const sep = (i: number) => s[i] - anchorOf(layer[i]) + beyondOf(layer[i]) + gap + anchorOf(layer[i + 1]);
     const fwd = [...desired];
     for (let i = 1; i < fwd.length; i++) fwd[i] = Math.max(desired[i], fwd[i - 1] + sep(i - 1));
     const bwd = [...desired];
@@ -267,7 +287,7 @@ function layoutComponent(
   for (let r = 1; r < best.length; r++) relax(best[r], segIn);
 
   // 5b. Along-axis: each layer is as deep as its biggest step; steps are centred in it
-  const layerDepth = best.map((layer) => Math.max(0, ...layer.map((id) => alongOf(must(sizes, id)))));
+  const layerDepth = best.map((layer) => Math.max(0, ...layer.map((id) => boxAlongOf(id))));
   const layerStart: number[] = [];
   let cursor = 0;
   layerDepth.forEach((depth, r) => {
@@ -284,9 +304,9 @@ function layoutComponent(
       if (id.startsWith('__wp:')) continue;
       const s = must(sizes, id);
       const along = layerStart[r] + (layerDepth[r] - alongOf(s)) / 2;
-      const across = must(center, id) - acrossOf(s) / 2;
+      const across = must(center, id) - anchorOf(id);
       minAcross = Math.min(minAcross, across);
-      maxAcross = Math.max(maxAcross, across + acrossOf(s));
+      maxAcross = Math.max(maxAcross, across + acrossOf(s) + beyondOf(id));
       maxAlong = Math.max(maxAlong, along + alongOf(s));
       positions.set(id, dir === 'LR' ? { x: along, y: across } : { x: across, y: along });
     }
@@ -315,11 +335,68 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], direction: LayoutDi
   const nodeById = new Map(flow.map((n) => [n.id, n]));
   const sizes = new Map(flow.map((n) => [n.id, sizeOf(n)]));
 
+  // Attachments: targets of an agent's slot edges that take no part in the flow itself
+  const inFlowEdge = new Set<string>();
+  for (const e of edges) {
+    if (getSlot(e.sourceHandle) || !nodeById.has(e.source) || !nodeById.has(e.target)) continue;
+    inFlowEdge.add(e.source);
+    inFlowEdge.add(e.target);
+  }
+  const childrenOf = new Map<string, string[]>();
+  const attached = new Set<string>();
+  const slotEdges = edges
+    .filter((e) => getSlot(e.sourceHandle) && nodeById.has(e.source) && nodeById.has(e.target) && e.source !== e.target)
+    .sort((a, b) => handleRank(a.sourceHandle) - handleRank(b.sourceHandle));
+  for (const e of slotEdges) {
+    if (inFlowEdge.has(e.target) || isTrigger(must(nodeById, e.target)) || attached.has(e.target)) continue;
+    attached.add(e.target);
+    childrenOf.set(e.source, [...(childrenOf.get(e.source) ?? []), e.target]);
+  }
+  // A cycle of attachments has no agent to hang under — those stay in the flow.
+  const hangsUnder = (id: string, seen = new Set<string>()): boolean => {
+    if (!attached.has(id)) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    const parent = slotEdges.find((e) => e.target === id && childrenOf.get(e.source)?.includes(id))?.source;
+    return parent ? hangsUnder(parent, seen) : false;
+  };
+  for (const id of [...attached]) if (!hangsUnder(id)) attached.delete(id);
+  childrenOf.forEach((kids, host) => childrenOf.set(host, kids.filter((k) => attached.has(k))));
+
+  // Each agent's attachment block: a row of children (each with its own block under it)
+  const alongOfSize = (sz: Size) => (direction === 'LR' ? sz.width : sz.height);
+  const acrossOfSize = (sz: Size) => (direction === 'LR' ? sz.height : sz.width);
+  const blockCache = new Map<string, { along: number; across: number; rowAlong: number; rowAcross: number }>();
+  const block = (id: string): { along: number; across: number; rowAlong: number; rowAcross: number } => {
+    const cached = blockCache.get(id);
+    if (cached) return cached;
+    const card = must(sizes, id);
+    const kids = childrenOf.get(id) ?? [];
+    const kidBlocks = kids.map(block);
+    const rowAlong = kidBlocks.reduce((sum, b) => sum + b.along, 0) + Math.max(0, kids.length - 1) * ATTACH_GAP.along;
+    const rowAcross = Math.max(0, ...kidBlocks.map((b) => b.across));
+    const result = {
+      along: Math.max(alongOfSize(card), rowAlong),
+      across: acrossOfSize(card) + (kids.length ? ATTACH_GAP.across + rowAcross : 0),
+      rowAlong,
+      rowAcross,
+    };
+    blockCache.set(id, result);
+    return result;
+  };
+  const reserved = new Map<string, { along: number; beyond: number }>();
+  for (const host of childrenOf.keys()) {
+    if (attached.has(host) || !(childrenOf.get(host)?.length)) continue;
+    const b = block(host);
+    reserved.set(host, { along: b.rowAlong, beyond: b.across - acrossOfSize(must(sizes, host)) });
+  }
+
   // Unique real connections between flow steps
   const seenPairs = new Set<string>();
   const links: Link[] = [];
   for (const e of edges) {
     if (!nodeById.has(e.source) || !nodeById.has(e.target) || e.source === e.target) continue;
+    if (attached.has(e.source) || attached.has(e.target)) continue;
     const key = `${e.source}>${e.target}`;
     if (seenPairs.has(key)) continue;
     seenPairs.add(key);
@@ -365,14 +442,15 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], direction: LayoutDi
   }
 
   // Connected components, in reading order: flows with a trigger first, then by where they were
-  const adjacency = new Map<string, string[]>(flow.map((n) => [n.id, []]));
+  const mainFlow = flow.filter((n) => !attached.has(n.id));
+  const adjacency = new Map<string, string[]>(mainFlow.map((n) => [n.id, []]));
   links.forEach((l) => {
     must(adjacency, l.source).push(l.target);
     must(adjacency, l.target).push(l.source);
   });
   const componentOf = new Map<string, number>();
   const components: string[][] = [];
-  for (const n of flow) {
+  for (const n of mainFlow) {
     if (componentOf.has(n.id)) continue;
     const comp: string[] = [];
     const stack = [n.id];
@@ -408,6 +486,7 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], direction: LayoutDi
       sizes,
       nodeById,
       direction,
+      reserved,
     );
     result.positions.forEach((p, id) =>
       positions.set(id, direction === 'LR' ? { x: p.x, y: p.y + offset } : { x: p.x + offset, y: p.y }),
@@ -419,6 +498,27 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], direction: LayoutDi
   positions.forEach((p, id) =>
     positions.set(id, { x: Math.round(p.x + oldLeft), y: Math.round(p.y + oldTop) }),
   );
+
+  // Attachments: a row centred under their agent card, each with its own row under it
+  const placeChildren = (host: string) => {
+    const kids = childrenOf.get(host) ?? [];
+    if (!kids.length) return;
+    const hp = must(positions, host);
+    const card = must(sizes, host);
+    const b = block(host);
+    const cardAlongStart = direction === 'LR' ? hp.x : hp.y;
+    const across = (direction === 'LR' ? hp.y : hp.x) + acrossOfSize(card) + ATTACH_GAP.across;
+    let along = cardAlongStart + alongOfSize(card) / 2 - b.rowAlong / 2;
+    for (const kid of kids) {
+      const kb = block(kid);
+      const ks = must(sizes, kid);
+      const kAlong = along + (kb.along - alongOfSize(ks)) / 2;
+      positions.set(kid, direction === 'LR' ? { x: Math.round(kAlong), y: Math.round(across) } : { x: Math.round(across), y: Math.round(kAlong) });
+      placeChildren(kid);
+      along += kb.along + ATTACH_GAP.along;
+    }
+  };
+  for (const id of [...positions.keys()]) placeChildren(id);
 
   return nodes.map((n) => {
     const p = positions.get(n.id);

@@ -7,13 +7,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type {
   AppActionDefinition,
+  ConnectorTriggerDefinition,
   AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
 } from '@org/types';
 import axios from 'axios';
 import type {
-  MessageQuery,
   ProviderAdapter,
   ResolvedCredential,
   SyncResult,
@@ -76,14 +76,6 @@ export async function teamsCall<T = any>(
   }
 }
 
-export interface TeamsTriggerDefinition {
-  id: string;
-  label: string;
-  description: string;
-  eventType: string;
-  payloadSchema: Record<string, unknown>;
-}
-
 @Injectable()
 export class MicrosoftTeamsProvider implements ProviderAdapter {
   readonly providerId = 'MICROSOFT_TEAMS';
@@ -98,6 +90,7 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
       description:
         'Connect your Microsoft Teams organization to collaborate, send channel alerts and direct messages, search threads, schedule online meetings, and listen to event triggers.',
       category: 'Communication',
+      connectorCategory: 'communication',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: true,
@@ -124,8 +117,8 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
       this.config.get<string>('AZURE_CLIENT_SECRET');
 
     return {
-      clientId: clientId || 'mock-teams-client-id',
-      clientSecret: clientSecret || 'mock-teams-client-secret',
+      clientId: clientId ?? '',
+      clientSecret: clientSecret ?? '',
       isConfigured: Boolean(clientId && clientSecret),
     };
   }
@@ -142,7 +135,10 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
     state: string,
     options?: { redirectUri?: string; scopes?: string[] },
   ): Promise<string> {
-    const { clientId } = this.clientCreds();
+    const { clientId, isConfigured } = this.clientCreds();
+    if (!isConfigured) {
+      throw new BadRequestException('Microsoft Teams isn’t set up on this server (MICROSOFT_TEAMS_CLIENT_ID / MICROSOFT_TEAMS_CLIENT_SECRET, or AZURE_CLIENT_ID / AZURE_CLIENT_SECRET, are missing). Register an Azure app and set them to connect Teams.');
+    }
     const scopesToRequest = options?.scopes || TEAMS_SCOPES;
     const tenant = this.config.get<string>('AZURE_TENANT_ID') || 'common';
     const params = new URLSearchParams({
@@ -165,21 +161,7 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
     const tenant = this.config.get<string>('AZURE_TENANT_ID') || 'common';
 
     if (!isConfigured) {
-      // Return safe simulated tokens in development environments when keys are not configured
-      return {
-        accessToken: `simulated_teams_access_token_${Date.now()}`,
-        refreshToken: `simulated_teams_refresh_token_${Date.now()}`,
-        expiresIn: 3600,
-        tokenExpiresAt: new Date(Date.now() + 3600 * 1000),
-        scopes: TEAMS_SCOPES,
-        accountId: 'teams-user-001',
-        accountEmail: 'teams.admin@company.com',
-        accountName: 'Engineering Teams Lead',
-        metadata: {
-          tenantId: 'tenant-enterprise-01',
-          organization: 'Enterprise Workspace',
-        },
-      };
+      throw new BadRequestException('Microsoft Teams isn’t set up on this server (MICROSOFT_TEAMS_CLIENT_ID / MICROSOFT_TEAMS_CLIENT_SECRET, or AZURE_CLIENT_ID / AZURE_CLIENT_SECRET, are missing). Register an Azure app and set them to connect Teams.');
     }
 
     try {
@@ -228,12 +210,7 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
     const tenant = this.config.get<string>('AZURE_TENANT_ID') || 'common';
 
     if (!isConfigured) {
-      return {
-        accessToken: `simulated_teams_access_token_${Date.now()}`,
-        refreshToken,
-        expiresIn: 3600,
-        tokenExpiresAt: new Date(Date.now() + 3600 * 1000),
-      };
+      throw new BadRequestException('Microsoft Teams isn’t set up on this server (MICROSOFT_TEAMS_CLIENT_ID / MICROSOFT_TEAMS_CLIENT_SECRET, or AZURE_CLIENT_ID / AZURE_CLIENT_SECRET, are missing). Register an Azure app and set them to connect Teams.');
     }
 
     try {
@@ -265,25 +242,6 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
   }
 
   async getAccount(credential: ResolvedCredential): Promise<IntegrationAccount> {
-    if (credential.accessToken.startsWith('simulated_')) {
-      return {
-        id: credential.id,
-        provider: this.providerId,
-        accountId: 'teams-lead-42',
-        email: (credential.metadata['accountEmail'] as string) || 'admin@company.com',
-        name: (credential.metadata['accountName'] as string) || 'Microsoft Teams Admin',
-        avatarUrl: undefined,
-        scopes: credential.scopes,
-        status: 'CONNECTED',
-        connectedAt: new Date().toISOString(),
-        metadata: {
-          tenantId: 'tenant-42',
-          organization: 'Enterprise OneTab',
-          ...credential.metadata,
-        },
-      };
-    }
-
     const me = await teamsCall<{ id: string; userPrincipalName?: string; mail?: string; displayName?: string }>(
       '/me',
       credential.accessToken,
@@ -316,18 +274,6 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
     }
 
     try {
-      if (credential.accessToken.startsWith('simulated_')) {
-        return {
-          success: true,
-          message: 'Successfully verified Microsoft Teams connection (Sandbox Mode).',
-          details: {
-            organization: 'Enterprise Microsoft Tenant',
-            status: 'HEALTHY',
-            accountEmail: credential.metadata['accountEmail'] || 'admin@company.com',
-          },
-        };
-      }
-
       const account = await this.getAccount(credential);
       return {
         success: true,
@@ -342,17 +288,7 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
     }
   }
 
-  async sync(credential: ResolvedCredential, cursor?: string): Promise<SyncResult> {
-    if (credential.accessToken.startsWith('simulated_')) {
-      return {
-        success: true,
-        itemsProcessed: 12,
-        totalItems: 12,
-        hasMore: false,
-        metadata: { lastSyncTimestamp: new Date().toISOString() },
-      };
-    }
-
+  async sync(credential: ResolvedCredential, _cursor?: string): Promise<SyncResult> {
     try {
       const teams = await teamsCall<{ value: any[] }>('/me/joinedTeams', credential.accessToken);
       return {
@@ -373,7 +309,7 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
 
   async handleWebhook(
     payload: unknown,
-    headers: Record<string, string>,
+    _headers: Record<string, string>,
     _secret?: string,
   ): Promise<WebhookProcessResult> {
     const body = payload as Record<string, any>;
@@ -387,7 +323,6 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
     }
 
     const value = Array.isArray(body?.value) ? body.value[0] : body;
-    const changeType = value?.changeType || 'created';
     const resource = value?.resource || '';
 
     let eventType = 'new_message';
@@ -409,6 +344,10 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
    * The 14 structured actions exposed by Microsoft Teams connector
    * matching specification Section 59.
    */
+  isServerConfigured(): boolean {
+    return this.clientCreds().isConfigured;
+  }
+
   getActions(): AppActionDefinition[] {
     return [
       {
@@ -531,6 +470,22 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
         requiresConfirmation: false,
       },
       {
+        id: 'list_channel_messages',
+        label: 'List Channel Messages',
+        description: 'Fetches the most recent messages posted in a Teams channel (for summarizing or watching).',
+        inputSchema: {
+          type: 'object',
+          required: ['teamId', 'channelId'],
+          properties: {
+            teamId: { type: 'string', description: 'Team ID' },
+            channelId: { type: 'string', description: 'Channel ID' },
+            maxResults: { type: 'number', description: 'How many messages (max 50)' },
+          },
+        },
+        permissionLevel: 'read',
+        requiresConfirmation: false,
+      },
+      {
         id: 'get_message',
         label: 'Get Message',
         description: 'Retrieves a single message by ID from a channel or chat.',
@@ -637,56 +592,16 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
   /**
    * Triggers supported by Microsoft Teams
    */
-  getTriggers(): TeamsTriggerDefinition[] {
+  getTriggers(): ConnectorTriggerDefinition[] {
     return [
       {
         id: 'new_message',
-        label: 'New Channel Message',
-        description: 'Triggers when a new message is posted to a monitored Teams channel.',
-        eventType: 'microsoft.teams.channel.message.created',
-        payloadSchema: {
-          type: 'object',
-          properties: {
-            teamId: { type: 'string' },
-            channelId: { type: 'string' },
-            messageId: { type: 'string' },
-            from: { type: 'object' },
-            body: { type: 'string' },
-            createdDateTime: { type: 'string' },
-          },
-        },
-      },
-      {
-        id: 'mention',
-        label: 'Bot or User Mentioned',
-        description: 'Triggers when the AI Agent or a specified user is @mentioned in Teams.',
-        eventType: 'microsoft.teams.channel.mention',
-        payloadSchema: {
-          type: 'object',
-          properties: {
-            teamId: { type: 'string' },
-            channelId: { type: 'string' },
-            messageId: { type: 'string' },
-            mentionedUser: { type: 'string' },
-            content: { type: 'string' },
-          },
-        },
-      },
-      {
-        id: 'meeting_event',
-        label: 'Meeting Created or Updated',
-        description: 'Triggers when a new Teams online meeting is booked or changed.',
-        eventType: 'microsoft.teams.meeting.created',
-        payloadSchema: {
-          type: 'object',
-          properties: {
-            meetingId: { type: 'string' },
-            subject: { type: 'string' },
-            joinWebUrl: { type: 'string' },
-            startDateTime: { type: 'string' },
-            endDateTime: { type: 'string' },
-          },
-        },
+        label: 'New channel message',
+        description: 'Starts the agent for each new message posted in a Teams channel.',
+        pollActionId: 'list_channel_messages',
+        defaultInput: { maxResults: 20 },
+        itemsPath: 'messages',
+        idField: 'id',
       },
     ];
   }
@@ -697,11 +612,6 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
     input: Record<string, unknown>,
   ): Promise<AppActionResult> {
     const token = credential.accessToken;
-    const isMock = token.startsWith('simulated_');
-
-    if (isMock) {
-      return this.executeMockAction(actionId, input);
-    }
 
     switch (actionId) {
       case 'list_teams': {
@@ -838,21 +748,43 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
       }
 
       case 'search_messages': {
-        const query = String(input['query']);
-        // Query messages using Graph search
-        const res = await teamsCall<{ value: any[] }>(
-          '/me/messages',
+        const query = String(input['query'] ?? '').trim();
+        if (!query) throw new BadRequestException('Search needs a query.');
+        const size = Math.min(Number(input['maxResults']) || 25, 50);
+        // Teams chat and channel messages are searched through the Microsoft
+        // Search API (`chatMessage`); `/me/messages` would be the Outlook mailbox.
+        const res = await teamsCall<{ value?: Array<{ hitsContainers?: Array<{ hits?: Array<{ hitId?: string; summary?: string; resource?: Record<string, unknown> }> }> }> }>(
+          '/search/query',
           token,
-          { $search: `"${query}"`, $top: input['maxResults'] || 25 },
+          {},
+          'POST',
+          { requests: [{ entityTypes: ['chatMessage'], query: { queryString: query }, from: 0, size }] },
         );
-
+        const messages = (res.value ?? [])
+          .flatMap((v) => v.hitsContainers ?? [])
+          .flatMap((c) => c.hits ?? [])
+          .map((hit) => ({ id: hit.hitId, summary: hit.summary, ...(hit.resource ?? {}) }));
         return {
           success: true,
-          message: `Found ${res.value?.length || 0} messages matching "${query}".`,
-          data: {
-            messages: res.value || [],
-            count: res.value?.length || 0,
-          },
+          message: `Found ${messages.length} Teams message(s) matching "${query}".`,
+          data: { messages, count: messages.length },
+        };
+      }
+
+      case 'list_channel_messages': {
+        const teamId = String(input['teamId'] ?? '');
+        const channelId = String(input['channelId'] ?? '');
+        if (!teamId || !channelId) throw new BadRequestException('Pick a team and a channel.');
+        const res = await teamsCall<{ value?: any[] }>(
+          `/teams/${encodeURIComponent(teamId)}/channels/${encodeURIComponent(channelId)}/messages`,
+          token,
+          { $top: Math.min(Number(input['maxResults']) || 20, 50) },
+        );
+        const messages = (res.value ?? []).filter((m) => m.messageType === 'message' || !m.messageType);
+        return {
+          success: true,
+          message: `Found ${messages.length} message(s).`,
+          data: { messages },
         };
       }
 
@@ -982,187 +914,4 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
     }
   }
 
-  private executeMockAction(
-    actionId: string,
-    input: Record<string, unknown>,
-  ): AppActionResult {
-    const timestamp = new Date().toISOString();
-
-    switch (actionId) {
-      case 'list_teams':
-        return {
-          success: true,
-          message: 'Retrieved 3 teams from Microsoft Teams.',
-          data: {
-            teams: [
-              { id: 'team-eng', displayName: 'Engineering Core', description: 'Software engineering team' },
-              { id: 'team-prod', displayName: 'Product Operations', description: 'Roadmaps and feature triage' },
-              { id: 'team-all', displayName: 'Company Announcements', description: 'All-hands workspace' },
-            ],
-          },
-        };
-
-      case 'get_team':
-        return {
-          success: true,
-          message: `Retrieved team info for ${input['teamId'] || 'team-eng'}.`,
-          data: {
-            id: input['teamId'] || 'team-eng',
-            displayName: 'Engineering Core',
-            description: 'Software engineering core team',
-            memberCount: 42,
-          },
-        };
-
-      case 'list_channels':
-        return {
-          success: true,
-          message: 'Found 4 channels.',
-          data: {
-            channels: [
-              { id: 'chan-general', displayName: 'General', membershipType: 'standard' },
-              { id: 'chan-alerts', displayName: 'Alerts & Incidents', membershipType: 'standard' },
-              { id: 'chan-releases', displayName: 'Releases & CI/CD', membershipType: 'standard' },
-              { id: 'chan-ai', displayName: 'AI Agent Workflows', membershipType: 'standard' },
-            ],
-          },
-        };
-
-      case 'get_channel':
-        return {
-          success: true,
-          message: `Channel ${input['channelId'] || 'chan-general'} details fetched.`,
-          data: {
-            id: input['channelId'] || 'chan-general',
-            displayName: 'General',
-            email: 'general@company.teams.ms',
-          },
-        };
-
-      case 'get_members':
-        return {
-          success: true,
-          message: 'Found 5 members.',
-          data: {
-            members: [
-              { id: 'usr-1', displayName: 'Alex Johnson', roles: ['owner'], email: 'alex@company.com' },
-              { id: 'usr-2', displayName: 'Sarah Chen', roles: ['member'], email: 'sarah@company.com' },
-              { id: 'usr-3', displayName: 'AI Operations Bot', roles: ['guest'], email: 'bot@company.com' },
-            ],
-          },
-        };
-
-      case 'send_channel_message':
-        return {
-          success: true,
-          message: 'Message delivered to Microsoft Teams channel.',
-          data: {
-            messageId: `msg-${Date.now().toString(36)}`,
-            teamId: input['teamId'] || 'team-eng',
-            channelId: input['channelId'] || 'chan-general',
-            createdDateTime: timestamp,
-            webUrl: `https://teams.microsoft.com/l/message/${input['channelId'] || 'chan-general'}`,
-            contentPreview: String(input['content'] || '').slice(0, 80),
-          },
-        };
-
-      case 'send_direct_message':
-        return {
-          success: true,
-          message: `Direct message sent to ${input['userId'] || 'user'}.`,
-          data: {
-            chatId: `chat-${Date.now().toString(36)}`,
-            messageId: `msg-dm-${Date.now().toString(36)}`,
-            sentAt: timestamp,
-          },
-        };
-
-      case 'search_messages':
-        return {
-          success: true,
-          message: `Found 3 messages matching "${input['query'] || 'query'}".`,
-          data: {
-            count: 3,
-            messages: [
-              { id: 'msg-s1', body: { content: 'Sprint review agenda discussed' }, createdDateTime: timestamp },
-              { id: 'msg-s2', body: { content: 'Deployment completed on cluster staging-02' }, createdDateTime: timestamp },
-              { id: 'msg-s3', body: { content: 'Please review pull request #142' }, createdDateTime: timestamp },
-            ],
-          },
-        };
-
-      case 'get_message':
-        return {
-          success: true,
-          message: 'Message details retrieved.',
-          data: {
-            message: {
-              id: input['messageId'] || 'msg-1',
-              body: { content: 'Weekly sync notes posted.' },
-              createdDateTime: timestamp,
-            },
-          },
-        };
-
-      case 'reply_to_message':
-        return {
-          success: true,
-          message: 'Thread reply posted to Teams message.',
-          data: {
-            replyId: `rep-${Date.now().toString(36)}`,
-            parentMessageId: input['messageId'] || 'msg-parent',
-            createdDateTime: timestamp,
-          },
-        };
-
-      case 'create_meeting':
-        return {
-          success: true,
-          message: `Teams meeting "${input['subject'] || 'Project Sync'}" created.`,
-          data: {
-            meetingId: `mtg-${Date.now().toString(36)}`,
-            joinWebUrl: `https://teams.microsoft.com/l/meetup-join/mock-call-${Date.now()}`,
-            subject: input['subject'] || 'AI Agent Scheduled Sync',
-            startDateTime: input['startDateTime'] || timestamp,
-            endDateTime: input['endDateTime'] || timestamp,
-          },
-        };
-
-      case 'get_meeting':
-        return {
-          success: true,
-          message: 'Meeting details retrieved.',
-          data: {
-            meeting: {
-              id: input['meetingId'] || 'mtg-101',
-              subject: 'Engineering Sprint Planning',
-              joinWebUrl: 'https://teams.microsoft.com/l/meetup-join/call-101',
-            },
-          },
-        };
-
-      case 'update_meeting':
-        return {
-          success: true,
-          message: `Meeting ${input['meetingId']} updated.`,
-          data: {
-            meetingId: input['meetingId'],
-            updatedAt: timestamp,
-          },
-        };
-
-      case 'cancel_meeting':
-        return {
-          success: true,
-          message: `Meeting ${input['meetingId']} cancelled successfully.`,
-          data: {
-            meetingId: input['meetingId'],
-            status: 'CANCELLED',
-          },
-        };
-
-      default:
-        throw new BadRequestException(`Unknown Microsoft Teams action '${actionId}'.`);
-    }
-  }
 }

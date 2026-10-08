@@ -52,6 +52,7 @@ export class GoogleSheetsProvider implements ProviderAdapter {
       description:
         'Browse, search, and read real Google Sheets data — cell values and ranges are always fetched live, never fabricated.',
       category: 'Productivity & Project Management',
+      connectorCategory: 'productivity',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: false,
@@ -139,6 +140,10 @@ export class GoogleSheetsProvider implements ProviderAdapter {
   async handleWebhook(payload: unknown): Promise<WebhookProcessResult> {
     this.logger.log('Google Sheets does not have an active push-notification channel registered.');
     return { success: true, eventType: 'google_sheets.unsubscribed', data: payload };
+  }
+
+  isServerConfigured(): boolean {
+    return Boolean(this.config.get<string>('GOOGLE_CLIENT_ID') && this.config.get<string>('GOOGLE_CLIENT_SECRET'));
   }
 
   getActions(): AppActionDefinition[] {

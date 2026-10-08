@@ -293,8 +293,18 @@ const BRAND_ICON_MAP = {
 /**
  * Universal App Connector Icon Component
  * Dynamically resolves official brand graphics, custom vector logos, or rich category fallbacks
+ *
+ * @param {{
+ *   connectorId?: string | null;
+ *   name?: string;
+ *   category?: string;
+ *   size?: number;
+ *   className?: string;
+ *   variant?: 'color' | 'mono';
+ *   customIconUrl?: string | null;
+ * }} props
  */
-export const AppConnectorIcon = memo(function AppConnectorIcon({
+function AppConnectorIconBase({
   connectorId,
   name = '',
   category = '',
@@ -423,4 +433,6 @@ export const AppConnectorIcon = memo(function AppConnectorIcon({
       <FallbackIcon className="size-full shrink-0" aria-hidden="true" />
     </span>
   );
-});
+}
+
+export const AppConnectorIcon = memo(AppConnectorIconBase);

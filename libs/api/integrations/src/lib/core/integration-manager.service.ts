@@ -84,6 +84,11 @@ export class IntegrationManagerService implements OnModuleInit {
     return adapter;
   }
 
+  /** Every registered adapter — the source of the connector registry. */
+  listAdapters(): ProviderAdapter[] {
+    return Array.from(this.adapters.values());
+  }
+
   getAllCapabilities(): IntegrationCapabilities[] {
     return Array.from(this.adapters.values()).map((adapter) =>
       adapter.getCapabilities(),

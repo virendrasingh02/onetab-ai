@@ -40,6 +40,7 @@ import {
   readAgentRuntime,
   READ_ONLY_AGENT_TOOLS,
   resolveCoworkerCollaborators,
+  selectAgentTools,
 } from '@org/types';
 import { applyPiiGuardrail } from './agent-guardrails.js';
 import {
@@ -1060,15 +1061,21 @@ export class AIRuntimeService {
     // A canvas agent has exactly the tools drawn on it — none means none,
     // where an agent row with an empty list gets the default set.
     const inline = entity.__inline as InlineAgentSpec | undefined;
-    const integrationSchemas = (
-      await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId)
-    ).filter(
-      (t) => (!readOnly || t.definition.permissionLevel === 'read') && (!inline || allowedToolNames.includes(t.name)),
+    // Connector actions in the list narrow that app's tools; they never take
+    // the agent's built-in tools away (see `selectAgentTools`).
+    const toolSelection = selectAgentTools(
+      allowedToolNames,
+      await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId, inline?.connectors ?? []),
+      (name) => this.mcpRegistry.hasTool(name),
+      { inline: !!inline },
+    );
+    const integrationSchemas = toolSelection.integrationTools.filter(
+      (t) => !readOnly || t.definition.permissionLevel === 'read',
     );
     const mcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
     const builtinSchemas = (
-      allowedToolNames.length > 0
-        ? this.mcpRegistry.getToolSchemasFor(allowedToolNames)
+      !toolSelection.useDefaultBuiltins
+        ? this.mcpRegistry.getToolSchemasFor(toolSelection.builtinNames)
         : inline
           ? []
           : // With no explicit list, every tool — except the owner-private reads.
@@ -1269,9 +1276,11 @@ export class AIRuntimeService {
       },
     }));
 
-    const integrationSchemas = (
-      await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId)
-    ).filter((t) => !readOnly || t.definition.permissionLevel === 'read');
+    const integrationSchemas = selectAgentTools(
+      allowedToolNames,
+      await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId),
+      (name) => this.mcpRegistry.hasTool(name),
+    ).integrationTools.filter((t) => !readOnly || t.definition.permissionLevel === 'read');
     const mcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
     const builtinSchemas = this.mcpRegistry
       .getToolSchemasFor(allowedToolNames)

@@ -17,6 +17,7 @@ import { AgentStudioController } from './studio/agent-studio.controller.js';
 import { AgentStudioService } from './studio/agent-studio.service.js';
 import { CanvasAgentRunController } from './studio/canvas-agent-run.controller.js';
 import { CanvasAgentRunService } from './studio/canvas-agent-run.service.js';
+import { ConnectorTriggerPollerService } from './studio/connector-trigger-poller.service.js';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
 
@@ -41,6 +42,8 @@ import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
     AgentStudioService,
     AgentArchitectService,
     CanvasAgentRunService,
+    // Starts switched-on agents on app events (New email, New issue…).
+    ConnectorTriggerPollerService,
   ],
   exports: [AutomationsService, WorkflowEngineService, AgentStudioService],
 })

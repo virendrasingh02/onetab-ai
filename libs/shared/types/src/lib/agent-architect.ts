@@ -2041,4 +2041,13 @@ export interface ArchitectOptimizeResult extends GraphAnalysis {
 export interface CanvasAgentActivation {
   active: boolean;
   schedule: { cron: string; timezone: string | null } | null;
+  /** The app event that starts it, and how watching it is going. */
+  appTrigger?: {
+    provider: string;
+    triggerId: string;
+    label: string;
+    lastPolledAt: string | null;
+    lastFiredAt: string | null;
+    lastError: string | null;
+  } | null;
 }

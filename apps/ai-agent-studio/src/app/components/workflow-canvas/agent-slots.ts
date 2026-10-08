@@ -79,6 +79,13 @@ const SLOT_HOSTS = new Set(['AGENT', 'SUB_AGENT', 'AGENT_COORDINATOR']);
 
 export const isSlotHost = (type: string | undefined) => SLOT_HOSTS.has((type || '').toUpperCase());
 
+/**
+ * Distance from the top of an agent card to its input / output dots (the
+ * header's centre). The card draws its dots here and auto layout lines the
+ * flow up on it, so edges into and out of an agent run straight.
+ */
+export const AGENT_HANDLE_TOP = 32;
+
 export const getSlot = (handle: string | null | undefined) =>
   handle ? SLOT_BY_ID.get(handle as AgentSlotId) : undefined;
 
@@ -176,22 +183,22 @@ export function slotAttachments(agentId: string, nodes: Node[], edges: Edge[]): 
 }
 
 /**
- * Where a node newly attached to a slot goes: a column right of the agent,
- * below the attachments already there (auto layout tidies precisely later).
+ * Where a node newly attached to a slot goes: the row under the agent, after
+ * what is already plugged in — the same place auto layout puts attachments, so
+ * nothing lands on the agent's next step.
  */
 export function attachmentPosition(agent: Node, nodes: Node[], edges: Edge[]): { x: number; y: number } {
-  const width = agent.measured?.width ?? 280;
-  const x = agent.position.x + width + 120;
+  const agentHeight = agent.measured?.height ?? 320;
+  const y = agent.position.y + agentHeight + 56;
   const attached = Object.values(slotAttachments(agent.id, nodes, edges)).flat();
-  let y = Math.max(
-    agent.position.y - 160,
-    ...attached.map((n) => n.position.y + (n.measured?.height ?? 120) + GAP),
-  );
-  // Slide down past anything already in the way (e.g. the agent's next step)
+  let x = attached.length
+    ? Math.max(...attached.map((n) => n.position.x + (n.measured?.width ?? 260) + 24))
+    : agent.position.x;
+  // Slide right past anything already in the way
   for (let guard = 0; guard < nodes.length; guard++) {
     const blocker = nodes.find((n) => overlaps(n, x, y));
     if (!blocker) break;
-    y = blocker.position.y + (blocker.measured?.height ?? 120) + GAP;
+    x = blocker.position.x + (blocker.measured?.width ?? 240) + GAP;
   }
   return { x, y };
 }

@@ -1,23 +1,16 @@
-import { Button, CodeBlock, Input, AIModelBadge, toast } from '@org/ui';
+import { Button, Input, AIModelBadge, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Connection, Edge, Node } from '@xyflow/react';
 import {
-  Boxes,
   Braces,
-  Cpu,
   Flame,
-  MessageSquare,
-  Play,
   Shield,
   Sliders,
   Trash2,
   X,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { workflowService } from '../../services/workflowService.js';
-import { connectorService } from '../../services/connectorService.js';
-import { CONNECTOR_CATALOG, getConnectorMeta } from '../../services/connectorCatalog.js';
-import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
+import { ConnectorNodeConfig } from './connector-node-config.js';
 import { MODEL_OPTIONS } from './custom-nodes.js';
 import { getNodeIcon, getStatusBadge, NodeWiringPanel } from './node-wiring-panel.js';
 
@@ -83,8 +76,6 @@ export function NodeInspector({
 }: NodeInspectorProps) {
   const [showVariablePicker, setShowVariablePicker] = useState(false);
   const [targetField, setTargetField] = useState<string | null>(null);
-  const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<any | null>(null);
   const [tab, setTab] = useState<'settings' | 'wiring'>('settings');
 
   // Edits apply to the canvas live; this is the state Cancel returns to. The parent
@@ -524,212 +515,26 @@ export function NodeInspector({
           </div>
         )}
 
-        {/* 3b. UNIVERSAL APP CONNECTOR ACTION PROPERTIES */}
-        {(nodeType === 'APP_CONNECTOR_ACTION' ||
-          nodeType === 'TEAMS_SEND_MESSAGE' ||
-          nodeType === 'TEAMS_CREATE_MEETING') && (() => {
-          const currentConnectorId = config.connectorId || (nodeType.startsWith('TEAMS_') ? 'microsoft_teams' : 'custom_rest_api');
-          const meta = getConnectorMeta(currentConnectorId);
-          const currentConnector = CONNECTOR_CATALOG.find((c) => c.id === currentConnectorId) || meta;
-          const availableActions = currentConnector?.actions || [];
-
-          return (
-            <div className="space-y-3.5 pt-2 border-t border-border">
-              <div className="rounded-lg bg-primary/10 p-2.5 text-xs text-primary flex items-start gap-2.5">
-                <div className="p-1.5 rounded-lg bg-surface border border-border/80 shrink-0 shadow-2xs">
-                  <AppConnectorIcon connectorId={currentConnectorId} size={18} />
-                </div>
-                <div>
-                  <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    {meta?.name || 'Universal App Connector'}
-                  </div>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">
-                    Execute actions across SaaS, databases, APIs, or internal microservices with enterprise auth.
-                  </p>
-                </div>
-              </div>
-
-              {/* Connector Selector */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">
-                  App Connector
-                </label>
-                <select
-                  value={currentConnectorId}
-                  onChange={(e) => {
-                    const newConnId = e.target.value;
-                    const newMeta = getConnectorMeta(newConnId);
-                    const newConn = CONNECTOR_CATALOG.find((c) => c.id === newConnId);
-                    updateConfig('connectorId', newConnId);
-                    if (newConn?.actions?.[0]) {
-                      updateConfig('actionId', newConn.actions[0].id);
-                    }
-                  }}
-                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-medium"
-                >
-                  {CONNECTOR_CATALOG.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.category})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Action Selector */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">
-                  Action to Execute
-                </label>
-                <select
-                  value={config.actionId || (availableActions[0]?.id || 'execute_action')}
-                  onChange={(e) => updateConfig('actionId', e.target.value)}
-                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-[11px]"
-                >
-                  {availableActions.map((act) => (
-                    <option key={act.id} value={act.id}>
-                      {act.name} ({act.id})
-                    </option>
-                  ))}
-                  {availableActions.length === 0 && (
-                    <option value="call_endpoint">Call Endpoint</option>
-                  )}
-                </select>
-              </div>
-
-              {/* Connection Selector */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">
-                  Account Connection
-                </label>
-                <select
-                  value={config.connectionId || 'conn-ms-teams-corp'}
-                  onChange={(e) => updateConfig('connectionId', e.target.value)}
-                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="conn-ms-teams-corp">Company Teams (user@company.com - Connected)</option>
-                  <option value="conn-ms-teams-client">Client Teams (Engineering workspace - Connected)</option>
-                  <option value="conn-ms-teams-test">Test Teams Sandbox (QA environment)</option>
-                  <option value="conn-github-core">Primary GitHub Org (onetab-ai-org)</option>
-                  <option value="conn-slack-corp">OneTab Workspace Slack (bot@onetab.ai)</option>
-                  <option value="conn-gmail-support">Support Operations Gmail</option>
-                </select>
-              </div>
-
-              {/* Dynamic Payload or Message Expression */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-foreground">
-                    Action Input Payload / Expression
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTargetField('message');
-                      setShowVariablePicker(true);
-                    }}
-                    className="text-[10px] font-medium text-primary hover:underline"
-                  >
-                    Insert Variable
-                  </button>
-                </div>
-                <textarea
-                  rows={4}
-                  value={config.message || config.payload || '{{agent.output}}'}
-                  onChange={(e) => {
-                    updateConfig('message', e.target.value);
-                    updateConfig('payload', e.target.value);
-                  }}
-                  placeholder="Type message, template, or dynamic expression {{agent.output}}"
-                  className="w-full font-mono rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              {/* Approval Requirement Checkbox */}
-              <div className="flex items-center justify-between rounded-lg border border-border bg-surface-raised/50 p-2.5">
-                <div>
-                  <div className="text-xs font-medium text-foreground">Human Approval Gate</div>
-                  <div className="text-[10px] text-muted-foreground">Pause for supervisor confirmation before running</div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={config.requireApproval === true}
-                  onChange={(e) => updateConfig('requireApproval', e.target.checked)}
-                  className="rounded border-border accent-primary size-4"
-                />
-              </div>
-
-              {/* Live Test Sandbox Button */}
-              <div className="pt-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs gap-1.5 border-primary/30 hover:bg-primary/5 text-primary"
-                  onClick={async () => {
-                    try {
-                      const res = await connectorService.executeAction(
-                        currentConnectorId,
-                        config.actionId || availableActions[0]?.id || 'execute_action',
-                        {
-                          message: config.message || 'Test action from Agent Studio Canvas',
-                          teamId: config.teamId || 'team-eng-core',
-                          channelId: config.channelId || 'general',
-                        },
-                        config.connectionId || 'conn-ms-teams-corp'
-                      );
-                      toast.success(`Action "${res.actionId || config.actionId || 'Execute'}" ran successfully in sandbox!`);
-                    } catch (err: any) {
-                      toast.error(`Execution failed: ${err.message}`);
-                    }
-                  }}
-                >
-                  <Play className="size-3.5 fill-current" /> Run Test Action
-                </Button>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* 3c. APP CONNECTOR / TEAMS TRIGGER PROPERTIES */}
+        {/* 3b. APP ACTIONS AND APP EVENTS — any connector, from its live manifest */}
+        {(nodeType === 'APP_CONNECTOR_ACTION' || nodeType === 'TEAMS_SEND_MESSAGE' || nodeType === 'TEAMS_CREATE_MEETING') && (
+          <ConnectorNodeConfig
+            node={selectedNode}
+            nodes={nodes}
+            kind="action"
+            config={config}
+            readOnly={readOnly}
+            setConfig={(patch) => onUpdateNode(selectedNode.id, { ...data, config: { ...config, ...patch } })}
+          />
+        )}
         {(nodeType === 'APP_CONNECTOR_TRIGGER' || nodeType === 'TEAMS_TRIGGER_MESSAGE') && (
-          <div className="space-y-3.5 pt-2 border-t border-border">
-            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-xs text-emerald-600 dark:text-emerald-400">
-              <div className="font-semibold flex items-center gap-1.5">
-                <Boxes className="size-3.5" /> App Connector Event Trigger
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                Listens for inbound webhooks and events from the connected SaaS application.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
-                Listening Connection
-              </label>
-              <select
-                value={config.connectionId || 'conn-ms-teams-corp'}
-                onChange={(e) => updateConfig('connectionId', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="conn-ms-teams-corp">Company Teams (user@company.com - Connected)</option>
-                <option value="conn-ms-teams-client">Client Teams (Engineering workspace - Connected)</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
-                Trigger Event
-              </label>
-              <select
-                value={config.triggerId || 'new_message'}
-                onChange={(e) => updateConfig('triggerId', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-[11px]"
-              >
-                <option value="new_message">New Message in Channel or Chat</option>
-                <option value="mention">Bot Mentioned (@AI-Agent)</option>
-                <option value="meeting_event">Meeting Scheduled / Updated</option>
-              </select>
-            </div>
-          </div>
+          <ConnectorNodeConfig
+            node={selectedNode}
+            nodes={nodes}
+            kind="trigger"
+            config={config}
+            readOnly={readOnly}
+            setConfig={(patch) => onUpdateNode(selectedNode.id, { ...data, config: { ...config, ...patch } })}
+          />
         )}
 
         {/* 4. IF / ELSE PROPERTIES */}
@@ -1152,50 +957,6 @@ export function NodeInspector({
           </div>
         )}
 
-        {/* Test Node Action & Simulation Preview */}
-        <div className="pt-4 border-t border-border space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
-              Node Execution Sandbox
-            </span>
-            <Button
-              size="xs"
-              variant="outline"
-              onClick={async () => {
-                setIsTesting(true);
-                setTestResult(null);
-                try {
-                  const res = await workflowService.simulateTestNode(selectedNode, config);
-                  setTestResult(res);
-                  toast.success(`Node "${selectedNode.data?.label || selectedNode.id}" executed successfully`);
-                } catch {
-                  toast.error('Node test failed');
-                } finally {
-                  setIsTesting(false);
-                }
-              }}
-              loading={isTesting}
-              className="gap-1 text-xs"
-            >
-              <Cpu className="size-3 text-success" />
-              Test Node
-            </Button>
-          </div>
-
-          {testResult && (
-            <div className="space-y-1 font-mono text-[10px]">
-              <div className="flex items-center justify-between text-muted-foreground pb-1">
-                <span className="text-success font-bold">{testResult.status}</span>
-                <span>{testResult.latencyMs}ms</span>
-              </div>
-              <CodeBlock
-                variant="compact"
-                language="json"
-                code={JSON.stringify(testResult.output, null, 2)}
-              />
-            </div>
-          )}
-        </div>
       </div>
       )}
 

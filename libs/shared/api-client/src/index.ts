@@ -34,6 +34,7 @@ export {
   stickersApi,
   huddleApi,
   integrationsApi,
+  connectorsApi,
   invitationApi,
   marketplaceApi,
   matrixApi,

@@ -106,6 +106,7 @@ describe('AIRuntimeService — canvas agents and teams', () => {
       getToolSchemas: vi.fn().mockReturnValue([{ type: 'function', function: { name: 'everything' } }]),
       getToolSchemasFor: vi.fn((names: string[]) => names.map((name) => ({ type: 'function', function: { name } }))),
       getToolDefinitions: vi.fn().mockReturnValue([]),
+      hasTool: vi.fn(() => true),
       executeTool: vi.fn(),
     };
     modelResolver = { resolve: vi.fn(({ requestedModel }: any) => ({ provider: requestedModel.startsWith('gpt') ? 'openai' : 'nvidia', model: requestedModel })) };

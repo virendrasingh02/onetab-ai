@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, UnauthorizedException } from '
 import { ConfigService } from '@nestjs/config';
 import type {
   AppActionDefinition,
+  ConnectorTriggerDefinition,
   AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
@@ -51,6 +52,7 @@ export class LinearProvider implements ProviderAdapter {
       description:
         'Teams, projects, cycles, and issues — read and manage real Linear issues, with each team\'s own identifier prefix (e.g. ENG-123).',
       category: 'Productivity & Project Management',
+      connectorCategory: 'project_management',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: true,
@@ -198,6 +200,23 @@ export class LinearProvider implements ProviderAdapter {
   async handleWebhook(payload: unknown, headers: Record<string, string>): Promise<WebhookProcessResult> {
     const eventType = (payload as any)?.type || headers['linear-event'] || 'linear.event';
     return { success: true, eventType: `linear.${String(eventType).toLowerCase()}`, data: payload };
+  }
+
+  isServerConfigured(): boolean {
+    return Boolean(this.config.get<string>('LINEAR_CLIENT_ID') && this.config.get<string>('LINEAR_CLIENT_SECRET'));
+  }
+
+  getTriggers(): ConnectorTriggerDefinition[] {
+    return [
+      {
+        id: 'new_issue',
+        label: 'New issue',
+        description: 'Starts the agent for each new Linear issue (optionally in one team).',
+        pollActionId: 'list_issues',
+        itemsPath: 'issues',
+        idField: 'id',
+      },
+    ];
   }
 
   getActions(): AppActionDefinition[] {

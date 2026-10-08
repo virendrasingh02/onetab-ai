@@ -295,7 +295,13 @@ export function AgentCopilotPanel({
     try {
       await agentGraphsApi.setActivation(workspaceId, agentId, active);
       await refetchActivation();
-      toast.success(active ? 'It now runs on its schedule.' : 'Scheduled runs are off.');
+      toast.success(
+        active
+          ? activation?.appTrigger
+            ? `It now starts on ${activation.appTrigger.label}.`
+            : 'It now runs on its schedule.'
+          : 'It no longer runs by itself.',
+      );
     } catch (err) {
       say({ role: 'assistant', text: errorText(err, active ? 'It couldn’t be switched on.' : 'It couldn’t be switched off.') });
     } finally {
@@ -309,6 +315,16 @@ export function AgentCopilotPanel({
   };
 
   const schedule = activation?.schedule;
+  const appTrigger = activation?.appTrigger ?? null;
+  const runsOnItsOwnText = appTrigger
+    ? appTrigger.lastError
+      ? appTrigger.lastError
+      : activation?.active
+        ? `On ${appTrigger.label}${appTrigger.lastPolledAt ? ` · checked ${new Date(appTrigger.lastPolledAt).toLocaleTimeString()}` : ' · first check within 2 min'}`
+        : `On ${appTrigger.label}`
+    : schedule
+      ? `${describeCronExpression(schedule.cron)}${schedule.timezone ? ` (${schedule.timezone})` : ''}`
+      : 'No schedule or app event — ask me to “run it every weekday at 9”';
 
   return (
     <aside
@@ -337,15 +353,18 @@ export function AgentCopilotPanel({
       <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-raised/40 px-3 py-2">
         <div className="min-w-0">
           <p className="text-xs font-medium text-foreground">Runs on its own</p>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {schedule ? `${describeCronExpression(schedule.cron)}${schedule.timezone ? ` (${schedule.timezone})` : ''}` : 'No schedule — ask me to “run it every weekday at 9”'}
+          <p
+            className={cn('truncate text-[11px]', appTrigger?.lastError ? 'text-warning-text' : 'text-muted-foreground')}
+            title={runsOnItsOwnText}
+          >
+            {runsOnItsOwnText}
           </p>
         </div>
         <Switch
           checked={!!activation?.active}
-          disabled={switching || (!activation?.active && !schedule)}
+          disabled={switching || (!activation?.active && !schedule && !appTrigger)}
           onCheckedChange={(v) => void toggleActivation(v)}
-          aria-label="Run on its schedule"
+          aria-label={appTrigger ? 'Start on the app event' : 'Run on its schedule'}
         />
       </div>
 

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
   AppActionDefinition,
+  ConnectorTriggerDefinition,
   AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
@@ -100,6 +101,7 @@ export class GoogleCalendarProvider implements ProviderAdapter {
       description:
         'View, search, and manage events across your Google Calendars — day/week/month scheduling, availability, and meeting creation.',
       category: 'Productivity & Project Management',
+      connectorCategory: 'calendar',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: false,
@@ -198,6 +200,23 @@ export class GoogleCalendarProvider implements ProviderAdapter {
   async handleWebhook(payload: unknown): Promise<WebhookProcessResult> {
     this.logger.log('Google Calendar does not have an active push-notification channel registered.');
     return { success: true, eventType: 'google_calendar.unsubscribed', data: payload };
+  }
+
+  isServerConfigured(): boolean {
+    return Boolean(this.config.get<string>('GOOGLE_CLIENT_ID') && this.config.get<string>('GOOGLE_CLIENT_SECRET'));
+  }
+
+  getTriggers(): ConnectorTriggerDefinition[] {
+    return [
+      {
+        id: 'new_event',
+        label: 'New calendar event',
+        description: 'Starts the agent for each new upcoming event on your calendar.',
+        pollActionId: 'list_events',
+        itemsPath: 'events',
+        idField: 'id',
+      },
+    ];
   }
 
   getActions(): AppActionDefinition[] {

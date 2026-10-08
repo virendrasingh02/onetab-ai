@@ -17,13 +17,14 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
   Input,
+  ErrorState,
   LoadingState,
   Popover,
   PopoverContent,
   PopoverTrigger,
   toast,
 } from '@org/ui';
-import { diffStudioGraphs, type StudioCanvasGraph } from '@org/types';
+import { compileStudioGraph, diffStudioGraphs, type StudioCanvasGraph, type StudioGraphIssue } from '@org/types';
 import { cn } from '@org/utils';
 import {
   addEdge,
@@ -76,7 +77,6 @@ import {
   Layers,
   Loader2,
   Lock,
-  MessageSquare,
   Minus,
   MousePointer2,
   Network,
@@ -95,7 +95,7 @@ import {
   Trash2,
   Undo2,
   Upload,
-  Variable,
+  KeyRound,
   Wand2,
   X,
 } from 'lucide-react';
@@ -117,11 +117,9 @@ import { NodeInspector, type NodeSnapshot } from '../components/workflow-canvas/
 import { ValidationModal } from '../components/workflow-canvas/validation-modal.js';
 import { RunConsoleDrawer, type CanvasNodeStatus } from '../components/workflow-canvas/run-console-drawer.js';
 import { AgentCopilotPanel } from '../components/agent-architect/agent-copilot-panel.js';
-import { MultiAgentTab } from '../components/agent-detail/multi-agent-tab.jsx';
-import { AgentConnectorsTab } from '../components/agent-detail/agent-connectors-tab.jsx';
+import { AgentConnectorsTab } from '../components/agent-detail/agent-connectors-tab.js';
 import { MemoryTab } from '../components/agent-detail/memory-tab.jsx';
 import { VariablesTab } from '../components/agent-detail/variables-tab.jsx';
-import { WidgetBuilder } from '../components/agent-detail/widget-builder.jsx';
 import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
 import { agentService } from '../services/agentService.js';
 import { layoutWorkflow } from '../components/workflow-canvas/auto-layout.js';
@@ -231,13 +229,25 @@ const ZOOM_PRESETS = [0.5, 1, 2] as const;
 /** How long auto layout takes to glide nodes into place. */
 const LAYOUT_ANIMATION_MS = 420;
 
+/** What an agent's slot row says about the node plugged into it — the prompt's first real line for a prompt. */
+function slotRowLabel(slotId: string, n: Node): string {
+  const data = (n.data ?? {}) as { label?: unknown; config?: Record<string, unknown> };
+  if (slotId === 'prompt') {
+    const text = String(data.config?.['prompt'] ?? data.config?.['template'] ?? data.config?.['systemPrompt'] ?? '');
+    const line = text
+      .split('\n')
+      .map((l) => l.replace(/^[#>*\-\s]+/, '').trim())
+      .find((l) => l.length > 0 && !/^(role|scope|rules|goal|instructions)$/i.test(l));
+    if (line) return line.length > 48 ? `${line.slice(0, 47)}…` : line;
+  }
+  return String(data.label || n.type);
+}
+
 const AGENT_TABS = [
   { id: 'build', label: 'Canvas', icon: GitBranch },
   { id: 'connectors', label: 'Connectors', icon: Plug },
-  { id: 'multi_agent', label: 'Multi-Agent', icon: Network },
   { id: 'memory', label: 'Memory', icon: Brain },
-  { id: 'variables', label: 'Variables', icon: Variable },
-  { id: 'widget', label: 'Widget', icon: MessageSquare },
+  { id: 'variables', label: 'Secrets', icon: KeyRound },
   { id: 'executions', label: 'Executions', icon: Activity },
   { id: 'evaluations', label: 'Evaluation', icon: Award },
   { id: 'versions', label: 'Versions', icon: Clock },
@@ -863,7 +873,10 @@ function WorkflowCanvasInner({
             if (t.includes('USER') || t.includes('APPROVAL')) return '#f43f5e';
             if (t.includes('NOTE')) return '#fbbf24';
             if (t.includes('GROUP')) return '#64748b';
-            return '#a855f7';
+            if (t.includes('APP_CONNECTOR')) return '#0ea5e9';
+            if (t.includes('END') || t.includes('OUTPUT')) return '#10b981';
+            // Prompt / LLM / knowledge cards plugged into an agent, and anything else: quiet grey
+            return '#94a3b8';
           }}
           nodeStrokeWidth={3}
           className="!bg-card/85 !border-border !rounded-xl !shadow-sm"
@@ -1052,18 +1065,14 @@ export function AgentDetailPage() {
   const {
     data: agent,
     isLoading: isAgentLoading,
+    isError: isAgentError,
+    error: agentError,
     refetch: refetchAgent,
   } = useQuery({
     queryKey: agentQueryKey,
     queryFn: async () => {
       if (!agentId) throw new Error('Agent ID required');
-      try {
-        const live = await agentsApi.get(activeWorkspace.id, agentId);
-        if (live) return live;
-      } catch {
-        // Fallback to mock service
-      }
-      return agentService.getAgentById(activeWorkspace.id, agentId);
+      return agentsApi.get(activeWorkspace.id, agentId);
     },
     enabled: !!agentId && !!activeWorkspace.id,
   });
@@ -1080,13 +1089,7 @@ export function AgentDetailPage() {
     queryKey: ['agent-versions', activeWorkspace.id, agentId],
     queryFn: async (): Promise<AgentVersion[]> => {
       if (!agentId) return [];
-      try {
-        const live = await agentsApi.getVersions(activeWorkspace.id, agentId);
-        if (Array.isArray(live) && live.length > 0) return live;
-      } catch {
-        // Fallback to agentService mock
-      }
-      return agentService.getVersions(activeWorkspace.id, agentId);
+      return (await agentsApi.getVersions(activeWorkspace.id, agentId)) ?? [];
     },
     enabled: !!agentId,
   });
@@ -1194,14 +1197,10 @@ export function AgentDetailPage() {
       setHeaderNameInput(current ?? '');
       return;
     }
-    // Optimistic: show the new name right away, roll back if neither store accepts it
+    // Optimistic: show the new name right away, roll back if the server rejects it
     setSettingsDraft((draft) => (draft ? { ...draft, name: trimmed } : draft));
     try {
-      try {
-        await agentsApi.update(activeWorkspace.id, agentId, { name: trimmed });
-      } catch {
-        await agentService.updateAgent(activeWorkspace.id, agentId, { name: trimmed });
-      }
+      await agentsApi.update(activeWorkspace.id, agentId, { name: trimmed });
       queryClient.invalidateQueries({ queryKey: agentQueryKey });
       queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
       toast.success('Agent renamed');
@@ -1385,17 +1384,11 @@ export function AgentDetailPage() {
       if (!agentId) return;
       // Publishing validates and snapshots the stored graph — save first.
       if (isDirty) await persistAgent();
-      try {
-        const res = await agentsApi.publish(
-          activeWorkspace.id,
-          agentId,
-          `Published version ${targetPublishVersion}`,
-        );
-        if (res?.agent) return res;
-      } catch {
-        // Fallback to mock service
-      }
-      return agentService.publishAgent(activeWorkspace.id, agentId);
+      return agentsApi.publish(
+        activeWorkspace.id,
+        agentId,
+        `Published version ${targetPublishVersion}`,
+      );
     },
     onSuccess: () => {
       toast.success(`Published update ${targetPublishVersion} successfully`);
@@ -1412,11 +1405,7 @@ export function AgentDetailPage() {
   const unpublishMutation = useMutation({
     mutationFn: async () => {
       if (!agentId) return;
-      try {
-        await agentsApi.unpublish(activeWorkspace.id, agentId);
-      } catch {
-        await agentService.unpublishAgent(activeWorkspace.id, agentId);
-      }
+      await agentsApi.unpublish(activeWorkspace.id, agentId);
     },
     onSuccess: () => {
       toast.success('Agent unpublished');
@@ -1469,6 +1458,25 @@ export function AgentDetailPage() {
     },
   });
 
+  // Live problems per step, from the same compiler the server runs before a run —
+  // so "pick a knowledge base" shows on the card, not only after pressing Validate.
+  const issuesByNode = useMemo(() => {
+    const out = new Map<string, StudioGraphIssue[]>();
+    try {
+      const compiled = compileStudioGraph({
+        nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: { label: (n.data as any)?.label, config: (n.data as any)?.config ?? {} } })),
+        edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null })),
+      } as unknown as Record<string, unknown>);
+      for (const issue of compiled.issues) {
+        if (!issue.nodeId) continue;
+        out.set(issue.nodeId, [...(out.get(issue.nodeId) ?? []), issue]);
+      }
+    } catch {
+      // A graph the compiler can't read yet (mid-edit) simply shows no badges.
+    }
+    return out;
+  }, [nodes, edges]);
+
   // What's plugged into each agent slot: agents get per-slot summaries for their
   // rows, attached nodes get an "LLM · Agent 1" chip.
   const slotDecorations = useMemo(() => {
@@ -1478,7 +1486,7 @@ export function AgentDetailPage() {
       const attached = slotAttachments(host.id, nodes, edges);
       const slots: Record<string, { id: string; label: string }[]> = {};
       for (const [slotId, list] of Object.entries(attached)) {
-        slots[slotId] = list.map((n) => ({ id: n.id, label: String((n.data as any)?.label || n.type) }));
+        slots[slotId] = list.map((n) => ({ id: n.id, label: slotRowLabel(slotId, n) }));
         for (const n of list) {
           out.set(n.id, {
             attachedTo: { label: String(host.data?.label || 'Agent'), slot: getSlot(slotId)?.label ?? slotId },
@@ -2089,6 +2097,22 @@ export function AgentDetailPage() {
     );
   }
 
+  if (isAgentError) {
+    return (
+      <ErrorState
+        fullPage
+        title="Could not load this agent"
+        description={errorMessage(agentError, 'Request failed')}
+        onRetry={() => void refetchAgent()}
+        action={
+          <Button variant="outline" size="sm" onClick={() => navigate('/agents')}>
+            Back to Agents
+          </Button>
+        }
+      />
+    );
+  }
+
   if (!agent) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-3">
@@ -2243,7 +2267,7 @@ export function AgentDetailPage() {
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" />
                 {/* Narrower screens: only the active tab keeps its label */}
-                <span className={cn(!isActive && 'hidden 2xl:inline')}>{tab.label}</span>
+                <span className={cn(!isActive && 'hidden xl:inline')}>{tab.label}</span>
               </button>
             );
           })}
@@ -2489,6 +2513,7 @@ export function AgentDetailPage() {
                   data: {
                     ...n.data,
                     ...slotDecorations.get(n.id),
+                    issues: issuesByNode.get(n.id),
                     ...(isSlotHost(n.type) ? { onToggleCollapse: () => handleToggleCollapse(n.id) } : {}),
                     onUpdateConfig: (patch: Record<string, unknown>) => handleUpdateNodeConfig(n.id, patch),
                     onTest: () => setIsTestDrawerOpen(true),
@@ -2591,32 +2616,7 @@ export function AgentDetailPage() {
         {activeTab === 'connectors' && (
           <AgentConnectorsTab
             agent={agent}
-            onUpdate={async (patch) => {
-              if (!agentId) return;
-              try {
-                await agentsApi.update(activeWorkspace.id, agentId, patch);
-              } catch {
-                await agentService.updateAgent(activeWorkspace.id, agentId, patch);
-              }
-              queryClient.invalidateQueries({ queryKey: agentQueryKey });
-            }}
-          />
-        )}
-
-        {/* TAB 2: MULTI-AGENT SWARM */}
-        {activeTab === 'multi_agent' && (
-          <MultiAgentTab
-            agent={agent}
-            onSave={async (patch) => {
-              if (!agentId) return;
-              try {
-                await agentsApi.update(activeWorkspace.id, agentId, patch);
-              } catch {
-                await agentService.updateAgent(activeWorkspace.id, agentId, patch);
-              }
-              queryClient.invalidateQueries({ queryKey: agentQueryKey });
-              toast.success('Multi-agent swarm saved');
-            }}
+            onChanged={() => queryClient.invalidateQueries({ queryKey: agentQueryKey })}
           />
         )}
 
@@ -2626,10 +2626,12 @@ export function AgentDetailPage() {
             agent={agent}
             onUpdate={async (patch) => {
               if (!agentId) return;
+              // agentService merges partial configuration patches onto the saved one.
               try {
-                await agentsApi.update(activeWorkspace.id, agentId, patch);
-              } catch {
                 await agentService.updateAgent(activeWorkspace.id, agentId, patch);
+              } catch (err) {
+                toast.error(errorMessage(err, 'Could not save changes'));
+                return;
               }
               queryClient.invalidateQueries({ queryKey: agentQueryKey });
               toast.success('Memory policies updated');
@@ -2640,23 +2642,6 @@ export function AgentDetailPage() {
         {/* TAB 4: VARIABLES & EXPRESSIONS */}
         {activeTab === 'variables' && (
           <VariablesTab />
-        )}
-
-        {/* TAB 5: CHAT WIDGET BUILDER */}
-        {activeTab === 'widget' && (
-          <WidgetBuilder
-            agent={agent}
-            onUpdate={async (patch) => {
-              if (!agentId) return;
-              try {
-                await agentsApi.update(activeWorkspace.id, agentId, patch);
-              } catch {
-                await agentService.updateAgent(activeWorkspace.id, agentId, patch);
-              }
-              queryClient.invalidateQueries({ queryKey: agentQueryKey });
-              toast.success('Widget settings updated');
-            }}
-          />
         )}
 
         {/* TAB 3: EXECUTIONS */}
@@ -2742,10 +2727,12 @@ export function AgentDetailPage() {
             agent={agent}
             onUpdate={async (patch) => {
               if (!agentId) return;
+              // agentService merges partial configuration patches onto the saved one.
               try {
-                await agentsApi.update(activeWorkspace.id, agentId, patch);
-              } catch {
                 await agentService.updateAgent(activeWorkspace.id, agentId, patch);
+              } catch (err) {
+                toast.error(errorMessage(err, 'Could not save changes'));
+                return;
               }
               queryClient.invalidateQueries({ queryKey: agentQueryKey });
               toast.success('Evaluation configuration updated');

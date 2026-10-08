@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, UnauthorizedException } from '
 import { ConfigService } from '@nestjs/config';
 import type {
   AppActionDefinition,
+  ConnectorTriggerDefinition,
   AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
@@ -41,6 +42,7 @@ export class GitHubProvider implements ProviderAdapter {
       description:
         'Repositories, issues, pull requests, commits, releases, and notifications — read and act on real GitHub data.',
       category: 'Developer Tools',
+      connectorCategory: 'developer_tools',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: true,
@@ -212,6 +214,39 @@ export class GitHubProvider implements ProviderAdapter {
     }
     const eventType = headers['x-github-event'] || 'github.event';
     return { success: true, eventType: `github.${eventType}`, data: payload };
+  }
+
+  isServerConfigured(): boolean {
+    return Boolean(this.config.get<string>('GITHUB_CLIENT_ID') && this.config.get<string>('GITHUB_CLIENT_SECRET'));
+  }
+
+  getTriggers(): ConnectorTriggerDefinition[] {
+    return [
+      {
+        id: 'new_issue',
+        label: 'New issue',
+        description: 'Starts the agent for each new open issue in a repository.',
+        pollActionId: 'list_issues',
+        itemsPath: 'issues',
+        idField: 'id',
+      },
+      {
+        id: 'new_pull_request',
+        label: 'New pull request',
+        description: 'Starts the agent for each new open pull request in a repository.',
+        pollActionId: 'list_pull_requests',
+        itemsPath: 'pullRequests',
+        idField: 'id',
+      },
+      {
+        id: 'review_requested',
+        label: 'Review requested',
+        description: 'Starts the agent when someone asks you to review a pull request.',
+        pollActionId: 'list_review_requests',
+        itemsPath: 'pullRequests',
+        idField: 'id',
+      },
+    ];
   }
 
   getActions(): AppActionDefinition[] {

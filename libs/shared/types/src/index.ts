@@ -446,6 +446,7 @@ export * from './lib/structured-event-validator.js';
 export * from './lib/analytics.js';
 export * from './lib/marketplace.js';
 export * from './lib/integrations.js';
+export * from './lib/connectors.js';
 export * from './lib/plans.js';
 export * from './lib/billing.js';
 export * from './lib/compliance.js';

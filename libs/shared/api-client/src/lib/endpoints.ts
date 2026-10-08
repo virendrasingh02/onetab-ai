@@ -305,6 +305,9 @@ import type {
   RenderedTemplateResult,
   EmailSendResult,
   EmailProvidersOverview,
+  ConnectionTestResult,
+  ConnectorDetail,
+  ConnectorSummary,
 } from '@org/types';
 
 import type {
@@ -3124,6 +3127,24 @@ export const integrationsApi = {
         input,
       ),
     ),
+};
+
+/**
+ * The App Connectors center: what every connector can do (actions, queries,
+ * triggers, agent capabilities), the caller's connections, real usage and
+ * history. Connecting, disconnecting and running actions stay on
+ * `integrationsApi`.
+ */
+export const connectorsApi = {
+  list: (workspaceId: string) =>
+    request<ConnectorSummary[]>(http.get(`/workspaces/${workspaceId}/connectors`)),
+
+  detail: (workspaceId: string, provider: string) =>
+    request<ConnectorDetail>(http.get(`/workspaces/${workspaceId}/connectors/${encodeURIComponent(provider)}`)),
+
+  /** Checks a connection against the app itself and records the result. */
+  testConnection: (workspaceId: string, integrationId: string) =>
+    request<ConnectionTestResult>(http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/test`)),
 };
 
 /** Where a file is filed. `channelId` is the legacy shorthand for a CHANNEL context. */

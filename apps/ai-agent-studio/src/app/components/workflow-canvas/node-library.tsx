@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
+import { useConnectorCatalogNodes } from './connector-nodes.js';
 
 export type NodeCategory =
   | 'all'
@@ -54,6 +55,8 @@ export type NodeCategory =
   | 'annotations';
 
 export interface CatalogNodeItem {
+  /** Unique id when several items share a type (one per connector capability). */
+  key?: string;
   type: string;
   category: NodeCategory;
   label: string;
@@ -107,6 +110,16 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     defaultConfig: { httpMethod: 'POST', authRequired: true },
   },
   {
+    type: 'APP_CONNECTOR_TRIGGER',
+    category: 'triggers',
+    label: 'App Event',
+    subtitle: 'New email, issue, message…',
+    description: 'Starts the agent for each new item in a connected app — pick the app and the event in the inspector',
+    icon: Zap,
+    badge: 'Connector',
+    defaultConfig: { input: {} },
+  },
+  {
     type: 'TRIGGER_APP_EVENT',
     category: 'triggers',
     label: 'App Event Trigger',
@@ -115,16 +128,6 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     icon: Zap,
     badge: 'Trigger',
     defaultConfig: { eventType: 'document.created' },
-  },
-  {
-    type: 'TEAMS_TRIGGER_MESSAGE',
-    category: 'triggers',
-    label: 'Teams New Message Trigger',
-    subtitle: 'Microsoft Teams Inbound',
-    description: 'Triggers workflow execution when a message is posted or bot is mentioned in Teams',
-    icon: MessageSquare,
-    badge: 'Connector',
-    defaultConfig: { connectorId: 'microsoft-teams', triggerId: 'new_message', filter: 'all_messages' },
   },
 
   // 2. AI & REASONING (Module 3.2)
@@ -447,47 +450,10 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     category: 'tools',
     label: 'App Connector Action',
     subtitle: 'Connected SaaS Action',
-    description: 'Invokes an authenticated action against any configured App Connector (Teams, Slack, Gmail, GitHub, Jira)',
+    description: 'Runs an action or read in any connected app — pick the app and the action in the inspector',
     icon: Boxes,
     badge: 'Connector',
-    defaultConfig: {
-      connectorId: 'microsoft-teams',
-      connectionId: 'conn-ms-teams-corp',
-      actionId: 'send_channel_message',
-    },
-  },
-  {
-    type: 'TEAMS_SEND_MESSAGE',
-    category: 'tools',
-    label: 'Teams Send Message',
-    subtitle: 'Post Channel or DM',
-    description: 'Posts a formatted message, markdown text, or agent response into Microsoft Teams',
-    icon: MessageSquare,
-    badge: 'Teams',
-    defaultConfig: {
-      connectorId: 'microsoft-teams',
-      connectionId: 'conn-ms-teams-corp',
-      actionId: 'send_channel_message',
-      teamId: 'team-eng-core',
-      channelId: 'general',
-      message: '{{agent.output}}',
-    },
-  },
-  {
-    type: 'TEAMS_CREATE_MEETING',
-    category: 'tools',
-    label: 'Teams Schedule Meeting',
-    subtitle: 'Calendar Meeting Invite',
-    description: 'Schedules an online Microsoft Teams meeting invite with join link and audio details',
-    icon: MessageSquare,
-    badge: 'Teams',
-    defaultConfig: {
-      connectorId: 'microsoft-teams',
-      connectionId: 'conn-ms-teams-corp',
-      actionId: 'create_meeting',
-      subject: 'AI Agent Consultation',
-      durationMinutes: 30,
-    },
+    defaultConfig: { input: {} },
   },
 
   // 7. HUMAN INTERACTION (Module 3.7)
@@ -580,7 +546,7 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
 export const CATEGORY_ITEMS: { id: NodeCategory; label: string; count: number }[] = [
   { id: 'all', label: 'All Nodes', count: CATALOG_NODES.length },
   { id: 'triggers', label: 'Triggers', count: CATALOG_NODES.filter((n) => n.category === 'triggers').length },
-  { id: 'connectors', label: 'App Connectors', count: CATALOG_NODES.filter((n) => n.badge === 'Connector' || n.badge === 'Teams' || n.type.startsWith('APP_CONNECTOR') || n.type.startsWith('TEAMS_')).length },
+  { id: 'connectors', label: 'Apps & Connectors', count: CATALOG_NODES.filter((n) => n.type.startsWith('APP_CONNECTOR')).length },
   { id: 'ai', label: 'AI & Reasoning', count: CATALOG_NODES.filter((n) => n.category === 'ai').length },
   { id: 'knowledge', label: 'Knowledge & RAG', count: CATALOG_NODES.filter((n) => n.category === 'knowledge').length },
   { id: 'logic', label: 'Logic & Flow', count: CATALOG_NODES.filter((n) => n.category === 'logic').length },
@@ -600,17 +566,14 @@ export function NodeLibrary({
 }) {
   const [selectedCategory, setSelectedCategory] = useState<NodeCategory>('all');
   const [search, setSearch] = useState('');
+  const connectorNodes = useConnectorCatalogNodes();
 
   const filteredNodes = useMemo(() => {
-    return CATALOG_NODES.filter((node) => {
+    return [...CATALOG_NODES, ...connectorNodes].filter((node) => {
       const matchesCategory =
         selectedCategory === 'all' ||
         node.category === selectedCategory ||
-        (selectedCategory === 'connectors' &&
-          (node.badge === 'Connector' ||
-            node.badge === 'Teams' ||
-            node.type.startsWith('APP_CONNECTOR') ||
-            node.type.startsWith('TEAMS_')));
+        (selectedCategory === 'connectors' && node.type.startsWith('APP_CONNECTOR'));
       const matchesSearch =
         search.trim() === '' ||
         node.label.toLowerCase().includes(search.toLowerCase()) ||
@@ -618,7 +581,7 @@ export function NodeLibrary({
         node.description.toLowerCase().includes(search.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, search]);
+  }, [selectedCategory, search, connectorNodes]);
 
   const onDragStart = (
     event: React.DragEvent,
@@ -682,12 +645,12 @@ export function NodeLibrary({
         ) : (
           filteredNodes.map((item) => {
             const Icon = item.icon;
-            const isConnector = item.badge === 'Connector' || item.badge === 'Teams' || item.defaultConfig?.connectorId;
-            const connectorId = item.defaultConfig?.connectorId || (item.badge === 'Teams' ? 'microsoft_teams' : null);
+            const connectorId = item.defaultConfig?.connectorId;
+            const isConnector = !!connectorId;
 
             return (
               <div
-                key={item.type}
+                key={item.key ?? item.type}
                 draggable
                 onDragStart={(e) => onDragStart(e, item)}
                 className="group relative flex cursor-grab flex-col rounded-xl border border-border bg-surface p-2.5 transition-all hover:border-primary/50 hover:bg-surface-raised/40 hover:shadow-xs active:cursor-grabbing"

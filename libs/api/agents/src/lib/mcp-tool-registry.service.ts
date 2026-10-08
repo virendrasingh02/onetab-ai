@@ -509,6 +509,11 @@ export class MCPToolRegistryService {
    * chat call's `tools` option (`ChatExecutionOptions.tools`). A parameter is
    * required unless the tool lists it in `optional`.
    */
+  /** Whether `name` is a registered built-in tool. */
+  hasTool(name: string): boolean {
+    return this.tools.has(name);
+  }
+
   getToolSchemas(): Array<Record<string, unknown>> {
     return this.getToolSchemasFor();
   }

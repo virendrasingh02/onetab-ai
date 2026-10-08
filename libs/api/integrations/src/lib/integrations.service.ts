@@ -23,6 +23,7 @@ import { IntegrationPermissionService } from './core/integration-permission.serv
 import { IntegrationSyncService } from './core/integration-sync.service.js';
 import { OAuthService } from './core/oauth.service.js';
 import type { MessageQuery } from './core/provider-adapter.interface.js';
+import { customApiConfigFromMetadata } from './providers/custom-api.provider.js';
 
 @Injectable()
 export class IntegrationsService {
@@ -156,6 +157,11 @@ export class IntegrationsService {
       if (customConfig.basicPassword) {
         encryptedBasicPass = this.encryption.encrypt(customConfig.basicPassword);
       }
+      // Header values are often credentials too (`X-Api-Key`, `Authorization`).
+      const encryptedCustomHeaders =
+        customConfig.customHeaders && Object.keys(customConfig.customHeaders).length > 0
+          ? this.encryption.encrypt(JSON.stringify(customConfig.customHeaders))
+          : undefined;
 
       // Store masked metadata for safe retrieval
       const safeMetadata: Record<string, unknown> = {
@@ -163,9 +169,13 @@ export class IntegrationsService {
         apiKey: this.encryption.maskSecret(customConfig.apiKey),
         bearerToken: this.encryption.maskSecret(customConfig.bearerToken),
         basicPassword: this.encryption.maskSecret(customConfig.basicPassword),
+        customHeaders: customConfig.customHeaders
+          ? Object.fromEntries(Object.keys(customConfig.customHeaders).map((h) => [h, '••••']))
+          : undefined,
         encryptedApiKey,
         encryptedBearer,
         encryptedBasicPass,
+        encryptedCustomHeaders,
       };
 
       const integrationId =
@@ -184,12 +194,13 @@ export class IntegrationsService {
           displayName: customConfig.baseUrl || 'Custom API',
           status: 'CONNECTED',
           metadata: JSON.stringify(safeMetadata),
-          configJson: JSON.stringify(params.config || {}),
+          // Never the raw config: its key / token / password live encrypted in `metadata`.
+          configJson: JSON.stringify(this.withoutSecrets(params.config)),
         },
         update: {
           status: 'CONNECTED',
           metadata: JSON.stringify(safeMetadata),
-          configJson: JSON.stringify(params.config || {}),
+          configJson: JSON.stringify(this.withoutSecrets(params.config)),
           lastErrorAt: null,
           lastErrorMessage: null,
         },
@@ -279,11 +290,11 @@ export class IntegrationsService {
         scopeType: 'WORKSPACE',
         provider: providerKey,
         status: 'CONNECTED',
-        configJson: JSON.stringify(params.config || {}),
+        configJson: JSON.stringify(this.withoutSecrets(params.config)),
       },
       update: {
         status: 'CONNECTED',
-        configJson: JSON.stringify(params.config || {}),
+        configJson: JSON.stringify(this.withoutSecrets(params.config)),
       },
     });
 
@@ -575,6 +586,44 @@ export class IntegrationsService {
   }
 
   /**
+   * Runs a *read* action for an app trigger's poll. Same access check as any
+   * action, but it refuses anything that writes, and only failures reach the
+   * audit log — a poll every few minutes would otherwise bury real activity.
+   */
+  async pollAction(
+    integrationId: string,
+    actionId: string,
+    input: Record<string, unknown>,
+    userId: string,
+    workspaceId?: string,
+  ): Promise<AppActionResult> {
+    await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'view');
+    const { adapter, credential } = await this.manager.resolveCredential(integrationId);
+    const definition = adapter.getActions?.().find((action) => action.id === actionId);
+    if (!definition || !adapter.executeAction) {
+      throw new NotFoundException(`Provider '${credential.provider}' has no action '${actionId}'.`);
+    }
+    if (definition.permissionLevel !== 'read') {
+      throw new BadRequestException(`'${actionId}' changes data, so it can't be polled.`);
+    }
+    const startedAt = Date.now();
+    try {
+      return await adapter.executeAction(credential, actionId, input);
+    } catch (error) {
+      await this.auditLogger.logAudit({
+        integrationId,
+        workspaceId,
+        userId,
+        action: 'TRIGGER_POLL_FAILED',
+        status: 'FAILURE',
+        durationMs: Date.now() - startedAt,
+        details: { provider: credential.provider, actionId, error: error instanceof Error ? error.message : String(error) },
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Runs one of a provider's registered actions.
    *
    * Confirmation is enforced here, not just trusted from the client: a card's
@@ -732,22 +781,8 @@ export class IntegrationsService {
       throw new BadRequestException(`Provider '${credential.provider}' does not support custom request execution.`);
     }
 
-    // Decrypt any stored encrypted credentials in metadata
-    const rawConfig = credential.metadata as Record<string, any>;
-    const resolvedConfig: IntegrationCustomApiConfig = {
-      baseUrl: rawConfig.baseUrl,
-      authType: rawConfig.authType,
-      apiKey: rawConfig.encryptedApiKey ? this.encryption.decrypt(rawConfig.encryptedApiKey) : rawConfig.apiKey,
-      apiKeyHeader: rawConfig.apiKeyHeader,
-      apiKeyQueryParam: rawConfig.apiKeyQueryParam,
-      bearerToken: rawConfig.encryptedBearer ? this.encryption.decrypt(rawConfig.encryptedBearer) : rawConfig.bearerToken,
-      basicUsername: rawConfig.basicUsername,
-      basicPassword: rawConfig.encryptedBasicPass ? this.encryption.decrypt(rawConfig.encryptedBasicPass) : rawConfig.basicPassword,
-      customHeaders: rawConfig.customHeaders,
-      queryParams: rawConfig.queryParams,
-      timeoutMs: rawConfig.timeoutMs,
-      retryAttempts: rawConfig.retryAttempts,
-    };
+    // The stored metadata keeps every secret encrypted; decrypt only for the call.
+    const resolvedConfig = customApiConfigFromMetadata(credential.metadata, (c) => this.encryption.decrypt(c));
 
     return adapter.executeCustomRequest(resolvedConfig, req);
   }
@@ -761,6 +796,22 @@ export class IntegrationsService {
   }
 
   // --- Helper to scrub tokens from output ------------------------------------
+
+  /** A connect config with every credential field dropped — safe to store in plain text. */
+  private withoutSecrets(config: Record<string, unknown> | undefined): Record<string, unknown> {
+    const SECRET = /key|token|secret|password|authorization|credential/i;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(config ?? {})) {
+      if (SECRET.test(k)) continue;
+      if (k === 'customHeaders' && v && typeof v === 'object') {
+        // Header names only; their values are often credentials.
+        out[k] = Object.fromEntries(Object.keys(v as Record<string, unknown>).map((h) => [h, '••••']));
+        continue;
+      }
+      out[k] = v;
+    }
+    return out;
+  }
 
   private formatSafeIntegration(row: any) {
     let parsedMetadata: Record<string, unknown>;
@@ -796,7 +847,6 @@ export class IntegrationsService {
       status: row.status,
       scopes: parsedScopes,
       metadata: safeMeta,
-      configJson: row.configJson,
       lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : null,
       lastErrorAt: row.lastErrorAt ? row.lastErrorAt.toISOString() : null,
       lastErrorMessage: row.lastErrorMessage,

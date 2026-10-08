@@ -1,6 +1,8 @@
 export { IntegrationsModule } from './lib/integrations.module.js';
 export { IntegrationsService } from './lib/integrations.service.js';
 export { IntegrationsController } from './lib/integrations.controller.js';
+export { ConnectorRegistryService } from './lib/connectors/connector-registry.service.js';
+export { ConnectorsController } from './lib/connectors/connectors.controller.js';
 export { WebhooksController } from './lib/webhooks.controller.js';
 export { SlackImporterService } from './lib/slack-importer.service.js';
 export { NotionImporterService } from './lib/notion-importer.service.js';

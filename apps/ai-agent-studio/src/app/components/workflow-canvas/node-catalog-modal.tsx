@@ -7,6 +7,8 @@ import {
   X,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
+import { useConnectorCatalogNodes } from './connector-nodes.js';
 import {
   CATALOG_NODES,
   CATEGORY_ITEMS,
@@ -33,11 +35,15 @@ export function NodeCatalogModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
-  // Filter nodes by category and search query
+  const connectorNodes = useConnectorCatalogNodes();
+
+  // Filter nodes by category and search query — the live connector capabilities included.
   const filteredNodes = useMemo(() => {
-    return CATALOG_NODES.filter((node) => {
+    return [...CATALOG_NODES, ...connectorNodes].filter((node) => {
       const matchesCategory =
-        selectedCategory === 'all' || node.category === selectedCategory;
+        selectedCategory === 'all' ||
+        node.category === selectedCategory ||
+        (selectedCategory === 'connectors' && node.type.startsWith('APP_CONNECTOR'));
       if (!matchesCategory) return false;
 
       if (!search.trim()) return true;
@@ -50,7 +56,7 @@ export function NodeCatalogModal({
         node.category.toLowerCase().includes(q),
       );
     });
-  }, [selectedCategory, search]);
+  }, [selectedCategory, search, connectorNodes]);
 
   // Reset search and selection when modal opens
   useEffect(() => {
@@ -272,7 +278,7 @@ export function NodeCatalogModal({
 
               return (
                 <div
-                  key={item.type}
+                  key={item.key ?? item.type}
                   data-catalog-idx={idx}
                   draggable
                   onDragStart={(e) => onDragStart(e, item)}
@@ -299,7 +305,11 @@ export function NodeCatalogModal({
                               : 'bg-surface-raised text-primary group-hover:bg-primary group-hover:text-primary-foreground',
                           )}
                         >
-                          <Icon className="size-3.5" />
+                          {item.defaultConfig?.connectorId ? (
+                            <AppConnectorIcon connectorId={item.defaultConfig.connectorId} size={16} />
+                          ) : (
+                            <Icon className="size-3.5" />
+                          )}
                         </div>
                         <span className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors truncate">
                           {item.label}

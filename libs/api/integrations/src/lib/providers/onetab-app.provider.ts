@@ -24,6 +24,7 @@ export class OneTabAppProvider implements ProviderAdapter {
       description:
         'Native OneTab platform integration for internal channel notifications, automations, and event dispatch.',
       category: 'Internal Apps',
+      connectorCategory: 'internal',
       authType: 'NONE',
       supportsSync: true,
       supportsWebhooks: true,

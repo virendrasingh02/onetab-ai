@@ -43,9 +43,9 @@ describe('layoutWorkflow', () => {
     const end = out.get('end') as Node;
     expect(start.position.x).toBeLessThan(agent.position.x);
     expect(agent.position.x).toBeLessThan(end.position.x);
-    // a straight chain stays on one line
-    expect(centerY(start)).toBe(centerY(agent));
-    expect(centerY(agent)).toBe(centerY(end));
+    // a straight chain stays on one line — an agent's line is its header dots
+    expect(centerY(start)).toBe(agent.position.y + 32);
+    expect(centerY(end)).toBe(agent.position.y + 32);
   });
 
   it('never overlaps nodes, whatever their sizes', () => {
@@ -144,5 +144,39 @@ describe('layoutWorkflow', () => {
     const n = out.get('n') as Node;
     expect(n.position.x - s.position.x).toBe(10);
     expect(n.position.y - s.position.y).toBe(-120);
+  });
+
+  it('hangs an agent’s attachments in a row under it, clear of the flow (the Orbit AI canvas)', () => {
+    const nodes = [
+      node('start', 'START'),
+      node('kb', 'KB_SEARCH'),
+      node('agent', 'AGENT', { width: 380, height: 440 }),
+      node('end', 'END'),
+      node('prompt', 'PROMPT_TEMPLATE', { width: 360, height: 380 }),
+      node('llm', 'AI_CHAT_MODEL', { width: 240, height: 120 }),
+    ];
+    const out = byId(
+      layoutWorkflow(nodes, [edge('start', 'kb'), edge('kb', 'agent'), edge('agent', 'end'), edge('agent', 'prompt', 'prompt'), edge('agent', 'llm', 'llm')]),
+    );
+    const all = [...out.values()];
+    for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) expect(overlaps(all[i], all[j]), `${all[i].id}/${all[j].id}`).toBe(false);
+    const agent = out.get('agent')!;
+    const prompt = out.get('prompt')!;
+    const llm = out.get('llm')!;
+    // Below the agent card, prompt first, and the flow still lines up on the card itself
+    expect(prompt.position.y).toBeGreaterThanOrEqual(agent.position.y + 440);
+    expect(llm.position.y).toBe(prompt.position.y);
+    expect(prompt.position.x).toBeLessThan(llm.position.x);
+    expect(out.get('end')!.position.x).toBeGreaterThan(agent.position.x + 380);
+    // Edges run straight: End's middle sits on the agent's header dots, not the middle of its tall card
+    expect(Math.abs(centerY(out.get('end')!) - (agent.position.y + 32))).toBeLessThan(1);
+    expect(Math.abs(centerY(out.get('kb')!) - (agent.position.y + 32))).toBeLessThan(1);
+  });
+
+  it('nests a sub-agent’s own attachments under it', () => {
+    const nodes = [node('start', 'START'), node('lead', 'AGENT'), node('sub', 'SUB_AGENT'), node('subPrompt', 'PROMPT_TEMPLATE')];
+    const out = byId(layoutWorkflow(nodes, [edge('start', 'lead'), edge('lead', 'sub', 'agents'), edge('sub', 'subPrompt', 'prompt')]));
+    expect(out.get('sub')!.position.y).toBeGreaterThan(out.get('lead')!.position.y + 90);
+    expect(out.get('subPrompt')!.position.y).toBeGreaterThan(out.get('sub')!.position.y + 90);
   });
 });

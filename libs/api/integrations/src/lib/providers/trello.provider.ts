@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import type {
   AppActionDefinition,
+  ConnectorTriggerDefinition,
   AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
@@ -69,6 +70,7 @@ export class TrelloProvider implements ProviderAdapter {
       description:
         'Boards, lists, and cards — read and manage real Trello cards using your own personal API key and token.',
       category: 'Productivity & Project Management',
+      connectorCategory: 'project_management',
       authType: 'API_KEY_QUERY',
       supportsSync: true,
       supportsWebhooks: false,
@@ -136,6 +138,19 @@ export class TrelloProvider implements ProviderAdapter {
   async handleWebhook(payload: unknown): Promise<WebhookProcessResult> {
     this.logger.log('Trello does not have an active webhook subscription registered.');
     return { success: true, eventType: 'trello.unsubscribed', data: payload };
+  }
+
+  getTriggers(): ConnectorTriggerDefinition[] {
+    return [
+      {
+        id: 'new_card',
+        label: 'New card',
+        description: 'Starts the agent for each new card on a board or list.',
+        pollActionId: 'list_cards',
+        itemsPath: 'cards',
+        idField: 'id',
+      },
+    ];
   }
 
   getActions(): AppActionDefinition[] {

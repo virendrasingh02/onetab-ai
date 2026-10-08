@@ -19,6 +19,7 @@
  */
 
 import type { AgentAutonomy, AgentStructuredRules, AutonomyLevel } from './agent-config.js';
+import { connectorActionRef, connectorToolName, connectorTriggerEventType, parseConnectorActionRef } from './connectors.js';
 
 /* ---------------------------------------------------------------- agents -- */
 
@@ -44,8 +45,10 @@ export interface InlineAgentSpec {
   model?: string;
   temperature?: number;
   maxTokens?: number;
-  /** Tool names: built-in tools, `provider.action` integration actions. */
+  /** Tool names: built-in tools and connector tools (`slack_send_message`). */
   tools: string[];
+  /** Apps whose actions are in `tools` (`SLACK`) — resolved from the workspace's or owner's own connections. */
+  connectors?: string[];
   knowledge: Array<{ knowledgeBaseId: string; topK: number }>;
   delegation: AgentDelegationMode;
   members: InlineAgentSpec[];
@@ -146,6 +149,60 @@ const TOOL_NODE_NAMES: Record<string, string> = {
 
 /** Older ids the canvas offered for an agent's own tool list. */
 const TOOL_ALIASES: Record<string, string> = { kb_search: 'search_docs' };
+
+/** Generic connector cards — any app, any capability. */
+const CONNECTOR_ACTION_TYPES = new Set(['APP_CONNECTOR_ACTION', 'TEAMS_SEND_MESSAGE', 'TEAMS_CREATE_MEETING']);
+const CONNECTOR_TRIGGER_TYPES = new Set(['APP_CONNECTOR_TRIGGER', 'TEAMS_TRIGGER_MESSAGE']);
+
+/** Cards from the first connector release that named one app and action in their type. */
+const LEGACY_CONNECTOR_CARDS: Record<string, { provider: string; id: string; input?: (cfg: Record<string, unknown>) => Record<string, unknown> }> = {
+  TEAMS_SEND_MESSAGE: {
+    provider: 'MICROSOFT_TEAMS',
+    id: 'send_channel_message',
+    input: (cfg) => ({ teamId: cfg['teamId'], channelId: cfg['channelId'], content: cfg['message'] ?? cfg['content'] }),
+  },
+  TEAMS_CREATE_MEETING: {
+    provider: 'MICROSOFT_TEAMS',
+    id: 'create_meeting',
+    input: (cfg) => ({ subject: cfg['subject'], startDateTime: cfg['startTime'], endDateTime: cfg['endTime'], attendees: cfg['attendees'] }),
+  },
+  TEAMS_TRIGGER_MESSAGE: { provider: 'MICROSOFT_TEAMS', id: 'new_message' },
+};
+
+/** `microsoft-teams` / `slack` / `GMAIL` → the provider key. */
+function providerKey(value: string | undefined): string | undefined {
+  return value ? value.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_') : undefined;
+}
+
+/**
+ * The app and capability a connector card (or a tool card naming
+ * `PROVIDER.action`) points at, with its input. Null when it isn't one.
+ */
+export function connectorRefOf(
+  type: string,
+  cfg: Record<string, unknown>,
+): { provider: string | undefined; id: string | undefined; input: Record<string, unknown> } | null {
+  const legacy = LEGACY_CONNECTOR_CARDS[type];
+  const rawInput = cfg['input'];
+  const input =
+    rawInput && typeof rawInput === 'object' && !Array.isArray(rawInput)
+      ? (rawInput as Record<string, unknown>)
+      : legacy?.input
+        ? Object.fromEntries(Object.entries(legacy.input(cfg)).filter(([, v]) => v !== undefined && v !== ''))
+        : {};
+  if (CONNECTOR_ACTION_TYPES.has(type) || CONNECTOR_TRIGGER_TYPES.has(type) || (type === 'TRIGGER_APP_EVENT' && (cfg['provider'] || cfg['connectorId']))) {
+    const provider = providerKey(typeof cfg['provider'] === 'string' ? cfg['provider'] : typeof cfg['connectorId'] === 'string' ? cfg['connectorId'] : legacy?.provider);
+    const idKey = CONNECTOR_ACTION_TYPES.has(type) ? 'actionId' : 'triggerId';
+    const id = (typeof cfg[idKey] === 'string' && cfg[idKey]) ? (cfg[idKey] as string) : legacy?.id;
+    return { provider, id, input };
+  }
+  if (['TOOL', 'MCP', 'MCP_TOOL'].includes(type)) {
+    const ref = typeof cfg['toolName'] === 'string' ? parseConnectorActionRef(cfg['toolName']) : null;
+    return ref ? { provider: ref.provider, id: ref.actionId, input } : null;
+  }
+  return null;
+}
+
 
 const CONDITION_OPERATORS: Record<string, string> = {
   equals: 'eq',
@@ -317,7 +374,14 @@ export function compileStudioGraph(graph: {
     const maxTokens = asNumber(llmCfg['maxTokens']) ?? asNumber(cfg['maxTokens']);
 
     const tools: string[] = [];
+    const connectors: string[] = [];
     const addTool = (tool: string | undefined) => {
+      const ref = tool ? parseConnectorActionRef(tool) : null;
+      if (ref) {
+        // `SLACK.send_message` → the runtime's `slack_send_message`.
+        if (!connectors.includes(ref.provider)) connectors.push(ref.provider);
+        tool = connectorToolName(ref.provider, ref.actionId);
+      }
       const name = tool ? (TOOL_ALIASES[tool] ?? tool) : undefined;
       if (name && !tools.includes(name)) tools.push(name);
     };
@@ -325,6 +389,12 @@ export function compileStudioGraph(graph: {
     for (const toolNode of attachments(node.id, 'tools')) {
       const toolType = typeOf(toolNode);
       const toolCfg = configOf(toolNode);
+      const connector = connectorRefOf(toolType, toolCfg);
+      if (connector) {
+        if (connector.provider && connector.id) addTool(connectorActionRef(connector.provider, connector.id));
+        else issues.push({ nodeId: toolNode.id, level: 'error', message: `${labelOf(toolNode) ?? 'App action'}: pick an app and an action.` });
+        continue;
+      }
       const mapped =
         TOOL_NODE_NAMES[toolType] ??
         (['TOOL', 'MCP', 'MCP_TOOL'].includes(toolType) ? (asText(toolCfg['toolName']) ?? asText(toolCfg['tool'])) : undefined);
@@ -383,6 +453,7 @@ export function compileStudioGraph(graph: {
       ...(temperature !== undefined ? { temperature: clamp(temperature, 0, 2) } : {}),
       ...(maxTokens !== undefined && maxTokens > 0 ? { maxTokens: Math.round(maxTokens) } : {}),
       tools,
+      ...(connectors.length ? { connectors } : {}),
       knowledge,
       delegation,
       members,
@@ -426,6 +497,20 @@ export function compileStudioGraph(graph: {
       config,
     });
 
+    const connector = connectorRefOf(type, cfg);
+    if (connector && (CONNECTOR_TRIGGER_TYPES.has(type) || type === 'TRIGGER_APP_EVENT')) {
+      // An app event: the connector-trigger poller watches the app and starts the agent per new item.
+      if (!connector.provider || !connector.id) {
+        issues.push({ nodeId: node.id, level: 'error', message: `${label ?? 'App trigger'}: pick an app and the event that starts the agent.` });
+        return step('TRIGGER', { trigger: type });
+      }
+      return step('TRIGGER', {
+        trigger: 'TRIGGER_APP_EVENT',
+        event: connectorTriggerEventType(connector.provider, connector.id),
+        connector: { provider: connector.provider, triggerId: connector.id, input: connector.input },
+      });
+    }
+
     if (type === 'START' || type === 'TRIGGER' || type.startsWith('TRIGGER_')) {
       // A schedule card carries its cron (read in its zone) so an agent that
       // is switched on runs by itself (`WorkflowScheduleListener`).
@@ -447,6 +532,17 @@ export function compileStudioGraph(graph: {
         goal: asText(cfg['goal']) ?? asText(cfg['task']) ?? LAST,
         ...(asNumber(cfg['retries']) !== undefined ? { retries: asNumber(cfg['retries']) } : {}),
         ...(asNumber(cfg['timeout']) ? { timeoutMs: (asNumber(cfg['timeout']) as number) * 1000 } : {}),
+      });
+    }
+
+    if (connector && CONNECTOR_ACTION_TYPES.has(type)) {
+      if (!connector.provider || !connector.id) {
+        issues.push({ nodeId: node.id, level: 'error', message: `${label ?? 'App action'}: pick an app and an action.` });
+      }
+      return step('MCP_TOOL', {
+        ...(connector.provider && connector.id ? { toolName: connectorActionRef(connector.provider, connector.id) } : {}),
+        input: connector.input,
+        ...(connector.provider ? { needsConnection: connector.provider } : {}),
       });
     }
 
@@ -500,6 +596,9 @@ export function compileStudioGraph(graph: {
       case 'KB_SEARCH':
       case 'VECTOR_SEARCH':
       case 'KNOWLEDGE_RETRIEVAL':
+        if (!asText(cfg['knowledgeBaseId'])) {
+          issues.push({ nodeId: node.id, level: 'error', message: `${label ?? 'Knowledge search'}: pick a knowledge base — without one it has nothing to search.` });
+        }
         return step('KNOWLEDGE_RETRIEVAL', {
           knowledgeBaseId: asText(cfg['knowledgeBaseId']) ?? '',
           topK: asNumber(cfg['topK']) ?? 4,

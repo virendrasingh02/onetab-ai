@@ -5,6 +5,8 @@ import { PrismaModule } from '@org/database';
 import { MatrixModule } from '@org/api-matrix';
 import { AppMatrixBridgeService } from './app-matrix-bridge.service.js';
 import { ChannelAppsController } from './channel-apps.controller.js';
+import { ConnectorRegistryService } from './connectors/connector-registry.service.js';
+import { ConnectorsController } from './connectors/connectors.controller.js';
 import { IntegrationEncryptionService } from './core/integration-encryption.service.js';
 import { IntegrationLoggerService } from './core/integration-logger.service.js';
 import { IntegrationManagerService } from './core/integration-manager.service.js';
@@ -48,6 +50,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     IntegrationsController,
     WebhooksController,
     ChannelAppsController,
+    ConnectorsController,
     MigrationController,
   ],
   providers: [
@@ -61,6 +64,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     IntegrationSyncService,
     IntegrationManagerService,
     IntegrationsService,
+    ConnectorRegistryService,
 
     // Migration Engine Services
     SlackCapabilityChecker,
@@ -98,6 +102,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
   exports: [
     IntegrationManagerService,
     IntegrationsService,
+    ConnectorRegistryService,
     IntegrationEncryptionService,
     SSRFGuardService,
     OAuthService,

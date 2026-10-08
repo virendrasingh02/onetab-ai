@@ -124,7 +124,7 @@ describe('IntegrationsService', () => {
     const slackProvider = new SlackProvider(configService);
     const microsoftTeamsProvider = new MicrosoftTeamsProvider(configService);
     const trelloProvider = new TrelloProvider();
-    const customApiProvider = new CustomApiProvider(ssrfGuard);
+    const customApiProvider = new CustomApiProvider(ssrfGuard, encryption);
     const oneTabAppProvider = new OneTabAppProvider();
 
     const manager = new IntegrationManagerService(

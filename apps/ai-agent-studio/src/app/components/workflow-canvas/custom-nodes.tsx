@@ -16,7 +16,6 @@ import { Handle, NodeToolbar, Position, type NodeProps } from '@xyflow/react';
 import {
   AlertTriangle,
   Bot,
-  Boxes,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -28,7 +27,7 @@ import {
   Folder,
   GitBranch,
   Link2,
-  MessageSquare,
+  Shield,
   Network,
   Pencil,
   Play,
@@ -45,6 +44,7 @@ import {
 } from 'lucide-react';
 import React, { memo, useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import {
+  AGENT_HANDLE_TOP,
   AGENT_SLOTS,
   DELEGATION_MODES,
   isSlotHost,
@@ -54,7 +54,7 @@ import {
 } from './agent-slots.js';
 import { CATALOG_NODES, type CatalogNodeItem, type NodeCategory } from './node-library.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
-import { getConnectorMeta } from '../../services/connectorCatalog.js';
+import { useConnectorNode } from './connector-nodes.js';
 
 export interface WorkflowNodePayload {
   label: string;
@@ -76,6 +76,8 @@ export interface WorkflowNodePayload {
   attachedTo?: { label: string; slot: string };
   /** Agents: team role, setup issues, resolved model. */
   team?: AgentTeamInfo;
+  /** What the run compiler reports for this step (shown as a corner badge). */
+  issues?: Array<{ level: 'error' | 'warning'; message: string }>;
   /** Agents: hide everything plugged in (persisted with the graph). */
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -587,9 +589,10 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
   const isConnectorTrigger =
     String(type).toUpperCase().includes('APP_CONNECTOR') ||
     String(type).toUpperCase().includes('TEAMS_TRIGGER') ||
-    Boolean(cfg.connectorId);
-  const connectorId = cfg.connectorId || (String(type).toUpperCase().includes('TEAMS') ? 'microsoft_teams' : null);
-  const meta = connectorId ? getConnectorMeta(connectorId) : null;
+    Boolean(cfg.provider || cfg.connectorId);
+  const app = useConnectorNode(type, cfg);
+  const connectorId = isConnectorTrigger && app.provider ? app.slug : null;
+  const meta = connectorId ? { name: app.connector?.name ?? app.provider, category: app.connector?.category, color: undefined as string | undefined } : null;
 
   return (
     <div
@@ -625,7 +628,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
             {nodeData.label || (meta ? `${meta.name} Trigger` : 'Workflow Start')}
           </div>
           <div className="text-[11px] text-muted-foreground truncate font-mono">
-            {cfg.triggerId || nodeData.subtitle || (meta ? 'Event Listener' : 'Entry point')}
+            {isConnectorTrigger ? (app.trigger?.label ?? (app.provider ? 'Pick an event' : 'Pick an app and event')) : nodeData.subtitle || 'Entry point'}
           </div>
         </div>
       </div>
@@ -740,8 +743,6 @@ function SlotRow({
   );
 }
 
-/** Vertical centre of the agent header, shared by the input and output dots. */
-const AGENT_HANDLE_TOP = 32;
 
 export const MODEL_OPTIONS: AppSelectOption[] = [
   { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
@@ -1350,16 +1351,16 @@ export const MCPToolNode = memo(({ id, data, selected }: NodeProps) => {
 });
 MCPToolNode.displayName = 'MCPToolNode';
 
-// 4b. App Connector Action Node (Teams, Slack, GitHub, Jira, Google Drive, Stripe, etc.)
+// 4b. App action card — any connector capability, resolved against the live manifests.
 export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
-  const connectorId = cfg.connectorId || (String(type).toUpperCase().includes('TEAMS') ? 'microsoft_teams' : 'custom_rest_api');
-  const meta = getConnectorMeta(connectorId);
-  const connectionName = cfg.connectionName || cfg.connectionId || 'Primary Connection';
-  const hasConnection = Boolean(cfg.connectionId && cfg.connectionId !== 'none');
-  const needsConfig = !cfg.actionId && !nodeData.label;
-  const status = nodeData.status || (hasConnection ? 'idle' : 'waiting');
+  const app = useConnectorNode(type, cfg);
+  const input = (cfg.input && typeof cfg.input === 'object' ? cfg.input : {}) as Record<string, unknown>;
+  const preview = Object.entries(input).filter(([, v]) => v !== '' && v !== undefined).slice(0, 2);
+  const picked = Boolean(app.provider && app.label);
+  const status = nodeData.status || (picked && app.connected ? 'idle' : 'waiting');
+  const kindLabel = !app.capability ? null : app.capability.kind === 'query' ? 'Reads' : app.capability.permissionLevel === 'destructive' ? 'Deletes' : 'Writes';
 
   return (
     <div
@@ -1378,62 +1379,44 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
       />
 
       <div className="flex items-start gap-2.5">
-        <div
-          className="flex size-9 items-center justify-center rounded-xl shrink-0 p-1.5 shadow-2xs border border-border/60 bg-surface-raised"
-          style={{
-            borderColor: meta?.color ? `${meta.color}40` : undefined,
-          }}
-        >
-          <AppConnectorIcon
-            connectorId={connectorId}
-            name={meta?.name || nodeData.label}
-            category={meta?.category}
-            customIconUrl={cfg.customIconUrl}
-            size={22}
-          />
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised p-1.5 shadow-2xs">
+          <AppConnectorIcon connectorId={app.slug} name={app.connector?.name} category={app.connector?.category} size={22} />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="text-xs font-bold text-foreground truncate">
-              {nodeData.label || meta?.name || 'App Action'}
-            </span>
-            <span
-              className={cn(
-                'rounded px-1.5 py-0.5 text-[9px] font-semibold shrink-0 border',
-                hasConnection
-                  ? 'bg-primary/10 text-primary border-primary/20'
-                  : 'bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400'
-              )}
-            >
-              {hasConnection ? connectionName : 'Needs Connection'}
-            </span>
+            <span className="truncate text-xs font-bold text-foreground">{app.connector?.name ?? (app.provider ? app.provider : 'App action')}</span>
+            {picked && !app.loading && (
+              <span
+                className={cn(
+                  'shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold',
+                  app.connected
+                    ? 'border-success/25 bg-success/10 text-success-text'
+                    : 'border-warning/30 bg-warning/10 text-warning-text',
+                )}
+              >
+                {app.connected ? 'Connected' : app.connector ? 'Not connected' : 'Unknown app'}
+              </span>
+            )}
           </div>
-
-          <div className="text-[11px] font-mono text-muted-foreground truncate mt-0.5">
-            {cfg.actionId || nodeData.subtitle || 'execute_action'}
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <span className="truncate text-[11px] text-muted-foreground">{app.label || nodeData.label || 'Pick an app and an action'}</span>
+            {kindLabel && <span className="shrink-0 text-[9px] uppercase tracking-wide text-muted-foreground/80">{kindLabel}</span>}
           </div>
-
-          {/* Quick parameter or dynamic expression preview */}
-          {cfg.message && (
-            <div className="mt-1 text-[10px] text-muted-foreground/80 font-mono truncate bg-surface-raised/80 rounded px-1.5 py-0.5">
-              msg: {String(cfg.message)}
+          {preview.map(([k, v]) => (
+            <div key={k} className="mt-1 truncate rounded bg-surface-raised/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/80">
+              {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
             </div>
-          )}
-          {cfg.subject && (
-            <div className="mt-1 text-[10px] text-muted-foreground/80 font-mono truncate bg-surface-raised/80 rounded px-1.5 py-0.5">
-              sub: {String(cfg.subject)}
-            </div>
-          )}
+          ))}
         </div>
       </div>
 
       <AttachedChip data={nodeData} />
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/60">
+      <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-2">
         <ConfigureButton id={id} data={nodeData} />
-        {cfg.requireApproval && (
-          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-600 dark:text-amber-400">
-            <Shield className="size-2.5" /> Approval Gate
+        {app.capability?.requiresConfirmation && (
+          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-warning-text" title={`${app.connector?.name} marks this as needing confirmation`}>
+            <Shield className="size-2.5" /> Sensitive
           </span>
         )}
       </div>
@@ -1990,12 +1973,68 @@ const BASE_NODE_TYPES: Record<string, any> = {
   default: GenericStudioNode,
 };
 
+/**
+ * Every card shows what the run compiler would say about it (the same
+ * `compileStudioGraph` the server runs): red for problems that stop a run,
+ * amber for steps that will be skipped or behave differently than they look.
+ */
+function IssueBadge({ issues, label }: { issues: Array<{ level: string; message: string }>; label: string }) {
+  const errors = issues.filter((i) => i.level === 'error');
+  const tone = errors.length ? 'error' : 'warning';
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`${label}: ${issues.length} problem${issues.length === 1 ? '' : 's'} — ${issues.map((i) => i.message).join(' ')}`}
+          className={cn(
+            'nodrag nopan absolute -right-2 -top-2 z-10 flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full border-2 border-background px-1 text-[10px] font-bold shadow-sm',
+            tone === 'error' ? 'bg-destructive text-destructive-foreground' : 'bg-warning text-warning-foreground',
+          )}
+        >
+          <AlertTriangle className="size-2.5" aria-hidden="true" />
+          {issues.length > 1 ? issues.length : null}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-72">
+        <ul className="space-y-1 text-xs">
+          {issues.map((i, k) => (
+            <li key={k} className="flex gap-1.5">
+              <span className={cn('mt-1 size-1.5 shrink-0 rounded-full', i.level === 'error' ? 'bg-destructive' : 'bg-warning')} />
+              <span>{i.message}</span>
+            </li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+const withIssues = (Component: any) => {
+  const Wrapped = memo((props: NodeProps) => {
+    const issues = (props.data as WorkflowNodePayload)?.issues as Array<{ level: string; message: string }> | undefined;
+    return (
+      <>
+        <Component {...props} />
+        {issues && issues.length > 0 && <IssueBadge issues={issues} label={String((props.data as WorkflowNodePayload)?.label ?? 'Step')} />}
+      </>
+    );
+  });
+  Wrapped.displayName = `WithIssues(${Component.displayName ?? Component.name ?? 'Node'})`;
+  return Wrapped;
+};
+const wrappedTypes = new Map<unknown, unknown>();
+const wrapped = (Component: unknown) => {
+  if (!wrappedTypes.has(Component)) wrappedTypes.set(Component, withIssues(Component));
+  return wrappedTypes.get(Component);
+};
+
 // Use Proxy so ANY unrecognized catalog node gracefully renders GenericStudioNode
 export const STUDIO_NODE_TYPES = new Proxy(BASE_NODE_TYPES, {
   get(target, prop) {
     if (typeof prop === 'string' && prop in target) {
-      return target[prop];
+      return wrapped(target[prop]);
     }
-    return GenericStudioNode;
+    return wrapped(GenericStudioNode);
   },
 });

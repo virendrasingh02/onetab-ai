@@ -180,36 +180,28 @@ export const agentService = {
     return newAgent;
   },
 
+  /**
+   * Server only. The API replaces `configuration` wholesale, so a partial
+   * configuration patch is merged onto the saved one first. A failure throws —
+   * never a local "saved" that the server didn't accept.
+   */
   async updateAgent(workspaceId, agentId, patch) {
-    if (workspaceId && agentId) {
-      try {
-        const updated = await agentsApi.update(workspaceId, agentId, patch);
-        if (updated) {
-          const normalized = normalizeAgent(updated);
-          const agents = loadCachedAgents();
-          const idx = agents.findIndex((a) => a.id === agentId);
-          if (idx !== -1) {
-            agents[idx] = { ...agents[idx], ...normalized };
-            saveCachedAgents(agents);
-          }
-          return normalized;
-        }
-      } catch (err) {
-        console.warn('Backend agentsApi.update failed, updating local cache:', err);
-      }
+    let body = patch;
+    if (patch && patch.configuration) {
+      const current = await agentsApi.get(workspaceId, agentId);
+      const currentConfig =
+        current && typeof current.configuration === 'object' && current.configuration !== null
+          ? current.configuration
+          : {};
+      body = { ...patch, configuration: { ...currentConfig, ...patch.configuration } };
     }
-
+    const updated = normalizeAgent(await agentsApi.update(workspaceId, agentId, body));
     const agents = loadCachedAgents();
-    const index = agents.findIndex((a) => a.id === agentId);
-    if (index === -1) throw new Error('Agent not found');
-
-    const updated = normalizeAgent({
-      ...agents[index],
-      ...patch,
-      updatedAt: new Date().toISOString(),
-    });
-    agents[index] = updated;
-    saveCachedAgents(agents);
+    const idx = agents.findIndex((a) => a.id === agentId);
+    if (idx !== -1) {
+      agents[idx] = { ...agents[idx], ...updated };
+      saveCachedAgents(agents);
+    }
     return updated;
   },
 

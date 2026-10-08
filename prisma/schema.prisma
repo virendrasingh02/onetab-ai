@@ -2395,9 +2395,37 @@ model AutomationWorkflow {
   executions  WorkflowExecution[]
   versions    AIWorkflowVersion[]
   aiExecutions AIExecution[]
+  connectorTriggerState ConnectorTriggerState?
 
   @@index([workspaceId, isActive])
   @@map("automation_workflows")
+}
+
+/// What a switched-on agent's app trigger has already seen. The poller runs
+/// the connector's own read action and fires once per item not in `seenIds`;
+/// a changed trigger (`configKey`) starts over without replaying history.
+model ConnectorTriggerState {
+  id             String             @id @default(cuid())
+  workflowId     String             @unique
+  workspaceId    String
+  provider       String
+  triggerId      String
+  configKey      String
+  /// Item ids already seen, newest first (bounded). Null until the first poll.
+  seenIds        Json?
+  lastPolledAt   DateTime?
+  lastFiredAt    DateTime?
+  lastError      String?
+  failures       Int                @default(0)
+  /// Runs started in the current hour — the loop guard.
+  windowStartAt  DateTime?
+  firedInWindow  Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  workflow       AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("connector_trigger_states")
 }
 
 model WorkflowExecution {

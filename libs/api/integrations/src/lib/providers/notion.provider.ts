@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, UnauthorizedException } from '
 import { ConfigService } from '@nestjs/config';
 import type {
   AppActionDefinition,
+  ConnectorTriggerDefinition,
   AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
@@ -62,6 +63,7 @@ export class NotionProvider implements ProviderAdapter {
       description:
         'Search pages and databases, read real page content, and query database records from your connected Notion workspace.',
       category: 'Productivity & Project Management',
+      connectorCategory: 'productivity',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: false,
@@ -202,6 +204,23 @@ export class NotionProvider implements ProviderAdapter {
   async handleWebhook(payload: unknown): Promise<WebhookProcessResult> {
     this.logger.log('Notion does not have an active webhook subscription registered.');
     return { success: true, eventType: 'notion.unsubscribed', data: payload };
+  }
+
+  isServerConfigured(): boolean {
+    return Boolean(this.config.get<string>('NOTION_CLIENT_ID') && this.config.get<string>('NOTION_CLIENT_SECRET'));
+  }
+
+  getTriggers(): ConnectorTriggerDefinition[] {
+    return [
+      {
+        id: 'new_page',
+        label: 'New page',
+        description: 'Starts the agent for each new page shared with the integration.',
+        pollActionId: 'list_pages',
+        itemsPath: 'pages',
+        idField: 'id',
+      },
+    ];
   }
 
   getActions(): AppActionDefinition[] {

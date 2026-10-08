@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
+
+vi.mock('axios', () => {
+  const fn = vi.fn();
+  return { default: Object.assign(fn, { post: vi.fn(), isAxiosError: () => false }) };
+});
 import { MicrosoftTeamsProvider, TEAMS_SCOPES } from './microsoft-teams.provider.js';
 
 describe('MicrosoftTeamsProvider', () => {
@@ -37,9 +43,9 @@ describe('MicrosoftTeamsProvider', () => {
     expect(decodeURIComponent(authUrl)).toContain('ChannelMessage.Send');
   });
 
-  it('exposes all 14 required structured actions matching specifications', () => {
+  it('exposes the structured Teams actions', () => {
     const actions = provider.getActions();
-    expect(actions).toHaveLength(14);
+    expect(actions).toHaveLength(15);
 
     const actionIds = actions.map((a) => a.id);
     expect(actionIds).toEqual(
@@ -52,6 +58,7 @@ describe('MicrosoftTeamsProvider', () => {
         'send_channel_message',
         'send_direct_message',
         'search_messages',
+        'list_channel_messages',
         'get_message',
         'reply_to_message',
         'create_meeting',
@@ -75,69 +82,35 @@ describe('MicrosoftTeamsProvider', () => {
     expect(searchMessages?.permissionLevel).toBe('read');
   });
 
-  it('exposes event triggers for channels, mentions, and meetings', () => {
+  it('declares a polled new-message trigger backed by a read action', () => {
     const triggers = provider.getTriggers();
-    expect(triggers).toHaveLength(3);
-    const triggerIds = triggers.map((t) => t.id);
-    expect(triggerIds).toContain('new_message');
-    expect(triggerIds).toContain('mention');
-    expect(triggerIds).toContain('meeting_event');
+    expect(triggers.map((t) => t.id)).toEqual(['new_message']);
+    const read = provider.getActions().find((a) => a.id === triggers[0].pollActionId);
+    expect(read?.permissionLevel).toBe('read');
   });
 
-  it('validates connection health in testConnection', async () => {
-    const result = await provider.testConnection({}, {
-      id: 'cred-1',
-      provider: 'MICROSOFT_TEAMS',
-      scopeType: 'WORKSPACE',
-      accessToken: 'simulated_test_token',
-      metadata: { accountEmail: 'lead@company.com' },
-      scopes: TEAMS_SCOPES,
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.message).toContain('Microsoft Teams');
+  it('refuses to connect when the server has no Azure app, instead of faking a connection', async () => {
+    mockConfig = {};
+    expect(provider.isServerConfigured()).toBe(false);
+    await expect(provider.getAuthorizationUrl('state')).rejects.toThrow(/isn’t set up on this server/);
+    await expect(provider.handleCallback('code', 'state')).rejects.toThrow(/isn’t set up on this server/);
   });
 
-  it('executes send_channel_message action in sandbox mode', async () => {
-    const credential = {
-      id: 'cred-1',
-      provider: 'MICROSOFT_TEAMS',
-      scopeType: 'WORKSPACE',
-      accessToken: 'simulated_test_token',
-      metadata: { accountEmail: 'lead@company.com' },
-      scopes: TEAMS_SCOPES,
-    };
-
-    const res = await provider.executeAction(credential, 'send_channel_message', {
-      teamId: 'team-eng',
-      channelId: 'chan-alerts',
-      content: 'Critical deployment succeeded',
+  it('searches Teams chat messages through the Microsoft Search API', async () => {
+    const call = axios as unknown as ReturnType<typeof vi.fn>;
+    call.mockResolvedValueOnce({
+      data: { value: [{ hitsContainers: [{ hits: [{ hitId: 'm1', summary: 'deploy done', resource: { from: 'a' } }] }] }] },
     });
-
-    expect(res.success).toBe(true);
-    expect(res.message).toContain('Microsoft Teams');
-    expect(res.data).toBeDefined();
-    expect((res.data as any).channelId).toBe('chan-alerts');
-  });
-
-  it('executes create_meeting action in sandbox mode', async () => {
-    const credential = {
-      id: 'cred-1',
-      provider: 'MICROSOFT_TEAMS',
-      scopeType: 'WORKSPACE',
-      accessToken: 'simulated_test_token',
-      metadata: {},
-      scopes: TEAMS_SCOPES,
-    };
-
-    const res = await provider.executeAction(credential, 'create_meeting', {
-      subject: 'Architecture Alignment',
-      startDateTime: '2026-10-09T10:00:00Z',
-      endDateTime: '2026-10-09T11:00:00Z',
-    });
-
-    expect(res.success).toBe(true);
-    expect((res.data as any).joinWebUrl).toContain('teams.microsoft.com');
+    const res = await provider.executeAction(
+      { id: 'cred-1', provider: 'MICROSOFT_TEAMS', scopeType: 'USER', accessToken: 'real-token', metadata: {}, scopes: TEAMS_SCOPES },
+      'search_messages',
+      { query: 'deploy' },
+    );
+    const request = call.mock.calls[0][0] as { url: string; method: string; data: { requests: Array<{ entityTypes: string[] }> } };
+    expect(request.url).toBe('https://graph.microsoft.com/v1.0/search/query');
+    expect(request.method).toBe('POST');
+    expect(request.data.requests[0].entityTypes).toEqual(['chatMessage']);
+    expect(res.data).toEqual({ messages: [{ id: 'm1', summary: 'deploy done', from: 'a' }], count: 1 });
   });
 
   it('processes incoming webhook event notifications', async () => {

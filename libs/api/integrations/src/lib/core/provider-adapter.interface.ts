@@ -1,6 +1,7 @@
 import type {
   AppActionDefinition,
   AppActionResult,
+  ConnectorTriggerDefinition,
   IntegrationAccount,
   IntegrationCapabilities,
   IntegrationCustomApiConfig,
@@ -154,4 +155,17 @@ export interface ProviderAdapter {
     actionId: string,
     input: Record<string, unknown>,
   ): Promise<AppActionResult>;
+
+  /**
+   * Events that can start an agent. Each one watches one of this adapter's own
+   * read actions (`pollActionId`) — the platform polls it and fires once per
+   * new item — so a trigger needs no per-app webhook subscription.
+   */
+  getTriggers?(): ConnectorTriggerDefinition[];
+
+  /**
+   * Whether this server has what the adapter needs before anyone can connect
+   * (an OAuth app's client id/secret). Omitted = always connectable.
+   */
+  isServerConfigured?(): boolean;
 }

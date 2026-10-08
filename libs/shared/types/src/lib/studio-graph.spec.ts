@@ -174,6 +174,92 @@ describe('compileStudioGraph', () => {
   });
 });
 
+describe('knowledge steps', () => {
+  it('refuses a knowledge search with no knowledge base picked', () => {
+    const result = compileStudioGraph({
+      nodes: [node('t', 'TRIGGER_MANUAL'), node('kb', 'KB_SEARCH', { knowledgeBaseId: '' }, 'Search company knowledge')],
+      edges: [edge('t', 'kb')],
+    });
+    expect(result.issues).toContainEqual(expect.objectContaining({ nodeId: 'kb', level: 'error', message: expect.stringMatching(/pick a knowledge base/) }));
+  });
+});
+
+describe('connector cards', () => {
+  it('compiles an app action card into a real PROVIDER.action step with its input', () => {
+    const result = compileStudioGraph({
+      nodes: [
+        node('t', 'TRIGGER_MANUAL'),
+        node('s', 'APP_CONNECTOR_ACTION', { provider: 'slack', actionId: 'send_message', input: { channelId: 'C1', text: '{{__last}}' } }, 'Post'),
+      ],
+      edges: [edge('t', 's')],
+    });
+    expect(result.nodes[1]).toMatchObject({
+      type: 'MCP_TOOL',
+      config: { toolName: 'SLACK.send_message', input: { channelId: 'C1', text: '{{__last}}' } },
+    });
+    expect(result.issues.filter((i) => i.level === 'error')).toEqual([]);
+  });
+
+  it('refuses an app action card with no action picked', () => {
+    const result = compileStudioGraph({
+      nodes: [node('t', 'TRIGGER_MANUAL'), node('s', 'APP_CONNECTOR_ACTION', { provider: 'GITHUB' })],
+      edges: [edge('t', 's')],
+    });
+    expect(result.issues).toContainEqual(expect.objectContaining({ nodeId: 's', level: 'error' }));
+  });
+
+  it('keeps the first release’s Teams cards working as generic connector steps', () => {
+    const result = compileStudioGraph({
+      nodes: [
+        node('t', 'TEAMS_TRIGGER_MESSAGE', { input: { teamId: 'T', channelId: 'C' } }),
+        node('m', 'TEAMS_SEND_MESSAGE', { teamId: 'T', channelId: 'C', message: 'hi', connectionId: 'conn-ms-teams-corp' }),
+      ],
+      edges: [edge('t', 'm')],
+    });
+    expect(result.nodes[0]).toMatchObject({
+      type: 'TRIGGER',
+      config: { event: 'connector:MICROSOFT_TEAMS:new_message', connector: { provider: 'MICROSOFT_TEAMS', triggerId: 'new_message' } },
+    });
+    expect(result.nodes[1].config).toEqual({
+      toolName: 'MICROSOFT_TEAMS.send_channel_message',
+      input: { teamId: 'T', channelId: 'C', content: 'hi' },
+      needsConnection: 'MICROSOFT_TEAMS',
+    });
+  });
+
+  it('compiles an app trigger card into a connector event the poller watches', () => {
+    const result = compileStudioGraph({
+      nodes: [
+        node('t', 'APP_CONNECTOR_TRIGGER', { provider: 'GMAIL', triggerId: 'new_email', input: { query: 'label:support' } }),
+        node('a', 'AGENT', { instructions: 'Triage it.' }),
+      ],
+      edges: [edge('t', 'a')],
+    });
+    expect(result.nodes[0].config).toEqual({
+      trigger: 'TRIGGER_APP_EVENT',
+      event: 'connector:GMAIL:new_email',
+      connector: { provider: 'GMAIL', triggerId: 'new_email', input: { query: 'label:support' } },
+    });
+  });
+
+  it('hands connector actions plugged into an agent to the runtime by tool name and app', () => {
+    const result = compileStudioGraph({
+      nodes: [
+        node('t', 'TRIGGER_MANUAL'),
+        node('a', 'AGENT', { instructions: 'Keep the team posted.', tools: ['GITHUB.list_issues'] }),
+        node('s', 'APP_CONNECTOR_ACTION', { provider: 'slack', actionId: 'send_message' }),
+      ],
+      edges: [edge('t', 'a'), edge('a', 's', 'tools')],
+    });
+    expect(result.agents[0]).toMatchObject({
+      tools: ['github_list_issues', 'slack_send_message'],
+      connectors: ['GITHUB', 'SLACK'],
+    });
+    // A tool attachment is not a step of its own.
+    expect(result.nodes.map((n) => n.id)).toEqual(['t', 'a']);
+  });
+});
+
 describe('readRunLimits', () => {
   it('defaults, and clamps a graph’s own limits to the maxima', () => {
     expect(readRunLimits(undefined)).toEqual(DEFAULT_AGENT_RUN_LIMITS);

@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type {
   AppActionDefinition,
+  ConnectorTriggerDefinition,
   AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
@@ -47,6 +48,7 @@ export class GmailProvider implements ProviderAdapter {
       description:
         'Read, search, organize, reply to, and send emails directly through Google Workspace and Gmail API.',
       category: 'Productivity & Project Management',
+      connectorCategory: 'email',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: true,
@@ -481,8 +483,52 @@ export class GmailProvider implements ProviderAdapter {
    * (`inputSchema`, `permissionLevel`, `requiresConfirmation`) a chat
    * conversation can use to list and gate them.
    */
+  isServerConfigured(): boolean {
+    return Boolean(this.config.get<string>('GOOGLE_CLIENT_ID') && this.config.get<string>('GOOGLE_CLIENT_SECRET'));
+  }
+
+  getTriggers(): ConnectorTriggerDefinition[] {
+    return [
+      {
+        id: 'new_email',
+        label: 'New email',
+        description: 'Starts the agent for each new email matching a Gmail search (default: your inbox).',
+        pollActionId: 'search_messages',
+        defaultInput: { query: 'in:inbox', maxResults: 20 },
+        itemsPath: 'messages',
+        idField: 'id',
+      },
+    ];
+  }
+
   getActions(): AppActionDefinition[] {
     return [
+      {
+        id: 'search_messages',
+        label: 'Search email',
+        description: 'Find emails with a Gmail search (e.g. "from:alex is:unread", "in:inbox newer_than:1d").',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Gmail search query.' },
+            maxResults: { type: 'number', description: 'How many emails (max 50).' },
+          },
+        },
+        permissionLevel: 'read',
+        requiresConfirmation: false,
+      },
+      {
+        id: 'get_thread',
+        label: 'Read email thread',
+        description: 'Read every message in one email conversation.',
+        inputSchema: {
+          type: 'object',
+          properties: { threadId: { type: 'string' } },
+          required: ['threadId'],
+        },
+        permissionLevel: 'read',
+        requiresConfirmation: false,
+      },
       {
         id: 'send_message',
         label: 'Send email',
@@ -569,6 +615,22 @@ export class GmailProvider implements ProviderAdapter {
     input: Record<string, unknown>,
   ): Promise<AppActionResult> {
     switch (actionId) {
+      case 'search_messages': {
+        const query = typeof input['query'] === 'string' ? input['query'] : undefined;
+        const max = Math.min(Math.max(Number(input['maxResults']) || 20, 1), 50);
+        const { messages } = await this.getMessages(credential, { query, maxResults: max });
+        return {
+          success: true,
+          message: `Found ${messages.length} email(s)${query ? ` for "${query}"` : ''}.`,
+          data: { messages },
+        };
+      }
+      case 'get_thread': {
+        const threadId = String(input['threadId'] ?? '').trim();
+        if (!threadId) throw new BadRequestException('Which thread? Pass its threadId.');
+        const thread = await this.getThread(credential, threadId);
+        return { success: true, message: `Read ${thread.messages?.length ?? 0} message(s).`, data: thread };
+      }
       case 'send_message': {
         const message = await this.sendMessage(credential, {
           to: this.parseRecipients(input['to']),

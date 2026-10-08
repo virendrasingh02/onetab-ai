@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, UnauthorizedException } from '
 import { ConfigService } from '@nestjs/config';
 import type {
   AppActionDefinition,
+  ConnectorTriggerDefinition,
   AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
@@ -87,6 +88,7 @@ export class SlackProvider implements ProviderAdapter {
       description:
         'Search and read channels, DMs, and threads, and post messages in your connected Slack workspace.',
       category: 'Customer Support & Communication',
+      connectorCategory: 'communication',
       authType: 'OAUTH2',
       supportsSync: true,
       supportsWebhooks: true,
@@ -254,6 +256,24 @@ export class SlackProvider implements ProviderAdapter {
       return { success: true, eventType: 'slack.url_verification', data: { challenge: (payload as any).challenge } };
     }
     return { success: true, eventType: `slack.${type}`, data: payload };
+  }
+
+  isServerConfigured(): boolean {
+    return Boolean(this.config.get<string>('SLACK_CLIENT_ID') && this.config.get<string>('SLACK_CLIENT_SECRET'));
+  }
+
+  getTriggers(): ConnectorTriggerDefinition[] {
+    return [
+      {
+        id: 'new_message',
+        label: 'New channel message',
+        description: 'Starts the agent for each new message in a Slack channel.',
+        pollActionId: 'list_messages',
+        defaultInput: { maxResults: 20 },
+        itemsPath: 'messages',
+        idField: 'ts',
+      },
+    ];
   }
 
   getActions(): AppActionDefinition[] {

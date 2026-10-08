@@ -39,7 +39,7 @@ describe('scheduled canvas agents', () => {
   it('switching on syncs the engine workflow and turns it on; a new workflow starts switched off', async () => {
     const { service, prisma } = make({ id: 'a', name: 'A', creatorId: 'u', graphJson: graph('0 9 * * 1') });
     const res = await service.setActive('ws', 'a', true);
-    expect(res).toEqual({ active: true, schedule: { cron: '0 9 * * 1', timezone: 'Asia/Kolkata' } });
+    expect(res).toEqual({ active: true, schedule: { cron: '0 9 * * 1', timezone: 'Asia/Kolkata' }, appTrigger: null });
     expect(prisma.automationWorkflow.create.mock.calls[0]![0].data).toMatchObject({ triggerType: 'CANVAS_AGENT', description: 'canvas-agent:a', isActive: false });
     expect(prisma.automationWorkflow.update).toHaveBeenCalledWith({ where: { id: 'wf_new' }, data: { isActive: true } });
   });
