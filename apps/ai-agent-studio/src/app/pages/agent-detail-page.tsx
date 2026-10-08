@@ -1484,9 +1484,18 @@ export function AgentDetailPage() {
     for (const host of nodes) {
       if (!isSlotHost(host.type)) continue;
       const attached = slotAttachments(host.id, nodes, edges);
-      const slots: Record<string, { id: string; label: string }[]> = {};
+      const slots: Record<string, { id: string; label: string; connectorId?: string }[]> = {};
       for (const [slotId, list] of Object.entries(attached)) {
-        slots[slotId] = list.map((n) => ({ id: n.id, label: slotRowLabel(slotId, n) }));
+        slots[slotId] = list.map((n) => {
+          const cfg = ((n.data as any)?.config ?? {}) as Record<string, unknown>;
+          const app = cfg['connectorId'] ?? cfg['provider'];
+          return {
+            id: n.id,
+            label: slotRowLabel(slotId, n),
+            // App actions show their app's logo on the agent's Tools row
+            ...(typeof app === 'string' && app ? { connectorId: app.toLowerCase().replace(/-/g, '_') } : {}),
+          };
+        });
         for (const n of list) {
           out.set(n.id, {
             attachedTo: { label: String(host.data?.label || 'Agent'), slot: getSlot(slotId)?.label ?? slotId },
@@ -1662,9 +1671,8 @@ export function AgentDetailPage() {
       if (slot) {
         ({ x: xPos, y: yPos } = attachmentPosition(sourceNode, nodes, edges));
       } else if (isSlotHost(sourceNode.type)) {
-        // The agent's next step goes past the column of things plugged into it
-        const hasAttachments = Object.values(slotAttachments(sourceNode.id, nodes, edges)).some((l) => l.length > 0);
-        if (hasAttachments) xPos = sourceNode.position.x + (sourceNode.measured?.width ?? 280) + 440;
+        // Attachments hang below an agent, so its next step simply goes to its right
+        xPos = sourceNode.position.x + (sourceNode.measured?.width ?? 290) + 120;
       } else if (handleId === 'false') {
         yPos += 90;
       } else if (handleId === 'true') {

@@ -54,7 +54,8 @@ import {
 } from './agent-slots.js';
 import { CATALOG_NODES, type CatalogNodeItem, type NodeCategory } from './node-library.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
-import { useConnectorNode } from './connector-nodes.js';
+import { useConnectorCatalogNodes, useConnectorNode } from './connector-nodes.js';
+import { useNavigate } from 'react-router-dom';
 
 export interface WorkflowNodePayload {
   label: string;
@@ -131,9 +132,14 @@ function QuickAddMenu({
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  // Every connected app's actions and events, from the live connector manifests
+  const connectorNodes = useConnectorCatalogNodes();
+  const source = useMemo(() => items ?? [...CATALOG_NODES, ...connectorNodes], [items, connectorNodes]);
+  const offersApps = useMemo(() => source.some((n) => n.type.startsWith('APP_CONNECTOR')), [source]);
 
   const filteredNodes = useMemo(() => {
-    return (items ?? CATALOG_NODES).filter((n) => {
+    return source.filter((n) => {
       if (!items && activeCategory !== 'all' && n.category !== activeCategory) {
         return false;
       }
@@ -142,10 +148,12 @@ function QuickAddMenu({
       return (
         n.label.toLowerCase().includes(q) ||
         n.subtitle?.toLowerCase().includes(q) ||
+        n.description?.toLowerCase().includes(q) ||
+        n.badge?.toLowerCase().includes(q) ||
         n.type.toLowerCase().includes(q)
       );
     });
-  }, [search, activeCategory, items]);
+  }, [search, activeCategory, items, source]);
 
   // Reset active index when filtered nodes change
   useEffect(() => {
@@ -310,9 +318,10 @@ function QuickAddMenu({
           filteredNodes.map((item, idx) => {
             const Icon = item.icon || Cpu;
             const isSelected = idx === activeIndex;
+            const appId = item.defaultConfig?.connectorId as string | undefined;
             return (
               <button
-                key={item.type}
+                key={item.key ?? item.type}
                 data-node-index={idx}
                 type="button"
                 onClick={(e) => {
@@ -327,20 +336,30 @@ function QuickAddMenu({
                     : 'border-transparent hover:border-primary/30 hover:bg-surface-raised/70',
                 )}
               >
-                <div
-                  className={cn(
-                    'flex size-6 shrink-0 items-center justify-center rounded-md transition-colors',
-                    isSelected
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-surface-raised text-muted-foreground group-hover/item:bg-primary group-hover/item:text-primary-foreground',
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                </div>
+                {appId ? (
+                  // App actions show the app's own logo
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-surface-raised">
+                    <AppConnectorIcon connectorId={appId} size={16} />
+                  </div>
+                ) : (
+                  <div
+                    className={cn(
+                      'flex size-7 shrink-0 items-center justify-center rounded-md transition-colors',
+                      isSelected
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-surface-raised text-muted-foreground group-hover/item:bg-primary group-hover/item:text-primary-foreground',
+                    )}
+                  >
+                    <Icon className="size-4" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1.5">
                     <span className="truncate text-xs font-medium text-foreground">
-                      {item.label}
+                      {/* The logo and badge already name the app: show just the action */}
+                      {appId && item.badge && item.label.startsWith(`${item.badge} · `)
+                        ? item.label.slice(item.badge.length + 3)
+                        : item.label}
                     </span>
                     {item.badge && (
                       <span className="shrink-0 rounded bg-surface-raised px-1.5 py-0.2 text-[9px] font-medium text-muted-foreground">
@@ -357,6 +376,23 @@ function QuickAddMenu({
           })
         )}
       </div>
+
+      {offersApps && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+            navigate('/connectors');
+          }}
+          className="mt-2 flex w-full items-center justify-between rounded-lg border border-dashed border-border px-2.5 py-2 text-[11px] font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground cursor-pointer"
+        >
+          <span className="flex items-center gap-1.5">
+            <Plus className="size-3.5" /> Connect another app
+          </span>
+          <ChevronRight className="size-3.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -607,7 +643,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
       <div className="flex items-center gap-2.5">
         {isConnectorTrigger && meta ? (
           <div
-            className="flex size-9 items-center justify-center rounded-xl shrink-0 p-1.5 shadow-2xs border border-border/60 bg-surface-raised"
+            className="flex size-10 items-center justify-center rounded-xl shrink-0 p-1.5 shadow-2xs border border-border/60 bg-surface-raised"
             style={{ borderColor: meta?.color ? `${meta.color}40` : undefined }}
           >
             <AppConnectorIcon
@@ -615,19 +651,19 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
               name={meta.name}
               category={meta.category}
               customIconUrl={cfg.customIconUrl}
-              size={22}
+              size={24}
             />
           </div>
         ) : (
-          <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500 shrink-0">
-            <Play className="size-4 fill-emerald-500" />
+          <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-500 shrink-0">
+            <Play className="size-5 fill-emerald-500" />
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-bold text-foreground truncate">
+          <div className="text-sm font-semibold text-foreground truncate">
             {nodeData.label || (meta ? `${meta.name} Trigger` : 'Workflow Start')}
           </div>
-          <div className="text-[11px] text-muted-foreground truncate font-mono">
+          <div className="text-xs text-muted-foreground truncate">
             {isConnectorTrigger ? (app.trigger?.label ?? (app.provider ? 'Pick an event' : 'Pick an app and event')) : nodeData.subtitle || 'Entry point'}
           </div>
         </div>
@@ -644,7 +680,31 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
 StartNode.displayName = 'StartNode';
 
 /** Slot summary the page passes to agent nodes: what's plugged into each slot. */
-export type AgentSlotSummary = Partial<Record<AgentSlotId, { id: string; label: string }[]>>;
+export type AgentSlotSummary = Partial<Record<AgentSlotId, { id: string; label: string; connectorId?: string }[]>>;
+
+/** The apps plugged into an agent's Tools, as overlapping logos. */
+function AppLogoStack({ apps }: { apps: string[] }) {
+  if (apps.length === 0) return null;
+  const shown = apps.slice(0, 5);
+  return (
+    <div className="mt-1.5 flex items-center" aria-label={`Apps: ${apps.join(', ')}`}>
+      {shown.map((app, i) => (
+        <span
+          key={app}
+          title={app.replace(/_/g, ' ')}
+          className={cn('flex size-6 items-center justify-center rounded-full border-2 border-surface bg-surface-raised shadow-2xs', i > 0 && '-ml-1.5')}
+        >
+          <AppConnectorIcon connectorId={app} size={14} />
+        </span>
+      ))}
+      {apps.length > shown.length && (
+        <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full border-2 border-surface bg-surface-raised text-[9px] font-semibold text-muted-foreground">
+          +{apps.length - shown.length}
+        </span>
+      )}
+    </div>
+  );
+}
 
 /** Team-level facts the page works out for each agent (see agent-slots.ts). */
 export interface AgentTeamInfo {
@@ -667,7 +727,15 @@ function SlotAddButton({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setIsOpen(false), []);
-  const items = useMemo(() => slotCatalog(slot.id), [slot.id]);
+  const connectorNodes = useConnectorCatalogNodes();
+  // Tools: every connected app's actions first (each becomes a tool the agent can call), then built-ins
+  const items = useMemo(
+    () => [
+      ...(slot.id === 'tools' ? connectorNodes.filter((n) => n.type === 'APP_CONNECTOR_ACTION') : []),
+      ...slotCatalog(slot.id),
+    ],
+    [slot.id, connectorNodes],
+  );
   const label = slot.multiple ? `Add to ${slot.label}` : `Set ${slot.label}`;
 
   return (
@@ -847,12 +915,12 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
       ))}
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-          {isCoordinator || subAgents.length > 0 ? <Network className="size-4" /> : <Bot className="size-4" />}
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+          {isCoordinator || subAgents.length > 0 ? <Network className="size-5" /> : <Bot className="size-4" />}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-xs font-bold text-foreground">{nodeData.label || 'AI Agent'}</span>
+            <span className="truncate text-sm font-semibold text-foreground">{nodeData.label || 'AI Agent'}</span>
             {roleBadge && (
               <Badge variant={roleBadge.variant} className="h-4 shrink-0 px-1.5 text-[9px]">
                 {roleBadge.label}
@@ -926,6 +994,11 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                 ) : null
               }
             >
+              {slot.id === 'tools' && (
+                <AppLogoStack
+                  apps={[...new Set((slots.tools ?? []).map((t) => t.connectorId).filter((c): c is string => !!c))]}
+                />
+              )}
               {slot.id === 'agents' && (subAgents.length > 1 || isCoordinator) && (
                 <div className="nodrag nopan mt-1.5" onClick={(e) => e.stopPropagation()}>
                   <AppSelect
@@ -1036,11 +1109,11 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
         className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
       />
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-          <ScrollText className="size-4" />
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+          <ScrollText className="size-5" />
         </div>
         <div className="min-w-0">
-          <div className="truncate text-xs font-bold text-foreground">{nodeData.label || 'Prompt'}</div>
+          <div className="truncate text-sm font-semibold text-foreground">{nodeData.label || 'Prompt'}</div>
           <div className="truncate text-[11px] text-muted-foreground">{nodeData.subtitle || 'System prompt'}</div>
         </div>
       </div>
@@ -1096,11 +1169,11 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
         className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
       />
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-raised border border-border/80">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-raised border border-border/80">
           <AIModelIcon modelId={model} size={18} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-bold text-foreground flex items-center justify-between gap-1">
+          <div className="truncate text-sm font-semibold text-foreground flex items-center justify-between gap-1">
             <span>{nodeData.label || 'LLM'}</span>
             <AIModelBadge modelId={model} variant="subtle" size="xs" />
           </div>
@@ -1198,11 +1271,11 @@ export const AgentNode = memo((props: NodeProps) => {
 
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
-            <Bot className="size-4" />
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <Bot className="size-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-foreground">
+            <div className="text-sm font-semibold text-foreground">
               {nodeData.label || 'AI Agent'}
             </div>
             <div className="text-[11px] text-muted-foreground line-clamp-1">
@@ -1263,11 +1336,11 @@ export const FirecrawlNode = memo(({ id, data, selected }: NodeProps) => {
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-warning/15 text-warning">
-            <Flame className="size-4" />
+          <div className="flex size-10 items-center justify-center rounded-xl bg-warning/15 text-warning">
+            <Flame className="size-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-foreground">
+            <div className="text-sm font-semibold text-foreground">
               {nodeData.label || 'Firecrawl'}
             </div>
             <div className="text-[11px] text-muted-foreground">
@@ -1323,11 +1396,11 @@ export const MCPToolNode = memo(({ id, data, selected }: NodeProps) => {
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-indigo/15 text-accent-indigo">
-          <Wrench className="size-4" />
+        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-indigo/15 text-accent-indigo">
+          <Wrench className="size-5" />
         </div>
         <div>
-          <div className="text-xs font-bold text-foreground">
+          <div className="text-sm font-semibold text-foreground">
             {nodeData.label || 'MCP Tool'}
           </div>
           <div className="text-[11px] font-mono text-muted-foreground truncate max-w-[140px]">
@@ -1379,13 +1452,13 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
       />
 
       <div className="flex items-start gap-2.5">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised p-1.5 shadow-2xs">
-          <AppConnectorIcon connectorId={app.slug} name={app.connector?.name} category={app.connector?.category} size={22} />
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised p-1.5 shadow-2xs">
+          <AppConnectorIcon connectorId={app.slug} name={app.connector?.name} category={app.connector?.category} size={24} />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="truncate text-xs font-bold text-foreground">{app.connector?.name ?? (app.provider ? app.provider : 'App action')}</span>
+            <span className="truncate text-sm font-semibold text-foreground">{app.connector?.name ?? (app.provider ? app.provider : 'App action')}</span>
             {picked && !app.loading && (
               <span
                 className={cn(
@@ -1451,11 +1524,11 @@ export const TransformNode = memo(({ id, data, selected }: NodeProps) => {
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-blue/15 text-accent-blue">
-          <Code2 className="size-4" />
+        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-blue/15 text-accent-blue">
+          <Code2 className="size-5" />
         </div>
         <div>
-          <div className="text-xs font-bold text-foreground">
+          <div className="text-sm font-semibold text-foreground">
             {nodeData.label || 'Transform'}
           </div>
           <div className="text-[11px] text-muted-foreground">
@@ -1497,11 +1570,11 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-violet/15 text-accent-violet">
-          <GitBranch className="size-4" />
+        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-violet/15 text-accent-violet">
+          <GitBranch className="size-5" />
         </div>
         <div>
-          <div className="text-xs font-bold text-foreground">
+          <div className="text-sm font-semibold text-foreground">
             {nodeData.label || 'If / Else'}
           </div>
           <div className="text-[11px] text-muted-foreground">
@@ -1560,11 +1633,11 @@ export const WhileLoopNode = memo(({ id, type, data, selected }: NodeProps) => {
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-violet/15 text-accent-violet">
-          <Repeat className="size-4" />
+        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-violet/15 text-accent-violet">
+          <Repeat className="size-5" />
         </div>
         <div>
-          <div className="text-xs font-bold text-foreground">
+          <div className="text-sm font-semibold text-foreground">
             {nodeData.label || 'While Loop'}
           </div>
           <div className="text-[11px] text-muted-foreground">
@@ -1605,11 +1678,11 @@ function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNo
         className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
       />
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-accent-violet/15 text-accent-violet">
-          <Repeat className="size-4" />
+        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-violet/15 text-accent-violet">
+          <Repeat className="size-5" />
         </div>
         <div>
-          <div className="text-xs font-bold text-foreground">{nodeData.label || 'Loop'}</div>
+          <div className="text-sm font-semibold text-foreground">{nodeData.label || 'Loop'}</div>
           <div className="text-[11px] text-muted-foreground">
             For each in <span className="font-mono">{`{{${itemsKey}}}`}</span>
           </div>
@@ -1664,11 +1737,11 @@ export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-destructive/15 text-destructive">
-            <UserCheck className="size-4" />
+          <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive">
+            <UserCheck className="size-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-foreground">
+            <div className="text-sm font-semibold text-foreground">
               {nodeData.label || 'User Approval'}
             </div>
             <div className="text-[11px] text-muted-foreground">
@@ -1718,11 +1791,11 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
       />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-success/15 text-success">
-          <CheckCircle2 className="size-4" />
+        <div className="flex size-10 items-center justify-center rounded-xl bg-success/15 text-success">
+          <CheckCircle2 className="size-5" />
         </div>
         <div>
-          <div className="text-xs font-bold text-foreground">
+          <div className="text-sm font-semibold text-foreground">
             {nodeData.label || 'Workflow End'}
           </div>
           <div className="text-[11px] text-muted-foreground">
@@ -1757,11 +1830,11 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
 
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Cpu className="size-4" />
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Cpu className="size-5" />
           </div>
           <div>
-            <div className="text-xs font-bold text-foreground">
+            <div className="text-sm font-semibold text-foreground">
               {nodeData.label || 'Studio Node'}
             </div>
             <div className="text-[11px] text-muted-foreground line-clamp-1">
@@ -1843,7 +1916,7 @@ export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} canAddNext={false} />
-      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground mb-2">
+      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-2">
         <Folder className="size-4 text-primary" />
         <span>{nodeData.label || 'Stage Group'}</span>
         {nodeData.subtitle && (
