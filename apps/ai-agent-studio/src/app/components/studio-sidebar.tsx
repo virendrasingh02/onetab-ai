@@ -3,6 +3,9 @@ import {
   AvatarFallback,
   AvatarImage,
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,6 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Hint,
   Input,
   ScrollArea,
 } from '@org/ui';
@@ -23,8 +27,10 @@ import {
   BarChart3,
   BookOpen,
   Bot,
+  Boxes,
   Check,
-  ChevronRight,
+  ChevronDown,
+  ChevronsUpDown,
   Code2,
   ExternalLink,
   GitBranch,
@@ -33,12 +39,11 @@ import {
   MoreHorizontal,
   Plug,
   Settings,
-  Shield,
   ShieldAlert,
   UserPlus,
   Wrench,
 } from 'lucide-react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -63,7 +68,7 @@ export interface NavItem {
 export interface NavGroup {
   id: string;
   title: string;
-  icon: ComponentType<{ className?: string }>;
+  icon?: ComponentType<{ className?: string }>;
   items: NavItem[];
   badge?: string;
   showsPendingApprovals?: boolean;
@@ -76,7 +81,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: 'build-orchestrate',
     title: 'Build & Orchestrate',
-    icon: GitBranch,
     items: [
       {
         to: '/agents',
@@ -98,8 +102,12 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: 'intelligence-tools',
     title: 'Intelligence & Tools',
-    icon: Wrench,
     items: [
+      {
+        to: '/connectors',
+        label: 'App Connectors',
+        icon: Boxes,
+      },
       {
         to: '/knowledge',
         label: 'Knowledge & RAG',
@@ -120,7 +128,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: 'operations-governance',
     title: 'Operations & Governance',
-    icon: Activity,
     showsPendingApprovals: true,
     items: [
       {
@@ -144,7 +151,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: 'platform-config',
     title: 'Platform & Config',
-    icon: Shield,
     items: [
       {
         to: '/settings',
@@ -235,6 +241,146 @@ function InviteTeamDialog({
   );
 }
 
+/*
+ * Row geometry mirrors the main platform sidebar (`navRowClass` /
+ * `IconOnlyNavRow` / `Section` in @org/web-layout's nav-primitives) so the
+ * Studio and the platform read as one product: 14px labels, 16px icons,
+ * `rounded-xl` rows and a primary-tinted selected state.
+ */
+const ROW_BASE =
+  'group relative flex w-full items-center gap-2.5 rounded-xl py-1.5 pl-2.5 pr-2 text-left text-sm tracking-[-0.01em] pointer-coarse:min-h-11 transition-all duration-(--duration-fast) ease-standard outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer';
+
+const ROW_ACTIVE =
+  'font-semibold text-primary-text bg-primary/12 shadow-2xs ring-1 ring-inset ring-primary/20';
+
+const ROW_IDLE = 'font-medium text-foreground/90 hover:bg-accent/70 hover:text-foreground';
+
+const ICON_ROW =
+  'relative mx-auto flex size-9 items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer';
+
+const ICON_ACTIVE =
+  'bg-primary/12 text-primary-text shadow-2xs ring-1 ring-inset ring-primary/20';
+
+const ICON_IDLE = 'text-muted-foreground hover:bg-accent/70 hover:text-foreground';
+
+function CountBadge({ count, className }: { count: number; className?: string }) {
+  return (
+    <span
+      className={cn(
+        'ml-auto inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-destructive/12 px-1.5 font-mono text-[10px] font-semibold tabular-nums text-destructive',
+        className,
+      )}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+/** One navigation row; renders an icon-only tile with a tooltip when collapsed. */
+function StudioNavRow({
+  to,
+  label,
+  icon: Icon,
+  end,
+  collapsed,
+  count,
+  onNavigate,
+}: {
+  to: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  end?: boolean;
+  collapsed: boolean;
+  count?: number;
+  onNavigate?: () => void;
+}) {
+  const hasCount = count !== undefined && count > 0;
+
+  if (collapsed) {
+    return (
+      <Hint side="right" label={hasCount ? `${label} (${count})` : label}>
+        <NavLink
+          to={to}
+          end={end}
+          onClick={onNavigate}
+          aria-label={label}
+          className={({ isActive }) => cn(ICON_ROW, isActive ? ICON_ACTIVE : ICON_IDLE)}
+        >
+          <Icon className="size-4 shrink-0" />
+          {hasCount ? (
+            <span className="absolute right-1 top-1 size-2 rounded-full bg-destructive ring-2 ring-card" />
+          ) : null}
+        </NavLink>
+      </Hint>
+    );
+  }
+
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onNavigate}
+      className={({ isActive }) => cn(ROW_BASE, isActive ? ROW_ACTIVE : ROW_IDLE)}
+    >
+      <Icon className="size-4 shrink-0" />
+      <span className="flex-1 truncate">{label}</span>
+      {hasCount ? <CountBadge count={count} /> : null}
+    </NavLink>
+  );
+}
+
+/** Collapsible titled group — same header treatment as the platform's `Section`. */
+function StudioNavSection({
+  title,
+  open,
+  onOpenChange,
+  collapsedCount,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Shown beside the title while the section is folded, so nothing hides. */
+  collapsedCount?: number;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible open={open} onOpenChange={onOpenChange} asChild>
+      <section aria-label={title} className="mt-3">
+        <div className="group/section flex items-center px-2.5 py-1 select-none">
+          <CollapsibleTrigger
+            aria-label={`Toggle ${title} section`}
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md text-[11px] font-semibold uppercase tracking-wide text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <span className="truncate">{title}</span>
+            <ChevronDown
+              className={cn(
+                'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 pointer-coarse:opacity-100',
+                !open && '-rotate-90 opacity-100',
+              )}
+              aria-hidden
+            />
+          </CollapsibleTrigger>
+          {!open && collapsedCount ? <CountBadge count={collapsedCount} /> : null}
+        </div>
+        <CollapsibleContent>
+          <div className="mt-0.5 space-y-0.5">{children}</div>
+        </CollapsibleContent>
+      </section>
+    </Collapsible>
+  );
+}
+
+const EXPANDED_GROUPS_KEY = 'onetab_studio_sidebar_expanded_groups';
+
+function persistExpanded(value: Record<string, boolean>) {
+  try {
+    localStorage.setItem(EXPANDED_GROUPS_KEY, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+}
+
 export interface StudioSidebarProps {
   className?: string;
   collapsed?: boolean;
@@ -244,25 +390,21 @@ export interface StudioSidebarProps {
 }
 
 /**
- * Full-height left sidebar matching reference image layout.
- * Features:
- * - Brand header: [U/O] ReUI / OneTab AI + ... options
- * - Platform section (Overview + Live Activity)
- * - Hierarchical collapsible groups (Pipelines, Infrastructure, Observability, Security)
- * - Indented tree lines and capsule active items
- * - Collapsible Resources telemetry section (API Gateway, ML Pipeline, Database, CDN, Authentication)
- * - Pinned footer: Settings, Invite Team, Documentation, and User Profile card (Nick Bold)
+ * Full-height Studio sidebar: workspace switcher header, Overview, collapsible
+ * nav sections, and a pinned footer (Invite Team + profile menu).
  */
 export function StudioSidebar({
   className,
-  collapsed = false,
-  onToggleCollapsed,
+  collapsed: collapsedProp = false,
   mobileOpen = false,
   onCloseMobile,
 }: StudioSidebarProps) {
   const { user, activeWorkspace, workspaces, setActiveWorkspace } = useStudioSession();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // The mobile drawer is always full width, whatever the desktop rail state.
+  const collapsed = collapsedProp && !mobileOpen;
 
   const [inviteOpen, setInviteOpen] = useState(false);
 
@@ -273,77 +415,59 @@ export function StudioSidebar({
   });
   const pendingCount = pendingApprovals.length;
 
-  // Track expanded groups with persistence & auto-expansion (all open by default so all navs are visible)
+  // All sections open by default; the user's folds persist across reloads.
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
-    const defaultExpanded: Record<string, boolean> = {
-      'build-orchestrate': true,
-      'intelligence-tools': true,
-      'operations-governance': true,
-      'platform-config': true,
-    };
+    const defaults = Object.fromEntries(NAV_GROUPS.map((g) => [g.id, true]));
     try {
-      const saved = localStorage.getItem('onetab_studio_sidebar_expanded_groups');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return { ...defaultExpanded, ...parsed };
-      }
+      const saved = localStorage.getItem(EXPANDED_GROUPS_KEY);
+      if (saved) return { ...defaults, ...JSON.parse(saved) };
     } catch {
       // ignore
     }
-    return defaultExpanded;
+    return defaults;
   });
 
-  const toggleGroup = useCallback((groupId: string) => {
+  const setGroupOpen = useCallback((groupId: string, open: boolean) => {
     setExpandedGroups((prev) => {
-      const updated = {
-        ...prev,
-        [groupId]: !prev[groupId],
-      };
-      try {
-        localStorage.setItem('onetab_studio_sidebar_expanded_groups', JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-      return updated;
+      const next = { ...prev, [groupId]: open };
+      persistExpanded(next);
+      return next;
     });
   }, []);
 
-  // Auto-expand group upon direct navigation
+  // Unfold the section holding the current route on direct navigation.
   useEffect(() => {
     const p = location.pathname;
     const activeGroup = NAV_GROUPS.find((g) =>
       g.items.some((item) =>
-        item.end
-          ? p === item.to
-          : p === item.to || p.startsWith(item.to + '/'),
+        item.end ? p === item.to : p === item.to || p.startsWith(item.to + '/'),
       ),
     );
-
-    if (activeGroup) {
-      setExpandedGroups((prev) => {
-        if (prev[activeGroup.id]) return prev;
-        const next = { ...prev, [activeGroup.id]: true };
-        try {
-          localStorage.setItem('onetab_studio_sidebar_expanded_groups', JSON.stringify(next));
-        } catch {
-          // ignore
-        }
-        return next;
-      });
-    }
+    if (!activeGroup) return;
+    setExpandedGroups((prev) => {
+      if (prev[activeGroup.id]) return prev;
+      const next = { ...prev, [activeGroup.id]: true };
+      persistExpanded(next);
+      return next;
+    });
   }, [location.pathname]);
 
-  const initials = user.name
-    ? user.name
-        .split(' ')
-        .map((p) => p[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
-    : 'NB';
+  const displayName = user.name || user.email || 'Studio user';
+  const displayEmail = user.email || '';
+  const initials =
+    displayName
+      .split(/\s+/)
+      .map((p) => p[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'U';
+  const workspaceInitial = (activeWorkspace.name || 'W').charAt(0).toUpperCase();
 
-  const displayName = user.name || 'Nick Bold';
-  const displayEmail = user.email || 'admin@onetab.ai';
+  const workspaceMark = (
+    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-2xs">
+      {workspaceInitial}
+    </div>
+  );
 
   return (
     <>
@@ -360,300 +484,199 @@ export function StudioSidebar({
         className={cn(
           'flex flex-col border-r border-border/70 bg-card z-50 md:z-auto transition-all duration-200 select-none shrink-0 h-dvh',
           mobileOpen
-            ? 'fixed inset-y-0 left-0 w-64 shadow-2xl md:relative md:shadow-none'
-            : cn('hidden md:flex', collapsed ? 'w-[68px]' : 'w-64'),
+            ? 'fixed inset-y-0 left-0 w-[272px] shadow-2xl md:relative md:shadow-none'
+            : cn('hidden md:flex', collapsed ? 'w-[68px]' : 'w-[272px]'),
           className,
         )}
       >
-        {/* Top Header: Logo + Brand + 3-dots options (Ref Image: ReUI ...) */}
-        <div className="h-14 px-3 flex items-center justify-between border-b border-border/40 shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            {/* Logo mark */}
-            <div className="size-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-              <span className="font-extrabold tracking-tight">U</span>
-            </div>
-
-            {!collapsed && (
-              <span className="font-bold text-sm tracking-tight text-foreground truncate">
-                ReUI
-              </span>
-            )}
-          </div>
-
-          {!collapsed && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors cursor-pointer"
-                  aria-label="Workspace options"
+        {/* Header: workspace switcher */}
+        <div className="h-14 px-2.5 flex items-center border-b border-border/40 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  'flex w-full min-w-0 items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                  collapsed && 'justify-center',
+                )}
+                aria-label="Switch workspace"
+              >
+                {workspaceMark}
+                {!collapsed && (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold leading-tight text-foreground">
+                        {activeWorkspace.name}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">AI Agent Studio</div>
+                    </div>
+                    <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-60">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
+              {workspaces.map((ws) => (
+                <DropdownMenuItem
+                  key={ws.id}
+                  onClick={() => setActiveWorkspace(ws)}
+                  className="gap-2 text-sm"
                 >
-                  <MoreHorizontal className="size-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
-                {workspaces.map((ws) => (
-                  <DropdownMenuItem
-                    key={ws.id}
-                    onClick={() => setActiveWorkspace(ws)}
-                    className="gap-2 text-xs"
-                  >
-                    <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
-                    <span className="truncate">{ws.name}</span>
-                    {ws.id === activeWorkspace.id && <Check className="size-3.5 ml-auto text-primary" />}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setInviteOpen(true)} className="gap-2 text-xs">
-                  <UserPlus className="size-3.5" />
-                  <span>Invite Team…</span>
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-foreground">
+                    {(ws.name || 'W').charAt(0).toUpperCase()}
+                  </span>
+                  <span className="truncate">{ws.name}</span>
+                  {ws.id === activeWorkspace.id && <Check className="size-4 ml-auto text-primary" />}
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setInviteOpen(true)} className="gap-2 text-sm">
+                <UserPlus className="size-4" />
+                <span>Invite Team…</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="gap-2 text-sm">
+                <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
+                  <ExternalLink className="size-4" />
+                  <span>Open main platform</span>
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Scrollable Navigation Body */}
         <ScrollArea className="flex-1 px-2.5 py-3">
-          <nav className="space-y-4">
-            {/* Section: Platform */}
-            <div className="space-y-1">
-              {!collapsed && (
-                <div className="px-2 pb-1 text-[11px] font-medium text-muted-foreground tracking-tight">
-                  Platform
-                </div>
-              )}
+          <nav className="space-y-0.5" aria-label="Studio">
+            <StudioNavRow
+              to="/overview"
+              end
+              label="Studio Overview"
+              icon={LayoutDashboard}
+              collapsed={collapsed}
+              onNavigate={onCloseMobile}
+            />
 
-              {/* Studio Overview */}
-              <NavLink
-                to="/overview"
-                end
-                onClick={onCloseMobile}
-                className={({ isActive }) =>
-                  cn(
-                    'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                    isActive
-                      ? 'bg-accent text-foreground font-semibold shadow-2xs'
-                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                    collapsed && 'justify-center px-0 py-2',
-                  )
-                }
-                title={collapsed ? 'Studio Overview' : undefined}
-              >
-                <LayoutDashboard className="size-4 shrink-0" />
-                {!collapsed && <span>Studio Overview</span>}
-              </NavLink>
-            </div>
+            {NAV_GROUPS.map((group) => {
+              const rows = group.items.map((item) => (
+                <StudioNavRow
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  label={item.label}
+                  icon={item.icon}
+                  collapsed={collapsed}
+                  count={item.showsPendingApprovals ? pendingCount : undefined}
+                  onNavigate={onCloseMobile}
+                />
+              ));
 
-            {/* Hierarchical Navigation Groups (Build & Orchestrate, Intelligence & Tools, Operations & Governance, Platform & Config) */}
-            <div className="space-y-1 pt-1">
-              {NAV_GROUPS.map((group) => {
-                const isGroupExpanded = expandedGroups[group.id] ?? false;
-
+              if (collapsed) {
                 return (
-                  <div key={group.id} className="space-y-0.5">
-                    {/* Group Header Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (collapsed && onToggleCollapsed) {
-                          onToggleCollapsed();
-                        }
-                        toggleGroup(group.id);
-                      }}
-                      className={cn(
-                        'group/btn w-full flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground tracking-tight hover:text-foreground hover:bg-accent/40 transition-colors cursor-pointer select-none',
-                        collapsed && 'justify-center px-0 py-2',
-                      )}
-                      title={collapsed ? group.title : undefined}
-                    >
-                      <group.icon className="size-3.5 shrink-0 text-muted-foreground group-hover/btn:text-foreground transition-colors" />
-                      {!collapsed && (
-                        <>
-                          <span className="flex-1 text-left truncate text-muted-foreground group-hover/btn:text-foreground transition-colors">
-                            {group.title}
-                          </span>
-                          {group.showsPendingApprovals && pendingCount > 0 && !isGroupExpanded && (
-                            <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/25 mr-1 tabular-nums">
-                              {pendingCount}
-                            </span>
-                          )}
-                          {group.badge && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 mr-1 tabular-nums">
-                              {group.badge}
-                            </span>
-                          )}
-                          <ChevronRight
-                            className={cn(
-                              'size-3.5 text-muted-foreground/60 group-hover/btn:text-foreground transition-transform duration-200 shrink-0 origin-center',
-                              isGroupExpanded && 'rotate-90',
-                            )}
-                          />
-                        </>
-                      )}
-                    </button>
-
-                    {/* Group Indented Children (Ref image: tree line + sleek capsule active item) */}
-                    {!collapsed && (
-                      <div
-                        className={cn(
-                          'grid transition-all duration-200 ease-in-out',
-                          isGroupExpanded
-                            ? 'grid-rows-[1fr] opacity-100'
-                            : 'grid-rows-[0fr] opacity-0 pointer-events-none',
-                        )}
-                      >
-                        <div className="overflow-hidden">
-                          <div className="ml-3.5 pl-3 border-l border-border/40 my-1 space-y-0.5">
-                            {group.items.map((item) => (
-                              <NavLink
-                                key={item.to}
-                                to={item.to}
-                                end={item.end}
-                                onClick={onCloseMobile}
-                                className={({ isActive }) =>
-                                  cn(
-                                    'group/item flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs transition-colors font-medium',
-                                    isActive
-                                      ? 'bg-accent text-foreground font-semibold shadow-2xs'
-                                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/40',
-                                  )
-                                }
-                              >
-                                <item.icon className="size-3.5 shrink-0 text-muted-foreground/80 group-hover/item:text-foreground transition-colors" />
-                                <span className="truncate flex-1 text-left">{item.label}</span>
-                                {item.showsPendingApprovals && pendingCount > 0 && (
-                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/25 tabular-nums shrink-0">
-                                    {pendingCount}
-                                  </span>
-                                )}
-                              </NavLink>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                  <div
+                    key={group.id}
+                    className="mt-2 space-y-0.5 border-t border-border/40 pt-2"
+                    aria-label={group.title}
+                  >
+                    {rows}
                   </div>
                 );
-              })}
-            </div>
+              }
+
+              return (
+                <StudioNavSection
+                  key={group.id}
+                  title={group.title}
+                  open={expandedGroups[group.id] ?? true}
+                  onOpenChange={(open) => setGroupOpen(group.id, open)}
+                  collapsedCount={group.showsPendingApprovals ? pendingCount : undefined}
+                >
+                  {rows}
+                </StudioNavSection>
+              );
+            })}
           </nav>
         </ScrollArea>
 
-        {/* Pinned Footer (Ref image: Settings, Invite Team, Documentation, User Profile Card) */}
-        <div className="p-2 border-t border-border/40 space-y-0.5 shrink-0">
-          {/* Settings */}
-          <NavLink
-            to="/settings"
-            onClick={onCloseMobile}
-            className={({ isActive }) =>
-              cn(
-                'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                isActive
-                  ? 'bg-accent text-foreground font-semibold'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                collapsed && 'justify-center px-0',
-              )
-            }
-            title={collapsed ? 'Settings' : undefined}
-          >
-            <Settings className="size-4 shrink-0" />
-            {!collapsed && <span>Settings</span>}
-          </NavLink>
+        {/* Pinned Footer: Invite Team + profile */}
+        <div className="p-2.5 border-t border-border/40 space-y-1 shrink-0">
+          {collapsed ? (
+            <Hint side="right" label="Invite Team">
+              <button
+                type="button"
+                onClick={() => setInviteOpen(true)}
+                aria-label="Invite Team"
+                className={cn(ICON_ROW, ICON_IDLE)}
+              >
+                <UserPlus className="size-4 shrink-0" />
+              </button>
+            </Hint>
+          ) : (
+            <button type="button" onClick={() => setInviteOpen(true)} className={cn(ROW_BASE, ROW_IDLE)}>
+              <UserPlus className="size-4 shrink-0" />
+              <span className="flex-1 truncate">Invite Team</span>
+            </button>
+          )}
 
-          {/* Invite Team */}
-          <button
-            type="button"
-            onClick={() => setInviteOpen(true)}
-            className={cn(
-              'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors text-left cursor-pointer',
-              collapsed && 'justify-center px-0',
-            )}
-            title={collapsed ? 'Invite Team' : undefined}
-          >
-            <UserPlus className="size-4 shrink-0" />
-            {!collapsed && <span>Invite Team</span>}
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  'group flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                  collapsed && 'justify-center',
+                )}
+                aria-label="Account menu"
+              >
+                <Avatar className="size-8 rounded-lg border border-border/60">
+                  {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={displayName} /> : null}
+                  <AvatarFallback className="rounded-lg bg-foreground text-background text-xs font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
 
-          {/* Documentation */}
-          <NavLink
-            to="/developer"
-            onClick={onCloseMobile}
-            className={({ isActive }) =>
-              cn(
-                'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                isActive
-                  ? 'bg-accent text-foreground font-semibold'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                collapsed && 'justify-center px-0',
-              )
-            }
-            title={collapsed ? 'Documentation' : undefined}
-          >
-            <BookOpen className="size-4 shrink-0" />
-            {!collapsed && <span>Documentation</span>}
-          </NavLink>
-
-          {/* User Profile Card (Ref image: Nick Bold with 3-dots) */}
-          <div className="pt-1.5 mt-1 border-t border-border/40">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    'w-full flex items-center gap-2.5 p-1 rounded-lg hover:bg-accent/60 transition-colors text-left group cursor-pointer',
-                    collapsed && 'justify-center p-1',
-                  )}
-                >
-                  <Avatar className="size-7 rounded-md border border-border/60">
-                    {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={displayName} /> : null}
-                    <AvatarFallback className="rounded-md bg-foreground text-background text-xs font-bold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  {!collapsed && (
-                    <>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-semibold text-foreground truncate leading-tight">
-                          {displayName}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {displayEmail}
-                        </div>
+                {!collapsed && (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold leading-tight text-foreground">
+                        {displayName}
                       </div>
-                      <MoreHorizontal className="size-4 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    </>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
+                      {displayEmail ? (
+                        <div className="truncate text-xs text-muted-foreground">{displayEmail}</div>
+                      ) : null}
+                    </div>
+                    <MoreHorizontal className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-xs font-semibold leading-none text-foreground">
-                      {displayName}
-                    </p>
-                    <p className="text-[11px] leading-none text-muted-foreground">
-                      {displayEmail}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-2 text-xs">
-                  <Settings className="size-3.5 text-muted-foreground" />
-                  <span>Studio Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="gap-2 text-xs">
-                  <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
-                    <ExternalLink className="size-3.5 text-muted-foreground" />
-                    <span>Main Platform</span>
-                  </a>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+            <DropdownMenuContent align="start" side="top" className="w-60">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-semibold leading-none text-foreground">{displayName}</p>
+                  {displayEmail ? (
+                    <p className="text-xs leading-none text-muted-foreground">{displayEmail}</p>
+                  ) : null}
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-2 text-sm">
+                <Settings className="size-4 text-muted-foreground" />
+                <span>Studio Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/developer')} className="gap-2 text-sm">
+                <BookOpen className="size-4 text-muted-foreground" />
+                <span>Documentation</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="gap-2 text-sm">
+                <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
+                  <ExternalLink className="size-4 text-muted-foreground" />
+                  <span>Main Platform</span>
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </aside>
 

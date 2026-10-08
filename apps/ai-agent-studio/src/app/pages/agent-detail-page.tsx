@@ -83,6 +83,7 @@ import {
   Palette,
   Play,
   Plus,
+  Plug,
   Radio,
   Redo2,
   RotateCcw,
@@ -117,6 +118,7 @@ import { ValidationModal } from '../components/workflow-canvas/validation-modal.
 import { RunConsoleDrawer, type CanvasNodeStatus } from '../components/workflow-canvas/run-console-drawer.js';
 import { AgentCopilotPanel } from '../components/agent-architect/agent-copilot-panel.js';
 import { MultiAgentTab } from '../components/agent-detail/multi-agent-tab.jsx';
+import { AgentConnectorsTab } from '../components/agent-detail/agent-connectors-tab.jsx';
 import { MemoryTab } from '../components/agent-detail/memory-tab.jsx';
 import { VariablesTab } from '../components/agent-detail/variables-tab.jsx';
 import { WidgetBuilder } from '../components/agent-detail/widget-builder.jsx';
@@ -231,6 +233,7 @@ const LAYOUT_ANIMATION_MS = 420;
 
 const AGENT_TABS = [
   { id: 'build', label: 'Canvas', icon: GitBranch },
+  { id: 'connectors', label: 'Connectors', icon: Plug },
   { id: 'multi_agent', label: 'Multi-Agent', icon: Network },
   { id: 'memory', label: 'Memory', icon: Brain },
   { id: 'variables', label: 'Variables', icon: Variable },
@@ -2582,6 +2585,22 @@ export function AgentDetailPage() {
               />
             )}
           </div>
+        )}
+
+        {/* TAB: APP CONNECTORS & TOOLS */}
+        {activeTab === 'connectors' && (
+          <AgentConnectorsTab
+            agent={agent}
+            onUpdate={async (patch) => {
+              if (!agentId) return;
+              try {
+                await agentsApi.update(activeWorkspace.id, agentId, patch);
+              } catch {
+                await agentService.updateAgent(activeWorkspace.id, agentId, patch);
+              }
+              queryClient.invalidateQueries({ queryKey: agentQueryKey });
+            }}
+          />
         )}
 
         {/* TAB 2: MULTI-AGENT SWARM */}

@@ -16,6 +16,7 @@ import { Handle, NodeToolbar, Position, type NodeProps } from '@xyflow/react';
 import {
   AlertTriangle,
   Bot,
+  Boxes,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -27,6 +28,7 @@ import {
   Folder,
   GitBranch,
   Link2,
+  MessageSquare,
   Network,
   Pencil,
   Play,
@@ -51,6 +53,8 @@ import {
   type AgentSlotId,
 } from './agent-slots.js';
 import { CATALOG_NODES, type CatalogNodeItem, type NodeCategory } from './node-library.js';
+import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
+import { getConnectorMeta } from '../../services/connectorCatalog.js';
 
 export interface WorkflowNodePayload {
   label: string;
@@ -576,29 +580,52 @@ export function NodeActionToolbar({
   );
 }
 
-// 1. Start Node
-export const StartNode = memo(({ id, data, selected }: NodeProps) => {
+// 1. Start / Trigger Node (Universal support for Webhooks, Manual, Chat, Schedules, and SaaS App Connector Triggers)
+export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
+  const cfg = nodeData.config || {};
+  const isConnectorTrigger =
+    String(type).toUpperCase().includes('APP_CONNECTOR') ||
+    String(type).toUpperCase().includes('TEAMS_TRIGGER') ||
+    Boolean(cfg.connectorId);
+  const connectorId = cfg.connectorId || (String(type).toUpperCase().includes('TEAMS') ? 'microsoft_teams' : null);
+  const meta = connectorId ? getConnectorMeta(connectorId) : null;
+
   return (
     <div
       className={cn(
-        'group relative min-w-[200px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        'group relative min-w-[210px] max-w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
+        selected ? 'ring-2 ring-emerald-500 border-emerald-500 shadow-md' : 'hover:border-emerald-500/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
 
       <div className="flex items-center gap-2.5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-success/15 text-success">
-          <Play className="size-4 fill-success" />
-        </div>
-        <div>
-          <div className="text-xs font-bold text-foreground">
-            {nodeData.label || 'Workflow Start'}
+        {isConnectorTrigger && meta ? (
+          <div
+            className="flex size-9 items-center justify-center rounded-xl shrink-0 p-1.5 shadow-2xs border border-border/60 bg-surface-raised"
+            style={{ borderColor: meta?.color ? `${meta.color}40` : undefined }}
+          >
+            <AppConnectorIcon
+              connectorId={connectorId}
+              name={meta.name}
+              category={meta.category}
+              customIconUrl={cfg.customIconUrl}
+              size={22}
+            />
           </div>
-          <div className="text-[11px] text-muted-foreground">
-            {nodeData.subtitle || 'Entry point'}
+        ) : (
+          <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500 shrink-0">
+            <Play className="size-4 fill-emerald-500" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-bold text-foreground truncate">
+            {nodeData.label || (meta ? `${meta.name} Trigger` : 'Workflow Start')}
+          </div>
+          <div className="text-[11px] text-muted-foreground truncate font-mono">
+            {cfg.triggerId || nodeData.subtitle || (meta ? 'Event Listener' : 'Entry point')}
           </div>
         </div>
       </div>
@@ -606,7 +633,7 @@ export const StartNode = memo(({ id, data, selected }: NodeProps) => {
       <SourceHandleWithQuickAdd
         position={Position.Right}
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-success"
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-emerald-500"
       />
     </div>
   );
@@ -1323,6 +1350,104 @@ export const MCPToolNode = memo(({ id, data, selected }: NodeProps) => {
 });
 MCPToolNode.displayName = 'MCPToolNode';
 
+// 4b. App Connector Action Node (Teams, Slack, GitHub, Jira, Google Drive, Stripe, etc.)
+export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) => {
+  const nodeData = data as WorkflowNodePayload;
+  const cfg = nodeData.config || {};
+  const connectorId = cfg.connectorId || (String(type).toUpperCase().includes('TEAMS') ? 'microsoft_teams' : 'custom_rest_api');
+  const meta = getConnectorMeta(connectorId);
+  const connectionName = cfg.connectionName || cfg.connectionId || 'Primary Connection';
+  const hasConnection = Boolean(cfg.connectionId && cfg.connectionId !== 'none');
+  const needsConfig = !cfg.actionId && !nodeData.label;
+  const status = nodeData.status || (hasConnection ? 'idle' : 'waiting');
+
+  return (
+    <div
+      className={cn(
+        'group relative min-w-[240px] max-w-[300px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
+        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        statusBorderClasses[status],
+      )}
+    >
+      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
+
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
+      />
+
+      <div className="flex items-start gap-2.5">
+        <div
+          className="flex size-9 items-center justify-center rounded-xl shrink-0 p-1.5 shadow-2xs border border-border/60 bg-surface-raised"
+          style={{
+            borderColor: meta?.color ? `${meta.color}40` : undefined,
+          }}
+        >
+          <AppConnectorIcon
+            connectorId={connectorId}
+            name={meta?.name || nodeData.label}
+            category={meta?.category}
+            customIconUrl={cfg.customIconUrl}
+            size={22}
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-xs font-bold text-foreground truncate">
+              {nodeData.label || meta?.name || 'App Action'}
+            </span>
+            <span
+              className={cn(
+                'rounded px-1.5 py-0.5 text-[9px] font-semibold shrink-0 border',
+                hasConnection
+                  ? 'bg-primary/10 text-primary border-primary/20'
+                  : 'bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400'
+              )}
+            >
+              {hasConnection ? connectionName : 'Needs Connection'}
+            </span>
+          </div>
+
+          <div className="text-[11px] font-mono text-muted-foreground truncate mt-0.5">
+            {cfg.actionId || nodeData.subtitle || 'execute_action'}
+          </div>
+
+          {/* Quick parameter or dynamic expression preview */}
+          {cfg.message && (
+            <div className="mt-1 text-[10px] text-muted-foreground/80 font-mono truncate bg-surface-raised/80 rounded px-1.5 py-0.5">
+              msg: {String(cfg.message)}
+            </div>
+          )}
+          {cfg.subject && (
+            <div className="mt-1 text-[10px] text-muted-foreground/80 font-mono truncate bg-surface-raised/80 rounded px-1.5 py-0.5">
+              sub: {String(cfg.subject)}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <AttachedChip data={nodeData} />
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/60">
+        <ConfigureButton id={id} data={nodeData} />
+        {cfg.requireApproval && (
+          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-600 dark:text-amber-400">
+            <Shield className="size-2.5" /> Approval Gate
+          </span>
+        )}
+      </div>
+
+      <SourceHandleWithQuickAdd
+        position={Position.Right}
+        onConnectNext={nodeData.onConnectNext}
+        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
+      />
+    </div>
+  );
+});
+AppConnectorNode.displayName = 'AppConnectorNode';
+
 // 5. Transform Node
 export const TransformNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
@@ -1765,6 +1890,8 @@ const BASE_NODE_TYPES: Record<string, any> = {
   TRIGGER_EMAIL: StartNode,
   TRIGGER_AGENT: StartNode,
   TRIGGER_EVENT: StartNode,
+  APP_CONNECTOR_TRIGGER: StartNode,
+  TEAMS_TRIGGER_MESSAGE: StartNode,
 
   // AI & Reasoning
   AGENT: AgentNode,
@@ -1797,6 +1924,9 @@ const BASE_NODE_TYPES: Record<string, any> = {
   SLACK_SEND: MCPToolNode,
   EMAIL_SEND: MCPToolNode,
   GITHUB_ACTION: MCPToolNode,
+  APP_CONNECTOR_ACTION: AppConnectorNode,
+  TEAMS_SEND_MESSAGE: AppConnectorNode,
+  TEAMS_CREATE_MEETING: AppConnectorNode,
 
   // Knowledge & RAG
   KB_SEARCH: TransformNode,

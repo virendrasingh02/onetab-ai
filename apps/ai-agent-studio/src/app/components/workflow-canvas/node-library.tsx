@@ -3,6 +3,7 @@ import {
   AlignLeft,
   Binary,
   Bot,
+  Boxes,
   Clock,
   Code2,
   Cpu,
@@ -37,10 +38,12 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
+import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 
 export type NodeCategory =
   | 'all'
   | 'triggers'
+  | 'connectors'
   | 'ai'
   | 'knowledge'
   | 'logic'
@@ -112,6 +115,16 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     icon: Zap,
     badge: 'Trigger',
     defaultConfig: { eventType: 'document.created' },
+  },
+  {
+    type: 'TEAMS_TRIGGER_MESSAGE',
+    category: 'triggers',
+    label: 'Teams New Message Trigger',
+    subtitle: 'Microsoft Teams Inbound',
+    description: 'Triggers workflow execution when a message is posted or bot is mentioned in Teams',
+    icon: MessageSquare,
+    badge: 'Connector',
+    defaultConfig: { connectorId: 'microsoft-teams', triggerId: 'new_message', filter: 'all_messages' },
   },
 
   // 2. AI & REASONING (Module 3.2)
@@ -429,6 +442,53 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     badge: 'Tools',
     defaultConfig: { channel: '#agent-alerts', asBot: true },
   },
+  {
+    type: 'APP_CONNECTOR_ACTION',
+    category: 'tools',
+    label: 'App Connector Action',
+    subtitle: 'Connected SaaS Action',
+    description: 'Invokes an authenticated action against any configured App Connector (Teams, Slack, Gmail, GitHub, Jira)',
+    icon: Boxes,
+    badge: 'Connector',
+    defaultConfig: {
+      connectorId: 'microsoft-teams',
+      connectionId: 'conn-ms-teams-corp',
+      actionId: 'send_channel_message',
+    },
+  },
+  {
+    type: 'TEAMS_SEND_MESSAGE',
+    category: 'tools',
+    label: 'Teams Send Message',
+    subtitle: 'Post Channel or DM',
+    description: 'Posts a formatted message, markdown text, or agent response into Microsoft Teams',
+    icon: MessageSquare,
+    badge: 'Teams',
+    defaultConfig: {
+      connectorId: 'microsoft-teams',
+      connectionId: 'conn-ms-teams-corp',
+      actionId: 'send_channel_message',
+      teamId: 'team-eng-core',
+      channelId: 'general',
+      message: '{{agent.output}}',
+    },
+  },
+  {
+    type: 'TEAMS_CREATE_MEETING',
+    category: 'tools',
+    label: 'Teams Schedule Meeting',
+    subtitle: 'Calendar Meeting Invite',
+    description: 'Schedules an online Microsoft Teams meeting invite with join link and audio details',
+    icon: MessageSquare,
+    badge: 'Teams',
+    defaultConfig: {
+      connectorId: 'microsoft-teams',
+      connectionId: 'conn-ms-teams-corp',
+      actionId: 'create_meeting',
+      subject: 'AI Agent Consultation',
+      durationMinutes: 30,
+    },
+  },
 
   // 7. HUMAN INTERACTION (Module 3.7)
   {
@@ -520,6 +580,7 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
 export const CATEGORY_ITEMS: { id: NodeCategory; label: string; count: number }[] = [
   { id: 'all', label: 'All Nodes', count: CATALOG_NODES.length },
   { id: 'triggers', label: 'Triggers', count: CATALOG_NODES.filter((n) => n.category === 'triggers').length },
+  { id: 'connectors', label: 'App Connectors', count: CATALOG_NODES.filter((n) => n.badge === 'Connector' || n.badge === 'Teams' || n.type.startsWith('APP_CONNECTOR') || n.type.startsWith('TEAMS_')).length },
   { id: 'ai', label: 'AI & Reasoning', count: CATALOG_NODES.filter((n) => n.category === 'ai').length },
   { id: 'knowledge', label: 'Knowledge & RAG', count: CATALOG_NODES.filter((n) => n.category === 'knowledge').length },
   { id: 'logic', label: 'Logic & Flow', count: CATALOG_NODES.filter((n) => n.category === 'logic').length },
@@ -543,7 +604,13 @@ export function NodeLibrary({
   const filteredNodes = useMemo(() => {
     return CATALOG_NODES.filter((node) => {
       const matchesCategory =
-        selectedCategory === 'all' || node.category === selectedCategory;
+        selectedCategory === 'all' ||
+        node.category === selectedCategory ||
+        (selectedCategory === 'connectors' &&
+          (node.badge === 'Connector' ||
+            node.badge === 'Teams' ||
+            node.type.startsWith('APP_CONNECTOR') ||
+            node.type.startsWith('TEAMS_')));
       const matchesSearch =
         search.trim() === '' ||
         node.label.toLowerCase().includes(search.toLowerCase()) ||
@@ -615,6 +682,9 @@ export function NodeLibrary({
         ) : (
           filteredNodes.map((item) => {
             const Icon = item.icon;
+            const isConnector = item.badge === 'Connector' || item.badge === 'Teams' || item.defaultConfig?.connectorId;
+            const connectorId = item.defaultConfig?.connectorId || (item.badge === 'Teams' ? 'microsoft_teams' : null);
+
             return (
               <div
                 key={item.type}
@@ -624,8 +694,12 @@ export function NodeLibrary({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="flex size-7 items-center justify-center rounded-lg bg-surface-raised text-primary group-hover:bg-primary/10 transition-colors">
-                      <Icon className="size-3.5" />
+                    <div className="flex size-7 items-center justify-center rounded-lg bg-surface-raised text-primary group-hover:bg-primary/10 transition-colors p-1">
+                      {isConnector && connectorId ? (
+                        <AppConnectorIcon connectorId={connectorId} size={16} />
+                      ) : (
+                        <Icon className="size-3.5" />
+                      )}
                     </div>
                     <div>
                       <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">

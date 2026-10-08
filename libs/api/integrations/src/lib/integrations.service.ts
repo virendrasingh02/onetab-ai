@@ -96,6 +96,8 @@ export class IntegrationsService {
       'LINEAR',
       'NOTION',
       'SLACK',
+      'MICROSOFT_TEAMS',
+      'TEAMS',
       'TRELLO',
     ]);
     const scopeType = params.scopeType ?? (USER_SCOPED_PROVIDERS.has(providerKey) ? 'USER' : 'WORKSPACE');

@@ -26,6 +26,7 @@ import { GoogleSheetsProvider } from './providers/google-sheets.provider.js';
 import { LinearProvider } from './providers/linear.provider.js';
 import { NotionProvider } from './providers/notion.provider.js';
 import { OneTabAppProvider } from './providers/onetab-app.provider.js';
+import { MicrosoftTeamsProvider } from './providers/microsoft-teams.provider.js';
 import { SlackProvider } from './providers/slack.provider.js';
 import { TrelloProvider } from './providers/trello.provider.js';
 import { SlackImporterService } from './slack-importer.service.js';
@@ -82,6 +83,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     LinearProvider,
     NotionProvider,
     SlackProvider,
+    MicrosoftTeamsProvider,
     TrelloProvider,
     CustomApiProvider,
     OneTabAppProvider,

@@ -15,6 +15,7 @@ export { IntegrationLoggerService } from './lib/core/integration-logger.service.
 export { IntegrationPermissionService } from './lib/core/integration-permission.service.js';
 
 export { GmailProvider } from './lib/providers/gmail.provider.js';
+export { MicrosoftTeamsProvider } from './lib/providers/microsoft-teams.provider.js';
 export { CustomApiProvider } from './lib/providers/custom-api.provider.js';
 export { OneTabAppProvider } from './lib/providers/onetab-app.provider.js';
 

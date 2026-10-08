@@ -19,6 +19,7 @@ import { GoogleSheetsProvider } from './providers/google-sheets.provider.js';
 import { LinearProvider } from './providers/linear.provider.js';
 import { NotionProvider } from './providers/notion.provider.js';
 import { OneTabAppProvider } from './providers/onetab-app.provider.js';
+import { MicrosoftTeamsProvider } from './providers/microsoft-teams.provider.js';
 import { SlackProvider } from './providers/slack.provider.js';
 import { TrelloProvider } from './providers/trello.provider.js';
 
@@ -121,6 +122,7 @@ describe('IntegrationsService', () => {
     const linearProvider = new LinearProvider(configService);
     const notionProvider = new NotionProvider(configService);
     const slackProvider = new SlackProvider(configService);
+    const microsoftTeamsProvider = new MicrosoftTeamsProvider(configService);
     const trelloProvider = new TrelloProvider();
     const customApiProvider = new CustomApiProvider(ssrfGuard);
     const oneTabAppProvider = new OneTabAppProvider();
@@ -141,6 +143,7 @@ describe('IntegrationsService', () => {
       trelloProvider,
       customApiProvider,
       oneTabAppProvider,
+      microsoftTeamsProvider,
     );
     manager.onModuleInit();
 

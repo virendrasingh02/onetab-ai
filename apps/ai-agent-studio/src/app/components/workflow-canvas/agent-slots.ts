@@ -53,7 +53,15 @@ export const AGENT_SLOTS: AgentSlotDef[] = [
     label: 'Tools',
     hint: 'Actions the agent may call',
     multiple: true,
-    accepts: (t) => TOOL_TYPES.has(t) || t === 'TOOL' || t === 'MCP' || t === 'GITHUB_ACTION' || t === 'EMAIL_SEND',
+    accepts: (t) =>
+      TOOL_TYPES.has(t) ||
+      t === 'TOOL' ||
+      t === 'MCP' ||
+      t === 'GITHUB_ACTION' ||
+      t === 'EMAIL_SEND' ||
+      t === 'APP_CONNECTOR_ACTION' ||
+      t === 'TEAMS_SEND_MESSAGE' ||
+      t === 'TEAMS_CREATE_MEETING',
   },
   {
     id: 'agents',

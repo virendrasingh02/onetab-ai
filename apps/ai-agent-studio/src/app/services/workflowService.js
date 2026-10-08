@@ -333,6 +333,37 @@ export const workflowService = {
           },
         };
 
+      case 'APP_CONNECTOR_ACTION':
+      case 'TEAMS_SEND_MESSAGE':
+        return {
+          status: 'SUCCESS',
+          nodeId: node.id,
+          latencyMs: 240,
+          output: {
+            connectorId: node.data?.config?.connectorId || 'microsoft-teams',
+            connectionId: node.data?.config?.connectionId || 'conn-ms-teams-corp',
+            actionId: node.data?.config?.actionId || 'send_channel_message',
+            messageId: `msg-${Date.now().toString(36)}`,
+            webUrl: 'https://teams.microsoft.com/l/message/19%3Ageneral%40thread.tacv2/168000000',
+            teamId: node.data?.config?.teamId || 'team-eng-core',
+            channelId: node.data?.config?.channelId || 'general',
+            status: 'SENT',
+          },
+        };
+
+      case 'TEAMS_CREATE_MEETING':
+        return {
+          status: 'SUCCESS',
+          nodeId: node.id,
+          latencyMs: 310,
+          output: {
+            meetingId: `mtg-${Date.now().toString(36)}`,
+            subject: node.data?.config?.subject || 'AI Agent Consultation',
+            joinWebUrl: 'https://teams.microsoft.com/l/meetup-join/19%3Ameeting_consultation_test',
+            status: 'SCHEDULED',
+          },
+        };
+
       default:
         return {
           status: 'SUCCESS',
