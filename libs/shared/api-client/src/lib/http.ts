@@ -264,6 +264,21 @@ async function refreshAccessToken(usedToken: string | null): Promise<string> {
 }
 
 /**
+ * Renews the session from the refresh cookie through the same single-flight,
+ * cross-tab-locked path the 401 interceptor uses. Callers that refreshed with a
+ * bare `authApi.refresh()` raced each other (a StrictMode double mount, or the
+ * web app in another tab) and the loser replayed a spent token — which the API
+ * answers by revoking every session. Failures surface as `ApiError`.
+ */
+export async function refreshSession(): Promise<string> {
+  try {
+    return await refreshAccessToken(getAccessToken());
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+/**
  * Whether a failed refresh actually means the session is over.
  *
  * Only the API can retire a session. A timeout, an offline browser or a 502

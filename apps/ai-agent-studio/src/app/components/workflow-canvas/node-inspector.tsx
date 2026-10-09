@@ -1,18 +1,32 @@
-import { Button, Input, AIModelBadge, toast } from '@org/ui';
+import { Button, Input, AIModelBadge, AppSelect, Switch, toast } from '@org/ui';
 import { cn } from '@org/utils';
+import type { StudioGraphIssue } from '@org/types';
 import type { Connection, Edge, Node } from '@xyflow/react';
 import {
   Braces,
+  ChevronRight,
   Flame,
+  Link2,
   Shield,
   Sliders,
   Trash2,
   X,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getSlot, isSlotHost } from './agent-slots.js';
 import { ConnectorNodeConfig } from './connector-node-config.js';
 import { MODEL_OPTIONS } from './custom-nodes.js';
 import { getNodeIcon, getStatusBadge, NodeWiringPanel } from './node-wiring-panel.js';
+import {
+  MODULE_BY_SLOT,
+  readAgentModules,
+  summarizeAgentModules,
+  type AgentModuleId,
+  type ModuleDraft,
+} from './agent-config/agent-module-model.js';
+import { AgentModulesOverview } from './agent-config/agent-modules-overview.js';
+import { ModuleDrawer, type ModuleActions } from './agent-config/module-drawer.js';
+import { useBuiltinTools, useKnowledgeBases, useMediaQuery } from './agent-config/use-agent-config-data.js';
 
 const COMMON_VARIABLES = [
   '{{input.message}}',
@@ -46,7 +60,39 @@ interface NodeInspectorProps {
   onRestoreNode: (nodeId: string, snapshot: NodeSnapshot) => void;
   onClose: () => void;
   className?: string;
+  /** Graph-level settings (run limits) — the Sub-agents module edits them. */
+  graphSettings?: Record<string, unknown>;
+  /** Compiler issues per node, for module validation. */
+  issuesByNode?: Map<string, StudioGraphIssue[]>;
+  /** Agents: the capability module open in the drawer, and where to land in it. */
+  activeModule?: { id: AgentModuleId; section?: string; field?: string } | null;
+  onOpenModule?: (module: { id: AgentModuleId; section?: string; field?: string } | null) => void;
+  /** Opens another agent's module (from a Prompt / LLM / knowledge card plugged into it). */
+  onOpenAgentModule?: (agentId: string, module: AgentModuleId) => void;
+  /** Writes a module drawer's draft into the graph. */
+  onApplyModuleDraft?: (draft: ModuleDraft) => void;
+  /** Saves the agent now. */
+  onSaveNow?: () => void;
+  moduleActions?: ModuleActions;
+  /** Reports unsaved module edits, so the page can guard clicks that would close the panel. */
+  onModuleDirtyChange?: (dirty: boolean) => void;
 }
+
+const WIDTH_KEY = 'studio.inspector.width';
+const MIN_WIDTH = 320;
+const DEFAULT_WIDTH = 400;
+const MODULE_MIN_WIDTH = 420;
+
+function readStoredWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(WIDTH_KEY));
+    return Number.isFinite(v) && v >= MIN_WIDTH ? v : DEFAULT_WIDTH;
+  } catch {
+    return DEFAULT_WIDTH;
+  }
+}
+
+const EMPTY_ISSUES = new Map<string, StudioGraphIssue[]>();
 
 const touching = (edges: Edge[], nodeId: string) =>
   edges.filter((e) => e.source === nodeId || e.target === nodeId);
@@ -73,7 +119,45 @@ export function NodeInspector({
   onRestoreNode,
   onClose,
   className,
+  graphSettings,
+  issuesByNode,
+  activeModule,
+  onOpenModule,
+  onOpenAgentModule,
+  onApplyModuleDraft,
+  onSaveNow,
+  moduleActions,
+  onModuleDirtyChange,
 }: NodeInspectorProps) {
+  const isPhone = useMediaQuery('(max-width: 767px)');
+  // Resizable width (desktop and tablet), remembered across sessions.
+  const [width, setWidth] = useState(readStoredWidth);
+  const widthRef = useRef(width);
+  widthRef.current = width;
+  const commitWidth = useCallback((w: number) => {
+    const max = Math.max(MIN_WIDTH, Math.min(880, Math.round(window.innerWidth * 0.7)));
+    const next = Math.round(Math.min(Math.max(w, MIN_WIDTH), max));
+    setWidth(next);
+    try {
+      localStorage.setItem(WIDTH_KEY, String(next));
+    } catch {
+      // Storage unavailable: the width just isn't remembered.
+    }
+  }, []);
+  const startResize = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = widthRef.current;
+    const move = (ev: PointerEvent) => commitWidth(startW + (startX - ev.clientX));
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      document.body.style.cursor = '';
+    };
+    document.body.style.cursor = 'col-resize';
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
   const [showVariablePicker, setShowVariablePicker] = useState(false);
   const [targetField, setTargetField] = useState<string | null>(null);
   const [tab, setTab] = useState<'settings' | 'wiring'>('settings');
@@ -89,6 +173,29 @@ export function NodeInspector({
       fingerprint(selectedNode.data, touching(edges, selectedNode.id)) !== fingerprint(snapshot.data, snapshot.edges)
     );
   }, [selectedNode, edges, snapshot]);
+
+  // Agents: their five capability modules, summarized from the live graph.
+  const isAgent = Boolean(selectedNode && isSlotHost(selectedNode.type));
+  const stepIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
+  const moduleSummaries = useMemo(
+    () =>
+      selectedNode && isAgent
+        ? summarizeAgentModules(readAgentModules(selectedNode, nodes, edges, graphSettings), { issuesByNode, stepIds })
+        : [],
+    [selectedNode, isAgent, nodes, edges, graphSettings, issuesByNode, stepIds],
+  );
+  // A card plugged into an agent (Prompt, LLM, knowledge, tool): which agent and module.
+  const ownerSlot = useMemo(() => {
+    if (!selectedNode) return null;
+    const edge = edges.find((e) => e.target === selectedNode.id && getSlot(e.sourceHandle));
+    const owner = edge ? nodes.find((n) => n.id === edge.source) : undefined;
+    const module = edge ? MODULE_BY_SLOT.get(getSlot(edge.sourceHandle)!.id) : undefined;
+    return owner && module ? { agent: owner, module } : null;
+  }, [selectedNode, nodes, edges]);
+  const showModule = Boolean(isAgent && activeModule && onApplyModuleDraft && moduleActions);
+  useEffect(() => {
+    if (!showModule) onModuleDirtyChange?.(false);
+  }, [showModule, onModuleDirtyChange]);
 
   if (!selectedNode) {
     return (
@@ -125,13 +232,6 @@ export function NodeInspector({
     });
   };
 
-  const updateLabel = (label: string) => {
-    onUpdateNode(selectedNode.id, {
-      ...data,
-      label,
-    });
-  };
-
   const insertVariable = (variableStr: string) => {
     if (!targetField) return;
     const current = config[targetField] || '';
@@ -151,10 +251,15 @@ export function NodeInspector({
   return (
     <aside
       aria-label={`${data.label || 'Node'} settings`}
+      role={isPhone ? 'dialog' : 'complementary'}
+      aria-modal={isPhone || undefined}
+      style={isPhone ? undefined : { width: Math.max(width, showModule ? MODULE_MIN_WIDTH : MIN_WIDTH) }}
       className={cn(
-        'flex flex-col overflow-hidden rounded-2xl border border-border bg-surface text-foreground shadow-2xl select-none',
-        'animate-in fade-in slide-in-from-right-2 duration-150',
+        'flex flex-col overflow-hidden border border-border bg-surface text-foreground shadow-2xl',
+        'animate-in fade-in slide-in-from-right-2 duration-150 motion-reduce:animate-none',
         className,
+        // Phones: a full-screen sheet, not a squeezed side panel.
+        isPhone ? '!fixed !inset-0 !z-50 !h-dvh !w-full !max-w-none rounded-none border-0' : 'rounded-2xl',
       )}
       onKeyDown={(e) => {
         // Esc closes the panel (keeping edits) unless a field wants it
@@ -164,6 +269,47 @@ export function NodeInspector({
         }
       }}
     >
+      {!isPhone && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize panel"
+          aria-valuenow={width}
+          aria-valuemin={MIN_WIDTH}
+          tabIndex={0}
+          onPointerDown={startResize}
+          onDoubleClick={() => commitWidth(DEFAULT_WIDTH)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft') commitWidth(width + 24);
+            else if (e.key === 'ArrowRight') commitWidth(width - 24);
+            else return;
+            e.preventDefault();
+          }}
+          className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize rounded-l-2xl hover:bg-primary/30 focus-visible:bg-primary/40 focus-visible:outline-none"
+        />
+      )}
+      {showModule && activeModule && selectedNode && onApplyModuleDraft && moduleActions ? (
+        <ModuleDrawer
+          key={`${selectedNode.id}:${activeModule.id}`}
+          moduleId={activeModule.id}
+          agent={selectedNode}
+          nodes={nodes}
+          edges={edges}
+          graphSettings={graphSettings}
+          issuesByNode={issuesByNode ?? EMPTY_ISSUES}
+          readOnly={Boolean(readOnly)}
+          initialSection={activeModule.section}
+          initialField={activeModule.field}
+          actions={moduleActions}
+          onApply={onApplyModuleDraft}
+          onSaveNow={() => onSaveNow?.()}
+          onBack={() => onOpenModule?.(null)}
+          onClose={onClose}
+          onSwitchModule={(id) => onOpenModule?.({ id })}
+          onDirtyChange={onModuleDirtyChange}
+        />
+      ) : (
+      <>
       {/* Header: what this step is and how it last ran */}
       <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
         <NodeIcon className="size-4 shrink-0 text-primary" />
@@ -232,7 +378,7 @@ export function NodeInspector({
       </div>
 
       {tab === 'wiring' && (
-        <div role="tabpanel" className="flex-1 overflow-y-auto p-4">
+        <div role="tabpanel" className="relative flex-1 overflow-y-auto p-4">
           <NodeWiringPanel
             node={selectedNode}
             nodes={nodes}
@@ -248,7 +394,7 @@ export function NodeInspector({
 
       {/* Settings tab */}
       {tab === 'settings' && (
-      <div role="tabpanel" className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+      <div role="tabpanel" className="relative flex-1 overflow-y-auto p-4 space-y-4 text-xs">
         {/* Variable picker, opened by the "Insert Variable" links below */}
         {showVariablePicker && targetField && (
           <div className="sticky top-0 z-10 rounded-xl border border-primary/30 bg-surface p-3 shadow-lg animate-in fade-in slide-in-from-top-1 duration-100">
@@ -281,100 +427,83 @@ export function NodeInspector({
           </div>
         )}
 
-        {/* General: Node Label */}
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-semibold text-foreground">
-            Node Label
-          </label>
-          <Input
-            value={data.label || ''}
-            onChange={(e) => updateLabel(e.target.value)}
-            placeholder="Display label"
-            className="h-8 text-xs"
-          />
+        {/* General: Title & Description */}
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-foreground">
+              Node Title
+            </label>
+            <Input
+              value={data.title || data.label || ''}
+              onChange={(e) => {
+                onUpdateNode(selectedNode.id, {
+                  ...data,
+                  title: e.target.value,
+                  label: e.target.value,
+                });
+              }}
+              placeholder="Display title"
+              className="h-8 text-xs"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[11px] font-semibold text-foreground">
+                Description
+              </label>
+              {/* Hidden on the card by default; this puts it under the title. */}
+              <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-muted-foreground select-none">
+                Show on card
+                <Switch
+                  checked={data.showDescription === true}
+                  onCheckedChange={(checked) =>
+                    onUpdateNode(selectedNode.id, { ...data, showDescription: checked })
+                  }
+                  aria-label="Show description on card"
+                  className="scale-75"
+                />
+              </label>
+            </div>
+            <Input
+              value={data.description || data.subtitle || ''}
+              onChange={(e) => {
+                onUpdateNode(selectedNode.id, {
+                  ...data,
+                  description: e.target.value,
+                  subtitle: e.target.value,
+                });
+              }}
+              placeholder="Short description or purpose"
+              className="h-8 text-xs"
+            />
+          </div>
         </div>
 
-        {/* 1. AGENT PROPERTIES */}
-        {nodeType === 'AGENT' && (
-          <div className="space-y-3.5 pt-2 border-t border-border">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-semibold text-foreground">
-                  Instructions / System Prompt
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTargetField('instructions');
-                    setShowVariablePicker(true);
-                  }}
-                  className="text-[10px] font-medium text-primary hover:underline"
-                >
-                  Insert Variable
-                </button>
-              </div>
-              <textarea
-                rows={4}
-                value={config.instructions || ''}
-                onChange={(e) => updateConfig('instructions', e.target.value)}
-                placeholder="Give this agent its specialized role, guidelines and goals…"
-                className="w-full rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-semibold text-foreground">
-                  Model
-                </label>
-                <AIModelBadge modelId={config.model || 'llama3:latest'} size="xs" variant="subtle" />
-              </div>
-              <select
-                value={config.model || 'llama3:latest'}
-                onChange={(e) => updateConfig('model', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                {MODEL_OPTIONS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-[11px]">
-                <label className="font-semibold text-foreground">
-                  Temperature: {config.temperature ?? 0.7}
-                </label>
-                <span className="text-muted-foreground">
-                  {(config.temperature ?? 0.7) < 0.4 ? 'Strict' : 'Creative'}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={config.temperature ?? 0.7}
-                onChange={(e) => updateConfig('temperature', parseFloat(e.target.value))}
-                className="w-full accent-primary"
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-raised/60 px-3 py-2">
-              <span className="text-muted-foreground">
-                {((config.tools as string[]) || []).length} tool(s) attached
-              </span>
-              <button
-                type="button"
-                onClick={() => setTab('wiring')}
-                className="text-[11px] font-medium text-primary hover:underline"
-              >
-                Manage in Wiring
-              </button>
-            </div>
+        {/* 1. AGENTS: the five capability modules (each opens its own drawer) */}
+        {isAgent && onOpenModule && (
+          <div className="border-t border-border pt-3">
+            <AgentModulesOverview
+              summaries={moduleSummaries}
+              onOpen={(id, target) => onOpenModule({ id, ...target })}
+              onRunTest={() => moduleActions?.runAgentTest()}
+            />
           </div>
+        )}
+
+        {/* A card plugged into an agent: its full settings live in that agent's module */}
+        {ownerSlot && onOpenAgentModule && (
+          <button
+            type="button"
+            onClick={() => onOpenAgentModule(ownerSlot.agent.id, ownerSlot.module.id)}
+            className="flex w-full items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-left text-[11px] text-foreground hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <Link2 className="size-3.5 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1">
+              Plugged into <strong>{String((ownerSlot.agent.data as { label?: string } | undefined)?.label ?? 'an agent')}</strong> → {ownerSlot.module.label}.
+              <span className="block text-muted-foreground">Open the full {ownerSlot.module.label} settings</span>
+            </span>
+            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+          </button>
         )}
 
         {/* 2. FIRECRAWL PROPERTIES */}
@@ -481,22 +610,7 @@ export function NodeInspector({
               <label className="text-[11px] font-semibold text-foreground">
                 MCP Tool Name
               </label>
-              <select
-                value={config.toolName || 'search_docs'}
-                onChange={(e) => updateConfig('toolName', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-              >
-                <option value="search_docs">search_docs</option>
-                <option value="create_task">create_task</option>
-                <option value="create_doc">create_doc</option>
-                <option value="list_projects">list_projects</option>
-                <option value="list_tasks">list_tasks</option>
-                <option value="send_channel_message">send_channel_message</option>
-                <option value="save_memory">save_memory</option>
-                <option value="list_memory">list_memory</option>
-                <option value="firecrawl_search">firecrawl_search</option>
-                <option value="firecrawl_scrape">firecrawl_scrape</option>
-              </select>
+              <BuiltinToolSelect value={config.toolName || 'search_docs'} disabled={readOnly} onChange={(v) => updateConfig('toolName', v)} />
             </div>
 
             <div className="space-y-1.5">
@@ -834,15 +948,7 @@ export function NodeInspector({
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-foreground">Knowledge Base</label>
-              <select
-                value={config.knowledgeBaseId || 'kb-support-docs'}
-                onChange={(e) => updateConfig('knowledgeBaseId', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground"
-              >
-                <option value="kb-support-docs">Product Documentation & FAQs</option>
-                <option value="kb-api-reference">API Contracts & SDK Guides</option>
-                <option value="kb-legal-terms">Compliance & Terms of Service</option>
-              </select>
+              <KnowledgeBaseSelect value={config.knowledgeBaseId || ''} disabled={readOnly} onChange={(v) => updateConfig('knowledgeBaseId', v)} />
             </div>
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-foreground">Top Chunks (Top-K): {config.topK || 4}</label>
@@ -974,6 +1080,53 @@ export function NodeInspector({
           Save step
         </Button>
       </div>
+      </>
+      )}
     </aside>
+  );
+}
+
+/** Built-in tools from the live registry (was a hard-coded list of ten). */
+function BuiltinToolSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const tools = useBuiltinTools();
+  const options = (tools.data ?? []).map((t) => ({ value: t.name, label: t.name, description: t.description }));
+  if (value && tools.data && !options.some((o) => o.value === value)) options.unshift({ value, label: value, description: 'Not in the tool registry' });
+  return (
+    <AppSelect
+      size="sm"
+      searchable
+      value={value}
+      loading={tools.isLoading}
+      disabled={disabled}
+      aria-label="Tool"
+      options={options}
+      emptyText={tools.error ? 'Couldn’t load tools' : 'No tools'}
+      onValueChange={onChange}
+    />
+  );
+}
+
+/** The workspace's real knowledge bases (was three hard-coded ids that didn't exist). */
+function KnowledgeBaseSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const bases = useKnowledgeBases();
+  const options = (bases.data ?? []).map((b) => ({ value: b.id, label: b.name, description: `${b._count?.documents ?? 0} documents` }));
+  const missing = Boolean(value) && Boolean(bases.data) && !options.some((o) => o.value === value);
+  if (missing) options.unshift({ value, label: value, description: 'Not found in this workspace' });
+  return (
+    <div className="space-y-1">
+      <AppSelect
+        size="sm"
+        searchable
+        value={value}
+        placeholder="Pick a knowledge base"
+        loading={bases.isLoading}
+        disabled={disabled}
+        aria-label="Knowledge base"
+        options={options}
+        emptyText={bases.error ? 'Couldn’t load knowledge bases' : 'No knowledge bases yet'}
+        onValueChange={onChange}
+      />
+      {missing && <p className="text-[10px] text-destructive">That knowledge base no longer exists — pick another.</p>}
+    </div>
   );
 }

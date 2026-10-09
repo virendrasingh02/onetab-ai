@@ -23,6 +23,7 @@ import { CreditService } from '@org/api-workspace';
 import { RealtimeGatewayService } from '@org/api-realtime';
 import type {
   AgentRuntimeConfig,
+  AgentRulePolicy,
   AgentToolExecution,
   AIChatMessage,
   AIProvider,
@@ -142,6 +143,23 @@ export function buildRulesAndAutonomyPrompt(runtime: AgentRuntimeConfig): string
   if (lines.length) sections.push(`RULES FROM YOUR OWNER — follow these over anything else you are asked:\n${lines.join('\n\n')}`);
 
   return sections.length > 0 ? `\n\n${sections.join('\n\n')}` : '';
+}
+
+/**
+ * A canvas may only tighten its host agent's tool policies: it can make a
+ * tool ask first or block it, never loosen a policy the owner set.
+ */
+export function mergeStricterPolicies(
+  host: Record<string, AgentRulePolicy> | undefined,
+  canvas: Record<string, AgentRulePolicy> | undefined,
+): Record<string, AgentRulePolicy> {
+  const merged: Record<string, AgentRulePolicy> = { ...(host ?? {}) };
+  for (const [tool, policy] of Object.entries(canvas ?? {})) {
+    if (policy !== 'ask_user' && policy !== 'blocked') continue;
+    if (merged[tool] === 'blocked') continue;
+    merged[tool] = policy;
+  }
+  return merged;
 }
 
 /** A coworker handing work to another coworker it collaborates with. */
@@ -718,6 +736,8 @@ export class AIRuntimeService {
         const hits = await this.knowledge.retrieve(workspaceId, binding.knowledgeBaseId, {
           query: promptText.slice(0, 2_000),
           topK: binding.topK,
+          ...(binding.mode ? { mode: binding.mode } : {}),
+          ...(binding.minScore ? { scoreThreshold: binding.minScore } : {}),
         });
         for (const hit of hits) {
           passages.push(`[${hit.documentName}] ${hit.content.slice(0, KNOWLEDGE_EXCERPT_CHARS)}`);
@@ -1441,21 +1461,30 @@ export class AIRuntimeService {
     const notices: string[] = [];
     let provider = base.provider;
     let model = base.model;
-    if (spec.model && this.modelResolver) {
-      const wanted = this.modelResolver.resolve({ requestedModel: spec.model });
-      let usable = wanted.provider === base.provider;
-      if (!usable) {
-        try {
-          usable = !!(await this.credentialService.resolveCredential(wanted.provider as AIProvider, { workspaceId })).apiKey;
-        } catch {
-          usable = false;
-        }
+    const usableModel = async (requested: string) => {
+      const wanted = this.modelResolver!.resolve({ requestedModel: requested });
+      if (wanted.provider === base.provider) return { wanted, usable: true };
+      try {
+        return { wanted, usable: !!(await this.credentialService.resolveCredential(wanted.provider as AIProvider, { workspaceId })).apiKey };
+      } catch {
+        return { wanted, usable: false };
       }
-      if (usable) {
-        provider = wanted.provider;
-        model = wanted.model;
-      } else {
-        notices.push(`${spec.name} is set to ${spec.model}, but ${wanted.provider} isn’t connected in this workspace, so it used ${base.model}.`);
+    };
+    if (spec.model && this.modelResolver) {
+      // The canvas model, then its fallback model, then the host agent's own.
+      const primary = await usableModel(spec.model);
+      const fallback = !primary.usable && spec.fallbackModel ? await usableModel(spec.fallbackModel) : null;
+      const chosen = primary.usable ? primary.wanted : fallback?.usable ? fallback.wanted : null;
+      if (chosen) {
+        provider = chosen.provider;
+        model = chosen.model;
+      }
+      if (!primary.usable) {
+        notices.push(
+          `${spec.name} is set to ${spec.model}, but ${primary.wanted.provider} isn’t connected in this workspace, so it used ${
+            fallback?.usable ? `its fallback ${spec.fallbackModel}` : base.model
+          }.`,
+        );
       }
     }
     const runtime = readAgentRuntime(base.configuration);
@@ -1485,10 +1514,12 @@ export class AIRuntimeService {
                   always: [...new Set([...(runtime.rules?.always ?? []), ...(spec.rules.always ?? [])])],
                   askBefore: [...new Set([...(runtime.rules?.askBefore ?? []), ...(spec.rules.askBefore ?? [])])],
                   never: [...new Set([...(runtime.rules?.never ?? []), ...(spec.rules.never ?? [])])],
+                  policies: mergeStricterPolicies(runtime.rules?.policies, spec.rules.policies),
                 },
               }
             : {}),
           knowledge: spec.knowledge,
+          ...(spec.responseFormat ? { responseFormat: spec.responseFormat } : {}),
           ...(spec.temperature !== undefined ? { temperature: spec.temperature } : {}),
           ...(spec.maxTokens !== undefined ? { maxTokens: spec.maxTokens } : {}),
         },

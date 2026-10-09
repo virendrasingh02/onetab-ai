@@ -148,6 +148,20 @@ export class OAuthAuthService {
     return raw.replace(/\/+$/, '');
   }
 
+  /** Mirrors the API's CORS allowlist (`CORS_ORIGINS` + local dev ports). */
+  private get trustedAppOrigins(): Set<string> {
+    const origins = (this.config.get<string>('CORS_ORIGINS') ?? '')
+      .split(',')
+      .map((origin) => origin.trim().replace(/\/+$/, ''))
+      .filter(Boolean);
+    if (this.config.get<string>('NODE_ENV') !== 'production') {
+      for (let port = 4200; port < 4210; port++) {
+        origins.push(`http://localhost:${port}`);
+      }
+    }
+    return new Set(origins);
+  }
+
   private get apiUrl(): string {
     const raw =
       this.config.get<string>('API_URL') ||
@@ -230,6 +244,11 @@ export class OAuthAuthService {
       if (url.origin === new URL(this.webAppUrl).origin) {
         return url.pathname + url.search + url.hash;
       }
+      // A sibling platform app (Agent Studio, Admin) that started sign-in
+      // through the web app: kept absolute so the login page can hand the
+      // session over to it. Only origins the API already trusts with
+      // credentials (CORS) qualify.
+      if (this.trustedAppOrigins.has(url.origin)) return url.toString();
     } catch {
       // not a URL
     }

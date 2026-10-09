@@ -92,6 +92,8 @@ export interface AgentVersion {
   publishedAt?: string;
   changeSummary?: string;
   status?: 'PUBLISHED' | 'SNAPSHOT' | 'DRAFT' | string;
+  /** The canvas graph as it was when the version was taken. */
+  graphJson?: string | null;
 }
 
 export interface AgentSchedule {

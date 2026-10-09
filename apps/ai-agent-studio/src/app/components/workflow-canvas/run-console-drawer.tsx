@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useStudioSession } from '../../session-guard.js';
+import type { NodeRunResult } from './node-chrome.js';
 
 /** Run statuses after which nothing more will happen without someone acting. */
 const SETTLED = new Set(['COMPLETED', 'FAILED', 'CANCELLED', 'SUCCESS']);
@@ -45,6 +46,8 @@ interface RunConsoleDrawerProps {
   onBeforeRun: () => Promise<void>;
   /** Live step states for the canvas (null clears them). */
   onNodeStatuses: (statuses: Record<string, CanvasNodeStatus> | null) => void;
+  /** What each step produced in the latest run, for the cards' "View Results". */
+  onNodeResults?: (results: Record<string, NodeRunResult>) => void;
 }
 
 type Selection = { kind: 'step'; id: string } | { kind: 'task'; id: string } | null;
@@ -65,7 +68,20 @@ function readableOutput(output: Record<string, unknown> | null | undefined): str
     if (value === undefined || value === null || value === '') continue;
     return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
   }
-  return JSON.stringify(output, null, 2);
+  // An empty result ({}) has nothing to read.
+  return Object.keys(output).length ? JSON.stringify(output, null, 2) : '';
+}
+
+/** A trigger's "output" is the whole run context; the card only wants what started the run. */
+const isTriggerStep = (step: CanvasRunStep) => /^(TRIGGER|START)/i.test(step.nodeType);
+function triggerInput(output: Record<string, unknown> | null | undefined): string {
+  if (!output) return '';
+  const input = output['input'] && typeof output['input'] === 'object' ? (output['input'] as Record<string, unknown>) : undefined;
+  for (const value of [output['message'], input?.['message'], output['__last'], output['payload'], input]) {
+    if (value === undefined || value === null || value === '') continue;
+    return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+  }
+  return '';
 }
 
 function formatDuration(ms: number): string {
@@ -104,7 +120,7 @@ function taskTree(tasks: AgentTaskRecord[]): Array<{ task: AgentTaskRecord; dept
   return out;
 }
 
-export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, onBeforeRun, onNodeStatuses }: RunConsoleDrawerProps) {
+export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, onBeforeRun, onNodeStatuses, onNodeResults }: RunConsoleDrawerProps) {
   const { activeWorkspace } = useStudioSession();
   const workspaceId = activeWorkspace.id;
   const queryClient = useQueryClient();
@@ -141,7 +157,36 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
       }
     }
     onNodeStatuses(statuses);
-  }, [run, onNodeStatuses]);
+
+    if (onNodeResults) {
+      const results: Record<string, NodeRunResult> = {};
+      // Steps come in order; a later attempt of the same step replaces the earlier one.
+      for (const step of run.steps) {
+        const finished = step.finishedAt ? new Date(step.finishedAt).getTime() : Date.now();
+        results[step.stepId] = {
+          status: STEP_STATUS[step.status] ?? 'idle',
+          output: isTriggerStep(step) ? triggerInput(step.outputJson) : readableOutput(step.outputJson),
+          tokens: step.tokensUsed ?? 0,
+          latencyMs: step.latencyMs || Math.max(0, finished - new Date(step.startedAt).getTime()),
+          error: step.errorMessage,
+        };
+      }
+      // Agents drawn on the canvas (and their sub-agents) report as team tasks keyed by node id.
+      for (const task of run.agentTasks) {
+        const started = task.startedAt ? new Date(task.startedAt).getTime() : new Date(task.createdAt).getTime();
+        const ended = task.completedAt ? new Date(task.completedAt).getTime() : Date.now();
+        const prev = results[task.agentKey];
+        results[task.agentKey] = {
+          status: statuses[task.agentKey] ?? 'idle',
+          output: task.output?.result ?? prev?.output ?? '',
+          tokens: Math.max(task.tokensUsed ?? 0, prev?.tokens ?? 0),
+          latencyMs: Math.max(ended - started, prev?.latencyMs ?? 0),
+          error: task.error ?? prev?.error,
+        };
+      }
+      onNodeResults(results);
+    }
+  }, [run, onNodeStatuses, onNodeResults]);
 
   useEffect(() => {
     if (!isOpen) onNodeStatuses(null);

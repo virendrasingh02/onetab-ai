@@ -43,9 +43,9 @@ describe('layoutWorkflow', () => {
     const end = out.get('end') as Node;
     expect(start.position.x).toBeLessThan(agent.position.x);
     expect(agent.position.x).toBeLessThan(end.position.x);
-    // a straight chain stays on one line — an agent's line is its header dots
-    expect(centerY(start)).toBe(agent.position.y + 32);
-    expect(centerY(end)).toBe(agent.position.y + 32);
+    // a straight chain stays on one line — centered on the node
+    expect(centerY(start)).toBe(centerY(agent));
+    expect(centerY(end)).toBe(centerY(agent));
   });
 
   it('never overlaps nodes, whatever their sizes', () => {
@@ -168,9 +168,9 @@ describe('layoutWorkflow', () => {
     expect(llm.position.y).toBe(prompt.position.y);
     expect(prompt.position.x).toBeLessThan(llm.position.x);
     expect(out.get('end')!.position.x).toBeGreaterThan(agent.position.x + 380);
-    // Edges run straight: End's middle sits on the agent's header dots, not the middle of its tall card
-    expect(Math.abs(centerY(out.get('end')!) - (agent.position.y + 32))).toBeLessThan(1);
-    expect(Math.abs(centerY(out.get('kb')!) - (agent.position.y + 32))).toBeLessThan(1);
+    // Edges run straight: End's middle sits on the agent's center
+    expect(Math.abs(centerY(out.get('end')!) - centerY(agent))).toBeLessThan(1);
+    expect(Math.abs(centerY(out.get('kb')!) - centerY(agent))).toBeLessThan(1);
   });
 
   it('nests a sub-agent’s own attachments under it', () => {

@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
-import { AGENT_HANDLE_TOP, getSlot, handleOrder, isSlotHost } from './agent-slots.js';
+import { getSlot, handleOrder } from './agent-slots.js';
 
 /**
  * Layered ("Sugiyama") auto-layout for the workflow canvas.
@@ -98,12 +98,10 @@ function layoutComponent(
   const acrossOf = (s: Size) => (dir === 'LR' ? s.height : s.width);
   const beyondOf = (id: string) => reserved.get(id)?.beyond ?? 0;
   const boxAlongOf = (id: string) => Math.max(alongOf(must(sizes, id)), reserved.get(id)?.along ?? 0);
-  // Where a step's edges attach, measured across from its top: an agent's dots
-  // sit in its header (left to right), everything else in its middle.
+  // Where a step's edges attach, measured across from its top: centered on the node
   const anchorOf = (id: string) => {
-    const n = nodeById.get(id);
     const across = acrossOf(must(sizes, id));
-    return dir === 'LR' && n && isSlotHost(n.type) ? Math.min(AGENT_HANDLE_TOP, across / 2) : across / 2;
+    return across / 2;
   };
 
   const out = new Map<string, Link[]>(ids.map((id) => [id, []]));

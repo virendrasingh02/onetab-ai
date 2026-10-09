@@ -114,6 +114,10 @@ export interface AgentToolPolicy {
 export interface AgentKnowledgeBinding {
   knowledgeBaseId: string;
   topK: number;
+  /** Retrieval mode; unset = semantic, falling back to keyword. */
+  mode?: 'SEMANTIC' | 'KEYWORD' | 'HYBRID';
+  /** Drop passages scoring below this (0–1). */
+  minScore?: number;
 }
 
 export type AgentPiiAction = 'redact' | 'block' | 'warn';

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { InlineAgentSpec } from '@org/types';
-import { AIRuntimeService, composeTeamPrompt, memberToolName, newAgentTeamRun } from './ai-runtime.service.js';
+import { AIRuntimeService, composeTeamPrompt, memberToolName, mergeStricterPolicies, newAgentTeamRun } from './ai-runtime.service.js';
 
 const agent = (key: string, name: string, extra: Partial<InlineAgentSpec> = {}): InlineAgentSpec => ({
   key,
@@ -228,6 +228,16 @@ describe('AIRuntimeService — canvas agents and teams', () => {
     expect(result.notices).toEqual([expect.stringMatching(/set to gpt-4o, but openai isn’t connected/)]);
   });
 
+  it('tries the canvas fallback model before the host model', async () => {
+    credentialService.resolveCredential.mockImplementation(async (provider: string) => ({ apiKey: provider === 'openai' ? '' : 'key' }));
+    const result = await service.executeTurn('ws_1', 'host_1', 'Hi', {
+      inlineAgent: agent('a', 'Solo', { model: 'gpt-4o', fallbackModel: 'claude-sonnet-4-5' }),
+    });
+
+    expect(aiService.chat.mock.calls[0][0]).toMatchObject({ model: 'claude-sonnet-4-5' });
+    expect(result.notices).toEqual([expect.stringMatching(/openai isn’t connected .* used its fallback claude-sonnet-4-5/)]);
+  });
+
   it('refuses to host a canvas agent on a coworker', async () => {
     prisma.aIAgent.findFirst.mockResolvedValue({ id: 'c', name: 'Tracker', type: 'coworker', isActive: true, workspace: { name: 'WS' } });
     await expect(service.executeTurn('ws_1', 'c', 'Hi', { inlineAgent: agent('a', 'Solo') })).rejects.toThrow(/run on an agent/);
@@ -238,6 +248,15 @@ describe('team helpers', () => {
   it('names delegation tools readably and uniquely', () => {
     expect(memberToolName({ name: 'Market Researcher!' }, 0)).toBe('delegate_to_1_market_researcher');
     expect(memberToolName({ name: '日本' }, 2)).toBe('delegate_to_3_agent');
+  });
+
+  it('lets a canvas tighten tool policies but never loosen them', () => {
+    expect(
+      mergeStricterPolicies(
+        { send_email: 'blocked', create_task: 'auto_allow' },
+        { send_email: 'ask_user', create_task: 'ask_user', search_docs: 'auto_allow', delete_doc: 'blocked' },
+      ),
+    ).toEqual({ send_email: 'blocked', create_task: 'ask_user', delete_doc: 'blocked' });
   });
 
   it('puts failures in the supervisor prompt instead of hiding them', () => {

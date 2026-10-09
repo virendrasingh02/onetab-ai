@@ -1,6 +1,6 @@
 import type { CurrentUser } from '@org/types';
 import { authApi } from './endpoints.js';
-import { ApiError, getAccessToken, setAccessToken } from './http.js';
+import { ApiError, getAccessToken, refreshSession, setAccessToken } from './http.js';
 
 /**
  * Session restore for the platform's standalone browser apps (Admin, AI Agent
@@ -54,8 +54,7 @@ export async function restoreBrowserSession(): Promise<CurrentUser | null> {
   }
 
   try {
-    const { accessToken } = await authApi.refresh();
-    setAccessToken(accessToken);
+    await refreshSession();
     return await authApi.me();
   } catch (error) {
     if (isSignedOut(error)) {

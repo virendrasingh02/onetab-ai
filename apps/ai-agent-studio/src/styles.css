@@ -35,3 +35,15 @@
   padding-bottom: 0 !important;
 }
 
+
+/* Canvas: a wire whose step is running "flows" (WorkflowEdge, strokeDasharray 6 6). */
+@keyframes dash {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge path {
+    animation: none !important;
+  }
+}

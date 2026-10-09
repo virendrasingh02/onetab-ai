@@ -238,16 +238,36 @@ export class KnowledgeService {
   ): Promise<KnowledgeRetrievalResult[]> {
     const kb = await this.getKnowledgeBase(workspaceId, knowledgeBaseId);
     const topK = query.topK ?? 5;
+    const threshold = typeof query.scoreThreshold === 'number' && query.scoreThreshold > 0 ? query.scoreThreshold : 0;
+    const kept = (results: KnowledgeRetrievalResult[]) => results.filter((r) => r.score >= threshold).slice(0, topK);
+    const vectorReady = this.vectorService.isConfigured();
 
-    if (this.vectorService.isConfigured()) {
+    if (query.mode === 'KEYWORD') return kept(await this.retrieveByKeyword(kb.id, query.query, topK));
+
+    if (query.mode === 'HYBRID') {
+      // Both searches, merged: a passage found by both keeps its best score.
+      const [vector, keyword] = await Promise.all([
+        vectorReady ? this.retrieveByVector(kb, workspaceId, query.query, topK) : Promise.resolve([]),
+        this.retrieveByKeyword(kb.id, query.query, topK),
+      ]);
+      const merged = new Map<string, KnowledgeRetrievalResult>();
+      for (const hit of [...vector, ...keyword]) {
+        const existing = merged.get(hit.chunkId);
+        if (!existing || hit.score > existing.score) merged.set(hit.chunkId, hit);
+      }
+      return kept([...merged.values()].sort((a, b) => b.score - a.score));
+    }
+
+    if (vectorReady) {
       const vectorResults = await this.retrieveByVector(kb, workspaceId, query.query, topK);
       // A real semantic hit set wins outright. Falling through to keyword
       // search only when vector search found nothing — e.g. documents
       // ingested before indexing existed, or before the store came online.
-      if (vectorResults.length > 0) return vectorResults;
+      // SEMANTIC asks for nothing else.
+      if (vectorResults.length > 0 || query.mode === 'SEMANTIC') return kept(vectorResults);
     }
 
-    return this.retrieveByKeyword(kb.id, query.query, topK);
+    return kept(await this.retrieveByKeyword(kb.id, query.query, topK));
   }
 
   private async retrieveByVector(

@@ -26,6 +26,7 @@ import {
   MAX_LOOP_ITERATIONS,
   PLANS_CONFIG,
   normalizePlanTier,
+  resolvePromptVariables,
   type AgentProfile,
   type AgentRunLimits,
   type AgentScope,
@@ -212,6 +213,19 @@ function interpolateVariables(
     if (typeof val === 'object') return JSON.stringify(val);
     return String(val);
   });
+}
+
+/**
+ * A canvas agent (and its team) with `{{variables}}` in its instructions
+ * filled from the run, then from the agent's declared defaults. References
+ * with neither are left as written, so literal braces survive.
+ */
+function withResolvedInstructions(spec: InlineAgentSpec, context: Record<string, unknown>): InlineAgentSpec {
+  return {
+    ...spec,
+    instructions: resolvePromptVariables(spec.instructions, context, spec.variableDefaults ?? {}).text,
+    members: spec.members.map((member) => withResolvedInstructions(member, context)),
+  };
 }
 
 /** Sets `a.b.c` in an object, creating parents — for an approver's edit. */
@@ -2014,7 +2028,7 @@ export class WorkflowEngineService {
     }
     const prompt = interpolateVariables(String(node.config['goal'] || ''), context).trim() || 'Do your task using what the run has so far.';
     const run = await this.aiRuntime.executeTurn(env.workflow.workspaceId, hostId, prompt, {
-      inlineAgent: spec,
+      inlineAgent: withResolvedInstructions(spec, context),
       team: this.teamFor(env),
       ...(env.mode === 'test' ? { readOnly: true } : {}),
       ...(env.workflow.creatorId ? { requesterId: env.workflow.creatorId } : {}),

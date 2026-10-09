@@ -527,6 +527,9 @@ export * from './lib/agent-studio-api.js';
  */
 export * from './lib/studio-graph.js';
 
+/* AI Agent Studio — an agent's capability modules (prompt composition, variables, lint, knowledge/tool settings). */
+export * from './lib/agent-modules.js';
+
 /*
  * AI Agent Studio — prompt-to-agent: requirements, the structured agent spec,
  * spec → canvas graph, plain-language edit ops, diffs and optimisation.

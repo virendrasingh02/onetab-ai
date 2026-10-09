@@ -20,6 +20,15 @@
 
 import type { AgentAutonomy, AgentStructuredRules, AutonomyLevel } from './agent-config.js';
 import { connectorActionRef, connectorToolName, connectorTriggerEventType, parseConnectorActionRef } from './connectors.js';
+import {
+  composeAgentPrompt,
+  promptResponseFormat,
+  promptVariableDefaults,
+  readCanvasToolPolicies,
+  readKnowledgeBinding,
+  readPromptSettings,
+  type KnowledgeSearchMode,
+} from './agent-modules.js';
 
 /* ---------------------------------------------------------------- agents -- */
 
@@ -43,13 +52,19 @@ export interface InlineAgentSpec {
   role?: string;
   instructions: string;
   model?: string;
+  /** Tried when `model`'s provider isn't connected, before falling back to the host agent's model. */
+  fallbackModel?: string;
   temperature?: number;
   maxTokens?: number;
+  /** Enforced reply format (from the Prompt's Output setting). */
+  responseFormat?: 'plain' | 'markdown' | 'json';
+  /** `{{path}}` defaults for the instructions, used when the run has no value. */
+  variableDefaults?: Record<string, string>;
   /** Tool names: built-in tools and connector tools (`slack_send_message`). */
   tools: string[];
   /** Apps whose actions are in `tools` (`SLACK`) — resolved from the workspace's or owner's own connections. */
   connectors?: string[];
-  knowledge: Array<{ knowledgeBaseId: string; topK: number }>;
+  knowledge: Array<{ knowledgeBaseId: string; topK: number; mode?: KnowledgeSearchMode; minScore?: number }>;
   delegation: AgentDelegationMode;
   members: InlineAgentSpec[];
   /** Model ↔ tool rounds this agent may take in one turn. */
@@ -223,7 +238,7 @@ const UNSUPPORTED_REASONS: Record<string, string> = {
   RERANKER: 'Reranking isn’t available yet.',
   CONTEXT_BUILDER: 'Context building isn’t available yet.',
   TEXT_SPLITTER: 'Text splitting isn’t available yet.',
-  EMBEDDING_MODEL: 'Embedding steps don’t run on their own. Plug knowledge into an agent’s Embeddings slot.',
+  EMBEDDING_MODEL: 'Embedding steps don’t run on their own. Plug knowledge into an agent’s Knowledge slot.',
   SWITCH_CASE: 'Switch steps can’t be configured yet. Use If / Else.',
   RETRY_NODE: 'Retry steps don’t run yet. Steps already retry transient failures on their own.',
   ERROR_HANDLER: 'Error-handler steps don’t run yet.',
@@ -352,7 +367,7 @@ export function compileStudioGraph(graph: {
     const llm = attachments(node.id, 'llm')[0];
     const llmCfg = configOf(llm);
 
-    const instructions =
+    const baseInstructions =
       asText(configOf(prompt)['prompt']) ??
       asText(configOf(prompt)['template']) ??
       asText(configOf(prompt)['systemPrompt']) ??
@@ -360,6 +375,12 @@ export function compileStudioGraph(graph: {
       asText(cfg['systemPrompt']) ??
       asText(cfg['prompt']) ??
       '';
+    // Structured prompt settings (objective, goals, examples, output…) are
+    // composed into the instructions — unset settings add nothing.
+    const promptSettings = readPromptSettings(cfg['promptSettings']);
+    const instructions = composeAgentPrompt(baseInstructions, promptSettings);
+    const responseFormat = promptResponseFormat(promptSettings);
+    const variableDefaults = promptVariableDefaults(promptSettings);
     const name = labelOf(node) ?? asText(cfg['name']) ?? asText(cfg['role']) ?? 'Agent';
     if (!instructions) {
       issues.push({
@@ -370,6 +391,7 @@ export function compileStudioGraph(graph: {
     }
 
     const model = asText(llmCfg['model']) ?? asText(cfg['model']) ?? inherited.model;
+    const fallbackModel = asText(llmCfg['fallbackModel']) ?? asText(cfg['fallbackModel']);
     const temperature = asNumber(llmCfg['temperature']) ?? asNumber(cfg['temperature']);
     const maxTokens = asNumber(llmCfg['maxTokens']) ?? asNumber(cfg['maxTokens']);
 
@@ -410,13 +432,13 @@ export function compileStudioGraph(graph: {
 
     const knowledge: InlineAgentSpec['knowledge'] = [];
     for (const kbNode of attachments(node.id, 'embedding')) {
-      const kbCfg = configOf(kbNode);
-      const knowledgeBaseId = asText(kbCfg['knowledgeBaseId']);
-      if (!knowledgeBaseId) {
+      const binding = readKnowledgeBinding(configOf(kbNode));
+      if (!binding) {
         issues.push({ nodeId: kbNode.id, level: 'warning', message: `Pick a knowledge base for ${labelOf(kbNode) ?? 'this knowledge step'}.` });
         continue;
       }
-      knowledge.push({ knowledgeBaseId, topK: clamp(Math.round(asNumber(kbCfg['topK']) ?? 5), 1, 20) });
+      if (configOf(kbNode)['enabled'] === false) continue;
+      knowledge.push(binding);
     }
 
     const members: InlineAgentSpec[] = [];
@@ -440,9 +462,23 @@ export function compileStudioGraph(graph: {
     const autonomyLevel = ([0, 1, 2, 3, 4] as const).find((l) => l === cfg['autonomyLevel']);
     const rulesCfg = cfg['rules'] && typeof cfg['rules'] === 'object' ? (cfg['rules'] as Record<string, unknown>) : undefined;
     const ruleList = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && x.trim() !== '') : []);
-    const rules: AgentStructuredRules | undefined = rulesCfg
-      ? { always: ruleList(rulesCfg['always']), askBefore: ruleList(rulesCfg['askBefore']), never: ruleList(rulesCfg['never']) }
-      : undefined;
+    // Per-tool permissions set in the Tools drawer, keyed by the runtime tool name.
+    const policies = Object.fromEntries(
+      Object.entries(readCanvasToolPolicies(cfg['toolPolicies'])).map(([tool, policy]) => {
+        const ref = parseConnectorActionRef(tool);
+        return [ref ? connectorToolName(ref.provider, ref.actionId) : (TOOL_ALIASES[tool] ?? tool), policy];
+      }),
+    );
+    const hasPolicies = Object.keys(policies).length > 0;
+    const rules: AgentStructuredRules | undefined =
+      rulesCfg || hasPolicies
+        ? {
+            always: ruleList(rulesCfg?.['always']),
+            askBefore: ruleList(rulesCfg?.['askBefore']),
+            never: ruleList(rulesCfg?.['never']),
+            ...(hasPolicies ? { policies } : {}),
+          }
+        : undefined;
 
     return {
       key: node.id,
@@ -450,7 +486,10 @@ export function compileStudioGraph(graph: {
       ...(asText(cfg['role']) ? { role: asText(cfg['role']) } : {}),
       instructions,
       ...(model ? { model } : {}),
+      ...(fallbackModel && fallbackModel !== model ? { fallbackModel } : {}),
       ...(temperature !== undefined ? { temperature: clamp(temperature, 0, 2) } : {}),
+      ...(responseFormat ? { responseFormat } : {}),
+      ...(Object.keys(variableDefaults).length ? { variableDefaults } : {}),
       ...(maxTokens !== undefined && maxTokens > 0 ? { maxTokens: Math.round(maxTokens) } : {}),
       tools,
       ...(connectors.length ? { connectors } : {}),
@@ -460,7 +499,7 @@ export function compileStudioGraph(graph: {
       ...(steps !== undefined && steps > 0 ? { maxSteps: clamp(Math.round(steps), 1, MAX_AGENT_TOOL_ROUNDS) } : {}),
       ...(autonomy ? { autonomy } : {}),
       ...(autonomyLevel !== undefined ? { autonomyLevel } : {}),
-      ...(rules && (rules.always!.length || rules.askBefore!.length || rules.never!.length) ? { rules } : {}),
+      ...(rules && (rules.always!.length || rules.askBefore!.length || rules.never!.length || hasPolicies) ? { rules } : {}),
     };
   };
 

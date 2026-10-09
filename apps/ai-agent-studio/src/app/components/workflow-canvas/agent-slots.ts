@@ -3,7 +3,7 @@ import { CATALOG_NODES, type CatalogNodeItem } from './node-library.js';
 
 /**
  * Agent "slots": the named attachment points on an agent node (Prompt, LLM,
- * Embeddings, Tools, Sub-agents). Each slot is a source handle whose id is the
+ * Knowledge (`embedding`), Tools, Sub-agents). Each slot is a source handle whose id is the
  * slot id; the agent's unnamed handle stays the normal "run the next step"
  * output, so graphs saved before slots existed keep their wiring.
  *
@@ -43,7 +43,8 @@ export const AGENT_SLOTS: AgentSlotDef[] = [
   },
   {
     id: 'embedding',
-    label: 'Embeddings',
+    // Shown as "Knowledge"; the slot id stays `embedding` so saved graphs keep their wiring.
+    label: 'Knowledge',
     hint: 'Knowledge the agent can retrieve from',
     multiple: true,
     accepts: (t) => KNOWLEDGE_TYPES.has(t) || t === 'VECTOR_SEARCH' || t === 'KNOWLEDGE_RETRIEVAL',

@@ -120,4 +120,33 @@ describe("KnowledgeService", () => {
     expect(results[0].content).toContain("Microservices architecture");
     expect(results[0].score).toBeGreaterThan(0);
   });
+  it("keyword mode skips vector search entirely", async () => {
+    const results = await service.retrieve("ws-1", "kb-1", { query: "architecture", topK: 3, mode: "KEYWORD" });
+    expect(mockVector.search).not.toHaveBeenCalled();
+    expect(results[0].chunkId).toBe("chunk-1");
+  });
+
+  it("hybrid mode merges both searches, keeping each passage's best score", async () => {
+    mockPrisma.knowledgeChunk.findMany.mockResolvedValue([
+      { id: "chunk-1", chunkIndex: 0, content: "Microservices architecture overview.", document: { id: "doc-1", name: "Architecture Guide" } },
+      { id: "chunk-2", chunkIndex: 1, content: "Deploy architecture checklist.", document: { id: "doc-1", name: "Architecture Guide" } },
+    ]);
+    const results = await service.retrieve("ws-1", "kb-1", { query: "architecture", topK: 5, mode: "HYBRID" });
+    expect(results.map((r) => r.chunkId)).toEqual(["chunk-1", "chunk-2"]);
+    // chunk-1 scores 0.92 by vector and 1.0 by keyword (every term matches): the higher one is kept
+    expect(results.find((r) => r.chunkId === "chunk-1")?.score).toBe(1);
+  });
+
+  it("drops passages under the score threshold", async () => {
+    const results = await service.retrieve("ws-1", "kb-1", { query: "architecture", scoreThreshold: 0.95 });
+    // Vector hit scores 0.92 (dropped); semantic results win outright, so nothing is returned
+    expect(results).toEqual([]);
+  });
+
+  it("semantic mode doesn't fall back to keyword search", async () => {
+    mockVector.search.mockResolvedValue([]);
+    const results = await service.retrieve("ws-1", "kb-1", { query: "architecture", mode: "SEMANTIC" });
+    expect(results).toEqual([]);
+    expect(mockPrisma.knowledgeChunk.findMany).not.toHaveBeenCalled();
+  });
 });

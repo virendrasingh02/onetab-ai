@@ -33,7 +33,6 @@ import {
   Background,
   ConnectionLineType,
   ConnectionMode,
-  MarkerType,
   MiniMap,
   Panel,
   ReactFlow,
@@ -42,6 +41,8 @@ import {
   SelectionMode,
   useOnSelectionChange,
   useReactFlow,
+  useStore,
+  useUpdateNodeInternals,
   useViewport,
   type Connection,
   type Edge,
@@ -88,6 +89,7 @@ import {
   Redo2,
   RotateCcw,
   Save,
+  Search,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -98,6 +100,10 @@ import {
   KeyRound,
   Wand2,
   X,
+  CornerDownRight,
+  MoveHorizontal,
+  MoveVertical,
+  Spline,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -109,7 +115,7 @@ import {
   THEME_COLORS,
 } from '../data/agent-metadata.js';
 import { useStudioSession } from '../session-guard.js';
-import { STUDIO_NODE_TYPES } from '../components/workflow-canvas/custom-nodes.js';
+import { modelLabel, STUDIO_NODE_TYPES } from '../components/workflow-canvas/custom-nodes.js';
 import { STUDIO_EDGE_TYPES } from '../components/workflow-canvas/custom-edges.jsx';
 import { CanvasContextMenu } from '../components/workflow-canvas/canvas-context-menu.jsx';
 import { NodeCatalogModal } from '../components/workflow-canvas/node-catalog-modal.js';
@@ -124,6 +130,11 @@ import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
 import { agentService } from '../services/agentService.js';
 import { layoutWorkflow } from '../components/workflow-canvas/auto-layout.js';
 import {
+  WorkflowLayoutContext,
+  type WorkflowDirection,
+  type WorkflowEdgeStyle,
+} from '../components/workflow-canvas/workflow-layout-context.js';
+import {
   agentIssues,
   attachmentPosition,
   collapsedAncestors,
@@ -131,7 +142,6 @@ import {
   getSlot,
   isAttachmentEdge,
   isSlotHost,
-  isValidSlotConnection,
   resolveAgentModel,
   slotAttachments,
   slotConnectionError,
@@ -139,6 +149,19 @@ import {
   withSlotConnection,
 } from '../components/workflow-canvas/agent-slots.js';
 import { AgentOutlinePanel } from '../components/workflow-canvas/agent-outline-panel.js';
+import { validateWorkflowConnection } from '../components/workflow-canvas/connection-validator.js';
+import { EdgeDataInspector } from '../components/workflow-canvas/edge-data-inspector.js';
+import { CanvasCommandPalette } from '../components/workflow-canvas/canvas-command-palette.js';
+import { WorkflowHealthBadge, type WorkflowIssue } from '../components/workflow-canvas/workflow-health-badge.js';
+import { TemplateExportModal } from '../components/workflow-canvas/template-export-modal.js';
+import {
+  readAgentModules,
+  summarizeAgentModules,
+  type AgentModuleId,
+  type ModuleDraft,
+} from '../components/workflow-canvas/agent-config/agent-module-model.js';
+import type { ModuleActions } from '../components/workflow-canvas/agent-config/module-drawer.js';
+import type { NodeRunResult } from '../components/workflow-canvas/node-chrome.js';
 
 const INITIAL_NODES: Node[] = [
   {
@@ -146,7 +169,9 @@ const INITIAL_NODES: Node[] = [
     type: 'START',
     position: { x: 100, y: 200 },
     data: {
+      title: 'Workflow Trigger',
       label: 'Workflow Trigger',
+      description: 'Manual execution & API trigger',
       subtitle: 'Manual execution & API trigger',
       config: { triggerType: 'MANUAL' },
     },
@@ -156,7 +181,9 @@ const INITIAL_NODES: Node[] = [
     type: 'AGENT',
     position: { x: 380, y: 160 },
     data: {
+      title: 'Primary Reasoner',
       label: 'Primary Reasoner',
+      description: 'gpt-4o • temp 0.4',
       subtitle: 'gpt-4o • temp 0.4',
       config: {
         model: 'gpt-4o',
@@ -170,7 +197,9 @@ const INITIAL_NODES: Node[] = [
     type: 'END',
     position: { x: 740, y: 200 },
     data: {
+      title: 'Workflow Output',
       label: 'Workflow Output',
+      description: 'Structured result response',
       subtitle: 'Structured result response',
     },
   },
@@ -187,15 +216,38 @@ function withoutRunStatus(node: Node): Node {
   return { ...node, data };
 }
 
+export interface ParsedStudioGraph {
+  nodes: Node[];
+  edges: Edge[];
+  /** Graph-level settings, e.g. `limits` for the run (read by the run compiler). */
+  settings?: Record<string, unknown>;
+  layout?: {
+    direction?: WorkflowDirection;
+    edgeStyle?: WorkflowEdgeStyle;
+  };
+}
+
 /** The canvas graph as the API stores it: JSON in `graphJson`. */
-function parseGraph(graphJson: string | null | undefined): { nodes: Node[]; edges: Edge[] } | null {
+function parseGraph(graphJson: string | null | undefined): ParsedStudioGraph | null {
   if (!graphJson) return null;
   try {
-    const graph = JSON.parse(graphJson) as { nodes?: unknown; edges?: unknown };
+    const graph = JSON.parse(graphJson) as {
+      nodes?: unknown;
+      edges?: unknown;
+      settings?: unknown;
+      layout?: { direction?: string; edgeStyle?: string };
+    };
     if (!Array.isArray(graph.nodes) || graph.nodes.length === 0) return null;
     return {
       nodes: graph.nodes as Node[],
       edges: Array.isArray(graph.edges) ? (graph.edges as Edge[]) : [],
+      ...(graph.settings && typeof graph.settings === 'object' && !Array.isArray(graph.settings)
+        ? { settings: graph.settings as Record<string, unknown> }
+        : {}),
+      layout: {
+        direction: graph.layout?.direction === 'vertical' ? 'vertical' : 'horizontal',
+        edgeStyle: graph.layout?.edgeStyle === 'step' ? 'step' : 'smooth',
+      },
     };
   } catch {
     return null;
@@ -294,6 +346,22 @@ const isTypingTarget = (target: EventTarget | null) => {
 const canvasControlClass =
   'flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors cursor-pointer hover:bg-surface-raised hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:pointer-events-none disabled:opacity-40';
 
+type MeasuredSizeReader = (id: string) => { width?: number; height?: number } | undefined;
+
+/**
+ * Nodes in page state lose `measured` whenever they're replaced (load, undo,
+ * copilot edits) and React Flow only re-reports a size when it changes, so the
+ * layout fell back to a default size for every card and lined up their tops
+ * instead of their handles. Fill sizes in from what React Flow has measured.
+ */
+function withMeasuredSizes(nodes: Node[], read: MeasuredSizeReader | null | undefined): Node[] {
+  if (!read) return nodes;
+  return nodes.map((n) => {
+    const size = read(n.id);
+    return size?.width && size.height ? { ...n, measured: { width: size.width, height: size.height } } : n;
+  });
+}
+
 function WorkflowCanvasInner({
   nodes,
   edges,
@@ -323,6 +391,22 @@ function WorkflowCanvasInner({
   onToggleLock,
   onToggleCollapse,
   onFocusNodeById,
+  onEdgeClick,
+  onInspectEdge,
+  onInsertNodeOnEdge,
+  onCopyNode,
+  onCutNode,
+  onPaste,
+  hasClipboard = false,
+  onSelectAll,
+  onOpenCommandPalette,
+  onConnectEndDrop,
+  direction = 'horizontal',
+  onChangeDirection,
+  edgeStyle = 'smooth',
+  onChangeEdgeStyle,
+  onUpdateNodeMetadata,
+  measuredSizeRef,
 }: {
   nodes: Node[];
   edges: Edge[];
@@ -333,7 +417,7 @@ function WorkflowCanvasInner({
   onPaneClick: () => void;
   onAddNode: (newNode: Node) => void;
   /** Returns the animation length in ms, or null if nothing moved. */
-  onAutoLayout: () => number | null;
+  onAutoLayout: (dir?: 'LR' | 'TB') => number | null;
   onDeleteNodes: (nodeIds: string[]) => void;
   onDuplicateNode: (node: Node) => void;
   onTestNode: (node: Node) => void;
@@ -355,15 +439,45 @@ function WorkflowCanvasInner({
   onToggleCollapse: (agentId: string) => void;
   /** Frame a node (expanding collapsed agents above it). */
   onFocusNodeById: (nodeId: string) => void;
+  onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
+  onInspectEdge?: (edge: Edge) => void;
+  onInsertNodeOnEdge?: (edge: Edge) => void;
+  onCopyNode?: (node: Node) => void;
+  onCutNode?: (node: Node) => void;
+  onPaste?: () => void;
+  hasClipboard?: boolean;
+  onSelectAll?: () => void;
+  onOpenCommandPalette?: () => void;
+  onConnectEndDrop?: (pos: { x: number; y: number }, fromNode: Node, fromHandle?: string) => void;
+  direction?: WorkflowDirection;
+  onChangeDirection?: (dir: WorkflowDirection) => void;
+  edgeStyle?: WorkflowEdgeStyle;
+  onChangeEdgeStyle?: (style: WorkflowEdgeStyle) => void;
+  onUpdateNodeMetadata?: (
+    nodeId: string,
+    patch: { title?: string; label?: string; description?: string; subtitle?: string },
+  ) => void;
+  /** Filled with a reader for each card's rendered size, for layouts run by the page. */
+  measuredSizeRef?: { current: MeasuredSizeReader | null };
 }) {
   const reactFlowInstance = useReactFlow();
+  if (measuredSizeRef) {
+    measuredSizeRef.current = (id) => {
+      const measured = reactFlowInstance.getInternalNode(id)?.measured;
+      if (measured?.width && measured.height) return measured;
+      // React Flow's record can be empty (state replaced, resize observer idle): use the
+      // rendered card, whose offset size is unaffected by the canvas zoom
+      const el = canvasRef.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(id)}"]`);
+      return el ? { width: el.offsetWidth, height: el.offsetHeight } : undefined;
+    };
+  }
   const { zoom } = useViewport();
   const [interactionMode, setInteractionMode] = useState<'select' | 'pan'>('select');
   const canvasRef = useRef<HTMLDivElement>(null);
   const edgeReconnectSuccessful = useRef(true);
 
   // Keyboard shortcuts: V (select), H (pan), Shift+1 (zoom to fit), Shift+0 (zoom to 100%), Shift+L (tidy)
-  const autoLayoutRef = useRef<() => void>(() => undefined);
+  const autoLayoutRef = useRef<(dir?: 'LR' | 'TB') => void>(() => undefined);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
@@ -406,7 +520,8 @@ function WorkflowCanvasInner({
     x: number;
     y: number;
     targetNode: Node | null;
-  }>({ isOpen: false, x: 0, y: 0, targetNode: null });
+    targetEdge: Edge | null;
+  }>({ isOpen: false, x: 0, y: 0, targetNode: null, targetEdge: null });
 
   // Bottom Node Catalog Modal State
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -474,6 +589,23 @@ function WorkflowCanvasInner({
     [onDeleteEdge],
   );
 
+  // Edge Drop Handler (Connect on empty drop)
+  const onConnectEnd = useCallback(
+    (event: any, connectionState: any) => {
+      if (!connectionState?.isValid && connectionState?.fromNode) {
+        const clientX = event?.clientX ?? event?.changedTouches?.[0]?.clientX ?? 0;
+        const clientY = event?.clientY ?? event?.changedTouches?.[0]?.clientY ?? 0;
+        const position = reactFlowInstance.screenToFlowPosition({ x: clientX, y: clientY });
+        onConnectEndDrop?.(
+          position,
+          connectionState.fromNode,
+          connectionState.fromHandle?.id ?? connectionState.fromHandle,
+        );
+      }
+    },
+    [reactFlowInstance, onConnectEndDrop],
+  );
+
   // Canvas Right-Click
   const handlePaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
     event.preventDefault();
@@ -482,6 +614,7 @@ function WorkflowCanvasInner({
       x: event.clientX,
       y: event.clientY,
       targetNode: null,
+      targetEdge: null,
     });
   }, []);
 
@@ -494,6 +627,20 @@ function WorkflowCanvasInner({
       x: event.clientX,
       y: event.clientY,
       targetNode: node,
+      targetEdge: null,
+    });
+  }, []);
+
+  // Edge Right-Click
+  const handleEdgeContextMenu = useCallback((event: React.MouseEvent, edge: Edge) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      isOpen: true,
+      x: event.clientX,
+      y: event.clientY,
+      targetNode: null,
+      targetEdge: edge,
     });
   }, []);
 
@@ -503,16 +650,16 @@ function WorkflowCanvasInner({
     [nodes, isLocked],
   );
 
-  autoLayoutRef.current = () => handleAutoLayoutClick();
-  const handleAutoLayoutClick = useCallback(() => {
+  autoLayoutRef.current = (dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR') => handleAutoLayoutClick(dir);
+  const handleAutoLayoutClick = useCallback((dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR') => {
     if (isLocked) return;
-    const duration = onAutoLayout();
+    const duration = onAutoLayout(dir);
     if (duration === null) return;
     // Frame the tidied graph once the nodes have settled
     setTimeout(() => {
       reactFlowInstance.fitView({ padding: 0.2, duration: 450 });
     }, duration + 40);
-  }, [isLocked, onAutoLayout, reactFlowInstance]);
+  }, [isLocked, onAutoLayout, reactFlowInstance, direction]);
 
   return (
     <div
@@ -544,7 +691,7 @@ function WorkflowCanvasInner({
         <Button
           variant="ghost"
           size="xs"
-          onClick={handleAutoLayoutClick}
+          onClick={() => handleAutoLayoutClick(direction === 'vertical' ? 'TB' : 'LR')}
           disabled={isLocked}
           title={isLocked ? 'Unlock the canvas to tidy the layout' : 'Tidy the layout (Shift+L)'}
           aria-keyshortcuts="Shift+L"
@@ -553,6 +700,86 @@ function WorkflowCanvasInner({
           <Wand2 className="size-3.5 text-primary" />
           <span>Auto Layout</span>
         </Button>
+
+        {/* Direction Selector */}
+        <div className="h-4 w-px bg-border mx-0.5" />
+        <div className="flex items-center rounded-xl bg-surface-raised/80 p-0.5 border border-border/40" title="Workflow layout direction">
+          <button
+            type="button"
+            onClick={() => onChangeDirection?.('horizontal')}
+            title="Horizontal Workflow (Left to Right)"
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer',
+              direction === 'horizontal'
+                ? 'bg-background text-foreground shadow-sm font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <MoveHorizontal className="size-3.5" />
+            <span className="hidden sm:inline">Horizontal</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onChangeDirection?.('vertical')}
+            title="Vertical Workflow (Top to Bottom)"
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer',
+              direction === 'vertical'
+                ? 'bg-background text-foreground shadow-sm font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <MoveVertical className="size-3.5" />
+            <span className="hidden sm:inline">Vertical</span>
+          </button>
+        </div>
+
+        {/* Edge Style Selector */}
+        <div className="h-4 w-px bg-border mx-0.5" />
+        <div className="flex items-center rounded-xl bg-surface-raised/80 p-0.5 border border-border/40" title="Connection line style">
+          <button
+            type="button"
+            onClick={() => onChangeEdgeStyle?.('smooth')}
+            title="Smooth / Curved Connections"
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer',
+              edgeStyle === 'smooth'
+                ? 'bg-background text-foreground shadow-sm font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Spline className="size-3.5" />
+            <span className="hidden sm:inline">Smooth</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onChangeEdgeStyle?.('step')}
+            title="Step / Orthogonal Connections"
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer',
+              edgeStyle === 'step'
+                ? 'bg-background text-foreground shadow-sm font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <CornerDownRight className="size-3.5" />
+            <span className="hidden sm:inline">Step</span>
+          </button>
+        </div>
+
+        {onOpenCommandPalette && (
+          <>
+            <div className="h-4 w-px bg-border mx-0.5" />
+            <button
+              type="button"
+              onClick={onOpenCommandPalette}
+              title="Command Palette & Search (Ctrl+K)"
+              className="size-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+            >
+              <Search className="size-4" />
+            </button>
+          </>
+        )}
       </div>
 
       {isOutlineOpen && (
@@ -752,25 +979,37 @@ function WorkflowCanvasInner({
         }}
       />
 
-      <ReactFlow
-        nodes={displayNodes}
-        edges={edges}
-        onNodesChange={isLocked ? undefined : onNodesChange}
-        onEdgesChange={isLocked ? undefined : onEdgesChange}
-        onConnect={isLocked ? undefined : onConnect}
-        // Agent slots only take compatible nodes (Prompt → Prompt, LLM → a model, …)
-        isValidConnection={(connection) => isValidSlotConnection(connection, nodes, edges)}
-        onReconnect={isLocked ? undefined : onReconnect}
-        onReconnectStart={onReconnectStart}
-        onReconnectEnd={onReconnectEnd}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
-        onPaneContextMenu={handlePaneContextMenu}
-        onNodeContextMenu={handleNodeContextMenu}
-        nodeTypes={STUDIO_NODE_TYPES}
-        edgeTypes={STUDIO_EDGE_TYPES}
-        connectionMode={ConnectionMode.Loose}
-        connectionLineType={ConnectionLineType.SmoothStep}
+      <WorkflowLayoutContext.Provider
+        value={{
+          direction,
+          edgeStyle,
+          setDirection: onChangeDirection,
+          setEdgeStyle: onChangeEdgeStyle,
+          updateNodeMetadata: onUpdateNodeMetadata,
+        }}
+      >
+        <ReactFlow
+          nodes={displayNodes}
+          edges={edges}
+          onNodesChange={isLocked ? undefined : onNodesChange}
+          onEdgesChange={isLocked ? undefined : onEdgesChange}
+          onConnect={isLocked ? undefined : onConnect}
+          onConnectEnd={isLocked ? undefined : onConnectEnd}
+          // Agent slots and type-safe connection validator
+          isValidConnection={(connection) => validateWorkflowConnection(connection as Connection, nodes, edges).valid}
+          onReconnect={isLocked ? undefined : onReconnect}
+          onReconnectStart={onReconnectStart}
+          onReconnectEnd={onReconnectEnd}
+          onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
+          onPaneClick={onPaneClick}
+          onPaneContextMenu={handlePaneContextMenu}
+          onNodeContextMenu={handleNodeContextMenu}
+          onEdgeContextMenu={handleEdgeContextMenu}
+          nodeTypes={STUDIO_NODE_TYPES}
+          edgeTypes={STUDIO_EDGE_TYPES}
+          connectionMode={ConnectionMode.Loose}
+          connectionLineType={edgeStyle === 'step' ? ConnectionLineType.SmoothStep : ConnectionLineType.Bezier}
         selectionMode={SelectionMode.Partial}
         panOnDrag={interactionMode === 'pan' ? true : [1, 2]}
         selectionOnDrag={interactionMode === 'select'}
@@ -782,10 +1021,8 @@ function WorkflowCanvasInner({
         nodesConnectable={!isLocked}
         elementsSelectable={true}
         defaultEdgeOptions={{
-          animated: true,
+          animated: false,
           type: 'workflow',
-          markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1', width: 14, height: 14 },
-          style: { strokeWidth: 2, stroke: '#6366f1' },
         }}
         snapToGrid={true}
         snapGrid={[16, 16]}
@@ -882,7 +1119,9 @@ function WorkflowCanvasInner({
           className="!bg-card/85 !border-border !rounded-xl !shadow-sm"
           maskColor="rgba(0, 0, 0, 0.4)"
         />
+        <RemeasureHandlesOnDirection direction={direction} />
       </ReactFlow>
+      </WorkflowLayoutContext.Provider>
 
       {/* Right Click Context Menu */}
       <CanvasContextMenu
@@ -890,7 +1129,9 @@ function WorkflowCanvasInner({
         x={contextMenu.x}
         y={contextMenu.y}
         targetNode={contextMenu.targetNode}
-        onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false }))}
+        targetEdge={contextMenu.targetEdge}
+        hasClipboard={hasClipboard}
+        onClose={() => setContextMenu((prev) => ({ ...prev, isOpen: false, targetNode: null, targetEdge: null }))}
         onAutoLayout={handleAutoLayoutClick}
         onFitView={() => reactFlowInstance.fitView({ padding: 0.2, duration: 300 })}
         onAddNode={(pos) => {
@@ -903,13 +1144,39 @@ function WorkflowCanvasInner({
           });
         }}
         onDuplicateNode={(node) => onDuplicateNode(node)}
+        onCopyNode={onCopyNode}
+        onCutNode={onCutNode}
+        onPaste={onPaste}
+        onSelectAll={onSelectAll}
         onDeleteNode={(id: string) => onDeleteNodes([id])}
         onTestNode={(node) => onTestNode(node)}
         onInspectNode={(node) => onInspectNode(node)}
+        onInspectEdge={onInspectEdge}
+        onDeleteEdge={onDeleteEdge}
+        onInsertNodeOnEdge={onInsertNodeOnEdge}
         onExportJson={onExportJson}
       />
     </div>
   );
+}
+
+/**
+ * Cards move their handles (left/right ↔ top/bottom) when the flow direction
+ * changes, but React Flow keeps the handle positions it measured earlier, so
+ * wires kept leaving the old sides. Re-measure every card once it has redrawn.
+ */
+function RemeasureHandlesOnDirection({ direction }: { direction: WorkflowDirection }) {
+  const updateNodeInternals = useUpdateNodeInternals();
+  const nodeIds = useStore((s) => s.nodes.map((n) => n.id).join('|'));
+  useEffect(() => {
+    const ids = nodeIds ? nodeIds.split('|') : [];
+    if (ids.length === 0) return;
+    const frame = requestAnimationFrame(() => updateNodeInternals(ids));
+    return () => cancelAnimationFrame(frame);
+    // Only on a direction change (and the first render); new cards measure themselves
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [direction, updateNodeInternals]);
+  return null;
 }
 
 export function AgentDetailPage() {
@@ -942,8 +1209,18 @@ export function AgentDetailPage() {
   const [isCanvasLocked, setIsCanvasLocked] = useState(false);
   // Bumped when a different graph is loaded, remounting the canvas so it fits the new graph
   const [canvasEpoch, setCanvasEpoch] = useState(0);
+  const [workflowDirection, setWorkflowDirection] = useState<WorkflowDirection>('horizontal');
+  const [workflowEdgeStyle, setWorkflowEdgeStyle] = useState<WorkflowEdgeStyle>('smooth');
   const [nodes, setNodes] = useState<Node[]>(INITIAL_NODES);
+  const measuredSizeRef = useRef<MeasuredSizeReader | null>(null);
   const [edges, setEdges] = useState<Edge[]>(INITIAL_EDGES);
+  // Graph-level settings saved with the canvas (`settings.limits` caps a run).
+  const [graphSettings, setGraphSettings] = useState<Record<string, unknown> | undefined>(undefined);
+  const graphSettingsRef = useRef(graphSettings);
+  graphSettingsRef.current = graphSettings;
+  // "Save" in a drawer persists right after the draft is in state (not the render before it).
+  const [saveRequest, setSaveRequest] = useState(0);
+  const requestSaveNow = useCallback(() => setSaveRequest((n) => n + 1), []);
   // Track the inspected node by id and read it from live canvas state, so the
   // inspector never shows a stale copy (after a drag, undo, or keyboard delete).
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -956,8 +1233,43 @@ export function AgentDetailPage() {
   useEffect(() => {
     if (selectedNodeId && !selectedNode) setSelectedNodeId(null);
   }, [selectedNodeId, selectedNode]);
+
+  // The agent capability module open in the inspector (Prompt, LLM, …). Opening
+  // another node closes it, unless that node was opened *at* a module.
+  const [activeModule, setActiveModule] = useState<{ id: AgentModuleId; section?: string; field?: string } | null>(null);
+  const pendingModuleRef = useRef<string | null>(null);
+  const clearEdgeSelectionRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    if (pendingModuleRef.current === selectedNodeId) pendingModuleRef.current = null;
+    else setActiveModule(null);
+  }, [selectedNodeId]);
+  const openModuleFor = useCallback((agentId: string, module: { id: AgentModuleId; section?: string; field?: string } | null) => {
+    pendingModuleRef.current = agentId;
+    setSelectedNodeId(agentId);
+    clearEdgeSelectionRef.current();
+    setActiveModule(module);
+  }, []);
+  // Unsaved module edits: clicks that would close the drawer ask first.
+  const moduleDirtyRef = useRef(false);
+  const handleModuleDirtyChange = useCallback((dirty: boolean) => {
+    moduleDirtyRef.current = dirty;
+  }, []);
+  const confirmLeaveModule = useCallback(async () => {
+    if (!moduleDirtyRef.current) return true;
+    const ok = await confirm({
+      title: 'Discard unsaved changes?',
+      description: 'The settings drawer has edits that haven’t been saved.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+      destructive: true,
+    });
+    if (ok) moduleDirtyRef.current = false;
+    return ok;
+  }, []);
   const [isDirty, setIsDirty] = useState(false);
   const reactFlowRef = useRef<any>(null);
+  // What each step produced in the latest test run — shown on the cards, never saved.
+  const [runResults, setRunResults] = useState<Record<string, NodeRunResult>>({});
 
   const focusNode = useCallback((node: Node) => {
     setTimeout(() => {
@@ -1049,6 +1361,35 @@ export function AgentDetailPage() {
   const [settingsDraft, setSettingsDraft] = useState<AgentSettingsDraft | null>(null);
   const [isPublishPopoverOpen, setIsPublishPopoverOpen] = useState(false);
 
+  // Command palette, template export & presentation mode
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isTemplateExportOpen, setIsTemplateExportOpen] = useState(false);
+  const [isPresentationMode, setIsPresentationMode] = useState(false);
+
+  // Canvas clipboard state
+  const clipboardRef = useRef<{ nodes: Node[]; edges: Edge[] } | null>(null);
+  const [hasClipboard, setHasClipboard] = useState(false);
+
+  // Edge data flow inspector state
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  clearEdgeSelectionRef.current = () => setSelectedEdgeId(null);
+  const selectedEdge = useMemo(
+    () => (selectedEdgeId ? edges.find((e) => e.id === selectedEdgeId) ?? null : null),
+    [edges, selectedEdgeId],
+  );
+
+  // Edge split & empty-space drop contexts
+  const [edgeSplitContext, setEdgeSplitContext] = useState<{
+    edge: Edge;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [dropContext, setDropContext] = useState<{
+    position: { x: number; y: number };
+    fromNode: Node;
+    fromHandle?: string;
+  } | null>(null);
+  const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
+
   // Inline rename state in canvas header
   const [isEditingHeaderName, setIsEditingHeaderName] = useState(false);
   const [headerNameInput, setHeaderNameInput] = useState('');
@@ -1135,6 +1476,8 @@ export function AgentDetailPage() {
   // not wipe unsaved canvas/settings edits. Only a version restore forces a reload.
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
+  // The settings form as loaded — what "changed" is measured against when saving.
+  const settingsBaselineRef = useRef<AgentSettingsDraft | null>(null);
   const forceHydrateRef = useRef(false);
   useEffect(() => {
     if (!agent) return;
@@ -1146,6 +1489,13 @@ export function AgentDetailPage() {
     forceHydrateRef.current = false;
     const graph = parseGraph(agent.graphJson);
     if (graph) {
+      if (graph.layout?.direction) {
+        setWorkflowDirection(graph.layout.direction);
+      }
+      if (graph.layout?.edgeStyle) {
+        setWorkflowEdgeStyle(graph.layout.edgeStyle);
+      }
+      setGraphSettings(graph.settings);
       // A save round-trip returns the graph already on the canvas — leave it (and the
       // undo history) alone. Only a different graph (first load, restored version)
       // replaces the canvas and becomes the new undo baseline.
@@ -1159,7 +1509,7 @@ export function AgentDetailPage() {
       }
     }
     const config = (agent.configuration || {}) as any;
-    setSettingsDraft({
+    const hydrated: AgentSettingsDraft = {
       name: agent.name,
       role: agent.role || 'Autonomous Specialist',
       description: agent.description ?? '',
@@ -1171,7 +1521,9 @@ export function AgentDetailPage() {
       tags: Array.isArray(config.tags) ? config.tags : ['support', 'autonomous'],
       ownerName: config.owner?.name || '',
       ownerEmail: config.owner?.email || '',
-    });
+    };
+    settingsBaselineRef.current = hydrated;
+    setSettingsDraft(hydrated);
     setHeaderNameInput(agent.name);
     setIsDirty(false);
   }, [agent]);
@@ -1260,29 +1612,46 @@ export function AgentDetailPage() {
     const current = graph ?? { nodes, edges };
     const patch: any = {
       // A run's live status rings are view state, not part of the graph.
-      graphJson: JSON.stringify({ nodes: current.nodes.map(withoutRunStatus), edges: current.edges }),
+      graphJson: JSON.stringify({
+        nodes: current.nodes.map(withoutRunStatus),
+        edges: current.edges,
+        ...(graphSettingsRef.current ? { settings: graphSettingsRef.current } : {}),
+        layout: {
+          direction: workflowDirection,
+          edgeStyle: workflowEdgeStyle,
+        },
+      }),
       ...(settingsDraft
         ? {
             name: settingsDraft.name.trim() || agent?.name,
             role: settingsDraft.role?.trim() || agent?.role,
             description: settingsDraft.description,
             avatarUrl: settingsDraft.avatar || null,
-            model: settingsDraft.model,
-            configuration: {
-              ...config,
-              category: settingsDraft.category,
-              theme: settingsDraft.theme,
-              icon: settingsDraft.icon,
-              avatar: settingsDraft.avatar,
-              tags: settingsDraft.tags,
-              owner: {
-                name: settingsDraft.ownerName,
-                email: settingsDraft.ownerEmail,
-              },
-            },
           }
         : {}),
     };
+    // `model` and `configuration` are plan-gated on the server even when unchanged,
+    // so they're only sent when they really changed — a canvas or name edit saves on every plan.
+    if (settingsDraft) {
+      const configuration = {
+        ...config,
+        category: settingsDraft.category,
+        theme: settingsDraft.theme,
+        icon: settingsDraft.icon,
+        avatar: settingsDraft.avatar,
+        tags: settingsDraft.tags,
+        owner: {
+          name: settingsDraft.ownerName,
+          email: settingsDraft.ownerEmail,
+        },
+      };
+      const baseline = settingsBaselineRef.current;
+      if (!baseline || settingsDraft.model !== baseline.model) patch.model = settingsDraft.model;
+      const configKeys = ['category', 'theme', 'icon', 'avatar', 'tags', 'ownerName', 'ownerEmail'] as const;
+      if (!baseline || configKeys.some((k) => JSON.stringify(settingsDraft[k]) !== JSON.stringify(baseline[k]))) {
+        patch.configuration = configuration;
+      }
+    }
     // No local fallback: a save that didn't reach the server must say so.
     await agentsApi.update(activeWorkspace.id, agentId, patch);
     queryClient.invalidateQueries({ queryKey: agentQueryKey });
@@ -1318,7 +1687,8 @@ export function AgentDetailPage() {
       const diff = diffStudioGraphs(copilotGraph, graph);
       const nextEdges = graph.edges as unknown as Edge[];
       const placed = graph.nodes as unknown as Node[];
-      const nextNodes = diff.added.length || diff.removed.length ? layoutWorkflow(placed, nextEdges, 'LR') : placed;
+      const layoutDir = workflowDirection === 'vertical' ? 'TB' : 'LR';
+      const nextNodes = diff.added.length || diff.removed.length ? layoutWorkflow(withMeasuredSizes(placed, measuredSizeRef.current), nextEdges, layoutDir) : placed;
       const previous = { nodes: graphRef.current.nodes, edges: graphRef.current.edges };
       setNodes(nextNodes);
       setEdges(nextEdges);
@@ -1326,7 +1696,12 @@ export function AgentDetailPage() {
         // Only the graph: the Copilot changes nothing else, and the settings
         // form's fields (model, configuration) are plan-gated on some tiers.
         await agentsApi.update(activeWorkspace.id, agentId, {
-          graphJson: JSON.stringify({ nodes: nextNodes.map(withoutRunStatus), edges: nextEdges }),
+          graphJson: JSON.stringify({
+            nodes: nextNodes.map(withoutRunStatus),
+            edges: nextEdges,
+            ...(graphSettingsRef.current ? { settings: graphSettingsRef.current } : {}),
+            layout: { direction: workflowDirection, edgeStyle: workflowEdgeStyle },
+          }),
         });
       } catch (err) {
         // Not saved, so not on the canvas either.
@@ -1341,7 +1716,7 @@ export function AgentDetailPage() {
     },
     // agentQueryKey is rebuilt every render from these same ids.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [agentId, activeWorkspace.id, copilotGraph, queryClient],
+    [agentId, activeWorkspace.id, copilotGraph, queryClient, workflowDirection, workflowEdgeStyle],
   );
 
   // `?test=1` (from "Create with one prompt") opens the run console once the agent is loaded.
@@ -1353,7 +1728,27 @@ export function AgentDetailPage() {
   }, [agent, searchParams]);
 
   /** Shows a run's progress on the canvas (null clears it) without marking the graph edited. */
+  /**
+   * A step's latest result for its card. An Output step passes its input
+   * through, so it shows what flowed into it when it has nothing of its own.
+   */
+  const resultFor = (n: Node): NodeRunResult | undefined => {
+    const own = runResults[n.id];
+    if (String(n.type).toUpperCase() !== 'END' || (own && (own.output || own.error || own.cleared))) return own;
+    const upstream = runResults[edges.find((e) => e.target === n.id && !isAttachmentEdge(e))?.source ?? ''];
+    if (!upstream) return own;
+    return { ...upstream, status: own?.status ?? upstream.status, latencyMs: own?.latencyMs ?? 0, tokens: own?.tokens ?? 0 };
+  };
+
   const showRunStatuses = useCallback((statuses: Record<string, CanvasNodeStatus> | null) => {
+    // The console stopped watching (closed): don't leave cards saying "Running…".
+    if (!statuses) {
+      setRunResults((r) =>
+        Object.values(r).some((x) => x.status === 'running')
+          ? Object.fromEntries(Object.entries(r).map(([k, x]) => [k, x.status === 'running' ? { ...x, status: 'idle' as const } : x]))
+          : r,
+      );
+    }
     setNodes((current) =>
       current.map((n) => {
         const status = statuses?.[n.id] ?? 'idle';
@@ -1477,6 +1872,44 @@ export function AgentDetailPage() {
     return out;
   }, [nodes, edges]);
 
+  // Unified issues for header WorkflowHealthBadge
+  const allWorkflowIssues = useMemo<WorkflowIssue[]>(() => {
+    try {
+      const compiled = compileStudioGraph({
+        nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: { label: (n.data as any)?.label, config: (n.data as any)?.config ?? {} } })),
+        edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null })),
+      } as unknown as Record<string, unknown>);
+      return compiled.issues.map((iss) => ({
+        level: iss.level === 'error' ? 'error' : 'warning',
+        message: iss.message,
+        nodeId: iss.nodeId,
+      }));
+    } catch {
+      return [];
+    }
+  }, [nodes, edges]);
+
+  useEffect(() => {
+    if (saveRequest === 0 || saveMutation.isPending) return;
+    saveMutation.mutate();
+    // Only when a drawer asks; the latest graph is already in this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveRequest]);
+
+  // Debounced Auto-save (2500ms after edits settle without user activity)
+  useEffect(() => {
+    if (!isDirty || saveMutation.isPending || isCanvasLocked) return;
+    if (nodes.some((n) => n.dragging)) return;
+
+    const timer = setTimeout(() => {
+      saveMutation.mutate();
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [isDirty, nodes, saveMutation, isCanvasLocked]);
+
+  const stepIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
+
   // What's plugged into each agent slot: agents get per-slot summaries for their
   // rows, attached nodes get an "LLM · Agent 1" chip.
   const slotDecorations = useMemo(() => {
@@ -1505,9 +1938,15 @@ export function AgentDetailPage() {
       const supervised = Boolean(supervisorOf(host.id, edges));
       const leads = attached.agents.length > 0;
       const hidden = teamMembers(host.id);
+      const modules = readAgentModules(host, nodes, edges, graphSettings);
       out.set(host.id, {
         ...out.get(host.id),
         slots,
+        moduleSummaries: summarizeAgentModules(modules, { issuesByNode, stepIds, modelLabel: (m) => String(modelLabel(m)) }),
+        promptPreview: modules.prompt.text.slice(0, 240),
+        builtinTools: modules.tools.entries.filter((t) => t.kind === 'builtin').map((t) => t.toolName),
+        // Apps given as tool-list entries (no card on the canvas) still show their logo.
+        toolApps: [...new Set(modules.tools.entries.filter((t) => t.kind === 'connector' && !t.nodeId && t.provider).map((t) => t.provider!.toLowerCase()))],
         team: {
           role: leads && supervised ? 'lead' : leads ? 'supervisor' : supervised ? 'member' : 'solo',
           issues: agentIssues(host, nodes, edges),
@@ -1532,7 +1971,7 @@ export function AgentDetailPage() {
       }
       return below;
     }
-  }, [nodes, edges]);
+  }, [nodes, edges, graphSettings, issuesByNode, stepIds]);
 
   // Nodes tucked away under a collapsed agent (not removed: the graph is unchanged)
   const hiddenNodeIds = useMemo(() => collapsedNodeIds(nodes, edges), [nodes, edges]);
@@ -1604,13 +2043,17 @@ export function AgentDetailPage() {
     setIsDirty(true);
   }, []);
 
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+  const onNodeClick = useCallback(async (_: React.MouseEvent, node: Node) => {
+    if (node.id !== selectedNodeId && !(await confirmLeaveModule())) return;
     setSelectedNode(node);
-  }, []);
+    setSelectedEdgeId(null);
+  }, [setSelectedNode, selectedNodeId, confirmLeaveModule]);
 
-  const onPaneClick = useCallback(() => {
+  const onPaneClick = useCallback(async () => {
+    if (!(await confirmLeaveModule())) return;
     setSelectedNode(null);
-  }, []);
+    setSelectedEdgeId(null);
+  }, [setSelectedNode, confirmLeaveModule]);
 
   const handleUpdateNode = useCallback((nodeId: string, updatedData: any) => {
     setNodes((nds) =>
@@ -1628,6 +2071,17 @@ export function AgentDetailPage() {
           : n,
       ),
     );
+    setIsDirty(true);
+  }, []);
+
+  /** A module drawer's Save: its draft configs (and run limits) into the graph. */
+  const handleApplyModuleDraft = useCallback((draft: ModuleDraft) => {
+    if (Object.keys(draft.configs).length > 0) {
+      setNodes((nds) =>
+        nds.map((n) => (draft.configs[n.id] ? { ...n, data: { ...n.data, config: draft.configs[n.id] } } : n)),
+      );
+    }
+    if (draft.graphSettings !== undefined) setGraphSettings(draft.graphSettings);
     setIsDirty(true);
   }, []);
 
@@ -1663,7 +2117,8 @@ export function AgentDetailPage() {
   );
 
   const handleConnectNextNode = useCallback(
-    (sourceNode: Node, item: any, handleId?: string) => {
+    (sourceNode: Node, item: any, handleId?: string, options?: { select?: boolean }) => {
+      const select = options?.select !== false;
       const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
       const slot = isSlotHost(sourceNode.type) ? getSlot(handleId) : undefined;
       let xPos = sourceNode.position.x + 320;
@@ -1671,8 +2126,24 @@ export function AgentDetailPage() {
       if (slot) {
         ({ x: xPos, y: yPos } = attachmentPosition(sourceNode, nodes, edges));
       } else if (isSlotHost(sourceNode.type)) {
-        // Attachments hang below an agent, so its next step simply goes to its right
-        xPos = sourceNode.position.x + (sourceNode.measured?.width ?? 290) + 120;
+        if (workflowDirection === 'vertical') {
+          xPos = sourceNode.position.x;
+          yPos = sourceNode.position.y + (sourceNode.measured?.height ?? 300) + 100;
+        } else {
+          // Attachments hang below an agent, so its next step simply goes to its right
+          xPos = sourceNode.position.x + (sourceNode.measured?.width ?? 290) + 120;
+        }
+      } else if (workflowDirection === 'vertical') {
+        if (handleId === 'false') {
+          xPos += 140;
+          yPos += 180;
+        } else if (handleId === 'true') {
+          xPos -= 140;
+          yPos += 180;
+        } else {
+          xPos = sourceNode.position.x;
+          yPos = sourceNode.position.y + 180;
+        }
       } else if (handleId === 'false') {
         yPos += 90;
       } else if (handleId === 'true') {
@@ -1684,11 +2155,13 @@ export function AgentDetailPage() {
         type: item.type,
         position: { x: xPos, y: yPos },
         data: {
+          title: item.label,
           label: item.label,
-          subtitle: item.subtitle,
+          description: item.subtitle || item.description || '',
+          subtitle: item.subtitle || item.description || '',
           config: item.defaultConfig || {},
         },
-        selected: true,
+        selected: select,
       };
 
       const newEdge: Edge = {
@@ -1700,26 +2173,61 @@ export function AgentDetailPage() {
       };
 
       setNodes((nds) => [
-        ...nds.map((n) =>
+        ...nds.map((n) => {
+          const selected = select ? false : n.selected;
           // Plugging into a collapsed agent unfolds it so the new step is visible
-          slot && n.id === sourceNode.id && (n.data as any)?.collapsed
-            ? { ...n, selected: false, data: { ...n.data, collapsed: false } }
-            : { ...n, selected: false },
-        ),
+          return slot && n.id === sourceNode.id && (n.data as any)?.collapsed
+            ? { ...n, selected, data: { ...n.data, collapsed: false } }
+            : { ...n, selected };
+        }),
         newNode,
       ]);
       setEdges((eds) => (slot ? withSlotConnection(eds, { ...newEdge, animated: false }) : [...eds, newEdge]));
-      setSelectedNode(newNode);
+      if (select) {
+        setSelectedNode(newNode);
+        focusNode(newNode);
+      }
       setIsDirty(true);
-      focusNode(newNode);
       toast.success(
         slot
           ? `${item.label} plugged into ${sourceNode.data?.label || 'agent'} → ${slot.label}`
           : `Connected "${item.label}" to "${sourceNode.data?.label || 'Node'}"`,
       );
     },
-    [focusNode, nodes, edges],
+    [focusNode, nodes, edges, workflowDirection],
   );
+
+  /** Opens a node's panel (optionally at one of its modules), asking first if a drawer has unsaved edits. */
+  const requestOpenModule = useCallback(
+    async (nodeId: string, module: { id: AgentModuleId; section?: string; field?: string } | null) => {
+      if (nodeId !== selectedNodeId && !(await confirmLeaveModule())) return;
+      openModuleFor(nodeId, module);
+    },
+    [selectedNodeId, confirmLeaveModule, openModuleFor],
+  );
+
+  /** What a module drawer may change on the canvas for the agent it is showing. */
+  const moduleActions = useMemo<ModuleActions | undefined>(() => {
+    if (!selectedNode || !isSlotHost(selectedNode.type)) return undefined;
+    const agentNode = selectedNode;
+    return {
+      attach: (item, slot) => handleConnectNextNode(agentNode, item, slot, { select: false }),
+      deleteNode: (nodeId) => handleDeleteNode(nodeId),
+      detach: (targetId, slot) => {
+        setEdges((eds) => eds.filter((e) => !(e.source === agentNode.id && e.target === targetId && e.sourceHandle === slot)));
+        setIsDirty(true);
+        toast('Unplugged from the agent', { action: undoAction });
+      },
+      connect: (targetId, slot) => onConnect({ source: agentNode.id, sourceHandle: slot, target: targetId, targetHandle: null }),
+      selectNode: (nodeId, module) => {
+        void requestOpenModule(nodeId, module ? { id: module } : null).then(() => {
+          const target = graphRef.current.nodes.find((n) => n.id === nodeId);
+          if (target) focusNode(target);
+        });
+      },
+      runAgentTest: () => setIsTestDrawerOpen(true),
+    };
+  }, [selectedNode, handleConnectNextNode, handleDeleteNode, undoAction, onConnect, requestOpenModule, focusNode]);
 
   // Auto layout glides nodes to their new spots (edges follow, since positions are
   // interpolated in state rather than with CSS). Returns how long the move takes,
@@ -1728,74 +2236,152 @@ export function AgentDetailPage() {
     frame: null,
     timer: null,
   });
-  const handleAutoLayout = useCallback((): number | null => {
-    const target = layoutWorkflow(nodes, edges, 'LR');
-    const targetById = new Map(target.map((n) => [n.id, n]));
-    const moved = nodes.some((n) => {
-      const t = targetById.get(n.id);
-      return (
-        !!t &&
-        (Math.abs(t.position.x - n.position.x) > 1 ||
-          Math.abs(t.position.y - n.position.y) > 1 ||
-          t.style?.width !== n.style?.width ||
-          t.style?.height !== n.style?.height)
-      );
-    });
-    if (!moved) {
-      toast('Already tidy — nothing to move');
-      return null;
-    }
+  const handleAutoLayout = useCallback(
+    (explicitDir?: 'LR' | 'TB'): number | null => {
+      const dir = explicitDir || (workflowDirection === 'vertical' ? 'TB' : 'LR');
+      const target = layoutWorkflow(withMeasuredSizes(nodes, measuredSizeRef.current), edges, dir);
+      const targetById = new Map(target.map((n) => [n.id, n]));
+      const moved = nodes.some((n) => {
+        const t = targetById.get(n.id);
+        return (
+          !!t &&
+          (Math.abs(t.position.x - n.position.x) > 1 ||
+            Math.abs(t.position.y - n.position.y) > 1 ||
+            t.style?.width !== n.style?.width ||
+            t.style?.height !== n.style?.height)
+        );
+      });
+      if (!moved) {
+        toast('Already tidy — nothing to move');
+        return null;
+      }
 
-    const anim = layoutAnimationRef.current;
-    if (anim.frame !== null) cancelAnimationFrame(anim.frame);
-    if (anim.timer !== null) clearTimeout(anim.timer);
-
-    const reduceMotion =
-      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const duration = reduceMotion ? 0 : LAYOUT_ANIMATION_MS;
-    const start = new Map(nodes.map((n) => [n.id, n.position]));
-
-    // Merge onto the latest state so selection etc. made meanwhile isn't lost
-    const finish = () => {
+      const anim = layoutAnimationRef.current;
       if (anim.frame !== null) cancelAnimationFrame(anim.frame);
       if (anim.timer !== null) clearTimeout(anim.timer);
-      anim.frame = null;
-      anim.timer = null;
+
+      const reduceMotion =
+        typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const duration = reduceMotion ? 0 : LAYOUT_ANIMATION_MS;
+      const start = new Map(nodes.map((n) => [n.id, n.position]));
+
+      // Merge onto the latest state so selection etc. made meanwhile isn't lost
+      const finish = () => {
+        if (anim.frame !== null) cancelAnimationFrame(anim.frame);
+        if (anim.timer !== null) clearTimeout(anim.timer);
+        anim.frame = null;
+        anim.timer = null;
+        setNodes((cur) =>
+          cur.map((n) => {
+            const t = targetById.get(n.id);
+            return t ? { ...n, position: t.position, style: t.style } : n;
+          }),
+        );
+      };
+
+      if (duration > 0) {
+        const t0 = performance.now();
+        const step = (now: number) => {
+          const p = Math.min(1, (now - t0) / duration);
+          const ease = 1 - Math.pow(1 - p, 3); // ease-out cubic
+          if (p >= 1) return finish();
+          setNodes((cur) =>
+            cur.map((n) => {
+              const from = start.get(n.id);
+              const to = targetById.get(n.id)?.position;
+              if (!from || !to) return n;
+              return { ...n, position: { x: from.x + (to.x - from.x) * ease, y: from.y + (to.y - from.y) * ease } };
+            }),
+          );
+          anim.frame = requestAnimationFrame(step);
+        };
+        anim.frame = requestAnimationFrame(step);
+        // Background tabs pause animation frames; still land on the final layout
+        anim.timer = setTimeout(finish, duration + 120);
+      } else {
+        finish();
+      }
+
+      setIsDirty(true);
+      toast.success('Layout tidied', { action: undoAction });
+      return duration;
+    },
+    [nodes, edges, undoAction, workflowDirection],
+  );
+
+  const handleChangeDirection = useCallback(
+    (newDir: WorkflowDirection) => {
+      if (newDir === workflowDirection) return;
+      setWorkflowDirection(newDir);
+      setIsDirty(true);
+      // Run auto layout in the new direction
+      const layoutDir = newDir === 'vertical' ? 'TB' : 'LR';
+      const target = layoutWorkflow(withMeasuredSizes(nodes, measuredSizeRef.current), edges, layoutDir);
+      const targetById = new Map(target.map((n) => [n.id, n]));
       setNodes((cur) =>
         cur.map((n) => {
           const t = targetById.get(n.id);
-          return t ? { ...n, position: t.position, style: t.style } : n;
+          return t
+            ? {
+                ...n,
+                position: t.position,
+                style: t.style,
+                data: {
+                  ...n.data,
+                  direction: newDir,
+                },
+              }
+            : {
+                ...n,
+                data: {
+                  ...n.data,
+                  direction: newDir,
+                },
+              };
         }),
       );
-    };
+      toast.success(`Workflow layout changed to ${newDir}`);
+      setTimeout(() => {
+        reactFlowRef.current?.fitView({ padding: 0.2, duration: 400 });
+      }, 50);
+    },
+    [workflowDirection, nodes, edges],
+  );
 
-    if (duration > 0) {
-      const t0 = performance.now();
-      const step = (now: number) => {
-        const p = Math.min(1, (now - t0) / duration);
-        const ease = 1 - Math.pow(1 - p, 3); // ease-out cubic
-        if (p >= 1) return finish();
-        setNodes((cur) =>
-          cur.map((n) => {
-            const from = start.get(n.id);
-            const to = targetById.get(n.id)?.position;
-            if (!from || !to) return n;
-            return { ...n, position: { x: from.x + (to.x - from.x) * ease, y: from.y + (to.y - from.y) * ease } };
-          }),
-        );
-        anim.frame = requestAnimationFrame(step);
-      };
-      anim.frame = requestAnimationFrame(step);
-      // Background tabs pause animation frames; still land on the final layout
-      anim.timer = setTimeout(finish, duration + 120);
-    } else {
-      finish();
-    }
+  const handleChangeEdgeStyle = useCallback(
+    (newStyle: WorkflowEdgeStyle) => {
+      if (newStyle === workflowEdgeStyle) return;
+      setWorkflowEdgeStyle(newStyle);
+      setIsDirty(true);
+      toast.success(`Connection style changed to ${newStyle}`);
+    },
+    [workflowEdgeStyle],
+  );
 
-    setIsDirty(true);
-    toast.success('Layout tidied', { action: undoAction });
-    return duration;
-  }, [nodes, edges, undoAction]);
+  const handleUpdateNodeMetadata = useCallback(
+    (nodeId: string, patch: { title?: string; label?: string; description?: string; subtitle?: string }) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== nodeId) return n;
+          const currentData = (n.data ?? {}) as Record<string, unknown>;
+          const updatedTitle = patch.title ?? patch.label ?? currentData.title ?? currentData.label;
+          const updatedDesc = patch.description ?? patch.subtitle ?? currentData.description ?? currentData.subtitle;
+          return {
+            ...n,
+            data: {
+              ...currentData,
+              title: updatedTitle,
+              label: updatedTitle,
+              description: updatedDesc,
+              subtitle: updatedDesc,
+            },
+          };
+        }),
+      );
+      setIsDirty(true);
+    },
+    [],
+  );
   useEffect(() => {
     const anim = layoutAnimationRef.current;
     return () => {
@@ -1827,10 +2413,11 @@ export function AgentDetailPage() {
   const handleDeleteEdge = useCallback(
     (edgeId: string) => {
       setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+      if (selectedEdgeId === edgeId) setSelectedEdgeId(null);
       setIsDirty(true);
       toast('Connection deleted', { action: undoAction });
     },
-    [undoAction],
+    [undoAction, selectedEdgeId],
   );
 
   /** Re-point one end of an edge (from the node panel's Wiring tab). */
@@ -1871,6 +2458,218 @@ export function AgentDetailPage() {
     });
     setIsDirty(true);
     toast.success('Connection reconnected');
+  }, []);
+
+  const handleInspectEdge = useCallback((edge: Edge) => {
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
+  }, []);
+
+  const handleUpdateEdge = useCallback((edgeId: string, patch: Partial<Edge>) => {
+    setEdges((eds) =>
+      eds.map((e) => {
+        if (e.id !== edgeId) return e;
+        return {
+          ...e,
+          ...patch,
+          data: {
+            ...e.data,
+            ...(patch.data ?? {}),
+          },
+        };
+      }),
+    );
+    setIsDirty(true);
+  }, []);
+
+  const handleInsertNodeOnEdge = useCallback((edge: Edge) => {
+    const sourceNode = nodes.find((n) => n.id === edge.source);
+    const targetNode = nodes.find((n) => n.id === edge.target);
+    if (!sourceNode || !targetNode) return;
+
+    const midX = Math.round((sourceNode.position.x + targetNode.position.x) / 2);
+    const midY = Math.round((sourceNode.position.y + targetNode.position.y) / 2);
+
+    setEdgeSplitContext({
+      edge,
+      position: { x: midX, y: midY },
+    });
+    setIsCatalogModalOpen(true);
+  }, [nodes]);
+
+  const handleConnectEndDrop = useCallback((pos: { x: number; y: number }, fromNode: Node, fromHandle?: string) => {
+    setDropContext({
+      position: pos,
+      fromNode,
+      fromHandle,
+    });
+    setIsCatalogModalOpen(true);
+  }, []);
+
+  const handleSelectCatalogItem = useCallback((item: any) => {
+    setIsCatalogModalOpen(false);
+
+    if (edgeSplitContext) {
+      const { edge, position } = edgeSplitContext;
+      setEdgeSplitContext(null);
+
+      const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
+      const newNode: Node = {
+        id: newNodeId,
+        type: item.type,
+        position,
+        data: {
+          label: item.label,
+          subtitle: item.subtitle,
+          config: item.defaultConfig || {},
+        },
+        selected: true,
+      };
+
+      const edgeIn: Edge = {
+        id: `e-${edge.source}-${newNodeId}-${Date.now().toString(36)}`,
+        source: edge.source,
+        sourceHandle: edge.sourceHandle,
+        target: newNodeId,
+        animated: true,
+      };
+      const edgeOut: Edge = {
+        id: `e-${newNodeId}-${edge.target}-${Date.now().toString(36)}`,
+        source: newNodeId,
+        target: edge.target,
+        targetHandle: edge.targetHandle,
+        animated: true,
+      };
+
+      setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), newNode]);
+      setEdges((eds) => [...eds.filter((e) => e.id !== edge.id), edgeIn, edgeOut]);
+      setSelectedNode(newNode);
+      setIsDirty(true);
+      toast.success(`Inserted "${item.label}" between steps`);
+      return;
+    }
+
+    if (dropContext) {
+      const { position, fromNode, fromHandle } = dropContext;
+      setDropContext(null);
+
+      const newNodeId = `${item.type.toLowerCase()}-${Date.now().toString(36)}`;
+      const newNode: Node = {
+        id: newNodeId,
+        type: item.type,
+        position,
+        data: {
+          label: item.label,
+          subtitle: item.subtitle,
+          config: item.defaultConfig || {},
+        },
+        selected: true,
+      };
+
+      const newEdge: Edge = {
+        id: `e-${fromNode.id}-${newNodeId}-${Date.now().toString(36)}`,
+        source: fromNode.id,
+        sourceHandle: fromHandle,
+        target: newNodeId,
+        animated: true,
+      };
+
+      setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), newNode]);
+      setEdges((eds) => [...eds, newEdge]);
+      setSelectedNode(newNode);
+      setIsDirty(true);
+      toast.success(`Connected "${item.label}" to "${fromNode.data?.label || 'step'}"`);
+      return;
+    }
+
+    // Default addition (e.g. from Command Palette)
+    const position = {
+      x: window.innerWidth / 2 - 120,
+      y: window.innerHeight / 2 - 40,
+    };
+    const newNode: Node = {
+      id: `${item.type.toLowerCase()}-${Date.now().toString(36)}`,
+      type: item.type,
+      position,
+      data: {
+        label: item.label,
+        subtitle: item.subtitle,
+        config: item.defaultConfig || {},
+      },
+      selected: true,
+    };
+    handleAddNode(newNode);
+  }, [edgeSplitContext, dropContext, handleAddNode, setSelectedNode]);
+
+  const handleCopySelected = useCallback((nodeToCopy?: Node) => {
+    let selected = nodes.filter((n) => n.selected);
+    if (selected.length === 0 && nodeToCopy) {
+      selected = [nodeToCopy];
+    }
+    if (selected.length === 0 && selectedNode) {
+      selected = [selectedNode];
+    }
+    if (selected.length === 0) return;
+
+    const selIds = new Set(selected.map((n) => n.id));
+    const selEdges = edges.filter((e) => selIds.has(e.source) && selIds.has(e.target));
+    clipboardRef.current = {
+      nodes: selected.map((n) => ({ ...n })),
+      edges: selEdges.map((e) => ({ ...e })),
+    };
+    setHasClipboard(true);
+    toast.success(selected.length === 1 ? `Copied "${selected[0].data?.label || 'Node'}"` : `Copied ${selected.length} steps`);
+  }, [nodes, edges, selectedNode]);
+
+  const handleCutSelected = useCallback((nodeToCut?: Node) => {
+    handleCopySelected(nodeToCut);
+    let targets = nodes.filter((n) => n.selected).map((n) => n.id);
+    if (targets.length === 0 && nodeToCut) targets = [nodeToCut.id];
+    if (targets.length === 0 && selectedNode) targets = [selectedNode.id];
+    if (targets.length > 0) {
+      handleDeleteNodes(targets);
+    }
+  }, [handleCopySelected, nodes, selectedNode, handleDeleteNodes]);
+
+  const handlePaste = useCallback(() => {
+    if (!clipboardRef.current || clipboardRef.current.nodes.length === 0) return;
+    const { nodes: clipNodes, edges: clipEdges } = clipboardRef.current;
+
+    const idMap = new Map<string, string>();
+    const newNodes: Node[] = clipNodes.map((n) => {
+      const newId = `${n.type?.toLowerCase() || 'node'}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 5)}`;
+      idMap.set(n.id, newId);
+      return {
+        ...n,
+        id: newId,
+        position: { x: n.position.x + 50, y: n.position.y + 50 },
+        selected: true,
+        data: {
+          ...n.data,
+          label: `${n.data?.label || 'Node'} (Copy)`,
+        },
+      };
+    });
+
+    const newEdges: Edge[] = clipEdges.map((e) => ({
+      ...e,
+      id: `e-${idMap.get(e.source) || e.source}-${idMap.get(e.target) || e.target}-${Date.now().toString(36)}`,
+      source: idMap.get(e.source) || e.source,
+      target: idMap.get(e.target) || e.target,
+    }));
+
+    setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), ...newNodes]);
+    setEdges((eds) => [...eds, ...newEdges]);
+    setIsDirty(true);
+    if (newNodes.length > 0) {
+      setSelectedNode(newNodes[0]);
+      focusNode(newNodes[0]);
+    }
+    toast.success(newNodes.length === 1 ? 'Pasted step' : `Pasted ${newNodes.length} steps`, { action: undoAction });
+  }, [focusNode, setSelectedNode, undoAction]);
+
+  const handleSelectAll = useCallback(() => {
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: true })));
   }, []);
 
   const handleBatchAlign = useCallback(
@@ -1981,6 +2780,11 @@ export function AgentDetailPage() {
     save: () => void;
     publish: () => void;
     duplicate: () => void;
+    copy: () => void;
+    cut: () => void;
+    paste: () => void;
+    selectAll: () => void;
+    openCommandPalette: () => void;
     clearSelection: () => void;
     canEditGraph: boolean;
   } | null>(null);
@@ -1997,8 +2801,20 @@ export function AgentDetailPage() {
     duplicate: () => {
       if (selectedNode) handleDuplicateNode(selectedNode);
     },
+    copy: () => handleCopySelected(),
+    cut: () => handleCutSelected(),
+    paste: () => handlePaste(),
+    selectAll: () => handleSelectAll(),
+    openCommandPalette: () => setIsCommandPaletteOpen(true),
     clearSelection: () => {
+      if (moduleDirtyRef.current) {
+        void confirmLeaveModule().then((ok) => {
+          if (ok) setSelectedNodeId(null);
+        });
+        return;
+      }
       setSelectedNodeId(null);
+      setSelectedEdgeId(null);
       setNodes((nds) => (nds.some((n) => n.selected) ? nds.map((n) => (n.selected ? { ...n, selected: false } : n)) : nds));
     },
     canEditGraph: activeTab === 'build' && !isCanvasLocked,
@@ -2022,9 +2838,18 @@ export function AgentDetailPage() {
         h.publish();
         return;
       }
+      if (mod && key === 'k') {
+        e.preventDefault();
+        h.openCommandPalette();
+        return;
+      }
       if (isTypingTarget(e.target)) return;
 
       if (e.key === 'Escape') {
+        if (isPresentationMode) {
+          setIsPresentationMode(false);
+          return;
+        }
         h.clearSelection();
       } else if (mod && key === 'z' && h.canEditGraph) {
         e.preventDefault();
@@ -2036,11 +2861,23 @@ export function AgentDetailPage() {
       } else if (mod && key === 'd' && h.canEditGraph) {
         e.preventDefault();
         h.duplicate();
+      } else if (mod && key === 'c' && h.canEditGraph) {
+        e.preventDefault();
+        h.copy();
+      } else if (mod && key === 'x' && h.canEditGraph) {
+        e.preventDefault();
+        h.cut();
+      } else if (mod && key === 'v' && h.canEditGraph) {
+        e.preventDefault();
+        h.paste();
+      } else if (mod && key === 'a' && h.canEditGraph) {
+        e.preventDefault();
+        h.selectAll();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isPresentationMode]);
 
   // Warn before closing / reloading the tab with unsaved edits
   useEffect(() => {
@@ -2088,7 +2925,7 @@ export function AgentDetailPage() {
       const res = await agentsApi.validate(
         activeWorkspace.id,
         agentId,
-        JSON.stringify({ nodes, edges }),
+        JSON.stringify({ nodes, edges, ...(graphSettings ? { settings: graphSettings } : {}) }),
       );
       setValidationResult(res);
       setIsValidationOpen(true);
@@ -2135,8 +2972,26 @@ export function AgentDetailPage() {
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
+      {/* Presentation Mode Float Bar */}
+      {isPresentationMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border border-border bg-surface/95 px-3.5 py-1.5 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
+          <Eye className="size-4 text-primary" />
+          <span className="text-xs font-semibold text-foreground">Presentation Mode</span>
+          <div className="h-3 w-px bg-border mx-1" />
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={() => setIsPresentationMode(false)}
+            className="h-6 px-2.5 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-surface-raised cursor-pointer"
+          >
+            Exit (Esc)
+          </Button>
+        </div>
+      )}
+
       {/* Top Navbar */}
-      <header className="flex h-13 shrink-0 items-center justify-between border-b border-border bg-background px-3.5 gap-2 z-30 select-none">
+      {!isPresentationMode && (
+        <header className="flex h-13 shrink-0 items-center justify-between border-b border-border bg-background px-3.5 gap-2 z-30 select-none">
         {/* Left: Back, Identity, Status */}
         <div className="flex items-center gap-2 shrink-0 min-w-0">
           <Button
@@ -2299,6 +3154,12 @@ export function AgentDetailPage() {
             <span className="hidden 2xl:inline">Copilot</span>
           </Button>
 
+          {/* Workflow Graph Health Status Badge */}
+          <WorkflowHealthBadge
+            issues={allWorkflowIssues}
+            onClick={handleValidateGraph}
+          />
+
           <Button
             variant="outline"
             size="sm"
@@ -2319,6 +3180,27 @@ export function AgentDetailPage() {
           >
             <Play className="h-3.5 w-3.5 fill-success" />
             <span>Test Run</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsTemplateExportOpen(true)}
+            className="h-8 gap-1.5 text-xs font-medium rounded-lg text-muted-foreground hover:text-foreground border-border/80 hidden lg:inline-flex"
+            title="Export workflow as reusable template"
+          >
+            <Layers className="h-3.5 w-3.5 text-primary" />
+            <span className="hidden 2xl:inline">Template</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsPresentationMode(true)}
+            className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-raised shrink-0 hidden sm:inline-flex"
+            title="Presentation Mode (Fullscreen canvas)"
+          >
+            <Eye className="h-4 w-4" />
           </Button>
 
           {/* Save Button */}
@@ -2505,6 +3387,7 @@ export function AgentDetailPage() {
           </Popover>
         </div>
       </header>
+      )}
 
       {/* Main Tab Views */}
       <div className="flex-1 overflow-hidden">
@@ -2515,17 +3398,35 @@ export function AgentDetailPage() {
             <div className="relative min-w-0 flex-1">
             <ReactFlowProvider key={canvasEpoch}>
               <WorkflowCanvasInner
+                measuredSizeRef={measuredSizeRef}
+                direction={workflowDirection}
+                onChangeDirection={handleChangeDirection}
+                edgeStyle={workflowEdgeStyle}
+                onChangeEdgeStyle={handleChangeEdgeStyle}
+                onUpdateNodeMetadata={handleUpdateNodeMetadata}
                 nodes={nodes.map((n) => ({
                   ...n,
                   hidden: hiddenNodeIds.has(n.id),
                   data: {
                     ...n.data,
+                    direction: workflowDirection,
+                    edgeStyle: workflowEdgeStyle,
+                    onUpdateMetadata: (patch: any) => handleUpdateNodeMetadata(n.id, patch),
                     ...slotDecorations.get(n.id),
                     issues: issuesByNode.get(n.id),
-                    ...(isSlotHost(n.type) ? { onToggleCollapse: () => handleToggleCollapse(n.id) } : {}),
+                    run: resultFor(n),
+                    onClearRun: () =>
+                      setRunResults((r) => ({ ...r, [n.id]: { status: 'idle', output: '', tokens: 0, latencyMs: 0, cleared: true } })),
+                    ...(isSlotHost(n.type)
+                      ? {
+                          onToggleCollapse: () => handleToggleCollapse(n.id),
+                          onOpenModule: (id: AgentModuleId, target?: { section?: string; field?: string }) =>
+                            void requestOpenModule(n.id, { id, ...target }),
+                        }
+                      : {}),
                     onUpdateConfig: (patch: Record<string, unknown>) => handleUpdateNodeConfig(n.id, patch),
                     onTest: () => setIsTestDrawerOpen(true),
-                    onEdit: () => setSelectedNodeId(n.id),
+                    onEdit: () => void requestOpenModule(n.id, null),
                     onDuplicate: () => handleDuplicateNode(n),
                     onDelete: () => handleDeleteNode(n.id),
                     onConnectNext: (item: any, handleId?: string) =>
@@ -2534,14 +3435,19 @@ export function AgentDetailPage() {
                 }))}
                 edges={edges.map((e) => {
                   const attachment = isAttachmentEdge(e);
+                  const sourceStatus = runResults[e.source]?.status;
                   return {
                     ...e,
                     type: 'workflow',
+                    // Saved edges may carry `animated`; flow only animates while its step runs
+                    animated: false,
+                    markerEnd: undefined,
                     // Things plugged into an agent slot are drawn dashed; the run order stays solid
-                    ...(attachment ? { animated: false, style: { ...e.style, strokeDasharray: '6 4' } } : {}),
-                    markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1', width: 14, height: 14 },
+                    ...(attachment ? { style: { ...e.style, strokeDasharray: '5 5' } } : {}),
                     data: {
                       ...e.data,
+                      edgeStyle: workflowEdgeStyle,
+                      status: sourceStatus === 'running' ? 'running' : sourceStatus === 'success' && !attachment ? 'done' : undefined,
                       attachment,
                       onDelete: (id: string) => handleDeleteEdge(id),
                     },
@@ -2571,6 +3477,16 @@ export function AgentDetailPage() {
                 onInitFlow={(instance) => {
                   reactFlowRef.current = instance;
                 }}
+                onEdgeClick={(_, edge) => handleInspectEdge(edge)}
+                onInspectEdge={handleInspectEdge}
+                onInsertNodeOnEdge={handleInsertNodeOnEdge}
+                onCopyNode={(node) => handleCopySelected(node)}
+                onCutNode={(node) => handleCutSelected(node)}
+                onPaste={handlePaste}
+                hasClipboard={hasClipboard}
+                onSelectAll={handleSelectAll}
+                onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+                onConnectEndDrop={handleConnectEndDrop}
                 onToggleCollapse={handleToggleCollapse}
                 onFocusNodeById={handleFocusNodeById}
                 isLocked={isCanvasLocked}
@@ -2582,7 +3498,7 @@ export function AgentDetailPage() {
               />
             </ReactFlowProvider>
 
-            {/* Floating node panel (opens when a node is clicked) */}
+            {/* Floating node panel (opens when a node is clicked); agents open their capability modules in it */}
             {selectedNode && (
               <NodeInspector
                 key={selectedNode.id}
@@ -2597,6 +3513,29 @@ export function AgentDetailPage() {
                 onConnect={onConnect}
                 onRestoreNode={handleRestoreNode}
                 onClose={() => setSelectedNode(null)}
+                graphSettings={graphSettings}
+                issuesByNode={issuesByNode}
+                activeModule={activeModule}
+                onOpenModule={setActiveModule}
+                onOpenAgentModule={(agentId, id) => void requestOpenModule(agentId, { id })}
+                onApplyModuleDraft={handleApplyModuleDraft}
+                onSaveNow={requestSaveNow}
+                moduleActions={moduleActions}
+                onModuleDirtyChange={handleModuleDirtyChange}
+                className="absolute top-3 right-3 bottom-3 z-30 max-w-[calc(100%-1.5rem)]"
+              />
+            )}
+
+            {/* Floating edge data inspector (opens when an edge is clicked) */}
+            {selectedEdge && !selectedNode && (
+              <EdgeDataInspector
+                key={selectedEdge.id}
+                selectedEdge={selectedEdge}
+                nodes={nodes}
+                onUpdateEdge={handleUpdateEdge}
+                onDeleteEdge={handleDeleteEdge}
+                onInsertNodeOnEdge={handleInsertNodeOnEdge}
+                onClose={() => setSelectedEdgeId(null)}
                 className="absolute top-3 right-3 bottom-3 z-30 w-[360px] max-w-[calc(100%-1.5rem)]"
               />
             )}
@@ -3442,6 +4381,7 @@ export function AgentDetailPage() {
             if (isDirty) await persistAgent();
           }}
           onNodeStatuses={showRunStatuses}
+          onNodeResults={setRunResults}
         />
       )}
 
@@ -3614,6 +4554,55 @@ export function AgentDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Node Catalog Modal for Edge Split & Empty-Space Drop */}
+      <NodeCatalogModal
+        isOpen={isCatalogModalOpen}
+        onClose={() => {
+          setIsCatalogModalOpen(false);
+          setEdgeSplitContext(null);
+          setDropContext(null);
+        }}
+        onSelectNode={handleSelectCatalogItem}
+      />
+
+      {/* Canvas Command Palette (Ctrl+K) */}
+      <CanvasCommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        nodes={nodes}
+        onFocusNode={handleFocusNodeById}
+        onAddNode={handleSelectCatalogItem}
+        onAutoLayout={() => handleAutoLayout()}
+        onTestRun={() => setIsTestDrawerOpen(true)}
+        onValidate={handleValidateGraph}
+        onSave={() => {
+          if (isDirty && !saveMutation.isPending) saveMutation.mutate();
+        }}
+        onPublish={() => {
+          if (!publishMutation.isPending) publishMutation.mutate();
+        }}
+        onUndo={undo}
+        onRedo={redo}
+        onFitView={() => reactFlowRef.current?.fitView({ padding: 0.2, duration: 300 })}
+        isLocked={isCanvasLocked}
+        onToggleLock={() => {
+          const next = !isCanvasLocked;
+          setIsCanvasLocked(next);
+          toast(next ? 'Canvas locked — editing is paused' : 'Canvas unlocked');
+        }}
+        onTogglePresentation={() => setIsPresentationMode((prev) => !prev)}
+        onExportJson={handleExportJson}
+      />
+
+      {/* Reusable Template Export Modal */}
+      <TemplateExportModal
+        isOpen={isTemplateExportOpen}
+        onClose={() => setIsTemplateExportOpen(false)}
+        nodes={nodes}
+        edges={edges}
+        agentName={settingsDraft?.name || agent?.name || 'AI Workflow'}
+      />
     </div>
   );
 }

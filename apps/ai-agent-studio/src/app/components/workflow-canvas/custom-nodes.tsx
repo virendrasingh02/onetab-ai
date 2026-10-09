@@ -8,20 +8,24 @@ import {
   TooltipContent,
   TooltipTrigger,
   AIModelIcon,
-  AIModelBadge,
+  normalizeModel,
   type AppSelectOption,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Handle, NodeToolbar, Position, type NodeProps } from '@xyflow/react';
+import { Handle, NodeResizer, NodeToolbar, Position, useNodesData, type NodeProps } from '@xyflow/react';
 import {
   AlertTriangle,
+  BookOpen,
   Bot,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Code2,
   Copy,
+  Download,
   Cpu,
+  Database,
   Eye,
   Flame,
   Folder,
@@ -44,7 +48,6 @@ import {
 } from 'lucide-react';
 import React, { memo, useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import {
-  AGENT_HANDLE_TOP,
   AGENT_SLOTS,
   DELEGATION_MODES,
   isSlotHost,
@@ -56,12 +59,20 @@ import { CATALOG_NODES, type CatalogNodeItem, type NodeCategory } from './node-l
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { useConnectorCatalogNodes, useConnectorNode } from './connector-nodes.js';
 import { useNavigate } from 'react-router-dom';
+import { useWorkflowLayout, type WorkflowDirection, type WorkflowEdgeStyle } from './workflow-layout-context.js';
+import { firstIssue, type AgentModuleId, type ModuleSummary } from './agent-config/agent-module-model.js';
+import { FormattedText, NodeRunFooter, type NodeRunResult } from './node-chrome.js';
 
 export interface WorkflowNodePayload {
+  title?: string;
   label: string;
+  description?: string;
   subtitle?: string;
   status?: 'idle' | 'running' | 'success' | 'failed' | 'waiting';
   config?: Record<string, any>;
+  direction?: WorkflowDirection;
+  edgeStyle?: WorkflowEdgeStyle;
+  onUpdateMetadata?: (patch: { title?: string; label?: string; description?: string; subtitle?: string }) => void;
   /** Canvas lock state — hides mutating quick actions. */
   locked?: boolean;
   onTest?: (nodeId: string) => void;
@@ -82,6 +93,20 @@ export interface WorkflowNodePayload {
   /** Agents: hide everything plugged in (persisted with the graph). */
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  /** Agents: each capability module's summary (from agent-module-model). */
+  moduleSummaries?: ModuleSummary[];
+  /** Agents: apps whose actions are among its tools (cards and tool list). */
+  toolApps?: string[];
+  /** Agents: open a module's drawer, optionally at a problem. */
+  onOpenModule?: (id: AgentModuleId, target?: { section?: string; field?: string }) => void;
+  /** Agents: the start of their instructions, for the card. */
+  promptPreview?: string;
+  /** Agents: built-in tool names in their tool list. */
+  builtinTools?: string[];
+  /** What this step produced in the latest run (view state, never saved). */
+  run?: NodeRunResult;
+  /** Output cards: forget the shown result. */
+  onClearRun?: () => void;
   [key: string]: any;
 }
 
@@ -105,6 +130,50 @@ const CATEGORIES: { id: NodeCategory; label: string }[] = [
   { id: 'output', label: 'Output' },
 ];
 
+type QuickAddView =
+  | { level: 'root' }
+  | { level: 'apps' }
+  | { level: 'actions'; provider: string; app: string };
+
+/** The catalog's "App Connector Action" card — not yet pointed at an app. */
+const isGenericAppAction = (item: CatalogNodeItem) =>
+  item.type === 'APP_CONNECTOR_ACTION' && !item.defaultConfig?.['provider'];
+
+/** One row per app that has actions, for the app step of the drill-down. */
+function appActionApps(actions: readonly CatalogNodeItem[]): CatalogNodeItem[] {
+  const apps = new Map<string, { item: CatalogNodeItem; count: number; connected: boolean }>();
+  for (const action of actions) {
+    const provider = String(action.defaultConfig?.['provider'] ?? '');
+    if (!provider) continue;
+    const entry = apps.get(provider);
+    if (entry) {
+      entry.count += 1;
+      continue;
+    }
+    apps.set(provider, {
+      count: 1,
+      // connectorCatalogNodes marks an unconnected app's actions "· connect <App>"
+      connected: !action.subtitle?.includes('· connect '),
+      item: {
+        key: `app:${provider}`,
+        type: action.type,
+        category: action.category,
+        label: action.badge ?? provider,
+        subtitle: '',
+        description: `${action.badge ?? provider} actions`,
+        icon: action.icon,
+        defaultConfig: { provider, connectorId: action.defaultConfig?.['connectorId'] },
+      },
+    });
+  }
+  return [...apps.values()]
+    .sort((a, b) => Number(b.connected) - Number(a.connected) || a.item.label.localeCompare(b.item.label))
+    .map(({ item, count, connected }) => ({
+      ...item,
+      subtitle: `${count} action${count === 1 ? '' : 's'}${connected ? '' : ' · not connected'}`,
+    }));
+}
+
 /**
  * Searchable node catalog shown when adding a connected step. Shared by the
  * output-handle "+" and the node hover toolbar "+". Closes on outside click
@@ -118,6 +187,7 @@ function QuickAddMenu({
   className,
   items,
   title,
+  appActions,
 }: {
   anchorRef: React.RefObject<HTMLElement | null>;
   onSelect: (item: CatalogNodeItem) => void;
@@ -126,8 +196,15 @@ function QuickAddMenu({
   /** Restrict the menu to these entries (an agent slot's compatible nodes); hides the category pills. */
   items?: CatalogNodeItem[];
   title?: string;
+  /**
+   * Connected apps' actions, kept out of the main list: picking the generic
+   * "App Connector Action" drills into app → action instead of listing every
+   * action up front.
+   */
+  appActions?: CatalogNodeItem[];
 }) {
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<QuickAddView>({ level: 'root' });
   const [activeCategory, setActiveCategory] = useState<NodeCategory>('all');
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -135,12 +212,46 @@ function QuickAddMenu({
   const navigate = useNavigate();
   // Every connected app's actions and events, from the live connector manifests
   const connectorNodes = useConnectorCatalogNodes();
-  const source = useMemo(() => items ?? [...CATALOG_NODES, ...connectorNodes], [items, connectorNodes]);
-  const offersApps = useMemo(() => source.some((n) => n.type.startsWith('APP_CONNECTOR')), [source]);
+  const rootSource = useMemo(() => items ?? [...CATALOG_NODES, ...connectorNodes], [items, connectorNodes]);
+  const appEntries = useMemo(() => appActionApps(appActions ?? []), [appActions]);
+  const source = useMemo(() => {
+    if (view.level === 'apps') return appEntries;
+    if (view.level === 'actions') {
+      return (appActions ?? []).filter((n) => n.defaultConfig?.['provider'] === view.provider);
+    }
+    return rootSource;
+  }, [view, appEntries, appActions, rootSource]);
+  const offersApps = useMemo(
+    () => view.level !== 'root' || rootSource.some((n) => n.type.startsWith('APP_CONNECTOR')),
+    [view.level, rootSource],
+  );
+
+  /** Root → apps → actions; only an action (or a plain node) is actually added. */
+  const pick = useCallback(
+    (item: CatalogNodeItem) => {
+      if (view.level === 'root' && appEntries.length > 0 && isGenericAppAction(item)) {
+        setView({ level: 'apps' });
+      } else if (view.level === 'apps') {
+        setView({ level: 'actions', provider: String(item.defaultConfig?.['provider']), app: item.label });
+      } else {
+        onSelect(item);
+        return;
+      }
+      setSearch('');
+      setActiveIndex(0);
+    },
+    [view.level, appEntries.length, onSelect],
+  );
+  const goBack = () => {
+    setView(view.level === 'actions' ? { level: 'apps' } : { level: 'root' });
+    setSearch('');
+    setActiveIndex(0);
+    inputRef.current?.focus();
+  };
 
   const filteredNodes = useMemo(() => {
     return source.filter((n) => {
-      if (!items && activeCategory !== 'all' && n.category !== activeCategory) {
+      if (!items && view.level === 'root' && activeCategory !== 'all' && n.category !== activeCategory) {
         return false;
       }
       if (!search.trim()) return true;
@@ -153,7 +264,7 @@ function QuickAddMenu({
         n.type.toLowerCase().includes(q)
       );
     });
-  }, [search, activeCategory, items, source]);
+  }, [search, activeCategory, items, source, view.level]);
 
   // Reset active index when filtered nodes change
   useEffect(() => {
@@ -221,8 +332,11 @@ function QuickAddMenu({
       e.preventDefault();
       e.stopPropagation();
       if (filteredNodes[activeIndex]) {
-        onSelect(filteredNodes[activeIndex]);
+        pick(filteredNodes[activeIndex]);
       }
+    } else if (e.key === 'Backspace' && !search && view.level !== 'root') {
+      e.preventDefault();
+      goBack();
     }
   };
 
@@ -246,7 +360,9 @@ function QuickAddMenu({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={handleInputKeyDown}
-          placeholder="Search nodes…"
+          placeholder={
+            view.level === 'apps' ? 'Search apps…' : view.level === 'actions' ? `Search ${view.app} actions…` : 'Search nodes…'
+          }
           className="w-full rounded-md border border-border bg-surface pl-8 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary transition-colors"
         />
         {search ? (
@@ -273,17 +389,31 @@ function QuickAddMenu({
         )}
       </div>
 
-      {title && (
-        <div className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {title}
-        </div>
+      {view.level !== 'root' ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            goBack();
+          }}
+          className="mb-2 flex items-center gap-1 rounded px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          <ChevronLeft className="size-3.5" />
+          {view.level === 'apps' ? 'Choose an app' : `${view.app} actions`}
+        </button>
+      ) : (
+        title && (
+          <div className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {title}
+          </div>
+        )
       )}
 
       {/* Category Filter Pills */}
       <div
         className={cn(
           'nowheel gap-1 overflow-x-auto pb-1.5 mb-2 scrollbar-none text-[10px]',
-          items ? 'hidden' : 'flex',
+          items || view.level !== 'root' ? 'hidden' : 'flex',
         )}
         onWheel={(e) => e.stopPropagation()}
       >
@@ -312,13 +442,15 @@ function QuickAddMenu({
       >
         {filteredNodes.length === 0 ? (
           <div className="py-6 text-center text-xs text-muted-foreground">
-            No nodes found
+            {view.level === 'apps' ? 'No apps found' : view.level === 'actions' ? 'No actions found' : 'No nodes found'}
           </div>
         ) : (
           filteredNodes.map((item, idx) => {
             const Icon = item.icon || Cpu;
             const isSelected = idx === activeIndex;
             const appId = item.defaultConfig?.connectorId as string | undefined;
+            const drills =
+              view.level === 'apps' || (view.level === 'root' && appEntries.length > 0 && isGenericAppAction(item));
             return (
               <button
                 key={item.key ?? item.type}
@@ -326,7 +458,7 @@ function QuickAddMenu({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSelect(item);
+                  pick(item);
                 }}
                 onMouseEnter={() => setActiveIndex(idx)}
                 className={cn(
@@ -371,6 +503,7 @@ function QuickAddMenu({
                     {item.subtitle || item.description}
                   </p>
                 </div>
+                {drills && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
               </button>
             );
           })
@@ -397,44 +530,161 @@ function QuickAddMenu({
   );
 }
 
-export function SourceHandleWithQuickAdd({
+export function WorkflowHandle({
+  type,
   id,
-  position = Position.Right,
+  position,
   className,
   style,
+  isConnectable,
+  isConnectableStart,
+  isConnectableEnd,
+  colorClass = 'bg-primary',
+  direction: explicitDirection,
+  children,
+}: {
+  type: 'source' | 'target';
+  id?: string;
+  position?: Position;
+  className?: string;
+  style?: React.CSSProperties;
+  isConnectable?: boolean;
+  isConnectableStart?: boolean;
+  isConnectableEnd?: boolean;
+  colorClass?: string;
+  direction?: WorkflowDirection;
+  children?: React.ReactNode;
+}) {
+  const { direction: contextDirection } = useWorkflowLayout();
+  const dir = explicitDirection || contextDirection || 'horizontal';
+
+  // In horizontal mode: target = Left (50% vertical center), source = Right (50% vertical center)
+  // In vertical mode: target = Top (50% horizontal center), source = Bottom (50% horizontal center)
+  const resolvedPosition =
+    position ??
+    (dir === 'vertical'
+      ? type === 'target'
+        ? Position.Top
+        : Position.Bottom
+      : type === 'target'
+      ? Position.Left
+      : Position.Right);
+
+  // Move handle out of the box so the circle floats clearly outside the card border
+  const positionOffsetStyle = useMemo<React.CSSProperties>(() => {
+    switch (resolvedPosition) {
+      case Position.Right:
+        return { right: -11 };
+      case Position.Left:
+        return { left: -11 };
+      case Position.Top:
+        return { top: -11 };
+      case Position.Bottom:
+        return { bottom: -11 };
+      default:
+        return {};
+    }
+  }, [resolvedPosition]);
+
+  const mergedStyle = useMemo<React.CSSProperties>(() => {
+    return {
+      ...style,
+      ...positionOffsetStyle,
+    };
+  }, [style, positionOffsetStyle]);
+
+  return (
+    <Handle
+      type={type}
+      id={id}
+      position={resolvedPosition}
+      isConnectable={isConnectable}
+      isConnectableStart={isConnectableStart}
+      isConnectableEnd={isConnectableEnd}
+      style={mergedStyle}
+      className={cn(
+        // 32px hit area centered outside the edge; transparent background with flex centering
+        'group/handle !size-8 !border-0 !bg-transparent !p-0 !m-0 !flex !items-center !justify-center !cursor-crosshair z-20',
+        className,
+      )}
+    >
+      {children || (
+        <span
+          className={cn(
+            // Larger hollow dot moved out of the box; accent fill & scale on hover
+            'relative size-3.5 rounded-full border-2 border-muted-foreground/70 bg-surface shadow-xs transition-all duration-150 pointer-events-none',
+            'group-hover/handle:scale-125 group-hover/handle:border-primary group-hover/handle:ring-2 group-hover/handle:ring-primary/40',
+            'group-[.connecting]/handle:scale-125 group-[.connecting]/handle:border-primary group-[.connecting]/handle:ring-2 group-[.connecting]/handle:ring-primary/60',
+            'group-[.valid]/handle:!bg-emerald-500 group-[.valid]/handle:!border-emerald-500 group-[.valid]/handle:ring-4 group-[.valid]/handle:ring-emerald-500/40 group-[.valid]/handle:scale-130',
+            'group-[.invalid]/handle:!bg-destructive group-[.invalid]/handle:!border-destructive group-[.invalid]/handle:ring-4 group-[.invalid]/handle:ring-destructive/40 group-[.invalid]/handle:scale-130',
+          )}
+        >
+          <span className={cn('absolute inset-0 rounded-full opacity-0 transition-opacity group-hover/handle:opacity-100', colorClass)} />
+        </span>
+      )}
+    </Handle>
+  );
+}
+
+export function SourceHandleWithQuickAdd({
+  id,
+  position,
+  className,
+  style,
+  colorClass = 'bg-primary',
   onConnectNext,
+  direction: explicitDirection,
 }: {
   id?: string;
   position?: Position;
   className?: string;
   style?: React.CSSProperties;
+  colorClass?: string;
   onConnectNext?: (item: CatalogNodeItem, handleId?: string) => void;
+  direction?: WorkflowDirection;
 }) {
+  const { direction: contextDirection } = useWorkflowLayout();
+  const dir = explicitDirection || contextDirection || 'horizontal';
+  const resolvedPosition =
+    position ?? (dir === 'vertical' ? Position.Bottom : Position.Right);
+
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setIsOpen(false), []);
+  const isVertical = resolvedPosition === Position.Bottom;
 
   return (
     <>
-      <Handle
+      <WorkflowHandle
         type="source"
         id={id}
-        position={position}
+        position={resolvedPosition}
         className={className}
         style={style}
+        colorClass={colorClass}
+        direction={dir}
       />
 
       <div
         ref={containerRef}
         className={cn(
-          'nodrag nopan nowheel absolute z-30 flex items-center pl-2 -ml-2 pointer-events-auto',
+          'nodrag nopan nowheel absolute z-30 flex items-center pointer-events-auto',
+          isVertical ? 'pt-1.5' : 'pl-2 -ml-2',
           isOpen && 'z-[99999] quick-add-open',
         )}
-        style={{
-          top: style?.top ?? '50%',
-          right: '-22px',
-          transform: 'translateY(-50%)',
-        }}
+        style={
+          isVertical
+            ? {
+                bottom: '-34px',
+                left: style?.left ?? '50%',
+                transform: 'translateX(-50%)',
+              }
+            : {
+                top: style?.top ?? '50%',
+                right: '-34px',
+                transform: 'translateY(-50%)',
+              }
+        }
       >
         <button
           type="button"
@@ -460,13 +710,99 @@ export function SourceHandleWithQuickAdd({
               onConnectNext?.(item, id);
               setIsOpen(false);
             }}
-            className="left-[calc(100%+8px)] top-1/2 -translate-y-1/2"
+            className={
+              isVertical
+                ? 'top-[calc(100%+8px)] left-1/2 -translate-x-1/2'
+                : 'left-[calc(100%+8px)] top-1/2 -translate-y-1/2'
+            }
           />
         )}
       </div>
     </>
   );
 }
+
+export function EditableNodeHeader({
+  id,
+  title,
+  description,
+  defaultTitle,
+  defaultDescription,
+  icon: Icon,
+  iconBg = 'bg-primary/15 text-primary',
+  customIcon,
+  badge,
+  actions,
+  locked,
+  onEdit,
+  onUpdateMetadata: _onUpdateMetadata,
+}: {
+  id: string;
+  title?: string;
+  description?: string;
+  defaultTitle: string;
+  defaultDescription: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  iconBg?: string;
+  customIcon?: React.ReactNode;
+  badge?: React.ReactNode;
+  actions?: React.ReactNode;
+  locked?: boolean;
+  onEdit?: () => void;
+  onUpdateMetadata?: (patch: { title?: string; label?: string; description?: string; subtitle?: string }) => void;
+}) {
+  const displayTitle = title || defaultTitle;
+  // Descriptions stay off the card unless the step opts in (inspector toggle).
+  const showDescription = useNodesData(id)?.data?.['showDescription'] === true;
+  const displayDescription = showDescription ? description || defaultDescription : undefined;
+
+  // A neutral bordered tile; the icon keeps the node's accent colour.
+  const iconTone = iconBg.split(/\s+/).filter((c) => c.startsWith('text-')).join(' ') || 'text-foreground';
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2.5',
+        onEdit && !locked && 'cursor-pointer',
+      )}
+      onDoubleClick={(e) => {
+        if (!locked && onEdit) {
+          e.stopPropagation();
+          onEdit();
+        }
+      }}
+    >
+      {customIcon || (
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface shadow-2xs">
+          {Icon && <Icon className={cn('size-[18px]', iconTone)} />}
+        </div>
+      )}
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span
+            className="truncate text-[13px] font-semibold text-foreground select-none"
+            title={displayTitle}
+          >
+            {displayTitle}
+          </span>
+          {badge}
+        </div>
+        {displayDescription && (
+          <div
+            className="mt-0.5 text-[11px] leading-snug text-muted-foreground select-none line-clamp-2"
+            title={displayDescription}
+          >
+            {displayDescription}
+          </div>
+        )}
+      </div>
+
+      {actions}
+    </div>
+  );
+}
+
+export const NodeHeader = EditableNodeHeader;
 
 // Approximate rendered height of QuickAddMenu (search + pills + max-h-72 list + padding)
 const ADD_MENU_HEIGHT = 400;
@@ -630,49 +966,59 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
   const connectorId = isConnectorTrigger && app.provider ? app.slug : null;
   const meta = connectorId ? { name: app.connector?.name ?? app.provider, category: app.connector?.category, color: undefined as string | undefined } : null;
 
+  const defaultTitle = meta ? `${meta.name} Trigger` : 'Start Entry';
+  const defaultDesc = isConnectorTrigger
+    ? (app.trigger?.label ?? (app.provider ? 'Pick an event' : 'Pick an app and event'))
+    : 'User prompt';
+
   return (
     <div
       className={cn(
-        'group relative min-w-[210px] max-w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
+        'group relative min-w-[220px] max-w-[290px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
         selected ? 'ring-2 ring-emerald-500 border-emerald-500 shadow-md' : 'hover:border-emerald-500/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
 
-      <div className="flex items-center gap-2.5">
-        {isConnectorTrigger && meta ? (
-          <div
-            className="flex size-10 items-center justify-center rounded-xl shrink-0 p-1.5 shadow-2xs border border-border/60 bg-surface-raised"
-            style={{ borderColor: meta?.color ? `${meta.color}40` : undefined }}
-          >
-            <AppConnectorIcon
-              connectorId={connectorId}
-              name={meta.name}
-              category={meta.category}
-              customIconUrl={cfg.customIconUrl}
-              size={24}
-            />
-          </div>
-        ) : (
-          <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-500 shrink-0">
-            <Play className="size-5 fill-emerald-500" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-foreground truncate">
-            {nodeData.label || (meta ? `${meta.name} Trigger` : 'Workflow Start')}
-          </div>
-          <div className="text-xs text-muted-foreground truncate">
-            {isConnectorTrigger ? (app.trigger?.label ?? (app.provider ? 'Pick an event' : 'Pick an app and event')) : nodeData.subtitle || 'Entry point'}
-          </div>
-        </div>
-      </div>
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle={defaultTitle}
+        defaultDescription={defaultDesc}
+        icon={Play}
+        iconBg="bg-emerald-500/15 text-emerald-500"
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
+        customIcon={
+          isConnectorTrigger && meta ? (
+            <div
+              className="flex size-10 items-center justify-center rounded-xl shrink-0 p-1.5 shadow-2xs border border-border/60 bg-surface-raised"
+              style={{ borderColor: meta?.color ? `${meta.color}40` : undefined }}
+            >
+              <AppConnectorIcon
+                connectorId={connectorId}
+                name={meta.name}
+                category={meta.category}
+                customIconUrl={cfg.customIconUrl}
+                size={24}
+              />
+            </div>
+          ) : undefined
+        }
+      />
 
+      {nodeData.run?.output && (
+        <div className="nodrag nowheel mt-3 max-h-28 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg bg-surface-raised px-2.5 py-2 text-[11px] leading-relaxed text-foreground">
+          {nodeData.run.output}
+        </div>
+      )}
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-emerald-500"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-emerald-500"
       />
     </div>
   );
@@ -716,6 +1062,9 @@ export interface AgentTeamInfo {
   hiddenCount: number;
 }
 
+/** Legacy single-action cards not offered as new tools; saved ones still render and run. */
+const SUPERSEDED_BY_APP_CONNECTOR = new Set(['SLACK_SEND']);
+
 /** "+" on a slot row: a quick-add menu limited to what that slot accepts. */
 function SlotAddButton({
   slot,
@@ -728,12 +1077,15 @@ function SlotAddButton({
   const containerRef = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setIsOpen(false), []);
   const connectorNodes = useConnectorCatalogNodes();
-  // Tools: every connected app's actions first (each becomes a tool the agent can call), then built-ins
-  const items = useMemo(
-    () => [
-      ...(slot.id === 'tools' ? connectorNodes.filter((n) => n.type === 'APP_CONNECTOR_ACTION') : []),
-      ...slotCatalog(slot.id),
-    ],
+  // Tools list only the main tools; app actions sit behind "App Connector Action" (app → action)
+  const items = useMemo(() => {
+    // Single-app cards (Slack) are covered by the full app under App Connector Action
+    const catalog = slotCatalog(slot.id).filter((n) => !SUPERSEDED_BY_APP_CONNECTOR.has(n.type));
+    // The app drill-down leads the list
+    return [...catalog.filter(isGenericAppAction), ...catalog.filter((n) => !isGenericAppAction(n))];
+  }, [slot.id]);
+  const appActions = useMemo(
+    () => (slot.id === 'tools' ? connectorNodes.filter((n) => n.type === 'APP_CONNECTOR_ACTION') : undefined),
     [slot.id, connectorNodes],
   );
   const label = slot.multiple ? `Add to ${slot.label}` : `Set ${slot.label}`;
@@ -759,6 +1111,7 @@ function SlotAddButton({
         <QuickAddMenu
           anchorRef={containerRef}
           items={items}
+          appActions={appActions}
           title={slot.hint}
           onClose={close}
           onSelect={(item) => {
@@ -771,46 +1124,6 @@ function SlotAddButton({
     </div>
   );
 }
-
-/** One row on an agent: label, what's attached and "+". Wires leave from the agent's single output dot. */
-function SlotRow({
-  label,
-  summary,
-  count = 0,
-  empty,
-  addButton,
-  children,
-}: {
-  label: string;
-  summary: string | null;
-  count?: number;
-  empty: string;
-  addButton?: React.ReactNode;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-surface-raised/50 px-2.5 py-1.5">
-      <div className="flex items-center gap-2">
-        <span
-          className={cn('size-1.5 shrink-0 rounded-full', summary ? 'bg-primary' : 'bg-muted-foreground/40')}
-          aria-hidden
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
-            {label}
-            {count > 1 && <Badge variant="primary" className="h-4 px-1 text-[9px]">{count}</Badge>}
-          </div>
-          <div className={cn('truncate text-[10px]', summary ? 'text-primary' : 'text-muted-foreground/70')}>
-            {summary || empty}
-          </div>
-        </div>
-        {addButton}
-      </div>
-      {children}
-    </div>
-  );
-}
-
 
 export const MODEL_OPTIONS: AppSelectOption[] = [
   { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
@@ -825,8 +1138,8 @@ export const MODEL_OPTIONS: AppSelectOption[] = [
   { value: 'mistral-large', label: 'Mistral Large' },
   { value: 'nemotron', label: 'NVIDIA Nemotron 3' },
 ];
-const modelLabel = (model: unknown) =>
-  MODEL_OPTIONS.find((m) => m.value === model)?.label ?? String(model).replace(':latest', '');
+export const modelLabel = (model: unknown) =>
+  MODEL_OPTIONS.find((m) => m.value === model)?.label ?? (normalizeModel(String(model)).displayName || String(model).replace(':latest', ''));
 
 const DELEGATION_OPTIONS: AppSelectOption[] = DELEGATION_MODES.map((m) => ({
   value: m.value,
@@ -856,25 +1169,19 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
   const issues = team?.issues ?? [];
   const totalAttached = AGENT_SLOTS.reduce((sum, s) => sum + (slots[s.id]?.length ?? 0), 0);
 
-  const summaryFor = (slotId: AgentSlotId): string | null => {
-    const attached = slots[slotId] || [];
-    if (attached.length === 0) return null;
-    return attached.length === 1 ? attached[0].label : `${attached[0].label} +${attached.length - 1} more`;
+  const moduleOf = (id: AgentModuleId) => nodeData.moduleSummaries?.find((m) => m.id === id);
+  const open = (id: AgentModuleId, target?: { section?: string; field?: string }) => nodeData.onOpenModule?.(id, target);
+  const addFor = (slotId: AgentSlotId) => {
+    const slot = AGENT_SLOTS.find((x) => x.id === slotId);
+    return canAdd && slot ? <SlotAddButton slot={slot} onSelect={(item) => nodeData.onConnectNext?.(item, slot.id)} /> : null;
   };
-  // With nothing wired, say what the agent falls back to from its own settings (or its supervisor)
-  const fallbackFor = (slotId: AgentSlotId): string => {
-    if (slotId === 'prompt') return cfg.instructions ? 'Using built-in instructions' : 'No prompt';
-    if (slotId === 'llm') {
-      if (team?.model) return `${team.model.inherited ? 'Inherited' : 'Built-in'}: ${modelLabel(team.model.model)}`;
-      return cfg.model ? `Built-in: ${modelLabel(cfg.model)}` : 'No model';
-    }
-    if (slotId === 'tools') {
-      const n = (cfg.tools as string[] | undefined)?.length ?? 0;
-      return n > 0 ? `${n} built-in tool${n === 1 ? '' : 's'}` : 'No tools';
-    }
-    if (slotId === 'agents') return isCoordinator ? 'Add the agents this team uses' : 'Works alone';
-    return 'No knowledge';
-  };
+  const modelId = team?.model?.model ?? (cfg.model ? String(cfg.model) : undefined);
+  const modelName = modelId ? String(modelLabel(modelId)) : undefined;
+  const promptPreview = String(nodeData.promptPreview ?? cfg.instructions ?? '').trim();
+  const toolApps = [...new Set([...(slots.tools ?? []).map((t) => t.connectorId), ...(nodeData.toolApps ?? [])].filter((c): c is string => !!c))];
+  const builtinTools = nodeData.builtinTools ?? ((cfg.tools as string[] | undefined) ?? []).filter((t) => !t.includes('.'));
+  const toolCount = moduleOf('tools')?.count ?? builtinTools.length + (slots.tools ?? []).length;
+  const hiddenToolCount = Math.max(0, toolCount - toolApps.length - Math.min(builtinTools.length, toolApps.length ? 1 : 2));
 
   return (
     <div
@@ -887,86 +1194,91 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
 
-      <Handle
+      {/* Target handle: Left (50%) in horizontal, Top (50%) in vertical */}
+      <WorkflowHandle
         type="target"
-        position={Position.Left}
-        style={{ top: AGENT_HANDLE_TOP }}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
+        colorClass="bg-primary"
       />
-      {/* One output dot. It comes first so edges without a sourceHandle (the next step) bind to it,
-          and sits on top so dragging from it starts a normal flow edge (slots are filled via "+"). */}
-      <Handle
+
+      {/* Main output dot: Right (50%) in horizontal, Bottom (50%) in vertical */}
+      <WorkflowHandle
         type="source"
-        position={Position.Right}
-        style={{ top: AGENT_HANDLE_TOP, zIndex: 2 }}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
+        colorClass="bg-primary"
+        style={{ zIndex: 2 }}
       />
+
       {/* Slot handles share the dot's spot (invisible) so every attachment wire leaves from that one dot */}
       {AGENT_SLOTS.map((slot) => (
-        <Handle
+        <WorkflowHandle
           key={slot.id}
           type="source"
           id={slot.id}
-          position={Position.Right}
           isConnectableStart={false}
-          style={{ top: AGENT_HANDLE_TOP, zIndex: 1 }}
-          className="!pointer-events-none !size-3 !border-0 !opacity-0"
+          style={{ zIndex: 1 }}
+          className="!pointer-events-none !size-7 !border-0 !opacity-0"
         />
       ))}
 
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-          {isCoordinator || subAgents.length > 0 ? <Network className="size-5" /> : <Bot className="size-4" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold text-foreground">{nodeData.label || 'AI Agent'}</span>
-            {roleBadge && (
-              <Badge variant={roleBadge.variant} className="h-4 shrink-0 px-1.5 text-[9px]">
-                {roleBadge.label}
-              </Badge>
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="AI Agent"
+        defaultDescription="AI-powered workflow agent"
+        icon={isCoordinator || subAgents.length > 0 ? Network : Bot}
+        iconBg="bg-primary/15 text-primary"
+        locked={locked}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
+        badge={
+          roleBadge ? (
+            <Badge variant={roleBadge.variant} className="h-4 shrink-0 px-1.5 text-[9px]">
+              {roleBadge.label}
+            </Badge>
+          ) : undefined
+        }
+        actions={
+          <div className="flex items-center gap-1 shrink-0">
+            {issues.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="nodrag flex size-6 shrink-0 items-center justify-center rounded-md text-warning hover:bg-warning/10"
+                    aria-label={`${issues.length} setup issue${issues.length === 1 ? '' : 's'}`}
+                    tabIndex={0}
+                  >
+                    <AlertTriangle className="size-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-60">
+                  <ul className="space-y-1 text-[11px]">
+                    {issues.map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {totalAttached > 0 && nodeData.onToggleCollapse && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="nodrag shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nodeData.onToggleCollapse?.();
+                }}
+                title={collapsed ? 'Show what’s plugged in' : 'Hide what’s plugged in'}
+                aria-label={collapsed ? 'Expand attachments' : 'Collapse attachments'}
+                aria-expanded={!collapsed}
+              >
+                {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+              </Button>
             )}
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">{nodeData.subtitle || 'AI workflow agent'}</div>
-        </div>
-        {issues.length > 0 && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                className="nodrag flex size-6 shrink-0 items-center justify-center rounded-md text-warning hover:bg-warning/10"
-                aria-label={`${issues.length} setup issue${issues.length === 1 ? '' : 's'}`}
-                tabIndex={0}
-              >
-                <AlertTriangle className="size-3.5" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-60">
-              <ul className="space-y-1 text-[11px]">
-                {issues.map((issue) => (
-                  <li key={issue}>{issue}</li>
-                ))}
-              </ul>
-            </TooltipContent>
-          </Tooltip>
-        )}
-        {totalAttached > 0 && nodeData.onToggleCollapse && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            className="nodrag shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              nodeData.onToggleCollapse?.();
-            }}
-            title={collapsed ? 'Show what’s plugged in' : 'Hide what’s plugged in'}
-            aria-label={collapsed ? 'Expand attachments' : 'Collapse attachments'}
-            aria-expanded={!collapsed}
-          >
-            {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-          </Button>
-        )}
-      </div>
+        }
+      />
 
       {collapsed ? (
         // Collapsed: one compact summary; the hidden nodes' wires gather on this row
@@ -980,44 +1292,233 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
           </div>
         </div>
       ) : (
-        <div className="mt-3 flex flex-col gap-1.5">
-          {AGENT_SLOTS.map((slot) => (
-            <SlotRow
-              key={slot.id}
-              label={slot.label}
-              summary={summaryFor(slot.id)}
-              count={slots[slot.id]?.length ?? 0}
-              empty={fallbackFor(slot.id)}
-              addButton={
-                canAdd ? (
-                  <SlotAddButton slot={slot} onSelect={(item) => nodeData.onConnectNext?.(item, slot.id)} />
-                ) : null
-              }
+        <div className="mt-3 space-y-3">
+          {/* Model */}
+          <AgentSection summary={moduleOf('llm')} onOpen={open} addButton={addFor('llm')} hideLabel>
+            <button
+              type="button"
+              disabled={!nodeData.onOpenModule}
+              onClick={(e) => {
+                e.stopPropagation();
+                open('llm');
+              }}
+              className="nodrag flex w-full items-center gap-2 rounded-lg bg-surface-raised px-2.5 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-surface-raised/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 motion-reduce:transition-none"
+              aria-label={`Model: ${modelName ?? 'none'}. Open LLM settings`}
             >
-              {slot.id === 'tools' && (
-                <AppLogoStack
-                  apps={[...new Set((slots.tools ?? []).map((t) => t.connectorId).filter((c): c is string => !!c))]}
+              {modelId ? <AIModelIcon modelId={modelId} size={14} /> : <Cpu className="size-3.5 text-muted-foreground" />}
+              <span className="min-w-0 flex-1 truncate">{modelName ?? 'Choose a model'}</span>
+              {team?.model?.inherited && <Badge variant="neutral" className="h-4 shrink-0 px-1 text-[9px]">Inherited</Badge>}
+            </button>
+          </AgentSection>
+
+          {/* Instructions */}
+          <AgentSection label="Instructions" summary={moduleOf('prompt')} onOpen={open} addButton={addFor('prompt')}>
+            <button
+              type="button"
+              disabled={!nodeData.onOpenModule}
+              onClick={(e) => {
+                e.stopPropagation();
+                open('prompt');
+              }}
+              className="nodrag block w-full rounded-lg border border-border px-2.5 py-1.5 text-left text-[11px] leading-snug transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 motion-reduce:transition-none"
+              aria-label="Open Prompt settings"
+            >
+              {promptPreview ? (
+                <span className="line-clamp-2 text-foreground/80">{promptPreview}</span>
+              ) : (
+                <span className="text-muted-foreground">Add instructions…</span>
+              )}
+              {moduleOf('prompt')?.detail && <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{moduleOf('prompt')?.detail}</span>}
+            </button>
+          </AgentSection>
+
+          {/* Knowledge */}
+          <AgentSection label="Knowledge Bases" summary={moduleOf('knowledge')} onOpen={open} addButton={addFor('embedding')}>
+            {(slots.embedding ?? []).length > 0 ? (
+              <ChipRow
+                items={(slots.embedding ?? []).map((k) => ({ key: k.id, label: k.label, icon: <BookOpen className="size-3 text-primary" /> }))}
+                onClick={() => open('knowledge')}
+              />
+            ) : (
+              <OutlineAction icon={<Database className="size-3.5" />} label="Add Knowledge Bases" onClick={() => open('knowledge', { section: 'sources' })} disabled={!nodeData.onOpenModule} />
+            )}
+          </AgentSection>
+
+          {/* Tools */}
+          <AgentSection label="Tools" summary={moduleOf('tools')} onOpen={open} addButton={addFor('tools')}>
+            {toolCount > 0 ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={!nodeData.onOpenModule}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    open('tools', { section: 'builtin' });
+                  }}
+                  className="nodrag flex size-6 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  aria-label="Add or change tools"
+                  title="Add or change tools"
+                >
+                  <Plus className="size-3" />
+                </button>
+                <button
+                  type="button"
+                  disabled={!nodeData.onOpenModule}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    open('tools');
+                  }}
+                  className="nodrag flex min-w-0 flex-1 items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  aria-label={`${toolCount} tools. Open Tools settings`}
+                >
+                  <AppLogoStack apps={toolApps} />
+                  {builtinTools.slice(0, toolApps.length ? 1 : 2).map((t) => (
+                    <span key={t} className="inline-flex max-w-[96px] items-center gap-1 truncate rounded-full border border-border bg-surface-raised px-1.5 py-0.5 text-[10px] text-foreground">
+                      <Wrench className="size-2.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{t.replace(/_/g, ' ')}</span>
+                    </span>
+                  ))}
+                  {hiddenToolCount > 0 && <span className="text-[10px] text-muted-foreground">+{hiddenToolCount}</span>}
+                </button>
+              </div>
+            ) : (
+              <OutlineAction icon={<Wrench className="size-3.5" />} label="Add Tools" onClick={() => open('tools', { section: 'builtin' })} disabled={!nodeData.onOpenModule} />
+            )}
+          </AgentSection>
+
+          {/* Sub-agents */}
+          <AgentSection label="Sub-agents" summary={moduleOf('subAgents')} onOpen={open} addButton={addFor('agents')}>
+            {subAgents.length > 0 ? (
+              <ChipRow items={subAgents.map((a) => ({ key: a.id, label: a.label, icon: <Bot className="size-3 text-primary" /> }))} onClick={() => open('subAgents')} />
+            ) : (
+              <OutlineAction
+                icon={<Network className="size-3.5" />}
+                label={isCoordinator ? 'Add the agents this team uses' : 'Add sub-agents'}
+                onClick={() => open('subAgents', { section: 'members' })}
+                disabled={!nodeData.onOpenModule}
+              />
+            )}
+            {(subAgents.length > 1 || isCoordinator) && (
+              <div className="nodrag nopan mt-1.5" onClick={(e) => e.stopPropagation()}>
+                <AppSelect
+                  size="sm"
+                  aria-label="How this agent delegates"
+                  value={String(cfg.delegation || 'router')}
+                  options={DELEGATION_OPTIONS}
+                  disabled={locked || !nodeData.onUpdateConfig}
+                  onValueChange={(delegation) => nodeData.onUpdateConfig?.({ delegation })}
+                  className="h-7 text-[11px]"
                 />
-              )}
-              {slot.id === 'agents' && (subAgents.length > 1 || isCoordinator) && (
-                <div className="nodrag nopan mt-1.5" onClick={(e) => e.stopPropagation()}>
-                  <AppSelect
-                    size="sm"
-                    aria-label="How this agent delegates"
-                    value={String(cfg.delegation || 'router')}
-                    options={DELEGATION_OPTIONS}
-                    disabled={locked || !nodeData.onUpdateConfig}
-                    onValueChange={(delegation) => nodeData.onUpdateConfig?.({ delegation })}
-                    className="h-7 text-[11px]"
-                  />
-                </div>
-              )}
-            </SlotRow>
-          ))}
+              </div>
+            )}
+          </AgentSection>
         </div>
       )}
       <AttachedChip data={nodeData} />
+      <NodeRunFooter run={nodeData.run} />
     </div>
+  );
+}
+
+/** Quick-add "+" buttons appear when the card is hovered, focused or selected. */
+const QUICK_ADD_REVEAL =
+  'opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 group-[.selected]:opacity-100 [.react-flow__node.selected_&]:opacity-100 motion-reduce:transition-none';
+
+/** A labelled block on the agent card; its warning icon jumps to the problem in the drawer. */
+function AgentSection({
+  label,
+  summary,
+  onOpen,
+  addButton,
+  hideLabel,
+  children,
+}: {
+  label?: string;
+  summary?: ModuleSummary;
+  onOpen: (id: AgentModuleId, target?: { section?: string; field?: string }) => void;
+  addButton?: React.ReactNode;
+  hideLabel?: boolean;
+  children: React.ReactNode;
+}) {
+  const issue = summary ? firstIssue(summary) : undefined;
+  const warning = issue && summary ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(summary.id, { section: issue.section, field: issue.field });
+      }}
+      className={cn(
+        'nodrag flex size-5 shrink-0 items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+        issue.level === 'error' ? 'text-destructive hover:bg-destructive/10' : 'text-warning hover:bg-warning/10',
+      )}
+      title={issue.message}
+      aria-label={`Fix: ${issue.message}`}
+    >
+      <AlertTriangle className="size-3" />
+    </button>
+  ) : null;
+  if (hideLabel) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <div className="min-w-0 flex-1">{children}</div>
+        {warning}
+        {addButton && <span className={QUICK_ADD_REVEAL}>{addButton}</span>}
+      </div>
+    );
+  }
+  return (
+    <section aria-label={label}>
+      <div className="mb-1 flex items-center gap-1.5">
+        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+        <span className="ml-auto flex items-center gap-1">
+          {warning}
+          {addButton && <span className={QUICK_ADD_REVEAL}>{addButton}</span>}
+        </span>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Full-width outline button for an empty section ("Add Knowledge Bases"). */
+function OutlineAction({ icon, label, onClick, disabled }: { icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="nodrag flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-[11px] font-medium text-foreground shadow-2xs transition-colors hover:border-primary/40 hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 motion-reduce:transition-none"
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+/** What is plugged in, as chips; the row opens the module. */
+function ChipRow({ items, onClick }: { items: Array<{ key: string; label: string; icon: React.ReactNode }>; onClick: () => void }) {
+  const shown = items.slice(0, 3);
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="nodrag flex w-full flex-wrap items-center gap-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+    >
+      {shown.map((item) => (
+        <span key={item.key} className="inline-flex max-w-[130px] items-center gap-1 rounded-full border border-border bg-surface-raised px-1.5 py-0.5 text-[10px] text-foreground">
+          {item.icon}
+          <span className="truncate">{item.label}</span>
+        </span>
+      ))}
+      {items.length > shown.length && <span className="text-[10px] text-muted-foreground">+{items.length - shown.length}</span>}
+    </button>
   );
 }
 
@@ -1102,21 +1603,19 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ top: 32 }}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
+      <WorkflowHandle type="target" colorClass="bg-primary" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="Prompt"
+        defaultDescription="System prompt"
+        icon={ScrollText}
+        iconBg="bg-primary/15 text-primary"
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-          <ScrollText className="size-5" />
-        </div>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-foreground">{nodeData.label || 'Prompt'}</div>
-          <div className="truncate text-[11px] text-muted-foreground">{nodeData.subtitle || 'System prompt'}</div>
-        </div>
-      </div>
       <label className={cn(fieldLabelClass, 'mt-3 block')} htmlFor={`${id}-prompt`}>
         Prompt <span className="text-destructive">*</span>
       </label>
@@ -1133,10 +1632,10 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
         className="nodrag nopan nowheel mt-1 font-mono text-[11px] leading-relaxed"
       />
       <AttachedChip data={nodeData} />
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-primary"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
       />
     </div>
   );
@@ -1162,24 +1661,22 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ top: 32 }}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
-      />
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-raised border border-border/80">
-          <AIModelIcon modelId={model} size={18} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-foreground flex items-center justify-between gap-1">
-            <span>{nodeData.label || 'LLM'}</span>
-            <AIModelBadge modelId={model} variant="subtle" size="xs" />
+      <WorkflowHandle type="target" colorClass="bg-primary" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="LLM"
+        defaultDescription="Chat model"
+        customIcon={
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-raised border border-border/80">
+            <AIModelIcon modelId={model} size={18} />
           </div>
-          <div className="truncate text-[11px] text-muted-foreground">{nodeData.subtitle || 'Chat model'}</div>
-        </div>
-      </div>
+        }
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
+      />
 
       <div className="nodrag nopan mt-3 space-y-2">
         <div className="space-y-1">
@@ -1237,10 +1734,10 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
         </div>
       </div>
       <AttachedChip data={nodeData} />
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-success"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-success"
       />
     </div>
   );
@@ -1263,35 +1760,20 @@ export const AgentNode = memo((props: NodeProps) => {
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
 
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
+      <WorkflowHandle type="target" colorClass="bg-primary" />
+
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="AI Agent"
+        defaultDescription="AI-powered workflow agent"
+        icon={Bot}
+        iconBg="bg-primary/15 text-primary"
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <Bot className="size-5" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-foreground">
-              {nodeData.label || 'AI Agent'}
-            </div>
-            <div className="text-[11px] text-muted-foreground line-clamp-1">
-              {nodeData.subtitle || 'Autonomous Reasoning'}
-            </div>
-          </div>
-        </div>
-
-        {cfg.model && (
-          <AIModelBadge
-            modelId={String(cfg.model)}
-            variant="subtle"
-            size="xs"
-          />
-        )}
-      </div>
 
       {cfg.instructions && (
         <div className="mt-2.5 rounded-md bg-surface-raised/70 p-1.5 text-[10px] text-muted-foreground line-clamp-2">
@@ -1304,10 +1786,10 @@ export const AgentNode = memo((props: NodeProps) => {
         <span>Temp: {cfg.temperature ?? 0.7}</span>
       </div>
 
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-primary"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
       />
     </div>
   );
@@ -1327,32 +1809,20 @@ export const FirecrawlNode = memo(({ id, data, selected }: NodeProps) => {
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-warning"
+      <WorkflowHandle type="target" colorClass="bg-warning" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="Firecrawl"
+        defaultDescription="Web Extraction"
+        icon={Flame}
+        iconBg="bg-warning/15 text-warning"
+        badge={<span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning">Firecrawl</span>}
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-warning/15 text-warning">
-            <Flame className="size-5" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-foreground">
-              {nodeData.label || 'Firecrawl'}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {nodeData.subtitle || 'Web Extraction'}
-            </div>
-          </div>
-        </div>
-
-        <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning">
-          Firecrawl
-        </span>
-      </div>
 
       {(cfg.query || cfg.url) && (
         <div className="mt-2 rounded bg-surface-raised px-2 py-1 font-mono text-[10px] text-muted-foreground truncate">
@@ -1365,10 +1835,10 @@ export const FirecrawlNode = memo(({ id, data, selected }: NodeProps) => {
         <ConfigureButton id={id} data={nodeData} />
       </div>
 
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-warning"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-warning"
       />
     </div>
   );
@@ -1388,36 +1858,29 @@ export const MCPToolNode = memo(({ id, data, selected }: NodeProps) => {
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-indigo"
+      <WorkflowHandle type="target" colorClass="bg-accent-indigo" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || cfg.toolName || nodeData.subtitle}
+        defaultTitle="Custom External API"
+        defaultDescription="Execute external API operation"
+        icon={Wrench}
+        iconBg="bg-accent-indigo/15 text-accent-indigo"
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-indigo/15 text-accent-indigo">
-          <Wrench className="size-5" />
-        </div>
-        <div>
-          <div className="text-sm font-semibold text-foreground">
-            {nodeData.label || 'MCP Tool'}
-          </div>
-          <div className="text-[11px] font-mono text-muted-foreground truncate max-w-[140px]">
-            {cfg.toolName || nodeData.subtitle || 'execute_tool'}
-          </div>
-        </div>
-      </div>
 
       <AttachedChip data={nodeData} />
       <div>
         <ConfigureButton id={id} data={nodeData} />
       </div>
 
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-accent-indigo"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-indigo"
       />
     </div>
   );
@@ -1435,6 +1898,9 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
   const status = nodeData.status || (picked && app.connected ? 'idle' : 'waiting');
   const kindLabel = !app.capability ? null : app.capability.kind === 'query' ? 'Reads' : app.capability.permissionLevel === 'destructive' ? 'Deletes' : 'Writes';
 
+  const defaultTitle = app.connector?.name ?? (app.provider ? app.provider : 'App Connector');
+  const defaultDesc = app.label || nodeData.subtitle || 'Execute app action';
+
   return (
     <div
       className={cn(
@@ -1444,49 +1910,47 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
+      <WorkflowHandle type="target" colorClass="bg-primary" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle={defaultTitle}
+        defaultDescription={defaultDesc}
+        customIcon={
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised p-1.5 shadow-2xs">
+            <AppConnectorIcon connectorId={app.slug} name={app.connector?.name} category={app.connector?.category} size={24} />
+          </div>
+        }
+        badge={
+          picked && !app.loading ? (
+            <span
+              className={cn(
+                'shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold',
+                app.connected
+                  ? 'border-success/25 bg-success/10 text-success-text'
+                  : 'border-warning/30 bg-warning/10 text-warning-text',
+              )}
+            >
+              {app.connected ? 'Connected' : app.connector ? 'Not connected' : 'Unknown app'}
+            </span>
+          ) : undefined
+        }
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
 
-      <div className="flex items-start gap-2.5">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-surface-raised p-1.5 shadow-2xs">
-          <AppConnectorIcon connectorId={app.slug} name={app.connector?.name} category={app.connector?.category} size={24} />
+      {preview.map(([k, v]) => (
+        <div key={k} className="mt-1 truncate rounded bg-surface-raised/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/80">
+          {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
         </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-1.5">
-            <span className="truncate text-sm font-semibold text-foreground">{app.connector?.name ?? (app.provider ? app.provider : 'App action')}</span>
-            {picked && !app.loading && (
-              <span
-                className={cn(
-                  'shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold',
-                  app.connected
-                    ? 'border-success/25 bg-success/10 text-success-text'
-                    : 'border-warning/30 bg-warning/10 text-warning-text',
-                )}
-              >
-                {app.connected ? 'Connected' : app.connector ? 'Not connected' : 'Unknown app'}
-              </span>
-            )}
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5">
-            <span className="truncate text-[11px] text-muted-foreground">{app.label || nodeData.label || 'Pick an app and an action'}</span>
-            {kindLabel && <span className="shrink-0 text-[9px] uppercase tracking-wide text-muted-foreground/80">{kindLabel}</span>}
-          </div>
-          {preview.map(([k, v]) => (
-            <div key={k} className="mt-1 truncate rounded bg-surface-raised/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/80">
-              {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-            </div>
-          ))}
-        </div>
-      </div>
+      ))}
 
       <AttachedChip data={nodeData} />
       <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-2">
         <ConfigureButton id={id} data={nodeData} />
+        {kindLabel && <span className="ml-auto mr-2 shrink-0 text-[9px] uppercase tracking-wide text-muted-foreground/80">{kindLabel}</span>}
         {app.capability?.requiresConfirmation && (
           <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-warning-text" title={`${app.connector?.name} marks this as needing confirmation`}>
             <Shield className="size-2.5" /> Sensitive
@@ -1494,10 +1958,10 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
         )}
       </div>
 
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-primary"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
       />
     </div>
   );
@@ -1516,33 +1980,24 @@ export const TransformNode = memo(({ id, data, selected }: NodeProps) => {
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-blue"
+      <WorkflowHandle type="target" colorClass="bg-accent-blue" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="Transform"
+        defaultDescription="Map / Template"
+        icon={Code2}
+        iconBg="bg-accent-blue/15 text-accent-blue"
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-blue/15 text-accent-blue">
-          <Code2 className="size-5" />
-        </div>
-        <div>
-          <div className="text-sm font-semibold text-foreground">
-            {nodeData.label || 'Transform'}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {nodeData.subtitle || 'Map / Template'}
-          </div>
-        </div>
-      </div>
-
       <AttachedChip data={nodeData} />
-
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-accent-blue"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-blue"
       />
     </div>
   );
@@ -1553,6 +2008,10 @@ TransformNode.displayName = 'TransformNode';
 export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
   const cfg = nodeData.config || {};
+  const { direction } = useWorkflowLayout();
+  const dir = nodeData.direction || direction || 'horizontal';
+  const isVertical = dir === 'vertical';
+
   return (
     <div
       className={cn(
@@ -1563,49 +2022,75 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} addHandleId="true" />
 
-      <Handle
+      {/* Target handle: Left (50%) in horizontal, Top (50%) in vertical */}
+      <WorkflowHandle
         type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
+        colorClass="bg-accent-violet"
       />
 
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-violet/15 text-accent-violet">
-          <GitBranch className="size-5" />
-        </div>
-        <div>
-          <div className="text-sm font-semibold text-foreground">
-            {nodeData.label || 'If / Else'}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {cfg.variable ? `${cfg.variable} ${cfg.operator || '=='} ${cfg.value || ''}` : 'Branching Logic'}
-          </div>
-        </div>
-      </div>
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || (cfg.variable ? `${cfg.variable} ${cfg.operator || '=='} ${cfg.value || ''}` : nodeData.subtitle)}
+        defaultTitle="If / Else"
+        defaultDescription="Branching Logic"
+        icon={GitBranch}
+        iconBg="bg-accent-violet/15 text-accent-violet"
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
+      />
 
-      {/* True Handle (Top Right) */}
-      <div className="mt-3 flex items-center justify-between text-[10px] font-semibold text-success">
-        <span>True</span>
-        <SourceHandleWithQuickAdd
-          id="true"
-          position={Position.Right}
-          style={{ top: '42%' }}
-          onConnectNext={nodeData.onConnectNext}
-          className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-success"
-        />
-      </div>
+      {isVertical ? (
+        <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-[10px] font-semibold">
+          <div className="flex items-center gap-1 text-success">
+            <span>True</span>
+            <SourceHandleWithQuickAdd
+              id="true"
+              position={Position.Bottom}
+              style={{ left: '30%' }}
+              colorClass="bg-success"
+              onConnectNext={nodeData.onConnectNext}
+            />
+          </div>
+          <div className="flex items-center gap-1 text-destructive">
+            <span>False</span>
+            <SourceHandleWithQuickAdd
+              id="false"
+              position={Position.Bottom}
+              style={{ left: '70%' }}
+              colorClass="bg-destructive"
+              onConnectNext={nodeData.onConnectNext}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {/* True Handle (Top Right) */}
+          <div className="flex items-center justify-between text-[10px] font-semibold text-success">
+            <span>True</span>
+            <SourceHandleWithQuickAdd
+              id="true"
+              position={Position.Right}
+              style={{ top: '38%' }}
+              colorClass="bg-success"
+              onConnectNext={nodeData.onConnectNext}
+            />
+          </div>
 
-      {/* False Handle (Bottom Right) */}
-      <div className="flex items-center justify-between text-[10px] font-semibold text-destructive">
-        <span>False</span>
-        <SourceHandleWithQuickAdd
-          id="false"
-          position={Position.Right}
-          style={{ top: '78%' }}
-          onConnectNext={nodeData.onConnectNext}
-          className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-destructive"
-        />
-      </div>
+          {/* False Handle (Bottom Right) */}
+          <div className="flex items-center justify-between text-[10px] font-semibold text-destructive">
+            <span>False</span>
+            <SourceHandleWithQuickAdd
+              id="false"
+              position={Position.Right}
+              style={{ top: '78%' }}
+              colorClass="bg-destructive"
+              onConnectNext={nodeData.onConnectNext}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 });
@@ -1625,31 +2110,23 @@ export const WhileLoopNode = memo(({ id, type, data, selected }: NodeProps) => {
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
+      <WorkflowHandle type="target" colorClass="bg-accent-violet" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="While Loop"
+        defaultDescription="Iterative batching"
+        icon={Repeat}
+        iconBg="bg-accent-violet/15 text-accent-violet"
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-violet/15 text-accent-violet">
-          <Repeat className="size-5" />
-        </div>
-        <div>
-          <div className="text-sm font-semibold text-foreground">
-            {nodeData.label || 'While Loop'}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {nodeData.subtitle || 'Iterative batching'}
-          </div>
-        </div>
-      </div>
-
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-accent-violet"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
       />
     </div>
   );
@@ -1663,6 +2140,10 @@ WhileLoopNode.displayName = 'WhileLoopNode';
  */
 function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNodePayload; selected: boolean }) {
   const itemsKey = String((nodeData.config as { itemsKey?: string } | undefined)?.itemsKey || 'items');
+  const { direction } = useWorkflowLayout();
+  const dir = nodeData.direction || direction || 'horizontal';
+  const isVertical = dir === 'vertical';
+
   return (
     <div
       className={cn(
@@ -1672,45 +2153,66 @@ function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNo
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
+      <WorkflowHandle type="target" colorClass="bg-accent-violet" />
+
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle || `For each in {{${itemsKey}}}`}
+        defaultTitle="Loop"
+        defaultDescription={`For each in {{${itemsKey}}}`}
+        icon={Repeat}
+        iconBg="bg-accent-violet/15 text-accent-violet"
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-accent-violet/15 text-accent-violet">
-          <Repeat className="size-5" />
-        </div>
-        <div>
-          <div className="text-sm font-semibold text-foreground">{nodeData.label || 'Loop'}</div>
-          <div className="text-[11px] text-muted-foreground">
-            For each in <span className="font-mono">{`{{${itemsKey}}}`}</span>
+
+      {isVertical ? (
+        <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-[10px] font-semibold">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <span>When done</span>
+            <SourceHandleWithQuickAdd
+              position={Position.Bottom}
+              style={{ left: '30%' }}
+              colorClass="bg-accent-violet"
+              onConnectNext={nodeData.onConnectNext}
+            />
+          </div>
+          <div className="flex items-center gap-1 text-accent-violet">
+            <span>Each item</span>
+            <SourceHandleWithQuickAdd
+              id="each"
+              position={Position.Bottom}
+              style={{ left: '70%' }}
+              colorClass="bg-accent-violet"
+              onConnectNext={nodeData.onConnectNext}
+            />
           </div>
         </div>
-      </div>
-      {/* "When done" comes first in the DOM: edges saved without a handle bind to the first one. */}
-      <div className="mt-3 flex flex-col-reverse gap-1.5 text-[10px] font-semibold">
-        <div className="relative flex items-center justify-end pr-2 text-muted-foreground">
-          <span>When done</span>
-          <SourceHandleWithQuickAdd
-            position={Position.Right}
-            // On the node's edge, not the row's (14px padding + 1px border)
-            style={{ right: -15 }}
-            onConnectNext={nodeData.onConnectNext}
-            className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
-          />
+      ) : (
+        <div className="mt-3 flex flex-col-reverse gap-1.5 text-[10px] font-semibold">
+          <div className="relative flex items-center justify-end pr-2 text-muted-foreground">
+            <span>When done</span>
+            <SourceHandleWithQuickAdd
+              position={Position.Right}
+              style={{ top: '42%' }}
+              colorClass="bg-accent-violet"
+              onConnectNext={nodeData.onConnectNext}
+            />
+          </div>
+          <div className="relative flex items-center justify-end pr-2 text-accent-violet">
+            <span>Each item</span>
+            <SourceHandleWithQuickAdd
+              id="each"
+              position={Position.Right}
+              style={{ top: '78%' }}
+              colorClass="bg-accent-violet"
+              onConnectNext={nodeData.onConnectNext}
+            />
+          </div>
         </div>
-        <div className="relative flex items-center justify-end pr-2 text-accent-violet">
-          <span>Each item</span>
-          <SourceHandleWithQuickAdd
-            id="each"
-            position={Position.Right}
-            style={{ right: -15 }}
-            onConnectNext={nodeData.onConnectNext}
-            className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-accent-violet"
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1728,32 +2230,20 @@ export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-destructive"
+      <WorkflowHandle type="target" colorClass="bg-destructive" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="User Approval"
+        defaultDescription="Human signoff gate"
+        icon={UserCheck}
+        iconBg="bg-destructive/15 text-destructive"
+        badge={<span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive">Pause Flow</span>}
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive">
-            <UserCheck className="size-5" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-foreground">
-              {nodeData.label || 'User Approval'}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {nodeData.subtitle || 'Human signoff gate'}
-            </div>
-          </div>
-        </div>
-
-        <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive">
-          Pause Flow
-        </span>
-      </div>
 
       {cfg.action && (
         <div className="mt-2 text-[10px] text-muted-foreground italic truncate">
@@ -1761,10 +2251,10 @@ export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {
         </div>
       )}
 
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-destructive"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-destructive"
       />
     </div>
   );
@@ -1774,35 +2264,97 @@ UserApprovalNode.displayName = 'UserApprovalNode';
 // 9. End Node
 export const EndNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
+  const run = nodeData.run;
+  const [view, setView] = useState<'text' | 'formatted'>('formatted');
+  const text = run?.error || run?.output || '';
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Clipboard blocked: nothing to do, the text is still selectable.
+    }
+  };
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([text], { type: view === 'formatted' ? 'text/markdown' : 'text/plain' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${String(nodeData.label || 'output').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.${view === 'formatted' ? 'md' : 'txt'}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const toolButton = 'flex h-6 items-center gap-1 rounded-md border border-border bg-surface px-1.5 text-[10px] text-muted-foreground hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-40';
   return (
     <div
       className={cn(
-        'group relative min-w-[200px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
+        'group relative w-[300px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
         selected ? 'ring-2 ring-success border-success shadow-md' : 'hover:border-success/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} canAddNext={false} />
-
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-success"
+      <WorkflowHandle type="target" colorClass="bg-success" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="Output"
+        defaultDescription="The agent’s final answer"
+        icon={CheckCircle2}
+        iconBg="bg-success/15 text-success"
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
 
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-success/15 text-success">
-          <CheckCircle2 className="size-5" />
+      <div className="nodrag nopan mt-3 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div role="radiogroup" aria-label="Output view" className="flex rounded-md border border-border bg-surface-raised p-0.5">
+          {(['text', 'formatted'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={view === v}
+              onClick={() => setView(v)}
+              className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium capitalize', view === v ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground')}
+            >
+              {v}
+            </button>
+          ))}
         </div>
-        <div>
-          <div className="text-sm font-semibold text-foreground">
-            {nodeData.label || 'Workflow End'}
-          </div>
-          <div className="text-[11px] text-muted-foreground">
-            {nodeData.subtitle || 'Final output delivery'}
-          </div>
-        </div>
+        <span className="ml-auto flex items-center gap-1">
+          <button type="button" className={toolButton} disabled={!text} onClick={() => void copy()} aria-label="Copy output" title="Copy">
+            <Copy className="size-3" />
+          </button>
+          <button type="button" className={toolButton} disabled={!text} onClick={download} aria-label="Download output" title="Download">
+            <Download className="size-3" />
+          </button>
+          <button type="button" className={toolButton} disabled={!run || !nodeData.onClearRun} onClick={() => nodeData.onClearRun?.()} aria-label="Clear output">
+            <Trash2 className="size-3" />
+            Clear
+          </button>
+        </span>
       </div>
+      <div
+        tabIndex={0}
+        aria-label="Output"
+        className={cn(
+          'nodrag nowheel mt-2 max-h-56 min-h-16 overflow-auto rounded-lg border px-3 py-2',
+          run?.error ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-surface',
+        )}
+      >
+        {!text ? (
+          <p className="py-2 text-center text-[11px] text-muted-foreground">
+            {run?.status === 'running' ? 'Waiting for the agent…' : 'Run the agent to see its answer here.'}
+          </p>
+        ) : run?.error ? (
+          <p className="whitespace-pre-wrap text-[11px] text-destructive">{run.error}</p>
+        ) : view === 'formatted' ? (
+          <FormattedText text={text} />
+        ) : (
+          <pre className="whitespace-pre-wrap [overflow-wrap:anywhere] font-mono text-[11px] leading-relaxed text-foreground">{text}</pre>
+        )}
+      </div>
+      <NodeRunFooter run={run} />
     </div>
   );
 });
@@ -1821,34 +2373,26 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
+      <WorkflowHandle type="target" colorClass="bg-primary" />
+      <EditableNodeHeader
+        id={id}
+        title={nodeData.title || nodeData.label}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="Studio Node"
+        defaultDescription="Step Execution"
+        icon={Cpu}
+        iconBg="bg-primary/10 text-primary"
+        badge={
+          nodeData.badge ? (
+            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+              {nodeData.badge}
+            </span>
+          ) : undefined
+        }
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Cpu className="size-5" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-foreground">
-              {nodeData.label || 'Studio Node'}
-            </div>
-            <div className="text-[11px] text-muted-foreground line-clamp-1">
-              {nodeData.subtitle || 'Step Execution'}
-            </div>
-          </div>
-        </div>
-
-        {nodeData.badge && (
-          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
-            {nodeData.badge}
-          </span>
-        )}
-      </div>
 
       {cfg.action && (
         <div className="mt-2 text-[10px] text-muted-foreground font-mono truncate">
@@ -1856,14 +2400,15 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
         </div>
       )}
 
+      <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        position={Position.Right}
+        colorClass="bg-primary"
         onConnectNext={nodeData.onConnectNext}
-        className="!size-3 !border-2 !border-background hover:!scale-125 !transition-transform !cursor-crosshair shadow-sm !bg-primary"
       />
     </div>
   );
 });
+GenericStudioNode.displayName = 'GenericStudioNode';
 // 11. Sticky Note / Documentation Node
 export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
   const nodeData = data as WorkflowNodePayload;
@@ -1880,11 +2425,18 @@ export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
   return (
     <div
       className={cn(
-        'group relative min-w-[190px] max-w-[280px] rounded-2xl border p-3 shadow-xs transition-all backdrop-blur-xs',
+        'group relative min-w-[190px] h-full w-full rounded-2xl border p-3 shadow-xs transition-all backdrop-blur-xs',
         colorStyles[color] || colorStyles.yellow,
         selected ? 'ring-2 ring-primary shadow-md' : 'hover:border-primary/40',
       )}
     >
+      <NodeResizer
+        minWidth={180}
+        minHeight={90}
+        isVisible={selected}
+        lineClassName="!border-warning/60"
+        handleClassName="!size-2 !bg-warning !border-background rounded-xs"
+      />
       <NodeActionToolbar id={id} data={nodeData} selected={selected} canAddNext={false} />
       <div className="flex items-center gap-1.5 font-bold text-xs mb-1.5 opacity-80">
         <StickyNote className="size-3.5" />
@@ -1911,15 +2463,22 @@ export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
   return (
     <div
       className={cn(
-        'group relative min-w-[340px] min-h-[220px] rounded-2xl border-2 border-dashed border-border/80 bg-surface/30 p-4 transition-all',
+        'group relative min-w-[340px] min-h-[220px] h-full w-full rounded-2xl border-2 border-dashed border-border/80 bg-surface/30 p-4 transition-all',
         selected ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/40',
       )}
     >
+      <NodeResizer
+        minWidth={280}
+        minHeight={160}
+        isVisible={selected}
+        lineClassName="!border-primary/60"
+        handleClassName="!size-2.5 !bg-primary !border-background rounded-xs"
+      />
       <NodeActionToolbar id={id} data={nodeData} selected={selected} canAddNext={false} />
       <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-2">
         <Folder className="size-4 text-primary" />
         <span>{nodeData.label || 'Stage Group'}</span>
-        {nodeData.subtitle && (
+        {nodeData.subtitle && nodeData.showDescription === true && (
           <span className="text-[10px] text-muted-foreground font-normal">
             ({nodeData.subtitle})
           </span>
@@ -2042,6 +2601,35 @@ const BASE_NODE_TYPES: Record<string, any> = {
   GROUP: GroupNode,
   SUBFLOW: GroupNode,
   STAGE: GroupNode,
+
+  // Section 3 Aliases
+  API: MCPToolNode,
+  WEB_SEARCH: FirecrawlNode,
+  WEB_SCRAPER: FirecrawlNode,
+  ROUTER: ConditionNode,
+  SWITCH: ConditionNode,
+  ITERATOR: WhileLoopNode,
+  PARALLEL: ConditionNode,
+  MERGE: ConditionNode,
+  PARSER: TransformNode,
+  JSON: TransformNode,
+  MEMORY: TransformNode,
+  MEMORY_STORE: TransformNode,
+  MEMORY_RETRIEVE: TransformNode,
+  KNOWLEDGE_BASE: TransformNode,
+  FILE: TransformNode,
+  DOCUMENT: TransformNode,
+  DELAY: WhileLoopNode,
+  SCHEDULE: StartNode,
+  WEBHOOK: StartNode,
+  DATABASE: MCPToolNode,
+  NOTIFICATION: MCPToolNode,
+  EMAIL: MCPToolNode,
+  SLACK: MCPToolNode,
+  TEAMS: AppConnectorNode,
+  GENERIC_CONNECTOR: AppConnectorNode,
+  CUSTOM_NODE: GenericStudioNode,
+
   generic: GenericStudioNode,
   default: GenericStudioNode,
 };
