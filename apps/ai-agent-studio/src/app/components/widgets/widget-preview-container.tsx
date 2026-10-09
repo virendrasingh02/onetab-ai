@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button, Badge } from '@org/ui';
 import { cn } from '@org/utils';
-import type { WidgetDefinition, WidgetState } from '@org/types';
+import type { WidgetDraft, WidgetState } from './widget-draft.js';
 import { WidgetRenderer } from './widget-renderer.js';
 import {
   Laptop,
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 interface WidgetPreviewContainerProps {
-  definition: Partial<WidgetDefinition>;
+  definition: WidgetDraft;
   onSave?: () => void;
   className?: string;
 }
@@ -112,7 +112,7 @@ export function WidgetPreviewContainer({
             errorMessage={previewState === 'error' ? 'Simulated runtime evaluation failure: connection timed out.' : undefined}
             onAction={handleAction}
             onRefresh={() => handleAction('widget_refreshed', { manual: true })}
-            size={definition.config?.size || 'md'}
+            size={definition.config.size ?? 'md'}
           />
         </div>
       </div>
@@ -123,7 +123,7 @@ export function WidgetPreviewContainer({
           <div className="flex items-center gap-1.5 font-semibold text-foreground">
             <Terminal className="size-3.5 text-primary" />
             <span>Widget Action & Event Stream</span>
-            <Badge variant="subtle" className="text-[10px] font-mono">
+            <Badge variant="secondary" className="text-[10px] font-mono">
               {actionLogs.length} events
             </Badge>
           </div>

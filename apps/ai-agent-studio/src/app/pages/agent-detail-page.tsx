@@ -13,6 +13,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
@@ -31,7 +34,7 @@ import {
   applyEdgeChanges,
   applyNodeChanges,
   Background,
-  ConnectionLineType,
+  type ConnectionLineComponentProps,
   ConnectionMode,
   MiniMap,
   Panel,
@@ -62,6 +65,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Award,
+  BarChart3,
   Bot,
   Brain,
   Check,
@@ -100,10 +104,14 @@ import {
   KeyRound,
   Wand2,
   X,
+  Rocket,
   CornerDownRight,
   MoveHorizontal,
+  MoreHorizontal,
   MoveVertical,
   Spline,
+  Route,
+  Slash,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -116,7 +124,7 @@ import {
 } from '../data/agent-metadata.js';
 import { useStudioSession } from '../session-guard.js';
 import { modelLabel, STUDIO_NODE_TYPES } from '../components/workflow-canvas/custom-nodes.js';
-import { STUDIO_EDGE_TYPES } from '../components/workflow-canvas/custom-edges.jsx';
+import { STUDIO_EDGE_TYPES, WorkflowConnectionLine } from '../components/workflow-canvas/custom-edges.jsx';
 import { CanvasContextMenu } from '../components/workflow-canvas/canvas-context-menu.jsx';
 import { NodeCatalogModal } from '../components/workflow-canvas/node-catalog-modal.js';
 import { NodeInspector, type NodeSnapshot } from '../components/workflow-canvas/node-inspector.js';
@@ -127,8 +135,11 @@ import { AgentConnectorsTab } from '../components/agent-detail/agent-connectors-
 import { MemoryTab } from '../components/agent-detail/memory-tab.jsx';
 import { VariablesTab } from '../components/agent-detail/variables-tab.jsx';
 import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
+import { AgentDeploymentTab } from '../components/agent-detail/agent-deployment-tab.js';
 import { agentService } from '../services/agentService.js';
+import { analyticsService } from '../services/analyticsService.js';
 import { layoutWorkflow } from '../components/workflow-canvas/auto-layout.js';
+import { EDGE_ROUTING_HINTS, EDGE_ROUTING_LABELS, isEdgeRouting } from '../components/workflow-canvas/edge-routing.js';
 import {
   WorkflowLayoutContext,
   type WorkflowDirection,
@@ -137,8 +148,6 @@ import {
 import {
   agentIssues,
   attachmentPosition,
-  collapsedAncestors,
-  collapsedNodeIds,
   getSlot,
   isAttachmentEdge,
   isSlotHost,
@@ -161,7 +170,7 @@ import {
   type ModuleDraft,
 } from '../components/workflow-canvas/agent-config/agent-module-model.js';
 import type { ModuleActions } from '../components/workflow-canvas/agent-config/module-drawer.js';
-import type { NodeRunResult } from '../components/workflow-canvas/node-chrome.js';
+import type { NodeAnalyticsOverlayData, NodeRunResult } from '../components/workflow-canvas/node-chrome.js';
 
 const INITIAL_NODES: Node[] = [
   {
@@ -227,6 +236,14 @@ export interface ParsedStudioGraph {
   };
 }
 
+/** Canvas-wide routing choices, in menu order. */
+const EDGE_ROUTING_MENU: { value: WorkflowEdgeStyle; Icon: typeof Spline }[] = [
+  { value: 'smooth', Icon: Spline },
+  { value: 'step', Icon: CornerDownRight },
+  { value: 'smart', Icon: Route },
+  { value: 'straight', Icon: Slash },
+];
+
 /** The canvas graph as the API stores it: JSON in `graphJson`. */
 function parseGraph(graphJson: string | null | undefined): ParsedStudioGraph | null {
   if (!graphJson) return null;
@@ -246,7 +263,7 @@ function parseGraph(graphJson: string | null | undefined): ParsedStudioGraph | n
         : {}),
       layout: {
         direction: graph.layout?.direction === 'vertical' ? 'vertical' : 'horizontal',
-        edgeStyle: graph.layout?.edgeStyle === 'step' ? 'step' : 'smooth',
+        edgeStyle: isEdgeRouting(graph.layout?.edgeStyle) ? graph.layout.edgeStyle : 'smooth',
       },
     };
   } catch {
@@ -303,9 +320,14 @@ const AGENT_TABS = [
   { id: 'executions', label: 'Executions', icon: Activity },
   { id: 'evaluations', label: 'Evaluation', icon: Award },
   { id: 'versions', label: 'Versions', icon: Clock },
+  { id: 'deploy', label: 'Deploy', icon: Rocket },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
 type AgentTab = (typeof AGENT_TABS)[number]['id'];
+/** Shown inline in the header; the rest sit under "More". */
+const PRIMARY_TAB_IDS: readonly AgentTab[] = ['build', 'executions', 'versions', 'deploy', 'settings'];
+const PRIMARY_AGENT_TABS = AGENT_TABS.filter((tab) => PRIMARY_TAB_IDS.includes(tab.id));
+const OVERFLOW_AGENT_TABS = AGENT_TABS.filter((tab) => !PRIMARY_TAB_IDS.includes(tab.id));
 const isAgentTab = (value: string | null): value is AgentTab =>
   AGENT_TABS.some((t) => t.id === value);
 
@@ -325,17 +347,33 @@ const HISTORY_LIMIT = 100;
 /** Edits that land within this window (typing in the inspector, nudges) collapse into one undo step. */
 const HISTORY_SETTLE_MS = 400;
 
+/** Canvas-wide settings that undo/redo restores along with the graph. */
+interface CanvasLayout {
+  direction: WorkflowDirection;
+  edgeStyle: WorkflowEdgeStyle;
+}
+
 interface GraphSnapshot {
   key: string;
   nodes: Node[];
   edges: Edge[];
+  layout?: CanvasLayout;
 }
 
-/** The graph minus React Flow's transient UI state (selection, drag, measured size). */
-function toGraphSnapshot(nodes: Node[], edges: Edge[]): GraphSnapshot {
+/**
+ * The graph minus React Flow's transient UI state (selection, drag, measured
+ * size), plus — for history entries — the canvas layout, so switching edge
+ * routing or layout direction is an undoable step like any graph edit.
+ */
+function toGraphSnapshot(nodes: Node[], edges: Edge[], layout?: CanvasLayout): GraphSnapshot {
   const cleanNodes = nodes.map(({ selected: _s, dragging: _d, measured: _m, ...n }) => n as Node);
   const cleanEdges = edges.map(({ selected: _s, ...e }) => e as Edge);
-  return { key: JSON.stringify([cleanNodes, cleanEdges]), nodes: cleanNodes, edges: cleanEdges };
+  return {
+    key: JSON.stringify(layout ? [cleanNodes, cleanEdges, layout.direction, layout.edgeStyle] : [cleanNodes, cleanEdges]),
+    nodes: cleanNodes,
+    edges: cleanEdges,
+    ...(layout ? { layout } : {}),
+  };
 }
 
 const isTypingTarget = (target: EventTarget | null) => {
@@ -389,11 +427,12 @@ function WorkflowCanvasInner({
   onInitFlow,
   isLocked,
   onToggleLock,
-  onToggleCollapse,
   onFocusNodeById,
   onEdgeClick,
   onInspectEdge,
   onInsertNodeOnEdge,
+  onEditEdgeLabel,
+  onToggleEdgeAnimated,
   onCopyNode,
   onCutNode,
   onPaste,
@@ -435,13 +474,13 @@ function WorkflowCanvasInner({
   onInitFlow?: (instance: any) => void;
   isLocked: boolean;
   onToggleLock: () => void;
-  /** Agents: hide / show everything plugged into one. */
-  onToggleCollapse: (agentId: string) => void;
-  /** Frame a node (expanding collapsed agents above it). */
+  /** Frame a node. */
   onFocusNodeById: (nodeId: string) => void;
   onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onInspectEdge?: (edge: Edge) => void;
   onInsertNodeOnEdge?: (edge: Edge) => void;
+  onEditEdgeLabel?: (edge: Edge) => void;
+  onToggleEdgeAnimated?: (edge: Edge) => void;
   onCopyNode?: (node: Node) => void;
   onCutNode?: (node: Node) => void;
   onPaste?: () => void;
@@ -644,11 +683,125 @@ function WorkflowCanvasInner({
     });
   }, []);
 
-  // Node quick-action toolbars hide mutating actions while the canvas is locked
-  const displayNodes = useMemo(
-    () => (isLocked ? nodes.map((n) => ({ ...n, data: { ...n.data, locked: true } })) : nodes),
-    [nodes, isLocked],
+  // Analytics Overlay State
+  const [isAnalyticsOverlayOpen, setIsAnalyticsOverlayOpen] = useState(false);
+  const [overlayMetric, setOverlayMetric] = useState<'duration' | 'cost' | 'runs' | 'errors'>('duration');
+  const [overlayRange, setOverlayRange] = useState<'24H' | '7D' | '30D'>('7D');
+  const { activeWorkspace } = useStudioSession();
+  const { agentId } = useParams();
+
+  // Query workflow analytics for overlay metrics
+  const { data: workflowAnalytics } = useQuery({
+    queryKey: ['workflow-analytics-overlay', activeWorkspace?.id, agentId, overlayRange],
+    queryFn: () => analyticsService.getWorkflowDetail(activeWorkspace.id, agentId!, overlayRange),
+    enabled: Boolean(isAnalyticsOverlayOpen && activeWorkspace?.id && agentId),
+  });
+
+  // Also query node analytics across workspace for node fallback
+  const { data: nodesAnalytics = [] } = useQuery({
+    queryKey: ['nodes-analytics-overlay', activeWorkspace?.id, overlayRange],
+    queryFn: () => analyticsService.getNodeAnalytics(activeWorkspace.id, overlayRange),
+    enabled: Boolean(isAnalyticsOverlayOpen && activeWorkspace?.id),
+  });
+
+  // Node quick-action toolbars hide mutating actions while the canvas is locked; analytics overlay attaches telemetry badges
+  // The drag-to-connect wire follows the chosen routing and shows an arrowhead
+  const connectionLine = useCallback(
+    (lineProps: ConnectionLineComponentProps) => (
+      <WorkflowConnectionLine {...lineProps} edgeStyle={edgeStyle} />
+    ),
+    [edgeStyle],
   );
+
+  const displayNodes = useMemo(() => {
+    // Per-node metrics for this workflow, falling back to workspace-wide
+    // figures for the node's type. Nodes with neither get no badge.
+    const metricsFor = (n: (typeof nodes)[number]) => {
+      const own = workflowAnalytics?.nodeMetrics?.[n.id];
+      if (own) {
+        return {
+          executionCount: own.invocations,
+          successCount: own.successCount,
+          errorCount: own.errorCount,
+          successRate: own.successRate,
+          avgDurationMs: own.avgLatencyMs,
+          totalTokens: own.totalTokens,
+          estimatedCost: own.costUsd,
+          errorRate: own.errorRate,
+          retryCount: 0,
+        };
+      }
+      const byType = nodesAnalytics.find((rec) => rec.nodeType === n.type);
+      if (byType) {
+        return {
+          executionCount: byType.invocations,
+          successCount: byType.successCount,
+          errorCount: byType.errorCount,
+          successRate: byType.successRate,
+          avgDurationMs: byType.avgDurationMs,
+          totalTokens: byType.totalTokens,
+          estimatedCost: byType.costUsd,
+          errorRate: byType.invocations > 0 ? (byType.errorCount / byType.invocations) * 100 : 0,
+          retryCount: byType.retryCount,
+        };
+      }
+      return null;
+    };
+
+    const metricOf = (m: NonNullable<ReturnType<typeof metricsFor>>) =>
+      overlayMetric === 'duration'
+        ? m.avgDurationMs
+        : overlayMetric === 'cost'
+        ? m.estimatedCost
+        : overlayMetric === 'runs'
+        ? m.executionCount
+        : m.errorRate;
+
+    let maxVal = 0;
+    if (isAnalyticsOverlayOpen) {
+      for (const n of nodes) {
+        const m = metricsFor(n);
+        if (m) maxVal = Math.max(maxVal, metricOf(m));
+      }
+    }
+
+    return nodes.map((n) => {
+      let nodeAnalyticsData: NodeAnalyticsOverlayData | undefined;
+      const m = isAnalyticsOverlayOpen ? metricsFor(n) : null;
+
+      if (m) {
+        const metricLabel =
+          overlayMetric === 'cost' ? 'Cost' : overlayMetric === 'runs' ? 'Runs' : overlayMetric === 'errors' ? 'Errors' : 'Latency';
+        const metricValue =
+          overlayMetric === 'cost'
+            ? `$${m.estimatedCost.toFixed(4)}`
+            : overlayMetric === 'runs'
+            ? `${m.executionCount}`
+            : overlayMetric === 'errors'
+            ? `${m.errorRate.toFixed(1)}%`
+            : `${Math.round(m.avgDurationMs)}ms`;
+
+        nodeAnalyticsData = {
+          ...m,
+          relativeIntensity: maxVal > 0 ? Math.min(1, metricOf(m) / maxVal) : 0,
+          metricLabel,
+          metricValue,
+        };
+      }
+
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          locked: isLocked ? true : n.data?.locked,
+          analytics: nodeAnalyticsData,
+          onOpenNodeAnalytics: () => {
+            onNodeClick?.(null as any, n);
+          },
+        },
+      };
+    });
+  }, [nodes, isLocked, isAnalyticsOverlayOpen, overlayMetric, overlayRange, workflowAnalytics, nodesAnalytics, onNodeClick]);
 
   autoLayoutRef.current = (dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR') => handleAutoLayoutClick(dir);
   const handleAutoLayoutClick = useCallback((dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR') => {
@@ -701,71 +854,49 @@ function WorkflowCanvasInner({
           <span>Auto Layout</span>
         </Button>
 
-        {/* Direction Selector */}
+        {/* Layout direction + connection style live in one overflow menu */}
         <div className="h-4 w-px bg-border mx-0.5" />
-        <div className="flex items-center rounded-xl bg-surface-raised/80 p-0.5 border border-border/40" title="Workflow layout direction">
-          <button
-            type="button"
-            onClick={() => onChangeDirection?.('horizontal')}
-            title="Horizontal Workflow (Left to Right)"
-            className={cn(
-              'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer',
-              direction === 'horizontal'
-                ? 'bg-background text-foreground shadow-sm font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <MoveHorizontal className="size-3.5" />
-            <span className="hidden sm:inline">Horizontal</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onChangeDirection?.('vertical')}
-            title="Vertical Workflow (Top to Bottom)"
-            className={cn(
-              'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer',
-              direction === 'vertical'
-                ? 'bg-background text-foreground shadow-sm font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <MoveVertical className="size-3.5" />
-            <span className="hidden sm:inline">Vertical</span>
-          </button>
-        </div>
-
-        {/* Edge Style Selector */}
-        <div className="h-4 w-px bg-border mx-0.5" />
-        <div className="flex items-center rounded-xl bg-surface-raised/80 p-0.5 border border-border/40" title="Connection line style">
-          <button
-            type="button"
-            onClick={() => onChangeEdgeStyle?.('smooth')}
-            title="Smooth / Curved Connections"
-            className={cn(
-              'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer',
-              edgeStyle === 'smooth'
-                ? 'bg-background text-foreground shadow-sm font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Spline className="size-3.5" />
-            <span className="hidden sm:inline">Smooth</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onChangeEdgeStyle?.('step')}
-            title="Step / Orthogonal Connections"
-            className={cn(
-              'flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer',
-              edgeStyle === 'step'
-                ? 'bg-background text-foreground shadow-sm font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <CornerDownRight className="size-3.5" />
-            <span className="hidden sm:inline">Step</span>
-          </button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              title="Layout & connection options"
+              aria-label="Layout and connection options"
+              className="size-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+            >
+              <MoreHorizontal className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="center" className="w-52">
+            <DropdownMenuLabel className="text-[11px] text-muted-foreground">Layout direction</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={direction}
+              onValueChange={(value) => onChangeDirection?.(value as WorkflowDirection)}
+            >
+              <DropdownMenuRadioItem value="horizontal" className="gap-2 text-xs">
+                <MoveHorizontal className="size-3.5" />
+                Horizontal
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="vertical" className="gap-2 text-xs">
+                <MoveVertical className="size-3.5" />
+                Vertical
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[11px] text-muted-foreground">Edge routing</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={edgeStyle}
+              onValueChange={(value) => onChangeEdgeStyle?.(value as WorkflowEdgeStyle)}
+            >
+              {EDGE_ROUTING_MENU.map(({ value, Icon }) => (
+                <DropdownMenuRadioItem key={value} value={value} className="gap-2 text-xs" title={EDGE_ROUTING_HINTS[value]}>
+                  <Icon className="size-3.5" />
+                  {EDGE_ROUTING_LABELS[value]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {onOpenCommandPalette && (
           <>
@@ -787,7 +918,6 @@ function WorkflowCanvasInner({
           nodes={nodes}
           edges={edges}
           onFocusNode={onFocusNodeById}
-          onToggleCollapse={onToggleCollapse}
           onClose={() => setIsOutlineOpen(false)}
           className="absolute left-5 top-5 z-20"
         />
@@ -950,7 +1080,110 @@ function WorkflowCanvasInner({
         >
           <Lock className="size-3.5" />
         </button>
+
+        <div className="h-4 w-px shrink-0 bg-border" />
+
+        {/* SECTION 6: Analytics Overlay */}
+        <button
+          type="button"
+          onClick={() => setIsAnalyticsOverlayOpen((v) => !v)}
+          aria-label="Toggle Analytics Overlay"
+          aria-pressed={isAnalyticsOverlayOpen}
+          title={isAnalyticsOverlayOpen ? 'Hide Analytics Overlay' : 'Show Analytics Overlay'}
+          className={cn(
+            canvasControlClass,
+            isAnalyticsOverlayOpen && 'bg-primary/20 text-primary font-semibold',
+          )}
+        >
+          <BarChart3 className="size-3.5" />
+        </button>
       </div>
+
+      {/* Floating Analytics Overlay Controls Banner */}
+      {isAnalyticsOverlayOpen && (
+        <div
+          role="region"
+          aria-label="Workflow Analytics Overlay Controls"
+          className="absolute top-4 left-4 z-30 flex items-center gap-2 rounded-xl border border-primary/40 bg-surface/95 p-2 shadow-lg backdrop-blur-md text-xs select-none"
+        >
+          <div className="flex items-center gap-1.5 font-semibold text-foreground px-1">
+            <BarChart3 className="size-4 text-primary" />
+            <span>Overlay:</span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {(
+              [
+                { id: 'duration', label: 'Latency' },
+                { id: 'cost', label: 'Cost' },
+                { id: 'runs', label: 'Runs' },
+                { id: 'errors', label: 'Errors' },
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setOverlayMetric(m.id)}
+                className={cn(
+                  'px-2 py-1 rounded text-[11px] font-medium transition-colors',
+                  overlayMetric === m.id
+                    ? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised',
+                )}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-3 w-px bg-border" />
+
+          <div className="flex items-center gap-1">
+            {(['24H', '7D', '30D'] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setOverlayRange(r)}
+                className={cn(
+                  'px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors',
+                  overlayRange === r
+                    ? 'bg-surface-raised text-foreground font-bold'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-3 w-px bg-border" />
+
+          {/* Color Legend */}
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-1">
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-emerald-500" />
+              Optimal
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-amber-500" />
+              Elevated
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-rose-500" />
+              Hotspot
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsAnalyticsOverlayOpen(false)}
+            aria-label="Close analytics overlay"
+            className="size-5 rounded hover:bg-surface-raised text-muted-foreground hover:text-foreground flex items-center justify-center ml-1"
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+      )}
 
       {/* Node Catalog Grid Modal */}
       <NodeCatalogModal
@@ -1009,7 +1242,7 @@ function WorkflowCanvasInner({
           nodeTypes={STUDIO_NODE_TYPES}
           edgeTypes={STUDIO_EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
-          connectionLineType={edgeStyle === 'step' ? ConnectionLineType.SmoothStep : ConnectionLineType.Bezier}
+          connectionLineComponent={connectionLine}
         selectionMode={SelectionMode.Partial}
         panOnDrag={interactionMode === 'pan' ? true : [1, 2]}
         selectionOnDrag={interactionMode === 'select'}
@@ -1154,6 +1387,8 @@ function WorkflowCanvasInner({
         onInspectEdge={onInspectEdge}
         onDeleteEdge={onDeleteEdge}
         onInsertNodeOnEdge={onInsertNodeOnEdge}
+        onEditEdgeLabel={onEditEdgeLabel}
+        onToggleEdgeAnimated={onToggleEdgeAnimated}
         onExportJson={onExportJson}
       />
     </div>
@@ -1189,6 +1424,7 @@ export function AgentDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const activeTab: AgentTab = isAgentTab(tabParam) ? tabParam : 'build';
+  const activeOverflowTab = OVERFLOW_AGENT_TABS.find((tab) => tab.id === activeTab);
   const setActiveTab = useCallback(
     (tab: AgentTab) => {
       setSearchParams(
@@ -1303,7 +1539,7 @@ export function AgentDetailPage() {
   useEffect(() => {
     if (nodes.some((n) => n.dragging)) return; // record once the drag ends
     const timer = setTimeout(() => {
-      const snapshot = toGraphSnapshot(nodes, edges);
+      const snapshot = toGraphSnapshot(nodes, edges, { direction: workflowDirection, edgeStyle: workflowEdgeStyle });
       const h = historyRef.current;
       if (h.reset) {
         // Fresh load / restored version: this graph is the new baseline
@@ -1317,16 +1553,18 @@ export function AgentDetailPage() {
       syncHistoryFlags();
     }, HISTORY_SETTLE_MS);
     return () => clearTimeout(timer);
-  }, [nodes, edges, syncHistoryFlags]);
+  }, [nodes, edges, workflowDirection, workflowEdgeStyle, syncHistoryFlags]);
 
   const graphRef = useRef({ nodes, edges });
   graphRef.current = { nodes, edges };
+  const layoutRef = useRef<CanvasLayout>({ direction: workflowDirection, edgeStyle: workflowEdgeStyle });
+  layoutRef.current = { direction: workflowDirection, edgeStyle: workflowEdgeStyle };
 
   const stepHistory = useCallback(
     (direction: -1 | 1) => {
       const h = historyRef.current;
       // Commit an edit that hasn't settled yet, so Undo right after it reverts *it*
-      const current = toGraphSnapshot(graphRef.current.nodes, graphRef.current.edges);
+      const current = toGraphSnapshot(graphRef.current.nodes, graphRef.current.edges, layoutRef.current);
       if (!h.reset && h.stack[h.index] && h.stack[h.index].key !== current.key) {
         h.stack = [...h.stack.slice(0, h.index + 1), current].slice(-HISTORY_LIMIT);
         h.index = h.stack.length - 1;
@@ -1339,6 +1577,10 @@ export function AgentDetailPage() {
       h.index += direction;
       setNodes(target.nodes);
       setEdges(target.edges);
+      if (target.layout) {
+        setWorkflowDirection(target.layout.direction);
+        setWorkflowEdgeStyle(target.layout.edgeStyle);
+      }
       setIsDirty(true);
       syncHistoryFlags();
     },
@@ -1937,7 +2179,6 @@ export function AgentDetailPage() {
       }
       const supervised = Boolean(supervisorOf(host.id, edges));
       const leads = attached.agents.length > 0;
-      const hidden = teamMembers(host.id);
       const modules = readAgentModules(host, nodes, edges, graphSettings);
       out.set(host.id, {
         ...out.get(host.id),
@@ -1951,55 +2192,45 @@ export function AgentDetailPage() {
           role: leads && supervised ? 'lead' : leads ? 'supervisor' : supervised ? 'member' : 'solo',
           issues: agentIssues(host, nodes, edges),
           model: resolveAgentModel(host.id, nodes, edges),
-          hiddenCount: (host.data as any)?.collapsed ? hidden.size : 0,
         },
       });
     }
     return out;
-
-    function teamMembers(agentId: string): Set<string> {
-      const below = new Set<string>();
-      const stack = [agentId];
-      while (stack.length > 0) {
-        const id = stack.pop() as string;
-        for (const e of edges) {
-          if (e.source === id && getSlot(e.sourceHandle) && !below.has(e.target)) {
-            below.add(e.target);
-            stack.push(e.target);
-          }
-        }
-      }
-      return below;
-    }
   }, [nodes, edges, graphSettings, issuesByNode, stepIds]);
 
-  // Nodes tucked away under a collapsed agent (not removed: the graph is unchanged)
-  const hiddenNodeIds = useMemo(() => collapsedNodeIds(nodes, edges), [nodes, edges]);
+  // Connection labels and the "flowing" animation are saved on the edge's data
+  const [editingEdgeLabelId, setEditingEdgeLabelId] = useState<string | null>(null);
 
-  const handleToggleCollapse = useCallback((agentId: string) => {
-    setNodes((nds) =>
-      nds.map((n) => (n.id === agentId ? { ...n, data: { ...n.data, collapsed: !(n.data as any)?.collapsed } } : n)),
+  const updateEdgeData = useCallback((edgeId: string, patch: Record<string, unknown>) => {
+    setEdges((eds) =>
+      eds.map((e) => {
+        if (e.id !== edgeId) return e;
+        const data = { ...(e.data ?? {}), ...patch };
+        for (const key of Object.keys(patch)) if (patch[key] === undefined) delete data[key];
+        return { ...e, data };
+      }),
     );
     setIsDirty(true);
   }, []);
 
-  /** Jump to a node from the agent outline, unfolding any collapsed agent hiding it. */
-  const handleFocusNodeById = useCallback(
-    (nodeId: string) => {
-      const toExpand = new Set(collapsedAncestors(nodeId, nodes, edges));
-      if (toExpand.size > 0) {
-        setNodes((nds) =>
-          nds.map((n) => (toExpand.has(n.id) ? { ...n, data: { ...n.data, collapsed: false } } : n)),
-        );
-      }
-      setNodes((nds) => nds.map((n) => (n.selected === (n.id === nodeId) ? n : { ...n, selected: n.id === nodeId })));
-      // Wait a frame so newly revealed nodes are measured before framing them
-      setTimeout(() => {
-        reactFlowRef.current?.fitView({ nodes: [{ id: nodeId }], duration: 350, maxZoom: 1.1, padding: 0.6 });
-      }, toExpand.size > 0 ? 80 : 0);
+  const handleRenameEdgeLabel = useCallback(
+    (edgeId: string, label: string) => {
+      setEditingEdgeLabelId(null);
+      updateEdgeData(edgeId, { label: label || undefined });
     },
-    [nodes, edges],
+    [updateEdgeData],
   );
+
+  const handleToggleEdgeAnimated = useCallback(
+    (edge: Edge) => updateEdgeData(edge.id, { animated: (edge.data as any)?.animated === true ? undefined : true }),
+    [updateEdgeData],
+  );
+
+  /** Jump to a node from the agent outline. */
+  const handleFocusNodeById = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.map((n) => (n.selected === (n.id === nodeId) ? n : { ...n, selected: n.id === nodeId })));
+    reactFlowRef.current?.fitView({ nodes: [{ id: nodeId }], duration: 350, maxZoom: 1.1, padding: 0.6 });
+  }, []);
 
   // ReactFlow Event Handlers
   // React Flow also reports selection and measured sizes as "changes"; only
@@ -2175,10 +2406,7 @@ export function AgentDetailPage() {
       setNodes((nds) => [
         ...nds.map((n) => {
           const selected = select ? false : n.selected;
-          // Plugging into a collapsed agent unfolds it so the new step is visible
-          return slot && n.id === sourceNode.id && (n.data as any)?.collapsed
-            ? { ...n, selected, data: { ...n.data, collapsed: false } }
-            : { ...n, selected };
+          return { ...n, selected };
         }),
         newNode,
       ]);
@@ -2340,12 +2568,12 @@ export function AgentDetailPage() {
               };
         }),
       );
-      toast.success(`Workflow layout changed to ${newDir}`);
+      toast.success(`Workflow layout changed to ${newDir}`, { action: undoAction });
       setTimeout(() => {
         reactFlowRef.current?.fitView({ padding: 0.2, duration: 400 });
       }, 50);
     },
-    [workflowDirection, nodes, edges],
+    [workflowDirection, nodes, edges, undoAction],
   );
 
   const handleChangeEdgeStyle = useCallback(
@@ -2353,9 +2581,9 @@ export function AgentDetailPage() {
       if (newStyle === workflowEdgeStyle) return;
       setWorkflowEdgeStyle(newStyle);
       setIsDirty(true);
-      toast.success(`Connection style changed to ${newStyle}`);
+      toast.success(`Edge routing: ${EDGE_ROUTING_LABELS[newStyle]}`, { action: undoAction });
     },
-    [workflowEdgeStyle],
+    [workflowEdgeStyle, undoAction],
   );
 
   const handleUpdateNodeMetadata = useCallback(
@@ -3071,36 +3299,33 @@ export function AgentDetailPage() {
               </div>
             )}
 
-            <div className="h-3.5 w-px bg-border/80 shrink-0 mx-0.5" />
-
-            {isPublished ? (
-              <Badge variant="success" className="text-[10px] h-5 px-1.5 py-0 font-medium shrink-0">
-                Published
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-[10px] h-5 px-1.5 py-0 text-muted-foreground font-medium shrink-0">
-                Draft
-              </Badge>
-            )}
-
-            <div className="h-3.5 w-px bg-border/80 shrink-0 mx-0.5 hidden xl:block" />
-
-            {/* Auto-saved / Unsaved Status */}
-            <div className="hidden xl:flex items-center shrink-0">
+            {/* One chip: lifecycle (Draft / Published) + save state */}
+            <div
+              className={cn(
+                'flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium whitespace-nowrap',
+                isPublished ? 'border-success/30 bg-success/10 text-success' : 'border-border bg-surface text-muted-foreground',
+              )}
+              title={
+                saveMutation.isPending
+                  ? 'Saving changes…'
+                  : isDirty
+                  ? 'Unsaved changes — press Ctrl+S to save'
+                  : 'All changes saved'
+              }
+            >
+              <span>{isPublished ? 'Published' : 'Draft'}</span>
+              <span className="h-3 w-px bg-current opacity-30" />
               {saveMutation.isPending ? (
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium whitespace-nowrap">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Saving…
-                </span>
+                <Loader2 className="h-3 w-3 animate-spin" aria-label="Saving" />
               ) : isDirty ? (
-                <span className="text-[11px] text-warning flex items-center gap-1 font-medium whitespace-nowrap" title="Unsaved changes — press Ctrl+S to save">
+                <span className="flex items-center gap-1 text-warning">
                   <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
-                  Unsaved
+                  <span className="hidden lg:inline">Unsaved</span>
                 </span>
               ) : (
-                <span className="text-[11px] text-success/90 flex items-center gap-1 font-medium whitespace-nowrap" title="All changes saved">
+                <span className="flex items-center gap-1 text-success/90">
                   <Check className="h-3 w-3" />
-                  Saved
+                  <span className="hidden lg:inline">Saved</span>
                 </span>
               )}
             </div>
@@ -3110,7 +3335,7 @@ export function AgentDetailPage() {
         {/* Center: Tabs — take the leftover width so the actions on the right never get pushed off-screen */}
         <div className="flex min-w-0 flex-1 justify-center">
         <div className="flex max-w-full items-center gap-0.5 rounded-[10px] bg-surface p-1 border border-border overflow-x-auto no-scrollbar">
-          {AGENT_TABS.map((tab) => {
+          {PRIMARY_AGENT_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -3130,10 +3355,48 @@ export function AgentDetailPage() {
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" />
                 {/* Narrower screens: only the active tab keeps its label */}
-                <span className={cn(!isActive && 'hidden xl:inline')}>{tab.label}</span>
+                <span className={cn(!isActive && 'hidden lg:inline')}>{tab.label}</span>
               </button>
             );
           })}
+          {/* Less-used sections; the trigger takes the active one's name */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-current={activeOverflowTab ? 'page' : undefined}
+                className={cn(
+                  'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap shrink-0 transition-all select-none cursor-pointer',
+                  activeOverflowTab
+                    ? 'bg-surface-raised text-foreground font-semibold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised/60',
+                )}
+              >
+                {activeOverflowTab ? (
+                  <>
+                    <activeOverflowTab.icon className="h-3.5 w-3.5 shrink-0" />
+                    <span>{activeOverflowTab.label}</span>
+                  </>
+                ) : (
+                  <span>More</span>
+                )}
+                <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-44">
+              {OVERFLOW_AGENT_TABS.map((tab) => (
+                <DropdownMenuItem
+                  key={tab.id}
+                  onSelect={() => setActiveTab(tab.id)}
+                  className={cn('gap-2 text-xs', activeTab === tab.id && 'font-semibold text-foreground')}
+                >
+                  <tab.icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                  {activeTab === tab.id && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         </div>
 
@@ -3151,7 +3414,6 @@ export function AgentDetailPage() {
             aria-pressed={showAiPanel}
           >
             <Sparkles className={cn('h-3.5 w-3.5', showAiPanel ? 'text-primary-foreground' : 'text-primary')} />
-            <span className="hidden 2xl:inline">Copilot</span>
           </Button>
 
           {/* Workflow Graph Health Status Badge */}
@@ -3163,44 +3425,12 @@ export function AgentDetailPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleValidateGraph}
-            className="h-8 gap-1.5 text-xs font-medium rounded-lg text-muted-foreground hover:text-foreground border-border/80"
-            title="Validate workflow graph for errors"
-          >
-            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-            <span className="hidden xl:inline">Validate</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
             onClick={() => setIsTestDrawerOpen(true)}
             className="h-8 gap-1.5 text-xs font-medium rounded-lg border-success/30 bg-success/10 text-success hover:bg-success/20"
             title="Test run this agent workflow"
           >
             <Play className="h-3.5 w-3.5 fill-success" />
-            <span>Test Run</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsTemplateExportOpen(true)}
-            className="h-8 gap-1.5 text-xs font-medium rounded-lg text-muted-foreground hover:text-foreground border-border/80 hidden lg:inline-flex"
-            title="Export workflow as reusable template"
-          >
-            <Layers className="h-3.5 w-3.5 text-primary" />
-            <span className="hidden 2xl:inline">Template</span>
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsPresentationMode(true)}
-            className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-raised shrink-0 hidden sm:inline-flex"
-            title="Presentation Mode (Fullscreen canvas)"
-          >
-            <Eye className="h-4 w-4" />
+            <span className="hidden md:inline">Test Run</span>
           </Button>
 
           {/* Save Button */}
@@ -3210,8 +3440,10 @@ export function AgentDetailPage() {
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending || !isDirty}
             aria-keyshortcuts="Control+S"
+            aria-label={isDirty ? 'Save changes' : 'All changes saved'}
             className={cn(
               "h-8 gap-1.5 text-xs rounded-lg transition-all",
+              !isDirty && !saveMutation.isPending && "w-8 px-0",
               isDirty
                 ? "border-warning/40 text-warning bg-warning/10 hover:bg-warning/20 font-medium"
                 : "border-border/60 text-muted-foreground hover:text-foreground"
@@ -3223,7 +3455,10 @@ export function AgentDetailPage() {
             ) : (
               <Save className="h-3.5 w-3.5" />
             )}
-            <span>{saveMutation.isPending ? 'Saving…' : 'Save'}</span>
+            {/* Label only while there is something to save */}
+            {(isDirty || saveMutation.isPending) && (
+              <span className="hidden sm:inline">{saveMutation.isPending ? 'Saving…' : 'Save'}</span>
+            )}
           </Button>
 
           {/* Publish Dropdown Popover matching reference design */}
@@ -3385,6 +3620,35 @@ export function AgentDetailPage() {
               </div>
             </PopoverContent>
           </Popover>
+
+          {/* Secondary actions */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-raised shrink-0"
+                title="More actions"
+                aria-label="More actions"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onSelect={() => void handleValidateGraph()} className="gap-2 text-xs">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                Validate workflow
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setIsTemplateExportOpen(true)} className="gap-2 text-xs">
+                <Layers className="h-3.5 w-3.5 text-primary" />
+                Export as template
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setIsPresentationMode(true)} className="gap-2 text-xs">
+                <Eye className="h-3.5 w-3.5" />
+                Presentation mode
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
       )}
@@ -3406,7 +3670,6 @@ export function AgentDetailPage() {
                 onUpdateNodeMetadata={handleUpdateNodeMetadata}
                 nodes={nodes.map((n) => ({
                   ...n,
-                  hidden: hiddenNodeIds.has(n.id),
                   data: {
                     ...n.data,
                     direction: workflowDirection,
@@ -3419,7 +3682,6 @@ export function AgentDetailPage() {
                       setRunResults((r) => ({ ...r, [n.id]: { status: 'idle', output: '', tokens: 0, latencyMs: 0, cleared: true } })),
                     ...(isSlotHost(n.type)
                       ? {
-                          onToggleCollapse: () => handleToggleCollapse(n.id),
                           onOpenModule: (id: AgentModuleId, target?: { section?: string; field?: string }) =>
                             void requestOpenModule(n.id, { id, ...target }),
                         }
@@ -3450,6 +3712,10 @@ export function AgentDetailPage() {
                       status: sourceStatus === 'running' ? 'running' : sourceStatus === 'success' && !attachment ? 'done' : undefined,
                       attachment,
                       onDelete: (id: string) => handleDeleteEdge(id),
+                      isEditingLabel: editingEdgeLabelId === e.id,
+                      onStartLabelEdit: isCanvasLocked ? undefined : (id: string) => setEditingEdgeLabelId(id),
+                      onRenameLabel: handleRenameEdgeLabel,
+                      onCancelLabelEdit: () => setEditingEdgeLabelId(null),
                     },
                   };
                 })}
@@ -3480,6 +3746,8 @@ export function AgentDetailPage() {
                 onEdgeClick={(_, edge) => handleInspectEdge(edge)}
                 onInspectEdge={handleInspectEdge}
                 onInsertNodeOnEdge={handleInsertNodeOnEdge}
+                onEditEdgeLabel={isCanvasLocked ? undefined : (edge) => setEditingEdgeLabelId(edge.id)}
+                onToggleEdgeAnimated={isCanvasLocked ? undefined : handleToggleEdgeAnimated}
                 onCopyNode={(node) => handleCopySelected(node)}
                 onCutNode={(node) => handleCutSelected(node)}
                 onPaste={handlePaste}
@@ -3487,7 +3755,6 @@ export function AgentDetailPage() {
                 onSelectAll={handleSelectAll}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                 onConnectEndDrop={handleConnectEndDrop}
-                onToggleCollapse={handleToggleCollapse}
                 onFocusNodeById={handleFocusNodeById}
                 isLocked={isCanvasLocked}
                 onToggleLock={() => {
@@ -3532,6 +3799,7 @@ export function AgentDetailPage() {
                 key={selectedEdge.id}
                 selectedEdge={selectedEdge}
                 nodes={nodes}
+                canvasRouting={workflowEdgeStyle}
                 onUpdateEdge={handleUpdateEdge}
                 onDeleteEdge={handleDeleteEdge}
                 onInsertNodeOnEdge={handleInsertNodeOnEdge}
@@ -3772,6 +4040,11 @@ export function AgentDetailPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* TAB: DEPLOY */}
+        {activeTab === 'deploy' && (
+          <AgentDeploymentTab agent={agent} />
         )}
 
         {/* TAB 5: SETTINGS */}

@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
   getStraightPath,
   Position,
+  useStore,
 } from '@xyflow/react';
 import { X, Sliders } from 'lucide-react';
+import {
+  decodeRects,
+  encodeRects,
+  nearRoute,
+  polylineToRoundedPath,
+  resolveEdgeRouting,
+  routeAroundObstacles,
+} from './edge-routing';
 
 /** Unit vector pointing out of a handle on this side of a card. */
 const OUTWARD = {
@@ -47,10 +56,114 @@ export function getFlowBezierPath({ sourceX, sourceY, sourcePosition, targetX, t
   return [`M${sourceX},${sourceY} C${c1x},${c1y} ${c2x},${c2y} ${targetX},${targetY}`, labelX, labelY];
 }
 
+/** Arrowhead length and half-width, in canvas px. */
+const ARROW_LENGTH = 8;
+const ARROW_HALF_WIDTH = 4.5;
 /**
- * Universal WorkflowEdge supporting both Smooth (Curved / Bezier) and
- * Step (Orthogonal / SmoothStep) routing, conditional branching badges,
- * execution animation, hover hit area, and inspect/delete affordances.
+ * Wires end at the outer edge of a handle's 32px hit area, which sits ~9px
+ * before the visible 14px dot (see FlowHandle in custom-nodes). Pushing the
+ * tip in by that much makes the arrow fill the gap and touch the dot.
+ */
+const HANDLE_DOT_INSET = 9;
+
+/**
+ * A filled arrowhead whose tip sits on the target handle, pointing into the
+ * card along the handle's side (wires always enter perpendicular to it).
+ */
+export function EdgeArrowhead({ x: endX, y: endY, position = Position.Left, direction, color, opacity = 1, inset = HANDLE_DOT_INSET }) {
+  const [ox, oy] = OUTWARD[position] ?? OUTWARD[Position.Left];
+  // Travel direction is into the card: the opposite of the handle's outward
+  // vector, unless the wire arrives at an angle (a straight wire)
+  const [dx, dy] = direction ?? [-ox, -oy];
+  const x = endX + dx * inset;
+  const y = endY + dy * inset;
+  const baseX = x - dx * ARROW_LENGTH;
+  const baseY = y - dy * ARROW_LENGTH;
+  const px = -dy * ARROW_HALF_WIDTH;
+  const py = dx * ARROW_HALF_WIDTH;
+  return (
+    <path
+      d={`M${x},${y} L${baseX + px},${baseY + py} L${baseX - px},${baseY - py} Z`}
+      fill={color}
+      opacity={opacity}
+      style={{ transition: 'fill 150ms ease', pointerEvents: 'none' }}
+    />
+  );
+}
+
+/** Unit vector from (x1, y1) towards (x2, y2), or undefined when they coincide. */
+function unitVector(x1, y1, x2, y2) {
+  const len = Math.hypot(x2 - x1, y2 - y1);
+  return len > 0 ? [(x2 - x1) / len, (y2 - y1) / len] : undefined;
+}
+
+/**
+ * The cards near a wire, packed into a string so the store selector only
+ * re-renders this edge when one of *them* moves or resizes.
+ */
+function selectObstacleKey(state, from, to) {
+  const rects = [];
+  for (const node of state.nodeLookup.values()) {
+    if (node.hidden) continue;
+    const width = node.measured?.width ?? node.width ?? 0;
+    const height = node.measured?.height ?? node.height ?? 0;
+    if (!width || !height) continue;
+    const { x, y } = node.internals.positionAbsolute;
+    const rect = { x, y, width, height };
+    if (nearRoute(rect, from, to)) rects.push(rect);
+  }
+  return encodeRects(rects);
+}
+
+/**
+ * The path for one wire under the given routing.
+ *
+ * @returns {{ path: string; labelX: number; labelY: number; arrowDirection?: [number, number] }}
+ */
+function useEdgeRoute(routing, { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition }) {
+  const isSmart = routing === 'smart';
+  const obstacleKey = useStore(
+    useCallback(
+      (state) => (isSmart ? selectObstacleKey(state, { x: sourceX, y: sourceY }, { x: targetX, y: targetY }) : ''),
+      [isSmart, sourceX, sourceY, targetX, targetY],
+    ),
+  );
+
+  return useMemo(() => {
+    const route = { sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition };
+    if (routing === 'straight') {
+      const [path, labelX, labelY] = getStraightPath(route);
+      return { path, labelX, labelY, arrowDirection: unitVector(sourceX, sourceY, targetX, targetY) };
+    }
+    if (routing === 'smooth') {
+      const [path, labelX, labelY] = getFlowBezierPath(route);
+      return { path, labelX, labelY };
+    }
+    if (isSmart) {
+      const points = routeAroundObstacles({
+        source: { x: sourceX, y: sourceY },
+        sourceSide: sourcePosition,
+        target: { x: targetX, y: targetY },
+        targetSide: targetPosition,
+        obstacles: decodeRects(obstacleKey),
+      });
+      if (points) {
+        const [path, labelX, labelY] = polylineToRoundedPath(points, 14);
+        return { path, labelX, labelY };
+      }
+      // No way round within the search area: fall back to a plain orthogonal wire
+    }
+    const [path, labelX, labelY] = getSmoothStepPath({ ...route, borderRadius: 14 });
+    return { path, labelX, labelY };
+  }, [routing, isSmart, obstacleKey, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition]);
+}
+
+/**
+ * Universal WorkflowEdge: Curved (bezier), Orthogonal (smooth-step), Smart
+ * (orthogonal, steering around cards) or Straight routing, conditional
+ * branching badges, execution animation, hover hit area, and inspect/delete
+ * affordances. The routing is the connection's own `data.routing` when set,
+ * else the canvas default in `data.edgeStyle`.
  *
  * @param {import('@xyflow/react').EdgeProps} props
  */
@@ -69,32 +182,19 @@ export function WorkflowEdge(props) {
     selected,
   } = props;
   const [isHovered, setIsHovered] = useState(false);
+  const isEditingLabel = Boolean(data?.isEditingLabel);
 
-  // Check if edge style is smooth or step (defaults to smooth)
-  const edgeStyle = data?.edgeStyle || props.edgeStyle || 'smooth';
-  const isSmooth = edgeStyle === 'smooth';
+  const routing = resolveEdgeRouting(data?.routing, data?.edgeStyle ?? props.edgeStyle);
+  const { path: edgePath, labelX, labelY, arrowDirection } = useEdgeRoute(routing, {
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
 
-  // Generate either Bezier (smooth) or SmoothStep (step / orthogonal) path
-  const [edgePath, labelX, labelY] = isSmooth
-    ? getFlowBezierPath({
-        sourceX,
-        sourceY,
-        sourcePosition,
-        targetX,
-        targetY,
-        targetPosition,
-      })
-    : getSmoothStepPath({
-        sourceX,
-        sourceY,
-        sourcePosition,
-        targetX,
-        targetY,
-        targetPosition,
-        borderRadius: 14,
-      });
-
-  const label = data?.label;
+  const label = data?.label ?? (typeof props.label === 'string' ? props.label : undefined);
   const isBranchTrue =
     label === 'True' || data?.branch === 'true' || data?.sourceHandle === 'true';
   const isBranchFalse =
@@ -103,6 +203,9 @@ export function WorkflowEdge(props) {
     label === 'Fallback' || data?.branch === 'fallback';
   const isRunning = data?.status === 'running';
   const isDone = data?.status === 'done';
+  // A user-chosen "flowing" wire, independent of run state
+  const isFlowAnimated = data?.animated === true;
+  const isFlowing = isRunning || isFlowAnimated;
 
   // Quiet, neutral wires; colour only for meaning (branches, selection, a live run).
   const defaultStroke = isBranchTrue
@@ -127,12 +230,13 @@ export function WorkflowEdge(props) {
           ...style,
           strokeWidth: selected || isHovered ? 2 : 1.5,
           stroke: defaultStroke,
-          strokeDasharray: isRunning ? '6 6' : style?.strokeDasharray,
-          animation: isRunning ? 'dash 1s linear infinite' : undefined,
+          strokeDasharray: isFlowing ? '6 6' : style?.strokeDasharray,
+          animation: isFlowing ? 'dash 1s linear infinite' : undefined,
           transition: 'stroke 150ms ease, stroke-width 150ms ease',
         }}
         interactionWidth={28}
       />
+      <EdgeArrowhead x={targetX} y={targetY} position={targetPosition} direction={arrowDirection} color={defaultStroke} />
 
       {/* Invisible wider stroke for effortless hover hit-testing */}
       <path
@@ -149,6 +253,12 @@ export function WorkflowEdge(props) {
             data.onSelectEdge(id);
           }
         }}
+        onDoubleClick={(e) => {
+          if (data?.onStartLabelEdit) {
+            e.stopPropagation();
+            data.onStartLabelEdit(id);
+          }
+        }}
       />
 
       <EdgeLabelRenderer>
@@ -162,14 +272,26 @@ export function WorkflowEdge(props) {
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          {label && (
+          {isEditingLabel ? (
+            <EdgeLabelInput
+              initial={label ?? ''}
+              onCommit={(value) => data?.onRenameLabel?.(id, value)}
+              onCancel={() => data?.onCancelLabelEdit?.()}
+            />
+          ) : label && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 if (data?.onInspect) data.onInspect(id);
               }}
-              title="Click to inspect connection condition"
+              onDoubleClick={(e) => {
+                if (data?.onStartLabelEdit) {
+                  e.stopPropagation();
+                  data.onStartLabelEdit(id);
+                }
+              }}
+              title="Click to inspect · double-click to rename"
               className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold border shadow-xs transition-transform hover:scale-105 cursor-pointer ${
                 isBranchTrue
                   ? 'bg-success/15 text-success border-success/40'
@@ -184,7 +306,7 @@ export function WorkflowEdge(props) {
             </button>
           )}
 
-          {(isHovered || selected) && (
+          {(isHovered || selected) && !isEditingLabel && (
             <div className="flex items-center gap-1 animate-in fade-in zoom-in-95 duration-100">
               {data?.onInspect && (
                 <button
@@ -222,6 +344,49 @@ export function WorkflowEdge(props) {
 }
 
 /**
+ * Inline editor for a wire's label. Enter or blur saves (empty clears it),
+ * Escape cancels.
+ *
+ * @param {{ initial: string; onCommit: (value: string) => void; onCancel: () => void }} props
+ */
+function EdgeLabelInput({ initial, onCommit, onCancel }) {
+  const [value, setValue] = useState(initial);
+  const inputRef = useRef(null);
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const finish = (commit) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    if (commit) onCommit(value.trim());
+    else onCancel();
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      value={value}
+      maxLength={60}
+      placeholder="Label…"
+      aria-label="Connection label"
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') finish(true);
+        if (e.key === 'Escape') finish(false);
+      }}
+      onBlur={() => finish(true)}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="nodrag nopan h-6 w-36 rounded-full border border-primary/60 bg-surface px-2.5 text-[11px] font-medium text-foreground shadow-sm outline-none ring-2 ring-primary/30"
+    />
+  );
+}
+
+/**
  * Bezier Curve variation for workflow edges.
  *
  * @param {import('@xyflow/react').EdgeProps} props
@@ -245,34 +410,63 @@ export function StepWorkflowEdge(props) {
  * @param {import('@xyflow/react').EdgeProps} props
  */
 export function StraightWorkflowEdge(props) {
-  const {
-    id,
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    style = {},
-    markerEnd,
-    selected,
-  } = props;
-  const [edgePath] = getStraightPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-  });
+  return <WorkflowEdge {...props} data={{ ...props.data, edgeStyle: 'straight' }} />;
+}
 
+/**
+ * Smart (orthogonal, steering around cards) variation for workflow edges.
+ *
+ * @param {import('@xyflow/react').EdgeProps} props
+ */
+export function SmartWorkflowEdge(props) {
+  return <WorkflowEdge {...props} data={{ ...props.data, edgeStyle: 'smart' }} />;
+}
+
+/**
+ * The wire drawn while dragging a new connection: same routing as a saved
+ * edge, primary-coloured, turning green over a handle it can connect to, with
+ * the arrowhead showing which way the step will run.
+ *
+ * @param {import('@xyflow/react').ConnectionLineComponentProps & { edgeStyle?: import('./edge-routing').EdgeRouting }} props
+ */
+export function WorkflowConnectionLine({
+  fromX,
+  fromY,
+  toX,
+  toY,
+  fromPosition = Position.Right,
+  toPosition = Position.Left,
+  connectionStatus,
+  edgeStyle = 'smooth',
+}) {
+  const route = { sourceX: fromX, sourceY: fromY, sourcePosition: fromPosition, targetX: toX, targetY: toY, targetPosition: toPosition };
+  // While dragging there is no target card yet, so a smart wire previews as orthogonal
+  const [path] =
+    edgeStyle === 'step' || edgeStyle === 'smart'
+      ? getSmoothStepPath({ ...route, borderRadius: 14 })
+      : edgeStyle === 'straight'
+      ? getStraightPath(route)
+      : getFlowBezierPath(route);
+  const arrowDirection = edgeStyle === 'straight' ? unitVector(fromX, fromY, toX, toY) : undefined;
+  const color =
+    connectionStatus === 'valid'
+      ? 'var(--color-success)'
+      : connectionStatus === 'invalid'
+      ? 'var(--color-destructive)'
+      : 'var(--color-primary)';
   return (
-    <BaseEdge
-      id={id}
-      path={edgePath}
-      markerEnd={markerEnd}
-      style={{
-        ...style,
-        strokeWidth: selected ? 2 : 1.5,
-        stroke: selected ? 'var(--color-primary)' : 'var(--color-border-strong)',
-      }}
-    />
+    <g>
+      <path d={path} fill="none" stroke={color} strokeWidth={2} strokeDasharray="6 4" />
+      {/* Free-dragging, the tip follows the cursor; snapped to a handle, it meets the dot */}
+      <EdgeArrowhead
+        x={toX}
+        y={toY}
+        position={toPosition}
+        direction={arrowDirection}
+        color={color}
+        inset={connectionStatus ? HANDLE_DOT_INSET : 0}
+      />
+    </g>
   );
 }
 
@@ -285,5 +479,6 @@ export const STUDIO_EDGE_TYPES = {
   bezier: BezierWorkflowEdge,
   smooth: BezierWorkflowEdge,
   straight: StraightWorkflowEdge,
+  smart: SmartWorkflowEdge,
   conditional: WorkflowEdge,
 };

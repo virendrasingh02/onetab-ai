@@ -1,7 +1,9 @@
 import { createContext, useContext } from 'react';
+import type { EdgeRouting } from './edge-routing.js';
 
 export type WorkflowDirection = 'horizontal' | 'vertical';
-export type WorkflowEdgeStyle = 'smooth' | 'step';
+/** The canvas-wide edge routing (a connection may override it). */
+export type WorkflowEdgeStyle = EdgeRouting;
 
 export interface WorkflowLayoutContextValue {
   direction: WorkflowDirection;

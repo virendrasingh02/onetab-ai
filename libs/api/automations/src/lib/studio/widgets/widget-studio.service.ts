@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -10,18 +9,18 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@org/database';
 import { safeFetch } from '@org/api-common';
 import { MCPToolRegistryService } from '@org/api-agents';
-import type {
-  CreateWidgetDefinitionInput,
-  ExecuteWidgetInput,
-  UpdateWidgetDefinitionInput,
-  WidgetQueryInput,
+import {
+  createWidgetDefinitionSchema,
+  type CreateWidgetDefinitionInput,
+  type ExecuteWidgetInput,
+  type UpdateWidgetDefinitionInput,
+  type WidgetQueryInput,
 } from '@org/validation';
 import type {
   WidgetCategory,
   WidgetComponentType,
   WidgetDefinition,
   WidgetExecutionRecord,
-  WidgetInstance,
   WidgetTemplateItem,
   WidgetVersion,
 } from '@org/types';
@@ -641,7 +640,8 @@ export class WidgetStudioService {
   async duplicate(workspaceId: string, widgetId: string, userId: string): Promise<WidgetDefinition> {
     const original = await this.get(workspaceId, widgetId, userId);
 
-    return this.create(workspaceId, userId, {
+    // Re-parse so optional nested config fields pick up their schema defaults.
+    return this.create(workspaceId, userId, createWidgetDefinitionSchema.parse({
       name: `Copy of ${original.name}`,
       description: original.description,
       category: original.category,
@@ -655,7 +655,7 @@ export class WidgetStudioService {
       eventConfig: original.eventConfig,
       permissions: original.permissions,
       sampleData: original.sampleData,
-    });
+    }));
   }
 
   /**
@@ -981,8 +981,8 @@ export class WidgetStudioService {
           const meetings = await this.prisma.meeting.findMany({
             where: { workspaceId },
             take: 5,
-            orderBy: { startTime: 'desc' },
-            select: { id: true, title: true, startTime: true, endTime: true },
+            orderBy: { startAt: 'desc' },
+            select: { id: true, title: true, startAt: true, endAt: true },
           });
           return { rows: meetings };
         }
@@ -1072,7 +1072,49 @@ export class WidgetStudioService {
       take: 50,
     });
 
-    return rows.map((r) => ({
+    return rows.map((r) => this.mapExecution(r));
+  }
+
+  /**
+   * Recent executions across every widget in the workspace the user can view
+   * (creator-only widgets are hidden from everyone but their creator).
+   */
+  async listWorkspaceExecutions(
+    workspaceId: string,
+    userId: string,
+    limit = 25,
+  ): Promise<WidgetExecutionRecord[]> {
+    const rows = await this.prisma.widgetExecution.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 100),
+      include: { widgetDefinition: { select: { creatorId: true, permissions: true } } },
+    });
+
+    return rows
+      .filter((r) => {
+        const perms = (r.widgetDefinition.permissions || {}) as { canView?: string };
+        return perms.canView !== 'creator_only' || r.widgetDefinition.creatorId === userId;
+      })
+      .map((r) => this.mapExecution(r));
+  }
+
+  private mapExecution(r: {
+    id: string;
+    workspaceId: string;
+    widgetDefinitionId: string;
+    widgetInstanceId: string | null;
+    executionType: string;
+    status: string;
+    inputPayload: unknown;
+    outputPayload: unknown;
+    latencyMs: number;
+    errorMessage: string | null;
+    errorJson: unknown;
+    initiatedBy: string | null;
+    createdAt: Date;
+  }): WidgetExecutionRecord {
+    return {
       id: r.id,
       workspaceId: r.workspaceId,
       widgetDefinitionId: r.widgetDefinitionId,
@@ -1086,7 +1128,7 @@ export class WidgetStudioService {
       errorJson: r.errorJson as any,
       initiatedBy: r.initiatedBy || undefined,
       createdAt: r.createdAt.toISOString(),
-    }));
+    };
   }
 
   /**

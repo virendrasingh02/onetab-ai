@@ -18,7 +18,6 @@ import {
   BookOpen,
   Bot,
   CheckCircle2,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Code2,
@@ -62,7 +61,13 @@ import { useConnectorCatalogNodes, useConnectorNode } from './connector-nodes.js
 import { useNavigate } from 'react-router-dom';
 import { useWorkflowLayout, type WorkflowDirection, type WorkflowEdgeStyle } from './workflow-layout-context.js';
 import { firstIssue, type AgentModuleId, type ModuleSummary } from './agent-config/agent-module-model.js';
-import { FormattedText, NodeRunFooter, type NodeRunResult } from './node-chrome.js';
+import {
+  FormattedText,
+  NodeRunFooter,
+  NodeAnalyticsBadge,
+  type NodeRunResult,
+  type NodeAnalyticsOverlayData,
+} from './node-chrome.js';
 
 export interface WorkflowNodePayload {
   title?: string;
@@ -92,8 +97,6 @@ export interface WorkflowNodePayload {
   /** What the run compiler reports for this step (shown as a corner badge). */
   issues?: Array<{ level: 'error' | 'warning'; message: string }>;
   /** Agents: hide everything plugged in (persisted with the graph). */
-  collapsed?: boolean;
-  onToggleCollapse?: () => void;
   /** Agents: each capability module's summary (from agent-module-model). */
   moduleSummaries?: ModuleSummary[];
   /** Agents: apps whose actions are among its tools (cards and tool list). */
@@ -106,6 +109,9 @@ export interface WorkflowNodePayload {
   builtinTools?: string[];
   /** What this step produced in the latest run (view state, never saved). */
   run?: NodeRunResult;
+  /** Live telemetry overlay metrics when analytics mode is toggled on. */
+  analytics?: NodeAnalyticsOverlayData;
+  onOpenNodeAnalytics?: (nodeId: string) => void;
   /** Output cards: forget the shown result. */
   onClearRun?: () => void;
   [key: string]: any;
@@ -757,12 +763,16 @@ export function EditableNodeHeader({
   const showDescription = useNodesData(id)?.data?.['showDescription'] === true;
   const displayDescription = showDescription ? description || defaultDescription : undefined;
 
+  const rawNodeData = useNodesData(id)?.data as WorkflowNodePayload | undefined;
+  const analytics = rawNodeData?.analytics;
+  const onOpenNodeAnalytics = rawNodeData?.onOpenNodeAnalytics;
+
   // A neutral bordered tile; the icon keeps the node's accent colour.
   const iconTone = iconBg.split(/\s+/).filter((c) => c.startsWith('text-')).join(' ') || 'text-foreground';
   return (
     <div
       className={cn(
-        'flex items-center gap-2.5',
+        'flex items-center gap-2.5 relative',
         onEdit && !locked && 'cursor-pointer',
       )}
       onDoubleClick={(e) => {
@@ -772,6 +782,12 @@ export function EditableNodeHeader({
         }
       }}
     >
+      {analytics && (
+        <NodeAnalyticsBadge
+          analytics={analytics}
+          onClick={() => onOpenNodeAnalytics?.(id)}
+        />
+      )}
       {customIcon || (
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface shadow-2xs">
           {Icon && <Icon className={cn('size-[18px]', iconTone)} />}
@@ -1034,7 +1050,7 @@ function AppLogoStack({ apps }: { apps: string[] }) {
   if (apps.length === 0) return null;
   const shown = apps.slice(0, 5);
   return (
-    <div className="mt-1.5 flex items-center" aria-label={`Apps: ${apps.join(', ')}`}>
+    <div className="flex shrink-0 items-center" aria-label={`Apps: ${apps.join(', ')}`}>
       {shown.map((app, i) => (
         <span
           key={app}
@@ -1059,8 +1075,6 @@ export interface AgentTeamInfo {
   role: 'solo' | 'supervisor' | 'member' | 'lead';
   issues: string[];
   model: { model: string; inherited: boolean } | null;
-  /** Nodes hidden below this agent while it's collapsed. */
-  hiddenCount: number;
 }
 
 /** Legacy single-action cards not offered as new tools; saved ones still render and run. */
@@ -1163,12 +1177,10 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
   const team = nodeData.team as AgentTeamInfo | undefined;
   const locked = Boolean(nodeData.locked);
   const canAdd = !locked && Boolean(nodeData.onConnectNext);
-  const collapsed = Boolean(nodeData.collapsed);
   const isCoordinator = (type || '').toUpperCase() === 'AGENT_COORDINATOR';
   const subAgents = slots.agents || [];
   const roleBadge = team ? ROLE_BADGE[team.role] : null;
   const issues = team?.issues ?? [];
-  const totalAttached = AGENT_SLOTS.reduce((sum, s) => sum + (slots[s.id]?.length ?? 0), 0);
 
   const moduleOf = (id: AgentModuleId) => nodeData.moduleSummaries?.find((m) => m.id === id);
   const open = (id: AgentModuleId, target?: { section?: string; field?: string }) => nodeData.onOpenModule?.(id, target);
@@ -1260,40 +1272,11 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                 </TooltipContent>
               </Tooltip>
             )}
-            {totalAttached > 0 && nodeData.onToggleCollapse && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                className="nodrag shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  nodeData.onToggleCollapse?.();
-                }}
-                title={collapsed ? 'Show what’s plugged in' : 'Hide what’s plugged in'}
-                aria-label={collapsed ? 'Expand attachments' : 'Collapse attachments'}
-                aria-expanded={!collapsed}
-              >
-                {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-              </Button>
-            )}
           </div>
         }
       />
 
-      {collapsed ? (
-        // Collapsed: one compact summary; the hidden nodes' wires gather on this row
-        <div className="mt-3 flex flex-col gap-1.5">
-          <div className="relative rounded-lg border border-dashed border-border px-2.5 py-1.5 text-[10px] text-muted-foreground">
-            {totalAttached} plugged in
-            {team && team.hiddenCount > totalAttached ? ` · ${team.hiddenCount} steps hidden` : ''} ·{' '}
-            {AGENT_SLOTS.filter((s) => (slots[s.id]?.length ?? 0) > 0)
-              .map((s) => s.label)
-              .join(', ')}
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 space-y-3">
+      <div className="mt-3 space-y-3">
           {/* Model */}
           <AgentSection summary={moduleOf('llm')} onOpen={open} addButton={addFor('llm')} hideLabel>
             <button
@@ -1313,7 +1296,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
           </AgentSection>
 
           {/* Instructions */}
-          <AgentSection label="Instructions" summary={moduleOf('prompt')} onOpen={open} addButton={addFor('prompt')}>
+          <AgentSection label="Instructions" summary={moduleOf('prompt')} onOpen={open}>
             <button
               type="button"
               disabled={!nodeData.onOpenModule}
@@ -1348,7 +1331,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
           {/* Tools */}
           <AgentSection label="Tools" summary={moduleOf('tools')} onOpen={open} addButton={addFor('tools')}>
             {toolCount > 0 ? (
-              <div className="flex items-center gap-1.5">
+              <div className="flex h-8 items-center gap-1.5">
                 <button
                   type="button"
                   disabled={!nodeData.onOpenModule}
@@ -1369,17 +1352,17 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                     e.stopPropagation();
                     open('tools');
                   }}
-                  className="nodrag flex min-w-0 flex-1 items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  className="nodrag flex h-full min-w-0 flex-1 items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   aria-label={`${toolCount} tools. Open Tools settings`}
                 >
                   <AppLogoStack apps={toolApps} />
                   {builtinTools.slice(0, toolApps.length ? 1 : 2).map((t) => (
-                    <span key={t} className="inline-flex max-w-[96px] items-center gap-1 truncate rounded-full border border-border bg-surface-raised px-1.5 py-0.5 text-[10px] text-foreground">
+                    <span key={t} className="inline-flex h-6 max-w-[96px] items-center gap-1 truncate rounded-full border border-border bg-surface-raised px-1.5 text-[10px] leading-none text-foreground">
                       <Wrench className="size-2.5 shrink-0 text-muted-foreground" />
                       <span className="truncate">{t.replace(/_/g, ' ')}</span>
                     </span>
                   ))}
-                  {hiddenToolCount > 0 && <span className="text-[10px] text-muted-foreground">+{hiddenToolCount}</span>}
+                  {hiddenToolCount > 0 && <span className="text-[10px] leading-none text-muted-foreground">+{hiddenToolCount}</span>}
                 </button>
               </div>
             ) : (
@@ -1414,7 +1397,6 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
             )}
           </AgentSection>
         </div>
-      )}
       <AttachedChip data={nodeData} />
       <NodeRunFooter run={nodeData.run} />
     </div>

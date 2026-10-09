@@ -25,6 +25,8 @@ import {
   type DesktopPlatform,
   type DesktopSaveFileRequest,
   type DesktopSaveResult,
+  type DesktopAgentExecuteRequest,
+  type DesktopAgentExecuteResponse,
 } from '../shared/ipc.js';
 import {
   cancelBrowserLogin,
@@ -407,6 +409,54 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
       markQuitting();
       app.relaunch();
       app.exit(0);
+    }),
+  );
+
+  ipcMain.handle(
+    IPC.agentExecute,
+    guard(async (_event, req: DesktopAgentExecuteRequest): Promise<DesktopAgentExecuteResponse> => {
+      try {
+        const session = await loadSecureSession();
+        const token = req.apiKey || session?.accessToken;
+        const targetUrl = new URL(`/api/v1/agents/${encodeURIComponent(req.agentId)}/execute`, webAppUrl);
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (req.apiKey) {
+          headers['x-api-key'] = req.apiKey;
+        } else if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const res = await fetch(targetUrl.toString(), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            input: req.input,
+            sessionId: req.sessionId,
+            context: req.context,
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          return {
+            runId: '',
+            status: 'FAILED',
+            error: `Agent execution failed (${res.status}): ${errText}`,
+          };
+        }
+
+        const data = (await res.json()) as DesktopAgentExecuteResponse;
+        return data;
+      } catch (err: unknown) {
+        logger.error('IPC', 'Failed to execute agent on desktop', { error: err });
+        return {
+          runId: '',
+          status: 'FAILED',
+          error: (err as Error)?.message || 'Unknown desktop execution error',
+        };
+      }
     }),
   );
 }

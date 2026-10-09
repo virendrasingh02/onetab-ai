@@ -19,6 +19,8 @@ import type {
   DesktopSaveResult,
   DesktopUpdateStatus,
   DesktopWindowState,
+  DesktopAgentExecuteRequest,
+  DesktopAgentExecuteResponse,
 } from './shared/ipc.js';
 
 /**
@@ -60,6 +62,7 @@ const IPC = {
   authCancelBrowserLogin: 'onetab:auth/cancel-browser-login',
   openAppOrWeb: 'onetab:shell/open-app-or-web',
   openSystemSettings: 'onetab:shell/open-system-settings',
+  agentExecute: 'onetab:agent/execute',
 } as const satisfies typeof IpcContract;
 
 const IPC_EVENT = {
@@ -182,6 +185,11 @@ const api = {
 
   app: {
     relaunch: (): Promise<void> => ipcRenderer.invoke(IPC.relaunch),
+  },
+
+  agent: {
+    execute: (request: DesktopAgentExecuteRequest): Promise<DesktopAgentExecuteResponse> =>
+      ipcRenderer.invoke(IPC.agentExecute, request),
   },
 
   onDeepLink: (handler: (link: DesktopDeepLink) => void): Unsubscribe =>

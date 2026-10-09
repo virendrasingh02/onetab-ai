@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   agentHierarchy,
   agentIssues,
-  collapsedAncestors,
-  collapsedNodeIds,
   handleOrder,
   isAttachmentEdge,
   isValidSlotConnection,
@@ -94,13 +92,6 @@ describe('agent slots', () => {
 
     it('flags a supervisor without sub-agents', () => {
       expect(agentIssues(lead, all, [])).toContain('Supervisor has no sub-agents to delegate to');
-    });
-
-    it('hides everything below a collapsed agent and finds what to unfold', () => {
-      const collapsedLead = { ...lead, data: { ...lead.data, collapsed: true } };
-      const nodesWithCollapse = [collapsedLead, worker, intern];
-      expect([...collapsedNodeIds(nodesWithCollapse, edges)].sort()).toEqual(['intern', 'worker']);
-      expect(collapsedAncestors('intern', nodesWithCollapse, edges)).toEqual(['lead']);
     });
   });
 

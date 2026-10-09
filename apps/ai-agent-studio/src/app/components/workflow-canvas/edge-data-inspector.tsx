@@ -3,16 +3,36 @@ import { cn } from '@org/utils';
 import type { Edge, Node } from '@xyflow/react';
 import {
   ArrowRight,
+  CornerDownRight,
   GitBranch,
   Plus,
+  Route,
+  Slash,
+  Spline,
   Trash2,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import {
+  EDGE_ROUTING_HINTS,
+  EDGE_ROUTING_LABELS,
+  isEdgeRouting,
+  type EdgeRouting,
+  type EdgeRoutingOverride,
+} from './edge-routing';
+
+const ROUTING_OPTIONS: { value: EdgeRouting; Icon: typeof Spline }[] = [
+  { value: 'smooth', Icon: Spline },
+  { value: 'step', Icon: CornerDownRight },
+  { value: 'smart', Icon: Route },
+  { value: 'straight', Icon: Slash },
+];
 
 interface EdgeDataInspectorProps {
   selectedEdge: Edge | null;
   nodes: Node[];
+  /** The canvas-wide routing this connection follows unless it overrides it. */
+  canvasRouting?: EdgeRouting;
   onUpdateEdge: (edgeId: string, patch: Partial<Edge>) => void;
   onDeleteEdge: (edgeId: string) => void;
   onInsertNodeOnEdge?: (edge: Edge) => void;
@@ -23,6 +43,7 @@ interface EdgeDataInspectorProps {
 export function EdgeDataInspector({
   selectedEdge,
   nodes,
+  canvasRouting = 'smooth',
   onUpdateEdge,
   onDeleteEdge,
   onInsertNodeOnEdge,
@@ -52,6 +73,10 @@ export function EdgeDataInspector({
       },
     });
   };
+
+  const routingOverride: EdgeRoutingOverride = isEdgeRouting(edgeData.routing) ? edgeData.routing : 'auto';
+  const setRouting = (value: EdgeRoutingOverride) =>
+    onUpdateEdge(selectedEdge.id, { data: { routing: value === 'auto' ? undefined : value } });
 
   const isConditional =
     sourceNode?.type?.includes('IF') ||
@@ -125,6 +150,37 @@ export function EdgeDataInspector({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Routing: follow the canvas, or draw this one connection its own way */}
+        <div className="space-y-2 rounded-xl border border-border bg-surface-raised/30 p-3">
+          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Routing</div>
+          <div role="radiogroup" aria-label="Connection routing" className="grid grid-cols-5 gap-1">
+            <RoutingOption
+              checked={routingOverride === 'auto'}
+              onSelect={() => setRouting('auto')}
+              label="Auto"
+              title={`Follow the canvas (${EDGE_ROUTING_LABELS[canvasRouting]})`}
+            >
+              <span className="text-[10px] font-semibold">A</span>
+            </RoutingOption>
+            {ROUTING_OPTIONS.map(({ value, Icon }) => (
+              <RoutingOption
+                key={value}
+                checked={routingOverride === value}
+                onSelect={() => setRouting(value)}
+                label={EDGE_ROUTING_LABELS[value]}
+                title={EDGE_ROUTING_HINTS[value]}
+              >
+                <Icon className="size-3.5" />
+              </RoutingOption>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {routingOverride === 'auto'
+              ? `Follows the canvas: ${EDGE_ROUTING_LABELS[canvasRouting]}.`
+              : `${EDGE_ROUTING_HINTS[routingOverride]} — for this connection only.`}
+          </p>
         </div>
 
         {/* Condition / Branching Settings */}
@@ -220,5 +276,38 @@ export function EdgeDataInspector({
         )}
       </div>
     </aside>
+  );
+}
+
+function RoutingOption({
+  checked,
+  onSelect,
+  label,
+  title,
+  children,
+}: {
+  checked: boolean;
+  onSelect: () => void;
+  label: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      onClick={onSelect}
+      title={title}
+      className={cn(
+        'flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 text-[10px] font-medium transition-colors',
+        checked
+          ? 'border-primary bg-primary/10 text-primary'
+          : 'border-border bg-surface text-muted-foreground hover:text-foreground',
+      )}
+    >
+      <span className="flex h-3.5 items-center">{children}</span>
+      <span className="truncate max-w-full">{label}</span>
+    </button>
   );
 }

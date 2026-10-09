@@ -63,6 +63,13 @@ import type {
   AgentTestRunResult,
   AgentVersion,
   AgentSchedule,
+  AgentDeploymentView,
+  AgentDeploymentAnalyticsSummary,
+  AgentDeploymentWebhookView,
+  AgentWebhookDeliveryView,
+  AgentApiKeyView,
+  AgentRunResponseView,
+  AgentSessionMessage,
   AgentExecutionLogEntry,
   AgentRunResult,
   AIEntity,
@@ -86,6 +93,19 @@ import type {
   AISummaryResponse,
   AITranslationResponse,
   AIUsageStats,
+  AICostAnalytics,
+  DeepAIAnalyticsOverview,
+  AgentAnalyticsProfile,
+  WorkflowAnalyticsProfile,
+  AIExecutionTrace,
+  NodeAnalyticsRecord,
+  ConnectorAnalyticsRecord,
+  ModelAnalyticsRecord,
+  ErrorAnalyticsGroup,
+  AnalyticsAlertRule,
+  VersionComparisonResult,
+  AnalyticsSettingsConfig,
+  EvaluationsAnalyticsOverview,
   AIVisionResponse,
   AnonymousModerationEventView,
   AnonymousModerationRow,
@@ -1516,6 +1536,110 @@ export const analyticsApi = {
     ),
 };
 
+export const aiAnalyticsApi = {
+  deepOverview: (workspaceId: string, range?: AnalyticsDateRange) =>
+    request<DeepAIAnalyticsOverview>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-deep`, { params: range }),
+    ),
+
+  agents: (workspaceId: string, range?: AnalyticsDateRange) =>
+    request<AgentAnalyticsProfile[]>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-agents`, { params: range }),
+    ),
+
+  agent: (workspaceId: string, agentId: string, range?: AnalyticsDateRange) =>
+    request<AgentAnalyticsProfile>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-agents/${agentId}`, { params: range }),
+    ),
+
+  workflows: (workspaceId: string, range?: AnalyticsDateRange) =>
+    request<WorkflowAnalyticsProfile[]>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-workflows`, { params: range }),
+    ),
+
+  workflow: (workspaceId: string, workflowId: string, range?: AnalyticsDateRange) =>
+    request<WorkflowAnalyticsProfile>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-workflows/${workflowId}`, { params: range }),
+    ),
+
+  nodes: (workspaceId: string, range?: AnalyticsDateRange) =>
+    request<NodeAnalyticsRecord[]>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-nodes`, { params: range }),
+    ),
+
+  toolsAndConnectors: (workspaceId: string, range?: AnalyticsDateRange) =>
+    request<{ tools: any[]; connectors: ConnectorAnalyticsRecord[] }>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-tools`, { params: range }),
+    ),
+
+  models: (workspaceId: string, range?: AnalyticsDateRange) =>
+    request<ModelAnalyticsRecord[]>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-models`, { params: range }),
+    ),
+
+  costs: (workspaceId: string, range?: AnalyticsDateRange) =>
+    request<AICostAnalytics>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-costs`, { params: range }),
+    ),
+
+  errors: (workspaceId: string, range?: AnalyticsDateRange) =>
+    request<ErrorAnalyticsGroup[]>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-errors`, { params: range }),
+    ),
+
+  trace: (workspaceId: string, executionId: string) =>
+    request<AIExecutionTrace>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-traces/${executionId}`),
+    ),
+
+  evaluations: (workspaceId: string, range?: AnalyticsDateRange) =>
+    request<EvaluationsAnalyticsOverview>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-evaluations`, { params: range }),
+    ),
+
+  compareVersions: (
+    workspaceId: string,
+    params: {
+      entityType: 'AGENT' | 'WORKFLOW';
+      entityId: string;
+      versionA?: number;
+      versionB?: number;
+    },
+  ) =>
+    request<VersionComparisonResult>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-versions/compare`, { params }),
+    ),
+
+  alerts: (workspaceId: string) =>
+    request<{ rules: AnalyticsAlertRule[] }>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-alerts`),
+    ),
+
+  createAlertRule: (workspaceId: string, rule: Partial<AnalyticsAlertRule>) =>
+    request<AnalyticsAlertRule>(
+      http.post(`/analytics/workspace/${workspaceId}/ai-alerts`, rule),
+    ),
+
+  updateAlertStatus: (
+    workspaceId: string,
+    alertId: string,
+    status: 'RESOLVED' | 'ACKNOWLEDGED',
+  ) =>
+    request<any>(
+      http.patch(`/analytics/workspace/${workspaceId}/ai-alerts/${alertId}`, { status }),
+    ),
+
+  settings: (workspaceId: string) =>
+    request<AnalyticsSettingsConfig>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-settings`),
+    ),
+
+  updateSettings: (workspaceId: string, settings: Partial<AnalyticsSettingsConfig>) =>
+    request<AnalyticsSettingsConfig>(
+      http.put(`/analytics/workspace/${workspaceId}/ai-settings`, settings),
+    ),
+};
+
 /**
  * Phase 12 — Marketplace.
  *
@@ -2603,6 +2727,255 @@ export const agentsApi = {
       }),
     ),
 };
+
+export const agentDeploymentsApi = {
+  list: (workspaceId: string, agentId: string) =>
+    request<AgentDeploymentView[]>(
+      http.get(`/workspaces/${workspaceId}/agents/${agentId}/deployments`),
+    ),
+
+  getDefault: (workspaceId: string, agentId: string) =>
+    request<AgentDeploymentView>(
+      http.get(`/workspaces/${workspaceId}/agents/${agentId}/deployments/default`),
+    ),
+
+  get: (workspaceId: string, agentId: string, deploymentId: string) =>
+    request<AgentDeploymentView>(
+      http.get(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}`,
+      ),
+    ),
+
+  create: (workspaceId: string, agentId: string, data: any) =>
+    request<AgentDeploymentView>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments`,
+        data,
+      ),
+    ),
+
+  update: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+    data: any,
+  ) =>
+    request<AgentDeploymentView>(
+      http.patch(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}`,
+        data,
+      ),
+    ),
+
+  delete: (workspaceId: string, agentId: string, deploymentId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}`,
+      ),
+    ),
+
+  publish: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+    versionNumber: number,
+  ) =>
+    request<AgentDeploymentView>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/publish`,
+        { versionNumber },
+      ),
+    ),
+
+  rollback: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+    targetVersion: number,
+    summary?: string,
+  ) =>
+    request<AgentDeploymentView>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/rollback`,
+        { targetVersion, summary },
+      ),
+    ),
+
+  suspend: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+    status: 'ACTIVE' | 'SUSPENDED',
+  ) =>
+    request<AgentDeploymentView>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/suspend`,
+        { status },
+      ),
+    ),
+
+  analytics: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+    period?: string,
+  ) =>
+    request<AgentDeploymentAnalyticsSummary>(
+      http.get(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/analytics${
+          period ? `?period=${period}` : ''
+        }`,
+      ),
+    ),
+
+  listWebhooks: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+  ) =>
+    request<AgentDeploymentWebhookView[]>(
+      http.get(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/webhooks`,
+      ),
+    ),
+
+  createWebhook: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+    data: { url: string; events?: string[]; secret?: string },
+  ) =>
+    request<AgentDeploymentWebhookView>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/webhooks`,
+        data,
+      ),
+    ),
+
+  deleteWebhook: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+    webhookId: string,
+  ) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/webhooks/${webhookId}`,
+      ),
+    ),
+
+  testWebhook: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+    webhookId: string,
+  ) =>
+    request<AgentWebhookDeliveryView>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/webhooks/${webhookId}/test`,
+        {},
+      ),
+    ),
+
+  getDeliveries: (
+    workspaceId: string,
+    agentId: string,
+    deploymentId: string,
+    webhookId: string,
+  ) =>
+    request<AgentWebhookDeliveryView[]>(
+      http.get(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/webhooks/${webhookId}/deliveries`,
+      ),
+    ),
+
+  createApiKey: (
+    workspaceId: string,
+    agentId: string,
+    data: { name: string; scopes?: string[]; expiresInDays?: number },
+  ) =>
+    request<AgentApiKeyView>(
+      http.post(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/api-keys`,
+        data,
+      ),
+    ),
+};
+
+export const publicAgentApi = {
+  initSession: (publicKey: string, userContext?: Record<string, unknown>) =>
+    request<{
+      sessionToken: string;
+      sessionId: string;
+      expiresAt: string;
+      deployment: any;
+    }>(
+      http.post('/agent-sessions', { publicKey, userContext }),
+    ),
+
+  sendMessage: (
+    sessionId: string,
+    sessionToken: string,
+    message: string,
+    context?: Record<string, unknown>,
+  ) =>
+    request<AgentRunResponseView>(
+      http.post(
+        `/agent-sessions/${sessionId}/messages`,
+        { message, context },
+        {
+          headers: {
+            'x-session-token': sessionToken,
+          },
+        },
+      ),
+    ),
+
+  getMessages: (sessionId: string) =>
+    request<AgentSessionMessage[]>(
+      http.get(`/agent-sessions/${sessionId}/messages`),
+    ),
+
+  resetSession: (sessionId: string) =>
+    request<void>(http.post(`/agent-sessions/${sessionId}/reset`, {})),
+
+  execute: (
+    agentId: string,
+    prompt: string,
+    options?: {
+      apiKey?: string;
+      publicKey?: string;
+      input?: Record<string, unknown>;
+      context?: Record<string, unknown>;
+    },
+  ) =>
+    request<AgentRunResponseView>(
+      http.post(
+        `/agents/${agentId}/execute`,
+        { prompt, input: options?.input, context: options?.context },
+        {
+          headers: {
+            ...(options?.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
+            ...(options?.publicKey ? { 'x-public-key': options.publicKey } : {}),
+          },
+        },
+      ),
+    ),
+
+  getRun: (runId: string) =>
+    request<any>(http.get(`/agent-runs/${runId}`)),
+
+  cancelRun: (runId: string) =>
+    request<{ success: boolean; runId: string }>(
+      http.post(`/agent-runs/${runId}/cancel`, {}),
+    ),
+
+  approveAction: (runId: string, approved: boolean, reason?: string) =>
+    request<any>(
+      http.post(`/agent-runs/${runId}/approve`, { approved, reason }),
+    ),
+};
+
 
 /** AI Coworkers — persistent teammate layer above agents. */
 export const coworkersApi = {
@@ -5157,9 +5530,22 @@ export const widgetsApi = {
       http.get(`/workspaces/${workspaceId}/agent-studio/widgets`, { params }),
     ),
 
-  getTemplates: (workspaceId: string) =>
+  getTemplates: (workspaceId?: string) =>
     request<WidgetTemplateItem[]>(
-      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/templates`),
+      http.get(
+        workspaceId
+          ? `/workspaces/${workspaceId}/agent-studio/widgets/templates`
+          : `/workspaces/default/agent-studio/widgets/templates`,
+      ),
+    ),
+
+  listTemplates: (workspaceId?: string) =>
+    request<WidgetTemplateItem[]>(
+      http.get(
+        workspaceId
+          ? `/workspaces/${workspaceId}/agent-studio/widgets/templates`
+          : `/workspaces/default/agent-studio/widgets/templates`,
+      ),
     ),
 
   get: (workspaceId: string, widgetId: string) =>
@@ -5175,6 +5561,11 @@ export const widgetsApi = {
   update: (workspaceId: string, widgetId: string, data: Record<string, unknown>) =>
     request<WidgetDefinition>(
       http.put(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}`, data),
+    ),
+
+  delete: (workspaceId: string, widgetId: string) =>
+    request<WidgetDefinition>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/archive`),
     ),
 
   duplicate: (workspaceId: string, widgetId: string) =>
@@ -5202,6 +5593,11 @@ export const widgetsApi = {
       http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/rollback`, { versionNumber }),
     ),
 
+  rollbackVersion: (workspaceId: string, widgetId: string, versionNumber: number) =>
+    request<WidgetDefinition>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/rollback`, { versionNumber }),
+    ),
+
   preview: (workspaceId: string, widgetId: string, sampleData?: Record<string, unknown>) =>
     request<{ definition: WidgetDefinition; previewData: Record<string, unknown> }>(
       http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/preview`, { sampleData }),
@@ -5212,7 +5608,21 @@ export const widgetsApi = {
       http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/execute`, data),
     ),
 
+  executeAction: (workspaceId: string, widgetId: string, data: Record<string, unknown>) =>
+    request<{ status: 'SUCCESS' | 'FAILED'; output: unknown; latencyMs: number }>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/execute`, {
+        executionType: 'ACTION',
+        inputPayload: data.payload || data,
+        actionId: data.action || 'custom_action',
+      }),
+    ),
+
   getVersions: (workspaceId: string, widgetId: string) =>
+    request<WidgetVersion[]>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/versions`),
+    ),
+
+  listVersions: (workspaceId: string, widgetId: string) =>
     request<WidgetVersion[]>(
       http.get(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/versions`),
     ),
@@ -5220,6 +5630,11 @@ export const widgetsApi = {
   getExecutions: (workspaceId: string, widgetId: string) =>
     request<WidgetExecutionRecord[]>(
       http.get(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/executions`),
+    ),
+
+  listExecutions: (workspaceId: string, params?: { limit?: number }) =>
+    request<WidgetExecutionRecord[]>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/executions`, { params }),
     ),
 };
 

@@ -28,6 +28,13 @@ import { AIResourceManageGuard } from './ai-entity-access.guard.js';
 import { AgentOutputDeliveryService } from './agent-output-delivery.service.js';
 import { TrackerMonitorSweepService } from './tracker-monitor-sweep.service.js';
 
+import { AgentDeploymentService } from './deployments/agent-deployment.service.js';
+import { AgentSessionService } from './deployments/agent-session.service.js';
+import { AgentDeploymentWebhookService } from './deployments/agent-webhook.service.js';
+import { AgentRuntimeBridgeService } from './deployments/agent-runtime-bridge.service.js';
+import { AgentDeploymentController } from './deployments/agent-deployment.controller.js';
+import { AgentPublicController } from './deployments/agent-public.controller.js';
+
 @Module({
   imports: [
     ConfigModule,
@@ -47,6 +54,8 @@ import { TrackerMonitorSweepService } from './tracker-monitor-sweep.service.js';
     ChannelAgentsController,
     AIEntitiesController,
     AgentStudioAiModeController,
+    AgentDeploymentController,
+    AgentPublicController,
   ],
   providers: [
     AgentsService,
@@ -62,6 +71,10 @@ import { TrackerMonitorSweepService } from './tracker-monitor-sweep.service.js';
     AgentOutputDeliveryService,
     TrackerMonitorSweepService,
     AIResourceManageGuard,
+    AgentDeploymentService,
+    AgentSessionService,
+    AgentDeploymentWebhookService,
+    AgentRuntimeBridgeService,
   ],
   exports: [
     AIResourceManageGuard,
@@ -72,6 +85,10 @@ import { TrackerMonitorSweepService } from './tracker-monitor-sweep.service.js';
     MCPToolRegistryService,
     FirecrawlService,
     TrackerMonitorSweepService,
+    AgentDeploymentService,
+    AgentSessionService,
+    AgentDeploymentWebhookService,
+    AgentRuntimeBridgeService,
   ],
 })
 export class AgentsModule {}

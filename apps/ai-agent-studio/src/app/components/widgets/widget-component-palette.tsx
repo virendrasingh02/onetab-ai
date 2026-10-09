@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Input, Badge } from '@org/ui';
 import { cn } from '@org/utils';
-import type { WidgetCategory } from '@org/types';
+import type { WidgetCategory, WidgetComponentType } from '@org/types';
 import {
   BarChart3,
   CheckCircle2,
@@ -19,22 +19,22 @@ import {
   Zap,
 } from 'lucide-react';
 
-interface ComponentPreset {
+export interface WidgetPreset {
   id: string;
   name: string;
   category: WidgetCategory;
-  componentType: string;
+  componentType: WidgetComponentType;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   defaultConfig: Record<string, any>;
 }
 
-export const COMPONENT_PRESETS: ComponentPreset[] = [
+export const COMPONENT_PRESETS: WidgetPreset[] = [
   // 1. Data & Viz
   {
     id: 'preset-metric',
     name: 'Metric Card',
-    category: 'DATA_VISUALIZATION',
+    category: 'data_viz',
     componentType: 'metric_card',
     description: 'KPI counter with percentage trend indicator and drill-down link.',
     icon: BarChart3,
@@ -50,7 +50,7 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-bar-chart',
     name: 'Bar Chart',
-    category: 'DATA_VISUALIZATION',
+    category: 'data_viz',
     componentType: 'bar_chart',
     description: 'Comparative bar distribution across categories or days.',
     icon: BarChart3,
@@ -64,7 +64,7 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-line-chart',
     name: 'Trend Line Chart',
-    category: 'DATA_VISUALIZATION',
+    category: 'data_viz',
     componentType: 'line_chart',
     description: 'Continuous time-series performance and latency tracking.',
     icon: LineChart,
@@ -77,7 +77,7 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-table',
     name: 'Data Table',
-    category: 'DATA_VISUALIZATION',
+    category: 'data_viz',
     componentType: 'table_view',
     description: 'Filterable table with search, status pills, and CSV export.',
     icon: Table,
@@ -89,7 +89,7 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-progress',
     name: 'Progress Summary',
-    category: 'DATA_VISUALIZATION',
+    category: 'data_viz',
     componentType: 'progress_summary',
     description: 'Visual progress gauges for token caps, tasks, and budgets.',
     icon: CheckCircle2,
@@ -103,8 +103,8 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-form-input',
     name: 'Parameter Input',
-    category: 'INTERACTIVE_INPUT',
-    componentType: 'form_input',
+    category: 'interactive_input',
+    componentType: 'text_input',
     description: 'Interactive field to pass parameters directly to agents.',
     icon: FormInput,
     defaultConfig: {
@@ -117,7 +117,7 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-dynamic-form',
     name: 'Dynamic Form',
-    category: 'INTERACTIVE_INPUT',
+    category: 'interactive_input',
     componentType: 'dynamic_form',
     description: 'Schema-driven multi-input form with validation.',
     icon: Layers,
@@ -129,7 +129,7 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-approval',
     name: 'Human Approval Form',
-    category: 'INTERACTIVE_INPUT',
+    category: 'interactive_input',
     componentType: 'approval_form',
     description: 'Interactive gate requiring user confirmation before action.',
     icon: UserCheck,
@@ -144,7 +144,7 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-ai-summary',
     name: 'AI Summary Card',
-    category: 'AI_POWERED',
+    category: 'ai_powered',
     componentType: 'ai_summary',
     description: 'Synthesized intelligence with confidence score and copy button.',
     icon: Sparkles,
@@ -157,8 +157,8 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-entity-extractor',
     name: 'Entity Extractor',
-    category: 'AI_POWERED',
-    componentType: 'entity_extractor',
+    category: 'ai_powered',
+    componentType: 'ai_extraction',
     description: 'Displays structured tags for discovered entities.',
     icon: Database,
     defaultConfig: {
@@ -171,8 +171,8 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-action-card',
     name: 'Connector Action Card',
-    category: 'APP_CONNECTOR',
-    componentType: 'action_card',
+    category: 'app_connector',
+    componentType: 'connector_action',
     description: 'Immediate action trigger via connected workspace apps.',
     icon: Zap,
     defaultConfig: {
@@ -187,8 +187,8 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-tasks',
     name: 'Checklist & Tasks',
-    category: 'PRODUCTIVITY',
-    componentType: 'task_list',
+    category: 'productivity',
+    componentType: 'task_kanban',
     description: 'Actionable todo list with real-time toggle states.',
     icon: ListTodo,
     defaultConfig: {
@@ -199,8 +199,8 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
   {
     id: 'preset-meeting-notes',
     name: 'Meeting & Action Notes',
-    category: 'PRODUCTIVITY',
-    componentType: 'meeting_notes',
+    category: 'productivity',
+    componentType: 'meeting_summary',
     description: 'Structured recap with attendee list and export to docs.',
     icon: FileText,
     defaultConfig: {
@@ -211,7 +211,7 @@ export const COMPONENT_PRESETS: ComponentPreset[] = [
 ];
 
 interface WidgetComponentPaletteProps {
-  onSelectPreset: (preset: ComponentPreset) => void;
+  onSelectPreset: (preset: WidgetPreset) => void;
   className?: string;
 }
 
@@ -246,7 +246,7 @@ export function WidgetComponentPalette({
           />
         </div>
         <div className="flex flex-wrap gap-1 pt-1">
-          {['ALL', 'DATA_VISUALIZATION', 'INTERACTIVE_INPUT', 'AI_POWERED', 'APP_CONNECTOR', 'PRODUCTIVITY'].map(
+          {['ALL', 'data_viz', 'interactive_input', 'ai_powered', 'app_connector', 'productivity'].map(
             (cat) => (
               <button
                 key={cat}

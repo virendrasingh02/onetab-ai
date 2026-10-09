@@ -538,3 +538,4 @@ export * from './lib/agent-architect.js';
 export * from './lib/migration.js';
 export * from './lib/email-templates.js';
 export * from './lib/widget-system.js';
+export * from './lib/agent-deployment.js';

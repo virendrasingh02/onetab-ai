@@ -18,6 +18,57 @@ export interface NodeRunResult {
   cleared?: boolean;
 }
 
+export interface NodeAnalyticsOverlayData {
+  executionCount: number;
+  successCount: number;
+  errorCount: number;
+  successRate: number;
+  avgDurationMs: number;
+  totalTokens: number;
+  estimatedCost: number;
+  errorRate: number;
+  retryCount: number;
+  relativeIntensity: number; // 0 to 1
+  metricLabel: string;
+  metricValue: string;
+}
+
+export function NodeAnalyticsBadge({
+  analytics,
+  onClick,
+}: {
+  analytics?: NodeAnalyticsOverlayData;
+  onClick?: () => void;
+}) {
+  if (!analytics) return null;
+  const intensityStyle =
+    analytics.relativeIntensity > 0.7
+      ? 'border-rose-500/60 bg-rose-500/15 text-rose-500 ring-2 ring-rose-500/20'
+      : analytics.relativeIntensity > 0.35
+      ? 'border-amber-500/60 bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/20'
+      : 'border-emerald-500/60 bg-emerald-500/15 text-emerald-500';
+
+  return (
+    <div
+      onClick={(e) => {
+        if (onClick) {
+          e.stopPropagation();
+          onClick();
+        }
+      }}
+      className={cn(
+        'nodrag nopan absolute -top-3.5 right-3 z-20 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border backdrop-blur-md shadow-xs transition-all hover:scale-105 cursor-pointer',
+        intensityStyle,
+      )}
+      title={`Runs: ${analytics.executionCount} | Success: ${analytics.successRate.toFixed(1)}% | Avg Duration: ${Math.round(analytics.avgDurationMs)}ms | Cost: $${analytics.estimatedCost.toFixed(4)}`}
+    >
+      <span className="opacity-80 font-normal">{analytics.metricLabel}:</span>
+      <span className="font-mono font-bold">{analytics.metricValue}</span>
+      <span className="opacity-60 text-[9px] font-mono">({analytics.executionCount})</span>
+    </div>
+  );
+}
+
 export const formatSeconds = (ms: number) => `${(Math.max(0, ms) / 1000).toFixed(2)} sec`;
 
 /**

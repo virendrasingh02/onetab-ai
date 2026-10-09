@@ -41,6 +41,7 @@ export const IPC = {
   authCancelBrowserLogin: 'onetab:auth/cancel-browser-login',
   openAppOrWeb: 'onetab:shell/open-app-or-web',
   openSystemSettings: 'onetab:shell/open-system-settings',
+  agentExecute: 'onetab:agent/execute',
 } as const;
 
 /** Main → renderer, fire and forget. */
@@ -241,3 +242,19 @@ export const MAX_INLINE_FILE_BYTES = 25 * 1024 * 1024;
 /** Supported custom protocols the OS routes back into the running instance. */
 export const DEEP_LINK_PROTOCOLS = ['onetab', 'mie'] as const;
 export const PRIMARY_DEEP_LINK_PROTOCOL = 'onetab';
+
+export interface DesktopAgentExecuteRequest {
+  agentId: string;
+  input: string | Record<string, unknown>;
+  apiKey?: string;
+  sessionId?: string;
+  context?: Record<string, unknown>;
+}
+
+export interface DesktopAgentExecuteResponse {
+  runId: string;
+  status: string;
+  result?: string;
+  error?: string;
+  tools?: unknown[];
+}

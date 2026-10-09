@@ -55,11 +55,21 @@ function workspaceLiveSourcePlugin() {
     },
     handleHotUpdate({ file, server }: any) {
       const normalized = file.replace(/\\/g, '/');
-      if (normalized.includes('/libs/') || normalized.includes('/packages/')) {
+      if (
+        normalized.includes('/libs/') ||
+        normalized.includes('/packages/') ||
+        normalized.includes('node_modules/@org/')
+      ) {
         for (const [id, mod] of server.moduleGraph.idToModuleMap.entries()) {
+          const normId = id.replace(/\\/g, '/');
+          const normModFile = (mod.file || '').replace(/\\/g, '/');
           if (
-            id.replace(/\\/g, '/').includes(normalized) ||
-            (mod.file && mod.file.replace(/\\/g, '/').includes(normalized))
+            normId.includes(normalized) ||
+            normModFile.includes(normalized) ||
+            (normalized.includes('api-client') && (normId.includes('api-client') || normModFile.includes('api-client'))) ||
+            (normalized.includes('types') && (normId.includes('@org/types') || normModFile.includes('@org/types'))) ||
+            (normalized.includes('validation') && (normId.includes('@org/validation') || normModFile.includes('@org/validation'))) ||
+            (normalized.includes('ui') && (normId.includes('@org/ui') || normModFile.includes('@org/ui')))
           ) {
             server.moduleGraph.invalidateModule(mod);
           }

@@ -4,6 +4,8 @@ import {
   Copy,
   Download,
   Info,
+  Tag,
+  Waves,
   Maximize2,
   Play,
   Plus,
@@ -39,6 +41,8 @@ import {
  *   onInspectEdge?: (edge: FlowEdge) => void;
  *   onDeleteEdge?: (id: string) => void;
  *   onInsertNodeOnEdge?: (edge: FlowEdge) => void;
+ *   onEditEdgeLabel?: (edge: FlowEdge) => void;
+ *   onToggleEdgeAnimated?: (edge: FlowEdge) => void;
  *   onExportJson?: () => void;
  * }} CanvasContextMenuProps
  */
@@ -66,6 +70,8 @@ export function CanvasContextMenu({
   onInspectEdge,
   onDeleteEdge,
   onInsertNodeOnEdge,
+  onEditEdgeLabel,
+  onToggleEdgeAnimated,
   onExportJson,
 }) {
   const menuRef = useRef(null);
@@ -215,6 +221,41 @@ export function CanvasContextMenu({
             <Plus className="size-3.5 text-muted-foreground" />
             <span>Insert Step Between</span>
           </button>
+
+          {onEditEdgeLabel && (
+            <button
+              type="button"
+              onClick={() => {
+                onEditEdgeLabel(targetEdge);
+                onClose();
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
+            >
+              <Tag className="size-3.5 text-muted-foreground" />
+              <span>{targetEdge.data?.label ? 'Rename Label' : 'Add Label'}</span>
+            </button>
+          )}
+
+          {onToggleEdgeAnimated && (
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={targetEdge.data?.animated === true}
+              onClick={() => {
+                onToggleEdgeAnimated(targetEdge);
+                onClose();
+              }}
+              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Waves className="size-3.5 text-muted-foreground" />
+                <span>Animate Connection</span>
+              </span>
+              {targetEdge.data?.animated === true && (
+                <span className="text-[10px] font-semibold text-primary">On</span>
+              )}
+            </button>
+          )}
 
           <div className="h-px bg-border/60 my-1" />
 

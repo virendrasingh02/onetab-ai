@@ -1,4 +1,4 @@
-import { Button, Input, AIModelBadge, AppSelect, Switch, toast } from '@org/ui';
+import { Badge, Button, Input, AIModelBadge, AppSelect, Switch, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import type { StudioGraphIssue } from '@org/types';
 import type { Connection, Edge, Node } from '@xyflow/react';
@@ -161,7 +161,7 @@ export function NodeInspector({
   };
   const [showVariablePicker, setShowVariablePicker] = useState(false);
   const [targetField, setTargetField] = useState<string | null>(null);
-  const [tab, setTab] = useState<'settings' | 'wiring'>('settings');
+  const [tab, setTab] = useState<'settings' | 'wiring' | 'analytics'>('settings');
 
   // Edits apply to the canvas live; this is the state Cancel returns to. The parent
   // keys the inspector by node id, so a new node gets a new snapshot.
@@ -359,7 +359,7 @@ export function NodeInspector({
 
       {/* Tabs */}
       <div role="tablist" aria-label="Node panel" className="flex gap-5 border-b border-border px-4">
-        {(['settings', 'wiring'] as const).map((id) => (
+        {(['settings', 'wiring', 'analytics'] as const).map((id) => (
           <button
             key={id}
             type="button"
@@ -390,6 +390,73 @@ export function NodeInspector({
             onConnect={onConnect}
             onUpdateConfig={updateConfig}
           />
+        </div>
+      )}
+
+      {tab === 'analytics' && (
+        <div role="tabpanel" className="relative flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <span className="font-semibold text-foreground">Node Execution Telemetry</span>
+            {data.analytics ? (
+              <Badge
+                variant={data.analytics.successRate >= 95 ? 'success' : 'warning'}
+                className="text-[10px]"
+              >
+                {data.analytics.successRate.toFixed(1)}% Success
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px]">
+                {data.run ? 'Latest Run Available' : 'No Live Telemetry'}
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 text-center">
+            <div className="p-2.5 rounded-lg border border-border bg-surface-raised">
+              <div className="text-[10px] text-muted-foreground font-semibold">Total Runs</div>
+              <div className="mt-1 text-base font-bold text-foreground">
+                {data.analytics?.executionCount ?? (data.run ? 1 : 0)}
+              </div>
+            </div>
+            <div className="p-2.5 rounded-lg border border-border bg-surface-raised">
+              <div className="text-[10px] text-muted-foreground font-semibold">Avg Latency</div>
+              <div className="mt-1 text-base font-bold text-foreground">
+                {Math.round(data.analytics?.avgDurationMs ?? data.run?.latencyMs ?? 0)}ms
+              </div>
+            </div>
+            <div className="p-2.5 rounded-lg border border-border bg-surface-raised">
+              <div className="text-[10px] text-muted-foreground font-semibold">Token Usage</div>
+              <div className="mt-1 text-base font-bold text-foreground">
+                {(data.analytics?.totalTokens ?? data.run?.tokens ?? 0).toLocaleString()}
+              </div>
+            </div>
+            <div className="p-2.5 rounded-lg border border-border bg-surface-raised">
+              <div className="text-[10px] text-muted-foreground font-semibold">Incurred Cost</div>
+              <div className="mt-1 text-base font-bold text-foreground">
+                ${(data.analytics?.estimatedCost ?? ((data.run?.tokens ?? 0) * 0.000005)).toFixed(4)}
+              </div>
+            </div>
+          </div>
+
+          {/* Last run output */}
+          {data.run && (
+            <div className="space-y-1.5 border-t border-border pt-3">
+              <span className="font-semibold text-foreground">Latest Step Output</span>
+              <pre className="p-2.5 rounded-lg bg-surface-raised border border-border text-[10px] font-mono max-h-36 overflow-auto whitespace-pre-wrap break-all text-muted-foreground">
+                {data.run.error ? data.run.error : data.run.output || 'No output text'}
+              </pre>
+            </div>
+          )}
+
+          {/* Redacted inputs/parameters */}
+          {config && Object.keys(config).length > 0 && (
+            <div className="space-y-1.5 border-t border-border pt-3">
+              <span className="font-semibold text-foreground">Step Parameters & Inputs</span>
+              <pre className="p-2.5 rounded-lg bg-surface-raised border border-border text-[10px] font-mono max-h-32 overflow-auto whitespace-pre-wrap break-all text-muted-foreground">
+                {JSON.stringify(config, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
       )}
 
@@ -840,6 +907,7 @@ export function NodeInspector({
                 onChange={(e) => updateConfig(templateKey, e.target.value)}
                 placeholder="Draft formatted output: {{agent.output}} &#10;Source: {{firecrawl.url}}"
                 className="w-full font-mono rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
             </div>
           </div>
         )}

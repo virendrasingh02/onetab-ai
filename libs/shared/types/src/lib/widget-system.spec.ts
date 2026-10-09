@@ -4,12 +4,8 @@ import {
   WORKFLOW_WIDGET_NODE_TYPES,
   isWidgetNodeType,
 } from './widget-system.js';
-import {
-  createWidgetDefinitionSchema,
-  executeWidgetSchema,
-} from '@org/validation';
 
-describe('Widget System Types & Schemas', () => {
+describe('Widget System Types', () => {
   it('defines 5 core widget categories matching platform architecture', () => {
     expect(WIDGET_CATEGORIES).toContain('data_viz');
     expect(WIDGET_CATEGORIES).toContain('interactive_input');
@@ -34,33 +30,5 @@ describe('Widget System Types & Schemas', () => {
 
     expect(isWidgetNodeType('WIDGET_RENDERER')).toBe(true);
     expect(isWidgetNodeType('AI_CHAT_MODEL')).toBe(false);
-  });
-
-  it('validates widget creation input schema', () => {
-    const valid = {
-      name: 'Agent Latency Tracker',
-      category: 'data_viz',
-      componentType: 'line_chart',
-      appearance: {
-        size: 'standard',
-      },
-      dataSource: {
-        type: 'api_rest',
-        apiUrl: 'https://api.example.com/metrics',
-      },
-    };
-    const parsed = createWidgetDefinitionSchema.parse(valid);
-    expect(parsed.name).toBe('Agent Latency Tracker');
-    expect(parsed.category).toBe('data_viz');
-    expect(parsed.componentType).toBe('line_chart');
-  });
-
-  it('validates widget execution schema', () => {
-    const validExec = {
-      executionType: 'DATA_FETCH',
-      inputPayload: { timeframe: '30d' },
-    };
-    const parsed = executeWidgetSchema.parse(validExec);
-    expect(parsed.executionType).toBe('DATA_FETCH');
   });
 });

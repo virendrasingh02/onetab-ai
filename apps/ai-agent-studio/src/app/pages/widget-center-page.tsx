@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -22,8 +22,13 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { widgetsApi } from '@org/api-client';
+import {
+  draftFromDefinition,
+  draftFromTemplate,
+  type WidgetDraft,
+} from '../components/widgets/widget-draft.js';
 import { useStudioSession } from '../session-guard.js';
-import type { WidgetDefinition, WidgetCategory, WidgetTemplate } from '@org/types';
+import type { WidgetDefinition, WidgetCategory, WidgetTemplateItem } from '@org/types';
 import { WidgetRenderer } from '../components/widgets/widget-renderer.js';
 import {
   LayoutDashboard,
@@ -56,6 +61,13 @@ import {
   Code,
 } from 'lucide-react';
 
+/** What the quick-preview dialog shows, and where "Open Builder" goes. */
+interface WidgetPreview {
+  draft: WidgetDraft;
+  widgetId?: string;
+  templateId?: string;
+}
+
 export function WidgetCenterPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -67,11 +79,11 @@ export function WidgetCenterPage() {
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [previewWidget, setPreviewWidget] = useState<Partial<WidgetDefinition> | null>(null);
+  const [previewWidget, setPreviewWidget] = useState<WidgetPreview | null>(null);
   const [selectedWidgetForVersions, setSelectedWidgetForVersions] = useState<string | null>(null);
 
   // Queries
-  const { data: widgets = [], isLoading: loadingWidgets } = useQuery({
+  const { data: widgetsData, isLoading: loadingWidgets } = useQuery({
     queryKey: ['widgets', activeWorkspace.id, selectedCategory, search],
     queryFn: () =>
       widgetsApi.list(activeWorkspace.id, {
@@ -80,18 +92,18 @@ export function WidgetCenterPage() {
       }),
   });
 
-  const { data: templates = [], isLoading: loadingTemplates } = useQuery({
-    queryKey: ['widget-templates'],
-    queryFn: () => widgetsApi.listTemplates(),
+  const { data: templatesData, isLoading: loadingTemplates } = useQuery({
+    queryKey: ['widget-templates', activeWorkspace.id],
+    queryFn: () => widgetsApi.listTemplates(activeWorkspace.id),
   });
 
-  const { data: executions = [], isLoading: loadingExecutions } = useQuery({
+  const { data: executionsData, isLoading: loadingExecutions } = useQuery({
     queryKey: ['widget-executions', activeWorkspace.id],
     queryFn: () => widgetsApi.listExecutions(activeWorkspace.id, { limit: 25 }),
     enabled: activeTab === 'executions',
   });
 
-  const { data: versions = [], isLoading: loadingVersions } = useQuery({
+  const { data: versionsData, isLoading: loadingVersions } = useQuery({
     queryKey: ['widget-versions', activeWorkspace.id, selectedWidgetForVersions],
     queryFn: () =>
       selectedWidgetForVersions
@@ -100,17 +112,33 @@ export function WidgetCenterPage() {
     enabled: activeTab === 'versions' && Boolean(selectedWidgetForVersions),
   });
 
+  const widgets: WidgetDefinition[] = useMemo(() => {
+    if (Array.isArray(widgetsData)) return widgetsData;
+    if (Array.isArray((widgetsData as any)?.items)) return (widgetsData as any).items;
+    return [];
+  }, [widgetsData]);
+
+  const templates: WidgetTemplateItem[] = useMemo(() => {
+    if (Array.isArray(templatesData)) return templatesData;
+    if (Array.isArray((templatesData as any)?.items)) return (templatesData as any).items;
+    return [];
+  }, [templatesData]);
+
+  const executions: any[] = useMemo(() => {
+    if (Array.isArray(executionsData)) return executionsData;
+    if (Array.isArray((executionsData as any)?.items)) return (executionsData as any).items;
+    return [];
+  }, [executionsData]);
+
+  const versions: any[] = useMemo(() => {
+    if (Array.isArray(versionsData)) return versionsData;
+    if (Array.isArray((versionsData as any)?.items)) return (versionsData as any).items;
+    return [];
+  }, [versionsData]);
+
   // Mutations
   const duplicateMutation = useMutation({
-    mutationFn: async (widget: WidgetDefinition) => {
-      return widgetsApi.create(activeWorkspace.id, {
-        name: `${widget.name} (Copy)`,
-        description: widget.description,
-        category: widget.category,
-        config: widget.config,
-        isPublic: widget.isPublic,
-      });
-    },
+    mutationFn: (widget: WidgetDefinition) => widgetsApi.duplicate(activeWorkspace.id, widget.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['widgets', activeWorkspace.id] });
       toast.success('Widget duplicated successfully');
@@ -228,11 +256,11 @@ export function WidgetCenterPage() {
             <div className="flex items-center gap-1.5 flex-wrap">
               {[
                 { id: 'ALL', label: 'All Categories' },
-                { id: 'DATA_VISUALIZATION', label: 'Data & Viz' },
-                { id: 'INTERACTIVE_INPUT', label: 'Input & Forms' },
-                { id: 'AI_POWERED', label: 'AI-Powered' },
-                { id: 'APP_CONNECTOR', label: 'Connectors' },
-                { id: 'PRODUCTIVITY', label: 'Productivity' },
+                { id: 'data_viz', label: 'Data & Viz' },
+                { id: 'interactive_input', label: 'Input & Forms' },
+                { id: 'ai_powered', label: 'AI-Powered' },
+                { id: 'app_connector', label: 'Connectors' },
+                { id: 'productivity', label: 'Productivity' },
               ].map((cat) => (
                 <Button
                   key={cat.id}
@@ -293,10 +321,10 @@ export function WidgetCenterPage() {
                         </div>
                       </div>
                       <Badge
-                        variant={widget.isPublic ? 'subtle' : 'outline'}
+                        variant={widget.visibility === 'PRIVATE' ? 'outline' : 'secondary'}
                         className="text-[9px] uppercase font-mono"
                       >
-                        {widget.isPublic ? 'Public' : 'Personal'}
+                        {widget.visibility === 'PRIVATE' ? 'Personal' : widget.visibility === 'PUBLIC' ? 'Public' : 'Workspace'}
                       </Badge>
                     </div>
                     <CardDescription className="text-xs text-muted-foreground mt-2 line-clamp-2">
@@ -309,13 +337,15 @@ export function WidgetCenterPage() {
                       <div className="flex justify-between items-center text-[11px] text-muted-foreground">
                         <span>Component Type:</span>
                         <span className="font-mono text-foreground font-medium">
-                          {widget.config?.componentType || 'metric_card'}
+                          {widget.componentType}
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-[11px] text-muted-foreground mt-1">
                         <span>Refresh Interval:</span>
                         <span className="font-mono text-foreground">
-                          {widget.config?.refreshInterval ? `${widget.config.refreshInterval}s` : 'Manual'}
+                          {widget.dataSource?.autoRefresh && widget.dataSource.refreshIntervalSec
+                            ? `${widget.dataSource.refreshIntervalSec}s`
+                            : 'Manual'}
                         </span>
                       </div>
                     </div>
@@ -326,7 +356,7 @@ export function WidgetCenterPage() {
                       <Button
                         variant="ghost"
                         size="xs"
-                        onClick={() => setPreviewWidget(widget)}
+                        onClick={() => setPreviewWidget({ draft: draftFromDefinition(widget), widgetId: widget.id })}
                         className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
                       >
                         <Eye className="mr-1 size-3" /> Preview
@@ -383,7 +413,7 @@ export function WidgetCenterPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {templates.map((tpl: WidgetTemplate) => (
+            {templates.map((tpl: WidgetTemplateItem) => (
               <Card
                 key={tpl.id}
                 className="flex flex-col justify-between border-border bg-surface hover:border-primary/40 transition-all"
@@ -424,7 +454,7 @@ export function WidgetCenterPage() {
                   <Button
                     variant="ghost"
                     size="xs"
-                    onClick={() => setPreviewWidget(tpl as any)}
+                    onClick={() => setPreviewWidget({ draft: draftFromTemplate(tpl), templateId: tpl.id })}
                     className="text-xs h-7 text-muted-foreground hover:text-foreground"
                   >
                     <Eye className="mr-1 size-3" /> Preview
@@ -591,21 +621,21 @@ export function WidgetCenterPage() {
                 <span className="font-medium text-foreground">Auto-Refresh Maximum Frequency</span>
                 <p className="text-[11px]">Enforce lower bound on widget periodic HTTP queries</p>
               </div>
-              <Badge variant="subtle">15 seconds</Badge>
+              <Badge variant="secondary">15 seconds</Badge>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <div>
                 <span className="font-medium text-foreground">SSRF Protection Engine</span>
                 <p className="text-[11px]">Blocks requests targeting private IPs, AWS metadata, and loopbacks</p>
               </div>
-              <Badge variant="subtle" className="text-emerald-500 font-mono">Enforced</Badge>
+              <Badge variant="secondary" className="text-emerald-500 font-mono">Enforced</Badge>
             </div>
             <div className="flex justify-between items-center py-2">
               <div>
                 <span className="font-medium text-foreground">Audit Log Retention</span>
                 <p className="text-[11px]">Days of execution history retained per widget</p>
               </div>
-              <Badge variant="subtle">90 days</Badge>
+              <Badge variant="secondary">90 days</Badge>
             </div>
           </div>
         </Card>
@@ -618,21 +648,23 @@ export function WidgetCenterPage() {
             <DialogHeader>
               <DialogTitle className="text-sm font-semibold flex items-center gap-2">
                 <LayoutDashboard className="size-4 text-primary" />
-                <span>{previewWidget.name || 'Widget Preview'}</span>
+                <span>{previewWidget.draft.name || 'Widget Preview'}</span>
                 <Badge variant="outline" className="text-[10px] font-mono">
-                  {previewWidget.category}
+                  {previewWidget.draft.category}
                 </Badge>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {previewWidget.description}
+                {previewWidget.draft.description}
               </DialogDescription>
             </DialogHeader>
 
             <div className="p-4 bg-muted/20 rounded-lg flex items-center justify-center min-h-[220px]">
               <div className="w-full max-w-lg">
                 <WidgetRenderer
-                  definition={previewWidget}
-                  onAction={(name, payload) => toast.info(`Action fired: ${name}`)}
+                  definition={previewWidget.draft}
+                  onAction={(name) => {
+                    toast.info(`Action fired: ${name}`);
+                  }}
                   onRefresh={() => toast.success('Widget refreshed')}
                 />
               </div>
@@ -642,13 +674,13 @@ export function WidgetCenterPage() {
               <Button variant="ghost" size="sm" onClick={() => setPreviewWidget(null)} className="text-xs">
                 Close
               </Button>
-              {previewWidget.id && (
+              {(previewWidget.widgetId || previewWidget.templateId) && (
                 <Button
                   size="sm"
                   onClick={() => {
-                    const id = previewWidget.id;
+                    const { widgetId, templateId } = previewWidget;
                     setPreviewWidget(null);
-                    navigate(`/widgets/${id}`);
+                    navigate(widgetId ? `/widgets/${widgetId}` : `/widgets/new?template=${templateId}`);
                   }}
                   className="text-xs"
                 >

@@ -21,3 +21,4 @@ export * from './lib/agent-spec.schema.js';
 export * from './lib/agent-blueprint.schema.js';
 export * from './lib/agent-architect.schema.js';
 export * from './lib/widget-system.schema.js';
+export * from './lib/agent-deployment.schema.js';

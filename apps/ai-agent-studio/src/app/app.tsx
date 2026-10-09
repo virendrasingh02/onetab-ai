@@ -5,7 +5,7 @@ import { StudioHeader } from './components/studio-header.js';
 import { StudioSidebar } from './components/studio-sidebar.js';
 import { AgentDetailPage } from './pages/agent-detail-page.js';
 import { AgentsListPage } from './pages/agents-list-page.js';
-import { AnalyticsPage } from './pages/analytics-page.jsx';
+import { AnalyticsPage } from './pages/analytics-page.js';
 import { CreateAgentPage } from './pages/create-agent-page.js';
 import { ApprovalsPage } from './pages/approvals-page.js';
 import { DeveloperPage } from './pages/developer-page.jsx';

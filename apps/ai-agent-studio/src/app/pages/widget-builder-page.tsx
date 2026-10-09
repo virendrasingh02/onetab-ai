@@ -3,10 +3,18 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Input, Badge, toast } from '@org/ui';
 import { widgetsApi } from '@org/api-client';
 import { useStudioSession } from '../session-guard.js';
-import type { WidgetDefinition, WidgetCategory } from '@org/types';
+import type { WidgetDefinition } from '@org/types';
 import { WidgetComponentPalette } from '../components/widgets/widget-component-palette.js';
 import { WidgetPreviewContainer } from '../components/widgets/widget-preview-container.js';
 import { WidgetConfigDrawer } from '../components/widgets/widget-config-drawer.js';
+import {
+  createDefaultDraft,
+  draftFromDefinition,
+  draftFromTemplate,
+  draftToPayload,
+  type WidgetDraft,
+} from '../components/widgets/widget-draft.js';
+import type { WidgetPreset } from '../components/widgets/widget-component-palette.js';
 import {
   ArrowLeft,
   Save,
@@ -32,23 +40,9 @@ export function WidgetBuilderPage() {
 
   const isNew = !widgetId || widgetId === 'new';
 
-  const [definition, setDefinition] = useState<Partial<WidgetDefinition>>(() => ({
-    name: 'Untitled Widget',
-    description: 'Configure and link this widget to agents, workflows, or dashboards.',
-    category: 'DATA_VISUALIZATION' as WidgetCategory,
-    version: '1.0.0',
-    isPublic: true,
-    config: {
-      componentType: 'metric_card',
-      title: 'Active Agent Invocations',
-      value: '1,420',
-      change: '+12.5%',
-      metricLabel: 'Monthly Total',
-      size: 'md',
-      refreshInterval: 0,
-      initialData: { value: '1,420', change: '+12.5%' },
-    },
-  }));
+  const [definition, setDefinition] = useState<WidgetDraft>(createDefaultDraft);
+  // The stored definition, so saves keep settings the builder doesn't edit.
+  const [stored, setStored] = useState<WidgetDefinition | undefined>();
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -62,10 +56,9 @@ export function WidgetBuilderPage() {
       setLoading(true);
       widgetsApi
         .get(activeWorkspace.id, widgetId)
-        .then((res: any) => {
-          if (res) {
-            setDefinition(res);
-          }
+        .then((res) => {
+          setStored(res);
+          setDefinition(draftFromDefinition(res));
         })
         .catch((err: any) => {
           console.error('Failed to load widget:', err);
@@ -76,14 +69,11 @@ export function WidgetBuilderPage() {
       const templateId = searchParams.get('template');
       if (templateId) {
         widgetsApi
-          .listTemplates()
-          .then((templates: any[]) => {
-            const found = templates.find((t) => t.id === templateId);
+          .listTemplates(activeWorkspace.id)
+          .then((templates) => {
+            const found = templates.find((tpl) => tpl.id === templateId);
             if (found) {
-              setDefinition({
-                ...found,
-                name: `${found.name} (Copy)`,
-              });
+              setDefinition(draftFromTemplate(found));
               toast.success(`Loaded template: ${found.name}`);
             }
           })
@@ -100,24 +90,17 @@ export function WidgetBuilderPage() {
     setSaving(true);
     try {
       if (isNew) {
-        const created = await widgetsApi.create(activeWorkspace.id, {
-          name: definition.name,
-          description: definition.description,
-          category: definition.category || 'DATA_VISUALIZATION',
-          config: definition.config || {},
-          isPublic: definition.isPublic ?? true,
-        });
+        const created = await widgetsApi.create(activeWorkspace.id, draftToPayload(definition));
         toast.success('Widget created successfully!');
         navigate(`/widgets/${created.id}`, { replace: true });
       } else if (widgetId) {
-        const updated = await widgetsApi.update(activeWorkspace.id, widgetId, {
-          name: definition.name,
-          description: definition.description,
-          category: definition.category,
-          config: definition.config,
-          isPublic: definition.isPublic,
-        });
-        setDefinition(updated);
+        const updated = await widgetsApi.update(
+          activeWorkspace.id,
+          widgetId,
+          draftToPayload(definition, stored),
+        );
+        setStored(updated);
+        setDefinition(draftFromDefinition(updated));
         toast.success('Widget saved and versioned!');
       }
     } catch (err: any) {
@@ -138,8 +121,7 @@ export function WidgetBuilderPage() {
         });
         toast.success('Test execution completed with status: ' + (res.status || 'success'));
       } else {
-        await new Promise((r) => setTimeout(r, 600));
-        toast.success('Interactive test execution validated!');
+        toast.info('Save the widget first to run a test execution.');
       }
     } catch (err: any) {
       toast.error('Test execution failed: ' + (err.message || 'Error'));
@@ -148,12 +130,12 @@ export function WidgetBuilderPage() {
     }
   };
 
-  const handleSelectPreset = (preset: any) => {
+  const handleSelectPreset = (preset: WidgetPreset) => {
     setDefinition((prev) => ({
       ...prev,
       category: preset.category,
       config: {
-        ...(prev.config || {}),
+        ...prev.config,
         ...preset.defaultConfig,
         componentType: preset.componentType,
       },
@@ -189,10 +171,10 @@ export function WidgetBuilderPage() {
               {definition.name || 'Untitled Widget'}
             </span>
             <Badge variant="outline" className="font-mono text-[10px]">
-              v{definition.version || '1.0.0'}
+              v{definition.version ?? 1}
             </Badge>
-            {definition.isPublic && (
-              <Badge variant="subtle" className="text-[10px] text-emerald-500">
+            {definition.visibility !== 'PRIVATE' && (
+              <Badge variant="secondary" className="text-[10px] text-emerald-500">
                 Workspace Shared
               </Badge>
             )}

@@ -4,7 +4,9 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
+  Put,
   Query,
   Res,
   UseGuards,
@@ -127,6 +129,196 @@ export class AnalyticsController {
     @Query('to') to?: string,
   ) {
     return this.analytics.getAIUsageStats(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-deep')
+  @UseGuards(WorkspaceRoleGuard)
+  getDeepAIOverview(
+    @Param('workspaceId') workspaceId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getDeepAIOverview(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-agents')
+  @UseGuards(WorkspaceRoleGuard)
+  getAgentAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getAgentAnalytics(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-agents/:agentId')
+  @UseGuards(WorkspaceRoleGuard)
+  getSingleAgentAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getAgentAnalytics(workspaceId, { days, from, to }, agentId);
+  }
+
+  @Get('workspace/:workspaceId/ai-workflows')
+  @UseGuards(WorkspaceRoleGuard)
+  getWorkflowAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getWorkflowAnalytics(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-workflows/:workflowId')
+  @UseGuards(WorkspaceRoleGuard)
+  getSingleWorkflowAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Param('workflowId') workflowId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getWorkflowAnalytics(workspaceId, { days, from, to }, workflowId);
+  }
+
+  @Get('workspace/:workspaceId/ai-nodes')
+  @UseGuards(WorkspaceRoleGuard)
+  getNodeAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getNodeAnalytics(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-tools')
+  @UseGuards(WorkspaceRoleGuard)
+  getToolConnectorAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getToolConnectorAnalytics(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-models')
+  @UseGuards(WorkspaceRoleGuard)
+  getModelAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getModelAnalytics(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-costs')
+  @UseGuards(WorkspaceRoleGuard)
+  getCostAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getCostAnalytics(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-errors')
+  @UseGuards(WorkspaceRoleGuard)
+  getErrorAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getErrorAnalytics(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-traces/:executionId')
+  @UseGuards(WorkspaceRoleGuard)
+  getExecutionTraces(
+    @Param('workspaceId') workspaceId: string,
+    @Param('executionId') executionId: string,
+  ) {
+    return this.analytics.getExecutionTraces(workspaceId, executionId);
+  }
+
+  @Get('workspace/:workspaceId/ai-evaluations')
+  @UseGuards(WorkspaceRoleGuard)
+  getEvaluationsAnalytics(
+    @Param('workspaceId') workspaceId: string,
+    @Query('days') days?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.getEvaluationsAnalytics(workspaceId, { days, from, to });
+  }
+
+  @Get('workspace/:workspaceId/ai-versions/compare')
+  @UseGuards(WorkspaceRoleGuard)
+  compareVersions(
+    @Param('workspaceId') workspaceId: string,
+    @Query('entityType') entityType: 'AGENT' | 'WORKFLOW',
+    @Query('entityId') entityId: string,
+    @Query('versionA') versionA?: string,
+    @Query('versionB') versionB?: string,
+  ) {
+    return this.analytics.compareVersions(
+      workspaceId,
+      entityType,
+      entityId,
+      versionA ? parseInt(versionA, 10) : 1,
+      versionB ? parseInt(versionB, 10) : 2,
+    );
+  }
+
+  @Get('workspace/:workspaceId/ai-alerts')
+  @UseGuards(WorkspaceRoleGuard)
+  getAlerts(@Param('workspaceId') workspaceId: string) {
+    return this.analytics.getAlerts(workspaceId);
+  }
+
+  @Post('workspace/:workspaceId/ai-alerts')
+  @UseGuards(WorkspaceRoleGuard)
+  createAlertRule(
+    @Param('workspaceId') workspaceId: string,
+    @Body() body: any,
+  ) {
+    return this.analytics.createAlertRule(workspaceId, body);
+  }
+
+  @Patch('workspace/:workspaceId/ai-alerts/:alertId')
+  @UseGuards(WorkspaceRoleGuard)
+  updateAlertStatus(
+    @Param('workspaceId') workspaceId: string,
+    @Param('alertId') alertId: string,
+    @Body() body: { status: 'RESOLVED' | 'ACKNOWLEDGED' },
+  ) {
+    return this.analytics.updateAlertStatus(workspaceId, alertId, body.status);
+  }
+
+  @Get('workspace/:workspaceId/ai-settings')
+  @UseGuards(WorkspaceRoleGuard)
+  getAnalyticsSettings(@Param('workspaceId') workspaceId: string) {
+    return this.analytics.getAnalyticsSettings(workspaceId);
+  }
+
+  @Put('workspace/:workspaceId/ai-settings')
+  @UseGuards(WorkspaceRoleGuard)
+  updateAnalyticsSettings(
+    @Param('workspaceId') workspaceId: string,
+    @Body() body: any,
+  ) {
+    return this.analytics.updateAnalyticsSettings(workspaceId, body);
   }
 
   @Get('workspace/:workspaceId/storage')

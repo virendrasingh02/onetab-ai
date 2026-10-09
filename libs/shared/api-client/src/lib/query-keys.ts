@@ -160,6 +160,16 @@ export const queryKeys = {
       ['agents', workspaceId, 'detail', agentId] as const,
     versions: (workspaceId: string, agentId: string) =>
       ['agents', workspaceId, 'detail', agentId, 'versions'] as const,
+    deployments: (workspaceId: string, agentId: string) =>
+      ['agents', workspaceId, 'detail', agentId, 'deployments'] as const,
+    deployment: (workspaceId: string, agentId: string, deploymentId: string) =>
+      ['agents', workspaceId, 'detail', agentId, 'deployments', deploymentId] as const,
+    deploymentAnalytics: (workspaceId: string, agentId: string, deploymentId: string) =>
+      ['agents', workspaceId, 'detail', agentId, 'deployments', deploymentId, 'analytics'] as const,
+    deploymentWebhooks: (workspaceId: string, agentId: string, deploymentId: string) =>
+      ['agents', workspaceId, 'detail', agentId, 'deployments', deploymentId, 'webhooks'] as const,
+    apiKeys: (workspaceId: string, agentId: string) =>
+      ['agents', workspaceId, 'detail', agentId, 'api-keys'] as const,
     /** The built-in tools an agent can be given (the MCP tool registry). */
     tools: (workspaceId: string) => ['agents', workspaceId, 'tools'] as const,
   },

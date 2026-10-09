@@ -1,7 +1,7 @@
 import { Badge, Button, ScrollArea } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Edge, Node } from '@xyflow/react';
-import { AlertTriangle, Bot, ChevronDown, ChevronRight, EyeOff, Network, X } from 'lucide-react';
+import { AlertTriangle, Bot, ChevronDown, ChevronRight, Network, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { AGENT_SLOTS, agentHierarchy, type AgentTreeNode } from './agent-slots.js';
 import { getNodeIcon } from './node-wiring-panel.js';
@@ -10,13 +10,11 @@ interface AgentOutlinePanelProps {
   nodes: Node[];
   edges: Edge[];
   onFocusNode: (nodeId: string) => void;
-  onToggleCollapse: (agentId: string) => void;
   onClose: () => void;
   className?: string;
 }
 
 const labelOf = (n: Node) => String((n.data as { label?: string } | undefined)?.label || n.type || 'Step');
-const isCollapsed = (n: Node) => Boolean((n.data as { collapsed?: boolean } | undefined)?.collapsed);
 
 function countAgents(trees: AgentTreeNode[]): { agents: number; teams: number; issues: number } {
   let agents = 0;
@@ -41,7 +39,6 @@ export function AgentOutlinePanel({
   nodes,
   edges,
   onFocusNode,
-  onToggleCollapse,
   onClose,
   className,
 }: AgentOutlinePanelProps) {
@@ -99,7 +96,6 @@ export function AgentOutlinePanel({
                 depth={0}
                 issuesOnly={issuesOnly}
                 onFocusNode={onFocusNode}
-                onToggleCollapse={onToggleCollapse}
               />
             ))}
           </ul>
@@ -118,18 +114,15 @@ function AgentRow({
   depth,
   issuesOnly,
   onFocusNode,
-  onToggleCollapse,
 }: {
   tree: AgentTreeNode;
   depth: number;
   issuesOnly: boolean;
   onFocusNode: (nodeId: string) => void;
-  onToggleCollapse: (agentId: string) => void;
 }) {
   const [open, setOpen] = useState(true);
   if (issuesOnly && !hasIssuesBelow(tree)) return null;
   const { agent, attachments, children, issues } = tree;
-  const collapsed = isCollapsed(agent);
   const plugged = AGENT_SLOTS.filter((s) => s.id !== 'agents').flatMap((s) =>
     attachments[s.id].map((n) => ({ slot: s.label, node: n })),
   );
@@ -175,19 +168,6 @@ function AgentRow({
             <AlertTriangle className="size-3" />
           </span>
         )}
-        {hasBody && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            className={cn('size-5 shrink-0', !collapsed && 'opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100')}
-            onClick={() => onToggleCollapse(agent.id)}
-            aria-label={collapsed ? `Show what’s plugged into ${labelOf(agent)}` : `Hide what’s plugged into ${labelOf(agent)}`}
-            title={collapsed ? 'Hidden on the canvas: click to show' : 'Hide on the canvas'}
-          >
-            <EyeOff className={cn('size-3', collapsed && 'text-primary')} />
-          </Button>
-        )}
       </div>
 
       {open && hasBody && (
@@ -201,7 +181,6 @@ function AgentRow({
                   onClick={() => onFocusNode(node.id)}
                   className={cn(
                     'flex w-full items-center gap-1.5 rounded-md py-0.5 pr-1 text-left hover:bg-surface-raised',
-                    collapsed && 'opacity-60',
                   )}
                   style={{ paddingLeft: (depth + 1) * 14 + 20 }}
                   title={`Go to ${labelOf(node)}`}
@@ -220,7 +199,6 @@ function AgentRow({
               depth={depth + 1}
               issuesOnly={issuesOnly}
               onFocusNode={onFocusNode}
-              onToggleCollapse={onToggleCollapse}
             />
           ))}
         </ul>

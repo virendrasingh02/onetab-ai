@@ -40,7 +40,7 @@ export class WidgetStudioController {
   list(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Query() query: WidgetQueryInput,
+    @Query(zodBody(widgetQuerySchema)) query: WidgetQueryInput,
   ) {
     return this.widgetService.list(workspaceId, userId, query);
   }
@@ -51,6 +51,24 @@ export class WidgetStudioController {
   @Get('templates')
   templates() {
     return this.widgetService.getTemplates();
+  }
+
+  /**
+   * Recent executions across all widgets in the workspace. Declared before
+   * `:id` so `executions` is never read as a widget id.
+   */
+  @Get('executions')
+  listExecutions(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Query('limit') limit?: string,
+  ) {
+    const parsed = Number(limit);
+    return this.widgetService.listWorkspaceExecutions(
+      workspaceId,
+      userId,
+      Number.isFinite(parsed) && parsed > 0 ? parsed : 25,
+    );
   }
 
   /**

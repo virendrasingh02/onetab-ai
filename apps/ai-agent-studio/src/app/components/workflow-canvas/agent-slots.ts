@@ -290,38 +290,3 @@ export function agentIssues(agent: Node, nodes: Node[], edges: Edge[]): string[]
   }
   return issues;
 }
-
-const isCollapsed = (n: Node | undefined) => Boolean((n?.data as { collapsed?: boolean } | undefined)?.collapsed);
-
-/**
- * Nodes hidden because an agent above them is collapsed: everything plugged into
- * a collapsed agent and, through Sub-agents, everything below it.
- */
-export function collapsedNodeIds(nodes: Node[], edges: Edge[]): Set<string> {
-  const hidden = new Set<string>();
-  const hideBelow = (agentId: string) => {
-    for (const e of edges) {
-      if (e.source !== agentId || !getSlot(e.sourceHandle) || hidden.has(e.target)) continue;
-      hidden.add(e.target);
-      hideBelow(e.target);
-    }
-  };
-  for (const n of nodes) if (isSlotHost(n.type) && isCollapsed(n)) hideBelow(n.id);
-  return hidden;
-}
-
-/** Collapsed agents above a node, outermost first: expand these to reveal it. */
-export function collapsedAncestors(nodeId: string, nodes: Node[], edges: Edge[]): string[] {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const chain: string[] = [];
-  const visited = new Set<string>();
-  let id: string | undefined = nodeId;
-  while (id && !visited.has(id)) {
-    visited.add(id);
-    const current: string = id;
-    const owner: string | undefined = edges.find((e) => e.target === current && getSlot(e.sourceHandle))?.source;
-    if (owner && isCollapsed(byId.get(owner))) chain.unshift(owner);
-    id = owner;
-  }
-  return chain;
-}

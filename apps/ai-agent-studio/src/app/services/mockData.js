@@ -1,5 +1,130 @@
 export const INITIAL_AGENTS = [
   {
+    id: 'agent-buy-a-mac-system',
+    name: 'Buy a Mac System',
+    role: 'Hardware Procurement Specialist',
+    description: 'Autonomous agent that researches Apple catalogs, compares M3/M4 chip benchmarks, verifies inventory, checks budget limits, and initiates confirmation-guarded purchases.',
+    status: 'published',
+    model: 'gpt-4o',
+    provider: 'OpenAI',
+    icon: 'Laptop',
+    color: 'blue',
+    systemPrompt: `You are the authorized Buy a Mac System procurement specialist for OneTab AI.
+Your objectives:
+1. Understand the user's workload requirements (Xcode build times, ML model inference, 4K video editing, or office productivity).
+2. Query the authorized Apple product catalog and pricing APIs for Mac mini, Mac Studio, MacBook Air, and MacBook Pro models.
+3. Compare chip tiers (M3/M4, Pro, Max) and unified memory requirements (16GB, 24GB, 36GB, 64GB, 128GB).
+4. Verify stock and regional inventory across authorized enterprise suppliers.
+5. Apply corporate budget limits (default $5,000 USD).
+6. Before placing or booking any hardware order, trigger a mandatory purchase confirmation approval step.`,
+    temperature: 0.2,
+    maxTokens: 2048,
+    memory: {
+      type: 'hybrid',
+      contextWindow: 16,
+      retentionDays: 60,
+      userSpecific: true,
+      summarizeAfter: 10,
+    },
+    planning: {
+      enabled: true,
+      maxSteps: 10,
+      budgetLimit: 5000.0,
+      humanReviewOnTools: ['execute_purchase'],
+    },
+    tools: [
+      'search_mac_catalog',
+      'compare_specs',
+      'check_inventory',
+      'execute_purchase',
+      'user_approval',
+    ],
+    createdAt: '2026-03-01T09:00:00Z',
+    updatedAt: '2026-04-01T12:00:00Z',
+    stats: {
+      totalRuns: 348,
+      successRate: 99.2,
+      avgDuration: '1.8s',
+      costEstimate: '$8.20',
+    },
+    deployment: {
+      environments: ['production', 'staging', 'development'],
+      widgetEnabled: true,
+      publicLink: 'https://onetab.ai/agent/buy-a-mac-system',
+      webhookUrl: 'https://api.onetab.ai/v1/agents/agent-buy-a-mac-system/webhook',
+    },
+    graphJson: JSON.stringify({
+      nodes: [
+        {
+          id: 'start-1',
+          type: 'START',
+          position: { x: 80, y: 220 },
+          data: {
+            label: 'Hardware Procurement Request',
+            subtitle: 'Triggered via widget, API, or chat',
+            config: { triggerType: 'PROCUREMENT_INTENT' },
+          },
+        },
+        {
+          id: 'research-1',
+          type: 'AGENT',
+          position: { x: 380, y: 160 },
+          data: {
+            label: 'Mac Catalog & Spec Researcher',
+            subtitle: 'Evaluates M3/M4 models and memory needs',
+            config: {
+              model: 'gpt-4o',
+              temperature: 0.2,
+              tools: ['search_mac_catalog', 'compare_specs'],
+            },
+          },
+        },
+        {
+          id: 'inventory-1',
+          type: 'AGENT',
+          position: { x: 700, y: 160 },
+          data: {
+            label: 'Inventory & Pricing Verifier',
+            subtitle: 'Checks supplier stock & budget compliance',
+            config: {
+              tools: ['check_inventory'],
+            },
+          },
+        },
+        {
+          id: 'approval-1',
+          type: 'USER_APPROVAL',
+          position: { x: 1020, y: 160 },
+          data: {
+            label: 'Purchase Confirmation Guard',
+            subtitle: 'Mandatory sign-off for financial transactions',
+            config: {
+              approverRole: 'Department Manager',
+              actionName: 'execute_purchase',
+              timeoutMinutes: 120,
+            },
+          },
+        },
+        {
+          id: 'end-1',
+          type: 'END',
+          position: { x: 1340, y: 160 },
+          data: {
+            label: 'Order Confirmation & Receipt',
+            subtitle: 'Sends tracking, PO number & summary',
+            config: { channel: 'order_receipt' },
+          },
+        },
+      ],
+      edges: [
+        { id: 'e1-2', source: 'start-1', target: 'research-1', animated: true },
+        { id: 'e2-3', source: 'research-1', target: 'inventory-1' },
+        { id: 'e3-4', source: 'inventory-1', target: 'approval-1' },
+        { id: 'e4-5', source: 'approval-1', target: 'end-1', animated: true },
+      ],
+    }),
+  },
+  {
     id: 'agent-support-pro',
     name: 'Customer Support Autonomous Concierge',
     role: 'Tier-1 Support Specialist',

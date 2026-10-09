@@ -4,6 +4,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from '@org/database';
 import { AnalyticsController } from './analytics.controller.js';
 import { AnalyticsService } from './analytics.service.js';
+import { AITelemetryService } from './ai-telemetry.service.js';
 import { ErrorTrackingService } from './error-tracking.service.js';
 import { HealthService } from './health.service.js';
 import { MetricsService } from './metrics.service.js';
@@ -15,6 +16,7 @@ import { TelemetryInterceptor } from './telemetry.interceptor.js';
   controllers: [AnalyticsController],
   providers: [
     AnalyticsService,
+    AITelemetryService,
     MetricsService,
     ErrorTrackingService,
     HealthService,
@@ -25,6 +27,7 @@ import { TelemetryInterceptor } from './telemetry.interceptor.js';
   ],
   exports: [
     AnalyticsService,
+    AITelemetryService,
     MetricsService,
     ErrorTrackingService,
     HealthService,

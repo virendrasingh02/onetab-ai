@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Button,
   Input,
@@ -6,7 +6,8 @@ import {
   Badge,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import type { WidgetCategory, WidgetDefinition } from '@org/types';
+import type { WidgetCategory, WidgetComponentType } from '@org/types';
+import { isWidgetCategory, type WidgetDraft } from './widget-draft.js';
 import {
   Code,
   Sliders,
@@ -19,8 +20,8 @@ import {
 } from 'lucide-react';
 
 interface WidgetConfigDrawerProps {
-  definition: Partial<WidgetDefinition>;
-  onChange: (updated: Partial<WidgetDefinition>) => void;
+  definition: WidgetDraft;
+  onChange: (updated: WidgetDraft) => void;
   className?: string;
 }
 
@@ -33,10 +34,15 @@ export function WidgetConfigDrawer({
   const [rawJson, setRawJson] = useState(() => JSON.stringify(definition, null, 2));
   const [jsonError, setJsonError] = useState<string | null>(null);
 
-  const config = definition.config || {};
+  // Keep the JSON tab in step with edits made elsewhere (presets, loads).
+  useEffect(() => {
+    setRawJson(JSON.stringify(definition, null, 2));
+  }, [definition]);
+
+  const config = definition.config;
 
   const updateConfig = (key: string, val: any) => {
-    const updated = {
+    const updated: WidgetDraft = {
       ...definition,
       config: {
         ...config,
@@ -47,8 +53,8 @@ export function WidgetConfigDrawer({
     setRawJson(JSON.stringify(updated, null, 2));
   };
 
-  const updateRootField = (key: string, val: any) => {
-    const updated = {
+  const updateRootField = <K extends keyof WidgetDraft>(key: K, val: WidgetDraft[K]) => {
+    const updated: WidgetDraft = {
       ...definition,
       [key]: val,
     };
@@ -58,9 +64,18 @@ export function WidgetConfigDrawer({
 
   const handleJsonBlur = () => {
     try {
-      const parsed = JSON.parse(rawJson);
+      const parsed = JSON.parse(rawJson) as Partial<WidgetDraft>;
+      if (!parsed || typeof parsed !== 'object' || typeof parsed.name !== 'string') {
+        throw new Error('Expected an object with a string "name".');
+      }
+      if (!isWidgetCategory(parsed.category)) {
+        throw new Error('"category" must be one of data_viz, interactive_input, ai_powered, app_connector, productivity.');
+      }
+      if (!parsed.config || typeof parsed.config.componentType !== 'string') {
+        throw new Error('"config.componentType" is required.');
+      }
       setJsonError(null);
-      onChange(parsed);
+      onChange({ ...definition, ...parsed } as WidgetDraft);
     } catch (e: any) {
       setJsonError(e.message || 'Invalid JSON syntax');
     }
@@ -144,22 +159,22 @@ export function WidgetConfigDrawer({
               <div className="space-y-1.5">
                 <label className="text-[11px] text-muted-foreground">Category</label>
                 <select
-                  value={definition.category || 'DATA_VISUALIZATION'}
+                  value={definition.category}
                   onChange={(e) => updateRootField('category', e.target.value as WidgetCategory)}
                   className="w-full h-8 px-2 rounded border border-border bg-surface-raised text-foreground focus:outline-none"
                 >
-                  <option value="DATA_VISUALIZATION">Data & Visualization</option>
-                  <option value="INTERACTIVE_INPUT">Interactive Input</option>
-                  <option value="AI_POWERED">AI-Powered</option>
-                  <option value="APP_CONNECTOR">App Connector</option>
-                  <option value="PRODUCTIVITY">Productivity</option>
+                  <option value="data_viz">Data & Visualization</option>
+                  <option value="interactive_input">Interactive Input</option>
+                  <option value="ai_powered">AI-Powered</option>
+                  <option value="app_connector">App Connector</option>
+                  <option value="productivity">Productivity</option>
                 </select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-[11px] text-muted-foreground">Component Type</label>
                 <select
                   value={config.componentType || 'metric_card'}
-                  onChange={(e) => updateConfig('componentType', e.target.value)}
+                  onChange={(e) => updateConfig('componentType', e.target.value as WidgetComponentType)}
                   className="w-full h-8 px-2 rounded border border-border bg-surface-raised text-foreground focus:outline-none"
                 >
                   <option value="metric_card">Metric Card</option>
@@ -168,15 +183,15 @@ export function WidgetConfigDrawer({
                   <option value="area_chart">Area Chart</option>
                   <option value="table_view">Data Table</option>
                   <option value="progress_summary">Progress Summary</option>
-                  <option value="form_input">Form Input</option>
+                  <option value="text_input">Text Input</option>
                   <option value="dynamic_form">Dynamic Form</option>
                   <option value="approval_form">Approval Form</option>
                   <option value="ai_summary">AI Summary</option>
-                  <option value="entity_extractor">Entity Extractor</option>
-                  <option value="sentiment_analysis">Sentiment Analysis</option>
-                  <option value="action_card">Action Card</option>
-                  <option value="task_list">Task List</option>
-                  <option value="meeting_notes">Meeting Notes</option>
+                  <option value="ai_extraction">Entity Extractor</option>
+                  <option value="ai_sentiment">Sentiment Analysis</option>
+                  <option value="connector_action">Action Card</option>
+                  <option value="task_kanban">Task List</option>
+                  <option value="meeting_summary">Meeting Notes</option>
                 </select>
               </div>
             </div>
@@ -218,7 +233,7 @@ export function WidgetConfigDrawer({
             <div className="space-y-1.5">
               <label className="text-[11px] text-muted-foreground">Display Title</label>
               <Input
-                value={config.title || ''}
+                value={String(config.title ?? '')}
                 onChange={(e) => updateConfig('title', e.target.value)}
                 placeholder="Card Header Title"
                 className="h-8 text-xs"
@@ -227,7 +242,7 @@ export function WidgetConfigDrawer({
             <div className="space-y-1.5">
               <label className="text-[11px] text-muted-foreground">Footer / Attribution Text</label>
               <Input
-                value={config.footerText || ''}
+                value={String(config.footerText ?? '')}
                 onChange={(e) => updateConfig('footerText', e.target.value)}
                 placeholder="e.g. Synced from Google Analytics"
                 className="h-8 text-xs"
@@ -243,7 +258,7 @@ export function WidgetConfigDrawer({
             <div className="space-y-1.5">
               <label className="text-[11px] text-muted-foreground">Workflow Output Binding Path</label>
               <Input
-                value={config.bindingPath || ''}
+                value={String(config.bindingPath ?? '')}
                 onChange={(e) => updateConfig('bindingPath', e.target.value)}
                 placeholder="e.g. {{steps.llm_call.output.data}}"
                 className="h-8 text-xs font-mono"
@@ -252,7 +267,7 @@ export function WidgetConfigDrawer({
             <div className="space-y-1.5">
               <label className="text-[11px] text-muted-foreground">Initial / Mock Data (JSON)</label>
               <textarea
-                value={typeof config.initialData === 'object' ? JSON.stringify(config.initialData, null, 2) : config.initialData || ''}
+                value={typeof config.initialData === 'object' ? JSON.stringify(config.initialData, null, 2) : String(config.initialData ?? '')}
                 onChange={(e) => {
                   try {
                     const parsed = JSON.parse(e.target.value);
@@ -279,8 +294,10 @@ export function WidgetConfigDrawer({
                 <p className="text-[11px] text-muted-foreground">Make visible to all workspace team members</p>
               </div>
               <Switch
-                checked={definition.isPublic || false}
-                onCheckedChange={(checked) => updateRootField('isPublic', checked)}
+                checked={definition.visibility !== 'PRIVATE'}
+                onCheckedChange={(checked) =>
+                  updateRootField('visibility', checked ? 'WORKSPACE' : 'PRIVATE')
+                }
               />
             </div>
           </div>

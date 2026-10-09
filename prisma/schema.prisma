@@ -395,6 +395,8 @@ model Workspace {
   widgetDefinitions         WidgetDefinition[]
   widgetInstances           WidgetInstance[]
   widgetExecutions          WidgetExecution[]
+  agentDeployments          AgentDeployment[]
+  agentApiKeys              AgentApiKey[]
   owner                     User                       @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
@@ -2209,6 +2211,7 @@ model AIAgent {
   projectLinks       ProjectCoworker[]
   aiExecutions       AIExecution[]
   aiApps             AIApp[]
+  deployments        AgentDeployment[]
   creator            User?               @relation(fields: [creatorId], references: [id])
   workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -4292,4 +4295,105 @@ model WidgetExecution {
   @@index([widgetDefinitionId, status])
   @@map("widget_executions")
 }
+
+model AgentDeployment {
+  id             String                   @id @default(cuid())
+  workspaceId    String
+  agentId        String
+  name           String                   @default("Production Deployment")
+  environment    String                   @default("PRODUCTION")
+  status         String                   @default("ACTIVE")
+  versionNumber  Int                      @default(1)
+  target         String                   @default("WIDGET")
+  publicKey      String                   @unique
+  allowedOrigins String[]                 @default([])
+  widgetConfig   Json                     @default("{}")
+  securityConfig Json                     @default("{}")
+  metadata       Json                     @default("{}")
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  publishedAt    DateTime?
+  agent          AIAgent                  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  workspace      Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sessions       AgentDeploymentSession[]
+  webhooks       AgentDeploymentWebhook[]
+
+  @@index([workspaceId, agentId])
+  @@index([publicKey])
+  @@index([environment, status])
+  @@map("agent_deployments")
+}
+
+model AgentDeploymentSession {
+  id           String          @id @default(cuid())
+  deploymentId String
+  agentId      String
+  sessionToken String          @unique
+  clientOrigin String?
+  userContext  Json            @default("{}")
+  messages     Json            @default("[]")
+  status       String          @default("ACTIVE")
+  expiresAt    DateTime
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  deployment   AgentDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@index([deploymentId, status])
+  @@index([sessionToken])
+  @@index([expiresAt])
+  @@map("agent_deployment_sessions")
+}
+
+model AgentDeploymentWebhook {
+  id           String                 @id @default(cuid())
+  deploymentId String
+  url          String
+  secret       String
+  events       String[]               @default(["agent.run.completed", "agent.run.failed", "agent.approval.requested"])
+  isActive     Boolean                @default(true)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  deployment   AgentDeployment        @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  deliveries   AgentWebhookDelivery[]
+
+  @@index([deploymentId, isActive])
+  @@map("agent_deployment_webhooks")
+}
+
+model AgentWebhookDelivery {
+  id         String                 @id @default(cuid())
+  webhookId  String
+  event      String
+  payload    Json                   @default("{}")
+  status     String                 @default("SUCCESS")
+  statusCode Int?
+  latencyMs  Int                    @default(0)
+  error      String?
+  attempts   Int                    @default(1)
+  createdAt  DateTime               @default(now())
+  webhook    AgentDeploymentWebhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, createdAt])
+  @@map("agent_webhook_deliveries")
+}
+
+model AgentApiKey {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  keyPrefix   String
+  keyHash     String    @unique
+  scopes      String[]  @default(["agent:read", "agent:execute"])
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, isActive])
+  @@index([keyHash])
+  @@map("agent_api_keys")
+}
+
 

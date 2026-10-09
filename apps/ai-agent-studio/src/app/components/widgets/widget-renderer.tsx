@@ -11,7 +11,7 @@ import {
   Badge,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import type { WidgetDefinition, WidgetState } from '@org/types';
+import type { WidgetDraft, WidgetState } from './widget-draft.js';
 import {
   Activity,
   AlertCircle,
@@ -54,7 +54,7 @@ import {
 } from 'recharts';
 
 export interface WidgetRendererProps {
-  definition?: Partial<WidgetDefinition>;
+  definition?: Partial<WidgetDraft>;
   componentType?: string;
   config?: Record<string, any>;
   data?: any;
@@ -81,7 +81,6 @@ export function WidgetRenderer({
   const componentType =
     directComponentType ||
     definition?.config?.componentType ||
-    definition?.category ||
     'metric_card';
 
   const config = useMemo(
@@ -212,7 +211,7 @@ export function WidgetRenderer({
       {config.footerText && (
         <CardFooter className="py-2 px-4 border-t border-border/40 text-[10px] text-muted-foreground flex justify-between items-center">
           <span>{config.footerText}</span>
-          <span className="font-mono text-[9px] opacity-75">v{definition?.version || '1.0.0'}</span>
+          <span className="font-mono text-[9px] opacity-75">v{definition?.version ?? 1}</span>
         </CardFooter>
       )}
     </Card>
@@ -261,6 +260,7 @@ function renderWidgetBody({
       return <ProgressSummaryContent config={config} data={data} onAction={onAction} />;
 
     // 6. Interactive Form Input
+    case 'text_input':
     case 'form_input':
     case 'interactive_input':
       return <FormInputContent config={config} data={data} onAction={onAction} />;
@@ -279,24 +279,29 @@ function renderWidgetBody({
       return <AiSummaryContent config={config} data={data} onAction={onAction} />;
 
     // 10. Entity Extractor
+    case 'ai_extraction':
     case 'entity_extractor':
       return <EntityExtractorContent config={config} data={data} onAction={onAction} />;
 
     // 11. Sentiment Analysis
+    case 'ai_sentiment':
     case 'sentiment_analysis':
       return <SentimentContent config={config} data={data} onAction={onAction} />;
 
     // 12. App Connector Action Card
+    case 'connector_action':
     case 'action_card':
     case 'app_connector':
       return <ActionCardContent config={config} data={data} onAction={onAction} />;
 
     // 13. Tasks List
+    case 'task_kanban':
     case 'task_list':
     case 'productivity':
       return <TaskListContent config={config} data={data} onAction={onAction} />;
 
     // 14. Meeting Notes
+    case 'meeting_summary':
     case 'meeting_notes':
       return <MeetingNotesContent config={config} data={data} onAction={onAction} />;
 
@@ -834,7 +839,7 @@ function AiSummaryContent({
           <span className="flex items-center gap-1.5 font-medium text-primary">
             <Sparkles className="size-3.5" /> AI Synthesis
           </span>
-          <Badge variant="subtle" className="text-[10px] text-emerald-500 font-mono">
+          <Badge variant="secondary" className="text-[10px] text-emerald-500 font-mono">
             {confidence} Confidence
           </Badge>
         </div>
@@ -925,7 +930,7 @@ function SentimentContent({
     <div className="space-y-3 py-1">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Tone Analysis</span>
-        <Badge variant="subtle" className="text-emerald-500 font-medium text-xs">
+        <Badge variant="secondary" className="text-emerald-500 font-medium text-xs">
           {sentiment.verdict} ({sentiment.score}%)
         </Badge>
       </div>
