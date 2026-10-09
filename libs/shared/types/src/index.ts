@@ -537,3 +537,4 @@ export * from './lib/agent-modules.js';
 export * from './lib/agent-architect.js';
 export * from './lib/migration.js';
 export * from './lib/email-templates.js';
+export * from './lib/widget-system.js';

@@ -1711,6 +1711,99 @@ export class WorkflowEngineService {
         };
       }
 
+      case 'WIDGET_RENDERER': {
+        const widgetId = cfg['widgetId'] ? String(cfg['widgetId']) : undefined;
+        let widget = null;
+        if (widgetId) {
+          widget = await this.prisma.widgetDefinition.findFirst({
+            where: { id: widgetId, workspaceId },
+          });
+        }
+        const componentType = String(cfg['componentType'] || widget?.componentType || 'metric_card');
+        const bindingPath = String(cfg['bindingPath'] || '');
+        const boundValue = bindingPath && bindingPath !== '{{__last}}' ? readPath(context, bindingPath) : context[LAST_OUTPUT_KEY];
+        const title = interpolateVariables(String(cfg['title'] || widget?.name || 'Widget View'), context);
+
+        const rendered = {
+          widgetId: widget?.id ?? widgetId,
+          title,
+          componentType,
+          data: boundValue ?? widget?.sampleData ?? {},
+          metadata: {
+            appearance: widget?.appearance ?? cfg['appearance'] ?? {},
+            renderedAt: new Date().toISOString(),
+          },
+        };
+
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: rendered,
+        };
+      }
+
+      case 'WIDGET_DATA_SOURCE': {
+        const dsType = String(cfg['dataSourceType'] || 'platform_service');
+        let fetchedData: unknown = null;
+        if (dsType === 'platform_service') {
+          const service = String(cfg['platformService'] || 'tasks');
+          if (service === 'tasks') {
+            const tasks = await this.prisma.task.findMany({
+              where: { workspaceId },
+              take: 15,
+              orderBy: { updatedAt: 'desc' },
+              select: { id: true, identifier: true, title: true, status: true, priority: true },
+            });
+            fetchedData = { rows: tasks };
+          } else if (service === 'projects') {
+            const projects = await this.prisma.project.findMany({
+              where: { workspaceId },
+              take: 10,
+              orderBy: { updatedAt: 'desc' },
+              select: { id: true, name: true, key: true, status: true },
+            });
+            fetchedData = { rows: projects };
+          }
+        }
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: fetchedData ?? { data: context[LAST_OUTPUT_KEY] },
+        };
+      }
+
+      case 'WIDGET_ACTION': {
+        const actionId = String(cfg['actionId'] || 'default');
+        const rawInput = cfg['input'] ? interpolateVariables(String(cfg['input']), context) : context[LAST_OUTPUT_KEY];
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: {
+            actionExecuted: true,
+            actionId,
+            payload: rawInput,
+            executedAt: new Date().toISOString(),
+          },
+        };
+      }
+
+      case 'WIDGET_EVENT_HANDLER': {
+        const eventName = String(cfg['eventName'] || 'widget.input.changed');
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: 'SUCCESS',
+          output: {
+            eventHandled: true,
+            eventName,
+            payload: context[LAST_OUTPUT_KEY],
+          },
+        };
+      }
+
       case 'CODE': {
         const rawCode = String(cfg['code'] ?? cfg['script'] ?? '');
         if (!rawCode.trim()) {

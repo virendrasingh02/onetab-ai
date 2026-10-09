@@ -308,6 +308,10 @@ import type {
   ConnectionTestResult,
   ConnectorDetail,
   ConnectorSummary,
+  WidgetDefinition,
+  WidgetTemplateItem,
+  WidgetVersion,
+  WidgetExecutionRecord,
 } from '@org/types';
 
 import type {
@@ -5145,6 +5149,78 @@ export const emailTemplatesApi = {
 
   events: () =>
     request<Array<{ eventName: string; templateKey: string; description: string }>>(http.get('/admin/mail/events')),
+};
+
+export const widgetsApi = {
+  list: (workspaceId: string, params?: Record<string, unknown>) =>
+    request<{ items: WidgetDefinition[]; total: number }>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/widgets`, { params }),
+    ),
+
+  getTemplates: (workspaceId: string) =>
+    request<WidgetTemplateItem[]>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/templates`),
+    ),
+
+  get: (workspaceId: string, widgetId: string) =>
+    request<WidgetDefinition>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}`),
+    ),
+
+  create: (workspaceId: string, data: Record<string, unknown>) =>
+    request<WidgetDefinition>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets`, data),
+    ),
+
+  update: (workspaceId: string, widgetId: string, data: Record<string, unknown>) =>
+    request<WidgetDefinition>(
+      http.put(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}`, data),
+    ),
+
+  duplicate: (workspaceId: string, widgetId: string) =>
+    request<WidgetDefinition>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/duplicate`),
+    ),
+
+  archive: (workspaceId: string, widgetId: string) =>
+    request<WidgetDefinition>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/archive`),
+    ),
+
+  restore: (workspaceId: string, widgetId: string) =>
+    request<WidgetDefinition>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/restore`),
+    ),
+
+  publish: (workspaceId: string, widgetId: string, data?: { changeSummary?: string }) =>
+    request<WidgetDefinition>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/publish`, data || {}),
+    ),
+
+  rollback: (workspaceId: string, widgetId: string, versionNumber: number) =>
+    request<WidgetDefinition>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/rollback`, { versionNumber }),
+    ),
+
+  preview: (workspaceId: string, widgetId: string, sampleData?: Record<string, unknown>) =>
+    request<{ definition: WidgetDefinition; previewData: Record<string, unknown> }>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/preview`, { sampleData }),
+    ),
+
+  execute: (workspaceId: string, widgetId: string, data: Record<string, unknown>) =>
+    request<{ status: 'SUCCESS' | 'FAILED'; output: unknown; latencyMs: number }>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/execute`, data),
+    ),
+
+  getVersions: (workspaceId: string, widgetId: string) =>
+    request<WidgetVersion[]>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/versions`),
+    ),
+
+  getExecutions: (workspaceId: string, widgetId: string) =>
+    request<WidgetExecutionRecord[]>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/executions`),
+    ),
 };
 
 

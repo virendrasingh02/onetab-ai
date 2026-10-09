@@ -69,6 +69,7 @@ export {
   callsApi,
   migrationsApi,
   emailTemplatesApi,
+  widgetsApi,
   type AuthResponse,
   type SignInResponse,
   isTwoFactorChallenge,

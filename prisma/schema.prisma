@@ -119,6 +119,7 @@ model User {
   callActionItems           CallActionItem[]            @relation("CallActionItemAssignee")
   callDecisions             CallDecision[]              @relation("CallDecisionMaker")
   callSummaryFeedbacks      CallSummaryFeedback[]       @relation("CallSummaryFeedbackUser")
+  widgetDefinitions         WidgetDefinition[]
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -391,6 +392,9 @@ model Workspace {
   callSummaries             CallSummary[]
   callActionItems           CallActionItem[]
   callDecisions             CallDecision[]
+  widgetDefinitions         WidgetDefinition[]
+  widgetInstances           WidgetInstance[]
+  widgetExecutions          WidgetExecution[]
   owner                     User                       @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
@@ -4182,5 +4186,110 @@ enum MigrationErrorSeverity {
   RECOVERABLE
   WARNING
   SKIPPED
+}
+
+// ---------------------------------------------------------------------------
+// AI Agent Studio Widget System Models
+// ---------------------------------------------------------------------------
+
+model WidgetDefinition {
+  id               String            @id @default(cuid())
+  workspaceId      String
+  creatorId        String?
+  name             String
+  slug             String
+  description      String?
+  category         String            @default("data_viz")
+  componentType    String            @default("metric_card")
+  icon             String?           @default("LayoutDashboard")
+  tags             String[]          @default([])
+  status           String            @default("DRAFT")
+  visibility       String            @default("WORKSPACE")
+  version          Int               @default(1)
+  appearance       Json              @default("{}")
+  dataSource       Json              @default("{}")
+  schemaConfig     Json              @default("{}")
+  eventConfig      Json              @default("{}")
+  permissions      Json              @default("{}")
+  sampleData       Json?             @default("{}")
+  isTemplate       Boolean           @default(false)
+  templateCategory String?
+  usageCount       Int               @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  publishedAt      DateTime?
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator          User?             @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  instances        WidgetInstance[]
+  versions         WidgetVersion[]
+  executions       WidgetExecution[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, status])
+  @@index([workspaceId, category])
+  @@index([workspaceId, isTemplate])
+  @@map("widget_definitions")
+}
+
+model WidgetInstance {
+  id                 String            @id @default(cuid())
+  workspaceId        String
+  widgetDefinitionId String
+  entityType         String            @default("AGENT")
+  entityId           String
+  name               String?
+  configOverride     Json              @default("{}")
+  stateJson          Json              @default("{}")
+  placement          String?
+  layout             Json?
+  isEnabled          Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  workspace          Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  widgetDefinition   WidgetDefinition  @relation(fields: [widgetDefinitionId], references: [id], onDelete: Cascade)
+  executions         WidgetExecution[]
+
+  @@index([workspaceId, entityType, entityId])
+  @@index([widgetDefinitionId])
+  @@map("widget_instances")
+}
+
+model WidgetVersion {
+  id                 String           @id @default(cuid())
+  widgetDefinitionId String
+  versionNumber      Int
+  changeSummary      String?
+  snapshotJson       Json             @default("{}")
+  isPublished        Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  createdBy          String?
+  widgetDefinition   WidgetDefinition @relation(fields: [widgetDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([widgetDefinitionId, versionNumber])
+  @@index([widgetDefinitionId])
+  @@map("widget_versions")
+}
+
+model WidgetExecution {
+  id                 String            @id @default(cuid())
+  workspaceId        String
+  widgetDefinitionId String
+  widgetInstanceId   String?
+  executionType      String            @default("ACTION")
+  status             String            @default("SUCCESS")
+  inputPayload       Json              @default("{}")
+  outputPayload      Json              @default("{}")
+  latencyMs          Int               @default(0)
+  errorMessage       String?
+  errorJson          Json?
+  initiatedBy        String?
+  createdAt          DateTime          @default(now())
+  workspace          Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  widgetDefinition   WidgetDefinition  @relation(fields: [widgetDefinitionId], references: [id], onDelete: Cascade)
+  widgetInstance     WidgetInstance?   @relation(fields: [widgetInstanceId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([widgetDefinitionId, status])
+  @@map("widget_executions")
 }
 

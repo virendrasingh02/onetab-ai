@@ -742,6 +742,69 @@ export function compileStudioGraph(graph: {
       case 'WEBHOOK_RESPONSE':
       case 'RETURN_TO_PARENT':
         return step('OUTPUT', { template: asText(cfg['template']) ?? asText(cfg['message']) ?? LAST });
+      case 'WIDGET_TRIGGER':
+        return step('TRIGGER', {
+          trigger: 'WIDGET_TRIGGER',
+          widgetId: asText(cfg['widgetId']),
+          eventName: asText(cfg['eventName']) ?? 'widget.action.requested',
+        });
+      case 'WIDGET_RENDERER':
+      case 'WIDGET_RENDER':
+        return step('WIDGET_RENDERER', {
+          widgetId: asText(cfg['widgetId']),
+          componentType: asText(cfg['componentType']) ?? 'metric_card',
+          bindingPath: asText(cfg['bindingPath']) ?? LAST,
+          ...cfg,
+        });
+      case 'WIDGET_INPUT':
+        return step('HUMAN_INPUT', {
+          action: asText(cfg['action']) ?? label ?? 'Widget Input Required',
+          widgetId: asText(cfg['widgetId']),
+          schema: cfg['schema'],
+        });
+      case 'WIDGET_OUTPUT':
+        return step('OUTPUT', {
+          widgetId: asText(cfg['widgetId']),
+          template: asText(cfg['template']) ?? LAST,
+        });
+      case 'WIDGET_DATA_SOURCE':
+        return step('WIDGET_DATA_SOURCE', {
+          widgetId: asText(cfg['widgetId']),
+          dataSourceType: asText(cfg['dataSourceType']) ?? 'platform_service',
+          ...cfg,
+        });
+      case 'WIDGET_EVENT_HANDLER':
+        return step('WIDGET_EVENT_HANDLER', {
+          widgetId: asText(cfg['widgetId']),
+          eventName: asText(cfg['eventName']) ?? 'widget.input.changed',
+          ...cfg,
+        });
+      case 'WIDGET_ACTION':
+        return step('WIDGET_ACTION', {
+          widgetId: asText(cfg['widgetId']),
+          actionId: asText(cfg['actionId']),
+          input: cfg['input'] ?? LAST,
+        });
+      case 'WIDGET_CONDITION': {
+        const field = asText(cfg['variable'])?.replace(/^\{\{\s*|\s*\}\}$/g, '') ?? asText(cfg['field']);
+        return step('CONDITION', {
+          ...(field ? { field } : {}),
+          operator: CONDITION_OPERATORS[String(cfg['operator'] ?? 'equals')] ?? String(cfg['operator'] ?? 'eq'),
+          value: cfg['value'] ?? '',
+        });
+      }
+      case 'WIDGET_APPROVAL':
+        return step('HUMAN_APPROVAL', {
+          action: asText(cfg['action']) ?? label ?? 'Approve widget action',
+          required: true,
+          widgetId: asText(cfg['widgetId']),
+          reviewPath: asText(cfg['reviewPath']) ?? LAST_OUTPUT_KEY,
+          reviewLabel: asText(cfg['reviewLabel']) ?? 'Widget Action Draft',
+        });
+      case 'WIDGET_ERROR_HANDLER':
+        return step('ERROR_HANDLER', {
+          fallbackMessage: asText(cfg['fallbackMessage']) ?? 'Widget operation failed',
+        });
       default:
         return unsupported(node, UNSUPPORTED_REASONS[type] ?? `${type} steps can’t run yet.`);
     }

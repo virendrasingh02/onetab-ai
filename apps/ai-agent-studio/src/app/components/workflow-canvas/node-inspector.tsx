@@ -6,6 +6,7 @@ import {
   Braces,
   ChevronRight,
   Flame,
+  LayoutDashboard,
   Link2,
   Shield,
   Sliders,
@@ -839,7 +840,118 @@ export function NodeInspector({
                 onChange={(e) => updateConfig(templateKey, e.target.value)}
                 placeholder="Draft formatted output: {{agent.output}} &#10;Source: {{firecrawl.url}}"
                 className="w-full font-mono rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            </div>
+          </div>
+        )}
+
+        {/* 6b. WIDGET NODES CONFIGURATION */}
+        {nodeType.startsWith('WIDGET_') && (
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="rounded-lg bg-indigo-500/10 p-2.5 text-xs text-indigo-400">
+              <div className="font-semibold flex items-center gap-1.5">
+                <LayoutDashboard className="size-3.5 text-indigo-400" /> Widget Configuration
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                Configure rendering, data source binding, user interactions, and event execution for this widget canvas node.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-foreground">Widget Type</label>
+              <select
+                value={config.componentType || 'metric_card'}
+                onChange={(e) => updateConfig('componentType', e.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <optgroup label="Data & Visualization">
+                  <option value="metric_card">Metric Card</option>
+                  <option value="bar_chart">Bar Chart</option>
+                  <option value="line_chart">Line Chart</option>
+                  <option value="table_view">Data Table</option>
+                  <option value="progress_summary">Progress Summary</option>
+                </optgroup>
+                <optgroup label="Interactive Inputs">
+                  <option value="form_input">Form Input</option>
+                  <option value="dynamic_form">Dynamic Form</option>
+                  <option value="approval_form">Approval Form</option>
+                </optgroup>
+                <optgroup label="AI-Powered">
+                  <option value="ai_summary">AI Summary</option>
+                  <option value="entity_extractor">Entity Extractor</option>
+                  <option value="sentiment_analysis">Sentiment Analysis</option>
+                </optgroup>
+                <optgroup label="App Connector & Productivity">
+                  <option value="action_card">Action Card</option>
+                  <option value="task_list">Task List</option>
+                  <option value="meeting_notes">Meeting Notes</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-foreground">Data Binding Path</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetField('dataPath');
+                    setShowVariablePicker(true);
+                  }}
+                  className="text-[10px] font-medium text-primary hover:underline"
+                >
+                  Use Variable
+                </button>
+              </div>
+              <Input
+                value={config.dataPath || ''}
+                onChange={(e) => updateConfig('dataPath', e.target.value)}
+                placeholder="e.g. {{prev.output}} or data.metrics"
+                className="h-8 text-xs font-mono"
               />
+            </div>
+
+            {(nodeType === 'WIDGET_TRIGGER' || nodeType === 'WIDGET_ACTION' || nodeType === 'WIDGET_EVENT_HANDLER') && (
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-foreground">Action / Event Name</label>
+                <Input
+                  value={config.actionName || config.eventName || ''}
+                  onChange={(e) => {
+                    updateConfig('actionName', e.target.value);
+                    updateConfig('eventName', e.target.value);
+                  }}
+                  placeholder="e.g. on_submit or export_report"
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-foreground">Display Size</label>
+                <select
+                  value={config.size || 'md'}
+                  onChange={(e) => updateConfig('size', e.target.value)}
+                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="sm">Small (1x1)</option>
+                  <option value="md">Medium (2x2)</option>
+                  <option value="lg">Large (3x2)</option>
+                  <option value="full">Full Width</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-foreground">Auto-Refresh</label>
+                <select
+                  value={config.refreshInterval || '0'}
+                  onChange={(e) => updateConfig('refreshInterval', parseInt(e.target.value, 10))}
+                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="0">Manual only</option>
+                  <option value="15">Every 15s</option>
+                  <option value="60">Every 1m</option>
+                  <option value="300">Every 5m</option>
+                </select>
+              </div>
             </div>
           </div>
         )}

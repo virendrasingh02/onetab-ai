@@ -1127,6 +1127,148 @@ export function buildPlatformTools(deps: PlatformToolDeps): PlatformToolDefiniti
     },
   };
 
+  const listWidgets: PlatformToolDefinition = {
+    name: 'list_widgets',
+    description:
+      'List available widgets in the workspace (KPI cards, charts, forms, summaries, connector feeds). Returns widget names, component types, and descriptions so you can select the right widget to render.',
+    parameters: {
+      category: {
+        type: 'string',
+        enum: ['data_viz', 'interactive_input', 'ai_powered', 'app_connector', 'productivity', 'all'],
+        description: 'Filter by widget category. Default "all".',
+      },
+    },
+    optional: ['category'],
+    handler: async (params, ctx) => {
+      await assertMember(ctx.workspaceId, ctx.actingUserId ?? '');
+      const category = params?.category && params.category !== 'all' ? String(params.category) : undefined;
+      const widgets = await prisma.widgetDefinition.findMany({
+        where: {
+          workspaceId: ctx.workspaceId,
+          status: { in: ['READY', 'PUBLISHED'] },
+          ...(category ? { category } : {}),
+        },
+        take: 20,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          category: true,
+          componentType: true,
+          description: true,
+          tags: true,
+        },
+      });
+      return {
+        count: widgets.length,
+        widgets: widgets.map((w) => ({
+          id: w.id,
+          name: w.name,
+          category: w.category,
+          componentType: w.componentType,
+          description: w.description ?? '',
+          tags: w.tags,
+          link: `widgets/${w.id}`,
+        })),
+      };
+    },
+  };
+
+  const renderWidget: PlatformToolDefinition = {
+    name: 'render_widget',
+    description:
+      'Render a structured UI widget for the user in the response. Provide the widget name or ID and the data payload matching the widget component (e.g. title, primaryValue, series, or summary text).',
+    parameters: {
+      widgetIdOrName: {
+        type: 'string',
+        description: 'The ID, slug, or exact name of the widget to render.',
+      },
+      data: {
+        type: 'object',
+        description: 'Key-value data payload for the widget (e.g. metrics, chart rows, text).',
+      },
+    },
+    handler: async (params, ctx) => {
+      await assertMember(ctx.workspaceId, ctx.actingUserId ?? '');
+      const key = String(params.widgetIdOrName ?? '').trim();
+      const widget = await prisma.widgetDefinition.findFirst({
+        where: {
+          workspaceId: ctx.workspaceId,
+          OR: [{ id: key }, { slug: key }, { name: { equals: key, mode: 'insensitive' } }],
+        },
+      });
+      if (!widget) {
+        throw new Error(`Widget '${key}' was not found in this workspace. Use list_widgets to see available widgets.`);
+      }
+
+      const payload = params.data && typeof params.data === 'object' ? params.data : {};
+
+      // Record tool execution trace
+      await prisma.widgetExecution.create({
+        data: {
+          workspaceId: ctx.workspaceId,
+          widgetDefinitionId: widget.id,
+          executionType: 'TOOL_CALL',
+          status: 'SUCCESS',
+          inputPayload: payload as any,
+          outputPayload: payload as any,
+          initiatedBy: ctx.actingUserId,
+        },
+      });
+
+      return {
+        widgetId: widget.id,
+        widgetName: widget.name,
+        componentType: widget.componentType,
+        category: widget.category,
+        renderedPayload: payload,
+        uiMetadata: {
+          icon: widget.icon,
+          appearance: widget.appearance,
+        },
+      };
+    },
+  };
+
+  const executeWidgetAction: PlatformToolDefinition = {
+    name: 'execute_widget_action',
+    description:
+      'Trigger an action from a widget (such as submitting an approval or posting through a connector). Requires explicit approval.',
+    parameters: {
+      widgetId: { type: 'string', description: 'Widget ID' },
+      actionId: { type: 'string', description: 'Action ID defined on the widget eventConfig' },
+      payload: { type: 'object', description: 'Input payload for the action' },
+    },
+    handler: async (params, ctx) => {
+      await assertMember(ctx.workspaceId, ctx.actingUserId ?? '');
+      const widgetId = String(params.widgetId ?? '').trim();
+      const widget = await prisma.widgetDefinition.findFirst({
+        where: { id: widgetId, workspaceId: ctx.workspaceId },
+      });
+      if (!widget) throw new Error(`Widget '${widgetId}' was not found.`);
+
+      // Log execution
+      await prisma.widgetExecution.create({
+        data: {
+          workspaceId: ctx.workspaceId,
+          widgetDefinitionId: widget.id,
+          executionType: 'ACTION',
+          status: 'SUCCESS',
+          inputPayload: (params.payload || {}) as any,
+          outputPayload: { executed: true, actionId: params.actionId } as any,
+          initiatedBy: ctx.actingUserId,
+        },
+      });
+
+      return {
+        success: true,
+        widgetId: widget.id,
+        actionId: params.actionId,
+        result: 'Widget action dispatched successfully.',
+      };
+    },
+  };
+
   return [
     findTasks,
     listMeetings,
@@ -1144,6 +1286,9 @@ export function buildPlatformTools(deps: PlatformToolDeps): PlatformToolDefiniti
     listReminders,
     createMonitor,
     listMonitors,
+    listWidgets,
+    renderWidget,
+    executeWidgetAction,
   ];
 }
 

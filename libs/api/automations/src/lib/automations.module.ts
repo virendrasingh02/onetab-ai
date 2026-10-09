@@ -18,6 +18,8 @@ import { AgentStudioService } from './studio/agent-studio.service.js';
 import { CanvasAgentRunController } from './studio/canvas-agent-run.controller.js';
 import { CanvasAgentRunService } from './studio/canvas-agent-run.service.js';
 import { ConnectorTriggerPollerService } from './studio/connector-trigger-poller.service.js';
+import { WidgetStudioController } from './studio/widgets/widget-studio.controller.js';
+import { WidgetStudioService } from './studio/widgets/widget-studio.service.js';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
 
@@ -32,7 +34,14 @@ import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
     // Live run updates (`ai.run.updated`) for the Studio.
     RealtimeModule,
   ],
-  controllers: [AutomationsController, AIRunsController, AgentStudioController, CanvasAgentRunController, AgentArchitectController],
+  controllers: [
+    AutomationsController,
+    AIRunsController,
+    AgentStudioController,
+    CanvasAgentRunController,
+    AgentArchitectController,
+    WidgetStudioController,
+  ],
   providers: [
     AutomationsService,
     WorkflowEngineService,
@@ -44,7 +53,8 @@ import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
     CanvasAgentRunService,
     // Starts switched-on agents on app events (New email, New issue…).
     ConnectorTriggerPollerService,
+    WidgetStudioService,
   ],
-  exports: [AutomationsService, WorkflowEngineService, AgentStudioService],
+  exports: [AutomationsService, WorkflowEngineService, AgentStudioService, WidgetStudioService],
 })
 export class AutomationsModule {}

@@ -30,6 +30,7 @@ import {
   Flame,
   Folder,
   GitBranch,
+  LayoutDashboard,
   Link2,
   Shield,
   Network,
@@ -2489,6 +2490,108 @@ export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
 });
 GroupNode.displayName = 'GroupNode';
 
+// 9. UI Widget Node
+export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
+  const nodeData = data as WorkflowNodePayload;
+  const cfg = nodeData.config || {};
+  const isTrigger = type === 'WIDGET_TRIGGER';
+  const isOutput = type === 'WIDGET_OUTPUT';
+  const isInput = type === 'WIDGET_INPUT';
+  const isApproval = type === 'WIDGET_APPROVAL';
+
+  const componentType = String(cfg.componentType || 'metric_card');
+  const widgetTitle = String(nodeData.title || nodeData.label || 'UI Widget');
+
+  return (
+    <div
+      className={cn(
+        'group relative min-w-[240px] max-w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
+        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        statusBorderClasses[nodeData.status || 'idle'],
+      )}
+    >
+      <NodeActionToolbar id={id} data={nodeData} selected={selected} />
+
+      {!isTrigger && <WorkflowHandle type="target" colorClass="bg-primary" />}
+
+      <EditableNodeHeader
+        id={id}
+        title={widgetTitle}
+        description={nodeData.description || nodeData.subtitle}
+        defaultTitle="UI Widget"
+        defaultDescription="Interactive UI Component"
+        icon={LayoutDashboard}
+        iconBg="bg-primary/15 text-primary"
+        badge={
+          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+            {type.replace('WIDGET_', '')}
+          </span>
+        }
+        locked={Boolean(nodeData.locked)}
+        onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
+        onUpdateMetadata={nodeData.onUpdateMetadata}
+      />
+
+      {/* Mini preview tile */}
+      <div className="mt-2.5 rounded-lg border border-border/80 bg-surface-raised p-2 text-xs">
+        {componentType === 'metric_card' && (
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Preview KPI</div>
+              <div className="text-base font-bold text-foreground mt-0.5">128,450</div>
+            </div>
+            <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">+14.2%</span>
+          </div>
+        )}
+        {componentType.includes('chart') && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>{componentType.replace('_', ' ')}</span>
+              <span className="text-primary font-mono text-[9px]">Live Data</span>
+            </div>
+            <div className="flex items-end gap-1.5 h-6 pt-1">
+              <div className="w-1/5 bg-primary/40 rounded-t h-3/6" />
+              <div className="w-1/5 bg-primary/60 rounded-t h-4/6" />
+              <div className="w-1/5 bg-primary rounded-t h-full" />
+              <div className="w-1/5 bg-primary/70 rounded-t h-5/6" />
+              <div className="w-1/5 bg-primary/50 rounded-t h-3/6" />
+            </div>
+          </div>
+        )}
+        {isInput && (
+          <div className="space-y-1">
+            <div className="text-[10px] text-muted-foreground">Form Field Input</div>
+            <div className="rounded border border-dashed border-border bg-background px-2 py-1 text-[10px] text-muted-foreground">
+              [ Collects user values ]
+            </div>
+          </div>
+        )}
+        {isApproval && (
+          <div className="flex items-center gap-1.5 pt-0.5">
+            <span className="rounded bg-emerald-500/15 text-emerald-600 px-2 py-0.5 text-[9px] font-semibold">Approve</span>
+            <span className="rounded bg-destructive/15 text-destructive px-2 py-0.5 text-[9px] font-semibold">Reject</span>
+          </div>
+        )}
+        {!['metric_card'].includes(componentType) && !componentType.includes('chart') && !isInput && !isApproval && (
+          <div className="text-[11px] text-muted-foreground truncate">
+            {cfg.title || cfg.action || 'Ready for data binding'}
+          </div>
+        )}
+      </div>
+
+      <NodeRunFooter run={nodeData.run} />
+
+      {!isOutput && (
+        <SourceHandleWithQuickAdd
+          colorClass="bg-primary"
+          onConnectNext={nodeData.onConnectNext}
+        />
+      )}
+    </div>
+  );
+});
+WidgetNode.displayName = 'WidgetNode';
+
 // Registered custom node types map for ReactFlow
 const BASE_NODE_TYPES: Record<string, any> = {
   // Triggers
@@ -2507,6 +2610,19 @@ const BASE_NODE_TYPES: Record<string, any> = {
   TRIGGER_EVENT: StartNode,
   APP_CONNECTOR_TRIGGER: StartNode,
   TEAMS_TRIGGER_MESSAGE: StartNode,
+
+  // UI Widgets
+  WIDGET_TRIGGER: WidgetNode,
+  WIDGET_RENDERER: WidgetNode,
+  WIDGET_RENDER: WidgetNode,
+  WIDGET_INPUT: WidgetNode,
+  WIDGET_OUTPUT: WidgetNode,
+  WIDGET_DATA_SOURCE: WidgetNode,
+  WIDGET_EVENT_HANDLER: WidgetNode,
+  WIDGET_ACTION: WidgetNode,
+  WIDGET_CONDITION: ConditionNode,
+  WIDGET_APPROVAL: UserApprovalNode,
+  WIDGET_ERROR_HANDLER: GenericStudioNode,
 
   // AI & Reasoning
   AGENT: AgentNode,

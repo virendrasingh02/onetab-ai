@@ -109,6 +109,11 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Boxes,
       },
       {
+        to: '/widgets',
+        label: 'Widget Center',
+        icon: LayoutDashboard,
+      },
+      {
         to: '/knowledge',
         label: 'Knowledge & RAG',
         icon: BookOpen,

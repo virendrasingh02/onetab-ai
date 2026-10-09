@@ -69,6 +69,8 @@ export type AgentScope =
   | 'memory:write'
   | 'web:read'
   | 'agents:run'
+  | 'widgets:read'
+  | 'widgets:write'
   | `app:${string}:read`
   | `app:${string}:write`;
 
@@ -88,6 +90,8 @@ export const AGENT_SCOPES: Record<string, AgentScopeInfo> = {
   'activity:read': { label: 'Read activity', description: 'What changed on tasks, projects and docs', access: 'read' },
   'channels:read': { label: 'List channels', description: 'Channel names and topics you can see', access: 'read' },
   'chat:send': { label: 'Post in channels', description: 'Post messages in channels you belong to', access: 'write' },
+  'widgets:read': { label: 'Read & render widgets', description: 'Available widgets and their live data', access: 'read' },
+  'widgets:write': { label: 'Execute widget actions', description: 'Trigger actions and submissions from widgets', access: 'write' },
   'notify:send': { label: 'Notify you', description: 'Send you a notification in the app', access: 'write' },
   'memory:read': { label: 'Read memory', description: 'Facts saved to workspace memory', access: 'read' },
   'memory:write': { label: 'Save memory', description: 'Remember facts for later runs', access: 'write' },
@@ -141,7 +145,7 @@ export interface PlatformToolInfo {
   activity: string;
   scope: AgentScope;
   /** Which part of the platform it reads or writes — groups the tool picker. */
-  app: 'tasks' | 'projects' | 'docs' | 'meetings' | 'activity' | 'chat' | 'notifications' | 'memory' | 'web' | 'email';
+  app: 'tasks' | 'projects' | 'docs' | 'meetings' | 'activity' | 'chat' | 'notifications' | 'memory' | 'web' | 'email' | 'widgets';
   /** Writes that reach other people are gated behind an approval by default. */
   approvalByDefault?: boolean;
 }
@@ -177,6 +181,9 @@ export const PLATFORM_TOOLS: Record<string, PlatformToolInfo> = {
   firecrawl_scrape: { label: 'Read a web page', activity: 'Reading a web page', scope: 'web:read', app: 'web' },
   firecrawl_crawl: { label: 'Crawl a site', activity: 'Crawling a site', scope: 'web:read', app: 'web' },
   firecrawl_extract: { label: 'Extract from a page', activity: 'Extracting from a page', scope: 'web:read', app: 'web' },
+  list_widgets: { label: 'List widgets', activity: 'Reading available widgets', scope: 'widgets:read', app: 'widgets' },
+  render_widget: { label: 'Render widget', activity: 'Displaying widget', scope: 'widgets:read', app: 'widgets' },
+  execute_widget_action: { label: 'Execute widget action', activity: 'Triggering widget action', scope: 'widgets:write', app: 'widgets', approvalByDefault: true },
 };
 
 /**

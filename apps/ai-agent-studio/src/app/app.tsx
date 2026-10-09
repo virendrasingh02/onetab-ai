@@ -20,6 +20,8 @@ import { ConnectorsPage } from './pages/connectors-page.js';
 import { ConnectorDetailPage } from './pages/connector-detail-page.js';
 import { UserChatPage } from './pages/user-chat-page.jsx';
 import { WorkflowsPage } from './pages/workflows-page.jsx';
+import { WidgetCenterPage } from './pages/widget-center-page.js';
+import { WidgetBuilderPage } from './pages/widget-builder-page.js';
 import { Providers } from './providers.js';
 import { SessionGuard } from './session-guard.js';
 
@@ -31,6 +33,8 @@ const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/workflows': { section: 'Build & Orchestrate', page: 'Visual Workflows' },
   '/templates': { section: 'Build & Orchestrate', page: 'Agent Templates' },
   '/connectors': { section: 'Intelligence & Tools', page: 'App Connectors' },
+  '/widgets': { section: 'Intelligence & Tools', page: 'Widget Center' },
+  '/widgets/new': { section: 'Build & Orchestrate', page: 'Widget Builder' },
   '/knowledge': { section: 'Intelligence & Tools', page: 'Knowledge & RAG' },
   '/tools': { section: 'Intelligence & Tools', page: 'Tools & Integrations' },
   '/mcp': { section: 'Intelligence & Tools', page: 'MCP Registry' },
@@ -148,6 +152,9 @@ function StudioShell() {
                 <Route path="/executions" element={<ExecutionsPage />} />
                 <Route path="/connectors" element={<ConnectorsPage />} />
                 <Route path="/connectors/:connectorId" element={<ConnectorDetailPage />} />
+                <Route path="/widgets" element={<WidgetCenterPage />} />
+                <Route path="/widgets/new" element={<WidgetBuilderPage />} />
+                <Route path="/widgets/:widgetId" element={<WidgetBuilderPage />} />
                 <Route path="/tools" element={<ToolsPage />} />
                 <Route path="/mcp" element={<McpPage />} />
                 <Route path="/knowledge" element={<KnowledgePage />} />
