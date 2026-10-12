@@ -3,7 +3,6 @@ import { cn } from '@org/utils';
 import type { DeepAIAnalyticsOverview } from '@org/types';
 import {
   Activity,
-  AlertCircle,
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
@@ -11,20 +10,14 @@ import {
   CheckCircle2,
   Clock,
   Coins,
-  Cpu,
   GitBranch,
   Layers,
-  Sparkles,
-  TrendingDown,
-  TrendingUp,
   Users,
   Zap,
 } from 'lucide-react';
 import {
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -33,7 +26,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from 'recharts';
 
 const PIE_COLORS = ['#6366f1', '#a855f7', '#06b6d4', '#10b981', '#f59e0b', '#ec4899'];

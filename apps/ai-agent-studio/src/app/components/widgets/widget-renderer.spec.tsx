@@ -7,11 +7,11 @@ describe('WidgetRenderer & Presets', () => {
     expect(COMPONENT_PRESETS.length).toBeGreaterThanOrEqual(10);
 
     const categories = new Set(COMPONENT_PRESETS.map((p) => p.category));
-    expect(categories.has('DATA_VISUALIZATION')).toBe(true);
-    expect(categories.has('INTERACTIVE_INPUT')).toBe(true);
-    expect(categories.has('AI_POWERED')).toBe(true);
-    expect(categories.has('APP_CONNECTOR')).toBe(true);
-    expect(categories.has('PRODUCTIVITY')).toBe(true);
+    expect(categories.has('data_viz')).toBe(true);
+    expect(categories.has('interactive_input')).toBe(true);
+    expect(categories.has('ai_powered')).toBe(true);
+    expect(categories.has('app_connector')).toBe(true);
+    expect(categories.has('productivity')).toBe(true);
   });
 
   it('verifies presets have required metadata and configs', () => {

@@ -18,6 +18,8 @@ import {
   PageHeader,
   toast,
   ErrorState,
+  AppSelect,
+  Label,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -305,9 +307,9 @@ export function McpPage() {
 
             <DialogBody className="space-y-3.5 text-xs">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   Server Name *
-                </label>
+                </Label>
                 <Input
                   required
                   value={serverName}
@@ -318,9 +320,9 @@ export function McpPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   Server URL / Endpoint *
-                </label>
+                </Label>
                 <Input
                   required
                   value={serverUrl}
@@ -331,18 +333,18 @@ export function McpPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   Transport
-                </label>
-                <select
+                </Label>
+                <AppSelect
                   value={transport}
-                  onChange={(e) => setTransport(e.target.value as MCPTransport)}
-                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="SSE">Server-Sent Events (SSE)</option>
-                  <option value="STDIO">Local stdio (Subprocess)</option>
-                  <option value="HTTP">Streamable HTTP</option>
-                </select>
+                  onValueChange={(v) => setTransport(v as MCPTransport)}
+                  options={[
+                    { value: 'SSE', label: 'Server-Sent Events (SSE)' },
+                    { value: 'STDIO', label: 'Local stdio (Subprocess)' },
+                    { value: 'HTTP', label: 'Streamable HTTP' },
+                  ]}
+                />
               </div>
             </DialogBody>
 

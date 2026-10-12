@@ -2,8 +2,6 @@ import { useState } from 'react';
 import {
   Badge,
   Button,
-  Card,
-  CodeBlock,
   Dialog,
   DialogBody,
   DialogContent,
@@ -11,23 +9,12 @@ import {
   DialogTitle,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import type { AIExecution, AIExecutionTrace } from '@org/types';
 import {
   Activity,
   AlertTriangle,
-  Bot,
-  CheckCircle2,
   Clock,
-  Coins,
-  Cpu,
-  GitBranch,
-  Layers,
-  RotateCcw,
   Sparkles,
-  Wrench,
   X,
-  XCircle,
-  Zap,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsService } from '../../services/analyticsService.js';
@@ -167,7 +154,10 @@ export function ExecutionDetailDrawer({
           {/* Steps & Spans Waterfall List */}
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-              <span>Execution Timeline Steps ({steps.length})</span>
+              <span>
+                Execution Timeline Steps ({steps.length})
+                {isLoadingTrace ? <span className="ml-2 font-normal text-muted-foreground">loading full trace…</span> : null}
+              </span>
               {trace?.bottleneckSpanId && (
                 <Badge variant="warning" className="text-[10px] gap-1">
                   <Clock className="size-3" />

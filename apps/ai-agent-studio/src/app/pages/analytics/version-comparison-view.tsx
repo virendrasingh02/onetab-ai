@@ -11,15 +11,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  AppSelect,
 } from '@org/ui';
-import type { VersionComparisonResult, AgentAnalyticsProfile } from '@org/types';
+import type { AgentAnalyticsProfile } from '@org/types';
 import {
-  ArrowDownRight,
-  ArrowUpRight,
-  Bot,
-  GitBranch,
   GitCompare,
-  Sparkles,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsService } from '../../services/analyticsService.js';
@@ -34,8 +30,6 @@ export function VersionComparisonView({ agents }: VersionComparisonViewProps) {
   const [selectedAgentId, setSelectedAgentId] = useState(agents[0]?.agentId || '');
   const [versionA, setVersionA] = useState(1);
   const [versionB, setVersionB] = useState(2);
-
-  const selectedAgent = agents.find((a) => a.agentId === selectedAgentId);
 
   const { data: comparison, isLoading, refetch } = useQuery({
     queryKey: [
@@ -73,34 +67,30 @@ export function VersionComparisonView({ agents }: VersionComparisonViewProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <select
+            <AppSelect
               value={selectedAgentId}
-              onChange={(e) => setSelectedAgentId(e.target.value)}
-              className="h-8 px-2.5 rounded-md border border-border bg-surface text-xs text-foreground"
-            >
-              {agents.map((a) => (
-                <option key={a.agentId} value={a.agentId}>
-                  {a.name || a.agentId}
-                </option>
-              ))}
-            </select>
+              onValueChange={setSelectedAgentId}
+              aria-label="Agent"
+              className="w-auto min-w-44"
+              options={agents.map((a) => ({ value: a.agentId, label: a.name || a.agentId }))}
+            />
 
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span>Compare v</span>
-              <input
+              <Input
                 type="number"
                 min={1}
                 value={versionA}
                 onChange={(e) => setVersionA(Number(e.target.value))}
-                className="w-12 h-8 px-2 rounded-md border border-border bg-surface text-center font-mono text-xs text-foreground"
+                className="w-12 text-center font-mono text-xs"
               />
               <span>with v</span>
-              <input
+              <Input
                 type="number"
                 min={1}
                 value={versionB}
                 onChange={(e) => setVersionB(Number(e.target.value))}
-                className="w-12 h-8 px-2 rounded-md border border-border bg-surface text-center font-mono text-xs text-foreground"
+                className="w-12 text-center font-mono text-xs"
               />
             </div>
 

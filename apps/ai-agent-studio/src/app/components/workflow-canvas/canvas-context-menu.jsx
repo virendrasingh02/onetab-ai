@@ -1,4 +1,13 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from '@org/ui';
 import {
   Clipboard,
   Copy,
@@ -47,7 +56,23 @@ import {
  * }} CanvasContextMenuProps
  */
 
-/** @param {CanvasContextMenuProps} props */
+/** One row of the menu: icon + label, an optional shortcut hint. */
+function Row({ icon: Icon, iconClass = 'text-muted-foreground', label, shortcut, variant, onSelect }) {
+  return (
+    <DropdownMenuItem variant={variant} onSelect={onSelect} className="gap-2 text-xs">
+      {Icon ? <Icon className={`size-3.5 ${iconClass}`} /> : null}
+      <span className="flex-1">{label}</span>
+      {shortcut ? <DropdownMenuShortcut>{shortcut}</DropdownMenuShortcut> : null}
+    </DropdownMenuItem>
+  );
+}
+
+/**
+ * Right-click menu for the workflow canvas. Built on the shared Radix dropdown
+ * (keyboard navigation, focus return, Escape, collision handling) and anchored
+ * to the pointer through a zero-size fixed trigger.
+ * @param {CanvasContextMenuProps} props
+ */
 export function CanvasContextMenu({
   isOpen,
   x,
@@ -74,313 +99,76 @@ export function CanvasContextMenu({
   onToggleEdgeAnimated,
   onExportJson,
 }) {
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      window.addEventListener('pointerdown', handleOutsideClick);
-    }
-    return () => window.removeEventListener('pointerdown', handleOutsideClick);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
+  const run = (fn) => () => {
+    fn?.();
+    onClose();
+  };
 
   return (
-    <div
-      ref={menuRef}
-      style={{ left: `${x}px`, top: `${y}px` }}
-      className="fixed z-50 min-w-[210px] overflow-hidden rounded-xl border border-border bg-surface/98 backdrop-blur-md p-1.5 shadow-2xl text-xs text-foreground select-none animate-in fade-in-50 zoom-in-95 duration-100"
-    >
-      {targetNode ? (
-        // 1. Node Context Actions
-        <div className="space-y-0.5">
-          <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase border-b border-border/60 mb-1">
-            Step: {targetNode.data?.label || targetNode.id}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              onTestNode?.(targetNode);
-              onClose();
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left cursor-pointer"
-          >
-            <Play className="size-3.5 fill-current text-primary" />
-            <span>Test Step Execution</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onInspectNode?.(targetNode);
-              onClose();
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <Info className="size-3.5 text-muted-foreground" />
-            <span>Configure Step</span>
-          </button>
-
-          <div className="h-px bg-border/60 my-1" />
-
-          <button
-            type="button"
-            onClick={() => {
-              onCopyNode?.(targetNode);
-              onClose();
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Copy className="size-3.5 text-muted-foreground" />
-              <span>Copy</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground font-mono">Ctrl+C</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onCutNode?.(targetNode);
-              onClose();
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Scissors className="size-3.5 text-muted-foreground" />
-              <span>Cut</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground font-mono">Ctrl+X</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onDuplicateNode?.(targetNode);
-              onClose();
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Copy className="size-3.5 text-muted-foreground" />
-              <span>Duplicate</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground font-mono">Ctrl+D</span>
-          </button>
-
-          <div className="h-px bg-border/60 my-1" />
-
-          <button
-            type="button"
-            onClick={() => {
-              onDeleteNode?.(targetNode.id);
-              onClose();
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Trash2 className="size-3.5" />
-              <span>Delete Step</span>
-            </div>
-            <span className="text-[10px] text-destructive/70 font-mono">Del</span>
-          </button>
-        </div>
-      ) : targetEdge ? (
-        // 2. Edge Context Actions
-        <div className="space-y-0.5">
-          <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase border-b border-border/60 mb-1">
-            Connection: {targetEdge.id}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              onInspectEdge?.(targetEdge);
-              onClose();
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left cursor-pointer"
-          >
-            <Sliders className="size-3.5 text-primary" />
-            <span>Inspect Data Flow</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onInsertNodeOnEdge?.(targetEdge);
-              onClose();
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <Plus className="size-3.5 text-muted-foreground" />
-            <span>Insert Step Between</span>
-          </button>
-
-          {onEditEdgeLabel && (
-            <button
-              type="button"
-              onClick={() => {
-                onEditEdgeLabel(targetEdge);
-                onClose();
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-            >
-              <Tag className="size-3.5 text-muted-foreground" />
-              <span>{targetEdge.data?.label ? 'Rename Label' : 'Add Label'}</span>
-            </button>
-          )}
-
-          {onToggleEdgeAnimated && (
-            <button
-              type="button"
-              role="menuitemcheckbox"
-              aria-checked={targetEdge.data?.animated === true}
-              onClick={() => {
-                onToggleEdgeAnimated(targetEdge);
-                onClose();
-              }}
-              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-            >
-              <span className="flex items-center gap-2">
-                <Waves className="size-3.5 text-muted-foreground" />
-                <span>Animate Connection</span>
-              </span>
-              {targetEdge.data?.animated === true && (
-                <span className="text-[10px] font-semibold text-primary">On</span>
-              )}
-            </button>
-          )}
-
-          <div className="h-px bg-border/60 my-1" />
-
-          <button
-            type="button"
-            onClick={() => {
-              onDeleteEdge?.(targetEdge.id);
-              onClose();
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Trash2 className="size-3.5" />
-              <span>Delete Connection</span>
-            </div>
-            <span className="text-[10px] text-destructive/70 font-mono">Del</span>
-          </button>
-        </div>
-      ) : (
-        // 3. Canvas Background Actions
-        <div className="space-y-0.5">
-          <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase border-b border-border/60 mb-1">
-            Canvas Actions
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              onAddNode?.({ x, y });
-              onClose();
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:text-primary transition-colors text-left font-medium cursor-pointer"
-          >
-            <Plus className="size-3.5 text-primary" />
-            <span>Add Step Here…</span>
-          </button>
-
-          {hasClipboard && (
-            <button
-              type="button"
-              onClick={() => {
-                onPaste?.();
-                onClose();
-              }}
-              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer font-medium"
-            >
-              <div className="flex items-center gap-2">
-                <Clipboard className="size-3.5 text-primary" />
-                <span>Paste Step</span>
-              </div>
-              <span className="text-[10px] text-muted-foreground font-mono">Ctrl+V</span>
-            </button>
-          )}
-
-          <div className="h-px bg-border/60 my-1" />
-
-          <button
-            type="button"
-            onClick={() => {
-              onAutoLayout?.('LR');
-              onClose();
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Wand2 className="size-3.5 text-primary" />
-              <span>Auto Layout (Horizontal)</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground font-mono">Shift+L</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onAutoLayout?.('TB');
-              onClose();
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <Split className="size-3.5 text-muted-foreground rotate-90" />
-            <span>Auto Layout (Vertical)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onFitView?.();
-              onClose();
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Maximize2 className="size-3.5 text-muted-foreground" />
-              <span>Fit to Viewport</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground font-mono">Shift+1</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onSelectAll?.();
-              onClose();
-            }}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <span>Select All Steps</span>
-            <span className="text-[10px] text-muted-foreground font-mono">Ctrl+A</span>
-          </button>
-
-          <div className="h-px bg-border/60 my-1" />
-
-          <button
-            type="button"
-            onClick={() => {
-              onExportJson?.();
-              onClose();
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-surface-raised transition-colors text-left cursor-pointer"
-          >
-            <Download className="size-3.5 text-muted-foreground" />
-            <span>Export Workflow JSON</span>
-          </button>
-        </div>
-      )}
-    </div>
+    <DropdownMenu modal={false} open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DropdownMenuTrigger asChild>
+        <span
+          aria-hidden
+          tabIndex={-1}
+          className="pointer-events-none fixed size-0"
+          style={{ left: `${x}px`, top: `${y}px` }}
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="bottom" sideOffset={0} className="min-w-[210px]">
+        {targetNode ? (
+          <>
+            <DropdownMenuLabel className="text-[10px] uppercase">
+              Step: {targetNode.data?.label || targetNode.id}
+            </DropdownMenuLabel>
+            <Row icon={Play} iconClass="fill-current text-primary" label="Test Step Execution" onSelect={run(() => onTestNode?.(targetNode))} />
+            <Row icon={Info} label="Configure Step" onSelect={run(() => onInspectNode?.(targetNode))} />
+            <DropdownMenuSeparator />
+            <Row icon={Copy} label="Copy" shortcut="Ctrl+C" onSelect={run(() => onCopyNode?.(targetNode))} />
+            <Row icon={Scissors} label="Cut" shortcut="Ctrl+X" onSelect={run(() => onCutNode?.(targetNode))} />
+            <Row icon={Copy} label="Duplicate" shortcut="Ctrl+D" onSelect={run(() => onDuplicateNode?.(targetNode))} />
+            <DropdownMenuSeparator />
+            <Row icon={Trash2} iconClass="" variant="destructive" label="Delete Step" shortcut="Del" onSelect={run(() => onDeleteNode?.(targetNode.id))} />
+          </>
+        ) : targetEdge ? (
+          <>
+            <DropdownMenuLabel className="text-[10px] uppercase">Connection: {targetEdge.id}</DropdownMenuLabel>
+            <Row icon={Sliders} iconClass="text-primary" label="Inspect Data Flow" onSelect={run(() => onInspectEdge?.(targetEdge))} />
+            <Row icon={Plus} label="Insert Step Between" onSelect={run(() => onInsertNodeOnEdge?.(targetEdge))} />
+            {onEditEdgeLabel && (
+              <Row
+                icon={Tag}
+                label={targetEdge.data?.label ? 'Rename Label' : 'Add Label'}
+                onSelect={run(() => onEditEdgeLabel(targetEdge))}
+              />
+            )}
+            {onToggleEdgeAnimated && (
+              <Row
+                icon={Waves}
+                label="Animate Connection"
+                shortcut={targetEdge.data?.animated === true ? 'On' : undefined}
+                onSelect={run(() => onToggleEdgeAnimated(targetEdge))}
+              />
+            )}
+            <DropdownMenuSeparator />
+            <Row icon={Trash2} iconClass="" variant="destructive" label="Delete Connection" shortcut="Del" onSelect={run(() => onDeleteEdge?.(targetEdge.id))} />
+          </>
+        ) : (
+          <>
+            <DropdownMenuLabel className="text-[10px] uppercase">Canvas Actions</DropdownMenuLabel>
+            <Row icon={Plus} iconClass="text-primary" label="Add Step Here…" onSelect={run(() => onAddNode?.({ x, y }))} />
+            {hasClipboard && (
+              <Row icon={Clipboard} iconClass="text-primary" label="Paste Step" shortcut="Ctrl+V" onSelect={run(() => onPaste?.())} />
+            )}
+            <DropdownMenuSeparator />
+            <Row icon={Wand2} iconClass="text-primary" label="Auto Layout (Horizontal)" shortcut="Shift+L" onSelect={run(() => onAutoLayout?.('LR'))} />
+            <Row icon={Split} label="Auto Layout (Vertical)" onSelect={run(() => onAutoLayout?.('TB'))} />
+            <Row icon={Maximize2} label="Fit to Viewport" shortcut="Shift+1" onSelect={run(() => onFitView?.())} />
+            <Row label="Select All Steps" shortcut="Ctrl+A" onSelect={run(() => onSelectAll?.())} />
+            <DropdownMenuSeparator />
+            <Row icon={Download} label="Export Workflow JSON" onSelect={run(() => onExportJson?.())} />
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

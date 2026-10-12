@@ -5,6 +5,8 @@ import {
   Input,
   Switch,
   toast,
+  AppSelect,
+  Label,
 } from '@org/ui';
 import type { AnalyticsSettingsConfig } from '@org/types';
 import {
@@ -19,9 +21,6 @@ interface AnalyticsSettingsViewProps {
   settings: AnalyticsSettingsConfig;
   onRefresh: () => void;
 }
-
-const SELECT_CLASS =
-  'w-full max-w-xs h-9 px-3 rounded-md border border-border bg-surface text-xs text-foreground';
 
 export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettingsViewProps) {
   const { activeWorkspace } = useStudioSession();
@@ -71,43 +70,45 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
         {/* Retention */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-xs font-semibold text-foreground">Metadata Retention</label>
+            <Label className="text-xs font-semibold text-foreground">Metadata Retention</Label>
             <p className="text-[11px] text-muted-foreground mb-2">
               Run status, timings, token and cost metrics
             </p>
-            <select
-              value={draft.retentionDaysMetadata}
-              onChange={(e) => set('retentionDaysMetadata', Number(e.target.value))}
-              className={SELECT_CLASS}
-            >
-              <option value={30}>30 Days</option>
-              <option value={90}>90 Days (Recommended)</option>
-              <option value={180}>180 Days</option>
-              <option value={365}>1 Year</option>
-            </select>
+            <AppSelect
+              className="max-w-xs"
+              value={String(draft.retentionDaysMetadata)}
+              onValueChange={(v) => set('retentionDaysMetadata', Number(v))}
+              options={[
+                { value: '30', label: '30 Days' },
+                { value: '90', label: '90 Days (Recommended)' },
+                { value: '180', label: '180 Days' },
+                { value: '365', label: '1 Year' },
+              ]}
+            />
           </div>
           <div>
-            <label className="text-xs font-semibold text-foreground">Payload Retention</label>
+            <Label className="text-xs font-semibold text-foreground">Payload Retention</Label>
             <p className="text-[11px] text-muted-foreground mb-2">
               Redacted span inputs and outputs
             </p>
-            <select
-              value={draft.retentionDaysPayload}
-              onChange={(e) => set('retentionDaysPayload', Number(e.target.value))}
-              className={SELECT_CLASS}
-            >
-              <option value={7}>7 Days</option>
-              <option value={14}>14 Days (Recommended)</option>
-              <option value={30}>30 Days</option>
-              <option value={90}>90 Days</option>
-            </select>
+            <AppSelect
+              className="max-w-xs"
+              value={String(draft.retentionDaysPayload)}
+              onValueChange={(v) => set('retentionDaysPayload', Number(v))}
+              options={[
+                { value: '7', label: '7 Days' },
+                { value: '14', label: '14 Days (Recommended)' },
+                { value: '30', label: '30 Days' },
+                { value: '90', label: '90 Days' },
+              ]}
+            />
           </div>
         </div>
 
         {/* Budget */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-xs font-semibold text-foreground">Monthly Budget ($)</label>
+            <Label className="text-xs font-semibold text-foreground">Monthly Budget ($)</Label>
             <p className="text-[11px] text-muted-foreground mb-2">
               Used for budget utilization and spend projections
             </p>
@@ -120,7 +121,7 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-foreground">Budget Alert Threshold (%)</label>
+            <Label className="text-xs font-semibold text-foreground">Budget Alert Threshold (%)</Label>
             <p className="text-[11px] text-muted-foreground mb-2">
               Warn when spend reaches this share of the budget
             </p>
@@ -137,22 +138,20 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
 
         {/* Default timeframe */}
         <div>
-          <label className="text-xs font-semibold text-foreground">Default Timeframe</label>
+          <Label className="text-xs font-semibold text-foreground">Default Timeframe</Label>
           <p className="text-[11px] text-muted-foreground mb-2">
             Range the analytics dashboards open with
           </p>
-          <select
+          <AppSelect
             value={draft.defaultTimeframe}
-            onChange={(e) =>
-              set('defaultTimeframe', e.target.value as AnalyticsSettingsConfig['defaultTimeframe'])
-            }
-            className={SELECT_CLASS}
-          >
-            <option value="24H">Last 24 hours</option>
-            <option value="7D">Last 7 days</option>
-            <option value="30D">Last 30 days</option>
-            <option value="90D">Last 90 days</option>
-          </select>
+            onValueChange={(v) => set('defaultTimeframe', v as AnalyticsSettingsConfig['defaultTimeframe'])}
+            options={[
+              { value: '24H', label: 'Last 24 hours' },
+              { value: '7D', label: 'Last 7 days' },
+              { value: '30D', label: 'Last 30 days' },
+              { value: '90D', label: 'Last 90 days' },
+            ]}
+          />
         </div>
 
         {/* Redaction & Security */}

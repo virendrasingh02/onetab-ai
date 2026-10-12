@@ -7,21 +7,10 @@ import {
   LoadingState,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import type { AIExecutionTrace, ExecutionTraceSpan } from '@org/types';
+import type { ExecutionTraceSpan } from '@org/types';
 import {
-  Activity,
-  AlertTriangle,
-  Bot,
-  CheckCircle2,
-  Clock,
-  Coins,
   Cpu,
-  Layers,
-  Search,
   Sparkles,
-  Wrench,
-  XCircle,
-  Zap,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsService } from '../../services/analyticsService.js';
@@ -52,23 +41,6 @@ export function TracesTimelineView({
     queryFn: () => analyticsService.getExecutionTrace(activeWorkspace.id, executionId),
     enabled: Boolean(activeWorkspace.id && executionId),
   });
-
-  const getSpanColor = (kind: string) => {
-    switch (kind) {
-      case 'MODEL_CALL':
-        return 'bg-violet-500 border-violet-600 text-violet-100';
-      case 'TOOL_EXECUTION':
-        return 'bg-amber-500 border-amber-600 text-amber-100';
-      case 'CONNECTOR_REQUEST':
-        return 'bg-cyan-500 border-cyan-600 text-cyan-100';
-      case 'WORKFLOW_NODE':
-        return 'bg-emerald-500 border-emerald-600 text-emerald-100';
-      case 'HUMAN_APPROVAL':
-        return 'bg-blue-500 border-blue-600 text-blue-100';
-      default:
-        return 'bg-primary border-primary text-primary-foreground';
-    }
-  };
 
   const totalDuration = trace?.totalDurationMs || 1;
   const spans = trace ? trace.spans ?? flattenSpans(trace.rootSpan) : [];

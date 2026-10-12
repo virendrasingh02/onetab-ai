@@ -20,6 +20,11 @@ import {
   Hint,
   Input,
   ScrollArea,
+  AppSelect,
+  Label,
+  Sheet,
+  SheetContent,
+  SheetTitle,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -42,6 +47,7 @@ import {
   ShieldAlert,
   UserPlus,
   Wrench,
+  LogOut,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
@@ -208,7 +214,7 @@ function InviteTeamDialog({
 
         <form onSubmit={handleSend} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Email address</label>
+            <Label className="text-xs font-medium text-foreground">Email address</Label>
             <Input
               type="email"
               placeholder="colleague@example.com"
@@ -220,16 +226,16 @@ function InviteTeamDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Studio Role</label>
-            <select
+            <Label className="text-xs font-medium text-foreground">Studio Role</Label>
+            <AppSelect
               value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full h-9 px-3 text-xs rounded-md border border-input bg-background text-foreground"
-            >
-              <option value="developer">Agent Developer (Full Builder)</option>
-              <option value="operator">Operator (Run & Monitor)</option>
-              <option value="auditor">Auditor (Read-Only Traces)</option>
-            </select>
+              onValueChange={(v) => setRole(v)}
+              options={[
+                { value: 'developer', label: 'Agent Developer (Full Builder)' },
+                { value: 'operator', label: 'Operator (Run & Monitor)' },
+                { value: 'auditor', label: 'Auditor (Read-Only Traces)' },
+              ]}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -404,12 +410,9 @@ export function StudioSidebar({
   mobileOpen = false,
   onCloseMobile,
 }: StudioSidebarProps) {
-  const { user, activeWorkspace, workspaces, setActiveWorkspace } = useStudioSession();
+  const { user, activeWorkspace, workspaces, setActiveWorkspace, signOut } = useStudioSession();
   const location = useLocation();
   const navigate = useNavigate();
-
-  // The mobile drawer is always full width, whatever the desktop rail state.
-  const collapsed = collapsedProp && !mobileOpen;
 
   const [inviteOpen, setInviteOpen] = useState(false);
 
@@ -474,216 +477,235 @@ export function StudioSidebar({
     </div>
   );
 
+  /** The navigation panel, shared by the desktop rail and the mobile sheet. */
+  const renderPanel = (collapsed: boolean) => (
+    <>
+      {/* Header: workspace switcher */}
+      <div className="h-14 px-2.5 flex items-center border-b border-border/40 shrink-0">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                'flex w-full min-w-0 items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                collapsed && 'justify-center',
+              )}
+              aria-label="Switch workspace"
+            >
+              {workspaceMark}
+              {!collapsed && (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold leading-tight text-foreground">
+                      {activeWorkspace.name}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">AI Agent Studio</div>
+                  </div>
+                  <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-60">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
+            {workspaces.map((ws) => (
+              <DropdownMenuItem
+                key={ws.id}
+                onClick={() => setActiveWorkspace(ws)}
+                className="gap-2 text-sm"
+              >
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-foreground">
+                  {(ws.name || 'W').charAt(0).toUpperCase()}
+                </span>
+                <span className="truncate">{ws.name}</span>
+                {ws.id === activeWorkspace.id && <Check className="size-4 ml-auto text-primary" />}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setInviteOpen(true)} className="gap-2 text-sm">
+              <UserPlus className="size-4" />
+              <span>Invite Team…</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-2 text-sm">
+              <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
+                <ExternalLink className="size-4" />
+                <span>Open main platform</span>
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Scrollable Navigation Body */}
+      <ScrollArea className="flex-1 px-2.5 py-3">
+        <nav className="space-y-0.5" aria-label="Studio">
+          <StudioNavRow
+            to="/overview"
+            end
+            label="Studio Overview"
+            icon={LayoutDashboard}
+            collapsed={collapsed}
+            onNavigate={onCloseMobile}
+          />
+
+          {NAV_GROUPS.map((group) => {
+            const rows = group.items.map((item) => (
+              <StudioNavRow
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                label={item.label}
+                icon={item.icon}
+                collapsed={collapsed}
+                count={item.showsPendingApprovals ? pendingCount : undefined}
+                onNavigate={onCloseMobile}
+              />
+            ));
+
+            if (collapsed) {
+              return (
+                <div
+                  key={group.id}
+                  className="mt-2 space-y-0.5 border-t border-border/40 pt-2"
+                  aria-label={group.title}
+                >
+                  {rows}
+                </div>
+              );
+            }
+
+            return (
+              <StudioNavSection
+                key={group.id}
+                title={group.title}
+                open={expandedGroups[group.id] ?? true}
+                onOpenChange={(open) => setGroupOpen(group.id, open)}
+                collapsedCount={group.showsPendingApprovals ? pendingCount : undefined}
+              >
+                {rows}
+              </StudioNavSection>
+            );
+          })}
+        </nav>
+      </ScrollArea>
+
+      {/* Pinned Footer: Invite Team + profile */}
+      <div className="p-2.5 border-t border-border/40 space-y-1 shrink-0">
+        {collapsed ? (
+          <Hint side="right" label="Invite Team">
+            <button
+              type="button"
+              onClick={() => setInviteOpen(true)}
+              aria-label="Invite Team"
+              className={cn(ICON_ROW, ICON_IDLE)}
+            >
+              <UserPlus className="size-4 shrink-0" />
+            </button>
+          </Hint>
+        ) : (
+          <button type="button" onClick={() => setInviteOpen(true)} className={cn(ROW_BASE, ROW_IDLE)}>
+            <UserPlus className="size-4 shrink-0" />
+            <span className="flex-1 truncate">Invite Team</span>
+          </button>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                'group flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                collapsed && 'justify-center',
+              )}
+              aria-label="Account menu"
+            >
+              <Avatar className="size-8 rounded-lg border border-border/60">
+                {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={displayName} /> : null}
+                <AvatarFallback className="rounded-lg bg-foreground text-background text-xs font-bold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+
+              {!collapsed && (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold leading-tight text-foreground">
+                      {displayName}
+                    </div>
+                    {displayEmail ? (
+                      <div className="truncate text-xs text-muted-foreground">{displayEmail}</div>
+                    ) : null}
+                  </div>
+                  <MoreHorizontal className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align="start" side="top" className="w-60">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold leading-none text-foreground">{displayName}</p>
+                {displayEmail ? (
+                  <p className="text-xs leading-none text-muted-foreground">{displayEmail}</p>
+                ) : null}
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-2 text-sm">
+              <Settings className="size-4 text-muted-foreground" />
+              <span>Studio Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/developer')} className="gap-2 text-sm">
+              <BookOpen className="size-4 text-muted-foreground" />
+              <span>Documentation</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-2 text-sm">
+              <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
+                <ExternalLink className="size-4 text-muted-foreground" />
+                <span>Main Platform</span>
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => void signOut()}
+              className="gap-2 text-sm"
+            >
+              <LogOut className="size-4" />
+              <span>Sign out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </>
+  );
+
   return (
     <>
-      {/* Mobile Drawer Backdrop */}
-      {mobileOpen ? (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden"
-          onClick={onCloseMobile}
-          aria-hidden="true"
-        />
-      ) : null}
-
+      {/* Desktop rail */}
       <aside
         className={cn(
-          'flex flex-col border-r border-border/70 bg-card z-50 md:z-auto transition-all duration-200 select-none shrink-0 h-dvh',
-          mobileOpen
-            ? 'fixed inset-y-0 left-0 w-[272px] shadow-2xl md:relative md:shadow-none'
-            : cn('hidden md:flex', collapsed ? 'w-[68px]' : 'w-[272px]'),
+          'hidden md:flex flex-col border-r border-border/70 bg-card transition-all duration-200 select-none shrink-0 h-dvh',
+          collapsedProp ? 'w-[68px]' : 'w-[272px]',
           className,
         )}
       >
-        {/* Header: workspace switcher */}
-        <div className="h-14 px-2.5 flex items-center border-b border-border/40 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  'flex w-full min-w-0 items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                  collapsed && 'justify-center',
-                )}
-                aria-label="Switch workspace"
-              >
-                {workspaceMark}
-                {!collapsed && (
-                  <>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold leading-tight text-foreground">
-                        {activeWorkspace.name}
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground">AI Agent Studio</div>
-                    </div>
-                    <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-                  </>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-60">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
-              {workspaces.map((ws) => (
-                <DropdownMenuItem
-                  key={ws.id}
-                  onClick={() => setActiveWorkspace(ws)}
-                  className="gap-2 text-sm"
-                >
-                  <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-foreground">
-                    {(ws.name || 'W').charAt(0).toUpperCase()}
-                  </span>
-                  <span className="truncate">{ws.name}</span>
-                  {ws.id === activeWorkspace.id && <Check className="size-4 ml-auto text-primary" />}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setInviteOpen(true)} className="gap-2 text-sm">
-                <UserPlus className="size-4" />
-                <span>Invite Team…</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="gap-2 text-sm">
-                <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
-                  <ExternalLink className="size-4" />
-                  <span>Open main platform</span>
-                </a>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Scrollable Navigation Body */}
-        <ScrollArea className="flex-1 px-2.5 py-3">
-          <nav className="space-y-0.5" aria-label="Studio">
-            <StudioNavRow
-              to="/overview"
-              end
-              label="Studio Overview"
-              icon={LayoutDashboard}
-              collapsed={collapsed}
-              onNavigate={onCloseMobile}
-            />
-
-            {NAV_GROUPS.map((group) => {
-              const rows = group.items.map((item) => (
-                <StudioNavRow
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  label={item.label}
-                  icon={item.icon}
-                  collapsed={collapsed}
-                  count={item.showsPendingApprovals ? pendingCount : undefined}
-                  onNavigate={onCloseMobile}
-                />
-              ));
-
-              if (collapsed) {
-                return (
-                  <div
-                    key={group.id}
-                    className="mt-2 space-y-0.5 border-t border-border/40 pt-2"
-                    aria-label={group.title}
-                  >
-                    {rows}
-                  </div>
-                );
-              }
-
-              return (
-                <StudioNavSection
-                  key={group.id}
-                  title={group.title}
-                  open={expandedGroups[group.id] ?? true}
-                  onOpenChange={(open) => setGroupOpen(group.id, open)}
-                  collapsedCount={group.showsPendingApprovals ? pendingCount : undefined}
-                >
-                  {rows}
-                </StudioNavSection>
-              );
-            })}
-          </nav>
-        </ScrollArea>
-
-        {/* Pinned Footer: Invite Team + profile */}
-        <div className="p-2.5 border-t border-border/40 space-y-1 shrink-0">
-          {collapsed ? (
-            <Hint side="right" label="Invite Team">
-              <button
-                type="button"
-                onClick={() => setInviteOpen(true)}
-                aria-label="Invite Team"
-                className={cn(ICON_ROW, ICON_IDLE)}
-              >
-                <UserPlus className="size-4 shrink-0" />
-              </button>
-            </Hint>
-          ) : (
-            <button type="button" onClick={() => setInviteOpen(true)} className={cn(ROW_BASE, ROW_IDLE)}>
-              <UserPlus className="size-4 shrink-0" />
-              <span className="flex-1 truncate">Invite Team</span>
-            </button>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  'group flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                  collapsed && 'justify-center',
-                )}
-                aria-label="Account menu"
-              >
-                <Avatar className="size-8 rounded-lg border border-border/60">
-                  {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={displayName} /> : null}
-                  <AvatarFallback className="rounded-lg bg-foreground text-background text-xs font-bold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-
-                {!collapsed && (
-                  <>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold leading-tight text-foreground">
-                        {displayName}
-                      </div>
-                      {displayEmail ? (
-                        <div className="truncate text-xs text-muted-foreground">{displayEmail}</div>
-                      ) : null}
-                    </div>
-                    <MoreHorizontal className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
-                  </>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="start" side="top" className="w-60">
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm font-semibold leading-none text-foreground">{displayName}</p>
-                  {displayEmail ? (
-                    <p className="text-xs leading-none text-muted-foreground">{displayEmail}</p>
-                  ) : null}
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-2 text-sm">
-                <Settings className="size-4 text-muted-foreground" />
-                <span>Studio Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/developer')} className="gap-2 text-sm">
-                <BookOpen className="size-4 text-muted-foreground" />
-                <span>Documentation</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="gap-2 text-sm">
-                <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
-                  <ExternalLink className="size-4 text-muted-foreground" />
-                  <span>Main Platform</span>
-                </a>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {renderPanel(collapsedProp)}
       </aside>
+
+      {/* Mobile drawer: a sheet gives it focus trapping, Escape and scroll lock */}
+      <Sheet open={mobileOpen} onOpenChange={(open) => !open && onCloseMobile?.()}>
+        <SheetContent
+          side="left"
+          hideCloseButton
+          aria-describedby={undefined}
+          className="w-[272px] max-w-[272px] gap-0 border-r border-border/70 bg-card p-0 select-none md:hidden"
+        >
+          <SheetTitle className="sr-only">Studio navigation</SheetTitle>
+          {renderPanel(false)}
+        </SheetContent>
+      </Sheet>
 
       {/* Invite Team Dialog */}
       <InviteTeamDialog open={inviteOpen} onOpenChange={setInviteOpen} />

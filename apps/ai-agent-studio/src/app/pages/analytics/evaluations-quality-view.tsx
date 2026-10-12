@@ -1,5 +1,4 @@
 import {
-  Badge,
   Card,
   Table,
   TableBody,
@@ -10,14 +9,12 @@ import {
 } from '@org/ui';
 import type { EvaluationsAnalyticsOverview } from '@org/types';
 import {
-  CheckCircle2,
   Clock,
   Sparkles,
   Star,
   ThumbsDown,
   ThumbsUp,
   UserCheck,
-  XCircle,
 } from 'lucide-react';
 
 interface EvaluationsQualityViewProps {

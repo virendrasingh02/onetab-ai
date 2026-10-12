@@ -1,25 +1,20 @@
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Badge,
   Button,
-  Card,
   LoadingState,
   Page,
   PageHeader,
+  ResponsiveTabs,
 } from '@org/ui';
 import {
-  Activity,
-  AlertCircle,
   AlertTriangle,
   BarChart3,
   Bell,
   Bot,
-  Clock,
   Coins,
   Cpu,
   Download,
-  FileSpreadsheet,
   GitBranch,
   GitCompare,
   History,
@@ -29,10 +24,7 @@ import {
   Settings,
   Sparkles,
   Star,
-  Wrench,
-  Zap,
 } from 'lucide-react';
-import { cn } from '@org/utils';
 import { analyticsService } from '../services/analyticsService.js';
 import { useStudioSession } from '../session-guard.js';
 
@@ -296,27 +288,16 @@ export function AnalyticsPage() {
       />
 
       {/* Navigation Sub-Tabs Bar */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-border pb-2 text-xs scrollbar-none">
-        {TABS.map((tab) => {
+      <ResponsiveTabs
+        variant="pill"
+        size="sm"
+        value={activeTab}
+        onValueChange={(tab) => setActiveTab(tab as typeof activeTab)}
+        items={TABS.map((tab) => {
           const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors shrink-0',
-                isActive
-                  ? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised',
-              )}
-            >
-              <Icon className="size-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
+          return { value: tab.id, label: tab.label, icon: <Icon className="size-3.5" /> };
         })}
-      </div>
+      />
 
       {/* View Content Rendering */}
       <div>

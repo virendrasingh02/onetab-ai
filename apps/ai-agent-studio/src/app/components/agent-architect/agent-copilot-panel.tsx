@@ -26,6 +26,8 @@ import {
   DropdownMenuTrigger,
   Switch,
   toast,
+  Label,
+  Textarea,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -645,8 +647,7 @@ export function AgentCopilotPanel({
     ? `${input}${input && dictation.interimText ? ' ' : ''}${dictation.finalText}${dictation.finalText && dictation.interimText ? ' ' : ''}${dictation.interimText}`
     : input;
 
-  const iconBtn =
-    'flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40 cursor-pointer';
+  const iconBtn = 'rounded-md';
 
   return (
     <aside
@@ -669,12 +670,12 @@ export function AgentCopilotPanel({
           </div>
         </div>
         <div className="flex items-center gap-0.5">
-          <button type="button" onClick={newChat} disabled={!!busy} className={iconBtn} aria-label="New chat" title="New chat">
+          <Button variant="ghost" size="icon-sm" type="button" onClick={newChat} disabled={!!busy} className={iconBtn} aria-label="New chat" title="New chat">
             <Plus className="size-4" />
-          </button>
-          <button type="button" onClick={onClose} className={iconBtn} aria-label="Close Copilot" title="Close">
+          </Button>
+          <Button variant="ghost" size="icon-sm" type="button" onClick={onClose} className={iconBtn} aria-label="Close Copilot" title="Close">
             <X className="size-4" />
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -809,13 +810,15 @@ export function AgentCopilotPanel({
                   {m.proposal.rebuild?.savedAgentId && (
                     <p className="flex flex-wrap items-center gap-1.5 text-xs text-success-text">
                       <Check className="size-3.5" aria-hidden /> Saved as {m.proposal.rebuild.spec.agent.name}
-                      <button
+                      <Button
+                        variant="link"
+                        size="xs"
                         type="button"
                         onClick={() => navigate(`/agents/${m.proposal?.rebuild?.savedAgentId}?copilot=1`)}
-                        className="inline-flex items-center gap-0.5 text-foreground underline-offset-2 hover:underline cursor-pointer"
+                        className="h-auto gap-0.5 text-foreground"
                       >
                         Open it <ExternalLink className="size-3" aria-hidden />
-                      </button>
+                      </Button>
                     </p>
                   )}
                   {m.proposal.state === 'applying' && (
@@ -859,14 +862,14 @@ export function AgentCopilotPanel({
 
               {/* Reply actions */}
               <div className="flex items-center gap-0.5 opacity-70 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100">
-                <button type="button" onClick={() => void copyMessage(m)} className={iconBtn} aria-label="Copy reply" title="Copy">
+                <Button variant="ghost" size="icon-sm" type="button" onClick={() => void copyMessage(m)} className={iconBtn} aria-label="Copy reply" title="Copy">
                   {copiedId === m.id ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
-                </button>
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button type="button" className={iconBtn} aria-label="Download reply" title="Download">
+                    <Button variant="ghost" size="icon-sm" type="button" className={iconBtn} aria-label="Download reply" title="Download">
                       <Download className="size-3.5" />
-                    </button>
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="top" className="w-48">
                     <DropdownMenuLabel className="text-[11px] text-muted-foreground">Download as</DropdownMenuLabel>
@@ -941,32 +944,21 @@ export function AgentCopilotPanel({
               </button>
             ))}
           </div>
-          <label htmlFor="copilot-input" className="sr-only">Ask the Copilot</label>
-          <textarea
-            id="copilot-input"
-            ref={inputRef}
-            rows={1}
-            value={composerValue}
-            readOnly={dictation.listening}
-            disabled={!!busy}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
+          <Label htmlFor="copilot-input" className="sr-only">Ask the Copilot</Label>
+          <Textarea id="copilot-input" ref={inputRef} rows={1} value={composerValue} readOnly={dictation.listening} disabled={!!busy} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 if (dictation.listening) dictation.stop();
                 void handle(input, mode);
               }
-            }}
-            placeholder={dictation.listening ? 'Listening…' : COMPOSER_MODES.find((x) => x.id === mode)?.placeholder}
-            className="block max-h-40 min-h-11 w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-[13px] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
-          />
+            }} placeholder={dictation.listening ? 'Listening…' : COMPOSER_MODES.find((x) => x.id === mode)?.placeholder} className="max-h-40 min-h-11 resize-none text-[13px]" />
           <div className="flex items-center justify-between gap-2 px-2 pb-2">
             <div className="flex items-center gap-0.5">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button type="button" disabled={!!busy} className={iconBtn} aria-label="Copilot actions" title="Copilot actions">
+                  <Button variant="ghost" size="icon-sm" type="button" disabled={!!busy} className={iconBtn} aria-label="Copilot actions" title="Copilot actions">
                     <Plus className="size-4" />
-                  </button>
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" side="top" className="w-56">
                   <DropdownMenuItem onSelect={() => void handle('', 'check')} className="gap-2 text-xs">
@@ -995,7 +987,7 @@ export function AgentCopilotPanel({
             </div>
             <div className="flex items-center gap-1">
               {dictation.supported && (
-                <button
+                <Button variant="ghost" size="icon-sm"
                   type="button"
                   onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
                   disabled={!!busy}
@@ -1005,7 +997,7 @@ export function AgentCopilotPanel({
                   title={dictation.listening ? 'Stop dictation' : 'Dictate'}
                 >
                   {dictation.listening ? <Square className="size-3 fill-current" /> : <Mic className="size-4" />}
-                </button>
+                </Button>
               )}
               <button
                 type="submit"

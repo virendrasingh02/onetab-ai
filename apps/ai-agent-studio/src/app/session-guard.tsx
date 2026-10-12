@@ -1,19 +1,32 @@
-import { restoreBrowserSession, workspaceApi } from '@org/api-client';
+import {
+  authApi,
+  restoreBrowserSession,
+  setAccessToken,
+  setSessionExpiredHandler,
+  workspaceApi,
+} from '@org/api-client';
 import type { CurrentUser, Workspace } from '@org/types';
 import { Button, ErrorState, LoadingState } from '@org/ui';
-import { ExternalLink, RefreshCw, ShieldAlert, Sparkles } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import {
+  WEB_APP_URL,
+  cameBackFromLogin,
+  clearLoginRedirect,
+  redirectToLogin,
+  redirectToLogout,
+} from './auth-redirect.js';
+import { SignedOutScreen } from './signed-out-screen.js';
 
-const WEB_APP_URL =
-  (import.meta.env?.['VITE_WEB_APP_URL'] as string | undefined) ??
-  'http://localhost:4200';
+const ACTIVE_WORKSPACE_KEY = 'onetab_active_workspace_id';
 
 export interface StudioSession {
   user: CurrentUser;
@@ -21,6 +34,8 @@ export interface StudioSession {
   activeWorkspace: Workspace;
   setActiveWorkspace: (ws: Workspace) => void;
   refetchWorkspaces: () => Promise<void>;
+  /** Ends the platform session (shared with the web app) and returns to sign-in. */
+  signOut: () => Promise<void>;
 }
 
 const StudioSessionContext = createContext<StudioSession | null>(null);
@@ -33,47 +48,90 @@ export function useStudioSession(): StudioSession {
   return ctx;
 }
 
+function readSavedWorkspaceId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveWorkspaceId(id: string | null): void {
+  try {
+    if (id) localStorage.setItem(ACTIVE_WORKSPACE_KEY, id);
+    else localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+  } catch {
+    // Storage blocked: the choice just isn't remembered.
+  }
+}
+
+type Phase =
+  /** Asking the platform who this is. */
+  | { kind: 'loading' }
+  /** Signed out; the tab is on its way to the web app's sign-in. */
+  | { kind: 'redirecting' }
+  /** Went to sign in and came back without a session. */
+  | { kind: 'signed-out'; cameBack: boolean }
+  /** The API couldn't be reached — not the same as being signed out. */
+  | { kind: 'unreachable'; message: string }
+  | { kind: 'no-workspace'; user: CurrentUser }
+  | { kind: 'ready'; user: CurrentUser; workspaces: Workspace[]; activeWorkspace: Workspace };
+
+/**
+ * Gates Studio behind a platform session.
+ *
+ * - Already signed in (a live token, the shared refresh cookie, or a `#token=`
+ *   hand-off from the web app): straight in, no click.
+ * - Signed out: redirected to the web app's sign-in, which returns here.
+ * - Session ends while Studio is open: back to sign-in, to the same page.
+ */
 export function SessionGuard({ children }: { children: ReactNode }) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<CurrentUser | null>(null);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
+  // A retry can overlap the first check (StrictMode runs effects twice): only the latest answer counts.
+  const run = useRef(0);
 
   const initSession = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    const mine = ++run.current;
+    const current = () => run.current === mine;
+    setPhase({ kind: 'loading' });
 
     try {
       // Hand-off fragment → in-memory token → shared refresh cookie. `null`
       // means signed out; an unreachable API throws into the catch below.
-      const activeUser = await restoreBrowserSession();
+      const user = await restoreBrowserSession();
+      if (!current()) return;
 
-      // Signed out: the sign-in screen below. (A demo user and sample
-      // workspaces used to stand in here, so every page "worked" on fake data.)
-      if (!activeUser) {
-        setUser(null);
+      if (!user) {
+        if (cameBackFromLogin()) {
+          // We already sent them to sign in a moment ago. Sending them again
+          // would loop forever when the session can't reach this tab.
+          setPhase({ kind: 'signed-out', cameBack: true });
+        } else {
+          setPhase({ kind: 'redirecting' });
+          redirectToLogin();
+        }
         return;
       }
 
-      setUser(activeUser);
+      clearLoginRedirect();
 
-      // 3. Load user's workspaces
-      const wsList = await workspaceApi.list();
-      setWorkspaces(wsList);
+      const workspaces = await workspaceApi.list();
+      if (!current()) return;
 
-      if (wsList.length > 0) {
-        // Resolve saved active workspace ID
-        const savedWsId = localStorage.getItem('onetab_active_workspace_id');
-        const matched = wsList.find((w) => w.id === savedWsId) || wsList[0];
-        setActiveWorkspace(matched);
-        localStorage.setItem('onetab_active_workspace_id', matched.id);
+      if (workspaces.length === 0) {
+        setPhase({ kind: 'no-workspace', user });
+        return;
       }
+      const activeWorkspace =
+        workspaces.find((w) => w.id === readSavedWorkspaceId()) ?? workspaces[0];
+      saveWorkspaceId(activeWorkspace.id);
+      setPhase({ kind: 'ready', user, workspaces, activeWorkspace });
     } catch (err) {
-      // The platform couldn't be reached: say so, with a retry.
-      setError(err instanceof Error && err.message ? err.message : 'The OneTab API did not respond.');
-    } finally {
-      setLoading(false);
+      if (!current()) return;
+      setPhase({
+        kind: 'unreachable',
+        message: err instanceof Error && err.message ? err.message : 'The OneTab API did not respond.',
+      });
     }
   }, []);
 
@@ -81,133 +139,94 @@ export function SessionGuard({ children }: { children: ReactNode }) {
     void initSession();
   }, [initSession]);
 
-  const handleSelectWorkspace = (ws: Workspace) => {
-    setActiveWorkspace(ws);
-    localStorage.setItem('onetab_active_workspace_id', ws.id);
-  };
+  // The platform refused to renew the session (revoked, expired, signed out
+  // elsewhere): go back to sign-in and return to the same page afterwards.
+  useEffect(() => {
+    setSessionExpiredHandler(() => redirectToLogin());
+    return () => setSessionExpiredHandler(null);
+  }, []);
 
-  const refetchWorkspaces = async () => {
+  const setActiveWorkspace = useCallback((activeWorkspace: Workspace) => {
+    saveWorkspaceId(activeWorkspace.id);
+    setPhase((p) => (p.kind === 'ready' ? { ...p, activeWorkspace } : p));
+  }, []);
+
+  const refetchWorkspaces = useCallback(async () => {
     try {
-      const wsList = await workspaceApi.list();
-      setWorkspaces(wsList);
-      if (activeWorkspace) {
-        const updated = wsList.find((w) => w.id === activeWorkspace.id);
-        if (updated) setActiveWorkspace(updated);
-      }
+      const workspaces = await workspaceApi.list();
+      setPhase((p) => {
+        if (p.kind !== 'ready') return p;
+        const activeWorkspace = workspaces.find((w) => w.id === p.activeWorkspace.id) ?? p.activeWorkspace;
+        return { ...p, workspaces, activeWorkspace };
+      });
     } catch {
-      // Ignore
+      // Keep what is on screen; the next refetch tries again.
     }
-  };
+  }, []);
 
-  if (loading) {
-    return <LoadingState fullPage label="Connecting to platform workspace session…" />;
+  const signOut = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // The cookie may already be gone. Signing out locally is still right.
+    }
+    setAccessToken(null);
+    saveWorkspaceId(null);
+    redirectToLogout();
+  }, []);
+
+  if (phase.kind === 'loading') {
+    return <LoadingState fullPage label="Checking your session…" />;
   }
 
-  // The API could not be reached — not the same as being signed out.
-  if (error) {
+  if (phase.kind === 'redirecting') {
+    return <LoadingState fullPage label="Taking you to sign in…" />;
+  }
+
+  if (phase.kind === 'unreachable') {
     return (
       <ErrorState
         fullPage
         title="Couldn't reach the platform"
-        description={error}
+        description={phase.message}
         onRetry={() => void initSession()}
       />
     );
   }
 
-  // Not authenticated: seamless login redirect or single-click authentication
-  if (!user) {
-    const returnUrl =
-      typeof window !== 'undefined' ? window.location.href : 'http://localhost:4202';
-    const loginUrl = `${WEB_APP_URL}/login?returnTo=${encodeURIComponent(returnUrl)}`;
-
+  if (phase.kind === 'signed-out') {
     return (
-      <div className="dark flex min-h-screen flex-col items-center justify-between bg-background px-4 py-10 text-foreground selection:bg-primary/25">
-        <header className="flex w-full max-w-4xl items-center justify-between pt-4">
-          <div className="inline-flex items-center gap-2.5 rounded-lg">
-            <div className="flex size-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary shadow-xs">
-              <Sparkles className="size-4" />
-            </div>
-            <span className="text-sm font-semibold tracking-tight text-foreground">
-              OneTab AI
-            </span>
-            <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-primary uppercase">
-              Agent Studio
-            </span>
-          </div>
-
-          <Button variant="ghost" size="sm" asChild>
-            <a
-              href={WEB_APP_URL}
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <span>Main Platform</span>
-              <ExternalLink className="size-3.5" />
-            </a>
-          </Button>
-        </header>
-
-        <main className="my-auto flex w-full max-w-[420px] flex-col items-center text-center">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 text-primary shadow-lg shadow-primary/5">
-            <Sparkles className="size-7" />
-          </div>
-
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            AI Agent Studio
-          </h1>
-          <p className="mt-2 text-balance text-sm leading-relaxed text-muted-foreground">
-            A native workflow builder and autonomous agent execution studio for the OneTab AI platform.
-          </p>
-
-          <div className="mt-8 w-full space-y-3">
-            <Button
-              size="lg"
-              className="w-full font-medium"
-              asChild
-            >
-              <a href={loginUrl}>
-                <span>Sign in with Platform Account</span>
-                <ExternalLink className="ml-1.5 size-4" />
-              </a>
-            </Button>
-
-            <Button
-              variant="outline"
-              size="md"
-              className="w-full text-xs"
-              onClick={() => void initSession()}
-            >
-              <RefreshCw className="mr-1.5 size-3.5" />
-              <span>Retry Session Check</span>
-            </Button>
-          </div>
-
-          <p className="mt-6 text-xs text-muted-foreground">
-            Uses your existing workspace account, billing credits, and model permissions.
-          </p>
-        </main>
-
-        <footer className="text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} OneTab AI Platform. Seamless multi-tenant agent orchestration.
-        </footer>
-      </div>
+      <SignedOutScreen
+        cameBackSignedOut={phase.cameBack}
+        onSignIn={() => {
+          clearLoginRedirect();
+          redirectToLogin();
+        }}
+        onRetry={() => {
+          clearLoginRedirect();
+          void initSession();
+        }}
+      />
     );
   }
 
-  // User has no workspace
-  if (workspaces.length === 0 || !activeWorkspace) {
+  if (phase.kind === 'no-workspace') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center text-foreground">
         <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
           <ShieldAlert className="size-6" />
         </div>
-        <h2 className="text-xl font-bold">No Active Workspace Found</h2>
+        <h2 className="text-xl font-bold">No workspace yet</h2>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          You are signed in as <span className="font-semibold text-foreground">{user.email}</span>, but you are not a member of any workspace yet.
+          You are signed in as <span className="font-semibold text-foreground">{phase.user.email}</span>, but you are
+          not a member of any workspace.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 flex gap-2">
           <Button asChild>
-            <a href={`${WEB_APP_URL}/workspaces/new`}>Create or Join a Workspace</a>
+            <a href={`${WEB_APP_URL}/workspaces/new`}>Create or join a workspace</a>
+          </Button>
+          <Button variant="outline" onClick={() => void signOut()}>
+            Sign out
           </Button>
         </div>
       </div>
@@ -217,11 +236,12 @@ export function SessionGuard({ children }: { children: ReactNode }) {
   return (
     <StudioSessionContext.Provider
       value={{
-        user,
-        workspaces,
-        activeWorkspace,
-        setActiveWorkspace: handleSelectWorkspace,
+        user: phase.user,
+        workspaces: phase.workspaces,
+        activeWorkspace: phase.activeWorkspace,
+        setActiveWorkspace,
         refetchWorkspaces,
+        signOut,
       }}
     >
       {children}

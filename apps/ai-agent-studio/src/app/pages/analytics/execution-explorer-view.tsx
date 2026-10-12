@@ -12,16 +12,9 @@ import {
   TableRow,
 } from '@org/ui';
 import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
   Eye,
-  Filter,
   RefreshCw,
   Search,
-  Sparkles,
-  XCircle,
 } from 'lucide-react';
 import { ExecutionDetailDrawer } from './execution-detail-drawer.js';
 

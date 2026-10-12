@@ -1,5 +1,4 @@
 import {
-  Badge,
   Card,
   Table,
   TableBody,
@@ -12,8 +11,6 @@ import type { ModelAnalyticsRecord } from '@org/types';
 import {
   Coins,
   Cpu,
-  Layers,
-  Sparkles,
   Zap,
 } from 'lucide-react';
 import {

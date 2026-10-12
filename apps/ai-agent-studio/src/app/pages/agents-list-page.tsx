@@ -21,6 +21,10 @@ import {
   PageHeader,
   AIModelBadge,
   toast,
+  AppSelect,
+  Label,
+  Textarea,
+  SegmentedControl,
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -476,18 +480,17 @@ export function AgentsListPage() {
             }).length;
 
             return (
-              <button
+              <Button
                 key={tab}
                 type="button"
+                variant={filterTab === tab ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-pressed={filterTab === tab}
                 onClick={() => setFilterTab(tab)}
-                className={`rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
-                  filterTab === tab
-                    ? 'bg-primary/10 text-primary font-semibold'
-                    : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground'
-                }`}
+                className="rounded-lg capitalize"
               >
                 {tab} ({count})
-              </button>
+              </Button>
             );
           })}
 
@@ -511,40 +514,38 @@ export function AgentsListPage() {
         {/* Filters: Category & Environment & Search */}
         <div className="flex items-center gap-2">
           {/* Environment */}
-          <select
+          <AppSelect
             value={environmentFilter}
-            onChange={(e) => setEnvironmentFilter(e.target.value as any)}
-            className="h-8 rounded-lg border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-          >
-            <option value="all">All Environments</option>
-            <option value="development">Development</option>
-            <option value="staging">Staging</option>
-            <option value="production">Production</option>
-          </select>
+            onValueChange={(v) => setEnvironmentFilter(v as any)}
+            options={[
+              { value: 'all', label: 'All Environments' },
+              { value: 'development', label: 'Development' },
+              { value: 'staging', label: 'Staging' },
+              { value: 'production', label: 'Production' },
+            ]}
+          />
 
           {/* Category */}
-          <select
+          <AppSelect
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="h-8 rounded-lg border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-          >
-            <option value="all">All Categories</option>
-            {availableCategories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+            onValueChange={setCategoryFilter}
+            aria-label="Filter by category"
+            className="w-auto min-w-40"
+            options={[
+              { value: 'all', label: 'All Categories' },
+              ...availableCategories.map((cat) => ({ value: cat, label: cat })),
+            ]}
+          />
 
           {/* Search Input */}
           <div className="relative w-56">
             <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-            <input
+            <Input
               type="text"
               placeholder="Search by name, tags, role…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-8 w-full rounded-lg border border-border bg-surface-raised pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              className="h-8 pl-8 pr-3 text-xs"
             />
           </div>
         </div>
@@ -643,18 +644,20 @@ export function AgentsListPage() {
                             {agent.name}
                           </div>
                           {!isDeleted && (
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setRenameAgentTarget(agent);
                                 setRenameNameInput(agent.name);
                               }}
-                              className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-foreground transition-opacity"
                               title="Rename agent"
+                              className="size-5 opacity-0 group-hover:opacity-100"
                             >
                               <Edit2 className="size-3" />
-                            </button>
+                            </Button>
                           )}
                         </div>
                         <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
@@ -857,9 +860,9 @@ export function AgentsListPage() {
             <DialogBody className="min-h-0 flex-1 space-y-3.5 overflow-y-auto overscroll-contain py-4 text-xs">
               {/* Agent Name * */}
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   Agent Name *
-                </label>
+                </Label>
                 <Input
                   required
                   value={newName}
@@ -873,9 +876,9 @@ export function AgentsListPage() {
               {/* 2-Column: Role / Title + Category */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-[11px] font-semibold text-foreground">
                     Role / Title
-                  </label>
+                  </Label>
                   <Input
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value)}
@@ -885,16 +888,18 @@ export function AgentsListPage() {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-foreground">
+                    <Label className="text-[11px] font-semibold text-foreground">
                       Category
-                    </label>
-                    <button
+                    </Label>
+                    <Button
+                      variant="link"
+                      size="xs"
                       type="button"
                       onClick={() => setIsCreatingCustomCategory(!isCreatingCustomCategory)}
-                      className="text-[10px] text-success hover:underline"
+                      className="h-auto text-[10px] text-success"
                     >
                       {isCreatingCustomCategory ? 'Choose Existing' : '+ New Category'}
-                    </button>
+                    </Button>
                   </div>
                   {isCreatingCustomCategory ? (
                     <div className="flex items-center gap-1.5">
@@ -921,33 +926,30 @@ export function AgentsListPage() {
                       </Button>
                     </div>
                   ) : (
-                    <select
+                    <AppSelect
                       value={newCategory}
-                      onChange={(e) => {
-                        if (e.target.value === '__new__') {
+                      onValueChange={(v) => {
+                        if (v === '__new__') {
                           setIsCreatingCustomCategory(true);
                         } else {
-                          setNewCategory(e.target.value);
+                          setNewCategory(v);
                         }
                       }}
-                      className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
-                    >
-                      {availableCategories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                      <option value="__new__">+ Create new category…</option>
-                    </select>
+                      aria-label="Category"
+                      options={[
+                        ...availableCategories.map((cat) => ({ value: cat, label: cat })),
+                        { value: '__new__', label: '+ Create new category…' },
+                      ]}
+                    />
                   )}
                 </div>
               </div>
 
               {/* Description */}
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   Description
-                </label>
+                </Label>
                 <Input
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
@@ -963,35 +965,17 @@ export function AgentsListPage() {
                     Agent Icon, Avatar & Theme
                   </span>
                   {/* Avatar Mode switcher: Icon vs Custom Image */}
-                  <div className="flex rounded-lg bg-muted p-0.5 text-[10px]">
-                    <button
-                      type="button"
-                      onClick={() => setAvatarMode('icon')}
-                      className={`px-2 py-0.5 rounded-md font-medium transition-all ${
-                        avatarMode === 'icon' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Icon Library
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAvatarMode('upload')}
-                      className={`px-2 py-0.5 rounded-md font-medium transition-all ${
-                        avatarMode === 'upload' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Upload File
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAvatarMode('url')}
-                      className={`px-2 py-0.5 rounded-md font-medium transition-all ${
-                        avatarMode === 'url' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Image URL
-                    </button>
-                  </div>
+                  <SegmentedControl
+                    aria-label="Avatar source"
+                    size="sm"
+                    value={avatarMode}
+                    onChange={(mode) => setAvatarMode(mode)}
+                    options={[
+                      { value: 'icon', label: 'Icon Library' },
+                      { value: 'upload', label: 'Upload File' },
+                      { value: 'url', label: 'Image URL' },
+                    ]}
+                  />
                 </div>
 
                 <div className="flex items-start gap-4">
@@ -1010,9 +994,9 @@ export function AgentsListPage() {
                     {/* Icon Picker Mode */}
                     {avatarMode === 'icon' && (
                       <div>
-                        <label className="text-[10px] text-muted-foreground block mb-1">
+                        <Label className="text-[10px] text-muted-foreground block mb-1">
                           Choose Built-in Icon:
-                        </label>
+                        </Label>
                         <div className="grid grid-cols-10 gap-1.5 max-h-24 overflow-y-auto pr-1">
                           {AGENT_ICONS.map((item) => {
                             const IconComp = item.icon;
@@ -1043,9 +1027,9 @@ export function AgentsListPage() {
                     {/* File Upload Mode */}
                     {avatarMode === 'upload' && (
                       <div className="space-y-1.5">
-                        <label className="text-[10px] text-muted-foreground block">
+                        <Label className="text-[10px] text-muted-foreground block">
                           Upload custom avatar image (PNG, JPG, SVG):
-                        </label>
+                        </Label>
                         <div className="flex items-center gap-2">
                           <input
                             type="file"
@@ -1069,13 +1053,13 @@ export function AgentsListPage() {
                               }
                             }}
                           />
-                          <label
+                          <Label
                             htmlFor="agent-avatar-file-upload"
                             className="h-8 px-3 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground text-xs flex items-center gap-1.5 cursor-pointer font-medium transition-colors"
                           >
                             <Upload className="size-3.5 text-success" />
                             <span>Choose Image…</span>
-                          </label>
+                          </Label>
                           {newAvatarUrl && (
                             <Button
                               type="button"
@@ -1094,9 +1078,9 @@ export function AgentsListPage() {
                     {/* URL Mode */}
                     {avatarMode === 'url' && (
                       <div className="space-y-1">
-                        <label className="text-[10px] text-muted-foreground block">
+                        <Label className="text-[10px] text-muted-foreground block">
                           Avatar Image URL:
-                        </label>
+                        </Label>
                         <div className="flex items-center gap-1.5">
                           <Input
                             value={newAvatarUrl}
@@ -1146,58 +1130,53 @@ export function AgentsListPage() {
 
               {/* System Instructions */}
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   System Instructions
-                </label>
-                <textarea
-                  rows={3}
-                  value={newPrompt}
-                  onChange={(e) => setNewPrompt(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-success focus:outline-none"
-                />
+                </Label>
+                <Textarea rows={3} value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} className="text-xs" />
               </div>
 
               {/* 2-Column: Reasoning Model + Target Environment */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-[11px] font-semibold text-foreground">
                     Reasoning Model
-                  </label>
-                  <select
+                  </Label>
+                  <AppSelect
                     value={newModel}
-                    onChange={(e) => setNewModel(e.target.value)}
-                    className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
-                  >
-                    <option value="OpenAI GPT-4o">OpenAI GPT-4o</option>
-                    <option value="OpenAI GPT-4o Mini">OpenAI GPT-4o Mini</option>
-                    <option value="Anthropic Claude 3.5 Sonnet">Anthropic Claude 3.5 Sonnet</option>
-                    <option value="Google Gemini 1.5 Pro">Google Gemini 1.5 Pro</option>
-                    <option value="Ollama Llama 3">Ollama Llama 3</option>
-                  </select>
+                    onValueChange={(v) => setNewModel(v)}
+                    options={[
+                      { value: 'OpenAI GPT-4o', label: 'OpenAI GPT-4o' },
+                      { value: 'OpenAI GPT-4o Mini', label: 'OpenAI GPT-4o Mini' },
+                      { value: 'Anthropic Claude 3.5 Sonnet', label: 'Anthropic Claude 3.5 Sonnet' },
+                      { value: 'Google Gemini 1.5 Pro', label: 'Google Gemini 1.5 Pro' },
+                      { value: 'Ollama Llama 3', label: 'Ollama Llama 3' },
+                    ]}
+                  />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-[11px] font-semibold text-foreground">
                     Target Environment
-                  </label>
-                  <select
+                  </Label>
+                  <AppSelect
                     value={newEnvironment}
-                    onChange={(e) => setNewEnvironment(e.target.value as any)}
-                    className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
-                  >
-                    <option value="development">Development</option>
-                    <option value="staging">Staging</option>
-                    <option value="production">Production</option>
-                  </select>
+                    onValueChange={(v) => setNewEnvironment(v as any)}
+                    options={[
+                      { value: 'development', label: 'Development' },
+                      { value: 'staging', label: 'Staging' },
+                      { value: 'production', label: 'Production' },
+                    ]}
+                  />
                 </div>
               </div>
 
               {/* Owner & Tags */}
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-[11px] font-semibold text-foreground">
                     Owner / Lead Name
-                  </label>
+                  </Label>
                   <Input
                     value={newOwnerName}
                     onChange={(e) => setNewOwnerName(e.target.value)}
@@ -1207,9 +1186,9 @@ export function AgentsListPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-[11px] font-semibold text-foreground">
                     Owner Email
-                  </label>
+                  </Label>
                   <Input
                     value={newOwnerEmail}
                     onChange={(e) => setNewOwnerEmail(e.target.value)}
@@ -1220,9 +1199,9 @@ export function AgentsListPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   Tags (comma-separated)
-                </label>
+                </Label>
                 <Input
                   value={newTags}
                   onChange={(e) => setNewTags(e.target.value)}
@@ -1275,9 +1254,9 @@ export function AgentsListPage() {
             </DialogHeader>
 
             <DialogBody className="py-4 text-xs">
-              <label className="text-[11px] font-semibold text-foreground block mb-1">
+              <Label className="text-[11px] font-semibold text-foreground block mb-1">
                 New Agent Title *
-              </label>
+              </Label>
               <Input
                 required
                 value={renameNameInput}
@@ -1312,13 +1291,7 @@ export function AgentsListPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-3 py-3">
-            <textarea
-              rows={8}
-              value={importJson}
-              onChange={(e) => setImportJson(e.target.value)}
-              placeholder="Paste agent configuration JSON here…"
-              className="w-full font-mono rounded-lg border border-border bg-surface-raised p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-            />
+            <Textarea rows={8} value={importJson} onChange={(e) => setImportJson(e.target.value)} placeholder="Paste agent configuration JSON here…" className="font-mono text-xs" />
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setIsImportOpen(false)}>

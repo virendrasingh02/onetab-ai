@@ -67,6 +67,7 @@ import type {
   AgentDeploymentAnalyticsSummary,
   AgentDeploymentWebhookView,
   AgentWebhookDeliveryView,
+  AgentApiKeyCreated,
   AgentApiKeyView,
   AgentRunResponseView,
   AgentSessionMessage,
@@ -2893,17 +2894,27 @@ export const agentDeploymentsApi = {
       ),
     ),
 
-  createApiKey: (
+};
+
+/**
+ * Agent API keys (`ot_live_…`): bearer credentials for running published
+ * agents from a server. They belong to the workspace, not to one agent.
+ */
+export const agentApiKeysApi = {
+  list: (workspaceId: string) =>
+    request<AgentApiKeyView[]>(http.get(`/workspaces/${workspaceId}/agent-api-keys`)),
+
+  /** The response carries the full key once; it can't be shown again. */
+  create: (
     workspaceId: string,
-    agentId: string,
     data: { name: string; scopes?: string[]; expiresInDays?: number },
   ) =>
-    request<AgentApiKeyView>(
-      http.post(
-        `/workspaces/${workspaceId}/agents/${agentId}/deployments/api-keys`,
-        data,
-      ),
+    request<AgentApiKeyCreated>(
+      http.post(`/workspaces/${workspaceId}/agent-api-keys`, data),
     ),
+
+  revoke: (workspaceId: string, keyId: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/agent-api-keys/${keyId}`)),
 };
 
 export const publicAgentApi = {
@@ -2972,11 +2983,6 @@ export const publicAgentApi = {
   cancelRun: (runId: string) =>
     request<{ success: boolean; runId: string }>(
       http.post(`/agent-runs/${runId}/cancel`, {}),
-    ),
-
-  approveAction: (runId: string, approved: boolean, reason?: string) =>
-    request<any>(
-      http.post(`/agent-runs/${runId}/approve`, { approved, reason }),
     ),
 };
 

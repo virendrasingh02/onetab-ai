@@ -17,6 +17,11 @@ import {
   StatCard,
   AIModelBadge,
   toast,
+  Textarea,
+  Input,
+  SegmentedControl,
+  ToggleGroup,
+  ToggleGroupItem,
 } from '@org/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -43,8 +48,10 @@ import { HomePrompt } from '../components/agent-architect/home-prompt.js';
 import { STUDIO_TEMPLATES } from '../data/templates.js';
 import { useStudioSession } from '../session-guard.js';
 
-function countTools(tools: string | null | undefined): number {
+/** Tools arrive as an array once normalized, or as the API's JSON string. */
+function countTools(tools: string | unknown[] | null | undefined): number {
   if (!tools) return 0;
+  if (Array.isArray(tools)) return tools.length;
   try {
     const parsed: unknown = JSON.parse(tools);
     return Array.isArray(parsed) ? parsed.length : 0;
@@ -268,52 +275,45 @@ export function OverviewPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
             <div className="flex flex-1 items-center gap-2 min-w-[200px]">
               <Search className="size-4 text-muted-foreground shrink-0" />
-              <input
+              <Input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search agents by name, role, or description…"
-                className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none"
+                className="text-xs"
               />
             </div>
 
             <div className="flex items-center gap-1.5 border-l border-border pl-3">
-              {(['all', 'published', 'draft', 'archived'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setStatusFilter(tab)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
-                    statusFilter === tab
-                      ? 'bg-primary/10 text-primary font-semibold'
-                      : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
+              <SegmentedControl
+                aria-label="Filter by status"
+                size="sm"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: 'all', label: 'All' },
+                  { value: 'published', label: 'Published' },
+                  { value: 'draft', label: 'Draft' },
+                  { value: 'archived', label: 'Archived' },
+                ]}
+              />
 
               <div className="h-4 w-px bg-border mx-1" />
 
-              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface-raised p-0.5">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  title="Grid View"
-                  className={`size-6 rounded p-1 transition-colors ${
-                    viewMode === 'grid' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
+              <ToggleGroup
+                type="single"
+                size="sm"
+                aria-label="View mode"
+                value={viewMode}
+                onValueChange={(v) => v && setViewMode(v as 'grid' | 'list')}
+              >
+                <ToggleGroupItem value="grid" aria-label="Grid view" title="Grid View">
                   <Grid className="size-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  title="List View"
-                  className={`size-6 rounded p-1 transition-colors ${
-                    viewMode === 'list' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
+                </ToggleGroupItem>
+                <ToggleGroupItem value="list" aria-label="List view" title="List View">
                   <LayoutList className="size-4" />
-                </button>
-              </div>
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
           </div>
 
@@ -622,13 +622,7 @@ export function OverviewPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-3 py-4">
-            <textarea
-              rows={8}
-              value={importJsonText}
-              onChange={(e) => setImportJsonText(e.target.value)}
-              placeholder="Paste workflow JSON here (containing nodes and edges array)…"
-              className="w-full font-mono rounded-lg border border-border bg-surface-raised p-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+            <Textarea rows={8} value={importJsonText} onChange={(e) => setImportJsonText(e.target.value)} placeholder="Paste workflow JSON here (containing nodes and edges array)…" className="font-mono text-xs" />
           </DialogBody>
           <DialogFooter>
             <Button

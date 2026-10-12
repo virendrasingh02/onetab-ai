@@ -33,6 +33,7 @@ import { AgentSessionService } from './deployments/agent-session.service.js';
 import { AgentDeploymentWebhookService } from './deployments/agent-webhook.service.js';
 import { AgentRuntimeBridgeService } from './deployments/agent-runtime-bridge.service.js';
 import { AgentDeploymentController } from './deployments/agent-deployment.controller.js';
+import { AgentApiKeysController } from './deployments/agent-api-keys.controller.js';
 import { AgentPublicController } from './deployments/agent-public.controller.js';
 
 @Module({
@@ -55,6 +56,7 @@ import { AgentPublicController } from './deployments/agent-public.controller.js'
     AIEntitiesController,
     AgentStudioAiModeController,
     AgentDeploymentController,
+    AgentApiKeysController,
     AgentPublicController,
   ],
   providers: [

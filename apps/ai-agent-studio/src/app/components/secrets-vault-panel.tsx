@@ -13,6 +13,7 @@ import {
   LoadingState,
   confirm,
   toast,
+  Label,
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Key, Plus, Trash2 } from 'lucide-react';
@@ -165,7 +166,7 @@ export function SecretsVaultPanel({ workspaceId, title = 'Secrets Vault', descri
           <form onSubmit={handleCreate}>
             <DialogBody className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-semibold text-foreground">Key</label>
+                <Label className="font-semibold text-foreground">Key</Label>
                 <Input
                   placeholder="e.g. FIRECRAWL_API_KEY"
                   value={secretKey}
@@ -175,7 +176,7 @@ export function SecretsVaultPanel({ workspaceId, title = 'Secrets Vault', descri
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-semibold text-foreground">Value</label>
+                <Label className="font-semibold text-foreground">Value</Label>
                 <Input
                   type="password"
                   value={secretValue}
@@ -188,7 +189,7 @@ export function SecretsVaultPanel({ workspaceId, title = 'Secrets Vault', descri
                 </p>
               </div>
               <div className="space-y-1">
-                <label className="font-semibold text-foreground">Description (optional)</label>
+                <Label className="font-semibold text-foreground">Description (optional)</Label>
                 <Input value={secretDescription} onChange={(e) => setSecretDescription(e.target.value)} />
               </div>
             </DialogBody>

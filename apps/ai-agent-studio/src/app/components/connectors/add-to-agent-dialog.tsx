@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   toast,
+  Label,
 } from '@org/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -123,7 +124,7 @@ export function AddToAgentDialog({
                 <legend className="mb-1 text-xs font-medium text-foreground">Actions</legend>
                 <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-border bg-surface-raised p-2">
                   {connector.capabilities.map((c) => (
-                    <label key={c.id} className="flex cursor-pointer items-start gap-2.5 rounded-md p-1.5 text-xs hover:bg-surface">
+                    <Label key={c.id} className="flex cursor-pointer items-start gap-2.5 rounded-md p-1.5 text-xs hover:bg-surface">
                       <Checkbox checked={picked.includes(c.id)} onCheckedChange={(v) => toggle(c.id, v === true)} className="mt-0.5" />
                       <span className="min-w-0">
                         <span className="font-medium text-foreground">{c.label}</span>
@@ -132,7 +133,7 @@ export function AddToAgentDialog({
                         </span>
                         {c.description && <span className="block truncate text-muted-foreground">{c.description}</span>}
                       </span>
-                    </label>
+                    </Label>
                   ))}
                 </div>
                 <p className="text-[11px] text-muted-foreground">

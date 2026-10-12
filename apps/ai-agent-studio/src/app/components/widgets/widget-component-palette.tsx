@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Input, Badge } from '@org/ui';
+import { Input, Badge, ResponsiveTabs } from '@org/ui';
 import { cn } from '@org/utils';
 import type { WidgetCategory, WidgetComponentType } from '@org/types';
 import {
@@ -11,7 +11,6 @@ import {
   Layers,
   LineChart,
   ListTodo,
-  MessageSquare,
   Search,
   Sparkles,
   Table,
@@ -245,25 +244,17 @@ export function WidgetComponentPalette({
             className="h-8 pl-8 text-xs bg-surface"
           />
         </div>
-        <div className="flex flex-wrap gap-1 pt-1">
-          {['ALL', 'data_viz', 'interactive_input', 'ai_powered', 'app_connector', 'productivity'].map(
-            (cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCat(cat)}
-                className={cn(
-                  'text-[10px] px-2 py-0.5 rounded-full border transition-colors',
-                  selectedCat === cat
-                    ? 'border-primary bg-primary/10 text-primary font-medium'
-                    : 'border-border text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {cat === 'ALL' ? 'All' : cat.replace('_', ' ')}
-              </button>
-            )
-          )}
-        </div>
+        <ResponsiveTabs
+          className="pt-1"
+          variant="pill"
+          size="sm"
+          value={selectedCat}
+          onValueChange={setSelectedCat}
+          items={['ALL', 'data_viz', 'interactive_input', 'ai_powered', 'app_connector', 'productivity'].map((cat) => ({
+            value: cat,
+            label: cat === 'ALL' ? 'All' : cat.replace(/_/g, ' '),
+          }))}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">

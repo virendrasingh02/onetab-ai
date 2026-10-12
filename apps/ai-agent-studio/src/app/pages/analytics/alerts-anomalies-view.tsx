@@ -11,18 +11,13 @@ import {
   TableHeader,
   TableRow,
   toast,
+  AppSelect,
+  Label,
 } from '@org/ui';
 import type { AnalyticsAlertRule } from '@org/types';
 import {
-  AlertCircle,
-  AlertTriangle,
   Bell,
-  CheckCircle2,
-  Clock,
   Plus,
-  RefreshCw,
-  Shield,
-  XCircle,
 } from 'lucide-react';
 import { analyticsService } from '../../services/analyticsService.js';
 import { useStudioSession } from '../../session-guard.js';
@@ -110,7 +105,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-[11px] text-muted-foreground">Alert Rule Name</label>
+              <Label className="text-[11px] text-muted-foreground">Alert Rule Name</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -120,21 +115,21 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
             </div>
 
             <div>
-              <label className="text-[11px] text-muted-foreground">Target Metric</label>
-              <select
+              <Label className="text-[11px] text-muted-foreground">Target Metric</Label>
+              <AppSelect
                 value={metric}
-                onChange={(e) => setMetric(e.target.value as any)}
-                className="mt-1 w-full h-8 px-2.5 rounded-md border border-border bg-surface text-xs text-foreground"
-              >
-                <option value="FAILURE_RATE">Failure Rate (%)</option>
-                <option value="LATENCY_SPIKE">Latency Spike (ms)</option>
-                <option value="BUDGET_THRESHOLD">Budget Threshold (%)</option>
-                <option value="NODE_TIMEOUT">Node Timeouts</option>
-              </select>
+                onValueChange={(v) => setMetric(v as any)}
+                options={[
+                  { value: 'FAILURE_RATE', label: 'Failure Rate (%)' },
+                  { value: 'LATENCY_SPIKE', label: 'Latency Spike (ms)' },
+                  { value: 'BUDGET_THRESHOLD', label: 'Budget Threshold (%)' },
+                  { value: 'NODE_TIMEOUT', label: 'Node Timeouts' },
+                ]}
+              />
             </div>
 
             <div>
-              <label className="text-[11px] text-muted-foreground">Threshold Value</label>
+              <Label className="text-[11px] text-muted-foreground">Threshold Value</Label>
               <Input
                 type="number"
                 value={threshold}

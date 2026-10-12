@@ -101,6 +101,10 @@ if (desktopApiForRefresh) {
  */
 const BOOTSTRAP_BACKOFF_MS = [400, 1_200, 3_000];
 
+/** Set while `useLogout` runs, plus a short tail for requests it left in flight. */
+let signingOut = false;
+let signingOutTimer: ReturnType<typeof setTimeout> | undefined;
+
 /**
  * Restores the session on a cold load.
  *
@@ -251,6 +255,10 @@ export function useSessionBootstrap(): void {
   // A refresh failure mid-session must drop the user back to sign-in.
   useEffect(() => {
     setSessionExpiredHandler(() => {
+      // A request still in flight when the user signs out fails to refresh a
+      // moment later. That is the logout finishing, not an expiry, and sending
+      // them to a bare /login would override where `useLogout` is taking them.
+      if (signingOut) return;
       clear();
       navigate('/login', { replace: true });
     });
@@ -334,11 +342,15 @@ export function useLogout() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  return useMutation({
-    mutationFn: () => authApi.logout(),
+  return useMutation<void, Error, { returnTo?: string } | void>({
+    mutationFn: () => {
+      signingOut = true;
+      clearTimeout(signingOutTimer);
+      return authApi.logout();
+    },
     // Runs on success *and* failure: a server-side logout error must not strand
     // the user in a half-signed-in state.
-    onSettled: async () => {
+    onSettled: async (_data, _error, variables) => {
       // The desktop shell keeps its own encrypted session (access + refresh
       // token) in the main process — see the bootstrap's desktop branch above.
       // `authApi.logout()` only clears the browser's httpOnly cookie, which
@@ -354,7 +366,16 @@ export function useLogout() {
       // "Log out" ends *every* linked account, not just the active one.
       useAccountStore.getState().clearAll();
       queryClient.clear();
-      navigate('/login', { replace: true });
+      // A browser app that sent the user here to sign out (Agent Studio) asks
+      // to be returned to once they sign back in.
+      const returnTo = variables?.returnTo;
+      navigate(
+        returnTo ? `/login?returnTo=${encodeURIComponent(returnTo)}` : '/login',
+        { replace: true },
+      );
+      signingOutTimer = setTimeout(() => {
+        signingOut = false;
+      }, 3000);
     },
   });
 }

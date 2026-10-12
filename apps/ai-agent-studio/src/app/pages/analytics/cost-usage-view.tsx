@@ -9,10 +9,8 @@ import {
   TableRow,
 } from '@org/ui';
 import {
-  ArrowUpRight,
   Coins,
   Lightbulb,
-  Sparkles,
   TrendingUp,
   Zap,
 } from 'lucide-react';

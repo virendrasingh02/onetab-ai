@@ -10,6 +10,10 @@ import {
   LoadingState,
   confirm,
   toast,
+  Label,
+  Input,
+  ResponsiveTabs,
+  Button,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { CONNECTOR_CATEGORIES } from '@org/types';
@@ -140,13 +144,15 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
               {agent.name} acts through each connection with its owner’s permissions. Write actions follow its approval rules.
             </p>
           </div>
-          <button
+          <Button
+            variant="link"
+            size="xs"
             type="button"
             onClick={() => navigate('/connectors')}
-            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+            className="h-auto shrink-0 gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             All connectors <ExternalLink className="size-3" aria-hidden="true" />
-          </button>
+          </Button>
         </header>
 
         {/* Suggested next apps */}
@@ -167,35 +173,26 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
         )}
 
         {/* Search */}
-        <label className="flex h-10 items-center gap-2.5 rounded-xl border border-border bg-surface px-3 transition-colors focus-within:border-primary/60">
+        <Label className="flex h-10 items-center gap-2.5 rounded-xl border border-border bg-surface px-3 transition-colors focus-within:border-primary/60">
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <input
+          <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search apps"
             aria-label="Search apps"
-            className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="h-full text-sm"
           />
-        </label>
+        </Label>
 
         {/* Category pills */}
-        <div role="tablist" aria-label="App categories" className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                'h-8 shrink-0 rounded-lg px-3 text-sm transition-colors cursor-pointer',
-                tab === t.id ? 'bg-surface-raised font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <ResponsiveTabs
+          aria-label="App categories"
+          variant="pill"
+          size="sm"
+          value={tab}
+          onValueChange={setTab}
+          items={tabs.map((t) => ({ value: t.id, label: t.label }))}
+        />
 
         {/* Catalog */}
         {visible.length === 0 ? (

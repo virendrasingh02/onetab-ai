@@ -200,7 +200,9 @@ export function ConnectorNodeConfig({
           {kind === 'action' && (
             <div className="flex flex-wrap gap-1" aria-label="Variables you can use">
               {variables.slice(0, 8).map((v) => (
-                <button
+                <Button
+                  variant="outline"
+                  size="xs"
                   key={v.value}
                   type="button"
                   title={v.label}
@@ -210,10 +212,10 @@ export function ConnectorNodeConfig({
                       () => toast.message(v.value),
                     );
                   }}
-                  className="rounded-md border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-foreground hover:border-primary/50"
+                  className="h-auto px-1.5 py-0.5 font-mono text-[10px] font-normal"
                 >
                   {v.value}
-                </button>
+                </Button>
               ))}
             </div>
           )}

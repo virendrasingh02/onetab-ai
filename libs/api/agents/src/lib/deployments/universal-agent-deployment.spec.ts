@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { AgentDeploymentService } from './agent-deployment.service.js';
+import { AgentDeploymentService, periodToMs } from './agent-deployment.service.js';
 import { AgentSessionService } from './agent-session.service.js';
 import { AgentDeploymentWebhookService } from './agent-webhook.service.js';
-import { AgentRuntimeBridgeService } from './agent-runtime-bridge.service.js';
+import { AgentRuntimeBridgeService, publicRunError } from './agent-runtime-bridge.service.js';
 import { AgentPublicController } from './agent-public.controller.js';
 import { AgentDeploymentController } from './agent-deployment.controller.js';
+import { IS_PUBLIC_KEY } from '@org/api-common';
 
 describe('Universal AI Agent Deployment System', () => {
   const workspaceId = 'ws_apple_procurement';
@@ -524,24 +525,9 @@ describe('Universal AI Agent Deployment System', () => {
       });
     });
 
-    it('resumes and completes execution when human approval is submitted', async () => {
-      const approvalRunId = 'run_approval_test_42';
-      runtimeBridge['activeRuns'].set(approvalRunId, {
-        runId: approvalRunId,
-        status: 'WAITING_FOR_APPROVAL',
-        listeners: [],
-        abortController: new AbortController(),
-      });
-
-      const decisionResult = await runtimeBridge.submitApproval(approvalRunId, {
-        decision: 'APPROVED',
-        approvedBy: 'procurement-manager@company.com',
-        comments: 'Within Q4 engineering budget allocation',
-      });
-
-      expect(decisionResult.status).toBe('COMPLETED');
-      expect(decisionResult.output).toContain('Purchase confirmed');
-      expect(decisionResult.toolExecutions[0].status).toBe('SUCCESS');
+    it('does not pretend to resume a paused run: there is no unauthenticated approve endpoint or fake confirmation', () => {
+      expect((runtimeBridge as unknown as Record<string, unknown>)['submitApproval']).toBeUndefined();
+      expect((publicController as unknown as Record<string, unknown>)['approveAction']).toBeUndefined();
     });
   });
 
@@ -598,6 +584,269 @@ describe('Universal AI Agent Deployment System', () => {
       } finally {
         global.fetch = originalFetch;
       }
+    });
+  });
+
+  describe('6b. Tenant scoping of webhooks and API keys', () => {
+    it('does not reach a webhook through a deployment it does not belong to', async () => {
+      prisma.agentDeploymentWebhook.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
+      await expect(webhookService.testWebhook('wh_mac_1', 'dep_other')).rejects.toThrow('Webhook not found');
+      await expect(webhookService.deleteWebhook('wh_mac_1', 'dep_other')).rejects.toThrow('Webhook not found');
+      expect(prisma.agentDeploymentWebhook.findFirst).toHaveBeenCalledWith({
+        where: { id: 'wh_mac_1', deploymentId: 'dep_other' },
+      });
+    });
+
+    it('refuses webhook routes for a deployment outside the workspace or agent', async () => {
+      prisma.agentDeployment.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        deploymentService.assertDeployment(workspaceId, macAgentId, 'dep_of_another_tenant'),
+      ).rejects.toThrow('Deployment not found');
+      expect(prisma.agentDeployment.findFirst).toHaveBeenCalledWith({
+        where: { id: 'dep_of_another_tenant', workspaceId, agentId: macAgentId },
+        select: { id: true },
+      });
+    });
+
+    it('lists API keys without any secret material', async () => {
+      prisma.agentApiKey.findMany = vi.fn().mockResolvedValue([
+        {
+          id: 'key_1',
+          workspaceId,
+          name: 'CI',
+          keyPrefix: 'ot_live_abcdef0',
+          keyHash: 'must-not-leak',
+          scopes: ['agent:execute'],
+          lastUsedAt: null,
+          expiresAt: null,
+          isActive: true,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          updatedAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      ]);
+
+      const keys = await deploymentService.listApiKeys(workspaceId);
+
+      expect(keys).toHaveLength(1);
+      expect(JSON.stringify(keys)).not.toContain('must-not-leak');
+      expect(keys[0]).toMatchObject({ id: 'key_1', keyPrefix: 'ot_live_abcdef0', isActive: true });
+    });
+
+    it('reports an expired key as inactive', async () => {
+      prisma.agentApiKey.findMany = vi.fn().mockResolvedValue([
+        {
+          id: 'key_old',
+          workspaceId,
+          name: 'Old',
+          keyPrefix: 'ot_live_000000',
+          scopes: [],
+          lastUsedAt: null,
+          expiresAt: new Date(Date.now() - 1000),
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const [key] = await deploymentService.listApiKeys(workspaceId);
+
+      expect(key.isActive).toBe(false);
+    });
+
+    it('revokes only within the caller workspace, and 404s on a foreign key', async () => {
+      prisma.agentApiKey.updateMany = vi.fn().mockResolvedValue({ count: 1 });
+      await deploymentService.revokeApiKey(workspaceId, 'key_1');
+      expect(prisma.agentApiKey.updateMany).toHaveBeenCalledWith({
+        where: { id: 'key_1', workspaceId },
+        data: { isActive: false },
+      });
+
+      prisma.agentApiKey.updateMany = vi.fn().mockResolvedValue({ count: 0 });
+      await expect(deploymentService.revokeApiKey(workspaceId, 'key_of_another_tenant')).rejects.toThrow(
+        'API key not found',
+      );
+    });
+  });
+
+  describe('6c. Deployment analytics come from recorded runs', () => {
+    const runs = [
+      { id: 'e1', status: 'COMPLETED', latencyMs: 1000, tokensUsed: 100, totalCost: 0.001, toolCalls: [{ name: 'search_docs' }, { name: 'search_docs' }], errorsJson: null },
+      { id: 'e2', status: 'COMPLETED', latencyMs: 3000, tokensUsed: 300, totalCost: 0.003, toolCalls: [{ name: 'create_task' }], errorsJson: null },
+      { id: 'e3', status: 'FAILED', latencyMs: 500, tokensUsed: 0, totalCost: 0, toolCalls: [], errorsJson: { message: 'Request timed out after 30s' } },
+      { id: 'e4', status: 'WAITING_APPROVAL', latencyMs: 800, tokensUsed: 50, totalCost: 0.0005, toolCalls: [], errorsJson: null },
+    ];
+
+    beforeEach(() => {
+      prisma.agentDeploymentSession.count = vi.fn().mockResolvedValue(2);
+      prisma.aIExecution = { findMany: vi.fn().mockResolvedValue(runs) };
+      prisma.approvalRequest = {
+        findMany: vi.fn().mockResolvedValue([{ state: 'APPROVED' }, { state: 'REJECTED' }, { state: 'PENDING' }]),
+      };
+    });
+
+    it('counts, averages and costs only what was recorded', async () => {
+      const a = await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1', '7d');
+
+      expect(a).toMatchObject({
+        totalRuns: 4,
+        successfulRuns: 2,
+        failedRuns: 1,
+        successRate: 67,
+        avgLatencyMs: Math.round((1000 + 3000 + 500 + 800) / 4),
+        totalTokens: 450,
+        activeSessions: 2,
+        approvalsRequested: 3,
+        approvalsApproved: 1,
+        approvalsRejected: 1,
+        toolExecutionsCount: 3,
+      });
+      expect(a.estimatedCost).toBeCloseTo(0.0045, 4);
+      expect(a.topTools[0]).toEqual({ name: 'search_docs', count: 2 });
+      expect(a.recentErrorCategories).toEqual([{ category: 'Timeout', count: 1 }]);
+    });
+
+    it('scopes the run query to this workspace, this agent and the period', async () => {
+      await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1', '24h');
+      const where = prisma.aIExecution.findMany.mock.calls[0][0].where;
+      expect(where.workspaceId).toBe(workspaceId);
+      expect(where.agentId).toBe(macAgentId);
+      expect(Date.now() - where.startedAt.gte.getTime()).toBeGreaterThan(23 * 3_600_000);
+      expect(Date.now() - where.startedAt.gte.getTime()).toBeLessThan(25 * 3_600_000);
+    });
+
+    it('reports zeros, not invented figures, when nothing has run', async () => {
+      prisma.aIExecution.findMany = vi.fn().mockResolvedValue([]);
+      const a = await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1');
+      expect(a).toMatchObject({ totalRuns: 0, successRate: 0, avgLatencyMs: 0, approvalsRequested: 0, totalTokens: 0, estimatedCost: 0 });
+      expect(a.recentErrorCategories).toEqual([]);
+      expect(prisma.approvalRequest.findMany).not.toHaveBeenCalled();
+    });
+
+    it('falls back to 30 days for an unrecognised period', () => {
+      expect(periodToMs('7d')).toBe(7 * 86_400_000);
+      expect(periodToMs('24h')).toBe(24 * 3_600_000);
+      expect(periodToMs('forever')).toBe(30 * 86_400_000);
+    });
+  });
+
+  describe('6d. Embed page and SDK safety', () => {
+    const send = () => {
+      const res: any = { setHeader: vi.fn(), send: vi.fn() };
+      return res;
+    };
+
+    it('refuses an embed URL whose ids could break out of an HTML attribute', () => {
+      expect(() => publicController.getEmbedHtml('a"><script>alert(1)</script>', 'ot_pub_x', 'dark', send())).toThrow(
+        'plain identifiers',
+      );
+      expect(() => publicController.getEmbedHtml('agent_1', 'k" onload="x', 'dark', send())).toThrow('plain identifiers');
+      expect(() => publicController.getEmbedHtml(undefined as never, 'ot_pub_x', 'dark', send())).toThrow('plain identifiers');
+    });
+
+    it('only ever renders the light or dark theme', () => {
+      const res = send();
+      publicController.getEmbedHtml('agent_1', 'ot_pub_x', '"><img src=x onerror=1>', res);
+      const html = res.send.mock.calls[0][0] as string;
+      expect(html).toContain('data-theme="dark"');
+      expect(html).not.toContain('onerror');
+    });
+
+    it('the SDK applies saved branding and never offers a client-side approve button', () => {
+      const res = send();
+      publicController.getWidgetSdk(res);
+      const sdk = res.send.mock.calls[0][0] as string;
+      expect(sdk).toContain('applyBranding');
+      expect(sdk).toContain('appearance.suggestedPrompts');
+      expect(sdk).toContain('Waiting for approval');
+      expect(sdk).not.toContain('ot-approve-btn');
+      expect(sdk).not.toContain('Approved by user');
+    });
+  });
+
+  describe('6e. The public surface authenticates itself', () => {
+    it('is exempt from the platform login guard, which embeds and customers\' backends have no account for', () => {
+      expect(Reflect.getMetadata(IS_PUBLIC_KEY, AgentPublicController)).toBe(true);
+    });
+
+    it('does not echo a provider credential error, which can quote part of the key, to an API caller', () => {
+      const leaked = publicRunError("Incorrect API key provided: nvapi-xa*********. You can find your API key at https://platform.openai.com");
+      expect(leaked).not.toContain('nvapi');
+      expect(leaked).toContain('provider credentials');
+      expect(publicRunError('The tool call timed out')).toBe('The tool call timed out');
+    });
+
+    it('keeps the deployment management routes behind the login guard', () => {
+      expect(Reflect.getMetadata(IS_PUBLIC_KEY, AgentDeploymentController)).toBeUndefined();
+    });
+
+    it('refuses session reads and writes without that session\'s own token', async () => {
+      await expect(publicController.getSessionMessages('sess_mac_100')).rejects.toThrow('session token is required');
+      await expect(publicController.resetSession('sess_mac_100', undefined, 'Bearer not-a-session-token')).rejects.toThrow(
+        'session token is required',
+      );
+      await expect(publicController.getSession('sess_mac_100')).rejects.toThrow('session token is required');
+      await expect(
+        publicController.sendSessionMessage('sess_mac_100', undefined, undefined, { message: 'hi', stream: false }),
+      ).rejects.toThrow('session token is required');
+    });
+
+    const sessionRow = () => ({
+      id: 'sess_mac_100',
+      deploymentId: 'dep_mac_1',
+      agentId: macAgentId,
+      sessionToken: 'ot_sess_valid_token',
+      status: 'ACTIVE',
+      expiresAt: new Date(Date.now() + 3_600_000),
+      messages: [{ id: 'm1', role: 'assistant', content: 'Hello', timestamp: new Date().toISOString() }],
+      deployment: { ...sampleDeployment, status: 'ACTIVE', agent: macAgentRecord },
+    });
+
+    it('refuses a token that belongs to a different session', async () => {
+      prisma.agentDeploymentSession.findUnique = vi.fn().mockResolvedValue(sessionRow());
+      await expect(publicController.getSessionMessages('sess_other', 'ot_sess_valid_token')).rejects.toThrow('mismatch');
+    });
+
+    it('serves a session its own messages, to its own token', async () => {
+      prisma.agentDeploymentSession.findUnique = vi
+        .fn()
+        .mockImplementation(({ where }: { where: { sessionToken?: string; id?: string } }) =>
+          Promise.resolve(where.sessionToken === 'ot_sess_valid_token' || where.id === 'sess_mac_100' ? sessionRow() : null),
+        );
+      const messages = await publicController.getSessionMessages('sess_mac_100', 'ot_sess_valid_token');
+      expect(messages).toHaveLength(1);
+      expect(messages[0].content).toBe('Hello');
+    });
+
+    it('needs a workspace API key to read or cancel a run', async () => {
+      await expect(publicController.getRun('run_1')).rejects.toThrow('valid API key');
+      await expect(publicController.cancelRun('run_1', 'ot_live_wrong')).rejects.toThrow('valid API key');
+    });
+
+    it('never reports a run it does not know about as completed', async () => {
+      prisma.agentApiKey.findUnique.mockResolvedValueOnce({
+        id: 'key_1',
+        workspaceId,
+        isActive: true,
+        expiresAt: null,
+        keyHash: 'x',
+      });
+      prisma.aIExecution = { findFirst: vi.fn().mockResolvedValue(null) };
+      await expect(publicController.getRun('run_does_not_exist', 'ot_live_valid')).rejects.toThrow('Run not found');
+    });
+
+    it('lets a run be cancelled only from the workspace that started it', async () => {
+      runtimeBridge['activeRuns'].set('run_ws_a', {
+        runId: 'run_ws_a',
+        workspaceId: 'ws_a',
+        status: 'RUNNING',
+        listeners: [],
+        abortController: new AbortController(),
+      });
+      expect(await runtimeBridge.cancelRun('run_ws_a', 'ws_b')).toBe(false);
+      expect(runtimeBridge.getRunState('run_ws_a', 'ws_b')).toBeNull();
+      expect(await runtimeBridge.cancelRun('run_ws_a', 'ws_a')).toBe(true);
     });
   });
 

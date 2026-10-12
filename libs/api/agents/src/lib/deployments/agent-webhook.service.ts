@@ -122,13 +122,24 @@ export class AgentDeploymentWebhookService {
     };
   }
 
-  async deleteWebhook(webhookId: string): Promise<void> {
+  /** A webhook of `deploymentId`, or NotFound: an id alone never reaches another deployment's webhook. */
+  private async requireWebhook(webhookId: string, deploymentId?: string) {
+    const webhook = await this.prisma.agentDeploymentWebhook.findFirst({
+      where: { id: webhookId, ...(deploymentId ? { deploymentId } : {}) },
+    });
+    if (!webhook) throw new NotFoundException('Webhook not found.');
+    return webhook;
+  }
+
+  async deleteWebhook(webhookId: string, deploymentId?: string): Promise<void> {
+    await this.requireWebhook(webhookId, deploymentId);
     await this.prisma.agentDeploymentWebhook.delete({
       where: { id: webhookId },
     });
   }
 
-  async getDeliveries(webhookId: string): Promise<AgentWebhookDeliveryView[]> {
+  async getDeliveries(webhookId: string, deploymentId?: string): Promise<AgentWebhookDeliveryView[]> {
+    await this.requireWebhook(webhookId, deploymentId);
     const deliveries = await this.prisma.agentWebhookDelivery.findMany({
       where: { webhookId },
       take: 50,
@@ -170,11 +181,8 @@ export class AgentDeploymentWebhookService {
   /**
    * Manual test delivery
    */
-  async testWebhook(webhookId: string): Promise<AgentWebhookDeliveryView> {
-    const webhook = await this.prisma.agentDeploymentWebhook.findUnique({
-      where: { id: webhookId },
-    });
-    if (!webhook) throw new NotFoundException('Webhook not found.');
+  async testWebhook(webhookId: string, deploymentId?: string): Promise<AgentWebhookDeliveryView> {
+    const webhook = await this.requireWebhook(webhookId, deploymentId);
 
     const testEvent = 'agent.run.completed';
     const testPayload = {
@@ -182,9 +190,8 @@ export class AgentDeploymentWebhookService {
       message: 'OneTab AI Agent Webhook Test Event',
       timestamp: new Date().toISOString(),
       sampleData: {
-        agentId: 'buy-mac-system',
         status: 'COMPLETED',
-        output: 'MacBook Pro 16-inch M3 Max selected with 36GB unified memory.',
+        output: 'This is a test delivery. No agent run happened.',
       },
     };
 

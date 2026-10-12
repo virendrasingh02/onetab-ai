@@ -51,14 +51,16 @@ export function CopilotReviewCard({ review, onAsk, onFocusStep, disabled }: Copi
     <li key={key} className="flex items-start gap-2 py-1">
       <LevelIcon level={p.level} className="mt-0.5" />
       <span className="min-w-0 flex-1 text-xs leading-snug text-muted-foreground">{p.message}</span>
-      <button
+      <Button
+        variant="ghost"
+        size="xs"
         type="button"
         disabled={disabled}
         onClick={() => onAsk(p.fix)}
-        className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50 cursor-pointer"
+        className="h-auto shrink-0 gap-1 px-1.5 py-0.5 text-[11px] text-primary hover:bg-primary/10 hover:text-primary"
       >
         <Wand2 className="size-3" aria-hidden /> Fix
-      </button>
+      </Button>
     </li>
   );
 
@@ -132,13 +134,15 @@ export function CopilotReviewCard({ review, onAsk, onFocusStep, disabled }: Copi
             <ul className="mt-1.5 flex flex-wrap gap-1 pl-5.5">
               {ok.map((s) => (
                 <li key={s.id}>
-                  <button
+                  <Button
+                    variant="outline"
+                    size="xs"
                     type="button"
                     onClick={() => onFocusStep?.(s.id)}
-                    className="rounded-md border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground hover:border-border-strong cursor-pointer"
+                    className="h-auto px-1.5 py-0.5 text-[11px] font-normal"
                   >
                     {s.label}
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -157,14 +161,16 @@ export function CopilotReviewCard({ review, onAsk, onFocusStep, disabled }: Copi
                   <p className="text-xs font-medium text-foreground">{s.title}</p>
                   <p className="text-[11px] leading-snug text-muted-foreground">{s.detail}</p>
                 </div>
-                <button
+                <Button
+                  variant="outline"
+                  size="xs"
                   type="button"
                   disabled={disabled}
                   onClick={() => onAsk(s.prompt)}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[11px] font-medium text-foreground transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-50 cursor-pointer"
+                  className="h-auto shrink-0 gap-1 px-1.5 py-0.5 text-[11px]"
                 >
                   <Plus className="size-3" aria-hidden /> Add
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

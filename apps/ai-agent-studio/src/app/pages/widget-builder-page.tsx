@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Input, Badge, toast } from '@org/ui';
+import { Button, Badge, toast } from '@org/ui';
 import { widgetsApi } from '@org/api-client';
 import { useStudioSession } from '../session-guard.js';
 import type { WidgetDefinition } from '@org/types';
@@ -19,12 +19,6 @@ import {
   ArrowLeft,
   Save,
   Play,
-  RotateCcw,
-  Sparkles,
-  Share2,
-  Copy,
-  Sliders,
-  CheckCircle2,
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,

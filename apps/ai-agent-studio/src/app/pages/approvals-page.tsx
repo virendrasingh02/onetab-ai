@@ -16,6 +16,7 @@ import {
   PageHeader,
   Panel,
   toast,
+  Label,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -294,9 +295,9 @@ export function ApprovalsPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">
+                <Label className="text-xs font-semibold text-foreground block mb-1">
                   Proposed Payload / Parameters
-                </label>
+                </Label>
                 <CodeBlock
                   variant="compact"
                   language="json"
@@ -310,9 +311,9 @@ export function ApprovalsPage() {
 
               {selectedApproval.state === 'PENDING' && (
                 <div className="space-y-2 border-t border-border pt-4">
-                  <label className="text-xs font-semibold text-foreground block">
+                  <Label className="text-xs font-semibold text-foreground block">
                     Decision Reason / Comment (Optional)
-                  </label>
+                  </Label>
                   <Input
                     type="text"
                     value={decisionReason}

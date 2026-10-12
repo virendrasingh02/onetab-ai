@@ -1,5 +1,6 @@
 import { agentsApi, http } from '@org/api-client';
 import {
+  AppSelect,
   Badge,
   Button,
   CodeBlock,
@@ -20,12 +21,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
+  Field,
   Input,
+  Label,
   ErrorState,
   LoadingState,
   Popover,
   PopoverContent,
   PopoverTrigger,
+  SegmentedControl,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  Textarea,
   toast,
 } from '@org/ui';
 import { compileStudioGraph, diffStudioGraphs, type StudioCanvasGraph, type StudioGraphIssue } from '@org/types';
@@ -74,7 +82,6 @@ import {
   Clock,
   Code2,
   Copy,
-  Cpu,
   Edit2,
   Eye,
   GitBranch,
@@ -126,6 +133,7 @@ import {
   THEME_COLORS,
 } from '../data/agent-metadata.js';
 import { useStudioSession } from '../session-guard.js';
+import { AgentRuntimeSettings, type AgentRuntimeDraft } from '../components/agent-detail/agent-runtime-settings.js';
 import { modelLabel, STUDIO_NODE_TYPES } from '../components/workflow-canvas/custom-nodes.js';
 import { STUDIO_EDGE_TYPES, WorkflowConnectionLine } from '../components/workflow-canvas/custom-edges.jsx';
 import { CanvasContextMenu } from '../components/workflow-canvas/canvas-context-menu.jsx';
@@ -320,6 +328,8 @@ interface AgentSettingsDraft {
   tags: string[];
   ownerName: string;
   ownerEmail: string;
+  /** What the saved runtime enforces (`configuration.runtime`). */
+  runtime: AgentRuntimeDraft;
 }
 
 const ZOOM_PRESETS = [0.5, 1, 2] as const;
@@ -440,8 +450,8 @@ const isTypingTarget = (target: EventTarget | null) => {
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
 };
 
-const canvasControlClass =
-  'flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors cursor-pointer hover:bg-surface-raised hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:pointer-events-none disabled:opacity-40';
+/** Extra classes on top of `<Button variant="ghost" size="icon-sm">` for the canvas toolbar. */
+const canvasControlClass = 'rounded-lg disabled:opacity-40';
 
 type MeasuredSizeReader = (id: string) => { width?: number; height?: number } | undefined;
 
@@ -870,7 +880,7 @@ function WorkflowCanvasInner({
         },
       };
     });
-  }, [nodes, isLocked, isAnalyticsOverlayOpen, overlayMetric, overlayRange, workflowAnalytics, nodesAnalytics, onNodeClick]);
+  }, [nodes, isLocked, isAnalyticsOverlayOpen, overlayMetric, workflowAnalytics, nodesAnalytics, onNodeClick]);
 
   autoLayoutRef.current = (dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR') => handleAutoLayoutClick(dir);
   const handleAutoLayoutClick = useCallback((dir: 'LR' | 'TB' = direction === 'vertical' ? 'TB' : 'LR') => {
@@ -949,14 +959,16 @@ function WorkflowCanvasInner({
         <div className="h-4 w-px bg-border mx-0.5" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               title="Layout & connection options"
               aria-label="Layout and connection options"
-              className="size-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+              className="rounded-xl"
             >
               <MoreHorizontal className="size-4" />
-            </button>
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="center" className="w-52">
             <DropdownMenuLabel className="text-[11px] text-muted-foreground">Layout direction</DropdownMenuLabel>
@@ -1027,14 +1039,17 @@ function WorkflowCanvasInner({
         {onOpenCommandPalette && (
           <>
             <div className="h-4 w-px bg-border mx-0.5" />
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
               onClick={onOpenCommandPalette}
               title="Command Palette & Search (Ctrl+K)"
-              className="size-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+              aria-label="Command palette and search"
+              className="rounded-xl"
             >
               <Search className="size-4" />
-            </button>
+            </Button>
           </>
         )}
       </div>
@@ -1057,7 +1072,9 @@ function WorkflowCanvasInner({
       >
         {/* SECTION 1: Mode Switch (Select / Pan) */}
         <div role="group" aria-label="Canvas tool" className="flex items-center gap-0.5">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             type="button"
             onClick={() => setInteractionMode('select')}
             aria-label="Select"
@@ -1069,9 +1086,11 @@ function WorkflowCanvasInner({
             )}
           >
             <MousePointer2 className="size-3.5" />
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             type="button"
             onClick={() => setInteractionMode('pan')}
             aria-label="Pan"
@@ -1083,14 +1102,16 @@ function WorkflowCanvasInner({
             )}
           >
             <Hand className="size-3.5" />
-          </button>
+          </Button>
         </div>
 
         <div className="h-4 w-px shrink-0 bg-border" />
 
         {/* SECTION 2: Zoom Controls (- 100% +) */}
         <div className="flex items-center">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             type="button"
             onClick={() => reactFlowInstance.zoomOut({ duration: 200 })}
             aria-label="Zoom out"
@@ -1098,11 +1119,13 @@ function WorkflowCanvasInner({
             className={canvasControlClass}
           >
             <Minus className="size-3.5" />
-          </button>
+          </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 type="button"
                 aria-label={`Zoom level ${Math.round(zoom * 100)}%`}
                 title="Zoom options"
@@ -1112,7 +1135,7 @@ function WorkflowCanvasInner({
                 )}
               >
                 {Math.round(zoom * 100)}%
-              </button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top" align="start" sideOffset={8} className="min-w-44">
               <DropdownMenuItem onSelect={() => reactFlowInstance.fitView({ padding: 0.2, duration: 250 })}>
@@ -1141,7 +1164,9 @@ function WorkflowCanvasInner({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             type="button"
             onClick={() => reactFlowInstance.zoomIn({ duration: 200 })}
             aria-label="Zoom in"
@@ -1149,14 +1174,16 @@ function WorkflowCanvasInner({
             className={canvasControlClass}
           >
             <Plus className="size-3.5" />
-          </button>
+          </Button>
         </div>
 
         <div className="h-4 w-px shrink-0 bg-border" />
 
         {/* SECTION 3: History (Undo / Redo) */}
         <div className="flex items-center">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             type="button"
             onClick={onUndo}
             disabled={!canUndo}
@@ -1165,9 +1192,11 @@ function WorkflowCanvasInner({
             className={canvasControlClass}
           >
             <Undo2 className="size-3.5" />
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             type="button"
             onClick={onRedo}
             disabled={!canRedo}
@@ -1176,13 +1205,15 @@ function WorkflowCanvasInner({
             className={canvasControlClass}
           >
             <Redo2 className="size-3.5" />
-          </button>
+          </Button>
         </div>
 
         <div className="h-4 w-px shrink-0 bg-border" />
 
         {/* SECTION 4: Agent outline */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           type="button"
           onClick={() => setIsOutlineOpen((v) => !v)}
           aria-label="Agent outline"
@@ -1191,12 +1222,14 @@ function WorkflowCanvasInner({
           className={cn(canvasControlClass, isOutlineOpen && 'bg-surface-raised text-primary')}
         >
           <Network className="size-3.5" />
-        </button>
+        </Button>
 
         <div className="h-4 w-px shrink-0 bg-border" />
 
         {/* SECTION 5: Canvas Lock */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           type="button"
           onClick={onToggleLock}
           aria-label="Lock canvas"
@@ -1205,12 +1238,14 @@ function WorkflowCanvasInner({
           className={cn(canvasControlClass, isLocked && 'bg-warning/15 text-warning hover:bg-warning/20 hover:text-warning')}
         >
           <Lock className="size-3.5" />
-        </button>
+        </Button>
 
         <div className="h-4 w-px shrink-0 bg-border" />
 
         {/* SECTION 6: Analytics Overlay */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           type="button"
           onClick={() => setIsAnalyticsOverlayOpen((v) => !v)}
           aria-label="Toggle Analytics Overlay"
@@ -1222,7 +1257,7 @@ function WorkflowCanvasInner({
           )}
         >
           <BarChart3 className="size-3.5" />
-        </button>
+        </Button>
       </div>
 
       {/* Floating Analytics Overlay Controls Banner */}
@@ -1246,19 +1281,17 @@ function WorkflowCanvasInner({
                 { id: 'errors', label: 'Errors' },
               ] as const
             ).map((m) => (
-              <button
+              <Button
                 key={m.id}
                 type="button"
+                variant={overlayMetric === m.id ? 'primary' : 'ghost'}
+                size="xs"
+                aria-pressed={overlayMetric === m.id}
                 onClick={() => setOverlayMetric(m.id)}
-                className={cn(
-                  'px-2 py-1 rounded text-[11px] font-medium transition-colors',
-                  overlayMetric === m.id
-                    ? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised',
-                )}
+                className="rounded"
               >
                 {m.label}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -1266,19 +1299,17 @@ function WorkflowCanvasInner({
 
           <div className="flex items-center gap-1">
             {(['24H', '7D', '30D'] as const).map((r) => (
-              <button
+              <Button
                 key={r}
                 type="button"
+                variant={overlayRange === r ? 'secondary' : 'ghost'}
+                size="xs"
+                aria-pressed={overlayRange === r}
                 onClick={() => setOverlayRange(r)}
-                className={cn(
-                  'px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors',
-                  overlayRange === r
-                    ? 'bg-surface-raised text-foreground font-bold'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
+                className="h-5 rounded px-1.5 text-[10px]"
               >
                 {r}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -1300,14 +1331,16 @@ function WorkflowCanvasInner({
             </span>
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setIsAnalyticsOverlayOpen(false)}
             aria-label="Close analytics overlay"
-            className="size-5 rounded hover:bg-surface-raised text-muted-foreground hover:text-foreground flex items-center justify-center ml-1"
+            className="ml-1 size-5"
           >
             <X className="size-3" />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -1409,7 +1442,9 @@ function WorkflowCanvasInner({
                 <>
                   <div className="h-4 w-px shrink-0 bg-border" />
                   {SELECTION_ALIGN_ACTIONS.map(({ type, label, icon: Icon }) => (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
                       key={type}
                       type="button"
                       onClick={() => onBatchAlign(type, selectedNodes.map((n) => n.id))}
@@ -1418,12 +1453,14 @@ function WorkflowCanvasInner({
                       className={canvasControlClass}
                     >
                       <Icon className="size-3.5" />
-                    </button>
+                    </Button>
                   ))}
 
                   <div className="h-4 w-px shrink-0 bg-border" />
 
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     type="button"
                     onClick={() => onBatchDuplicate(selectedNodes.map((n) => n.id))}
                     aria-label="Duplicate selected"
@@ -1431,8 +1468,10 @@ function WorkflowCanvasInner({
                     className={canvasControlClass}
                   >
                     <Copy className="size-3.5" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     type="button"
                     onClick={() => onBatchGroup(selectedNodes.map((n) => n.id))}
                     aria-label="Group into stage"
@@ -1440,8 +1479,10 @@ function WorkflowCanvasInner({
                     className={canvasControlClass}
                   >
                     <Layers className="size-3.5" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     type="button"
                     onClick={() => onDeleteNodes(selectedNodes.map((n) => n.id))}
                     aria-label="Delete selected"
@@ -1449,7 +1490,7 @@ function WorkflowCanvasInner({
                     className={cn(canvasControlClass, 'hover:bg-destructive/15 hover:text-destructive')}
                   >
                     <Trash2 className="size-3.5" />
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -1914,6 +1955,11 @@ export function AgentDetailPage() {
       tags: Array.isArray(config.tags) ? config.tags : ['support', 'autonomous'],
       ownerName: config.owner?.name || '',
       ownerEmail: config.owner?.email || '',
+      runtime: {
+        pii: config.runtime?.guardrails?.pii,
+        maxTokensPerRun: config.runtime?.guardrails?.maxTokensPerRun,
+        autonomy: config.runtime?.autonomy,
+      },
     };
     settingsBaselineRef.current = hydrated;
     setSettingsDraft(hydrated);
@@ -2042,7 +2088,7 @@ export function AgentDetailPage() {
     // `model` and `configuration` are plan-gated on the server even when unchanged,
     // so they're only sent when they really changed — a canvas or name edit saves on every plan.
     if (settingsDraft) {
-      const configuration = {
+      const configuration: Record<string, unknown> = {
         ...config,
         category: settingsDraft.category,
         theme: settingsDraft.theme,
@@ -2054,9 +2100,25 @@ export function AgentDetailPage() {
           email: settingsDraft.ownerEmail,
         },
       };
+      const runtimeEdit = settingsDraft.runtime;
       const baseline = settingsBaselineRef.current;
+      if (!baseline || JSON.stringify(runtimeEdit) !== JSON.stringify(baseline.runtime)) {
+        // Only what the form owns is overwritten; the rest of the saved runtime stays.
+        const savedRuntime = (config.runtime ?? {}) as { guardrails?: Record<string, unknown> } & Record<string, unknown>;
+        const guardrails = { ...(savedRuntime.guardrails ?? {}) };
+        if (runtimeEdit.pii) guardrails.pii = runtimeEdit.pii;
+        else delete guardrails.pii;
+        if (runtimeEdit.maxTokensPerRun) guardrails.maxTokensPerRun = runtimeEdit.maxTokensPerRun;
+        else delete guardrails.maxTokensPerRun;
+        configuration.runtime = {
+          ...savedRuntime,
+          version: 1,
+          ...(runtimeEdit.autonomy ? { autonomy: runtimeEdit.autonomy } : {}),
+          guardrails,
+        };
+      }
       if (!baseline || settingsDraft.model !== baseline.model) patch.model = settingsDraft.model;
-      const configKeys = ['category', 'theme', 'icon', 'avatar', 'tags', 'ownerName', 'ownerEmail'] as const;
+      const configKeys = ['category', 'theme', 'icon', 'avatar', 'tags', 'ownerName', 'ownerEmail', 'runtime'] as const;
       if (!baseline || configKeys.some((k) => JSON.stringify(settingsDraft[k]) !== JSON.stringify(baseline[k]))) {
         patch.configuration = configuration;
       }
@@ -2629,7 +2691,7 @@ export function AgentDetailPage() {
           : `Connected "${item.label}" to "${sourceNode.data?.label || 'Node'}"`,
       );
     },
-    [focusNode, nodes, edges, workflowDirection],
+    [focusNode, nodes, edges, workflowDirection, setSelectedNode],
   );
 
   /** Opens a node's panel (optionally at one of its modules), asking first if a drawer has unsaved edits. */
@@ -3525,13 +3587,14 @@ export function AgentDetailPage() {
             {/* One chip: lifecycle (Draft / Published) + live save state; opens save options */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   aria-label={`${isPublished ? 'Published' : 'Draft'} — ${saveStatusText}. Save options`}
                   className={cn(
-                    'flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer',
-                    'hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                    isPublished ? 'border-success/30 bg-success/10 text-success' : 'border-border bg-surface text-muted-foreground',
+                    'shrink-0 rounded-full',
+                    isPublished ? 'border-success/30 bg-success/10 text-success hover:bg-success/15' : 'text-muted-foreground',
                   )}
                 >
                   <span>{isPublished ? 'Published' : 'Draft'}</span>
@@ -3559,7 +3622,7 @@ export function AgentDetailPage() {
                       </span>
                     </span>
                   )}
-                </button>
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-64">
                 <div className="px-2 py-1.5">
@@ -3592,73 +3655,68 @@ export function AgentDetailPage() {
 
         {/* Center: Tabs — take the leftover width so the actions on the right never get pushed off-screen */}
         <div className="flex min-w-0 flex-1 justify-center">
-        <div className="flex max-w-full items-center gap-0.5 rounded-[10px] bg-surface p-1 border border-border overflow-x-auto no-scrollbar">
-          {PRIMARY_AGENT_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                aria-current={isActive ? 'page' : undefined}
-                aria-label={tab.label}
-                title={tab.label}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap shrink-0 transition-all select-none cursor-pointer',
-                  isActive
-                    ? 'bg-surface-raised text-foreground font-semibold'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised/60',
-                )}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                {/* Narrower screens: only the active tab keeps its label */}
-                <span className={cn(!isActive && 'hidden lg:inline')}>{tab.label}</span>
-              </button>
-            );
-          })}
-          {/* Less-used sections; the trigger takes the active one's name */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-current={activeOverflowTab ? 'page' : undefined}
-                className={cn(
-                  'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap shrink-0 transition-all select-none cursor-pointer',
-                  activeOverflowTab
-                    ? 'bg-surface-raised text-foreground font-semibold'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised/60',
-                )}
-              >
-                {activeOverflowTab ? (
-                  <>
-                    <activeOverflowTab.icon className="h-3.5 w-3.5 shrink-0" />
-                    <span>{activeOverflowTab.label}</span>
-                  </>
-                ) : (
-                  <span>More</span>
-                )}
-                <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-44">
-              {OVERFLOW_AGENT_TABS.map((tab) => (
-                <DropdownMenuItem
-                  key={tab.id}
-                  onSelect={() => setActiveTab(tab.id)}
-                  className={cn('gap-2 text-xs', activeTab === tab.id && 'font-semibold text-foreground')}
-                >
-                  <tab.icon className="h-3.5 w-3.5" />
-                  {tab.label}
-                  {activeTab === tab.id && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+          <Tabs
+            value={activeTab}
+            onValueChange={(tab) => setActiveTab(tab as AgentTab)}
+            className="max-w-full min-w-0 flex-row items-center gap-0.5"
+          >
+            <TabsList variant="segmented" size="sm" aria-label="Agent sections" className="max-w-full">
+              {PRIMARY_AGENT_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    aria-label={tab.label}
+                    title={tab.label}
+                    icon={<Icon className="h-3.5 w-3.5 shrink-0" />}
+                  >
+                    {/* Narrower screens: only the active tab keeps its label */}
+                    <span className={cn(!isActive && 'hidden lg:inline')}>{tab.label}</span>
+                  </TabsTrigger>
+                );
+              })}
+              {/* Less-used sections; the trigger takes the active one's name */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant={activeOverflowTab ? 'secondary' : 'ghost'}
+                    size="sm"
+                    aria-current={activeOverflowTab ? 'page' : undefined}
+                    className="shrink-0 gap-1 font-medium"
+                  >
+                    {activeOverflowTab ? (
+                      <>
+                        <activeOverflowTab.icon className="h-3.5 w-3.5 shrink-0" />
+                        <span>{activeOverflowTab.label}</span>
+                      </>
+                    ) : (
+                      <span>More</span>
+                    )}
+                    <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="w-44">
+                  {OVERFLOW_AGENT_TABS.map((tab) => (
+                    <DropdownMenuItem
+                      key={tab.id}
+                      onSelect={() => setActiveTab(tab.id)}
+                      className={cn('gap-2 text-xs', activeTab === tab.id && 'font-semibold text-foreground')}
+                    >
+                      <tab.icon className="h-3.5 w-3.5" />
+                      {tab.label}
+                      {activeTab === tab.id && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TabsList>
+          </Tabs>
         </div>
 
-        {/* Right: Actions */}
+                {/* Right: Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
           <Button
             variant="outline"
@@ -3702,17 +3760,14 @@ export function AgentDetailPage() {
           {/* Publish Dropdown Popover matching reference design */}
           <Popover open={isPublishPopoverOpen} onOpenChange={setIsPublishPopoverOpen}>
             <PopoverTrigger asChild>
-              <button
+              <Button
                 type="button"
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary-hover active:bg-primary/90",
-                  "text-primary-foreground px-3.5 h-8 text-xs font-semibold shadow-xs transition-all duration-150 select-none cursor-pointer focus:outline-hidden",
-                  isPublishPopoverOpen && "ring-2 ring-primary/40"
-                )}
+                size="md"
+                className={cn('gap-1.5 font-semibold', isPublishPopoverOpen && 'ring-2 ring-primary/40')}
               >
                 <span>Publish</span>
                 <ChevronDown className={cn("size-3.5 transition-transform duration-200", isPublishPopoverOpen && "rotate-180")} />
-              </button>
+              </Button>
             </PopoverTrigger>
             <PopoverContent
               align="end"
@@ -3745,22 +3800,16 @@ export function AgentDetailPage() {
 
                 {/* Center: Big Publish Action Button */}
                 <div className="my-2.5 -ml-3">
-                  <button
+                  <Button
                     type="button"
+                    size="lg"
                     onClick={async () => {
                       await publishMutation.mutateAsync();
                       setIsPublishPopoverOpen(false);
                     }}
-                    disabled={publishMutation.isPending}
-                    className={cn(
-                      "w-full flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-hover active:bg-primary/90",
-                      "text-primary-foreground py-2.5 px-3 text-xs font-semibold shadow-md transition-all select-none cursor-pointer",
-                      "disabled:opacity-60 disabled:cursor-not-allowed"
-                    )}
+                    loading={publishMutation.isPending}
+                    className="w-full rounded-xl font-semibold"
                   >
-                    {publishMutation.isPending ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : null}
                     <span>{isPublished ? 'Publish update' : 'Publish'}</span>
                     <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white shadow-2xs">
                       {targetPublishVersion}
@@ -3773,7 +3822,7 @@ export function AgentDetailPage() {
                         P
                       </kbd>
                     </div>
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Bottom: Auto-save status */}
@@ -3797,14 +3846,15 @@ export function AgentDetailPage() {
 
               {/* Links & Endpoints */}
               <div className="space-y-1">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => {
                     setIsPublishPopoverOpen(false);
                     // The Studio's own end-user chat page for this agent
                     window.open(`${window.location.origin}/chat/${agent.id}`, '_blank', 'noopener');
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-medium text-foreground hover:bg-surface-raised transition-colors group cursor-pointer"
+                  className="group h-auto w-full justify-between rounded-xl p-2 text-foreground"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="size-8 rounded-lg bg-surface-raised border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
@@ -3813,10 +3863,11 @@ export function AgentDetailPage() {
                     <span>Open web app</span>
                   </div>
                   <ArrowUpRight className="size-4 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
-                </button>
+                </Button>
 
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => {
                     setIsPublishPopoverOpen(false);
                     navigator.clipboard
@@ -3824,7 +3875,7 @@ export function AgentDetailPage() {
                       .then(() => toast.success('API request copied as cURL'))
                       .catch(() => toast.error('Could not copy to the clipboard'));
                   }}
-                  className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-medium text-foreground hover:bg-surface-raised transition-colors group cursor-pointer"
+                  className="group h-auto w-full justify-between rounded-xl p-2 text-foreground"
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="size-8 rounded-lg bg-surface-raised border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
@@ -3833,18 +3884,18 @@ export function AgentDetailPage() {
                     <span>Copy API request</span>
                   </div>
                   <ArrowUpRight className="size-4 text-muted-foreground/70 group-hover:text-foreground transition-colors" />
-                </button>
-
+                </Button>
 
                 {isPublished && (
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => {
                       setIsPublishPopoverOpen(false);
                       unpublishMutation.mutate();
                     }}
                     disabled={unpublishMutation.isPending}
-                    className="w-full flex items-center justify-between p-2 rounded-xl text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors group cursor-pointer mt-1"
+                    className="group mt-1 h-auto w-full justify-between rounded-xl p-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   >
                     <div className="flex items-center gap-2.5">
                       <div className="size-8 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-center text-destructive">
@@ -3853,7 +3904,7 @@ export function AgentDetailPage() {
                       <span>Unpublish Agent</span>
                     </div>
                     <span className="text-[10px] text-destructive/80 font-normal">Revert to Draft</span>
-                  </button>
+                  </Button>
                 )}
               </div>
             </PopoverContent>
@@ -4321,70 +4372,28 @@ export function AgentDetailPage() {
                 <Bot className="size-4 text-primary" />
                 Agent Identity & Behavior
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div>
-                  <label htmlFor="agent-settings-name" className="font-semibold text-foreground block mb-1">
-                    Agent Name
-                  </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Agent Name">
                   <Input
-                    id="agent-settings-name"
                     value={settingsDraft?.name ?? agent.name}
-                    className="text-xs"
                     onChange={(e) => updateSettings({ name: e.target.value })}
                   />
-                </div>
-
-                <div>
-                  <label htmlFor="agent-settings-role" className="font-semibold text-foreground block mb-1">
-                    Specialist Role / Title
-                  </label>
+                </Field>
+                <Field label="Specialist Role / Title">
                   <Input
-                    id="agent-settings-role"
                     value={settingsDraft?.role ?? agent.role ?? 'Autonomous Specialist'}
-                    className="text-xs"
                     onChange={(e) => updateSettings({ role: e.target.value })}
                   />
-                </div>
+                </Field>
               </div>
 
-              <div>
-                <label htmlFor="agent-settings-description" className="text-xs font-semibold text-foreground block mb-1">
-                  Description & Task Objectives
-                </label>
-                <Input
-                  id="agent-settings-description"
+              <Field label="Description & Task Objectives">
+                <Textarea
+                  rows={3}
                   value={settingsDraft?.description ?? agent.description ?? ''}
-                  className="text-xs"
                   onChange={(e) => updateSettings({ description: e.target.value })}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">
-                    Communication Tone & Style
-                  </label>
-                  <select
-                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground"
-                    defaultValue="concise"
-                  >
-                    <option value="concise">Concise & Analytical (Default)</option>
-                    <option value="friendly">Empathetic & Customer-focused</option>
-                    <option value="executive">Executive & Action-oriented</option>
-                    <option value="technical">Deep Technical & Code-first</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">
-                    Fallback Error Response
-                  </label>
-                  <Input
-                    placeholder="I apologize, but I could not fulfill this request."
-                    defaultValue="I encountered an unexpected issue while processing your request."
-                    className="text-xs"
-                  />
-                </div>
-              </div>
+              </Field>
             </div>
 
             {/* Visual Branding & Appearance */}
@@ -4421,70 +4430,42 @@ export function AgentDetailPage() {
               </div>
 
               {/* Theme Picker */}
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1.5">
-                  Theme Accent Color
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {THEME_COLORS.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => updateSettings({ theme: t.id })}
-                      className={cn(
-                        'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs border transition-all',
-                        settingsDraft?.theme === t.id
-                          ? 'border-primary ring-2 ring-primary/20 font-bold bg-primary/5 text-foreground'
-                          : 'border-border text-muted-foreground hover:border-foreground/30',
-                      )}
-                    >
-                      <span className={cn('h-3 w-3 rounded-full', t.bg)} />
-                      <span>{t.label}</span>
-                    </button>
-                  ))}
+              <Field label="Theme Accent Color">
+                <div role="radiogroup" aria-label="Theme accent color" className="flex flex-wrap gap-2">
+                  {THEME_COLORS.map((t) => {
+                    const selected = settingsDraft?.theme === t.id;
+                    return (
+                      <Button
+                        key={t.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        variant={selected ? 'secondary' : 'outline'}
+                        size="sm"
+                        onClick={() => updateSettings({ theme: t.id })}
+                        className={cn('gap-1.5', selected && 'ring-2 ring-primary/20 font-semibold')}
+                      >
+                        <span className={cn('h-3 w-3 rounded-full', t.bg)} />
+                        {t.label}
+                      </Button>
+                    );
+                  })}
                 </div>
-              </div>
+              </Field>
 
               {/* Avatar / Icon Source Selection */}
               <div className="space-y-3">
-                <div className="flex items-center gap-2 border-b border-border pb-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setAvatarMode('icon')}
-                    className={cn(
-                      'px-2.5 py-1 rounded font-medium transition-colors',
-                      avatarMode === 'icon'
-                        ? 'bg-primary text-primary-foreground font-bold'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    Icon Library
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAvatarMode('upload')}
-                    className={cn(
-                      'px-2.5 py-1 rounded font-medium transition-colors',
-                      avatarMode === 'upload'
-                        ? 'bg-primary text-primary-foreground font-bold'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    Upload Image
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAvatarMode('url')}
-                    className={cn(
-                      'px-2.5 py-1 rounded font-medium transition-colors',
-                      avatarMode === 'url'
-                        ? 'bg-primary text-primary-foreground font-bold'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    Image URL
-                  </button>
-                </div>
+                <SegmentedControl
+                  aria-label="Avatar source"
+                  size="sm"
+                  value={avatarMode}
+                  onChange={(mode) => setAvatarMode(mode)}
+                  options={[
+                    { value: 'icon', label: 'Icon Library' },
+                    { value: 'upload', label: 'Upload Image' },
+                    { value: 'url', label: 'Image URL' },
+                  ]}
+                />
 
                 {avatarMode === 'icon' && (
                   <div className="space-y-2">
@@ -4494,20 +4475,19 @@ export function AgentDetailPage() {
                         const IconComponent = item.icon;
                         const isSelected = settingsDraft?.icon === item.name && !settingsDraft?.avatar;
                         return (
-                          <button
+                          <Button
                             key={item.name}
                             type="button"
-                            onClick={() => updateSettings({ icon: item.name, avatar: '' })}
+                            variant={isSelected ? 'secondary' : 'outline'}
+                            size="icon-lg"
+                            aria-label={item.label}
+                            aria-pressed={isSelected}
                             title={item.label}
-                            className={cn(
-                              'flex h-10 w-10 items-center justify-center rounded-lg border transition-all',
-                              isSelected
-                                ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 shadow-xs'
-                                : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground hover:bg-surface-raised',
-                            )}
+                            onClick={() => updateSettings({ icon: item.name, avatar: '' })}
+                            className={cn('size-10 rounded-lg', isSelected && 'ring-2 ring-primary/30')}
                           >
                             <IconComponent className="h-4 w-4" />
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
@@ -4518,16 +4498,18 @@ export function AgentDetailPage() {
                   <div className="space-y-3">
                     <p className="text-[11px] text-muted-foreground">Upload an avatar image (PNG, JPG, SVG, max 2MB):</p>
                     <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer rounded-lg border border-dashed border-border px-4 py-2 hover:bg-surface-raised transition-colors">
-                        <Upload className="h-4 w-4 text-primary" />
-                        <span className="text-xs font-medium text-foreground">Choose image file</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleAvatarFileUpload}
-                        />
-                      </label>
+                      <Button asChild variant="outline" size="md" className="border-dashed">
+                        <Label className="cursor-pointer">
+                          <Upload className="h-4 w-4" />
+                          Choose image file
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={handleAvatarFileUpload}
+                          />
+                        </Label>
+                      </Button>
                       {settingsDraft?.avatar && (
                         <Button
                           variant="ghost"
@@ -4544,9 +4526,9 @@ export function AgentDetailPage() {
 
                 {avatarMode === 'url' && (
                   <div className="space-y-2">
-                    <label htmlFor="settings-avatar-url" className="text-[11px] text-muted-foreground block">
-                      Direct Image Web Link:
-                    </label>
+                    <Label htmlFor="settings-avatar-url" className="text-[11px] text-muted-foreground">
+                      Direct Image Web Link
+                    </Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="settings-avatar-url"
@@ -4581,23 +4563,17 @@ export function AgentDetailPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 {/* Category with create custom */}
                 <div>
-                  <label htmlFor="agent-settings-cat" className="font-semibold text-foreground block mb-1">
+                  <Label htmlFor="agent-settings-cat" className="mb-1 block">
                     Category
-                  </label>
+                  </Label>
                   {!isCreatingCustomCategory ? (
                     <div className="flex items-center gap-2">
-                      <select
+                      <AppSelect
                         id="agent-settings-cat"
                         value={settingsDraft?.category || 'Customer Support'}
-                        onChange={(e) => updateSettings({ category: e.target.value })}
-                        className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground"
-                      >
-                        {availableCategories.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
+                        onValueChange={(category) => updateSettings({ category })}
+                        options={availableCategories.map((c) => ({ value: c, label: c }))}
+                      />
                       <Button
                         type="button"
                         variant="outline"
@@ -4650,11 +4626,12 @@ export function AgentDetailPage() {
 
                 {/* Tags Management */}
                 <div>
-                  <label className="font-semibold text-foreground block mb-1">
+                  <Label htmlFor="agent-settings-tag" className="mb-1 block">
                     Tags
-                  </label>
+                  </Label>
                   <div className="flex items-center gap-1.5 mb-2">
                     <Input
+                      id="agent-settings-tag"
                       placeholder="Add tag (e.g. autonomous, triage)..."
                       value={tagInput}
                       onChange={(e) => setTagInput(e.target.value)}
@@ -4683,13 +4660,16 @@ export function AgentDetailPage() {
                         className="inline-flex items-center gap-1 rounded-md bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-foreground border border-border"
                       >
                         #{t}
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label={`Remove tag ${t}`}
                           onClick={() => handleRemoveTag(t)}
-                          className="text-muted-foreground hover:text-foreground"
+                          className="size-4 rounded-sm"
                         >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
+                          <X className="size-2.5" />
+                        </Button>
                       </span>
                     ))}
                     {(settingsDraft?.tags || []).length === 0 && (
@@ -4702,9 +4682,9 @@ export function AgentDetailPage() {
               {/* Owner */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1 border-t border-border">
                 <div>
-                  <label htmlFor="agent-settings-owner-name" className="font-semibold text-foreground block mb-1">
+                  <Label htmlFor="agent-settings-owner-name" className="mb-1 block">
                     Agent Owner Name
-                  </label>
+                  </Label>
                   <Input
                     id="agent-settings-owner-name"
                     placeholder="e.g. Sarah Jenkins"
@@ -4714,9 +4694,9 @@ export function AgentDetailPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="agent-settings-owner-email" className="font-semibold text-foreground block mb-1">
+                  <Label htmlFor="agent-settings-owner-email" className="mb-1 block">
                     Owner Email
-                  </label>
+                  </Label>
                   <Input
                     id="agent-settings-owner-email"
                     type="email"
@@ -4729,131 +4709,26 @@ export function AgentDetailPage() {
               </div>
             </div>
 
-            {/* 2. Model & Inference Configuration (Module 5.2) */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Cpu className="size-4 text-accent-violet" />
-                Foundation Model & Sampling Configuration
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div>
-                  <label htmlFor="agent-settings-model" className="font-semibold text-foreground block mb-1">
-                    Primary Reasoning Model
-                  </label>
-                  <select
-                    id="agent-settings-model"
-                    value={settingsDraft?.model ?? agent.model ?? 'gpt-4o'}
-                    onChange={(e) => updateSettings({ model: e.target.value })}
-                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground"
-                  >
-                    <option value="gpt-4o">OpenAI GPT-4o (Omni multimodal)</option>
-                    <option value="gpt-4o-mini">OpenAI GPT-4o Mini (Fast & economical)</option>
-                    <option value="claude-3-5-sonnet">Anthropic Claude 3.5 Sonnet</option>
-                    <option value="gemini-1.5-pro">Google Gemini 1.5 Pro</option>
-                    <option value="llama3:latest">Ollama Llama 3 (Self-hosted)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-foreground block mb-1">
-                    Fallback Model (High Availability)
-                  </label>
-                  <select
-                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs text-foreground"
-                    defaultValue="claude-3-5-sonnet"
-                  >
-                    <option value="claude-3-5-sonnet">Anthropic Claude 3.5 Sonnet</option>
-                    <option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
-                    <option value="none">No Fallback (Fail Fast)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
-                <div>
-                  <div className="flex justify-between font-semibold text-foreground mb-1">
-                    <span>Temperature</span>
-                    <span className="text-muted-foreground font-mono">0.3</span>
-                  </div>
-                  <input type="range" min="0" max="1" step="0.05" defaultValue="0.3" className="w-full accent-primary" />
-                </div>
-                <div>
-                  <div className="flex justify-between font-semibold text-foreground mb-1">
-                    <span>Max Output Tokens</span>
-                    <span className="text-muted-foreground font-mono">4,096</span>
-                  </div>
-                  <input type="range" min="512" max="8192" step="256" defaultValue="4096" className="w-full accent-primary" />
-                </div>
-                <div className="flex items-center justify-between pt-4">
-                  <span className="font-semibold text-foreground">Stream Token Output</span>
-                  <input type="checkbox" defaultChecked className="rounded border-border accent-primary" />
-                </div>
-              </div>
-            </div>
-
-            {/* 3. Planning & Execution Controls (Module 5.4) */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-              <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Network className="size-4 text-success" />
-                Autonomous Planning & Step Limits
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Max Reasoning Steps</label>
-                  <Input type="number" defaultValue="8" min="1" max="25" className="h-8 text-xs" />
-                  <span className="text-[10px] text-muted-foreground">Limits loop iterations before stopping</span>
-                </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Execution Timeout (Sec)</label>
-                  <Input type="number" defaultValue="90" min="10" max="600" className="h-8 text-xs" />
-                  <span className="text-[10px] text-muted-foreground">Terminates frozen web requests or tools</span>
-                </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Per-Turn Budget Cap ($)</label>
-                  <Input type="number" defaultValue="0.25" step="0.01" className="h-8 text-xs" />
-                  <span className="text-[10px] text-muted-foreground">Maximum token expense allowed per run</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
-                <div>
-                  <span className="font-semibold text-foreground block">Dynamic Replanning on Failure</span>
-                  <span className="text-[10px] text-muted-foreground">Allows agent to select alternative tools if primary tool fails</span>
-                </div>
-                <input type="checkbox" defaultChecked className="rounded border-border accent-primary" />
-              </div>
-            </div>
-
-            {/* 4. Guardrails & Safety Defenses (Module 18.2) */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-              <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <ShieldCheck className="size-4 text-accent-blue" />
-                Enterprise Safety & Guardrail Policies
-              </h3>
-              <div className="space-y-2 text-xs">
-                <label className="flex items-center justify-between p-2 rounded-lg bg-surface-raised/40 hover:bg-surface-raised cursor-pointer">
-                  <div>
-                    <span className="font-semibold text-foreground block">Prompt Injection Defense</span>
-                    <span className="text-[10px] text-muted-foreground">Pre-scans inbound inputs for jailbreak and system-override attempts</span>
-                  </div>
-                  <input type="checkbox" defaultChecked className="rounded border-border accent-primary" />
-                </label>
-                <label className="flex items-center justify-between p-2 rounded-lg bg-surface-raised/40 hover:bg-surface-raised cursor-pointer">
-                  <div>
-                    <span className="font-semibold text-foreground block">Automatic PII Redaction</span>
-                    <span className="text-[10px] text-muted-foreground">Masks credit cards, social security numbers, and emails before model ingestion</span>
-                  </div>
-                  <input type="checkbox" defaultChecked className="rounded border-border accent-primary" />
-                </label>
-                <label className="flex items-center justify-between p-2 rounded-lg bg-surface-raised/40 hover:bg-surface-raised cursor-pointer">
-                  <div>
-                    <span className="font-semibold text-foreground block">Human Sign-off on Outbound Dispatches</span>
-                    <span className="text-[10px] text-muted-foreground">Requires human manager approval for emails, database deletes, and external API posts</span>
-                  </div>
-                  <input type="checkbox" defaultChecked className="rounded border-border accent-primary" />
-                </label>
-              </div>
-            </div>
+            {/* 2-4. Model, run limits and guardrails — all read and write real agent state */}
+            <AgentRuntimeSettings
+              nodes={nodes}
+              edges={edges}
+              graphSettings={graphSettings}
+              primaryModel={settingsDraft?.model ?? agent.model ?? 'gpt-4o'}
+              onPrimaryModelChange={(model) => updateSettings({ model })}
+              onUpdateNodeConfig={handleUpdateNodeConfig}
+              onGraphSettingsChange={(next) => {
+                setGraphSettings(next);
+                setIsDirty(true);
+              }}
+              runtime={settingsDraft?.runtime ?? {}}
+              onRuntimeChange={(patch) => updateSettings({ runtime: { ...(settingsDraft?.runtime ?? {}), ...patch } })}
+              readOnly={isCanvasLocked}
+              onOpenModule={(agentNodeId, module) => {
+                setActiveTab('build');
+                void requestOpenModule(agentNodeId, { id: module });
+              }}
+            />
 
             {/* 5. API Trigger Snippet (Module 14.2 & 21.1) */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-3">
@@ -4932,16 +4807,14 @@ export function AgentDetailPage() {
               {isDirty ? ' — unsaved changes are saved first' : ''}.
             </p>
             <div>
-              <label htmlFor="agent-snapshot-notes" className="font-semibold text-foreground block mb-1">
-                Changelog / Notes
-              </label>
-              <Input
-                id="agent-snapshot-notes"
-                placeholder="What changed in this workflow graph?"
-                value={snapshotChangelog}
-                onChange={(e) => setSnapshotChangelog(e.target.value)}
-                className="text-xs"
-              />
+              <Field label="Changelog / Notes">
+                <Textarea
+                  rows={3}
+                  placeholder="What changed in this workflow graph?"
+                  value={snapshotChangelog}
+                  onChange={(e) => setSnapshotChangelog(e.target.value)}
+                />
+              </Field>
             </div>
           </DialogBody>
 

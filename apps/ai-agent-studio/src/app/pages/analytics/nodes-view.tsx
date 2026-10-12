@@ -16,7 +16,6 @@ import {
   Coins,
   Layers,
   Search,
-  Zap,
 } from 'lucide-react';
 
 interface NodesViewProps {

@@ -10,6 +10,7 @@ import {
   Switch,
   Textarea,
   toast,
+  Label,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -142,9 +143,15 @@ export function PromptModule({ view, agent, nodes, issues, readOnly, setConfig, 
             textNodeLabel ? (
               <span className="inline-flex flex-wrap items-center gap-1">
                 Stored on the plugged-in “{textNodeLabel}” card — editing here edits that card.
-                <button type="button" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline" onClick={() => actions.selectNode(prompt.textNodeId)}>
+                <Button
+                  variant="link"
+                  size="xs"
+                  type="button"
+                  onClick={() => actions.selectNode(prompt.textNodeId)}
+                  className="h-auto gap-0.5 font-medium"
+                >
                   Open card <ExternalLink className="size-3" />
-                </button>
+                </Button>
               </span>
             ) : (
               'Markdown works. Use {{variables}} for values filled in at run time.'
@@ -325,17 +332,19 @@ function VariableInsert({ variables, stepIds, onInsert, disabled }: { variables:
                 <p className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
                 <div className="flex flex-wrap gap-1">
                   {items.map((item) => (
-                    <button
+                    <Button
+                      variant="outline"
+                      size="xs"
                       key={item}
                       type="button"
                       onClick={() => {
                         onInsert(item);
                         setOpen(false);
                       }}
-                      className="rounded-md border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-foreground hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                      className="h-auto px-1.5 py-0.5 font-mono text-[10px] font-normal"
                     >
                       {`{{${item}}}`}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -445,10 +454,10 @@ function VariablesEditor({ variables, used, readOnly, onChange }: { variables: P
               <Input inputSize="sm" value={v.defaultValue ?? ''} disabled={readOnly} aria-label={`Default for ${v.name}`} placeholder="Default value" onChange={(e) => update(i, { defaultValue: e.target.value || undefined })} className="text-xs" />
               <Input inputSize="sm" value={v.description ?? ''} disabled={readOnly} aria-label={`Description of ${v.name}`} placeholder="Description" onChange={(e) => update(i, { description: e.target.value || undefined })} className="text-xs" />
             </div>
-            <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <Label className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <Switch checked={Boolean(v.required)} disabled={readOnly} onCheckedChange={(required) => update(i, { required: required || undefined })} aria-label={`${v.name} is required`} />
               Required
-            </label>
+            </Label>
           </div>
         ))
       )}
@@ -615,7 +624,24 @@ function PromptTesting({
         <Textarea ref={inputRef} id="cfg-test-input" minRows={2} maxRows={8} value={input} placeholder="What a person would send the agent" onChange={(e) => setInput(e.target.value)} className="text-xs" />
       </SettingField>
       <SettingField label="Compare with another model (optional)">
-        <AppSelect size="sm" searchable value={compareModel} placeholder="None" aria-label="Comparison model" loading={compareOptions.isLoading} options={[{ label: 'Compare', options: [{ value: '', label: 'None' }] }, ...compareOptions.groups]} onValueChange={setCompareModel} />
+        <AppSelect
+          size="sm"
+          searchable
+          value={compareModel}
+          placeholder="None"
+          aria-label="Comparison model"
+          loading={compareOptions.isLoading}
+          options={[
+            {
+              label: 'Compare',
+              options: [
+                { value: '', label: 'None' },
+              ],
+            },
+            ...compareOptions.groups,
+          ]}
+          onValueChange={setCompareModel}
+        />
       </SettingField>
       <Button type="button" size="sm" onClick={() => void run()} disabled={running || !model}>
         {running ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}

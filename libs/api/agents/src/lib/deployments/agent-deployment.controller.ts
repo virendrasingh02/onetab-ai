@@ -22,12 +22,10 @@ import {
   createAgentDeploymentSchema,
   updateAgentDeploymentSchema,
   createAgentDeploymentWebhookSchema,
-  createAgentApiKeySchema,
   rollbackDeploymentSchema,
   type CreateAgentDeploymentInput,
   type UpdateAgentDeploymentInput,
   type CreateAgentDeploymentWebhookInput,
-  type CreateAgentApiKeyInput,
   type RollbackDeploymentInput,
 } from '@org/validation';
 import { AgentDeploymentService } from './agent-deployment.service.js';
@@ -149,45 +147,60 @@ export class AgentDeploymentController {
   // --- Webhooks ---
 
   @Get(':deploymentId/webhooks')
-  listWebhooks(@Param('deploymentId') deploymentId: string) {
+  async listWebhooks(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Param('deploymentId') deploymentId: string,
+  ) {
+    await this.deploymentService.assertDeployment(workspaceId, agentId, deploymentId);
     return this.webhookService.listWebhooks(deploymentId);
   }
 
   @Post(':deploymentId/webhooks')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
-  createWebhook(
+  async createWebhook(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
     @Param('deploymentId') deploymentId: string,
     @Body(zodBody(createAgentDeploymentWebhookSchema)) body: CreateAgentDeploymentWebhookInput,
   ) {
+    await this.deploymentService.assertDeployment(workspaceId, agentId, deploymentId);
     return this.webhookService.createWebhook(deploymentId, body);
   }
 
   @Delete(':deploymentId/webhooks/:webhookId')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteWebhook(@Param('webhookId') webhookId: string) {
-    return this.webhookService.deleteWebhook(webhookId);
+  async deleteWebhook(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Param('deploymentId') deploymentId: string,
+    @Param('webhookId') webhookId: string,
+  ) {
+    await this.deploymentService.assertDeployment(workspaceId, agentId, deploymentId);
+    await this.webhookService.deleteWebhook(webhookId, deploymentId);
   }
 
   @Post(':deploymentId/webhooks/:webhookId/test')
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
-  testWebhook(@Param('webhookId') webhookId: string) {
-    return this.webhookService.testWebhook(webhookId);
+  async testWebhook(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Param('deploymentId') deploymentId: string,
+    @Param('webhookId') webhookId: string,
+  ) {
+    await this.deploymentService.assertDeployment(workspaceId, agentId, deploymentId);
+    return this.webhookService.testWebhook(webhookId, deploymentId);
   }
 
   @Get(':deploymentId/webhooks/:webhookId/deliveries')
-  getDeliveries(@Param('webhookId') webhookId: string) {
-    return this.webhookService.getDeliveries(webhookId);
-  }
-
-  // --- API Keys ---
-
-  @Post('api-keys')
-  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
-  createApiKey(
+  async getDeliveries(
     @WorkspaceId() workspaceId: string,
-    @Body(zodBody(createAgentApiKeySchema)) body: CreateAgentApiKeyInput,
+    @Param('agentId') agentId: string,
+    @Param('deploymentId') deploymentId: string,
+    @Param('webhookId') webhookId: string,
   ) {
-    return this.deploymentService.createApiKey(workspaceId, body);
+    await this.deploymentService.assertDeployment(workspaceId, agentId, deploymentId);
+    return this.webhookService.getDeliveries(webhookId, deploymentId);
   }
 }

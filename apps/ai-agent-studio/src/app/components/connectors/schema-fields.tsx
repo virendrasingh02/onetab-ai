@@ -1,4 +1,4 @@
-import { AppSelect, Input, Switch, Textarea } from '@org/ui';
+import { AppSelect, Input, Switch, Textarea, Label } from '@org/ui';
 
 /** One input of a JSON-Schema object, as the connector manifest declares it. */
 interface SchemaProperty {
@@ -148,10 +148,10 @@ export function SchemaFields({
         }
         return (
           <div key={key} className="space-y-1">
-            <label htmlFor={id} className="flex items-center gap-1 text-xs font-medium text-foreground">
+            <Label htmlFor={id} className="flex items-center gap-1 text-xs font-medium text-foreground">
               {label}
               {required.has(key) && <span className="text-destructive" aria-label="required">*</span>}
-            </label>
+            </Label>
             {control}
             {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
           </div>

@@ -71,6 +71,7 @@ export {
   emailTemplatesApi,
   widgetsApi,
   aiAnalyticsApi,
+  agentApiKeysApi,
   agentDeploymentsApi,
   publicAgentApi,
   type AuthResponse,

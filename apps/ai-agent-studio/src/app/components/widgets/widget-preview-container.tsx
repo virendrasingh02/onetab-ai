@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button, Badge } from '@org/ui';
 import { cn } from '@org/utils';
 import type { WidgetDraft, WidgetState } from './widget-draft.js';
@@ -7,13 +7,7 @@ import {
   Laptop,
   Tablet,
   Smartphone,
-  Play,
   Terminal,
-  RotateCcw,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Sparkles,
 } from 'lucide-react';
 
 interface WidgetPreviewContainerProps {

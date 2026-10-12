@@ -1,4 +1,4 @@
-import { Badge, Button, Input, AIModelBadge, AppSelect, Switch, toast } from '@org/ui';
+import { Badge, Button, Input, AIModelBadge, AppSelect, Switch, toast, Label, Textarea, Checkbox, Slider, Tabs, TabsList, TabsTrigger } from '@org/ui';
 import { cn } from '@org/utils';
 import type { StudioGraphIssue } from '@org/types';
 import type { Connection, Edge, Node } from '@xyflow/react';
@@ -358,25 +358,15 @@ export function NodeInspector({
       </div>
 
       {/* Tabs */}
-      <div role="tablist" aria-label="Node panel" className="flex gap-5 border-b border-border px-4">
-        {(['settings', 'wiring', 'analytics'] as const).map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={cn(
-              '-mb-px border-b-2 pb-2.5 text-sm font-medium capitalize transition-colors',
-              tab === id
-                ? 'border-foreground text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {id}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(next) => setTab(next as typeof tab)} className="gap-0">
+        <TabsList variant="underline" aria-label="Node panel" className="px-4">
+          {(['settings', 'wiring', 'analytics'] as const).map((id) => (
+            <TabsTrigger key={id} value={id} className="capitalize">
+              {id}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {tab === 'wiring' && (
         <div role="tabpanel" className="relative flex-1 overflow-y-auto p-4">
@@ -471,25 +461,28 @@ export function NodeInspector({
                 <Braces className="size-3.5 text-primary" />
                 Insert a variable
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setShowVariablePicker(false)}
                 aria-label="Close variable picker"
-                className="rounded p-0.5 text-muted-foreground hover:text-foreground"
               >
                 <X className="size-3.5" />
-              </button>
+              </Button>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {COMMON_VARIABLES.map((v) => (
-                <button
+                <Button
                   key={v}
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={() => insertVariable(v)}
-                  className="rounded-md border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                  className="h-5 px-1.5 font-mono text-[10px]"
                 >
                   {v}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -498,9 +491,9 @@ export function NodeInspector({
         {/* General: Title & Description */}
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-foreground">
+            <Label className="text-[11px] font-semibold text-foreground">
               Node Title
-            </label>
+            </Label>
             <Input
               value={data.title || data.label || ''}
               onChange={(e) => {
@@ -516,11 +509,11 @@ export function NodeInspector({
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 Description
-              </label>
+              </Label>
               {/* Hidden on the card by default; this puts it under the title. */}
-              <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-muted-foreground select-none">
+              <Label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-muted-foreground select-none">
                 Show on card
                 <Switch
                   checked={data.showDescription === true}
@@ -530,7 +523,7 @@ export function NodeInspector({
                   aria-label="Show description on card"
                   className="scale-75"
                 />
-              </label>
+              </Label>
             </div>
             <Input
               value={data.description || data.subtitle || ''}
@@ -560,10 +553,11 @@ export function NodeInspector({
 
         {/* A card plugged into an agent: its full settings live in that agent's module */}
         {ownerSlot && onOpenAgentModule && (
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => onOpenAgentModule(ownerSlot.agent.id, ownerSlot.module.id)}
-            className="flex w-full items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-left text-[11px] text-foreground hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="h-auto w-full justify-start gap-2 whitespace-normal rounded-lg border-primary/30 bg-primary/5 px-3 py-2 text-left text-[11px] font-normal text-foreground hover:bg-primary/10"
           >
             <Link2 className="size-3.5 shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
@@ -571,7 +565,7 @@ export function NodeInspector({
               <span className="block text-muted-foreground">Open the full {ownerSlot.module.label} settings</span>
             </span>
             <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-          </button>
+          </Button>
         )}
 
         {/* 2. FIRECRAWL PROPERTIES */}
@@ -590,19 +584,21 @@ export function NodeInspector({
               <>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-foreground">
+                    <Label className="text-[11px] font-semibold text-foreground">
                       Search Query
-                    </label>
-                    <button
+                    </Label>
+                    <Button
                       type="button"
+                      variant="link"
+                      size="xs"
                       onClick={() => {
                         setTargetField('query');
                         setShowVariablePicker(true);
                       }}
-                      className="text-[10px] font-medium text-primary hover:underline"
+                      className="h-auto text-[10px]"
                     >
                       Use Variable
-                    </button>
+                    </Button>
                   </div>
                   <Input
                     value={config.query || ''}
@@ -613,16 +609,14 @@ export function NodeInspector({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-[11px] font-semibold text-foreground">
                     Result Limit: {config.limit || 5}
-                  </label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="15"
-                    value={config.limit || 5}
-                    onChange={(e) => updateConfig('limit', parseInt(e.target.value, 10))}
-                    className="w-full accent-primary"
+                  </Label>
+                  <Slider
+                    min={1}
+                    max={15}
+                    value={[Number(config.limit || 5)]}
+                    onValueChange={([v]) => updateConfig('limit', v)}
                   />
                 </div>
               </>
@@ -631,19 +625,21 @@ export function NodeInspector({
             {(nodeType === 'FIRECRAWL_SCRAPE' || nodeType === 'FIRECRAWL_CRAWL' || nodeType === 'FIRECRAWL_EXTRACT') && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-[11px] font-semibold text-foreground">
                     Target URL
-                  </label>
-                  <button
+                  </Label>
+                  <Button
                     type="button"
+                    variant="link"
+                    size="xs"
                     onClick={() => {
                       setTargetField('url');
                       setShowVariablePicker(true);
                     }}
-                    className="text-[10px] font-medium text-primary hover:underline"
+                    className="h-auto text-[10px]"
                   >
                     Use Variable
-                  </button>
+                  </Button>
                 </div>
                 <Input
                   value={config.url || ''}
@@ -656,16 +652,10 @@ export function NodeInspector({
 
             {nodeType === 'FIRECRAWL_EXTRACT' && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   Extraction Objective / Prompt
-                </label>
-                <textarea
-                  rows={3}
-                  value={config.prompt || ''}
-                  onChange={(e) => updateConfig('prompt', e.target.value)}
-                  placeholder="Extract product price, features, and company contacts…"
-                  className="w-full rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+                </Label>
+                <Textarea rows={3} value={config.prompt || ''} onChange={(e) => updateConfig('prompt', e.target.value)} placeholder="Extract product price, features, and company contacts…" className="text-xs" />
               </div>
             )}
           </div>
@@ -675,23 +665,21 @@ export function NodeInspector({
         {(nodeType === 'MCP_TOOL' || nodeType === 'TOOL') && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 MCP Tool Name
-              </label>
+              </Label>
               <BuiltinToolSelect value={config.toolName || 'search_docs'} disabled={readOnly} onChange={(v) => updateConfig('toolName', v)} />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 Timeout (seconds): {config.timeout || 30}s
-              </label>
-              <input
-                type="range"
-                min="5"
-                max="120"
-                value={config.timeout || 30}
-                onChange={(e) => updateConfig('timeout', parseInt(e.target.value, 10))}
-                className="w-full accent-primary"
+              </Label>
+              <Slider
+                min={5}
+                max={120}
+                value={[Number(config.timeout || 30)]}
+                onValueChange={([v]) => updateConfig('timeout', v)}
               />
             </div>
           </div>
@@ -723,9 +711,9 @@ export function NodeInspector({
         {nodeType === 'IF_ELSE' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 Variable to Compare
-              </label>
+              </Label>
               <Input
                 value={config.variable || ''}
                 onChange={(e) => updateConfig('variable', e.target.value)}
@@ -735,27 +723,27 @@ export function NodeInspector({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 Operator
-              </label>
-              <select
+              </Label>
+              <AppSelect
                 value={config.operator || 'equals'}
-                onChange={(e) => updateConfig('operator', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="equals">Equals (==)</option>
-                <option value="not_equals">Not Equals (!=)</option>
-                <option value="contains">Contains substring</option>
-                <option value="greater_than">Greater than (&gt;)</option>
-                <option value="less_than">Less than (&lt;)</option>
-                <option value="is_empty">Is Empty</option>
-              </select>
+                onValueChange={(v) => updateConfig('operator', v)}
+                options={[
+                  { value: 'equals', label: 'Equals (==)' },
+                  { value: 'not_equals', label: 'Not Equals (!=)' },
+                  { value: 'contains', label: 'Contains substring' },
+                  { value: 'greater_than', label: 'Greater than (>)' },
+                  { value: 'less_than', label: 'Less than (<)' },
+                  { value: 'is_empty', label: 'Is Empty' },
+                ]}
+              />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 Expected Value
-              </label>
+              </Label>
               <Input
                 value={config.value || ''}
                 onChange={(e) => updateConfig('value', e.target.value)}
@@ -770,9 +758,9 @@ export function NodeInspector({
         {nodeType === 'USER_APPROVAL' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 Approval Action Name
-              </label>
+              </Label>
               <Input
                 value={config.action || ''}
                 onChange={(e) => updateConfig('action', e.target.value)}
@@ -782,28 +770,17 @@ export function NodeInspector({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 Description / Context for Approver
-              </label>
-              <textarea
-                rows={3}
-                value={config.description || ''}
-                onChange={(e) => updateConfig('description', e.target.value)}
-                placeholder="Explain why this operation needs human approval…"
-                className="w-full rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+              </Label>
+              <Textarea rows={3} value={config.description || ''} onChange={(e) => updateConfig('description', e.target.value)} placeholder="Explain why this operation needs human approval…" className="text-xs" />
             </div>
 
             <div className="flex items-center justify-between pt-1">
               <span className="text-xs text-foreground">
                 Strict Gate (pause execution)
               </span>
-              <input
-                type="checkbox"
-                checked={config.required !== false}
-                onChange={(e) => updateConfig('required', e.target.checked)}
-                className="rounded border-border accent-primary"
-              />
+              <Checkbox checked={config.required !== false} onCheckedChange={(c) => updateConfig('required', c === true)} />
             </div>
           </div>
         )}
@@ -821,41 +798,41 @@ export function NodeInspector({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 Guardrail Mode
-              </label>
-              <select
+              </Label>
+              <AppSelect
                 value={config.policy || 'pii-redaction'}
-                onChange={(e) => updateConfig('policy', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="pii-redaction">PII Redaction & Sanitization</option>
-                <option value="cost-cap">Cost & Token Budget Cap</option>
-                <option value="prompt-injection">Prompt Injection Defense</option>
-                <option value="content-safety">Content Safety & Toxicity Filter</option>
-              </select>
+                onValueChange={(v) => updateConfig('policy', v)}
+                options={[
+                  { value: 'pii-redaction', label: 'PII Redaction & Sanitization' },
+                  { value: 'cost-cap', label: 'Cost & Token Budget Cap' },
+                  { value: 'prompt-injection', label: 'Prompt Injection Defense' },
+                  { value: 'content-safety', label: 'Content Safety & Toxicity Filter' },
+                ]}
+              />
             </div>
 
             {config.policy !== 'cost-cap' ? (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   Policy Enforcement Action
-                </label>
-                <select
+                </Label>
+                <AppSelect
                   value={config.action || 'redact'}
-                  onChange={(e) => updateConfig('action', e.target.value)}
-                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="redact">Redact (Replace sensitive tokens with [redacted])</option>
-                  <option value="block">Block (Halt execution on policy violation)</option>
-                  <option value="warn">Warn (Record finding in audit trace without modifying payload)</option>
-                </select>
+                  onValueChange={(v) => updateConfig('action', v)}
+                  options={[
+                    { value: 'redact', label: 'Redact (Replace sensitive tokens with [redacted])' },
+                    { value: 'block', label: 'Block (Halt execution on policy violation)' },
+                    { value: 'warn', label: 'Warn (Record finding in audit trace without modifying payload)' },
+                  ]}
+                />
               </div>
             ) : (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   Max Tokens Cap Per Run: {config.maxTokens || 4096}
-                </label>
+                </Label>
                 <Input
                   type="number"
                   min={100}
@@ -869,9 +846,9 @@ export function NodeInspector({
             )}
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-[11px] font-semibold text-foreground">
                 Custom Banned Words / RegEx (Optional)
-              </label>
+              </Label>
               <Input
                 value={config.bannedPhrases || ''}
                 onChange={(e) => updateConfig('bannedPhrases', e.target.value)}
@@ -887,27 +864,23 @@ export function NodeInspector({
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-[11px] font-semibold text-foreground">
                   {nodeType === 'PROMPT_TEMPLATE' ? 'Prompt' : 'Template'}
-                </label>
-                <button
+                </Label>
+                <Button
                   type="button"
+                  variant="link"
+                  size="xs"
                   onClick={() => {
                     setTargetField(templateKey);
                     setShowVariablePicker(true);
                   }}
-                  className="text-[10px] font-medium text-primary hover:underline"
+                  className="h-auto text-[10px]"
                 >
                   Insert Variable
-                </button>
+                </Button>
               </div>
-              <textarea
-                rows={5}
-                value={config[templateKey] || ''}
-                onChange={(e) => updateConfig(templateKey, e.target.value)}
-                placeholder="Draft formatted output: {{agent.output}} &#10;Source: {{firecrawl.url}}"
-                className="w-full font-mono rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+              <Textarea rows={5} value={config[templateKey] || ''} onChange={(e) => updateConfig(templateKey, e.target.value)} placeholder="Draft formatted output: {{agent.output}} &#10;Source: {{firecrawl.url}}" className="font-mono text-xs" />
             </div>
           </div>
         )}
@@ -925,50 +898,64 @@ export function NodeInspector({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Widget Type</label>
-              <select
+              <Label className="text-[11px] font-semibold text-foreground">Widget Type</Label>
+              <AppSelect
                 value={config.componentType || 'metric_card'}
-                onChange={(e) => updateConfig('componentType', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <optgroup label="Data & Visualization">
-                  <option value="metric_card">Metric Card</option>
-                  <option value="bar_chart">Bar Chart</option>
-                  <option value="line_chart">Line Chart</option>
-                  <option value="table_view">Data Table</option>
-                  <option value="progress_summary">Progress Summary</option>
-                </optgroup>
-                <optgroup label="Interactive Inputs">
-                  <option value="form_input">Form Input</option>
-                  <option value="dynamic_form">Dynamic Form</option>
-                  <option value="approval_form">Approval Form</option>
-                </optgroup>
-                <optgroup label="AI-Powered">
-                  <option value="ai_summary">AI Summary</option>
-                  <option value="entity_extractor">Entity Extractor</option>
-                  <option value="sentiment_analysis">Sentiment Analysis</option>
-                </optgroup>
-                <optgroup label="App Connector & Productivity">
-                  <option value="action_card">Action Card</option>
-                  <option value="task_list">Task List</option>
-                  <option value="meeting_notes">Meeting Notes</option>
-                </optgroup>
-              </select>
+                onValueChange={(v) => updateConfig('componentType', v)}
+                options={[
+                  {
+                    label: 'Data & Visualization',
+                    options: [
+                      { value: 'metric_card', label: 'Metric Card' },
+                      { value: 'bar_chart', label: 'Bar Chart' },
+                      { value: 'line_chart', label: 'Line Chart' },
+                      { value: 'table_view', label: 'Data Table' },
+                      { value: 'progress_summary', label: 'Progress Summary' },
+                    ],
+                  },
+                  {
+                    label: 'Interactive Inputs',
+                    options: [
+                      { value: 'form_input', label: 'Form Input' },
+                      { value: 'dynamic_form', label: 'Dynamic Form' },
+                      { value: 'approval_form', label: 'Approval Form' },
+                    ],
+                  },
+                  {
+                    label: 'AI-Powered',
+                    options: [
+                      { value: 'ai_summary', label: 'AI Summary' },
+                      { value: 'entity_extractor', label: 'Entity Extractor' },
+                      { value: 'sentiment_analysis', label: 'Sentiment Analysis' },
+                    ],
+                  },
+                  {
+                    label: 'App Connector & Productivity',
+                    options: [
+                      { value: 'action_card', label: 'Action Card' },
+                      { value: 'task_list', label: 'Task List' },
+                      { value: 'meeting_notes', label: 'Meeting Notes' },
+                    ],
+                  },
+                ]}
+              />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-semibold text-foreground">Data Binding Path</label>
-                <button
+                <Label className="text-[11px] font-semibold text-foreground">Data Binding Path</Label>
+                <Button
                   type="button"
+                  variant="link"
+                  size="xs"
                   onClick={() => {
                     setTargetField('dataPath');
                     setShowVariablePicker(true);
                   }}
-                  className="text-[10px] font-medium text-primary hover:underline"
+                  className="h-auto text-[10px]"
                 >
                   Use Variable
-                </button>
+                </Button>
               </div>
               <Input
                 value={config.dataPath || ''}
@@ -980,7 +967,7 @@ export function NodeInspector({
 
             {(nodeType === 'WIDGET_TRIGGER' || nodeType === 'WIDGET_ACTION' || nodeType === 'WIDGET_EVENT_HANDLER') && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">Action / Event Name</label>
+                <Label className="text-[11px] font-semibold text-foreground">Action / Event Name</Label>
                 <Input
                   value={config.actionName || config.eventName || ''}
                   onChange={(e) => {
@@ -995,30 +982,30 @@ export function NodeInspector({
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">Display Size</label>
-                <select
+                <Label className="text-[11px] font-semibold text-foreground">Display Size</Label>
+                <AppSelect
                   value={config.size || 'md'}
-                  onChange={(e) => updateConfig('size', e.target.value)}
-                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="sm">Small (1x1)</option>
-                  <option value="md">Medium (2x2)</option>
-                  <option value="lg">Large (3x2)</option>
-                  <option value="full">Full Width</option>
-                </select>
+                  onValueChange={(v) => updateConfig('size', v)}
+                  options={[
+                    { value: 'sm', label: 'Small (1x1)' },
+                    { value: 'md', label: 'Medium (2x2)' },
+                    { value: 'lg', label: 'Large (3x2)' },
+                    { value: 'full', label: 'Full Width' },
+                  ]}
+                />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">Auto-Refresh</label>
-                <select
+                <Label className="text-[11px] font-semibold text-foreground">Auto-Refresh</Label>
+                <AppSelect
                   value={config.refreshInterval || '0'}
-                  onChange={(e) => updateConfig('refreshInterval', parseInt(e.target.value, 10))}
-                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="0">Manual only</option>
-                  <option value="15">Every 15s</option>
-                  <option value="60">Every 1m</option>
-                  <option value="300">Every 5m</option>
-                </select>
+                  onValueChange={(v) => updateConfig('refreshInterval', parseInt(v, 10))}
+                  options={[
+                    { value: '0', label: 'Manual only' },
+                    { value: '15', label: 'Every 15s' },
+                    { value: '60', label: 'Every 1m' },
+                    { value: '300', label: 'Every 5m' },
+                  ]}
+                />
               </div>
             </div>
           </div>
@@ -1029,41 +1016,35 @@ export function NodeInspector({
           <div className="space-y-3.5 pt-2 border-t border-border">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-semibold text-foreground">Model</label>
+                <Label className="text-[11px] font-semibold text-foreground">Model</Label>
                 <AIModelBadge modelId={config.model || 'gpt-4o'} size="xs" variant="subtle" />
               </div>
-              <select
+              <AppSelect
                 value={config.model || 'gpt-4o'}
-                onChange={(e) => updateConfig('model', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                {!MODEL_OPTIONS.some((m) => m.value === (config.model || 'gpt-4o')) && (
-                  <option value={config.model}>{config.model}</option>
-                )}
-                {MODEL_OPTIONS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">
-                Temperature: {config.temperature ?? 0.7}
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.05"
-                value={config.temperature ?? 0.7}
-                onChange={(e) => updateConfig('temperature', parseFloat(e.target.value))}
-                className="w-full accent-primary"
+                onValueChange={(v) => updateConfig('model', v)}
+                options={[
+                  ...(MODEL_OPTIONS.some((m) => m.value === (config.model || 'gpt-4o'))
+                    ? []
+                    : [{ value: String(config.model), label: String(config.model) }]),
+                  ...MODEL_OPTIONS.map((m) => ({ value: m.value, label: m.label })),
+                ]}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Max tokens</label>
-              <input
+              <Label className="text-[11px] font-semibold text-foreground">
+                Temperature: {config.temperature ?? 0.7}
+              </Label>
+              <Slider
+                min={0}
+                max={2}
+                step={0.05}
+                value={[Number(config.temperature ?? 0.7)]}
+                onValueChange={([v]) => updateConfig('temperature', v)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-semibold text-foreground">Max tokens</Label>
+              <Input
                 type="number"
                 min={1}
                 step={256}
@@ -1072,7 +1053,7 @@ export function NodeInspector({
                   const v = e.target.valueAsNumber;
                   if (Number.isFinite(v) && v >= 1) updateConfig('maxTokens', Math.round(v));
                 }}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="h-8 text-xs"
               />
             </div>
           </div>
@@ -1086,7 +1067,7 @@ export function NodeInspector({
             </div>
             {nodeType === 'TRIGGER_SCHEDULE' && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">Cron Expression</label>
+                <Label className="text-[11px] font-semibold text-foreground">Cron Expression</Label>
                 <Input
                   value={config.cron || '0 9 * * 1-5'}
                   onChange={(e) => updateConfig('cron', e.target.value)}
@@ -1098,21 +1079,21 @@ export function NodeInspector({
             )}
             {nodeType === 'TRIGGER_WEBHOOK' && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">HTTP Method</label>
-                <select
+                <Label className="text-[11px] font-semibold text-foreground">HTTP Method</Label>
+                <AppSelect
                   value={config.httpMethod || 'POST'}
-                  onChange={(e) => updateConfig('httpMethod', e.target.value)}
-                  className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground"
-                >
-                  <option value="POST">POST (Recommended)</option>
-                  <option value="GET">GET</option>
-                  <option value="PUT">PUT</option>
-                </select>
+                  onValueChange={(v) => updateConfig('httpMethod', v)}
+                  options={[
+                    { value: 'POST', label: 'POST (Recommended)' },
+                    { value: 'GET', label: 'GET' },
+                    { value: 'PUT', label: 'PUT' },
+                  ]}
+                />
               </div>
             )}
             {nodeType === 'TRIGGER_CHAT' && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-foreground">Welcome Greeting</label>
+                <Label className="text-[11px] font-semibold text-foreground">Welcome Greeting</Label>
                 <Input
                   value={config.welcomeGreeting || 'Hi! How can I assist you today?'}
                   onChange={(e) => updateConfig('welcomeGreeting', e.target.value)}
@@ -1127,30 +1108,21 @@ export function NodeInspector({
         {(nodeType === 'KB_SEARCH' || nodeType === 'VECTOR_SEARCH' || nodeType === 'KNOWLEDGE_RETRIEVAL') && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Knowledge Base</label>
+              <Label className="text-[11px] font-semibold text-foreground">Knowledge Base</Label>
               <KnowledgeBaseSelect value={config.knowledgeBaseId || ''} disabled={readOnly} onChange={(v) => updateConfig('knowledgeBaseId', v)} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Top Chunks (Top-K): {config.topK || 4}</label>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={config.topK || 4}
-                onChange={(e) => updateConfig('topK', parseInt(e.target.value, 10))}
-                className="w-full accent-primary"
-              />
+              <Label className="text-[11px] font-semibold text-foreground">Top Chunks (Top-K): {config.topK || 4}</Label>
+              <Slider min={1} max={10} value={[Number(config.topK || 4)]} onValueChange={([v]) => updateConfig('topK', v)} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Min Similarity Score: {config.minScore || 0.75}</label>
-              <input
-                type="range"
-                min="0.5"
-                max="0.95"
-                step="0.05"
-                value={config.minScore || 0.75}
-                onChange={(e) => updateConfig('minScore', parseFloat(e.target.value))}
-                className="w-full accent-primary"
+              <Label className="text-[11px] font-semibold text-foreground">Min Similarity Score: {config.minScore || 0.75}</Label>
+              <Slider
+                min={0.5}
+                max={0.95}
+                step={0.05}
+                value={[Number(config.minScore || 0.75)]}
+                onValueChange={([v]) => updateConfig('minScore', v)}
               />
             </div>
           </div>
@@ -1160,13 +1132,8 @@ export function NodeInspector({
         {(nodeType === 'CODE_JAVASCRIPT' || nodeType === 'CODE' || nodeType === 'CODE_PYTHON') && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Sandboxed Code</label>
-              <textarea
-                rows={8}
-                value={config.code || '// Custom transformation\nreturn input;'}
-                onChange={(e) => updateConfig('code', e.target.value)}
-                className="w-full font-mono rounded-md border border-border bg-zinc-950 text-zinc-100 p-2.5 text-xs focus:border-primary focus:outline-none"
-              />
+              <Label className="text-[11px] font-semibold text-foreground">Sandboxed Code</Label>
+              <Textarea rows={8} value={config.code || '// Custom transformation\nreturn input;'} onChange={(e) => updateConfig('code', e.target.value)} className="font-mono text-xs" />
             </div>
           </div>
         )}
@@ -1175,20 +1142,20 @@ export function NodeInspector({
         {nodeType === 'HTTP_REQUEST' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">HTTP Method</label>
-              <select
+              <Label className="text-[11px] font-semibold text-foreground">HTTP Method</Label>
+              <AppSelect
                 value={config.method || 'GET'}
-                onChange={(e) => updateConfig('method', e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-surface-raised px-2.5 text-xs text-foreground"
-              >
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="PUT">PUT</option>
-                <option value="DELETE">DELETE</option>
-              </select>
+                onValueChange={(v) => updateConfig('method', v)}
+                options={[
+                  { value: 'GET', label: 'GET' },
+                  { value: 'POST', label: 'POST' },
+                  { value: 'PUT', label: 'PUT' },
+                  { value: 'DELETE', label: 'DELETE' },
+                ]}
+              />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Endpoint URL</label>
+              <Label className="text-[11px] font-semibold text-foreground">Endpoint URL</Label>
               <Input
                 value={config.url || ''}
                 onChange={(e) => updateConfig('url', e.target.value)}
@@ -1202,13 +1169,8 @@ export function NodeInspector({
         {nodeType === 'DB_QUERY' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">SQL Query</label>
-              <textarea
-                rows={4}
-                value={config.query || 'SELECT * FROM records LIMIT 20;'}
-                onChange={(e) => updateConfig('query', e.target.value)}
-                className="w-full font-mono rounded-md border border-border bg-zinc-950 text-zinc-100 p-2.5 text-xs"
-              />
+              <Label className="text-[11px] font-semibold text-foreground">SQL Query</Label>
+              <Textarea rows={4} value={config.query || 'SELECT * FROM records LIMIT 20;'} onChange={(e) => updateConfig('query', e.target.value)} className="font-mono text-xs" />
             </div>
           </div>
         )}
@@ -1217,14 +1179,8 @@ export function NodeInspector({
         {(nodeType === 'STICKY_NOTE' || nodeType === 'NOTE') && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Note Content</label>
-              <textarea
-                rows={6}
-                value={config.note || ''}
-                onChange={(e) => updateConfig('note', e.target.value)}
-                placeholder="Document your architecture or steps here…"
-                className="w-full rounded-md border border-warning bg-amber-50 dark:bg-amber-950/20 p-2.5 text-xs text-foreground"
-              />
+              <Label className="text-[11px] font-semibold text-foreground">Note Content</Label>
+              <Textarea rows={6} value={config.note || ''} onChange={(e) => updateConfig('note', e.target.value)} placeholder="Document your architecture or steps here…" className="text-xs" />
             </div>
           </div>
         )}
@@ -1232,7 +1188,7 @@ export function NodeInspector({
         {nodeType === 'GROUP' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-foreground">Stage Title</label>
+              <Label className="text-[11px] font-semibold text-foreground">Stage Title</Label>
               <Input
                 value={config.label || ''}
                 onChange={(e) => updateConfig('label', e.target.value)}

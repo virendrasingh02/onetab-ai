@@ -1,5 +1,5 @@
 import { agentStudioApi } from '@org/api-client';
-import { Badge, Button, Textarea } from '@org/ui';
+import { Badge, Button, Textarea, Label } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Lightbulb, Sparkles, Wand2 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
@@ -54,7 +54,7 @@ export function HomePrompt({ workspaceId }: { workspaceId: string }) {
             What do you want your agent to do?
           </h2>
         </div>
-        <label htmlFor="home-prompt" className="sr-only">Describe the agent</label>
+        <Label htmlFor="home-prompt" className="sr-only">Describe the agent</Label>
         <Textarea
           id="home-prompt"
           rows={3}

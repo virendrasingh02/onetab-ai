@@ -161,9 +161,15 @@ export function CopilotRunCard({
       <ol className="space-y-0.5 px-2 py-2">
         {hidden > 0 && (
           <li>
-            <button type="button" onClick={() => setShowAll(true)} className="px-1.5 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer">
+            <Button
+              variant="link"
+              size="xs"
+              type="button"
+              onClick={() => setShowAll(true)}
+              className="h-auto px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+            >
               + {hidden} earlier step{hidden === 1 ? '' : 's'}
-            </button>
+            </Button>
           </li>
         )}
         {shown.length === 0 && (
@@ -212,9 +218,9 @@ export function CopilotRunCard({
         <div className="mx-2 mb-2 overflow-hidden rounded-lg border border-border">
           <div className="flex items-center justify-between border-b border-border bg-surface px-2.5 py-1">
             <span className="font-mono text-[10px] text-muted-foreground">output</span>
-            <button type="button" onClick={() => void copyAnswer()} aria-label="Copy output" className="text-muted-foreground hover:text-foreground cursor-pointer">
+            <Button variant="ghost" size="icon-xs" type="button" onClick={() => void copyAnswer()} aria-label="Copy output">
               {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
-            </button>
+            </Button>
           </div>
           <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words p-2.5 font-mono text-[11px] leading-relaxed text-foreground">{answer}</pre>
         </div>

@@ -12,13 +12,9 @@ import {
 import type { ErrorAnalyticsGroup } from '@org/types';
 import {
   AlertCircle,
-  AlertTriangle,
-  CheckCircle2,
   Clock,
-  HelpCircle,
   ShieldAlert,
   Wrench,
-  XCircle,
 } from 'lucide-react';
 
 interface ErrorsReliabilityViewProps {

@@ -247,30 +247,36 @@ export function UserChatPage() {
                   <div className="mt-2.5 flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/40">
                     <span>{msg.timestamp}</span>
                     <div className="flex items-center gap-1">
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() => {
                           navigator.clipboard.writeText(msg.content);
                           toast.success('Copied to clipboard');
                         }}
-                        className="p-1 hover:text-foreground"
                         title="Copy"
+                        className="size-5"
                       >
                         <Copy className="size-3" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() => toast.success('Thanks for your feedback!')}
-                        className="p-1 hover:text-success"
                         title="Helpful"
+                        className="size-5 hover:text-success"
                       >
                         <ThumbsUp className="size-3" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() => toast.info('Feedback recorded for agent prompt tuning')}
-                        className="p-1 hover:text-destructive"
                         title="Not helpful"
+                        className="size-5 hover:text-destructive"
                       >
                         <ThumbsDown className="size-3" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -291,14 +297,16 @@ export function UserChatPage() {
               'What are the API rate limits?',
               'Check status of invoice #INV-9921',
             ].map((prompt) => (
-              <button
+              <Button
+                variant="outline"
+                size="xs"
                 key={prompt}
                 onClick={() => handleSend(prompt)}
                 disabled={isStreaming}
-                className="rounded-full border border-border bg-surface-raised px-3 py-1 text-[11px] text-muted-foreground hover:bg-surface hover:text-foreground transition-colors"
+                className="h-auto rounded-full px-3 py-1 text-[11px] font-normal"
               >
                 {prompt}
-              </button>
+              </Button>
             ))}
           </div>
 

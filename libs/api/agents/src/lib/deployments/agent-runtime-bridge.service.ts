@@ -27,6 +27,18 @@ export interface ExecuteAgentOptions {
   versionNumber?: number;
 }
 
+/**
+ * What a caller of the public API may be told about a failed run. Provider
+ * errors can quote part of the workspace's own API key, so they are replaced
+ * with something the caller can act on; the full message stays in the server log.
+ */
+export function publicRunError(message: string): string {
+  if (/api key|credential|unauthori[sz]ed|authentication|invalid.*key/i.test(message)) {
+    return 'The agent’s model provider rejected the request. The agent’s owner needs to check its provider credentials.';
+  }
+  return message;
+}
+
 @Injectable()
 export class AgentRuntimeBridgeService {
   private readonly logger = new Logger(AgentRuntimeBridgeService.name);
@@ -36,6 +48,7 @@ export class AgentRuntimeBridgeService {
     string,
     {
       runId: string;
+      workspaceId: string;
       status: AgentExecutionState;
       listeners: Array<(event: string, data: any) => void>;
       abortController: AbortController;
@@ -96,6 +109,7 @@ export class AgentRuntimeBridgeService {
     const abortController = new AbortController();
     const runState = {
       runId,
+      workspaceId,
       status: 'RUNNING' as AgentExecutionState,
       listeners: [],
       abortController,
@@ -251,6 +265,7 @@ export class AgentRuntimeBridgeService {
       runState.status = 'FAILED';
 
       this.logger.error(`Execution failed for agent ${agentId} (${runId}): ${err.message}`, err.stack);
+      const safeMessage = publicRunError(err.message);
 
       if (deploymentId) {
         this.webhookService
@@ -258,14 +273,14 @@ export class AgentRuntimeBridgeService {
             runId,
             agentId,
             status: 'FAILED',
-            error: err.message,
+            error: safeMessage,
             latencyMs,
             timestamp: new Date().toISOString(),
           })
           .catch((e) => this.logger.warn(`Webhook error: ${e.message}`));
       }
 
-      this.notifyListeners(runId, 'error', { runId, error: err.message });
+      this.notifyListeners(runId, 'error', { runId, error: safeMessage });
 
       return {
         runId,
@@ -274,11 +289,11 @@ export class AgentRuntimeBridgeService {
         deploymentId,
         versionNumber: versionNumber ?? deployment?.versionNumber ?? 1,
         status: 'FAILED',
-        output: `Execution error: ${err.message}`,
+        output: `Execution error: ${safeMessage}`,
         toolExecutions: [],
         tokensUsed: 0,
         latencyMs,
-        error: err.message,
+        error: safeMessage,
         metadata: {
           model: agent.model,
         },
@@ -291,64 +306,39 @@ export class AgentRuntimeBridgeService {
   /**
    * Cancel an active execution run
    */
-  async cancelRun(runId: string): Promise<boolean> {
+  async cancelRun(runId: string, workspaceId: string): Promise<boolean> {
     const run = this.activeRuns.get(runId);
-    if (!run) return false;
+    // A run in another workspace is indistinguishable from one that doesn't exist.
+    if (!run || run.workspaceId !== workspaceId) return false;
     run.status = 'CANCELLED';
     run.abortController.abort();
     this.notifyListeners(runId, 'cancelled', { runId });
     return true;
   }
 
-  /**
-   * Submit human approval decision for a paused execution
-   */
-  async submitApproval(
-    runId: string,
-    decision: { decision: 'APPROVED' | 'REJECTED'; approvedBy?: string; comments?: string },
-  ): Promise<AgentRunResponseView> {
+  /** A recorded execution of this workspace, by id. */
+  async findExecution(
+    executionId: string,
+    workspaceId: string,
+  ): Promise<{
+    id: string;
+    status: string;
+    startedAt: Date;
+    finishedAt: Date | null;
+    latencyMs: number;
+    tokensUsed: number;
+    toolCalls: unknown;
+  } | null> {
+    return this.prisma.aIExecution.findFirst({
+      where: { id: executionId, workspaceId },
+      select: { id: true, status: true, startedAt: true, finishedAt: true, latencyMs: true, tokensUsed: true, toolCalls: true },
+    });
+  }
+
+  /** The state of a run this server started recently, for the workspace that owns it. */
+  getRunState(runId: string, workspaceId: string): { runId: string; status: AgentExecutionState } | null {
     const run = this.activeRuns.get(runId);
-    if (!run) {
-      throw new NotFoundException(`Run ${runId} not found or has expired.`);
-    }
-
-    if (decision.decision === 'REJECTED') {
-      run.status = 'FAILED';
-      this.notifyListeners(runId, 'rejected', { runId, reason: decision.comments });
-      return {
-        runId,
-        agentId: '',
-        versionNumber: 1,
-        status: 'FAILED',
-        output: `Action rejected: ${decision.comments || 'Declined by reviewer'}`,
-        toolExecutions: [],
-        tokensUsed: 0,
-        latencyMs: 0,
-        error: 'Action rejected by reviewer',
-      };
-    }
-
-    run.status = 'COMPLETED';
-    this.notifyListeners(runId, 'approved', { runId, approvedBy: decision.approvedBy });
-    return {
-      runId,
-      agentId: '',
-      versionNumber: 1,
-      status: 'COMPLETED',
-      output: 'Purchase confirmed. Order placed with Apple Enterprise Direct. Tracking: 1Z9999999999.',
-      toolExecutions: [
-        {
-          toolName: 'execute_purchase',
-          arguments: {},
-          output: { orderId: 'APL-ORD-90210', status: 'CONFIRMED' },
-          status: 'SUCCESS',
-          durationMs: 250,
-        },
-      ],
-      tokensUsed: 150,
-      latencyMs: 300,
-      error: null,
-    };
+    return run && run.workspaceId === workspaceId ? { runId: run.runId, status: run.status } : null;
   }
 
   /**

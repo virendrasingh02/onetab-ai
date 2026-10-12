@@ -1,5 +1,5 @@
 import { agentsApi } from '@org/api-client';
-import { AppSelect, Badge, Button, Checkbox, confirm, Input, SearchInput, Textarea } from '@org/ui';
+import { AppSelect, Badge, Button, Checkbox, confirm, Input, SearchInput, Textarea, Label } from '@org/ui';
 import { cn } from '@org/utils';
 import { connectorActionRef, READ_ONLY_AGENT_TOOLS, type CanvasToolPolicy, type ConnectorCapability, type ConnectorSummary } from '@org/types';
 import { ChevronRight, ExternalLink, Eye, Loader2, Play, Plug, ShieldAlert, Trash2, Wrench } from 'lucide-react';
@@ -187,7 +187,7 @@ function BuiltinTools({
           const id = `builtin-${t.name}`;
           return (
             <li key={t.name}>
-              <label htmlFor={id} className={cn('flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-surface-raised', on && 'bg-primary/5')}>
+              <Label htmlFor={id} className={cn('flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-surface-raised', on && 'bg-primary/5')}>
                 <Checkbox id={id} checked={on} disabled={readOnly} onCheckedChange={(v) => onToggle(t.name, v === true)} className="mt-0.5" />
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5 font-mono text-[11px] text-foreground">
@@ -196,7 +196,7 @@ function BuiltinTools({
                   </span>
                   <span className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{t.description}</span>
                 </span>
-              </label>
+              </Label>
             </li>
           );
         })}
@@ -265,7 +265,7 @@ function AppTools({
                       const id = `cap-${cap.actionRef}`;
                       const risk = RISK_BADGE[cap.permissionLevel];
                       return (
-                        <label key={cap.id} htmlFor={id} className={cn('flex cursor-pointer items-start gap-2 rounded-md px-1.5 py-1.5 hover:bg-surface-raised', on && 'bg-primary/5')}>
+                        <Label key={cap.id} htmlFor={id} className={cn('flex cursor-pointer items-start gap-2 rounded-md px-1.5 py-1.5 hover:bg-surface-raised', on && 'bg-primary/5')}>
                           <Checkbox id={id} checked={on} disabled={readOnly} onCheckedChange={(v) => onToggle(cap.actionRef, v === true)} className="mt-0.5" />
                           <span className="min-w-0 flex-1">
                             <span className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
@@ -275,7 +275,7 @@ function AppTools({
                             </span>
                             <span className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{cap.description}</span>
                           </span>
-                        </label>
+                        </Label>
                       );
                     })}
                 </div>

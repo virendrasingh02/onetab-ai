@@ -7,10 +7,8 @@ import {
 } from '@org/ui';
 import type { ReportType } from '@org/types';
 import {
-  Download,
   FileSpreadsheet,
   FileText,
-  Sparkles,
 } from 'lucide-react';
 import { analyticsService } from '../../services/analyticsService.js';
 import { useStudioSession } from '../../session-guard.js';

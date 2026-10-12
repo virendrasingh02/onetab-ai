@@ -1,6 +1,6 @@
 import { agentGraphsApi, aiExecutionsApi, ApiError, approvalsApi } from '@org/api-client';
 import type { AgentMessageRecord, AgentTaskRecord, CanvasAgentRunDetail, CanvasRunStep, StudioGraphIssue } from '@org/types';
-import { AIRunStatusBadge, Badge, Button, CodeBlock, EmptyState, SegmentedControl, Textarea, toast } from '@org/ui';
+import { AIRunStatusBadge, Badge, Button, CodeBlock, EmptyState, SegmentedControl, Textarea, toast, Label } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Node } from '@xyflow/react';
@@ -317,9 +317,9 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
       <div className="flex-1 space-y-4 overflow-y-auto p-5 text-xs">
         {/* Input */}
         <section className="space-y-2.5 rounded-xl border border-border bg-surface-raised p-4" aria-label="Run input">
-          <label htmlFor="run-console-message" className="font-semibold text-foreground">
+          <Label htmlFor="run-console-message" className="font-semibold text-foreground">
             What should the agent work on?
-          </label>
+          </Label>
           <Textarea
             id="run-console-message"
             rows={3}

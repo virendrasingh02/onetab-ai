@@ -34,4 +34,5 @@ export { AgentSessionService } from './lib/deployments/agent-session.service.js'
 export { AgentDeploymentWebhookService } from './lib/deployments/agent-webhook.service.js';
 export { AgentRuntimeBridgeService } from './lib/deployments/agent-runtime-bridge.service.js';
 export { AgentDeploymentController } from './lib/deployments/agent-deployment.controller.js';
+export { AgentApiKeysController } from './lib/deployments/agent-api-keys.controller.js';
 export { AgentPublicController } from './lib/deployments/agent-public.controller.js';

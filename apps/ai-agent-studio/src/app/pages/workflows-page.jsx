@@ -15,6 +15,9 @@ import {
   PageHeader,
   AIModelBadge,
   toast,
+  Label,
+  Textarea,
+  SegmentedControl,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -161,43 +164,27 @@ export function WorkflowsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-lg border border-border bg-surface p-1 text-xs">
-            {['ALL', 'SCHEDULE', 'WEBHOOK', 'CHAT'].map((trig) => (
-              <button
-                key={trig}
-                onClick={() => setFilterTrigger(trig)}
-                className={cn(
-                  'rounded px-2.5 py-1 font-medium transition-colors',
-                  filterTrigger === trig
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {trig === 'ALL' ? 'All Triggers' : trig}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            aria-label="Filter by trigger"
+            value={filterTrigger}
+            onChange={setFilterTrigger}
+            options={[
+              { value: 'ALL', label: 'All Triggers' },
+              { value: 'SCHEDULE', label: 'SCHEDULE' },
+              { value: 'WEBHOOK', label: 'WEBHOOK' },
+              { value: 'CHAT', label: 'CHAT' },
+            ]}
+          />
 
-          <div className="flex items-center rounded-lg border border-border bg-surface p-1 text-xs">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                'rounded px-2.5 py-1 font-medium',
-                viewMode === 'grid' ? 'bg-card text-foreground shadow-2xs' : 'text-muted-foreground',
-              )}
-            >
-              Grid
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={cn(
-                'rounded px-2.5 py-1 font-medium',
-                viewMode === 'list' ? 'bg-card text-foreground shadow-2xs' : 'text-muted-foreground',
-              )}
-            >
-              List
-            </button>
-          </div>
+          <SegmentedControl
+            aria-label="View mode"
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: 'grid', label: 'Grid' },
+              { value: 'list', label: 'List' },
+            ]}
+          />
         </div>
       </div>
 
@@ -373,7 +360,7 @@ export function WorkflowsPage() {
           <form onSubmit={handleCreateSubmit}>
             <DialogBody className="space-y-4 py-2">
               <div>
-                <label className="text-xs font-semibold text-foreground">Workflow Title</label>
+                <Label className="text-xs font-semibold text-foreground">Workflow Title</Label>
                 <Input
                   placeholder="e.g. Lead Enrichment & Slack Alerts"
                   value={newTitle}
@@ -383,7 +370,7 @@ export function WorkflowsPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-foreground">Description (Optional)</label>
+                <Label className="text-xs font-semibold text-foreground">Description (Optional)</Label>
                 <Input
                   placeholder="What business process does this automate?"
                   value={newDesc}
@@ -392,7 +379,7 @@ export function WorkflowsPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-foreground">Primary Trigger</label>
+                <Label className="text-xs font-semibold text-foreground">Primary Trigger</Label>
                 <div className="grid grid-cols-2 gap-2 mt-1.5">
                   {[
                     { id: 'MANUAL', label: 'Manual Run', icon: Play },
@@ -446,14 +433,7 @@ export function WorkflowsPage() {
               <p className="text-xs text-muted-foreground">
                 Describe the autonomous workflow you want to construct in plain English. The AI builder will generate the nodes, connect edges, configure models, and map variables automatically.
               </p>
-              <textarea
-                rows={4}
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="e.g. Scrape pricing pages from 3 competitor websites daily using Firecrawl, synthesize key differences into an executive summary, and ask for supervisor approval before posting to Slack."
-                className="w-full rounded-lg border border-border bg-surface p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary"
-                required
-              />
+              <Textarea rows={4} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="e.g. Scrape pricing pages from 3 competitor websites daily using Firecrawl, synthesize key differences into an executive summary, and ask for supervisor approval before posting to Slack." className="text-xs" required />
               <div className="space-y-1.5">
                 <div className="text-[11px] font-semibold text-muted-foreground uppercase">Try Examples:</div>
                 <div className="flex flex-wrap gap-1.5">

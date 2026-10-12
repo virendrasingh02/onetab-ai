@@ -22,6 +22,23 @@ import type {
   CreateAgentApiKeyInput,
 } from '@org/validation';
 
+/** `24h`, `7d`, `30d` or `90d` as milliseconds; anything else is 30 days. */
+export function periodToMs(period: string): number {
+  const match = /^(\d{1,3})([hd])$/.exec(period);
+  if (!match) return 30 * 86_400_000;
+  const amount = Number(match[1]);
+  return amount * (match[2] === 'h' ? 3_600_000 : 86_400_000);
+}
+
+/** A short, honest label for why a run failed, from the message the runtime recorded. */
+export function categorizeRunError(message: string): string {
+  if (/time(d)? ?out/i.test(message)) return 'Timeout';
+  if (/rate.?limit|429|too many requests/i.test(message)) return 'Rate limited';
+  if (/api key|credential|unauthori[sz]ed|401|403|not connected|provider/i.test(message)) return 'Provider or credentials';
+  if (/tool/i.test(message)) return 'Tool error';
+  return 'Other';
+}
+
 @Injectable()
 export class AgentDeploymentService {
   private readonly logger = new Logger(AgentDeploymentService.name);
@@ -471,64 +488,119 @@ export class AgentDeploymentService {
       where: { deploymentId, status: 'ACTIVE' },
     });
 
-    const executionLogs = await this.prisma.agentExecutionLog.findMany({
-      where: { agentId: deployment.agentId },
-      take: 100,
-      orderBy: { executedAt: 'desc' },
+    const since = new Date(Date.now() - periodToMs(period));
+    const executions = await this.prisma.aIExecution.findMany({
+      where: {
+        workspaceId,
+        agentId: deployment.agentId,
+        startedAt: { gte: since },
+      },
+      select: {
+        id: true,
+        status: true,
+        latencyMs: true,
+        tokensUsed: true,
+        totalCost: true,
+        toolCalls: true,
+        errorsJson: true,
+      },
+      orderBy: { startedAt: 'desc' },
+      take: 5000,
     });
 
-    const totalRuns = executionLogs.length;
-    const successfulRuns = executionLogs.filter((l) => l.status === 'SUCCESS').length;
-    const failedRuns = totalRuns - successfulRuns;
-    const successRate = totalRuns > 0 ? Math.round((successfulRuns / totalRuns) * 100) : 100;
-    const totalTokens = executionLogs.reduce((acc, l) => acc + (l.tokensUsed || 0), 0);
-    const avgLatencyMs = 450; // default estimated average latency
+    const successfulRuns = executions.filter((e) => e.status === 'COMPLETED').length;
+    const failedRuns = executions.filter((e) => e.status === 'FAILED').length;
+    const finished = successfulRuns + failedRuns;
+    const timed = executions.filter((e) => e.status !== 'RUNNING' && e.latencyMs > 0);
+
+    const approvals = executions.length
+      ? await this.prisma.approvalRequest.findMany({
+          where: { workspaceId, executionId: { in: executions.map((e) => e.id) } },
+          select: { state: true },
+        })
+      : [];
 
     const toolCounts: Record<string, number> = {};
-    for (const log of executionLogs) {
-      try {
-        const parsed = JSON.parse(log.toolCalls || '[]');
-        if (Array.isArray(parsed)) {
-          for (const t of parsed) {
-            const name = t.name || t.toolName || 'tool';
-            toolCounts[name] = (toolCounts[name] || 0) + 1;
-          }
-        }
-      } catch {
-        // ignore
+    for (const execution of executions) {
+      const calls = Array.isArray(execution.toolCalls) ? (execution.toolCalls as Array<Record<string, unknown>>) : [];
+      for (const call of calls) {
+        const name = String(call?.['name'] ?? call?.['toolName'] ?? 'tool');
+        toolCounts[name] = (toolCounts[name] || 0) + 1;
       }
     }
 
-    const topTools = Object.entries(toolCounts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+    const errorCategories: Record<string, number> = {};
+    for (const execution of executions) {
+      if (execution.status !== 'FAILED') continue;
+      const message = (execution.errorsJson as { message?: string } | null)?.message ?? '';
+      const category = categorizeRunError(message);
+      errorCategories[category] = (errorCategories[category] || 0) + 1;
+    }
 
     return {
       deploymentId,
       period,
-      totalRuns,
+      totalRuns: executions.length,
       successfulRuns,
       failedRuns,
-      successRate,
-      avgLatencyMs,
-      totalTokens,
-      estimatedCost: Number(((totalTokens / 1000) * 0.002).toFixed(4)),
+      successRate: finished > 0 ? Math.round((successfulRuns / finished) * 100) : 0,
+      avgLatencyMs: timed.length ? Math.round(timed.reduce((sum, e) => sum + e.latencyMs, 0) / timed.length) : 0,
+      totalTokens: executions.reduce((sum, e) => sum + e.tokensUsed, 0),
+      estimatedCost: Number(executions.reduce((sum, e) => sum + e.totalCost, 0).toFixed(4)),
       activeSessions,
-      approvalsRequested: 3,
-      approvalsApproved: 2,
-      approvalsRejected: 1,
+      approvalsRequested: approvals.length,
+      approvalsApproved: approvals.filter((a) => a.state === 'APPROVED').length,
+      approvalsRejected: approvals.filter((a) => a.state === 'REJECTED').length,
       toolExecutionsCount: Object.values(toolCounts).reduce((a, b) => a + b, 0),
-      topTools,
-      recentErrorCategories: [
-        { category: 'Tool Timeout', count: 0 },
-        { category: 'Invalid Input', count: failedRuns },
-        { category: 'Rate Limited', count: 0 },
-      ],
+      topTools: Object.entries(toolCounts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
+      recentErrorCategories: Object.entries(errorCategories)
+        .map(([category, count]) => ({ category, count }))
+        .sort((a, b) => b.count - a.count),
     };
   }
 
+  /** Throws NotFound unless the deployment belongs to this agent in this workspace. */
+  async assertDeployment(workspaceId: string, agentId: string, deploymentId: string): Promise<void> {
+    const found = await this.prisma.agentDeployment.findFirst({
+      where: { id: deploymentId, workspaceId, agentId },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Deployment not found.');
+  }
+
   // --- API Keys Management ---
+
+  /** The workspace's API keys: prefix and metadata only, never the secret. */
+  async listApiKeys(workspaceId: string) {
+    const keys = await this.prisma.agentApiKey.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return keys.map((k) => ({
+      id: k.id,
+      workspaceId: k.workspaceId,
+      name: k.name,
+      keyPrefix: k.keyPrefix,
+      scopes: k.scopes,
+      lastUsedAt: k.lastUsedAt?.toISOString() ?? null,
+      expiresAt: k.expiresAt?.toISOString() ?? null,
+      isActive: k.isActive && !(k.expiresAt && k.expiresAt < new Date()),
+      createdAt: k.createdAt.toISOString(),
+      updatedAt: k.updatedAt.toISOString(),
+    }));
+  }
+
+  /** Stops a key working. The row stays, so usage history keeps its name. */
+  async revokeApiKey(workspaceId: string, keyId: string): Promise<void> {
+    const { count } = await this.prisma.agentApiKey.updateMany({
+      where: { id: keyId, workspaceId },
+      data: { isActive: false },
+    });
+    if (count === 0) throw new NotFoundException('API key not found.');
+  }
 
   async createApiKey(workspaceId: string, input: CreateAgentApiKeyInput) {
     const { key, prefix, hash } = this.generateApiKey();

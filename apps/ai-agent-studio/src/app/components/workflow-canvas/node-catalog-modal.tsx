@@ -1,3 +1,4 @@
+import { Button, Input, Kbd } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Cpu,
@@ -184,39 +185,44 @@ export function NodeCatalogModal({
           </div>
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           onClick={onClose}
-          className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-raised hover:text-foreground transition-colors cursor-pointer"
           title="Close (Esc)"
+          aria-label="Close"
         >
           <X className="size-4" />
-        </button>
+        </Button>
       </div>
 
       {/* Search Input Bar */}
       <div className="p-4 pb-2 border-b border-border/60 bg-surface/30">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={handleInputKeyDown}
-            placeholder="Search triggers, AI reasoning, MCP tools, logic & transforms…"
-            className="w-full rounded-xl border border-border bg-surface pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs transition-all"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
+        <Input
+          ref={inputRef}
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={handleInputKeyDown}
+          placeholder="Search triggers, AI reasoning, MCP tools, logic & transforms…"
+          aria-label="Search steps"
+          inputSize="lg"
+          leadingIcon={<Search className="size-4" />}
+          trailingSlot={
+            search ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+              >
+                <X className="size-3.5" />
+              </Button>
+            ) : undefined
+          }
+        />
 
         {/* Category Filter Pills */}
         <div
@@ -226,16 +232,14 @@ export function NodeCatalogModal({
           {CATEGORY_ITEMS.map((cat: { id: NodeCategory; label: string; count: number }) => {
             const isSelected = selectedCategory === cat.id;
             return (
-              <button
+              <Button
                 key={cat.id}
                 type="button"
+                variant={isSelected ? 'primary' : 'subtle'}
+                size="xs"
+                aria-pressed={isSelected}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={cn(
-                  'shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1.5',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                    : 'bg-surface-raised/80 text-muted-foreground hover:bg-surface-raised hover:text-foreground',
-                )}
+                className="shrink-0 rounded-lg"
               >
                 <span>{cat.label}</span>
                 <span
@@ -248,7 +252,7 @@ export function NodeCatalogModal({
                 >
                   {cat.count}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -353,32 +357,20 @@ export function NodeCatalogModal({
         </span>
         <span className="flex items-center gap-2">
           <span className="flex items-center gap-1">
-            <kbd className="rounded bg-surface-raised px-1 py-0.5 font-mono text-[9px] text-foreground">
-              ↑
-            </kbd>
-            <kbd className="rounded bg-surface-raised px-1 py-0.5 font-mono text-[9px] text-foreground">
-              ↓
-            </kbd>
-            <kbd className="rounded bg-surface-raised px-1 py-0.5 font-mono text-[9px] text-foreground">
-              ←
-            </kbd>
-            <kbd className="rounded bg-surface-raised px-1 py-0.5 font-mono text-[9px] text-foreground">
-              →
-            </kbd>
+            <Kbd size="xs">↑</Kbd>
+            <Kbd size="xs">↓</Kbd>
+            <Kbd size="xs">←</Kbd>
+            <Kbd size="xs">→</Kbd>
             <span>navigate</span>
           </span>
           <span>•</span>
           <span className="flex items-center gap-1">
-            <kbd className="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-[9px] text-foreground">
-              ↵
-            </kbd>
+            <Kbd size="xs">↵</Kbd>
             <span>select</span>
           </span>
           <span>•</span>
           <span className="flex items-center gap-1">
-            <kbd className="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-[9px] text-foreground">
-              Esc
-            </kbd>
+            <Kbd size="xs">Esc</Kbd>
             <span>close</span>
           </span>
         </span>

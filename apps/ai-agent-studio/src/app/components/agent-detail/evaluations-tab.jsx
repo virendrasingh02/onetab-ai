@@ -12,6 +12,8 @@ import {
   EmptyState,
   confirm,
   toast,
+  Label,
+  Textarea,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { agentsApi } from '@org/api-client';
@@ -291,25 +293,12 @@ export function EvaluationsTab({ agent, onUpdate }) {
             </DialogHeader>
             <DialogBody className="space-y-3 text-xs">
               <div className="space-y-1">
-                <label className="font-semibold text-foreground">Input *</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={newInput}
-                  onChange={(e) => setNewInput(e.target.value)}
-                  placeholder="What a user would send this agent"
-                  className="w-full rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground focus:ring-1 focus:ring-primary"
-                />
+                <Label className="font-semibold text-foreground">Input *</Label>
+                <Textarea rows={3} required value={newInput} onChange={(e) => setNewInput(e.target.value)} placeholder="What a user would send this agent" className="text-xs" />
               </div>
               <div className="space-y-1">
-                <label className="font-semibold text-foreground">Expected behaviour</label>
-                <textarea
-                  rows={2}
-                  value={newExpected}
-                  onChange={(e) => setNewExpected(e.target.value)}
-                  placeholder="What a good answer includes (for your review)"
-                  className="w-full rounded-md border border-border bg-surface-raised p-2 text-xs text-foreground focus:ring-1 focus:ring-primary"
-                />
+                <Label className="font-semibold text-foreground">Expected behaviour</Label>
+                <Textarea rows={2} value={newExpected} onChange={(e) => setNewExpected(e.target.value)} placeholder="What a good answer includes (for your review)" className="text-xs" />
               </div>
             </DialogBody>
             <DialogFooter className="gap-2">

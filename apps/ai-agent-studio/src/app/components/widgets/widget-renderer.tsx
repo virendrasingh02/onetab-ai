@@ -9,33 +9,30 @@ import {
   Button,
   Input,
   Badge,
+  Label,
+  Checkbox,
+  AppSelect,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import type { WidgetDraft, WidgetState } from './widget-draft.js';
 import {
-  Activity,
   AlertCircle,
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
   Check,
   CheckCircle2,
-  Clock,
   Copy,
   Download,
   ExternalLink,
   FileText,
-  Filter,
   Layers,
-  ListTodo,
   Loader2,
-  MessageSquare,
   RefreshCw,
   Search,
   Send,
   Sparkles,
   User,
-  Users,
   XCircle,
   Zap,
 } from 'lucide-react';
@@ -622,9 +619,9 @@ function FormInputContent({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col justify-between h-full space-y-3 py-1">
       <div className="space-y-2">
-        <label className="text-xs font-medium text-foreground">
+        <Label className="text-xs font-medium text-foreground">
           {config.inputLabel || 'Parameter Input'}
-        </label>
+        </Label>
         <Input
           value={val}
           onChange={(e) => setVal(e.target.value)}
@@ -693,26 +690,20 @@ function DynamicFormContent({
     <form onSubmit={handleFormSubmit} className="space-y-3 py-1 text-xs">
       {fields.map((f: any) => (
         <div key={f.name} className="space-y-1">
-          <label className="font-semibold text-foreground">{f.label}</label>
+          <Label className="font-semibold text-foreground">{f.label}</Label>
           {f.type === 'select' ? (
-            <select
-              value={formValues[f.name] || ''}
-              onChange={(e) => handleChange(f.name, e.target.value)}
-              className="w-full h-8 px-2.5 rounded border border-border bg-surface-raised text-foreground focus:outline-none"
-            >
-              <option value="">Select option…</option>
-              {f.options?.map((opt: string) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
+            <AppSelect
+              value={formValues[f.name] || undefined}
+              onValueChange={(v) => handleChange(f.name, v)}
+              placeholder="Select option…"
+              options={(f.options ?? []).map((opt: string) => ({ value: opt, label: opt }))}
+            />
           ) : f.type === 'checkbox' ? (
             <div className="flex items-center gap-2 pt-1">
-              <input
-                type="checkbox"
+              <Checkbox
                 id={f.name}
                 checked={Boolean(formValues[f.name])}
-                onChange={(e) => handleChange(f.name, e.target.checked)}
-                className="rounded border-border accent-primary"
+                onCheckedChange={(c) => handleChange(f.name, c === true)}
               />
               <span className="text-muted-foreground">{f.label}</span>
             </div>

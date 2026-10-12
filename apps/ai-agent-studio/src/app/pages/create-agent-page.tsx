@@ -11,7 +11,7 @@ import {
   type ArchitectUnderstandResult,
   type MissingConfigItem,
 } from '@org/types';
-import { Alert, AlertDescription, AlertTitle, Badge, Button, Input, Page, Textarea, toast } from '@org/ui';
+import { Alert, AlertDescription, AlertTitle, Badge, Button, Input, Page, Textarea, toast, Label } from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -355,9 +355,9 @@ export function CreateAgentPage() {
         </section>
 
         <form onSubmit={submit} className="rounded-xl border border-border bg-surface p-3 shadow-sm focus-within:ring-2 focus-within:ring-ring/40">
-          <label htmlFor="agent-prompt" className="sr-only">
+          <Label htmlFor="agent-prompt" className="sr-only">
             What do you want your agent to do?
-          </label>
+          </Label>
           <Textarea
             id="agent-prompt"
             value={prompt}
@@ -724,7 +724,7 @@ export function CreateAgentPage() {
               void understand(next);
             }}
           >
-            <label htmlFor="add-requirement" className="sr-only">Add a requirement</label>
+            <Label htmlFor="add-requirement" className="sr-only">Add a requirement</Label>
             <Input id="add-requirement" value={addition} onChange={(e) => setAddition(e.target.value)} placeholder="Add a requirement — e.g. “also post a summary in #sales”" className="h-8" />
             <Button type="submit" variant="outline" size="md" disabled={!addition.trim()} className="gap-1">
               <Plus className="size-3.5" /> Add
@@ -767,7 +767,7 @@ export function CreateAgentPage() {
                   const on = accepted.includes(r.id);
                   return (
                     <li key={r.id}>
-                      <label className="flex cursor-pointer items-start gap-2 rounded-md p-1.5 hover:bg-accent/50">
+                      <Label className="flex cursor-pointer items-start gap-2 rounded-md p-1.5 hover:bg-accent/50">
                         <input
                           type="checkbox"
                           checked={on}
@@ -778,7 +778,7 @@ export function CreateAgentPage() {
                           <span className="block text-xs font-medium text-foreground">{r.title}</span>
                           <span className="block text-[11px] text-muted-foreground">{r.reason}</span>
                         </span>
-                      </label>
+                      </Label>
                     </li>
                   );
                 })}

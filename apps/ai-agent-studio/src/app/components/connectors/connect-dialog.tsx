@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  Label,
 } from '@org/ui';
 import { ExternalLink, KeyRound, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
@@ -111,9 +112,9 @@ export function ConnectDialog({
             <div className="space-y-3">
               {fields.map((f) => (
                 <div key={f.key} className="space-y-1">
-                  <label htmlFor={`cred-${f.key}`} className="text-xs font-medium text-foreground">
+                  <Label htmlFor={`cred-${f.key}`} className="text-xs font-medium text-foreground">
                     {f.label}
-                  </label>
+                  </Label>
                   <Input
                     id={`cred-${f.key}`}
                     type={f.secret ? 'password' : 'text'}

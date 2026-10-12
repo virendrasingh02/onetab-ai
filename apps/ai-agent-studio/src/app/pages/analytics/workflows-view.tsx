@@ -14,17 +14,13 @@ import {
 import type { WorkflowAnalyticsProfile } from '@org/types';
 import {
   Activity,
-  AlertTriangle,
-  ArrowUpRight,
   CheckCircle2,
   Clock,
   Coins,
   ExternalLink,
-  Eye,
   GitBranch,
   Layers,
   Search,
-  Sparkles,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -33,7 +29,7 @@ interface WorkflowsViewProps {
   onSelectWorkflow?: (workflowId: string) => void;
 }
 
-export function WorkflowsView({ workflows, onSelectWorkflow }: WorkflowsViewProps) {
+export function WorkflowsView({ workflows }: WorkflowsViewProps) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [selectedWf, setSelectedWf] = useState<NormalizedWorkflow | null>(null);

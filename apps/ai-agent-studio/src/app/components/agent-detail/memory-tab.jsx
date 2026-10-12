@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, ErrorState, Input, toast, LoadingState } from '@org/ui';
+import { Badge, Button, ErrorState, Input, toast, LoadingState, AppSelect, Label, Checkbox, SegmentedControl } from '@org/ui';
 import { cn } from '@org/utils';
 import { aiMemoryApi } from '@org/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -180,7 +180,7 @@ export function MemoryTab({ agent, onUpdate }) {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2 border-t border-border/80 text-xs">
           <div>
-            <label className="text-[11px] font-semibold text-foreground">Context Window Size (Messages)</label>
+            <Label className="text-[11px] font-semibold text-foreground">Context Window Size (Messages)</Label>
             <Input
               type="number"
               min={2}
@@ -192,7 +192,7 @@ export function MemoryTab({ agent, onUpdate }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-foreground">Retention Policy (Days)</label>
+            <Label className="text-[11px] font-semibold text-foreground">Retention Policy (Days)</Label>
             <Input
               type="number"
               min={1}
@@ -205,24 +205,14 @@ export function MemoryTab({ agent, onUpdate }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-border/60 text-xs">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoSummarize}
-              onChange={(e) => setAutoSummarize(e.target.checked)}
-              className="size-3.5 rounded accent-primary"
-            />
+          <Label className="flex items-center gap-2 cursor-pointer">
+            <Checkbox checked={autoSummarize} onCheckedChange={(c) => setAutoSummarize(c === true)} />
             <span className="text-foreground">Auto-summarize long conversations</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={userSpecific}
-              onChange={(e) => setUserSpecific(e.target.checked)}
-              className="size-3.5 rounded accent-primary"
-            />
+          </Label>
+          <Label className="flex items-center gap-2 cursor-pointer">
+            <Checkbox checked={userSpecific} onCheckedChange={(c) => setUserSpecific(c === true)} />
             <span className="text-foreground">Isolate memories per individual user</span>
-          </label>
+          </Label>
         </div>
 
         <div className="pt-2 flex justify-end">
@@ -271,23 +261,18 @@ export function MemoryTab({ agent, onUpdate }) {
         </div>
 
         {/* Scope Filter Tabs */}
-        <div className="flex items-center gap-1.5 border-b border-border pb-2 text-xs">
-          {['all', 'agent', 'workspace', 'user'].map((scope) => (
-            <button
-              key={scope}
-              type="button"
-              onClick={() => setScopeFilter(scope)}
-              className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium capitalize transition-colors',
-                scopeFilter === scope
-                  ? 'bg-primary/10 text-primary font-semibold'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised',
-              )}
-            >
-              {scope === 'all' ? 'All Scopes' : `${scope} Scope`}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          aria-label="Memory scope"
+          size="sm"
+          value={scopeFilter}
+          onChange={setScopeFilter}
+          options={[
+            { value: 'all', label: 'All Scopes' },
+            { value: 'agent', label: 'Agent Scope' },
+            { value: 'workspace', label: 'Workspace Scope' },
+            { value: 'user', label: 'User Scope' },
+          ]}
+        />
 
         {/* Add Memory Card */}
         {isAddingMemory && (
@@ -322,15 +307,15 @@ export function MemoryTab({ agent, onUpdate }) {
             <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-muted-foreground">Scope:</span>
-                <select
+                <AppSelect
                   value={newScope}
-                  onChange={(e) => setNewScope(e.target.value)}
-                  className="rounded border border-border bg-surface px-2 py-1 text-xs text-foreground"
-                >
-                  <option value="agent">Agent Scope</option>
-                  <option value="workspace">Workspace Scope</option>
-                  <option value="user">User Scope</option>
-                </select>
+                  onValueChange={(v) => setNewScope(v)}
+                  options={[
+                    { value: 'agent', label: 'Agent Scope' },
+                    { value: 'workspace', label: 'Workspace Scope' },
+                    { value: 'user', label: 'User Scope' },
+                  ]}
+                />
               </div>
               <Button size="xs" type="submit" loading={addMutation.isPending}>
                 Save Fact

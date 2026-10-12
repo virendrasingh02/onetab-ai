@@ -104,9 +104,15 @@ export function LlmModule({ view, nodes, issues, readOnly, setConfig, actions, j
             cardLabel ? (
               <span className="inline-flex flex-wrap items-center gap-1">
                 Stored on the plugged-in “{cardLabel}” card.
-                <button type="button" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline" onClick={() => actions.selectNode(target)}>
+                <Button
+                  variant="link"
+                  size="xs"
+                  type="button"
+                  onClick={() => actions.selectNode(target)}
+                  className="h-auto gap-0.5 font-medium"
+                >
                   Open card <ExternalLink className="size-3" />
-                </button>
+                </Button>
               </span>
             ) : view.subAgents.isSupervised ? (
               'Leave empty to use the supervisor’s model.'

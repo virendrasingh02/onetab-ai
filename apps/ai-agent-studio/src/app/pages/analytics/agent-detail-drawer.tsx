@@ -8,25 +8,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  ResponsiveTabs,
 } from '@org/ui';
-import { cn } from '@org/utils';
 import type { AgentAnalyticsProfile } from '@org/types';
 import {
-  Activity,
-  AlertTriangle,
   Bot,
-  CheckCircle2,
-  Clock,
-  Coins,
-  Cpu,
-  GitBranch,
-  Layers,
-  Sparkles,
-  ThumbsUp,
   Wrench,
   X,
-  XCircle,
-  Zap,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -132,34 +120,24 @@ export function AgentDetailDrawer({
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center gap-1 border-t border-border/60 mt-4 pt-2 overflow-x-auto">
-            {(
-              [
-                { id: 'overview', label: 'Overview' },
-                { id: 'executions', label: 'Executions' },
-                { id: 'performance', label: 'Performance' },
-                { id: 'tools', label: 'Tools & Connectors' },
-                { id: 'models', label: 'Models' },
-                { id: 'costs', label: 'Costs' },
-                { id: 'quality', label: 'Quality & Eval' },
-                { id: 'versions', label: 'Versions' },
-                { id: 'errors', label: 'Errors' },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-medium rounded-md transition-colors shrink-0',
-                  activeTab === tab.id
-                    ? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised',
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <ResponsiveTabs
+            className="mt-4 border-t border-border/60 pt-2"
+            variant="pill"
+            size="sm"
+            value={activeTab}
+            onValueChange={(tab) => setActiveTab(tab as typeof activeTab)}
+            items={[
+              { value: 'overview', label: 'Overview' },
+              { value: 'executions', label: 'Executions' },
+              { value: 'performance', label: 'Performance' },
+              { value: 'tools', label: 'Tools & Connectors' },
+              { value: 'models', label: 'Models' },
+              { value: 'costs', label: 'Costs' },
+              { value: 'quality', label: 'Quality & Eval' },
+              { value: 'versions', label: 'Versions' },
+              { value: 'errors', label: 'Errors' },
+            ]}
+          />
         </DialogHeader>
 
         {/* Tab Content Body */}

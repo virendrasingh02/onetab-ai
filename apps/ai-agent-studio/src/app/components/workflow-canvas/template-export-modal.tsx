@@ -9,6 +9,7 @@ import {
   Input,
   Textarea,
   toast,
+  Label,
 } from '@org/ui';
 import type { Edge, Node } from '@xyflow/react';
 import { Download, Sparkles } from 'lucide-react';
@@ -97,9 +98,9 @@ export function TemplateExportModal({
 
         <DialogBody className="space-y-3.5 py-2">
           <div>
-            <label className="text-xs font-medium text-foreground block mb-1">
+            <Label className="text-xs font-medium text-foreground block mb-1">
               Template Name
-            </label>
+            </Label>
             <Input
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
@@ -109,9 +110,9 @@ export function TemplateExportModal({
           </div>
 
           <div>
-            <label className="text-xs font-medium text-foreground block mb-1">
+            <Label className="text-xs font-medium text-foreground block mb-1">
               Description
-            </label>
+            </Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -122,9 +123,9 @@ export function TemplateExportModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-foreground block mb-1">
+              <Label className="text-xs font-medium text-foreground block mb-1">
                 Category
-              </label>
+              </Label>
               <Input
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -133,9 +134,9 @@ export function TemplateExportModal({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-foreground block mb-1">
+              <Label className="text-xs font-medium text-foreground block mb-1">
                 Author
-              </label>
+              </Label>
               <Input
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}

@@ -85,13 +85,15 @@ export function ConnectorDetailPage() {
 
   return (
     <Page>
-      <button
+      <Button
+        variant="link"
+        size="xs"
         type="button"
         onClick={() => navigate('/connectors')}
-        className="mb-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        className="mb-3 h-auto gap-1 text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-3.5" aria-hidden="true" /> App Connectors
-      </button>
+      </Button>
       <PageHeader
         title={
           <span className="flex items-center gap-3">

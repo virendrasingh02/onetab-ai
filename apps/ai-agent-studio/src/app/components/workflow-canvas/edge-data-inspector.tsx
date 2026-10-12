@@ -1,4 +1,4 @@
-import { Button, Input } from '@org/ui';
+import { Button, Input, Label, SegmentedControl } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Edge, Node } from '@xyflow/react';
 import {
@@ -190,9 +190,9 @@ export function EdgeDataInspector({
               Branch Condition
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">
+              <Label className="text-xs text-muted-foreground block mb-1">
                 Edge Label / Expression
-              </label>
+              </Label>
               <div className="flex items-center gap-1.5">
                 <Input
                   value={labelInput}
@@ -206,28 +206,19 @@ export function EdgeDataInspector({
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 pt-1">
-              {['true', 'false', 'fallback', 'custom'].map((b) => (
-                <button
-                  key={b}
-                  type="button"
-                  onClick={() => {
-                    setBranchType(b);
-                    onUpdateEdge(selectedEdge.id, {
-                      data: { ...edgeData, branch: b },
-                    });
-                  }}
-                  className={cn(
-                    'rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize border transition-colors',
-                    branchType === b
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-surface text-muted-foreground border-border hover:text-foreground',
-                  )}
-                >
-                  {b}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              className="mt-1"
+              aria-label="Branch type"
+              size="sm"
+              value={branchType}
+              onChange={(b) => {
+                setBranchType(b);
+                onUpdateEdge(selectedEdge.id, {
+                  data: { ...edgeData, branch: b },
+                });
+              }}
+              options={['true', 'false', 'fallback', 'custom'].map((b) => ({ value: b, label: b }))}
+            />
           </div>
         )}
 

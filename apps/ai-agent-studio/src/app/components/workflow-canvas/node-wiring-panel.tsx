@@ -4,6 +4,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Button,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Connection, Edge, Node } from '@xyflow/react';
@@ -179,15 +180,17 @@ function WireRow({
           </SelectContent>
         </Select>
         {!disabled && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             type="button"
             onClick={onRemove}
             aria-label="Remove connection"
             title="Remove connection"
-            className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive"
+            className="shrink-0 hover:bg-destructive/15 hover:text-destructive"
           >
             <X className="size-3.5" />
-          </button>
+          </Button>
         )}
       </div>
     </div>

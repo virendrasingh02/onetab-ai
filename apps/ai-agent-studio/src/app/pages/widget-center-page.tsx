@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -19,6 +19,9 @@ import {
   DialogTitle,
   DialogDescription,
   toast,
+  AppSelect,
+  LoadingState,
+  ResponsiveTabs,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { widgetsApi } from '@org/api-client';
@@ -34,31 +37,21 @@ import {
   LayoutDashboard,
   Plus,
   Search,
-  Filter,
   Sparkles,
   BarChart3,
   FormInput,
   Zap,
-  CheckCircle2,
   ListTodo,
   ExternalLink,
   Copy,
   Trash2,
   History,
   RotateCcw,
-  Sliders,
   Eye,
   Settings,
-  Activity,
   Layers,
-  ArrowUpRight,
-  Shield,
   Loader2,
-  Calendar,
-  Clock,
   ChevronRight,
-  Database,
-  Code,
 } from 'lucide-react';
 
 /** What the quick-preview dialog shows, and where "Open Builder" goes. */
@@ -206,38 +199,20 @@ export function WidgetCenterPage() {
       />
 
       {/* Main Tabs Navigation */}
-      <div className="border-b border-border">
-        <nav className="flex space-x-6 text-xs font-medium">
-          {[
-            { id: 'library', label: 'Widget Library', count: widgets.length },
-            { id: 'my_widgets', label: 'My Widgets' },
-            { id: 'templates', label: 'Templates', count: templates.length },
-            { id: 'instances', label: 'Widget Instances' },
-            { id: 'executions', label: 'Execution History' },
-            { id: 'versions', label: 'Versions' },
-            { id: 'settings', label: 'Settings' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id as any)}
-              className={cn(
-                'flex items-center gap-2 border-b-2 py-3 px-1 transition-colors capitalize',
-                activeTab === tab.id
-                  ? 'border-primary text-primary font-semibold'
-                  : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
-              )}
-            >
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <ResponsiveTabs
+        variant="underline"
+        value={activeTab}
+        onValueChange={(tab) => setActiveTab(tab as any)}
+        items={[
+          { value: 'library', label: 'Widget Library', count: widgets.length },
+          { value: 'my_widgets', label: 'My Widgets' },
+          { value: 'templates', label: 'Templates', count: templates.length },
+          { value: 'instances', label: 'Widget Instances' },
+          { value: 'executions', label: 'Execution History' },
+          { value: 'versions', label: 'Versions' },
+          { value: 'settings', label: 'Settings' },
+        ]}
+      />
 
       {/* 1. WIDGET LIBRARY & 2. MY WIDGETS TAB */}
       {(activeTab === 'library' || activeTab === 'my_widgets') && (
@@ -401,7 +376,8 @@ export function WidgetCenterPage() {
       )}
 
       {/* 3. TEMPLATES TAB */}
-      {activeTab === 'templates' && (
+      {activeTab === 'templates' && loadingTemplates && <LoadingState label="Loading templates…" />}
+      {activeTab === 'templates' && !loadingTemplates && (
         <div className="space-y-4">
           <div className="bg-surface p-4 rounded-lg border border-border flex items-center justify-between">
             <div>
@@ -494,7 +470,8 @@ export function WidgetCenterPage() {
       )}
 
       {/* 5. EXECUTION HISTORY TAB */}
-      {activeTab === 'executions' && (
+      {activeTab === 'executions' && loadingExecutions && <LoadingState label="Loading execution history…" />}
+      {activeTab === 'executions' && !loadingExecutions && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">Recent Widget Execution Telemetry</h3>
@@ -555,22 +532,22 @@ export function WidgetCenterPage() {
               <History className="size-4 text-primary" />
               <span className="text-xs font-semibold text-foreground">Select Widget to Inspect Versions:</span>
             </div>
-            <select
-              value={selectedWidgetForVersions || ''}
-              onChange={(e) => setSelectedWidgetForVersions(e.target.value)}
-              className="h-8 px-2.5 rounded border border-border bg-surface-raised text-xs text-foreground focus:outline-none"
-            >
-              <option value="">Choose a widget…</option>
-              {widgets.map((w: any) => (
-                <option key={w.id} value={w.id}>{w.name} (v{w.version})</option>
-              ))}
-            </select>
+            <AppSelect
+              value={selectedWidgetForVersions || undefined}
+              onValueChange={setSelectedWidgetForVersions}
+              placeholder="Choose a widget…"
+              aria-label="Widget"
+              className="w-auto min-w-48"
+              options={widgets.map((w: any) => ({ value: w.id, label: `${w.name} (v${w.version})` }))}
+            />
           </div>
 
           {selectedWidgetForVersions && (
             <div className="space-y-3">
               <h4 className="text-xs font-semibold text-foreground">Snapshot History</h4>
-              {versions.length === 0 ? (
+              {loadingVersions ? (
+                <LoadingState label="Loading versions…" />
+              ) : versions.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic">No historical versions recorded for this widget.</p>
               ) : (
                 versions.map((ver: any) => (

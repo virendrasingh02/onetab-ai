@@ -207,6 +207,18 @@ export interface AgentApiKeyView {
   updatedAt: string;
 }
 
+/** What creating a key returns: the only time the secret itself is ever shown. */
+export interface AgentApiKeyCreated {
+  id: string;
+  name: string;
+  /** The full `ot_live_…` key. Shown once; only its prefix is stored readable. */
+  apiKey: string;
+  keyPrefix: string;
+  scopes: string[];
+  expiresAt: string | null;
+  createdAt: string;
+}
+
 export interface AgentDeploymentAnalyticsSummary {
   deploymentId: string;
   period: string;

@@ -8,17 +8,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  ResponsiveTabs,
 } from '@org/ui';
 import type { ConnectorAnalyticsRecord } from '@org/types';
 import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  Link2,
   Plug,
   Wrench,
-  Zap,
 } from 'lucide-react';
 
 interface ToolsConnectorsViewProps {
@@ -35,30 +30,16 @@ export function ToolsConnectorsView({ data }: ToolsConnectorsViewProps) {
   return (
     <div className="space-y-6">
       {/* TABS */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
-        <button
-          onClick={() => setActiveTab('connectors')}
-          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-            activeTab === 'connectors'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Plug className="size-3.5" />
-          App Connectors ({connectors.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('tools')}
-          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-            activeTab === 'tools'
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Wrench className="size-3.5" />
-          Built-in & Custom Tools ({tools.length})
-        </button>
-      </div>
+      <ResponsiveTabs
+        variant="pill"
+        size="sm"
+        value={activeTab}
+        onValueChange={(tab) => setActiveTab(tab as 'tools' | 'connectors')}
+        items={[
+          { value: 'connectors', label: 'App Connectors', icon: <Plug className="size-3.5" />, count: connectors.length },
+          { value: 'tools', label: 'Built-in & Custom Tools', icon: <Wrench className="size-3.5" />, count: tools.length },
+        ]}
+      />
 
       {activeTab === 'connectors' ? (
         <Card className="p-5 shadow-2xs">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Badge, Button, Card, CodeBlock, Page, PageHeader, toast } from '@org/ui';
+import { Badge, Button, Card, CodeBlock, Page, PageHeader, toast, Label, Textarea, Input, AppSelect, SegmentedControl } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Code2,
@@ -215,17 +215,16 @@ print("Result:", data.get("result"))`,
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <select
+          <AppSelect
             value={selectedAgentId}
-            onChange={(e) => setSelectedAgentId(e.target.value)}
-            className="rounded-lg border border-border bg-card p-2 text-xs text-foreground font-semibold min-w-[240px] focus:outline-hidden focus:ring-1 focus:ring-primary"
-          >
-            {agents.map((agent) => (
-              <option key={agent.id} value={agent.id}>
-                {agent.name} ({agent.role || 'Agent'})
-              </option>
-            ))}
-          </select>
+            onValueChange={setSelectedAgentId}
+            aria-label="Agent"
+            className="min-w-[240px]"
+            options={agents.map((agent) => ({
+              value: agent.id,
+              label: `${agent.name} (${agent.role || 'Agent'})`,
+            }))}
+          />
 
           {selectedAgent && (
             <Button
@@ -247,22 +246,17 @@ print("Result:", data.get("result"))`,
         <div className="rounded-xl border border-border bg-surface p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">Execution Code Snippet</h3>
-            <div className="flex items-center rounded-lg border border-border bg-surface p-0.5 text-xs">
-              {['curl', 'javascript', 'python'].map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => setSelectedLang(lang)}
-                  className={cn(
-                    'rounded px-2.5 py-1 capitalize font-medium transition-colors',
-                    selectedLang === lang
-                      ? 'bg-card text-foreground shadow-2xs font-bold'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {lang}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              aria-label="Language"
+              size="sm"
+              value={selectedLang}
+              onChange={setSelectedLang}
+              options={[
+                { value: 'curl', label: 'cURL' },
+                { value: 'javascript', label: 'JavaScript' },
+                { value: 'python', label: 'Python' },
+              ]}
+            />
           </div>
 
           <CodeBlock
@@ -291,24 +285,19 @@ print("Result:", data.get("result"))`,
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase">Optional API Key</label>
-            <input
+            <Label className="text-[11px] font-semibold text-muted-foreground uppercase">Optional API Key</Label>
+            <Input
               type="text"
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder="Leave blank to use current browser session credentials"
-              className="mt-1 w-full rounded-lg border border-border bg-surface p-2 text-xs font-mono text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+              className="mt-1 text-xs font-mono"
             />
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase">Request Body (JSON)</label>
-            <textarea
-              rows={4}
-              value={testPayload}
-              onChange={(e) => setTestPayload(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border bg-surface p-2.5 font-mono text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
-            />
+            <Label className="text-[11px] font-semibold text-muted-foreground uppercase">Request Body (JSON)</Label>
+            <Textarea rows={4} value={testPayload} onChange={(e) => setTestPayload(e.target.value)} className="mt-1 font-mono text-xs" />
           </div>
 
           {testResponse && (

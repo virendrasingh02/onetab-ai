@@ -75,6 +75,7 @@ export {
   type TwoFactorChallengePanelProps,
 } from './lib/components/two-factor-challenge-panel.js';
 export { LoginPage } from './lib/pages/login-page.js';
+export { LogoutPage } from './lib/pages/logout-page.js';
 export { MagicLinkVerifyPage } from './lib/pages/magic-link-verify-page.js';
 export { RegisterPage } from './lib/pages/register-page.js';
 export { ForgotPasswordPage } from './lib/pages/forgot-password-page.js';

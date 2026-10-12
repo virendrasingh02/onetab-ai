@@ -10,6 +10,7 @@ import {
   AIModelIcon,
   normalizeModel,
   type AppSelectOption,
+  Label,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { Handle, NodeResizer, NodeToolbar, Position, useNodesData, type NodeProps } from '@xyflow/react';
@@ -1599,9 +1600,9 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
         onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
         onUpdateMetadata={nodeData.onUpdateMetadata}
       />
-      <label className={cn(fieldLabelClass, 'mt-3 block')} htmlFor={`${id}-prompt`}>
+      <Label className={cn(fieldLabelClass, 'mt-3 block')} htmlFor={`${id}-prompt`}>
         Prompt <span className="text-destructive">*</span>
-      </label>
+      </Label>
       <Textarea
         id={`${id}-prompt`}
         value={draft}
@@ -1676,9 +1677,9 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <label className={fieldLabelClass} htmlFor={`${id}-temp`}>
+            <Label className={fieldLabelClass} htmlFor={`${id}-temp`}>
               Temperature
-            </label>
+            </Label>
             <Input
               id={`${id}-temp`}
               inputSize="sm"
@@ -1696,9 +1697,9 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
             />
           </div>
           <div className="space-y-1">
-            <label className={fieldLabelClass} htmlFor={`${id}-max`}>
+            <Label className={fieldLabelClass} htmlFor={`${id}-max`}>
               Max tokens
-            </label>
+            </Label>
             <Input
               id={`${id}-max`}
               inputSize="sm"
@@ -2425,16 +2426,10 @@ export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
         <StickyNote className="size-3.5" />
         <span>{nodeData.label || 'Note'}</span>
       </div>
-      <textarea
-        value={text}
-        onChange={(e) => {
+      <Textarea value={text} onChange={(e) => {
           setText(e.target.value);
           if (nodeData.onChange) nodeData.onChange(e.target.value);
-        }}
-        rows={3}
-        className="w-full bg-transparent text-xs resize-none focus:outline-none placeholder:text-muted-foreground/60 leading-relaxed font-sans"
-        placeholder="Type note…"
-      />
+        }} rows={3} className="text-xs resize-none leading-relaxed" placeholder="Type note…" />
     </div>
   );
 });

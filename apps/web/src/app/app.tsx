@@ -2,6 +2,7 @@ import {
   DesktopAuthCallbackPage,
   ForgotPasswordPage,
   LoginPage,
+  LogoutPage,
   MagicLinkVerifyPage,
   MobileDeviceConfirmPage,
   MobileDevicePairPage,
@@ -390,6 +391,7 @@ export function App() {
         <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
         <Route path="/invite/:token" element={<AcceptInvitationPage />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/logout" element={<LogoutPage />} />
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

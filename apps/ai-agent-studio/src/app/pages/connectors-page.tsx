@@ -267,15 +267,17 @@ export function ConnectorCard({
           </button>
           <div className="flex shrink-0 items-center gap-1">
             <Badge variant={meta.variant}>{meta.label}</Badge>
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               type="button"
               onClick={onStar}
               aria-pressed={starred}
               aria-label={starred ? `Unstar ${c.name}` : `Star ${c.name}`}
-              className="rounded-md p-1 text-muted-foreground hover:text-warning focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="hover:text-warning"
             >
               <Star className={cn('size-4', starred && 'fill-warning text-warning')} aria-hidden="true" />
-            </button>
+            </Button>
           </div>
         </div>
 

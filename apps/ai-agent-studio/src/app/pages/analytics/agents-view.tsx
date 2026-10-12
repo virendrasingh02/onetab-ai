@@ -19,10 +19,6 @@ import {
   Coins,
   Eye,
   Search,
-  Sparkles,
-  TrendingUp,
-  XCircle,
-  Zap,
 } from 'lucide-react';
 import { AgentDetailDrawer } from './agent-detail-drawer.js';
 
@@ -37,7 +33,7 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
   const [selectedAgent, setSelectedAgent] = useState<AgentAnalyticsProfile | null>(null);
 
   const filteredAgents = useMemo(() => {
-    let list = (agents || []).filter(
+    const list = (agents || []).filter(
       (a) =>
         (a.name || '').toLowerCase().includes(search.toLowerCase()) ||
         (a.agentId || '').toLowerCase().includes(search.toLowerCase()),

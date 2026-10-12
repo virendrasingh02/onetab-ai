@@ -7,6 +7,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -15,21 +16,26 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
-import { zodBody } from '@org/api-common';
+import { Public, zodBody } from '@org/api-common';
 import {
   initAgentSessionSchema,
   sendSessionMessageSchema,
   executeHeadlessAgentSchema,
-  approveActionSchema,
   type InitAgentSessionInput,
   type SendSessionMessageInput,
   type ExecuteHeadlessAgentInput,
-  type ApproveActionInput,
 } from '@org/validation';
 import { AgentDeploymentService } from './agent-deployment.service.js';
 import { AgentSessionService } from './agent-session.service.js';
 import { AgentRuntimeBridgeService } from './agent-runtime-bridge.service.js';
 
+/**
+ * The surface an embed, a website visitor or a customer's backend calls. It is
+ * exempt from the platform's login guard (those callers have no platform
+ * account), so every handler authenticates itself: a deployment public key to
+ * start a session, the session token afterwards, or a workspace API key.
+ */
+@Public()
 @Controller({ version: '1' })
 export class AgentPublicController {
   constructor(
@@ -37,6 +43,30 @@ export class AgentPublicController {
     private readonly sessionService: AgentSessionService,
     private readonly runtimeBridge: AgentRuntimeBridgeService,
   ) {}
+
+  /** The bearer value of an `Authorization` header, if any. */
+  private bearer(authHeader?: string): string | null {
+    return authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  }
+
+  /** The session behind a request, only for a caller holding that session's own token. */
+  private async requireSession(sessionId: string, sessionTokenHeader?: string, authHeader?: string) {
+    const token = sessionTokenHeader || this.bearer(authHeader);
+    if (!token || !token.startsWith('ot_sess_')) {
+      throw new UnauthorizedException('A session token is required.');
+    }
+    const session = await this.sessionService.getSessionByToken(token);
+    if (session.id !== sessionId) throw new ForbiddenException('Session token mismatch.');
+    return session;
+  }
+
+  /** The workspace a workspace API key belongs to. */
+  private async requireApiKeyWorkspace(apiKeyHeader?: string, authHeader?: string): Promise<string> {
+    const key = apiKeyHeader || this.bearer(authHeader);
+    const record = key ? await this.deploymentService.validateApiKey(key) : null;
+    if (!record) throw new UnauthorizedException('A valid API key is required.');
+    return record.workspaceId;
+  }
 
   // --- 1. SESSIONS ---
 
@@ -56,9 +86,10 @@ export class AgentPublicController {
   @Get('agent-sessions/:sessionId')
   async getSession(
     @Param('sessionId') sessionId: string,
+    @Headers('x-session-token') sessionTokenHeader?: string,
     @Headers('authorization') authHeader?: string,
   ) {
-    const session = await this.sessionService.getSessionById(sessionId);
+    const session = await this.requireSession(sessionId, sessionTokenHeader, authHeader);
     return {
       id: session.id,
       deploymentId: session.deploymentId,
@@ -78,19 +109,7 @@ export class AgentPublicController {
     @Headers('x-session-token') sessionTokenHeader: string | undefined,
     @Body(zodBody(sendSessionMessageSchema)) body: SendSessionMessageInput,
   ) {
-    const token =
-      sessionTokenHeader ||
-      (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null);
-
-    let session: any;
-    if (token && token.startsWith('ot_sess_')) {
-      session = await this.sessionService.getSessionByToken(token);
-      if (session.id !== sessionId) {
-        throw new ForbiddenException('Session token mismatch.');
-      }
-    } else {
-      session = await this.sessionService.getSessionById(sessionId);
-    }
+    const session = await this.requireSession(sessionId, sessionTokenHeader, authHeader);
 
     return this.runtimeBridge.execute({
       workspaceId: session.deployment.workspaceId,
@@ -103,13 +122,23 @@ export class AgentPublicController {
   }
 
   @Get('agent-sessions/:sessionId/messages')
-  async getSessionMessages(@Param('sessionId') sessionId: string) {
+  async getSessionMessages(
+    @Param('sessionId') sessionId: string,
+    @Headers('x-session-token') sessionTokenHeader?: string,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    await this.requireSession(sessionId, sessionTokenHeader, authHeader);
     return this.sessionService.getMessages(sessionId);
   }
 
   @Post('agent-sessions/:sessionId/reset')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async resetSession(@Param('sessionId') sessionId: string) {
+  async resetSession(
+    @Param('sessionId') sessionId: string,
+    @Headers('x-session-token') sessionTokenHeader?: string,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    await this.requireSession(sessionId, sessionTokenHeader, authHeader);
     await this.sessionService.resetSession(sessionId);
   }
 
@@ -185,20 +214,18 @@ export class AgentPublicController {
   // --- 3. RUN MANAGEMENT & APPROVALS ---
 
   @Get('agent-runs/:runId')
-  async getRun(@Param('runId') runId: string) {
-    const execution = await (this.runtimeBridge as any)['prisma'].aIExecution.findFirst({
-      where: { id: runId },
-      include: { steps: true },
-    });
+  async getRun(
+    @Param('runId') runId: string,
+    @Headers('x-api-key') apiKeyHeader?: string,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    const workspaceId = await this.requireApiKeyWorkspace(apiKeyHeader, authHeader);
 
-    if (!execution) {
-      return {
-        runId,
-        status: 'COMPLETED',
-        message: 'Run status settled or historical trace archived.',
-      };
-    }
+    const live = this.runtimeBridge.getRunState(runId, workspaceId);
+    if (live) return live;
 
+    const execution = await this.runtimeBridge.findExecution(runId, workspaceId);
+    if (!execution) throw new NotFoundException('Run not found.');
     return {
       runId: execution.id,
       status: execution.status,
@@ -206,32 +233,20 @@ export class AgentPublicController {
       finishedAt: execution.finishedAt,
       latencyMs: execution.latencyMs,
       tokensUsed: execution.tokensUsed,
-      state: execution.stateJson,
       toolCalls: execution.toolCalls,
     };
   }
 
   @Post('agent-runs/:runId/cancel')
-  async cancelRun(@Param('runId') runId: string) {
-    const cancelled = await this.runtimeBridge.cancelRun(runId);
-    return { success: cancelled, runId };
-  }
-
-  @Post('agent-runs/:runId/approve')
-  async approveAction(
+  async cancelRun(
     @Param('runId') runId: string,
-    @Body(zodBody(approveActionSchema)) body: ApproveActionInput,
+    @Headers('x-api-key') apiKeyHeader?: string,
+    @Headers('authorization') authHeader?: string,
   ) {
-    // Process human approval decision for consequential actions (e.g. purchasing)
-    return {
-      runId,
-      status: body.approved ? 'APPROVED' : 'REJECTED',
-      reason: body.reason ?? null,
-      timestamp: new Date().toISOString(),
-      message: body.approved
-        ? 'Action approved. Proceeding with execution.'
-        : 'Action rejected by human reviewer.',
-    };
+    const workspaceId = await this.requireApiKeyWorkspace(apiKeyHeader, authHeader);
+    const cancelled = await this.runtimeBridge.cancelRun(runId, workspaceId);
+    if (!cancelled) throw new NotFoundException('No running run with that id.');
+    return { success: true, runId };
   }
 
   // --- 4. BROWSER SDK & EMBED ASSETS ---
@@ -251,11 +266,19 @@ export class AgentPublicController {
     @Query('theme') theme: string,
     @Res() res: Response,
   ) {
+    // These come straight off the URL and end up inside HTML attributes, so
+    // anything that is not a plain identifier is refused rather than escaped.
+    if (!IDENTIFIER.test(agentId ?? '') || !IDENTIFIER.test(publicKey ?? '')) {
+      throw new BadRequestException('agentId and publicKey must be plain identifiers.');
+    }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.send(generateEmbedHtmlPage(agentId, publicKey, theme));
+    res.send(generateEmbedHtmlPage(agentId, publicKey, theme === 'light' ? 'light' : 'dark'));
   }
 }
+
+/** Ids and keys are letters, digits, `_` and `-`. */
+const IDENTIFIER = /^[A-Za-z0-9_-]{1,128}$/;
 
 // Standalone, framework-independent browser SDK packaged inline
 const BROWSER_WIDGET_SDK_SCRIPT = `
@@ -276,7 +299,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
     var agentId = script.getAttribute('data-agent-id');
     var publicKey = script.getAttribute('data-public-key');
     var mode = script.getAttribute('data-mode') || 'floating';
-    var theme = script.getAttribute('data-theme') || 'dark';
+    var theme = script.getAttribute('data-theme') || 'system';
 
     if (!agentId || !publicKey) {
       console.warn('[OneTab Agent Widget] Missing data-agent-id or data-public-key.');
@@ -306,9 +329,33 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
     style.textContent = getWidgetStyles(options);
     shadow.appendChild(style);
 
+    // Branding from the deployment (colour, position) lives in its own sheet,
+    // so it can be applied once the session reply arrives.
+    var brandStyle = document.createElement('style');
+    shadow.appendChild(brandStyle);
+
     var wrapper = document.createElement('div');
-    wrapper.className = 'ot-widget-wrapper ' + (options.theme === 'light' ? 'ot-light' : 'ot-dark');
     shadow.appendChild(wrapper);
+
+    function resolveTheme(configTheme) {
+      var pick = configTheme === 'light' || configTheme === 'dark' ? configTheme
+        : options.theme === 'light' || options.theme === 'dark' ? options.theme
+        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      wrapper.className = 'ot-widget-wrapper ' + (pick === 'light' ? 'ot-light' : 'ot-dark');
+    }
+    resolveTheme(null);
+
+    function applyBranding() {
+      var css = '';
+      if (state.brand) {
+        css += '.ot-launcher, .ot-user, .ot-send-btn { background: ' + state.brand + ' !important; }';
+        css += '.ot-input:focus { border-color: ' + state.brand + ' !important; }';
+      }
+      if (state.position === 'bottom-left') {
+        css += '.ot-widget-wrapper { right: auto !important; left: 24px; } .ot-popup { right: auto !important; left: 0; }';
+      }
+      brandStyle.textContent = css;
+    }
 
     var state = {
       isOpen: options.mode === 'inline',
@@ -318,6 +365,9 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
       isLoading: false,
       title: 'AI Assistant',
       subtitle: 'Universal Agent',
+      brand: null,
+      position: 'bottom-right',
+      suggestions: [],
     };
 
     var storageKey = 'ot_agent_sess_' + options.agentId;
@@ -346,8 +396,17 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
           state.sessionId = data.sessionId;
           state.sessionToken = data.sessionToken;
           if (data.deployment) {
-            state.title = data.deployment.agentName || state.title;
-            state.subtitle = data.deployment.agentRole || state.subtitle;
+            var appearance = (data.deployment.widgetConfig && data.deployment.widgetConfig.appearance) || {};
+            state.title = appearance.title || data.deployment.agentName || state.title;
+            state.subtitle = appearance.subtitle || data.deployment.agentRole || state.subtitle;
+            // Only a plain hex colour is ever put into CSS.
+            state.brand = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(appearance.primaryColor || '') ? appearance.primaryColor : null;
+            state.position = appearance.position === 'bottom-left' ? 'bottom-left' : 'bottom-right';
+            state.suggestions = Array.isArray(appearance.suggestedPrompts)
+              ? appearance.suggestedPrompts.filter(function (p) { return typeof p === 'string'; }).slice(0, 6)
+              : [];
+            resolveTheme(appearance.theme);
+            applyBranding();
           }
           try {
             localStorage.setItem(storageKey, JSON.stringify({
@@ -365,7 +424,9 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
 
     function loadMessages() {
       if (!state.sessionId) return;
-      fetch(options.baseUrl + '/api/v1/agent-sessions/' + state.sessionId + '/messages')
+      fetch(options.baseUrl + '/api/v1/agent-sessions/' + state.sessionId + '/messages', {
+        headers: { 'x-session-token': state.sessionToken },
+      })
         .then(function (res) { return res.json(); })
         .then(function (msgs) {
           if (Array.isArray(msgs)) {
@@ -466,6 +527,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
         // Messages list
         var msgList = document.createElement('div');
         msgList.className = 'ot-messages';
+        var chipsShown = false;
         for (var i = 0; i < state.messages.length; i++) {
           var m = state.messages[i];
           var bubble = document.createElement('div');
@@ -476,24 +538,28 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
             var approvalBox = document.createElement('div');
             approvalBox.className = 'ot-approval-box';
             approvalBox.innerHTML =
-              '<div class="ot-approval-title">⚠️ Action Requires Confirmation</div>' +
+              '<div class="ot-approval-title">&#9888; Waiting for approval</div>' +
               '<div class="ot-approval-desc">' + escapeHtml(m.awaitingApproval.description) + '</div>' +
-              '<div class="ot-approval-actions">' +
-              '<button class="ot-approve-btn">Approve & Proceed</button>' +
-              '<button class="ot-reject-btn">Cancel</button>' +
-              '</div>';
-            (function (box) {
-              box.querySelector('.ot-approve-btn').onclick = function () {
-                box.innerHTML = '<span style="color:#22c55e;">✓ Approved by user</span>';
-              };
-              box.querySelector('.ot-reject-btn').onclick = function () {
-                box.innerHTML = '<span style="color:#ef4444;">✕ Cancelled by user</span>';
-              };
-            })(approvalBox);
+              '<div class="ot-approval-desc">A person on the team has to approve this before it goes ahead.</div>';
             bubble.appendChild(approvalBox);
           }
 
           msgList.appendChild(bubble);
+
+          // Starter questions sit under the greeting until the visitor says something.
+          if (!chipsShown && i === 0 && state.suggestions.length > 0 && state.messages.length <= 1) {
+            chipsShown = true;
+            var chips = document.createElement('div');
+            chips.className = 'ot-chips';
+            state.suggestions.forEach(function (text) {
+              var chip = document.createElement('button');
+              chip.className = 'ot-chip';
+              chip.textContent = text;
+              chip.onclick = function () { sendMessage(text); };
+              chips.appendChild(chip);
+            });
+            msgList.appendChild(chips);
+          }
         }
 
         if (state.isLoading) {
@@ -582,9 +648,18 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
       '.ot-approval-box { margin-top: 10px; padding: 10px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); border-radius: 8px; font-size: 12px; }',
       '.ot-approval-title { font-weight: 600; color: #f59e0b; margin-bottom: 4px; }',
       '.ot-approval-desc { color: #cbd5e1; margin-bottom: 8px; }',
-      '.ot-approval-actions { display: flex; gap: 6px; }',
-      '.ot-approve-btn { background: #22c55e; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; }',
-      '.ot-reject-btn { background: #ef4444; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }',
+      '.ot-light .ot-card { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 10px 30px rgba(15,23,42,0.18); }',
+      '.ot-light .ot-header, .ot-light .ot-footer { background: #f8fafc; border-color: #e2e8f0; }',
+      '.ot-light .ot-avatar { background: #e2e8f0; }',
+      '.ot-light .ot-title { color: #0f172a; }',
+      '.ot-light .ot-subtitle, .ot-light .ot-close-btn { color: #64748b; }',
+      '.ot-light .ot-bot { background: #f1f5f9; color: #0f172a; }',
+      '.ot-light .ot-input { background: #ffffff; border-color: #cbd5e1; color: #0f172a; }',
+      '.ot-light .ot-chip { border-color: #cbd5e1; }',
+      '.ot-light .ot-approval-desc { color: #475569; }',
+      '.ot-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; }',
+      '.ot-chip { background: transparent; border: 1px solid #475569; color: inherit; border-radius: 999px; padding: 4px 10px; font-size: 12px; cursor: pointer; }',
+      '.ot-chip:hover { border-color: #94a3b8; }',
       '.ot-footer { padding: 12px; background: #1e293b; border-top: 1px solid #334155; display: flex; gap: 8px; }',
       '.ot-input { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #f8fafc; font-size: 13px; outline: none; }',
       '.ot-input:focus { border-color: #6366f1; }',
@@ -604,7 +679,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
       var agentId = this.getAttribute('agent-id');
       var publicKey = this.getAttribute('public-key');
       var mode = this.getAttribute('mode') || 'inline';
-      var theme = this.getAttribute('theme') || 'dark';
+      var theme = this.getAttribute('theme') || 'system';
       if (agentId && publicKey) {
         createAgentWidget({
           agentId: agentId,
