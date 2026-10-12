@@ -15,6 +15,7 @@ import {
   Store,
   Users,
   Video,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -265,6 +266,28 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
       'prompts',
       'tools',
       'mcp',
+    ],
+  },
+  {
+    id: 'automations',
+    label: 'Automation Center',
+    icon: Zap,
+    href: 'automations',
+    visible: true,
+    order: 2,
+    group: 'ai',
+    description: 'Unified automation center for event-driven, AI-powered and scheduled workflows',
+    keywords: [
+      'automations',
+      'workflows',
+      'cron',
+      'triggers',
+      'actions',
+      'webhooks',
+      'schedules',
+      'approvals',
+      'runs',
+      'templates',
     ],
   },
 

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -16,6 +17,7 @@ import { CanManageWorkflow } from '@org/api-agents';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   CurrentUser,
+  Public,
   RequireWorkspacePermissions,
   WorkspaceId,
   zodBody,
@@ -52,6 +54,30 @@ export class AutomationsController {
   @Get('executions')
   getWorkspaceExecutions(@WorkspaceId() workspaceId: string) {
     return this.automationsService.getWorkspaceExecutions(workspaceId);
+  }
+
+  /** Unified operational dashboard metrics. */
+  @Get('overview')
+  getAutomationOverview(@WorkspaceId() workspaceId: string) {
+    return this.automationsService.getAutomationOverview(workspaceId);
+  }
+
+  /** Scheduled workflows and their next run timetable. */
+  @Get('schedules')
+  getSchedules(@WorkspaceId() workspaceId: string) {
+    return this.automationsService.getSchedules(workspaceId);
+  }
+
+  /** Error monitoring and error group classification. */
+  @Get('errors')
+  getErrorMonitoring(@WorkspaceId() workspaceId: string) {
+    return this.automationsService.getErrorMonitoring(workspaceId);
+  }
+
+  /** Dynamically available triggers and actions catalog. */
+  @Get('catalog')
+  getCatalog(@WorkspaceId() workspaceId: string) {
+    return this.automationsService.getCatalog(workspaceId);
   }
 
   @Post('workflows')
@@ -102,6 +128,23 @@ export class AutomationsController {
       workspaceId,
       workflowId,
       body,
+    );
+  }
+
+  @Post('workflows/:workflowId/webhook')
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  triggerWebhook(
+    @WorkspaceId() workspaceId: string,
+    @Param('workflowId') workflowId: string,
+    @Body() body: Record<string, unknown>,
+    @Headers('x-webhook-secret') secretHeader?: string,
+  ) {
+    return this.automationsService.triggerWebhook(
+      workspaceId,
+      workflowId,
+      body,
+      secretHeader,
     );
   }
 

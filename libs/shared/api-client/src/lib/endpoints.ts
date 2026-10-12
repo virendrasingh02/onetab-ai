@@ -120,6 +120,10 @@ import type {
   ChannelAnonymousSettingsView,
   AutomationWorkflow,
   AutomationWorkflowDetail,
+  AutomationOverviewData,
+  AutomationScheduleItem,
+  AutomationErrorGroup,
+  AutomationCatalogItem,
   CalendarEvent,
   Channel,
   ChannelAgentView,
@@ -3360,6 +3364,51 @@ export const automationsApi = {
   workspaceExecutions: (workspaceId: string) =>
     request<WorkflowExecutionEntry[]>(
       http.get(`/workspaces/${workspaceId}/automations/executions`),
+    ),
+
+  /** Unified operational dashboard metrics derived from executions. */
+  overview: (workspaceId: string) =>
+    request<AutomationOverviewData>(
+      http.get(`/workspaces/${workspaceId}/automations/overview`),
+    ),
+
+  /** Active scheduled workflows with next execution timetable. */
+  schedules: (workspaceId: string) =>
+    request<AutomationScheduleItem[]>(
+      http.get(`/workspaces/${workspaceId}/automations/schedules`),
+    ),
+
+  /** Grouped execution errors for error monitoring. */
+  errors: (workspaceId: string) =>
+    request<AutomationErrorGroup[]>(
+      http.get(`/workspaces/${workspaceId}/automations/errors`),
+    ),
+
+  /** Dynamically available triggers and actions catalog. */
+  catalog: (workspaceId: string) =>
+    request<AutomationCatalogItem[]>(
+      http.get(`/workspaces/${workspaceId}/automations/catalog`),
+    ),
+
+  /** Inbound webhook trigger with optional secret header. */
+  webhook: (
+    workspaceId: string,
+    workflowId: string,
+    payload: Record<string, unknown> = {},
+    secret?: string,
+  ) =>
+    request<{
+      executionId: string;
+      status: string;
+      triggeredAt: string;
+    }>(
+      http.post(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}/webhook`,
+        payload,
+        {
+          headers: secret ? { 'x-webhook-secret': secret } : undefined,
+        },
+      ),
     ),
 };
 

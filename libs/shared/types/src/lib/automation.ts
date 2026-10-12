@@ -169,6 +169,92 @@ export interface WorkflowExecutionEntry extends WorkflowExecution {
   workflow: { id: string; name: string; triggerType: string };
 }
 
+export interface AutomationDailyVolume {
+  date: string;
+  success: number;
+  failed: number;
+  total: number;
+}
+
+export interface AutomationWorkflowMetric {
+  id: string;
+  name: string;
+  triggerType: string;
+  executionsCount: number;
+  failureRate: number;
+  avgDurationMs: number;
+  lastExecutedAt: IsoDateString | null;
+}
+
+export interface AutomationFailingMetric {
+  id: string;
+  name: string;
+  failCount: number;
+  failureRate: number;
+  lastError: string | null;
+  lastFailedAt: IsoDateString | null;
+}
+
+export interface AutomationScheduleItem {
+  workflowId: string;
+  name: string;
+  triggerType: string;
+  cron: string;
+  timezone: string | null;
+  isActive: boolean;
+  lastRunAt: IsoDateString | null;
+  nextRunAt: IsoDateString | null;
+  humanSchedule: string;
+}
+
+export interface AutomationConnectorHealth {
+  provider: string;
+  name: string;
+  status: string;
+  connectedCount: number;
+  totalTriggers: number;
+  totalActions: number;
+}
+
+export interface AutomationOverviewData {
+  totalWorkflows: number;
+  activeWorkflows: number;
+  pausedWorkflows: number;
+  runningExecutions: number;
+  successfulExecutions: number;
+  failedExecutions: number;
+  successRate: number;
+  avgDurationMs: number;
+  p50DurationMs: number;
+  p95DurationMs: number;
+  estimatedTimeSavedHours: number;
+  volumeByDay: AutomationDailyVolume[];
+  topWorkflows: AutomationWorkflowMetric[];
+  failingWorkflows: AutomationFailingMetric[];
+  upcomingScheduled: AutomationScheduleItem[];
+  pendingApprovalsCount: number;
+  connectorHealth: AutomationConnectorHealth[];
+  recentExecutions: WorkflowExecutionEntry[];
+}
+
+export interface AutomationErrorGroup {
+  classification: string;
+  count: number;
+  latestError: string;
+  latestOccurredAt: IsoDateString;
+  affectedWorkflows: Array<{ id: string; name: string }>;
+}
+
+export interface AutomationCatalogItem {
+  id: string;
+  name: string;
+  category: 'trigger' | 'action' | 'logic' | 'ai';
+  description: string;
+  provider?: string;
+  requiredPermissions?: string[];
+  parametersSchema?: Record<string, unknown>;
+}
+
 export type { ExternalIntegration } from './integrations.js';
 
 // --- AI Coworkers -----------------------------------------------------------

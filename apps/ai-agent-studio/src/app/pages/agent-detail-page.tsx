@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -93,6 +94,7 @@ import {
   Redo2,
   RotateCcw,
   Save,
+  AlertTriangle,
   Search,
   Settings,
   ShieldCheck,
@@ -112,6 +114,7 @@ import {
   Spline,
   Route,
   Slash,
+  Rows3,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -138,7 +141,11 @@ import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
 import { AgentDeploymentTab } from '../components/agent-detail/agent-deployment-tab.js';
 import { agentService } from '../services/agentService.js';
 import { analyticsService } from '../services/analyticsService.js';
-import { layoutWorkflow } from '../components/workflow-canvas/auto-layout.js';
+import {
+  layoutWorkflow,
+  type LayoutArrange,
+  type LayoutSpacing,
+} from '../components/workflow-canvas/auto-layout.js';
 import { EDGE_ROUTING_HINTS, EDGE_ROUTING_LABELS, isEdgeRouting } from '../components/workflow-canvas/edge-routing.js';
 import {
   WorkflowLayoutContext,
@@ -233,8 +240,27 @@ export interface ParsedStudioGraph {
   layout?: {
     direction?: WorkflowDirection;
     edgeStyle?: WorkflowEdgeStyle;
-  };
+  } & Partial<LayoutPrefs>;
 }
+
+/** How Auto Layout arranges the canvas; saved with the graph so each agent keeps its own. */
+interface LayoutPrefs {
+  arrange: LayoutArrange;
+  spacing: LayoutSpacing;
+}
+const DEFAULT_LAYOUT_PREFS: LayoutPrefs = { arrange: 'layered', spacing: 'comfortable' };
+
+const LAYOUT_ARRANGE_MENU: { value: LayoutArrange; label: string; hint: string; Icon: typeof Spline }[] = [
+  { value: 'layered', label: 'Layered flow', hint: 'Columns by step order, fewest crossing wires', Icon: Rows3 },
+  { value: 'tree', label: 'Tree', hint: 'Tidy tree: each step centred over the branches it starts', Icon: Network },
+];
+const LAYOUT_SPACING_MENU: { value: LayoutSpacing; label: string }[] = [
+  { value: 'compact', label: 'Compact' },
+  { value: 'comfortable', label: 'Comfortable' },
+  { value: 'spacious', label: 'Spacious' },
+];
+const isLayoutArrange = (v: unknown): v is LayoutArrange => v === 'layered' || v === 'tree';
+const isLayoutSpacing = (v: unknown): v is LayoutSpacing => v === 'compact' || v === 'comfortable' || v === 'spacious';
 
 /** Canvas-wide routing choices, in menu order. */
 const EDGE_ROUTING_MENU: { value: WorkflowEdgeStyle; Icon: typeof Spline }[] = [
@@ -252,7 +278,7 @@ function parseGraph(graphJson: string | null | undefined): ParsedStudioGraph | n
       nodes?: unknown;
       edges?: unknown;
       settings?: unknown;
-      layout?: { direction?: string; edgeStyle?: string };
+      layout?: { direction?: string; edgeStyle?: string; arrange?: string; spacing?: string };
     };
     if (!Array.isArray(graph.nodes) || graph.nodes.length === 0) return null;
     return {
@@ -264,6 +290,8 @@ function parseGraph(graphJson: string | null | undefined): ParsedStudioGraph | n
       layout: {
         direction: graph.layout?.direction === 'vertical' ? 'vertical' : 'horizontal',
         edgeStyle: isEdgeRouting(graph.layout?.edgeStyle) ? graph.layout.edgeStyle : 'smooth',
+        arrange: isLayoutArrange(graph.layout?.arrange) ? graph.layout.arrange : DEFAULT_LAYOUT_PREFS.arrange,
+        spacing: isLayoutSpacing(graph.layout?.spacing) ? graph.layout.spacing : DEFAULT_LAYOUT_PREFS.spacing,
       },
     };
   } catch {
@@ -297,6 +325,37 @@ interface AgentSettingsDraft {
 const ZOOM_PRESETS = [0.5, 1, 2] as const;
 /** How long auto layout takes to glide nodes into place. */
 const LAYOUT_ANIMATION_MS = 420;
+/** Quiet time after the last edit before the draft saves itself. */
+const AUTO_SAVE_DELAY_MS = 2000;
+const AUTO_SAVE_PREF_KEY = 'studio.autosave';
+const isAutoSave = (opts: unknown) => !!(opts as { auto?: boolean } | undefined)?.auto;
+
+/** "just now", "12s ago", "4m ago", then the time. */
+function savedAgo(at: number, now: number): string {
+  const s = Math.max(0, Math.round((now - at) / 1000));
+  if (s < 5) return 'just now';
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  return `at ${new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+/** Re-renders on a clock: every second for the first minute after `since`, then every 30s. */
+function useNow(since: number | null): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (since === null) return;
+    setNow(Date.now());
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const t = Date.now();
+      setNow(t);
+      timer = setTimeout(tick, t - since < 60_000 ? 1000 : 30_000);
+    };
+    timer = setTimeout(tick, 1000);
+    return () => clearTimeout(timer);
+  }, [since]);
+  return now;
+}
 
 /** What an agent's slot row says about the node plugged into it — the prompt's first real line for a prompt. */
 function slotRowLabel(slotId: string, n: Node): string {
@@ -444,6 +503,10 @@ function WorkflowCanvasInner({
   onChangeDirection,
   edgeStyle = 'smooth',
   onChangeEdgeStyle,
+  layoutPrefs = DEFAULT_LAYOUT_PREFS,
+  onChangeLayoutPrefs,
+  isCopilotOpen = false,
+  onToggleCopilot,
   onUpdateNodeMetadata,
   measuredSizeRef,
 }: {
@@ -492,6 +555,12 @@ function WorkflowCanvasInner({
   onChangeDirection?: (dir: WorkflowDirection) => void;
   edgeStyle?: WorkflowEdgeStyle;
   onChangeEdgeStyle?: (style: WorkflowEdgeStyle) => void;
+  layoutPrefs?: LayoutPrefs;
+  /** Saves the choice and re-runs Auto Layout with it. */
+  onChangeLayoutPrefs?: (patch: Partial<LayoutPrefs>) => void;
+  isCopilotOpen?: boolean;
+  /** Opens/closes the Agent Copilot drawer; the toolbar button is hidden without it. */
+  onToggleCopilot?: () => void;
   onUpdateNodeMetadata?: (
     nodeId: string,
     patch: { title?: string; label?: string; description?: string; subtitle?: string },
@@ -823,6 +892,28 @@ function WorkflowCanvasInner({
     >
       {/* Floating Canvas Quick Toolbar (Docked at Bottom Center) */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-2xl border border-border bg-surface/95 backdrop-blur-md p-1.5 shadow-2xl select-none">
+        {onToggleCopilot && (
+          <>
+            <button
+              type="button"
+              onClick={onToggleCopilot}
+              data-open={isCopilotOpen}
+              aria-pressed={isCopilotOpen}
+              title={isCopilotOpen ? 'Close Agent Copilot' : 'Ask Agent Copilot to change this agent'}
+              className={cn(
+                'copilot-shine h-8.5 rounded-full pl-2.5 pr-3 flex items-center gap-1.5 shrink-0 cursor-pointer',
+                'text-xs font-semibold text-primary-foreground transition-transform duration-200',
+                'hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              )}
+            >
+              <Sparkles className="size-4" />
+              <span>Copilot</span>
+            </button>
+
+            <div className="h-4 w-px bg-border mx-0.5" />
+          </>
+        )}
+
         {/* Highlighted Rounded Plus Button */}
         <button
           type="button"
@@ -882,6 +973,41 @@ function WorkflowCanvasInner({
                 Vertical
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[11px] text-muted-foreground">Arrangement</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={layoutPrefs.arrange}
+              onValueChange={(value) => onChangeLayoutPrefs?.({ arrange: value as LayoutArrange })}
+            >
+              {LAYOUT_ARRANGE_MENU.map(({ value, label, hint, Icon }) => (
+                <DropdownMenuRadioItem key={value} value={value} disabled={isLocked} className="gap-2 text-xs" title={hint}>
+                  <Icon className="size-3.5" />
+                  {label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[11px] text-muted-foreground">Spacing</DropdownMenuLabel>
+            <div role="radiogroup" aria-label="Spacing" className="mx-1 mb-1 grid grid-cols-3 gap-0.5 rounded-lg bg-surface-raised p-0.5">
+              {LAYOUT_SPACING_MENU.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={layoutPrefs.spacing === value}
+                  disabled={isLocked}
+                  onClick={() => onChangeLayoutPrefs?.({ spacing: value })}
+                  className={cn(
+                    'h-6 rounded-md text-[11px] font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50',
+                    layoutPrefs.spacing === value
+                      ? 'bg-surface text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-[11px] text-muted-foreground">Edge routing</DropdownMenuLabel>
             <DropdownMenuRadioGroup
@@ -1447,6 +1573,7 @@ export function AgentDetailPage() {
   const [canvasEpoch, setCanvasEpoch] = useState(0);
   const [workflowDirection, setWorkflowDirection] = useState<WorkflowDirection>('horizontal');
   const [workflowEdgeStyle, setWorkflowEdgeStyle] = useState<WorkflowEdgeStyle>('smooth');
+  const [layoutPrefs, setLayoutPrefs] = useState<LayoutPrefs>(DEFAULT_LAYOUT_PREFS);
   const [nodes, setNodes] = useState<Node[]>(INITIAL_NODES);
   const measuredSizeRef = useRef<MeasuredSizeReader | null>(null);
   const [edges, setEdges] = useState<Edge[]>(INITIAL_EDGES);
@@ -1503,6 +1630,26 @@ export function AgentDetailPage() {
     return ok;
   }, []);
   const [isDirty, setIsDirty] = useState(false);
+  // Auto-save: on by default, remembered per browser
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
+    try {
+      return window.localStorage.getItem(AUTO_SAVE_PREF_KEY) !== 'off';
+    } catch {
+      return true;
+    }
+  });
+  const toggleAutoSave = useCallback((on: boolean) => {
+    setAutoSaveEnabled(on);
+    try {
+      window.localStorage.setItem(AUTO_SAVE_PREF_KEY, on ? 'on' : 'off');
+    } catch {
+      /* private mode — still applies for this visit */
+    }
+  }, []);
+  const [lastSaved, setLastSaved] = useState<{ at: number; auto: boolean } | null>(null);
+  /** The edit an auto-save failed on; it waits for a new edit before trying again. */
+  const [autoSaveFailedAt, setAutoSaveFailedAt] = useState<string | null>(null);
+  const saveKeyRef = useRef('');
   const reactFlowRef = useRef<any>(null);
   // What each step produced in the latest test run — shown on the cards, never saved.
   const [runResults, setRunResults] = useState<Record<string, NodeRunResult>>({});
@@ -1737,6 +1884,10 @@ export function AgentDetailPage() {
       if (graph.layout?.edgeStyle) {
         setWorkflowEdgeStyle(graph.layout.edgeStyle);
       }
+      setLayoutPrefs({
+        arrange: graph.layout?.arrange ?? DEFAULT_LAYOUT_PREFS.arrange,
+        spacing: graph.layout?.spacing ?? DEFAULT_LAYOUT_PREFS.spacing,
+      });
       setGraphSettings(graph.settings);
       // A save round-trip returns the graph already on the canvas — leave it (and the
       // undo history) alone. Only a different graph (first load, restored version)
@@ -1847,6 +1998,21 @@ export function AgentDetailPage() {
     toast.success(`Category "${trimmed}" added`);
   };
 
+  /** Everything a save writes, as one string — tells whether an edit landed while a save was in flight. */
+  const saveKey = useMemo(
+    () =>
+      JSON.stringify([
+        toGraphSnapshot(nodes.map(withoutRunStatus), edges).key,
+        settingsDraft,
+        graphSettings,
+        workflowDirection,
+        workflowEdgeStyle,
+        layoutPrefs,
+      ]),
+    [nodes, edges, settingsDraft, graphSettings, workflowDirection, workflowEdgeStyle, layoutPrefs],
+  );
+  saveKeyRef.current = saveKey;
+
   /** Persists the canvas (or the given graph) and the settings form in one request. */
   const persistAgent = async (graph?: { nodes: Node[]; edges: Edge[] }) => {
     if (!agentId) return;
@@ -1861,6 +2027,7 @@ export function AgentDetailPage() {
         layout: {
           direction: workflowDirection,
           edgeStyle: workflowEdgeStyle,
+          ...layoutPrefs,
         },
       }),
       ...(settingsDraft
@@ -1895,10 +2062,12 @@ export function AgentDetailPage() {
       }
     }
     // No local fallback: a save that didn't reach the server must say so.
+    const savingKey = saveKeyRef.current;
     await agentsApi.update(activeWorkspace.id, agentId, patch);
     queryClient.invalidateQueries({ queryKey: agentQueryKey });
     queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
-    setIsDirty(false);
+    // An edit made while this was saving isn't in it — stay unsaved for the next save
+    if (graph || saveKeyRef.current === savingKey) setIsDirty(false);
   };
 
   /** The canvas as the Copilot reads it: run status rings left out. */
@@ -1930,7 +2099,10 @@ export function AgentDetailPage() {
       const nextEdges = graph.edges as unknown as Edge[];
       const placed = graph.nodes as unknown as Node[];
       const layoutDir = workflowDirection === 'vertical' ? 'TB' : 'LR';
-      const nextNodes = diff.added.length || diff.removed.length ? layoutWorkflow(withMeasuredSizes(placed, measuredSizeRef.current), nextEdges, layoutDir) : placed;
+      const nextNodes =
+        diff.added.length || diff.removed.length
+          ? layoutWorkflow(withMeasuredSizes(placed, measuredSizeRef.current), nextEdges, { direction: layoutDir, ...layoutPrefs })
+          : placed;
       const previous = { nodes: graphRef.current.nodes, edges: graphRef.current.edges };
       setNodes(nextNodes);
       setEdges(nextEdges);
@@ -1942,7 +2114,7 @@ export function AgentDetailPage() {
             nodes: nextNodes.map(withoutRunStatus),
             edges: nextEdges,
             ...(graphSettingsRef.current ? { settings: graphSettingsRef.current } : {}),
-            layout: { direction: workflowDirection, edgeStyle: workflowEdgeStyle },
+            layout: { direction: workflowDirection, edgeStyle: workflowEdgeStyle, ...layoutPrefs },
           }),
         });
       } catch (err) {
@@ -1958,7 +2130,7 @@ export function AgentDetailPage() {
     },
     // agentQueryKey is rebuilt every render from these same ids.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [agentId, activeWorkspace.id, copilotGraph, queryClient, workflowDirection, workflowEdgeStyle],
+    [agentId, activeWorkspace.id, copilotGraph, queryClient, workflowDirection, workflowEdgeStyle, layoutPrefs],
   );
 
   // `?test=1` (from "Create with one prompt") opens the run console once the agent is loaded.
@@ -2004,14 +2176,24 @@ export function AgentDetailPage() {
   const errorMessage = (err: unknown, fallback: string) =>
     err instanceof Error && err.message ? err.message : fallback;
 
-  // Mutations
+  // Mutations — an auto-save is silent unless it fails; Ctrl+S / Save confirms with a toast
   const saveMutation = useMutation({
-    mutationFn: () => persistAgent(),
-    onSuccess: () => {
-      toast.success('Agent saved');
+    mutationFn: (_opts: { auto?: boolean } | void) => persistAgent(),
+    onSuccess: (_data, opts) => {
+      setLastSaved({ at: Date.now(), auto: isAutoSave(opts) });
+      setAutoSaveFailedAt(null);
+      if (!isAutoSave(opts)) toast.success('Agent saved');
       queryClient.invalidateQueries({ queryKey: agentQueryKey });
     },
-    onError: (err) => {
+    onError: (err, opts) => {
+      if (isAutoSave(opts)) {
+        // Don't retry in a loop: wait for the next edit (or Save now)
+        setAutoSaveFailedAt(saveKeyRef.current);
+        toast.error('Auto-save failed — your changes are still here', {
+          description: errorMessage(err, 'The server didn’t accept the save.'),
+        });
+        return;
+      }
       toast.error(errorMessage(err, 'Failed to save the agent'));
     },
   });
@@ -2138,17 +2320,42 @@ export function AgentDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveRequest]);
 
-  // Debounced Auto-save (2500ms after edits settle without user activity)
+  // Auto-save the draft once edits settle (not mid-drag, not while locked, not
+  // again after a failure until something changes)
   useEffect(() => {
-    if (!isDirty || saveMutation.isPending || isCanvasLocked) return;
+    if (!autoSaveEnabled || !isDirty || saveMutation.isPending || publishMutation.isPending || isCanvasLocked) return;
     if (nodes.some((n) => n.dragging)) return;
+    if (autoSaveFailedAt !== null && autoSaveFailedAt === saveKey) return;
 
     const timer = setTimeout(() => {
-      saveMutation.mutate();
-    }, 2500);
+      saveMutation.mutate({ auto: true });
+    }, AUTO_SAVE_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [isDirty, nodes, saveMutation, isCanvasLocked]);
+    // saveMutation is a new object each render; its pending flag is what matters
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSaveEnabled, isDirty, saveKey, saveMutation.isPending, publishMutation.isPending, isCanvasLocked, autoSaveFailedAt]);
+
+  // The server's last write, until this visit saves for itself
+  const agentUpdatedAt = (agent as { updatedAt?: string } | undefined)?.updatedAt;
+  useEffect(() => {
+    const at = agentUpdatedAt ? Date.parse(agentUpdatedAt) : NaN;
+    if (!Number.isNaN(at)) setLastSaved((prev) => prev ?? { at, auto: false });
+  }, [agentUpdatedAt]);
+
+  const now = useNow(lastSaved?.at ?? null);
+  const saveFailed = isDirty && !saveMutation.isPending && (saveMutation.isError || (autoSaveFailedAt !== null && autoSaveFailedAt === saveKey));
+  const saveStatusText = saveMutation.isPending
+    ? 'Saving your changes…'
+    : saveFailed
+      ? 'Your last changes didn’t save'
+      : isDirty
+        ? autoSaveEnabled
+          ? 'Unsaved edits — saving when you pause'
+          : 'Unsaved changes'
+        : lastSaved
+          ? `${lastSaved.auto ? 'Auto-saved' : 'Saved'} ${savedAgo(lastSaved.at, now)}`
+          : 'All changes saved';
 
   const stepIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
 
@@ -2465,9 +2672,9 @@ export function AgentDetailPage() {
     timer: null,
   });
   const handleAutoLayout = useCallback(
-    (explicitDir?: 'LR' | 'TB'): number | null => {
+    (explicitDir?: 'LR' | 'TB', prefs: LayoutPrefs = layoutPrefs): number | null => {
       const dir = explicitDir || (workflowDirection === 'vertical' ? 'TB' : 'LR');
-      const target = layoutWorkflow(withMeasuredSizes(nodes, measuredSizeRef.current), edges, dir);
+      const target = layoutWorkflow(withMeasuredSizes(nodes, measuredSizeRef.current), edges, { direction: dir, ...prefs });
       const targetById = new Map(target.map((n) => [n.id, n]));
       const moved = nodes.some((n) => {
         const t = targetById.get(n.id);
@@ -2534,7 +2741,23 @@ export function AgentDetailPage() {
       toast.success('Layout tidied', { action: undoAction });
       return duration;
     },
-    [nodes, edges, undoAction, workflowDirection],
+    [nodes, edges, undoAction, workflowDirection, layoutPrefs],
+  );
+
+  // Picking an arrangement or spacing is remembered for this agent and applied right away
+  const handleChangeLayoutPrefs = useCallback(
+    (patch: Partial<LayoutPrefs>) => {
+      if (isCanvasLocked) return;
+      const next = { ...layoutPrefs, ...patch };
+      if (next.arrange === layoutPrefs.arrange && next.spacing === layoutPrefs.spacing) return;
+      setLayoutPrefs(next);
+      setIsDirty(true);
+      const duration = handleAutoLayout(undefined, next);
+      if (duration !== null) {
+        setTimeout(() => reactFlowRef.current?.fitView({ padding: 0.2, duration: 450 }), duration + 40);
+      }
+    },
+    [isCanvasLocked, layoutPrefs, handleAutoLayout],
   );
 
   const handleChangeDirection = useCallback(
@@ -2544,7 +2767,7 @@ export function AgentDetailPage() {
       setIsDirty(true);
       // Run auto layout in the new direction
       const layoutDir = newDir === 'vertical' ? 'TB' : 'LR';
-      const target = layoutWorkflow(withMeasuredSizes(nodes, measuredSizeRef.current), edges, layoutDir);
+      const target = layoutWorkflow(withMeasuredSizes(nodes, measuredSizeRef.current), edges, { direction: layoutDir, ...layoutPrefs });
       const targetById = new Map(target.map((n) => [n.id, n]));
       setNodes((cur) =>
         cur.map((n) => {
@@ -2573,7 +2796,7 @@ export function AgentDetailPage() {
         reactFlowRef.current?.fitView({ padding: 0.2, duration: 400 });
       }, 50);
     },
-    [workflowDirection, nodes, edges, undoAction],
+    [workflowDirection, nodes, edges, undoAction, layoutPrefs],
   );
 
   const handleChangeEdgeStyle = useCallback(
@@ -3299,36 +3522,71 @@ export function AgentDetailPage() {
               </div>
             )}
 
-            {/* One chip: lifecycle (Draft / Published) + save state */}
-            <div
-              className={cn(
-                'flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium whitespace-nowrap',
-                isPublished ? 'border-success/30 bg-success/10 text-success' : 'border-border bg-surface text-muted-foreground',
-              )}
-              title={
-                saveMutation.isPending
-                  ? 'Saving changes…'
-                  : isDirty
-                  ? 'Unsaved changes — press Ctrl+S to save'
-                  : 'All changes saved'
-              }
-            >
-              <span>{isPublished ? 'Published' : 'Draft'}</span>
-              <span className="h-3 w-px bg-current opacity-30" />
-              {saveMutation.isPending ? (
-                <Loader2 className="h-3 w-3 animate-spin" aria-label="Saving" />
-              ) : isDirty ? (
-                <span className="flex items-center gap-1 text-warning">
-                  <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
-                  <span className="hidden lg:inline">Unsaved</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-success/90">
-                  <Check className="h-3 w-3" />
-                  <span className="hidden lg:inline">Saved</span>
-                </span>
-              )}
-            </div>
+            {/* One chip: lifecycle (Draft / Published) + live save state; opens save options */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${isPublished ? 'Published' : 'Draft'} — ${saveStatusText}. Save options`}
+                  className={cn(
+                    'flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2 text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer',
+                    'hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                    isPublished ? 'border-success/30 bg-success/10 text-success' : 'border-border bg-surface text-muted-foreground',
+                  )}
+                >
+                  <span>{isPublished ? 'Published' : 'Draft'}</span>
+                  <span className="h-3 w-px bg-current opacity-30" />
+                  {saveMutation.isPending ? (
+                    <span className="flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                      <span className="hidden md:inline">Saving…</span>
+                    </span>
+                  ) : saveFailed ? (
+                    <span className="flex items-center gap-1 text-destructive">
+                      <AlertTriangle className="h-3 w-3" aria-hidden />
+                      <span className="hidden md:inline">Not saved</span>
+                    </span>
+                  ) : isDirty ? (
+                    <span className="flex items-center gap-1 text-warning">
+                      <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
+                      <span className="hidden md:inline">{autoSaveEnabled ? 'Editing…' : 'Unsaved'}</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-success/90">
+                      <Check className="h-3 w-3" aria-hidden />
+                      <span className="hidden md:inline tabular-nums">
+                        {lastSaved ? `${lastSaved.auto ? 'Auto-saved' : 'Saved'} ${savedAgo(lastSaved.at, now)}` : 'Saved'}
+                      </span>
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <div className="px-2 py-1.5">
+                  <p className="text-xs font-medium text-foreground">{saveStatusText}</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                    {autoSaveEnabled
+                      ? `Your draft saves itself ${AUTO_SAVE_DELAY_MS / 1000}s after you stop editing. Publishing makes it live.`
+                      : 'Auto-save is off — save with Ctrl+S. Publishing makes it live.'}
+                  </p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem checked={autoSaveEnabled} onCheckedChange={(v) => toggleAutoSave(!!v)} className="text-xs">
+                  Auto-save draft
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuItem
+                  disabled={!isDirty || saveMutation.isPending}
+                  onSelect={() => saveMutation.mutate()}
+                  className="gap-2 text-xs"
+                >
+                  <Save className="h-3.5 w-3.5" /> {saveFailed ? 'Try saving again' : 'Save now'}
+                  <DropdownMenuShortcut>Ctrl+S</DropdownMenuShortcut>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setActiveTab('versions')} className="gap-2 text-xs">
+                  <Clock className="h-3.5 w-3.5" /> Version history
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -3402,26 +3660,6 @@ export function AgentDetailPage() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <Button
-            variant={showAiPanel ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setShowAiPanel(!showAiPanel)}
-            className={cn(
-              "h-8 gap-1.5 text-xs font-medium rounded-lg",
-              showAiPanel ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-            title="Agent Copilot"
-            aria-pressed={showAiPanel}
-          >
-            <Sparkles className={cn('h-3.5 w-3.5', showAiPanel ? 'text-primary-foreground' : 'text-primary')} />
-          </Button>
-
-          {/* Workflow Graph Health Status Badge */}
-          <WorkflowHealthBadge
-            issues={allWorkflowIssues}
-            onClick={handleValidateGraph}
-          />
-
           <Button
             variant="outline"
             size="sm"
@@ -3549,7 +3787,7 @@ export function AgentDetailPage() {
                     <div className={cn("size-1.5 rounded-full", isDirty ? "bg-warning animate-pulse" : "bg-success")} />
                   </div>
                   <span className="text-xs text-muted-foreground font-medium">
-                    {isDirty ? 'Unsaved changes · saved automatically when you publish' : 'All changes saved'}
+                    {saveStatusText}
                   </span>
                 </div>
               </div>
@@ -3667,6 +3905,10 @@ export function AgentDetailPage() {
                 onChangeDirection={handleChangeDirection}
                 edgeStyle={workflowEdgeStyle}
                 onChangeEdgeStyle={handleChangeEdgeStyle}
+                layoutPrefs={layoutPrefs}
+                onChangeLayoutPrefs={handleChangeLayoutPrefs}
+                isCopilotOpen={showAiPanel}
+                onToggleCopilot={agentId && settingsDraft ? () => setShowAiPanel((open) => !open) : undefined}
                 onUpdateNodeMetadata={handleUpdateNodeMetadata}
                 nodes={nodes.map((n) => ({
                   ...n,
@@ -3807,6 +4049,13 @@ export function AgentDetailPage() {
                 className="absolute top-3 right-3 bottom-3 z-30 w-[360px] max-w-[calc(100%-1.5rem)]"
               />
             )}
+
+            {/* Workflow health, floating in the canvas corner; the inspectors take this spot while open */}
+            {!selectedNode && !selectedEdge && (
+              <div className="absolute top-3 right-3 z-20 rounded-xl bg-surface/95 shadow-lg backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-200">
+                <WorkflowHealthBadge issues={allWorkflowIssues} onClick={handleValidateGraph} className="h-8.5 rounded-xl" />
+              </div>
+            )}
             </div>
 
             {/* Right 4th Panel: AI Copilot Prompt Assistant (if open) */}
@@ -3821,6 +4070,15 @@ export function AgentDetailPage() {
                 welcome={copilotWelcome}
                 onApply={applyCopilotGraph}
                 onRunTest={() => setIsTestDrawerOpen(true)}
+                onFocusNode={(nodeId) => {
+                  const target = graphRef.current.nodes.find((n) => n.id === nodeId);
+                  if (target) focusNode(target);
+                }}
+                onBeforeRun={async () => {
+                  if (isDirty) await persistAgent();
+                }}
+                onNodeStatuses={showRunStatuses}
+                onNodeResults={setRunResults}
                 onClose={() => setShowAiPanel(false)}
               />
             )}

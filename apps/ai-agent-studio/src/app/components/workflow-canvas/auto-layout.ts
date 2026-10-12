@@ -18,20 +18,52 @@ import { getSlot, handleOrder } from './agent-slots.js';
  * Sub-agents) is not a step of the flow: it sits in a row under its agent —
  * sub-agents with their own attachments under them — and the agent reserves
  * that room, so nothing in the flow lands on top of it.
+ *
+ * `arrange: 'tree'` swaps steps 3–5a for a tidy ("dagre tree") layout: every step
+ * hangs under the step that reaches it last, each subtree gets its own band and
+ * a parent is centred on its children — branches fan out cleanly and never cross.
  */
 
 export type LayoutDirection = 'LR' | 'TB';
+/** Layered = crossing-minimised Sugiyama; tree = tidy tree, parents centred over their branches. */
+export type LayoutArrange = 'layered' | 'tree';
+export type LayoutSpacing = 'compact' | 'comfortable' | 'spacious';
+
+export interface LayoutOptions {
+  direction?: LayoutDirection;
+  arrange?: LayoutArrange;
+  spacing?: LayoutSpacing;
+}
 
 /** Space between layers (columns for LR, rows for TB). */
-const LAYER_GAP: Record<LayoutDirection, number> = { LR: 96, TB: 72 };
+const LAYER_GAP: Record<LayoutDirection, number> = { LR: 128, TB: 96 };
 /** Space between neighbouring steps inside one layer. */
-const NODE_GAP: Record<LayoutDirection, number> = { LR: 56, TB: 48 };
+const NODE_GAP: Record<LayoutDirection, number> = { LR: 72, TB: 64 };
 /** Space between unconnected flows. */
-const COMPONENT_GAP = 96;
+const COMPONENT_GAP = 128;
 const GROUP_PADDING = { side: 24, top: 48, bottom: 24 };
 const DEFAULT_SIZE = { width: 240, height: 90 };
 /** Space between an agent and the row of things plugged into it, and within that row. */
-const ATTACH_GAP = { across: 56, along: 24 };
+const ATTACH_GAP = { across: 96, along: 64 };
+/** Every gap above is multiplied by this. */
+const SPACING_SCALE: Record<LayoutSpacing, number> = { compact: 0.6, comfortable: 1, spacious: 1.5 };
+
+interface Gaps {
+  layer: number;
+  node: number;
+  component: number;
+  attach: { across: number; along: number };
+}
+
+function gapsFor(dir: LayoutDirection, spacing: LayoutSpacing): Gaps {
+  const k = SPACING_SCALE[spacing];
+  return {
+    layer: Math.round(LAYER_GAP[dir] * k),
+    node: Math.round(NODE_GAP[dir] * k),
+    component: Math.round(COMPONENT_GAP * k),
+    attach: { across: Math.round(ATTACH_GAP.across * k), along: Math.round(ATTACH_GAP.along * k) },
+  };
+}
 /** Thickness of an invisible waypoint on a long edge. */
 const WAYPOINT_SIZE = 8;
 const ORDER_SWEEPS = 12;
@@ -92,7 +124,9 @@ function layoutComponent(
   nodeById: Map<string, Node>,
   dir: LayoutDirection,
   /** Room an agent needs for its attachments: along = row length, beyond = depth past the card. */
-  reserved: Map<string, { along: number; beyond: number }> = new Map(),
+  reserved: Map<string, { along: number; beyond: number }>,
+  gaps: Gaps,
+  arrange: LayoutArrange,
 ): ComponentLayout {
   const alongOf = (s: Size) => (dir === 'LR' ? s.width : s.height);
   const acrossOf = (s: Size) => (dir === 'LR' ? s.height : s.width);
@@ -164,8 +198,14 @@ function layoutComponent(
     }
   }
 
-  // 3. Long edges get invisible waypoints so the crossing reduction can route them
+  const gap = gaps.node;
+  // `center` holds each step's anchor line (where its edges attach), not its box centre.
+  const center = new Map<string, number>();
   const layerCount = Math.max(...ids.map((id) => rank.get(id) ?? 0)) + 1;
+
+  /** Steps 3–5a: layers ordered to minimise crossings, then steps pulled toward their neighbours. */
+  const arrangeLayered = (): string[][] => {
+  // 3. Long edges get invisible waypoints so the crossing reduction can route them
   const layers: string[][] = Array.from({ length: layerCount }, () => []);
   const segOut = new Map<string, string[]>();
   const segIn = new Map<string, string[]>();
@@ -246,9 +286,6 @@ function layoutComponent(
 
   // 5a. Across-axis: each step moves toward the centre of what it connects to,
   //     then the layer is packed so neighbours keep their order and gap.
-  const gap = NODE_GAP[dir];
-  const center = new Map<string, number>();
-  // `center` holds each step's anchor line (where its edges attach), not its box centre.
   for (const layer of best) {
     let cursor = 0;
     for (const id of layer) {
@@ -283,6 +320,70 @@ function layoutComponent(
   }
   // finish on a downward pass so steps line up with what feeds them
   for (let r = 1; r < best.length; r++) relax(best[r], segIn);
+  return best;
+  };
+
+  /**
+   * Tidy tree: each step hangs under the deepest step that feeds it (so a merge
+   * comes after every branch reaching it), each subtree owns a band as wide as its
+   * widest generation, and a parent is centred on its first and last child. Bands
+   * never overlap, so neither do steps; layers stay the longest-path ranks, so
+   * every edge — tree or not — still runs forward.
+   */
+  const arrangeTree = (): string[][] => {
+    const parentOf = new Map<string, string>();
+    for (const u of topo) {
+      for (const l of dag.get(u) ?? []) {
+        const cur = parentOf.get(l.target);
+        if (cur === undefined || must(rank, u) > must(rank, cur)) parentOf.set(l.target, u);
+      }
+    }
+    const kidsOf = new Map<string, string[]>();
+    for (const u of topo) {
+      const kids: string[] = [];
+      for (const l of dag.get(u) ?? []) if (parentOf.get(l.target) === u && !kids.includes(l.target)) kids.push(l.target);
+      kidsOf.set(u, kids);
+    }
+    const own = (id: string) => acrossOf(must(sizes, id)) + beyondOf(id);
+    const extent = new Map<string, number>();
+    const kidsSpan = (id: string) => {
+      const kids = must(kidsOf, id);
+      return kids.reduce((sum, k) => sum + must(extent, k), 0) + Math.max(0, kids.length - 1) * gap;
+    };
+    const measure = (id: string) => {
+      must(kidsOf, id).forEach(measure);
+      extent.set(id, Math.max(own(id), kidsSpan(id)));
+    };
+    const assign = (id: string, start: number) => {
+      const e = must(extent, id);
+      const kids = must(kidsOf, id);
+      let top: number;
+      if (kids.length) {
+        let cursor = start + (e - kidsSpan(id)) / 2;
+        for (const k of kids) {
+          assign(k, cursor);
+          cursor += must(extent, k) + gap;
+        }
+        const mid = (must(center, kids[0]) + must(center, kids[kids.length - 1])) / 2;
+        top = Math.min(Math.max(mid - anchorOf(id), start), start + e - own(id));
+      } else {
+        top = start + (e - own(id)) / 2;
+      }
+      center.set(id, top + anchorOf(id));
+    };
+    const treeRoots = [...new Set([...roots, ...topo])].filter((id) => !parentOf.has(id));
+    let cursor = 0;
+    for (const r of treeRoots) {
+      measure(r);
+      assign(r, cursor);
+      cursor += must(extent, r) + gap;
+    }
+    const layers: string[][] = Array.from({ length: layerCount }, () => []);
+    for (const id of ids) layers[must(rank, id)].push(id);
+    return layers.map((layer) => layer.sort((a, b) => must(center, a) - must(center, b)));
+  };
+
+  const best = arrange === 'tree' ? arrangeTree() : arrangeLayered();
 
   // 5b. Along-axis: each layer is as deep as its biggest step; steps are centred in it
   const layerDepth = best.map((layer) => Math.max(0, ...layer.map((id) => boxAlongOf(id))));
@@ -290,7 +391,7 @@ function layoutComponent(
   let cursor = 0;
   layerDepth.forEach((depth, r) => {
     layerStart[r] = cursor;
-    cursor += depth + (depth > WAYPOINT_SIZE ? LAYER_GAP[dir] : LAYER_GAP[dir] / 2);
+    cursor += depth + (depth > WAYPOINT_SIZE ? gaps.layer : gaps.layer / 2);
   });
 
   const positions = new Map<string, Point>();
@@ -324,8 +425,13 @@ function layoutComponent(
 /**
  * Returns a copy of `nodes` with tidy positions. Edges are untouched. The laid-out
  * graph keeps the top-left corner the flow had before, so the canvas doesn't jump away.
+ * Pass a direction, or options to also pick the arrangement and spacing.
  */
-export function layoutWorkflow(nodes: Node[], edges: Edge[], direction: LayoutDirection = 'LR'): Node[] {
+export function layoutWorkflow(nodes: Node[], edges: Edge[], options: LayoutDirection | LayoutOptions = 'LR'): Node[] {
+  const opts: LayoutOptions = typeof options === 'string' ? { direction: options } : options;
+  const direction = opts.direction ?? 'LR';
+  const arrange = opts.arrange ?? 'layered';
+  const gaps = gapsFor(direction, opts.spacing ?? 'comfortable');
   const flow = nodes.filter((n) => !isNote(n) && !isGroup(n));
   if (flow.length === 0) return nodes;
   const notes = nodes.filter(isNote);
@@ -371,11 +477,11 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], direction: LayoutDi
     const card = must(sizes, id);
     const kids = childrenOf.get(id) ?? [];
     const kidBlocks = kids.map(block);
-    const rowAlong = kidBlocks.reduce((sum, b) => sum + b.along, 0) + Math.max(0, kids.length - 1) * ATTACH_GAP.along;
+    const rowAlong = kidBlocks.reduce((sum, b) => sum + b.along, 0) + Math.max(0, kids.length - 1) * gaps.attach.along;
     const rowAcross = Math.max(0, ...kidBlocks.map((b) => b.across));
     const result = {
       along: Math.max(alongOfSize(card), rowAlong),
-      across: acrossOfSize(card) + (kids.length ? ATTACH_GAP.across + rowAcross : 0),
+      across: acrossOfSize(card) + (kids.length ? gaps.attach.across + rowAcross : 0),
       rowAlong,
       rowAcross,
     };
@@ -485,11 +591,13 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], direction: LayoutDi
       nodeById,
       direction,
       reserved,
+      gaps,
+      arrange,
     );
     result.positions.forEach((p, id) =>
       positions.set(id, direction === 'LR' ? { x: p.x, y: p.y + offset } : { x: p.x + offset, y: p.y }),
     );
-    offset += (direction === 'LR' ? result.height : result.width) + COMPONENT_GAP;
+    offset += (direction === 'LR' ? result.height : result.width) + gaps.component;
   }
 
   // Anchor at the old top-left corner
@@ -505,7 +613,7 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], direction: LayoutDi
     const card = must(sizes, host);
     const b = block(host);
     const cardAlongStart = direction === 'LR' ? hp.x : hp.y;
-    const across = (direction === 'LR' ? hp.y : hp.x) + acrossOfSize(card) + ATTACH_GAP.across;
+    const across = (direction === 'LR' ? hp.y : hp.x) + acrossOfSize(card) + gaps.attach.across;
     let along = cardAlongStart + alongOfSize(card) / 2 - b.rowAlong / 2;
     for (const kid of kids) {
       const kb = block(kid);
@@ -513,7 +621,7 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], direction: LayoutDi
       const kAlong = along + (kb.along - alongOfSize(ks)) / 2;
       positions.set(kid, direction === 'LR' ? { x: Math.round(kAlong), y: Math.round(across) } : { x: Math.round(across), y: Math.round(kAlong) });
       placeChildren(kid);
-      along += kb.along + ATTACH_GAP.along;
+      along += kb.along + gaps.attach.along;
     }
   };
   for (const id of [...positions.keys()]) placeChildren(id);

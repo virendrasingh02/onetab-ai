@@ -308,6 +308,14 @@ export type {
   ExternalIntegration,
   WorkflowExecution,
   WorkflowExecutionEntry,
+  AutomationDailyVolume,
+  AutomationWorkflowMetric,
+  AutomationFailingMetric,
+  AutomationScheduleItem,
+  AutomationConnectorHealth,
+  AutomationOverviewData,
+  AutomationErrorGroup,
+  AutomationCatalogItem,
 } from './lib/automation.js';
 
 export {

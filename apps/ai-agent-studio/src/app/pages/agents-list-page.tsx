@@ -36,7 +36,6 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Sparkles,
   Tag,
   Trash2,
   Upload,
@@ -52,7 +51,6 @@ import {
   DEFAULT_CATEGORIES,
   THEME_COLORS,
 } from '../data/agent-metadata.js';
-import { STUDIO_TEMPLATES } from '../data/templates.js';
 import { useStudioSession } from '../session-guard.js';
 
 type AgentStatus = 'draft' | 'testing' | 'published' | 'paused' | 'archived';
@@ -80,11 +78,10 @@ export function AgentsListPage() {
   const [environmentFilter, setEnvironmentFilter] = useState<'all' | 'development' | 'staging' | 'production'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
-  // Create Modal & Tabs
+  // Create Modal
   const [isCreateOpen, setIsCreateOpen] = useState(
     searchParams.get('create') === 'blank' || searchParams.get('create') === 'true',
   );
-  const [createMode, setCreateMode] = useState<'scratch' | 'prompt' | 'template' | 'existing'>('scratch');
 
   // Create Form State
   const [newName, setNewName] = useState('');
@@ -103,11 +100,6 @@ export function AgentsListPage() {
   const [newTags, setNewTags] = useState('support, autonomous');
   const [newOwnerName, setNewOwnerName] = useState(user?.name || 'Workspace Owner');
   const [newOwnerEmail, setNewOwnerEmail] = useState(user?.email || 'owner@onetab.ai');
-
-  // Natural Language & Template & Existing Workflow States
-  const [nlPrompt, setNlPrompt] = useState('');
-  const [selectedTemplateId, setSelectedTemplateId] = useState(STUDIO_TEMPLATES[0]?.id || '');
-  const [selectedExistingAgentId, setSelectedExistingAgentId] = useState('');
 
   // Rename Modal
   const [renameAgentTarget, setRenameAgentTarget] = useState<any | null>(null);
@@ -243,8 +235,6 @@ export function AgentsListPage() {
     setNewTags('support, autonomous');
     setNewOwnerName(user?.name || 'Workspace Owner');
     setNewOwnerEmail(user?.email || 'owner@onetab.ai');
-    setNlPrompt('');
-    setSelectedExistingAgentId('');
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
@@ -255,68 +245,6 @@ export function AgentsListPage() {
       email: newOwnerEmail.trim() || user?.email || 'owner@onetab.ai',
     };
 
-    // 1. Natural Language Creation
-    if (createMode === 'prompt') {
-      // A prompt is planned for real (tools, apps, missing setup) by "Create with one prompt".
-      if (!nlPrompt.trim()) return;
-      setIsCreateOpen(false);
-      navigate(`/create?prompt=${encodeURIComponent(nlPrompt.trim())}&go=1`);
-      return;
-    }
-
-    // 2. From Starter Template
-    if (createMode === 'template') {
-      const tpl = STUDIO_TEMPLATES.find((t) => t.id === selectedTemplateId) || STUDIO_TEMPLATES[0];
-      createMutation.mutate({
-        name: tpl.name,
-        role: tpl.tags[0] || 'Specialist',
-        description: tpl.description,
-        systemPrompt: 'Execute template workflow diligently.',
-        model: newModel,
-        avatarUrl: newAvatarUrl || null,
-        graphJson: JSON.stringify({ nodes: tpl.nodes, edges: tpl.edges }),
-        configuration: {
-          category: tpl.tags[0] || newCategory,
-          environment: newEnvironment,
-          status: 'draft',
-          theme: newTheme,
-          icon: newIcon,
-          avatar: newAvatarUrl || '',
-          tags: tpl.tags,
-          owner: ownerObj,
-        },
-      });
-      return;
-    }
-
-    // 3. From Existing Workflow
-    if (createMode === 'existing') {
-      if (!selectedExistingAgentId) return;
-      const targetAgent = rawAgents.find((a: any) => a.id === selectedExistingAgentId);
-      createMutation.mutate({
-        name: newName.trim() || `${targetAgent?.name || 'Workflow'} (Cloned)`,
-        role: targetAgent?.role || newRole,
-        description: newDesc.trim() || targetAgent?.description,
-        systemPrompt: targetAgent?.systemPrompt || newPrompt,
-        model: newModel,
-        avatarUrl: newAvatarUrl || targetAgent?.avatarUrl || null,
-        graphJson: targetAgent?.graphJson,
-        tools: targetAgent?.tools,
-        configuration: {
-          category: newCategory,
-          environment: newEnvironment,
-          status: 'draft',
-          theme: newTheme,
-          icon: newIcon,
-          avatar: newAvatarUrl || '',
-          tags: ['cloned', newCategory.toLowerCase()],
-          owner: ownerObj,
-        },
-      });
-      return;
-    }
-
-    // 4. Blank Canvas Creation (Image 1 Layout)
     if (!newName.trim()) return;
     const initialGraph = {
       nodes: [
@@ -527,10 +455,7 @@ export function AgentsListPage() {
             <Button
               size="sm"
               variant="primary"
-              onClick={() => {
-                setCreateMode('scratch');
-                setIsCreateOpen(true);
-              }}
+              onClick={() => setIsCreateOpen(true)}
               className="gap-1.5 text-xs font-semibold"
             >
               <Plus className="size-4" /> Create New AI Agent
@@ -911,8 +836,9 @@ export function AgentsListPage() {
               ?.focus({ preventScroll: true });
           }}
         >
-          <form onSubmit={handleCreateSubmit}>
-            <DialogHeader className="space-y-1 pb-2">
+          {/* Capped to the dialog's height so only the body scrolls; header + footer stay put */}
+          <form onSubmit={handleCreateSubmit} className="flex max-h-[calc(90dvh-2px)] flex-col">
+            <DialogHeader className="shrink-0 space-y-1 pb-2">
               <div className="flex items-center gap-3">
                 <div className="flex size-9 items-center justify-center rounded-xl bg-success/15 text-success border border-success/30">
                   <Bot className="size-5" />
@@ -922,534 +848,392 @@ export function AgentsListPage() {
                     Create New AI Agent
                   </DialogTitle>
                   <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                    Choose your creation method: blank canvas, natural language prompt, or pre-built template.
+                    Name your agent and set its basics — you’ll build the workflow on the canvas.
                   </DialogDescription>
                 </div>
               </div>
-
-              {/* Mode Switcher Tabs (Matching Image 1 Pill Switcher) */}
-              <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl bg-background p-1 text-xs border border-border">
-                <button
-                  type="button"
-                  onClick={() => setCreateMode('scratch')}
-                  className={`rounded-lg py-1.5 font-medium transition-all text-center ${
-                    createMode === 'scratch'
-                      ? 'bg-muted text-foreground shadow-xs font-semibold'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Blank Canvas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreateMode('prompt')}
-                  className={`rounded-lg py-1.5 font-medium transition-all flex items-center justify-center gap-1.5 ${
-                    createMode === 'prompt'
-                      ? 'bg-muted text-foreground shadow-xs font-semibold'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Wand2 className="size-3.5 text-success" />
-                  <span>Natural Language</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCreateMode('template')}
-                  className={`rounded-lg py-1.5 font-medium transition-all text-center ${
-                    createMode === 'template'
-                      ? 'bg-muted text-foreground shadow-xs font-semibold'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  From Template
-                </button>
-              </div>
             </DialogHeader>
 
-            <DialogBody className="space-y-3.5 py-4 text-xs">
-              {/* TAB 1: BLANK CANVAS (Exact Image 1 fields) */}
-              {createMode === 'scratch' && (
-                <>
-                  {/* Agent Name * */}
-                  <div className="space-y-1">
+            <DialogBody className="min-h-0 flex-1 space-y-3.5 overflow-y-auto overscroll-contain py-4 text-xs">
+              {/* Agent Name * */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-foreground">
+                  Agent Name *
+                </label>
+                <Input
+                  required
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g. Sales Qualification Specialist"
+                  className="h-9 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-success rounded-lg"
+                  data-initial-focus
+                />
+              </div>
+
+              {/* 2-Column: Role / Title + Category */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">
+                    Role / Title
+                  </label>
+                  <Input
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value)}
+                    placeholder="Assistant"
+                    className="h-9 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-success rounded-lg"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
                     <label className="text-[11px] font-semibold text-foreground">
-                      Agent Name *
+                      Category
                     </label>
-                    <Input
-                      required
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="e.g. Sales Qualification Specialist"
-                      className="h-9 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-success rounded-lg"
-                      data-initial-focus
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingCustomCategory(!isCreatingCustomCategory)}
+                      className="text-[10px] text-success hover:underline"
+                    >
+                      {isCreatingCustomCategory ? 'Choose Existing' : '+ New Category'}
+                    </button>
+                  </div>
+                  {isCreatingCustomCategory ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        value={customCategoryInput}
+                        onChange={(e) => setCustomCategoryInput(e.target.value)}
+                        placeholder="Enter category name…"
+                        className="h-9 text-xs bg-background border-border text-foreground focus:border-success rounded-lg flex-1"
+                        autoFocus
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={!customCategoryInput.trim()}
+                        onClick={() => {
+                          if (!customCategoryInput.trim()) return;
+                          setNewCategory(customCategoryInput.trim());
+                          setIsCreatingCustomCategory(false);
+                          toast.success(`Category "${customCategoryInput.trim()}" selected`);
+                        }}
+                        className="h-9 px-3 text-xs bg-success hover:bg-success/90 text-success-foreground"
+                      >
+                        Set
+                      </Button>
+                    </div>
+                  ) : (
+                    <select
+                      value={newCategory}
+                      onChange={(e) => {
+                        if (e.target.value === '__new__') {
+                          setIsCreatingCustomCategory(true);
+                        } else {
+                          setNewCategory(e.target.value);
+                        }
+                      }}
+                      className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
+                    >
+                      {availableCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      <option value="__new__">+ Create new category…</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-foreground">
+                  Description
+                </label>
+                <Input
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  placeholder="Briefly describe what task this agent performs..."
+                  className="h-9 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-success rounded-lg"
+                />
+              </div>
+
+              {/* Agent Icon, Custom Avatar & Theme (Module 1.2 Specs) */}
+              <div className="rounded-xl border border-border bg-background p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-foreground">
+                    Agent Icon, Avatar & Theme
+                  </span>
+                  {/* Avatar Mode switcher: Icon vs Custom Image */}
+                  <div className="flex rounded-lg bg-muted p-0.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setAvatarMode('icon')}
+                      className={`px-2 py-0.5 rounded-md font-medium transition-all ${
+                        avatarMode === 'icon' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Icon Library
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAvatarMode('upload')}
+                      className={`px-2 py-0.5 rounded-md font-medium transition-all ${
+                        avatarMode === 'upload' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Upload File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAvatarMode('url')}
+                      className={`px-2 py-0.5 rounded-md font-medium transition-all ${
+                        avatarMode === 'url' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Image URL
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  {/* Live Preview Avatar */}
+                  <div className="flex flex-col items-center gap-1.5 shrink-0">
+                    <AgentAvatar
+                      icon={newIcon}
+                      avatarUrl={newAvatarUrl}
+                      theme={newTheme}
+                      size="lg"
                     />
+                    <span className="text-[10px] text-muted-foreground font-mono">Live Preview</span>
                   </div>
 
-                  {/* 2-Column: Role / Title + Category */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-foreground">
-                        Role / Title
-                      </label>
-                      <Input
-                        value={newRole}
-                        onChange={(e) => setNewRole(e.target.value)}
-                        placeholder="Assistant"
-                        className="h-9 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-success rounded-lg"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-semibold text-foreground">
-                          Category
+                  <div className="flex-1 space-y-2.5">
+                    {/* Icon Picker Mode */}
+                    {avatarMode === 'icon' && (
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-1">
+                          Choose Built-in Icon:
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => setIsCreatingCustomCategory(!isCreatingCustomCategory)}
-                          className="text-[10px] text-success hover:underline"
-                        >
-                          {isCreatingCustomCategory ? 'Choose Existing' : '+ New Category'}
-                        </button>
+                        <div className="grid grid-cols-10 gap-1.5 max-h-24 overflow-y-auto pr-1">
+                          {AGENT_ICONS.map((item) => {
+                            const IconComp = item.icon;
+                            const isSelected = newIcon.toLowerCase() === item.id.toLowerCase() && !newAvatarUrl;
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => {
+                                  setNewIcon(item.id);
+                                  setNewAvatarUrl('');
+                                }}
+                                title={item.label}
+                                className={`size-7 rounded-lg flex items-center justify-center border transition-all ${
+                                  isSelected
+                                    ? 'border-success bg-success/20 text-success ring-1 ring-success'
+                                    : 'border-border bg-background text-muted-foreground hover:text-foreground hover:border-border-strong'
+                                }`}
+                              >
+                                <IconComp className="size-3.5" />
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                      {isCreatingCustomCategory ? (
+                    )}
+
+                    {/* File Upload Mode */}
+                    {avatarMode === 'upload' && (
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-muted-foreground block">
+                          Upload custom avatar image (PNG, JPG, SVG):
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            id="agent-avatar-file-upload"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (file.size > 2 * 1024 * 1024) {
+                                  toast.error('Avatar file must be under 2MB');
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = (loadEvt) => {
+                                  const result = loadEvt.target?.result as string;
+                                  setNewAvatarUrl(result);
+                                  toast.success('Custom avatar uploaded');
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="agent-avatar-file-upload"
+                            className="h-8 px-3 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground text-xs flex items-center gap-1.5 cursor-pointer font-medium transition-colors"
+                          >
+                            <Upload className="size-3.5 text-success" />
+                            <span>Choose Image…</span>
+                          </label>
+                          {newAvatarUrl && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setNewAvatarUrl('')}
+                              className="h-8 text-xs text-destructive hover:text-destructive"
+                            >
+                              Clear Avatar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* URL Mode */}
+                    {avatarMode === 'url' && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-muted-foreground block">
+                          Avatar Image URL:
+                        </label>
                         <div className="flex items-center gap-1.5">
                           <Input
-                            value={customCategoryInput}
-                            onChange={(e) => setCustomCategoryInput(e.target.value)}
-                            placeholder="Enter category name…"
-                            className="h-9 text-xs bg-background border-border text-foreground focus:border-success rounded-lg flex-1"
-                            autoFocus
+                            value={newAvatarUrl}
+                            onChange={(e) => setNewAvatarUrl(e.target.value)}
+                            placeholder="https://example.com/avatar.png"
+                            className="h-8 text-xs bg-background border-border text-foreground"
                           />
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={!customCategoryInput.trim()}
-                            onClick={() => {
-                              if (!customCategoryInput.trim()) return;
-                              setNewCategory(customCategoryInput.trim());
-                              setIsCreatingCustomCategory(false);
-                              toast.success(`Category "${customCategoryInput.trim()}" selected`);
-                            }}
-                            className="h-9 px-3 text-xs bg-success hover:bg-success/90 text-success-foreground"
-                          >
-                            Set
-                          </Button>
-                        </div>
-                      ) : (
-                        <select
-                          value={newCategory}
-                          onChange={(e) => {
-                            if (e.target.value === '__new__') {
-                              setIsCreatingCustomCategory(true);
-                            } else {
-                              setNewCategory(e.target.value);
-                            }
-                          }}
-                          className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
-                        >
-                          {availableCategories.map((cat) => (
-                            <option key={cat} value={cat}>
-                              {cat}
-                            </option>
-                          ))}
-                          <option value="__new__">+ Create new category…</option>
-                        </select>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-foreground">
-                      Description
-                    </label>
-                    <Input
-                      value={newDesc}
-                      onChange={(e) => setNewDesc(e.target.value)}
-                      placeholder="Briefly describe what task this agent performs..."
-                      className="h-9 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-success rounded-lg"
-                    />
-                  </div>
-
-                  {/* Agent Icon, Custom Avatar & Theme (Module 1.2 Specs) */}
-                  <div className="rounded-xl border border-border bg-background p-3 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-foreground">
-                        Agent Icon, Avatar & Theme
-                      </span>
-                      {/* Avatar Mode switcher: Icon vs Custom Image */}
-                      <div className="flex rounded-lg bg-muted p-0.5 text-[10px]">
-                        <button
-                          type="button"
-                          onClick={() => setAvatarMode('icon')}
-                          className={`px-2 py-0.5 rounded-md font-medium transition-all ${
-                            avatarMode === 'icon' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          Icon Library
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAvatarMode('upload')}
-                          className={`px-2 py-0.5 rounded-md font-medium transition-all ${
-                            avatarMode === 'upload' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          Upload File
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAvatarMode('url')}
-                          className={`px-2 py-0.5 rounded-md font-medium transition-all ${
-                            avatarMode === 'url' ? 'bg-muted text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          Image URL
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-4">
-                      {/* Live Preview Avatar */}
-                      <div className="flex flex-col items-center gap-1.5 shrink-0">
-                        <AgentAvatar
-                          icon={newIcon}
-                          avatarUrl={newAvatarUrl}
-                          theme={newTheme}
-                          size="lg"
-                        />
-                        <span className="text-[10px] text-muted-foreground font-mono">Live Preview</span>
-                      </div>
-
-                      <div className="flex-1 space-y-2.5">
-                        {/* Icon Picker Mode */}
-                        {avatarMode === 'icon' && (
-                          <div>
-                            <label className="text-[10px] text-muted-foreground block mb-1">
-                              Choose Built-in Icon:
-                            </label>
-                            <div className="grid grid-cols-10 gap-1.5 max-h-24 overflow-y-auto pr-1">
-                              {AGENT_ICONS.map((item) => {
-                                const IconComp = item.icon;
-                                const isSelected = newIcon.toLowerCase() === item.id.toLowerCase() && !newAvatarUrl;
-                                return (
-                                  <button
-                                    key={item.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setNewIcon(item.id);
-                                      setNewAvatarUrl('');
-                                    }}
-                                    title={item.label}
-                                    className={`size-7 rounded-lg flex items-center justify-center border transition-all ${
-                                      isSelected
-                                        ? 'border-success bg-success/20 text-success ring-1 ring-success'
-                                        : 'border-border bg-background text-muted-foreground hover:text-foreground hover:border-border-strong'
-                                    }`}
-                                  >
-                                    <IconComp className="size-3.5" />
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* File Upload Mode */}
-                        {avatarMode === 'upload' && (
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] text-muted-foreground block">
-                              Upload custom avatar image (PNG, JPG, SVG):
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="file"
-                                id="agent-avatar-file-upload"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    if (file.size > 2 * 1024 * 1024) {
-                                      toast.error('Avatar file must be under 2MB');
-                                      return;
-                                    }
-                                    const reader = new FileReader();
-                                    reader.onload = (loadEvt) => {
-                                      const result = loadEvt.target?.result as string;
-                                      setNewAvatarUrl(result);
-                                      toast.success('Custom avatar uploaded');
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                              />
-                              <label
-                                htmlFor="agent-avatar-file-upload"
-                                className="h-8 px-3 rounded-lg border border-border bg-muted hover:bg-muted/70 text-foreground text-xs flex items-center gap-1.5 cursor-pointer font-medium transition-colors"
-                              >
-                                <Upload className="size-3.5 text-success" />
-                                <span>Choose Image…</span>
-                              </label>
-                              {newAvatarUrl && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setNewAvatarUrl('')}
-                                  className="h-8 text-xs text-destructive hover:text-destructive"
-                                >
-                                  Clear Avatar
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* URL Mode */}
-                        {avatarMode === 'url' && (
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-muted-foreground block">
-                              Avatar Image URL:
-                            </label>
-                            <div className="flex items-center gap-1.5">
-                              <Input
-                                value={newAvatarUrl}
-                                onChange={(e) => setNewAvatarUrl(e.target.value)}
-                                placeholder="https://example.com/avatar.png"
-                                className="h-8 text-xs bg-background border-border text-foreground"
-                              />
-                              {newAvatarUrl && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setNewAvatarUrl('')}
-                                  className="h-8 text-xs text-destructive hover:text-destructive"
-                                >
-                                  Clear
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Theme Color Row */}
-                        <div className="pt-1 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground font-medium">Theme Color:</span>
-                          <div className="flex items-center gap-1.5">
-                            {THEME_COLORS.map((item) => {
-                              const color = item.id;
-                              return (
-                                <button
-                                  key={color}
-                                  type="button"
-                                  onClick={() => setNewTheme(color)}
-                                  style={{ backgroundColor: item.colorHex }}
-                                  className={`size-5 rounded-full transition-all ${
-                                    newTheme === color ? 'ring-2 ring-white scale-125' : 'opacity-70 hover:opacity-100 hover:scale-110'
-                                  }`}
-                                  title={color}
-                                />
-                              );
-                            })}
-                          </div>
+                          {newAvatarUrl && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setNewAvatarUrl('')}
+                              className="h-8 text-xs text-destructive hover:text-destructive"
+                            >
+                              Clear
+                            </Button>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    )}
 
-                  {/* System Instructions */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-foreground">
-                      System Instructions
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={newPrompt}
-                      onChange={(e) => setNewPrompt(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-success focus:outline-none"
-                    />
-                  </div>
-
-                  {/* 2-Column: Reasoning Model + Target Environment */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-foreground">
-                        Reasoning Model
-                      </label>
-                      <select
-                        value={newModel}
-                        onChange={(e) => setNewModel(e.target.value)}
-                        className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
-                      >
-                        <option value="OpenAI GPT-4o">OpenAI GPT-4o</option>
-                        <option value="OpenAI GPT-4o Mini">OpenAI GPT-4o Mini</option>
-                        <option value="Anthropic Claude 3.5 Sonnet">Anthropic Claude 3.5 Sonnet</option>
-                        <option value="Google Gemini 1.5 Pro">Google Gemini 1.5 Pro</option>
-                        <option value="Ollama Llama 3">Ollama Llama 3</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-foreground">
-                        Target Environment
-                      </label>
-                      <select
-                        value={newEnvironment}
-                        onChange={(e) => setNewEnvironment(e.target.value as any)}
-                        className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
-                      >
-                        <option value="development">Development</option>
-                        <option value="staging">Staging</option>
-                        <option value="production">Production</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Owner & Tags */}
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-foreground">
-                        Owner / Lead Name
-                      </label>
-                      <Input
-                        value={newOwnerName}
-                        onChange={(e) => setNewOwnerName(e.target.value)}
-                        placeholder="e.g. Jane Doe"
-                        className="h-9 text-xs bg-background border-border text-foreground"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-foreground">
-                        Owner Email
-                      </label>
-                      <Input
-                        value={newOwnerEmail}
-                        onChange={(e) => setNewOwnerEmail(e.target.value)}
-                        placeholder="owner@onetab.ai"
-                        className="h-9 text-xs bg-background border-border text-foreground"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-foreground">
-                      Tags (comma-separated)
-                    </label>
-                    <Input
-                      value={newTags}
-                      onChange={(e) => setNewTags(e.target.value)}
-                      placeholder="support, autonomous, gpt-4o"
-                      className="h-9 text-xs bg-background border-border text-foreground"
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* TAB 2: NATURAL LANGUAGE CREATION */}
-              {createMode === 'prompt' && (
-                <div className="space-y-3">
-                  <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Sparkles className="size-4 text-primary shrink-0" />
-                      <div className="text-xs">
-                        <span className="font-bold text-foreground">Create with one prompt: </span>
-                        <span className="text-muted-foreground">plans the workflow from your tools and apps, and asks only for what’s missing</span>
+                    {/* Theme Color Row */}
+                    <div className="pt-1 flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground font-medium">Theme Color:</span>
+                      <div className="flex items-center gap-1.5">
+                        {THEME_COLORS.map((item) => {
+                          const color = item.id;
+                          return (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => setNewTheme(color)}
+                              style={{ backgroundColor: item.colorHex }}
+                              className={`size-5 rounded-full transition-all ${
+                                newTheme === color ? 'ring-2 ring-white scale-125' : 'opacity-70 hover:opacity-100 hover:scale-110'
+                              }`}
+                              title={color}
+                            />
+                          );
+                        })}
                       </div>
-                    </div>
-                    <Button
-                      type="button"
-                      size="xs"
-                      onClick={() => {
-                        setIsCreateOpen(false);
-                        navigate(nlPrompt.trim() ? `/create?prompt=${encodeURIComponent(nlPrompt.trim())}&go=1` : '/create');
-                      }}
-                      className="gap-1 text-xs bg-primary text-primary-foreground font-semibold"
-                    >
-                      <Wand2 className="size-3" />
-                      <span>Plan it</span>
-                    </Button>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-foreground">
-                      Or quick-create with directive:
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={nlPrompt}
-                      onChange={(e) => setNlPrompt(e.target.value)}
-                      placeholder="e.g. Build an autonomous Gmail agent that checks for urgent emails and drafts replies..."
-                      className="w-full rounded-lg border border-border bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-success focus:outline-none"
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-foreground">Reasoning Model</label>
-                      <select
-                        value={newModel}
-                        onChange={(e) => setNewModel(e.target.value)}
-                        className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-xs text-foreground"
-                      >
-                        <option value="OpenAI GPT-4o">OpenAI GPT-4o</option>
-                        <option value="Anthropic Claude 3.5 Sonnet">Claude 3.5 Sonnet</option>
-                        <option value="Google Gemini 1.5 Pro">Gemini 1.5 Pro</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-foreground">Environment</label>
-                      <select
-                        value={newEnvironment}
-                        onChange={(e) => setNewEnvironment(e.target.value as any)}
-                        className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-xs text-foreground"
-                      >
-                        <option value="development">Development</option>
-                        <option value="staging">Staging</option>
-                        <option value="production">Production</option>
-                      </select>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* TAB 3: FROM STARTER TEMPLATE */}
-              {createMode === 'template' && (
-                <div className="space-y-2">
+              {/* System Instructions */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-foreground">
+                  System Instructions
+                </label>
+                <textarea
+                  rows={3}
+                  value={newPrompt}
+                  onChange={(e) => setNewPrompt(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-success focus:outline-none"
+                />
+              </div>
+
+              {/* 2-Column: Reasoning Model + Target Environment */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-foreground">
-                    Select a Template to Instantiate:
+                    Reasoning Model
                   </label>
-                  <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                    {STUDIO_TEMPLATES.map((tpl) => (
-                      <div
-                        key={tpl.id}
-                        onClick={() => setSelectedTemplateId(tpl.id)}
-                        className={`cursor-pointer rounded-xl border p-3 transition-all ${
-                          selectedTemplateId === tpl.id
-                            ? 'border-success bg-success/10'
-                            : 'border-border bg-background hover:border-success/40'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-                          <span>{tpl.name}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono">{tpl.nodes.length} nodes</span>
-                        </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground line-clamp-1">
-                          {tpl.description}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                  <select
+                    value={newModel}
+                    onChange={(e) => setNewModel(e.target.value)}
+                    className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
+                  >
+                    <option value="OpenAI GPT-4o">OpenAI GPT-4o</option>
+                    <option value="OpenAI GPT-4o Mini">OpenAI GPT-4o Mini</option>
+                    <option value="Anthropic Claude 3.5 Sonnet">Anthropic Claude 3.5 Sonnet</option>
+                    <option value="Google Gemini 1.5 Pro">Google Gemini 1.5 Pro</option>
+                    <option value="Ollama Llama 3">Ollama Llama 3</option>
+                  </select>
                 </div>
-              )}
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">
+                    Target Environment
+                  </label>
+                  <select
+                    value={newEnvironment}
+                    onChange={(e) => setNewEnvironment(e.target.value as any)}
+                    className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs text-foreground focus:border-success focus:outline-none"
+                  >
+                    <option value="development">Development</option>
+                    <option value="staging">Staging</option>
+                    <option value="production">Production</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Owner & Tags */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">
+                    Owner / Lead Name
+                  </label>
+                  <Input
+                    value={newOwnerName}
+                    onChange={(e) => setNewOwnerName(e.target.value)}
+                    placeholder="e.g. Jane Doe"
+                    className="h-9 text-xs bg-background border-border text-foreground"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">
+                    Owner Email
+                  </label>
+                  <Input
+                    value={newOwnerEmail}
+                    onChange={(e) => setNewOwnerEmail(e.target.value)}
+                    placeholder="owner@onetab.ai"
+                    className="h-9 text-xs bg-background border-border text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-foreground">
+                  Tags (comma-separated)
+                </label>
+                <Input
+                  value={newTags}
+                  onChange={(e) => setNewTags(e.target.value)}
+                  placeholder="support, autonomous, gpt-4o"
+                  className="h-9 text-xs bg-background border-border text-foreground"
+                />
+              </div>
             </DialogBody>
 
             {/* Modal Footer (Exact Image 1 Buttons) */}
-            <DialogFooter className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+            <DialogFooter className="flex shrink-0 items-center justify-end gap-2 pt-3 border-t border-border bg-popover">
               <Button
                 type="button"
                 variant="ghost"
@@ -1461,7 +1245,7 @@ export function AgentsListPage() {
               <Button
                 type="submit"
                 loading={createMutation.isPending}
-                disabled={createMode === 'scratch' ? !newName.trim() : createMode === 'prompt' ? !nlPrompt.trim() : false}
+                disabled={!newName.trim()}
                 className="bg-success hover:bg-success/90 text-success-foreground font-semibold h-9 px-4 rounded-lg text-xs shadow-md transition-colors"
               >
                 Create & Open Canvas

@@ -199,6 +199,14 @@ export const queryKeys = {
       ['automations', workspaceId, 'detail', workflowId] as const,
     versions: (workspaceId: string, workflowId: string) =>
       ['automations', workspaceId, 'detail', workflowId, 'versions'] as const,
+    overview: (workspaceId: string) =>
+      ['automations', workspaceId, 'overview'] as const,
+    schedules: (workspaceId: string) =>
+      ['automations', workspaceId, 'schedules'] as const,
+    errors: (workspaceId: string) =>
+      ['automations', workspaceId, 'errors'] as const,
+    catalog: (workspaceId: string) =>
+      ['automations', workspaceId, 'catalog'] as const,
   },
   integrations: {
     all: (workspaceId: string) => ['integrations', workspaceId] as const,

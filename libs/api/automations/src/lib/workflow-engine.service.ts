@@ -243,7 +243,7 @@ function writePath(target: Record<string, unknown>, path: string, value: unknown
 }
 
 export type RunMode = 'live' | 'test';
-export type RunStartedBy = 'person' | 'schedule' | 'event' | 'retry';
+export type RunStartedBy = 'person' | 'schedule' | 'event' | 'retry' | 'webhook';
 
 export interface RunOptions {
   mode?: RunMode;
@@ -1298,7 +1298,7 @@ export class WorkflowEngineService {
         agentName: env.workflow.name,
         ownerId: env.workflow.creatorId,
         status: status === 'SUCCESS' ? 'COMPLETED' : status,
-        startedBy: env.startedBy,
+        startedBy: env.startedBy === 'webhook' ? 'event' : env.startedBy,
         test: env.mode === 'test',
         error: error ?? null,
         notify: {
@@ -1894,6 +1894,53 @@ export class WorkflowEngineService {
       case 'TOOL':
       case 'APP':
         return this.runToolNode(node, context, env, cfg);
+
+      case 'RUN_WORKFLOW':
+      case 'SUB_WORKFLOW': {
+        const targetWorkflowId = String(cfg['workflowId'] || cfg['workflow'] || '').trim();
+        if (!targetWorkflowId) {
+          throw new Error(`No target workflow configured for node '${node.label || node.id}'.`);
+        }
+        const depth = typeof context['__depth'] === 'number' ? (context['__depth'] as number) : 0;
+        if (depth >= 5) {
+          throw new Error('Maximum workflow invocation depth exceeded (5). Potential circular dependency.');
+        }
+        let rawInput: unknown = cfg['input'] ?? {};
+        if (typeof rawInput === 'string') {
+          try {
+            rawInput = rawInput.trim() ? JSON.parse(rawInput) : {};
+          } catch {
+            rawInput = { text: rawInput };
+          }
+        }
+        const subInput: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries((rawInput as Record<string, unknown>) ?? {})) {
+          subInput[k] = typeof v === 'string' ? interpolateVariables(v, context) : v;
+        }
+        const gated = this.gateStep(node, env);
+        if (gated) return { ...gated, output: { ...(gated.output as object), subInput } };
+        const subResult = await this.executeWorkflow(
+          targetWorkflowId,
+          { ...context, ...subInput, __depth: depth + 1 },
+          {
+            mode: env.mode,
+            startedBy: 'event',
+            userId: env.workflow.creatorId,
+          },
+        );
+        const lastStep = subResult.results[subResult.results.length - 1];
+        return {
+          stepId: node.id,
+          type: node.type,
+          status: subResult.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED',
+          output: {
+            workflowResult: lastStep?.output ?? null,
+            runId: subResult.runId,
+            status: subResult.status,
+            results: subResult.results,
+          },
+        };
+      }
 
       case 'END':
         return {

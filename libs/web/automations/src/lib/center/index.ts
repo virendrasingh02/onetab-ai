@@ -1,0 +1,16 @@
+export * from './types.js';
+export { AutomationCenterLayout } from './AutomationCenterLayout.js';
+export { AutomationOverviewTab } from './AutomationOverviewTab.js';
+export { AutomationWorkflowsTab } from './AutomationWorkflowsTab.js';
+export { AutomationTemplatesTab } from './AutomationTemplatesTab.js';
+export { AutomationTriggersTab } from './AutomationTriggersTab.js';
+export { AutomationActionsTab } from './AutomationActionsTab.js';
+export { AutomationConnectionsTab } from './AutomationConnectionsTab.js';
+export { AutomationAITab } from './AutomationAITab.js';
+export { AutomationSchedulesTab } from './AutomationSchedulesTab.js';
+export { AutomationApprovalsTab } from './AutomationApprovalsTab.js';
+export { AutomationHistoryTab } from './AutomationHistoryTab.js';
+export { AutomationRunsTab } from './AutomationRunsTab.js';
+export { AutomationAnalyticsTab } from './AutomationAnalyticsTab.js';
+export { AutomationErrorsTab } from './AutomationErrorsTab.js';
+export { AutomationSettingsTab } from './AutomationSettingsTab.js';

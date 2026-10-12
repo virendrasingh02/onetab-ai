@@ -1,4 +1,4 @@
-import { agentArchitectApi, agentGraphsApi } from '@org/api-client';
+import { agentArchitectApi, agentGraphsApi, agentsApi } from '@org/api-client';
 import {
   applyGraphEdits,
   compileStudioGraph,
@@ -7,30 +7,64 @@ import {
   diffStudioGraphs,
   explainStudioGraph,
   suggestNextActions,
+  type AgentArchitectSpec,
   type ArchitectDiagnosisResult,
   type ArchitectOptimizeResult,
   type GraphEditOp,
   type StudioCanvasGraph,
   type StudioGraphIssue,
 } from '@org/types';
-import { Badge, Button, Switch, Textarea, toast } from '@org/ui';
+import { useSpeechToText } from '@org/hooks';
+import {
+  Badge,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Switch,
+  toast,
+} from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ArrowUp,
   Check,
   CircleAlert,
+  Copy,
+  CornerDownRight,
+  Download,
   ExternalLink,
+  FileText,
   Gauge,
+  Hammer,
+  Wand2,
+  Bot,
+  ScanSearch,
+  Lightbulb,
+  ListChecks,
   Loader2,
+  Mic,
   Play,
+  Plus,
   RotateCcw,
-  Send,
+  ShieldCheck,
   Sparkles,
+  Square,
   Stethoscope,
+  Workflow,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { CanvasNodeStatus } from '../workflow-canvas/run-console-drawer.js';
+import type { NodeRunResult } from '../workflow-canvas/node-chrome.js';
 import { ChangeList, FlowLine, IssueList, errorText, integrationsHref } from './architect-ui.js';
+import { CopilotReviewCard } from './copilot-review-card.js';
+import { CopilotRunCard } from './copilot-run-card.js';
+import { reviewWorkflow, type WorkflowReview } from './workflow-review.js';
 
 /** A proposed change waiting for Apply, or one already applied (and undoable). */
 interface Proposal {
@@ -41,6 +75,8 @@ interface Proposal {
   summary: string;
   state: 'pending' | 'applying' | 'applied' | 'discarded' | 'undone';
   version?: number;
+  /** A whole new workflow from Create — Apply replaces the canvas, or it can become its own agent. */
+  rebuild?: { spec: AgentArchitectSpec; savedAgentId?: string };
 }
 
 interface Message {
@@ -54,7 +90,21 @@ interface Message {
   /** Shows the "Open Integrations" link. */
   connect?: boolean;
   by?: string;
+  /** A run started from the chat, followed live in the reply. */
+  run?: { runId: string; mode: 'test' | 'live' };
+  /** A full check of every step and wire. */
+  review?: WorkflowReview;
 }
+
+/** What the composer does with what's typed. */
+type ComposerMode = 'modify' | 'check' | 'test' | 'create';
+
+const COMPOSER_MODES: { id: ComposerMode; label: string; placeholder: string; Icon: typeof Play }[] = [
+  { id: 'modify', label: 'Modify', placeholder: 'Describe a change — “add Slack”, “run every Monday at 9”…', Icon: Wand2 },
+  { id: 'check', label: 'Check', placeholder: 'Checks every step, connection and setting — just press Check', Icon: ScanSearch },
+  { id: 'test', label: 'Test', placeholder: 'What should the agent get? Empty runs it as-is', Icon: Play },
+  { id: 'create', label: 'Create', placeholder: 'Describe the agent to build from scratch…', Icon: Hammer },
+];
 
 export interface AgentCopilotPanelProps {
   workspaceId: string;
@@ -65,7 +115,15 @@ export interface AgentCopilotPanelProps {
   graph: StudioCanvasGraph;
   /** Puts a graph on the canvas, saves it and records a version. Returns the version number. */
   onApply: (graph: StudioCanvasGraph, summary: string) => Promise<number | undefined>;
+  /** Opens the full run console. */
   onRunTest: () => void;
+  /** Frames a step on the canvas. */
+  onFocusNode?: (nodeId: string) => void;
+  /** Saves unsaved canvas changes: a run uses the saved graph. */
+  onBeforeRun: () => Promise<void>;
+  /** Live step states for the canvas while a chat run goes (null clears them). */
+  onNodeStatuses?: (statuses: Record<string, CanvasNodeStatus> | null) => void;
+  onNodeResults?: (results: Record<string, NodeRunResult>) => void;
   onClose: () => void;
   /** Opens with this greeting (an agent fresh from "Create with one prompt"). */
   welcome?: boolean;
@@ -75,11 +133,12 @@ export interface AgentCopilotPanelProps {
 let messageSeq = 0;
 const nextId = () => `m${++messageSeq}`;
 
-type Intent = 'explain' | 'debug' | 'optimize' | 'test' | 'permissions' | 'missing' | 'edit';
+type Intent = 'explain' | 'debug' | 'optimize' | 'test' | 'permissions' | 'missing' | 'check' | 'create' | 'edit';
 
 /** What kind of request it is — editing goes to the API, the rest is answered from the graph and its runs. */
 function intentOf(text: string): Intent {
   const t = text.toLowerCase();
+  if (/^(build|create|make|design|start over with|rebuild)( me)? (an? |the )?(new |whole |fresh )?(agent|workflow|flow)\b/.test(t)) return 'create';
   if (/^(explain|how does|what does|walk me through|describe)\b|how (does )?(this|it) work/.test(t)) return 'explain';
   // A question about a failure — not a request that mentions one ("retry failed calls").
   if (/\b(why (did|does|is|was)|what went wrong|debug|find out why|(keeps|kept) failing|(is|it'?s) (broken|failing|not working)|last run fail\w*)\b/.test(t)) return 'debug';
@@ -87,7 +146,14 @@ function intentOf(text: string): Intent {
   if (/^(run (a )?test|test (it|this|the agent)|test)\b/.test(t)) return 'test';
   if (/\b(check permissions|what can (it|this agent) (do|access)|secure|security)\b/.test(t)) return 'permissions';
   if (/\b(what do i (still )?need|what'?s missing|still need to connect)\b/.test(t)) return 'missing';
+  if (/^(check|review|audit|validate|inspect)\b|\b(health ?check|is (it|everything|this) (ok|okay|working|connected|set up)|any (issues|problems|errors)|what'?s wrong)\b/.test(t)) return 'check';
   return 'edit';
+}
+
+/** "test it with: refund for order 42" → "refund for order 42"; a bare "run a test" → "". */
+function testInputOf(text: string): string {
+  const m = text.match(/\b(?:with|using|on|input)\s*[:\-–]?\s*(.+)$/is) ?? text.match(/:\s*(.+)$/s);
+  return m ? m[1].trim().replace(/^["“'](.*)["”']$/s, '$1') : '';
 }
 
 function permissionSummary(graph: StudioCanvasGraph): string {
@@ -111,6 +177,58 @@ function permissionSummary(graph: StudioCanvasGraph): string {
   return `Here’s what it can do. Test runs read for real but never write; live runs act with the owner’s access, and the runtime refuses anything outside it.\n${lines.join('\n')}`;
 }
 
+/** A reply as plain text — what Copy and Download hand over. */
+function messageToText(m: Message): string {
+  const parts = [m.text];
+  if (m.notes?.length) parts.push(m.notes.map((n) => `• ${n}`).join('\n'));
+  if (m.diagnosis?.findings.length) {
+    parts.push(m.diagnosis.findings.map((f) => `• ${f.step}: ${f.message}\n  ${f.hint}`).join('\n'));
+  }
+  if (m.optimization?.suggestions.length) {
+    parts.push(m.optimization.suggestions.map((s) => `• ${s.title} — ${s.detail}`).join('\n'));
+  }
+  if (m.proposal) {
+    parts.push(`Changes:\n${m.proposal.changes.map((c) => `• ${c}`).join('\n')}`);
+    parts.push(`Workflow after: ${m.proposal.flow}`);
+  }
+  return parts.filter(Boolean).join('\n\n');
+}
+
+function downloadText(filename: string, text: string, type: string) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/** "Save as PDF" through the browser's own print dialog — no PDF library needed. */
+function printAsPdf(title: string, text: string): boolean {
+  const win = window.open('', '_blank', 'width=720,height=900');
+  if (!win) return false;
+  win.document.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>` +
+      `<style>body{font:14px/1.6 system-ui,sans-serif;margin:40px;color:#111}h1{font-size:18px;margin:0 0 16px}pre{white-space:pre-wrap;font:inherit}</style>` +
+      `</head><body><h1>${escapeHtml(title)}</h1><pre>${escapeHtml(text)}</pre></body></html>`,
+  );
+  win.document.close();
+  win.focus();
+  win.print();
+  return true;
+}
+
+/** Shortcuts behind the composer's "+": each is a real Copilot request. */
+const QUICK_ACTIONS: { label: string; prompt: string; Icon: typeof Play }[] = [
+  { label: 'Explain this workflow', prompt: 'Explain how this works', Icon: Lightbulb },
+  { label: 'Debug the last run', prompt: 'Why did the last run fail?', Icon: Stethoscope },
+  { label: 'Make it faster or cheaper', prompt: 'Optimize it', Icon: Gauge },
+  { label: 'Check permissions', prompt: 'Check permissions', Icon: ShieldCheck },
+  { label: 'What’s still missing?', prompt: 'What do I still need to connect?', Icon: ListChecks },
+];
+
 /**
  * The Agent Copilot: change the agent in plain words, and ask it to explain,
  * debug, optimise or test. Every change is a proposal with its computed
@@ -124,25 +242,40 @@ export function AgentCopilotPanel({
   graph,
   onApply,
   onRunTest,
+  onFocusNode,
+  onBeforeRun,
+  onNodeStatuses,
+  onNodeResults,
   onClose,
   welcome,
   className,
 }: AgentCopilotPanelProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>(() => [
-    {
-      id: nextId(),
-      role: 'assistant',
-      text: welcome
-        ? `I built ${agentName}. ${explainStudioGraph(graph)}`
-        : `Tell me what to change — “add Slack notifications”, “run it every Monday at 9”, “add approval before sending”. I’ll show exactly what changes before anything is saved.`,
-    },
-  ]);
+  const [mode, setMode] = useState<ComposerMode>('modify');
+  const greeting = (built: boolean): Message => ({
+    id: nextId(),
+    role: 'assistant',
+    text: built
+      ? `I built ${agentName}. ${explainStudioGraph(graph)}`
+      : `Everything happens right here:\n• Modify — “add Slack notifications”, “run it every Monday at 9”\n• Check — I go through every step, connection and setting, and suggest what to add\n• Test — run it with any input and watch each step\n• Create — describe an agent and I’ll build the whole workflow\nNothing is saved until you Apply.`,
+  });
+  const [messages, setMessages] = useState<Message[]>(() => [greeting(!!welcome)]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const dictation = useSpeechToText();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const graphRef = useRef(graph);
   graphRef.current = graph;
+  const labels = useMemo(() => new Map(graph.nodes.map((n) => [n.id, String(n.data.label || n.type)])), [graph]);
+  // The newest chat run is the one lit up on the canvas
+  const latestRunMessageId = [...messages].reverse().find((m) => m.run)?.id;
+  const [savingAgent, setSavingAgent] = useState<string | null>(null);
+
+  // Clear the canvas highlights when the Copilot closes
+  useEffect(() => () => onNodeStatuses?.(null), [onNodeStatuses]);
 
   const { data: runs = [] } = useQuery({
     queryKey: ['canvas-agent-runs', workspaceId, agentId],
@@ -165,6 +298,22 @@ export function AgentCopilotPanel({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, busy]);
 
+  // Dictated words land in the box when the mic stops, for review before sending
+  useEffect(() => {
+    if (dictation.listening || !dictation.finalText) return;
+    setInput((cur) => `${cur}${cur && !cur.endsWith(' ') ? ' ' : ''}${dictation.finalText}`);
+    dictation.reset();
+    inputRef.current?.focus();
+  }, [dictation.listening, dictation.finalText, dictation]);
+
+  // The box grows with what's typed, up to a few lines
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [input, dictation.interimText]);
+
   const say = (m: Omit<Message, 'id'>) => setMessages((list) => [...list, { ...m, id: nextId() }]);
   const updateProposal = (id: string, patch: Partial<Proposal>) =>
     setMessages((list) => list.map((m) => (m.id === id && m.proposal ? { ...m, proposal: { ...m.proposal, ...patch } } : m)));
@@ -182,12 +331,140 @@ export function AgentCopilotPanel({
     });
   };
 
-  const handle = async (text: string) => {
+  /** Saves, checks and starts a test run; the reply then follows it live. */
+  const runTest = async (message: string) => {
+    setBusy('Saving and checking the workflow…');
+    await onBeforeRun();
+    const check = await agentGraphsApi.validate(workspaceId, agentId);
+    const blocking = check.issues.filter((i) => i.level === 'error');
+    if (!check.valid || blocking.length) {
+      say({
+        role: 'assistant',
+        text: `It can’t run yet — ${blocking.length === 1 ? 'one thing needs' : `${blocking.length} things need`} fixing first:`,
+        notes: blocking.map((i) => (i.nodeId && labels.get(i.nodeId) ? `${labels.get(i.nodeId)}: ${i.message}` : i.message)),
+        connect: blocking.some((i) => /connect/i.test(i.message)),
+      });
+      return;
+    }
+    setBusy('Starting the run…');
+    const started = await agentGraphsApi.run(workspaceId, agentId, { mode: 'test', ...(message ? { message } : {}) });
+    say({
+      role: 'assistant',
+      text: message
+        ? `Testing with “${message}”. Test runs read real data but never send or change anything.`
+        : 'Testing it as it is. Test runs read real data but never send or change anything.',
+      run: { runId: started.runId, mode: 'test' },
+    });
+  };
+
+  /** Checks every step, wire and setting — locally and with the server's own validator. */
+  const checkWorkflow = async (focus: string) => {
+    setBusy('Checking every step and connection…');
+    const current = graphRef.current;
+    let serverIssues: StudioGraphIssue[] = [];
+    let serverChecked = true;
+    try {
+      serverIssues = (await agentGraphsApi.validate(workspaceId, agentId, JSON.stringify(current))).issues;
+    } catch {
+      serverChecked = false;
+    }
+    const review = reviewWorkflow(current, serverIssues);
+    const { error, warning } = review.counts;
+    say({
+      role: 'assistant',
+      text:
+        error + warning === 0
+          ? `I checked all ${review.steps.length} steps: each one is set up, connected on the right path and reachable from the trigger.`
+          : `I checked all ${review.steps.length} steps. ${error ? `${error} problem${error === 1 ? '' : 's'} will stop or break a run` : 'Nothing blocks a run'}${warning ? `, and ${warning} thing${warning === 1 ? '' : 's'} could go wrong` : ''}. Fix any of them from here.`,
+      notes: [
+        ...(focus ? [`You asked about: ${focus}`] : []),
+        ...(serverChecked ? [] : ['The server check couldn’t be reached — this covers the canvas only.']),
+      ],
+      review,
+    });
+  };
+
+  /** Plans a whole workflow from a description, as a proposal that replaces the canvas. */
+  const createFromScratch = async (prompt: string) => {
+    setBusy('Planning the workflow — this can take a minute…');
+    const res = await agentArchitectApi.understand(workspaceId, { prompt });
+    const diff = diffStudioGraphs(graphRef.current, res.graph);
+    const missing = res.spec.missingConfiguration.filter((m) => m.required).map((m) => `${m.title} — ${m.detail}`);
+    say({
+      role: 'assistant',
+      text: `Here’s “${res.spec.agent.name}”: ${res.spec.agent.description}\nApply puts it on this canvas, or save it as a separate agent.`,
+      notes: missing.length ? [`Before a live run: ${missing.join('; ')}`] : undefined,
+      connect: res.spec.missingConfiguration.some((m) => m.kind === 'connection' || !!m.provider),
+      by: res.plannedBy === 'ai' ? `Planned by ${res.model ?? 'AI'} in ${(res.durationMs / 1000).toFixed(0)}s` : 'Planned from a template',
+      proposal: {
+        graph: res.graph,
+        changes: diff.summary,
+        issues: res.issues,
+        flow: res.flow,
+        summary: `Rebuilt: ${prompt}`.slice(0, 200),
+        state: 'pending',
+        rebuild: { spec: res.spec },
+      },
+    });
+  };
+
+  /** A failed chat run offers the diagnosis right away. */
+  const onRunSettled = useCallback((run: { status: string }) => {
+    if (run.status.toUpperCase() !== 'FAILED') return;
+    setMessages((list) => [
+      ...list,
+      { id: nextId(), role: 'assistant', text: 'That run failed. Ask “why did the last run fail?” and I’ll read it and suggest a fix.' },
+    ]);
+  }, []);
+
+  /** Saves a Create proposal as its own agent instead of replacing this one. */
+  const saveAsNewAgent = async (message: Message) => {
+    const p = message.proposal;
+    if (!p?.rebuild) return;
+    const { spec } = p.rebuild;
+    setSavingAgent(message.id);
+    try {
+      const created = await agentsApi.create(workspaceId, {
+        name: spec.agent.name,
+        role: `${spec.agent.category} agent`,
+        description: spec.agent.description,
+        systemPrompt: spec.agent.instructions,
+        graphJson: JSON.stringify(p.graph),
+        configuration: {
+          category: spec.agent.category,
+          icon: spec.agent.icon,
+          tags: spec.agent.tags,
+          lifecycle: 'draft',
+          architect: { spec, prompt: p.summary.replace(/^Rebuilt: /, ''), createdAt: new Date().toISOString() },
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: ['agents', workspaceId] });
+      updateProposal(message.id, { rebuild: { spec, savedAgentId: created.id } });
+      toast.success(`${spec.agent.name} created.`, {
+        action: { label: 'Open', onClick: () => navigate(`/agents/${created.id}?copilot=1`) },
+      });
+    } catch (err) {
+      toast.error(errorText(err, 'The agent couldn’t be created.'));
+    } finally {
+      setSavingAgent(null);
+    }
+  };
+
+  const handle = async (text: string, as: ComposerMode = 'modify') => {
     const command = text.trim();
-    if (!command || busy) return;
+    if (busy) return;
+    // An empty Test still runs, and an empty Check checks everything
+    if (!command && as !== 'test' && as !== 'check') return;
     setInput('');
-    say({ role: 'user', text: command });
-    const intent = intentOf(command);
+    say({
+      role: 'user',
+      text:
+        as === 'test' ? (command ? `Test with: ${command}` : 'Run a test')
+        : as === 'create' ? `Create: ${command}`
+        : as === 'check' ? (command ? `Check: ${command}` : 'Check every step')
+        : command,
+    });
+    const intent: Intent = as === 'modify' ? intentOf(command) : as;
     const current = graphRef.current;
     const graphJson = JSON.stringify(current);
     try {
@@ -197,8 +474,15 @@ export function AgentCopilotPanel({
           return;
         }
         case 'test': {
-          onRunTest();
-          say({ role: 'assistant', text: 'I opened the run console. Test runs read real data but don’t send or change anything, and approvals are simulated.' });
+          await runTest(as === 'test' ? command : testInputOf(command));
+          return;
+        }
+        case 'create': {
+          await createFromScratch(command);
+          return;
+        }
+        case 'check': {
+          await checkWorkflow(as === 'check' ? command : '');
           return;
         }
         case 'permissions': {
@@ -311,7 +595,36 @@ export function AgentCopilotPanel({
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    void handle(input);
+    if (dictation.listening) dictation.stop();
+    void handle(input, mode);
+  };
+
+  const newChat = () => {
+    if (busy) return;
+    dictation.stop();
+    undoGraphs.current.clear();
+    setInput('');
+    setMessages([greeting(false)]);
+  };
+
+  const copyMessage = async (m: Message) => {
+    try {
+      await navigator.clipboard.writeText(messageToText(m));
+      setCopiedId(m.id);
+      setTimeout(() => setCopiedId((id) => (id === m.id ? null : id)), 1500);
+    } catch {
+      toast.error('Couldn’t copy — your browser blocked the clipboard.');
+    }
+  };
+
+  const exportName = `${agentName.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'agent'}-copilot`;
+  const downloadMessage = (m: Message, format: 'txt' | 'md' | 'pdf') => {
+    const text = messageToText(m);
+    if (format === 'pdf') {
+      if (!printAsPdf(`${agentName} — Copilot`, text)) toast.error('Allow pop-ups to save as PDF.');
+      return;
+    }
+    downloadText(`${exportName}.${format}`, format === 'md' ? `# ${agentName} — Copilot\n\n${text}\n` : text, format === 'md' ? 'text/markdown' : 'text/plain');
   };
 
   const schedule = activation?.schedule;
@@ -326,37 +639,50 @@ export function AgentCopilotPanel({
       ? `${describeCronExpression(schedule.cron)}${schedule.timezone ? ` (${schedule.timezone})` : ''}`
       : 'No schedule or app event — ask me to “run it every weekday at 9”';
 
+  const last = messages[messages.length - 1];
+  const showSuggestions = !busy && last?.role === 'assistant' && last.proposal?.state !== 'pending' && suggestions.length > 0;
+  const composerValue = dictation.listening
+    ? `${input}${input && dictation.interimText ? ' ' : ''}${dictation.finalText}${dictation.finalText && dictation.interimText ? ' ' : ''}${dictation.interimText}`
+    : input;
+
+  const iconBtn =
+    'flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40 cursor-pointer';
+
   return (
     <aside
       aria-label="Agent Copilot"
       className={cn(
-        'flex h-full w-full shrink-0 flex-col border-l border-border bg-surface shadow-lg sm:w-96',
+        'flex h-full w-full shrink-0 flex-col border-l border-border bg-surface shadow-lg sm:w-[400px]',
         'max-lg:fixed max-lg:inset-y-0 max-lg:right-0 max-lg:z-40',
         className,
       )}
     >
+      {/* Header */}
       <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
             <Sparkles className="size-4" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-foreground">Agent Copilot</h2>
+            <h2 className="truncate text-sm font-semibold text-foreground">Agent Copilot</h2>
             <p className="truncate text-[11px] text-muted-foreground">{graph.nodes.length} steps · {agentName}</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close Copilot">
-          <X />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <button type="button" onClick={newChat} disabled={!!busy} className={iconBtn} aria-label="New chat" title="New chat">
+            <Plus className="size-4" />
+          </button>
+          <button type="button" onClick={onClose} className={iconBtn} aria-label="Close Copilot" title="Close">
+            <X className="size-4" />
+          </button>
+        </div>
       </header>
 
-      <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-raised/40 px-3 py-2">
+      {/* Runs on its own */}
+      <div className="mx-3 mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-raised/40 px-3 py-2">
         <div className="min-w-0">
           <p className="text-xs font-medium text-foreground">Runs on its own</p>
-          <p
-            className={cn('truncate text-[11px]', appTrigger?.lastError ? 'text-warning-text' : 'text-muted-foreground')}
-            title={runsOnItsOwnText}
-          >
+          <p className={cn('truncate text-[11px]', appTrigger?.lastError ? 'text-warning-text' : 'text-muted-foreground')} title={runsOnItsOwnText}>
             {runsOnItsOwnText}
           </p>
         </div>
@@ -368,21 +694,26 @@ export function AgentCopilotPanel({
         />
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3" aria-live="polite">
-        {messages.map((m) => (
-          <div key={m.id} className={cn('flex', m.role === 'user' ? 'justify-end' : 'justify-start')}>
-            <div
-              className={cn(
-                'max-w-[92%] space-y-2 rounded-xl px-3 py-2 text-xs leading-relaxed',
-                m.role === 'user' ? 'bg-primary text-primary-foreground' : 'border border-border bg-background text-foreground',
-              )}
-            >
+      {/* Conversation */}
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4" aria-live="polite">
+        {messages.map((m) =>
+          m.role === 'user' ? (
+            <div key={m.id} className="flex justify-end">
+              <p className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md border border-border bg-surface-raised px-3.5 py-2 text-[13px] leading-relaxed text-foreground">
+                {m.text}
+              </p>
+            </div>
+          ) : (
+            <div key={m.id} className="group/msg space-y-2.5 text-[13px] leading-relaxed text-foreground">
               <p className="whitespace-pre-line">{m.text}</p>
-              {m.by && <p className="text-[10px] text-muted-foreground">{m.by}</p>}
+              {m.by && <p className="text-[11px] text-muted-foreground">{m.by}</p>}
               {m.notes?.length ? (
-                <ul className="space-y-0.5">
+                <ul className="space-y-1">
                   {m.notes.map((n, i) => (
-                    <li key={i} className="text-[11px] text-muted-foreground">• {n}</li>
+                    <li key={i} className="flex gap-2 text-xs text-muted-foreground">
+                      <span aria-hidden className="mt-[7px] size-1 shrink-0 rounded-full bg-muted-foreground/60" />
+                      {n}
+                    </li>
                   ))}
                 </ul>
               ) : null}
@@ -395,15 +726,15 @@ export function AgentCopilotPanel({
               )}
 
               {m.diagnosis && m.diagnosis.findings.length > 0 && (
-                <ul className="space-y-1.5">
+                <ul className="space-y-2">
                   {m.diagnosis.findings.map((f, i) => (
-                    <li key={i} className="rounded-lg border border-border bg-surface p-2">
-                      <p className="flex items-center gap-1.5 font-medium">
-                        <CircleAlert className="size-3 text-destructive-text" aria-hidden /> {f.step}
+                    <li key={i} className="space-y-1 rounded-xl border border-border bg-background p-3">
+                      <p className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
+                        <CircleAlert className="size-3.5 text-destructive-text" aria-hidden /> {f.step}
                         <Badge variant={f.retryable ? 'info' : 'warning'}>{f.retryable ? 'Retry is safe' : 'Needs a fix'}</Badge>
                       </p>
-                      <p className="text-[11px] text-muted-foreground">{f.message}</p>
-                      <p className="text-[11px] text-foreground">{f.hint}</p>
+                      <p className="text-xs text-muted-foreground">{f.message}</p>
+                      <p className="text-xs text-foreground">{f.hint}</p>
                     </li>
                   ))}
                 </ul>
@@ -415,20 +746,20 @@ export function AgentCopilotPanel({
               )}
 
               {m.optimization && (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {m.optimization.runs.count > 0 && (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Last {m.optimization.runs.count} runs: {Math.round((m.optimization.runs.failureRate ?? 0) * 100)}% failed
                       {m.optimization.runs.avgLatencyMs != null ? `, ${(m.optimization.runs.avgLatencyMs / 1000).toFixed(1)}s on average` : ''}
                       {m.optimization.runs.avgTokens != null ? `, ${Math.round(m.optimization.runs.avgTokens)} tokens` : ''}.
                     </p>
                   )}
                   {m.optimization.suggestions.map((s) => (
-                    <div key={s.id} className="rounded-lg border border-border bg-surface p-2">
-                      <p className="font-medium">{s.title}</p>
-                      <p className="text-[11px] text-muted-foreground">{s.detail}</p>
+                    <div key={s.id} className="space-y-1 rounded-xl border border-border bg-background p-3">
+                      <p className="text-xs font-medium">{s.title}</p>
+                      <p className="text-xs text-muted-foreground">{s.detail}</p>
                       {s.ops && (
-                        <Button size="xs" variant="outline" className="mt-1.5 gap-1" onClick={() => proposeOps(s.ops!, s.title, `Here’s “${s.title}”:`)}>
+                        <Button size="xs" variant="outline" className="mt-1 gap-1" onClick={() => proposeOps(s.ops!, s.title, `Here’s “${s.title}”:`)}>
                           <Gauge className="size-3" /> Preview this change
                         </Button>
                       )}
@@ -437,96 +768,280 @@ export function AgentCopilotPanel({
                 </div>
               )}
 
+              {/* A proposed change, as a file-like card */}
               {m.proposal && (
-                <div className="space-y-2 rounded-lg border border-border bg-surface p-2.5">
-                  <ChangeList changes={m.proposal.changes} />
-                  <div>
-                    <p className="mb-1 text-[11px] font-medium text-muted-foreground">Workflow after</p>
-                    <FlowLine flow={m.proposal.flow} />
+                <div className="space-y-2">
+                  <div className="overflow-hidden rounded-xl border border-border bg-background">
+                    <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
+                      <span className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                        <Workflow className="size-3.5" aria-hidden /> proposed-change
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {m.proposal.changes.length} change{m.proposal.changes.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    <div className="max-h-64 space-y-3 overflow-y-auto p-3">
+                      <ChangeList changes={m.proposal.changes} />
+                      <div>
+                        <p className="mb-1 text-[11px] font-medium text-muted-foreground">Workflow after</p>
+                        <FlowLine flow={m.proposal.flow} />
+                      </div>
+                      <IssueList issues={m.proposal.issues.filter((i) => i.level === 'error')} />
+                    </div>
                   </div>
-                  <IssueList issues={m.proposal.issues.filter((i) => i.level === 'error')} />
+
                   {m.proposal.state === 'pending' && (
-                    <div className="flex gap-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button size="xs" onClick={() => void apply(m)} className="gap-1">
-                        <Check className="size-3" /> Apply
+                        <Check className="size-3" /> {m.proposal.rebuild ? 'Replace this canvas' : 'Apply'}
                       </Button>
+                      {m.proposal.rebuild && !m.proposal.rebuild.savedAgentId && (
+                        <Button size="xs" variant="outline" onClick={() => void saveAsNewAgent(m)} loading={savingAgent === m.id} className="gap-1">
+                          <Bot className="size-3" /> Save as new agent
+                        </Button>
+                      )}
                       <Button size="xs" variant="ghost" onClick={() => updateProposal(m.id, { state: 'discarded' })}>
                         Discard
                       </Button>
+                      {!m.proposal.rebuild && <span className="text-[11px] text-muted-foreground">Saves a new version you can undo</span>}
                     </div>
                   )}
+                  {m.proposal.rebuild?.savedAgentId && (
+                    <p className="flex flex-wrap items-center gap-1.5 text-xs text-success-text">
+                      <Check className="size-3.5" aria-hidden /> Saved as {m.proposal.rebuild.spec.agent.name}
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/agents/${m.proposal?.rebuild?.savedAgentId}?copilot=1`)}
+                        className="inline-flex items-center gap-0.5 text-foreground underline-offset-2 hover:underline cursor-pointer"
+                      >
+                        Open it <ExternalLink className="size-3" aria-hidden />
+                      </button>
+                    </p>
+                  )}
                   {m.proposal.state === 'applying' && (
-                    <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Loader2 className="size-3 animate-spin" aria-hidden /> Saving…
                     </p>
                   )}
                   {m.proposal.state === 'applied' && (
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="flex items-center gap-1 text-[11px] text-success-text">
-                        <Check className="size-3" aria-hidden /> Applied{m.proposal.version ? ` · saved as version ${m.proposal.version}` : ''}
+                    <div className="flex items-center gap-2">
+                      <p className="flex items-center gap-1 text-xs text-success-text">
+                        <Check className="size-3.5" aria-hidden /> Applied{m.proposal.version ? ` · version ${m.proposal.version}` : ''}
                       </p>
                       <Button size="xs" variant="ghost" onClick={() => void undo(m)} className="gap-1">
                         <RotateCcw className="size-3" /> Undo
                       </Button>
                     </div>
                   )}
-                  {m.proposal.state === 'discarded' && <p className="text-[11px] text-muted-foreground">Discarded — nothing changed.</p>}
-                  {m.proposal.state === 'undone' && <p className="text-[11px] text-muted-foreground">Undone — the previous workflow is back.</p>}
+                  {m.proposal.state === 'discarded' && <p className="text-xs text-muted-foreground">Discarded — nothing changed.</p>}
+                  {m.proposal.state === 'undone' && <p className="text-xs text-muted-foreground">Undone — the previous workflow is back.</p>}
                 </div>
               )}
+
+              {m.review && (
+                <CopilotReviewCard review={m.review} onAsk={(p) => void handle(p)} onFocusStep={onFocusNode} disabled={!!busy} />
+              )}
+
+              {m.run && (
+                <CopilotRunCard
+                  workspaceId={workspaceId}
+                  agentId={agentId}
+                  runId={m.run.runId}
+                  mode={m.run.mode}
+                  labels={labels}
+                  drivesCanvas={m.id === latestRunMessageId}
+                  onNodeStatuses={onNodeStatuses}
+                  onNodeResults={onNodeResults}
+                  onOpenConsole={onRunTest}
+                  onSettled={onRunSettled}
+                />
+              )}
+
+              {/* Reply actions */}
+              <div className="flex items-center gap-0.5 opacity-70 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100">
+                <button type="button" onClick={() => void copyMessage(m)} className={iconBtn} aria-label="Copy reply" title="Copy">
+                  {copiedId === m.id ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" className={iconBtn} aria-label="Download reply" title="Download">
+                      <Download className="size-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="top" className="w-48">
+                    <DropdownMenuLabel className="text-[11px] text-muted-foreground">Download as</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={() => downloadMessage(m, 'pdf')} className="gap-2 text-xs">
+                      <FileText className="size-3.5" /> PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => downloadMessage(m, 'md')} className="gap-2 text-xs">
+                      <FileText className="size-3.5" /> Markdown (.md)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => downloadMessage(m, 'txt')} className="gap-2 text-xs">
+                      <FileText className="size-3.5" /> Plain text (.txt)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-          </div>
-        ))}
+          ),
+        )}
+
         {busy && (
-          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Loader2 className="size-3 animate-spin" aria-hidden /> {busy}
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="flex gap-0.5" aria-hidden>
+              <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
+              <span className="size-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
+              <span className="size-1.5 animate-bounce rounded-full bg-primary" />
+            </span>
+            {busy}
           </p>
+        )}
+
+        {/* Follow-ups */}
+        {showSuggestions && (
+          <div className="flex flex-col items-end gap-2 pt-1" aria-label="Suggestions">
+            {suggestions.slice(0, 4).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => void handle(s)}
+                className="group/sug inline-flex max-w-[90%] items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2 text-left text-[13px] text-foreground transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 cursor-pointer"
+              >
+                <span>{s}</span>
+                <CornerDownRight className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover/sug:text-foreground" aria-hidden />
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
-      <div className="space-y-2 border-t border-border p-3">
-        <div className="flex flex-wrap gap-1" aria-label="Suggestions">
-          {suggestions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              disabled={!!busy}
-              onClick={() => void handle(s)}
-              className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-        <form onSubmit={submit} className="flex items-end gap-2">
+      {/* Composer */}
+      <div className="px-3 pb-2 pt-1">
+        <form
+          onSubmit={submit}
+          className="rounded-2xl border border-border bg-background transition-colors focus-within:border-primary/50"
+        >
+          <div role="radiogroup" aria-label="What to do" className="flex items-center gap-0.5 border-b border-border px-1.5 pt-1.5 pb-1">
+            {COMPOSER_MODES.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={mode === id}
+                onClick={() => {
+                  setMode(id);
+                  inputRef.current?.focus();
+                }}
+                className={cn(
+                  'inline-flex h-6.5 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-colors cursor-pointer',
+                  mode === id ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground',
+                )}
+              >
+                <Icon className="size-3" aria-hidden /> {label}
+              </button>
+            ))}
+          </div>
           <label htmlFor="copilot-input" className="sr-only">Ask the Copilot</label>
-          <Textarea
+          <textarea
             id="copilot-input"
-            rows={2}
-            value={input}
+            ref={inputRef}
+            rows={1}
+            value={composerValue}
+            readOnly={dictation.listening}
             disabled={!!busy}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
-                void handle(input);
+                if (dictation.listening) dictation.stop();
+                void handle(input, mode);
               }
             }}
-            placeholder="Add Slack · Use Claude · Run every Monday at 9…"
-            className="min-h-0 resize-none text-xs"
+            placeholder={dictation.listening ? 'Listening…' : COMPOSER_MODES.find((x) => x.id === mode)?.placeholder}
+            className="block max-h-40 min-h-11 w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-[13px] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-60"
           />
-          <div className="flex flex-col gap-1">
-            <Button type="button" variant="ghost" size="icon-sm" onClick={onRunTest} aria-label="Run a test" title="Run a test">
-              <Play />
-            </Button>
-            <Button type="button" variant="ghost" size="icon-sm" onClick={() => void handle('Why did the last run fail?')} aria-label="Debug the last run" title="Debug the last run" disabled={!!busy}>
-              <Stethoscope />
-            </Button>
+          <div className="flex items-center justify-between gap-2 px-2 pb-2">
+            <div className="flex items-center gap-0.5">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" disabled={!!busy} className={iconBtn} aria-label="Copilot actions" title="Copilot actions">
+                    <Plus className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top" className="w-56">
+                  <DropdownMenuItem onSelect={() => void handle('', 'check')} className="gap-2 text-xs">
+                    <ScanSearch className="size-3.5" /> Check every step
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void handle('', 'test')} className="gap-2 text-xs">
+                    <Play className="size-3.5" /> Run a test
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={onRunTest} className="gap-2 text-xs">
+                    <ExternalLink className="size-3.5" /> Open the full run console
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {QUICK_ACTIONS.map(({ label, prompt, Icon }) => (
+                    <DropdownMenuItem key={label} onSelect={() => void handle(prompt)} className="gap-2 text-xs">
+                      <Icon className="size-3.5" /> {label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <span
+                className="ml-1 inline-flex items-center gap-1 rounded-md border border-border bg-surface px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                title="The Copilot reads the whole canvas, including unsaved changes"
+              >
+                <Workflow className="size-3" aria-hidden /> Entire workflow
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              {dictation.supported && (
+                <button
+                  type="button"
+                  onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+                  disabled={!!busy}
+                  className={cn(iconBtn, dictation.listening && 'bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive')}
+                  aria-label={dictation.listening ? 'Stop dictation' : 'Dictate'}
+                  aria-pressed={dictation.listening}
+                  title={dictation.listening ? 'Stop dictation' : 'Dictate'}
+                >
+                  {dictation.listening ? <Square className="size-3 fill-current" /> : <Mic className="size-4" />}
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={(mode !== 'test' && mode !== 'check' && !input.trim()) || !!busy}
+                aria-label={mode === 'check' ? 'Check' : mode === 'test' ? 'Run test' : mode === 'create' ? 'Build it' : 'Send'}
+                title={mode === 'check' ? 'Check every step (Enter)' : mode === 'test' ? 'Run test (Enter)' : mode === 'create' ? 'Build it (Enter)' : 'Send (Enter)'}
+                className={cn(
+                  'flex h-8 items-center justify-center gap-1 rounded-full bg-primary text-primary-foreground shadow-sm transition-all hover:bg-primary-hover active:scale-95',
+                  'disabled:bg-surface-raised disabled:text-muted-foreground disabled:shadow-none cursor-pointer disabled:cursor-not-allowed',
+                  mode === 'modify' ? 'w-8' : 'px-3 text-xs font-semibold',
+                )}
+              >
+                {busy ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : mode === 'test' ? (
+                  <>
+                    <Play className="size-3.5 fill-current" /> Run
+                  </>
+                ) : mode === 'check' ? (
+                  <>
+                    <ScanSearch className="size-3.5" /> Check
+                  </>
+                ) : mode === 'create' ? (
+                  <>
+                    <Hammer className="size-3.5" /> Build
+                  </>
+                ) : (
+                  <ArrowUp className="size-4" />
+                )}
+              </button>
+            </div>
           </div>
-          <Button type="submit" size="icon" disabled={!input.trim() || !!busy} aria-label="Send">
-            <Send />
-          </Button>
         </form>
+        <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+          Copilot can make mistakes — every change waits for your Apply.
+        </p>
       </div>
     </aside>
   );

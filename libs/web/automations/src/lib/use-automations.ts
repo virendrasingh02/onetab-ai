@@ -78,5 +78,65 @@ export function useWorkflowMutations(workspaceId: string | undefined) {
     onSuccess: invalidate,
   });
 
-  return { create, update, remove, trigger };
+  const triggerWebhook = useMutation({
+    mutationFn: ({
+      workflowId,
+      payload,
+      secret,
+    }: {
+      workflowId: string;
+      payload?: Record<string, unknown>;
+      secret?: string;
+    }) =>
+      automationsApi.webhook(workspaceId as string, workflowId, payload ?? {}, secret),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove, trigger, triggerWebhook };
 }
+
+export function useAutomationOverview(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.automations.overview(workspaceId ?? ''),
+    queryFn: () => automationsApi.overview(workspaceId as string),
+    enabled: !!workspaceId,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useAutomationSchedules(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.automations.schedules(workspaceId ?? ''),
+    queryFn: () => automationsApi.schedules(workspaceId as string),
+    enabled: !!workspaceId,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useAutomationErrors(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.automations.errors(workspaceId ?? ''),
+    queryFn: () => automationsApi.errors(workspaceId as string),
+    enabled: !!workspaceId,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useAutomationCatalog(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.automations.catalog(workspaceId ?? ''),
+    queryFn: () => automationsApi.catalog(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+}
+
+export async function triggerWebhook(
+  workspaceId: string,
+  workflowId: string,
+  payload: Record<string, unknown>,
+  secret?: string,
+) {
+  return automationsApi.webhook(workspaceId, workflowId, payload, secret);
+}
+

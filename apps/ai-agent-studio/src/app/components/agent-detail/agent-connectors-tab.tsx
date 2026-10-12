@@ -1,5 +1,19 @@
-import { Badge, Button, EmptyState, ErrorState, LoadingState, confirm, toast } from '@org/ui';
-import { Bot, ChevronRight, Plug, Plus, Trash2 } from 'lucide-react';
+import {
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  confirm,
+  toast,
+} from '@org/ui';
+import { cn } from '@org/utils';
+import { CONNECTOR_CATEGORIES } from '@org/types';
+import { Bot, Check, ExternalLink, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -14,10 +28,21 @@ import { useStudioSession } from '../../session-guard.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { AddToAgentDialog } from '../connectors/add-to-agent-dialog.js';
 
+const CATEGORY_LABEL = new Map<string, string>(CONNECTOR_CATEGORIES.map((c) => [c.id, c.label]));
+const ENABLED_TAB = '__enabled';
+const ALL_TAB = '__all';
+
+interface AppRow {
+  connector: ConnectorSummary;
+  /** Action ids the agent may use; empty when the app isn't given to it. */
+  actions: string[];
+}
+
 /**
- * The apps this agent can act in. Giving it an app links the connection (that
- * is what the runtime offers the model) and, when only some actions are
- * picked, narrows that app to them — the agent's built-in tools are untouched.
+ * The apps this agent can act in, as one searchable catalog: a check marks an
+ * app the agent already has, a plus gives it one. Giving it an app links the
+ * connection (that is what the runtime offers the model) and, when only some
+ * actions are picked, narrows that app to them — built-in tools are untouched.
  */
 export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps; onChanged: () => void }) {
   const navigate = useNavigate();
@@ -25,15 +50,46 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
   const connectors = useConnectors();
   const [adding, setAdding] = useState<ConnectorSummary | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<string>(ALL_TAB);
 
-  const { attached, available } = useMemo(() => {
-    const all = connectors.data ?? [];
-    const attached = all
+  const rows = useMemo<AppRow[]>(() => {
+    const all = (connectors.data ?? []).filter((c) => c.capabilities.length > 0);
+    return all
       .map((c) => ({ connector: c, actions: agentConnectorActions(agent, c) }))
-      .filter((x) => x.actions.length > 0);
-    const attachedSet = new Set(attached.map((x) => x.connector.provider));
-    return { attached, available: all.filter((c) => !attachedSet.has(c.provider) && c.capabilities.length > 0) };
+      // Enabled first, then ready-to-add, then the rest; alphabetical inside each
+      .sort((a, b) => rank(a) - rank(b) || a.connector.name.localeCompare(b.connector.name));
   }, [connectors.data, agent]);
+
+  const enabledCount = rows.filter((r) => r.actions.length > 0).length;
+  const categories = useMemo(
+    () => CONNECTOR_CATEGORIES.filter((c) => rows.some((r) => r.connector.category === c.id)),
+    [rows],
+  );
+
+  // Up to three apps worth adding next: connected ones first, then the most used
+  const suggested = useMemo(
+    () =>
+      rows
+        .filter((r) => r.actions.length === 0 && r.connector.status !== 'unavailable')
+        .sort(
+          (a, b) =>
+            Number(b.connector.status === 'connected') - Number(a.connector.status === 'connected') ||
+            b.connector.usage.calls - a.connector.usage.calls,
+        )
+        .slice(0, 3),
+    [rows],
+  );
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (tab === ENABLED_TAB && r.actions.length === 0) return false;
+      if (tab !== ALL_TAB && tab !== ENABLED_TAB && r.connector.category !== tab) return false;
+      if (!q) return true;
+      return `${r.connector.name} ${r.connector.description} ${CATEGORY_LABEL.get(r.connector.category) ?? ''}`.toLowerCase().includes(q);
+    });
+  }, [rows, tab, query]);
 
   if (connectors.isLoading) return <LoadingState label="Loading connectors…" />;
   if (connectors.isError) {
@@ -61,111 +117,189 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
     }
   };
 
+  /** What clicking an app does: pick its actions when connected, otherwise go connect it. */
+  const openApp = (c: ConnectorSummary) => {
+    if (c.status === 'unavailable') return;
+    if (c.status === 'connected') setAdding(c);
+    else navigate(`/connectors/${c.slug}`);
+  };
+
+  const tabs = [
+    { id: ALL_TAB, label: 'All' },
+    ...(enabledCount ? [{ id: ENABLED_TAB, label: `Enabled · ${enabledCount}` }] : []),
+    ...categories.map((c) => ({ id: c.id as string, label: c.label })),
+  ];
+
   return (
-    <div className="space-y-6">
-      <section>
-        <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-8 sm:px-6">
+        <header className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Apps this agent can use</h2>
-            <p className="text-xs text-muted-foreground">It acts through each connection with its owner’s permissions. Write actions follow its approval rules.</p>
+            <h2 className="text-base font-semibold text-foreground">Apps</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {agent.name} acts through each connection with its owner’s permissions. Write actions follow its approval rules.
+            </p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => navigate('/connectors')}>
-            All connectors
-          </Button>
+          <button
+            type="button"
+            onClick={() => navigate('/connectors')}
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+          >
+            All connectors <ExternalLink className="size-3" aria-hidden="true" />
+          </button>
+        </header>
+
+        {/* Suggested next apps */}
+        {suggested.length > 0 && !query && tab === ALL_TAB && (
+          <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
+            {suggested.map(({ connector: c }) => (
+              <button
+                key={c.provider}
+                type="button"
+                onClick={() => openApp(c)}
+                className="group flex min-h-28 w-60 shrink-0 snap-start flex-col justify-between gap-4 rounded-2xl border border-border bg-surface p-4 text-left transition-colors hover:border-border-strong hover:bg-surface-raised sm:w-auto cursor-pointer"
+              >
+                <AppTile connector={c} />
+                <span className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{c.description || `Use ${c.name} from this agent`}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Search */}
+        <label className="flex h-10 items-center gap-2.5 rounded-xl border border-border bg-surface px-3 transition-colors focus-within:border-primary/60">
+          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search apps"
+            aria-label="Search apps"
+            className="h-full w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          />
+        </label>
+
+        {/* Category pills */}
+        <div role="tablist" aria-label="App categories" className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                'h-8 shrink-0 rounded-lg px-3 text-sm transition-colors cursor-pointer',
+                tab === t.id ? 'bg-surface-raised font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-        {attached.length === 0 ? (
+
+        {/* Catalog */}
+        {visible.length === 0 ? (
           <EmptyState
-            icon={<Plug />}
-            title="No apps yet"
-            description="Give this agent an app below, and it can read from it and act in it when a task needs it."
+            icon={<Search />}
+            title={query ? `No apps match “${query.trim()}”` : 'No apps here yet'}
+            description={query ? 'Try another name, or look in All.' : 'Give this agent an app from All, and it can read from it and act in it.'}
           />
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {attached.map(({ connector: c, actions }) => (
-              <div key={c.provider} className="rounded-xl border border-border bg-surface p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised">
-                      <AppConnectorIcon connectorId={c.slug} name={c.name} category={c.category} size={22} />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-foreground">{c.name}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {actions.length === c.capabilities.length ? 'Every action' : `${actions.length} of ${c.capabilities.length} actions`}
-                      </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {visible.map(({ connector: c, actions }) => {
+              const enabled = actions.length > 0;
+              const unavailable = c.status === 'unavailable';
+              return (
+                <div
+                  key={c.provider}
+                  role="button"
+                  tabIndex={unavailable ? -1 : 0}
+                  aria-disabled={unavailable}
+                  onClick={() => openApp(c)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openApp(c);
+                    }
+                  }}
+                  title={unavailable ? c.unavailableReason || 'Not set up on this server yet' : undefined}
+                  className={cn(
+                    'group flex items-center gap-3 rounded-2xl border border-border bg-surface p-3.5 text-left outline-none transition-colors',
+                    'focus-visible:ring-2 focus-visible:ring-primary/50',
+                    unavailable ? 'cursor-not-allowed opacity-55' : 'cursor-pointer hover:border-border-strong hover:bg-surface-raised',
+                  )}
+                >
+                  <AppTile connector={c} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold text-foreground">{c.name}</span>
+                      {enabled && c.status !== 'connected' && (
+                        <Badge variant="warning" className="shrink-0 text-[10px]">
+                          {c.status === 'needs_attention' ? 'Reconnect' : 'Not connected'}
+                        </Badge>
+                      )}
                     </div>
+                    <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                      {enabled
+                        ? actions.length === c.capabilities.length
+                          ? `Every action · ${c.description}`
+                          : `${actions.length} of ${c.capabilities.length} actions · ${c.description}`
+                        : unavailable
+                          ? 'Not set up on this server yet'
+                          : c.description || `${c.capabilities.length} actions`}
+                    </p>
                   </div>
-                  {c.status !== 'connected' && <Badge variant="warning">Connection {c.status === 'needs_attention' ? 'broken' : 'missing'}</Badge>}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {c.capabilities
-                    .filter((cap) => actions.includes(cap.id))
-                    .slice(0, 6)
-                    .map((cap) => (
-                      <span key={cap.id} className="rounded-md border border-border bg-surface-raised px-1.5 py-0.5 text-[10px] text-foreground">
-                        {cap.label}
-                      </span>
-                    ))}
-                  {actions.length > 6 && <span className="text-[10px] text-muted-foreground">+{actions.length - 6} more</span>}
-                </div>
-                <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-                  <Button size="xs" variant="outline" onClick={() => setAdding(c)} disabled={c.status !== 'connected'}>
-                    Change actions
-                  </Button>
-                  <Button size="xs" variant="ghost" onClick={() => navigate(`/connectors/${c.slug}`)}>
-                    Open <ChevronRight className="ml-0.5 size-3" aria-hidden="true" />
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    className="ml-auto"
-                    onClick={() => remove(c)}
-                    loading={busy === c.provider}
-                    aria-label={`Remove ${c.name} from ${agent.name}`}
-                  >
-                    <Trash2 className="size-3.5 text-destructive" aria-hidden="true" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Add an app</h2>
-        {available.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Every app with actions is already available to this agent.</p>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {available.map((c) => (
-              <div key={c.provider} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface p-3">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <AppConnectorIcon connectorId={c.slug} name={c.name} category={c.category} size={20} />
-                  <div className="min-w-0">
-                    <div className="truncate text-xs font-medium text-foreground">{c.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{c.capabilities.length} actions</div>
-                  </div>
+                  {enabled ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          aria-label={`Manage ${c.name}`}
+                          title="Enabled — manage"
+                          disabled={busy === c.provider}
+                          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-success transition-colors hover:bg-success/10 cursor-pointer disabled:opacity-50"
+                        >
+                          <Check className="size-4 stroke-[2.5]" aria-hidden="true" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem disabled={c.status !== 'connected'} onSelect={() => setAdding(c)} className="gap-2 text-xs">
+                          <SlidersHorizontal className="size-3.5" /> Change actions
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => navigate(`/connectors/${c.slug}`)} className="gap-2 text-xs">
+                          <ExternalLink className="size-3.5" /> Open connector
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => void remove(c)} className="gap-2 text-xs text-destructive focus:text-destructive">
+                          <Trash2 className="size-3.5" /> Remove from agent
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      title={c.status === 'connected' ? `Add ${c.name}` : `Connect ${c.name}`}
+                      className={cn(
+                        'flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors',
+                        !unavailable && 'group-hover:border-primary/50 group-hover:text-foreground',
+                      )}
+                    >
+                      <Plus className="size-4" />
+                    </span>
+                  )}
                 </div>
-                {c.status === 'connected' ? (
-                  <Button size="xs" variant="outline" onClick={() => setAdding(c)}>
-                    <Plus className="mr-0.5 size-3" aria-hidden="true" /> Add
-                  </Button>
-                ) : c.status === 'unavailable' ? (
-                  <span className="text-[10px] text-muted-foreground">Not set up</span>
-                ) : (
-                  <Button size="xs" variant="ghost" onClick={() => navigate(`/connectors/${c.slug}`)}>
-                    Connect
-                  </Button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-        <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+
+        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Bot className="size-3.5" aria-hidden="true" /> Canvas agents get apps by plugging an app action into the agent’s Tools slot.
         </p>
-      </section>
+      </div>
 
       <AddToAgentDialog
         connector={adding}
@@ -179,5 +313,21 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
         }}
       />
     </div>
+  );
+}
+
+function rank(r: AppRow): number {
+  if (r.actions.length > 0) return 0;
+  if (r.connector.status === 'connected') return 1;
+  if (r.connector.status === 'unavailable') return 3;
+  return 2;
+}
+
+/** The app's logo on a raised square, as in an app store. */
+function AppTile({ connector: c }: { connector: ConnectorSummary }) {
+  return (
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised">
+      <AppConnectorIcon connectorId={c.slug} name={c.name} category={c.category} size={22} />
+    </span>
   );
 }

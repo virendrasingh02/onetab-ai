@@ -30,9 +30,9 @@ import { useStudioSession } from '../../session-guard.js';
 import type { NodeRunResult } from './node-chrome.js';
 
 /** Run statuses after which nothing more will happen without someone acting. */
-const SETTLED = new Set(['COMPLETED', 'FAILED', 'CANCELLED', 'SUCCESS']);
+export const SETTLED = new Set(['COMPLETED', 'FAILED', 'CANCELLED', 'SUCCESS']);
 /** How often an open run is re-read while it is still going. */
-const POLL_MS = 1_500;
+export const POLL_MS = 1_500;
 
 export type CanvasNodeStatus = 'idle' | 'running' | 'success' | 'failed' | 'waiting';
 
@@ -52,7 +52,7 @@ interface RunConsoleDrawerProps {
 
 type Selection = { kind: 'step'; id: string } | { kind: 'task'; id: string } | null;
 
-const STEP_STATUS: Record<string, CanvasNodeStatus> = {
+export const STEP_STATUS: Record<string, CanvasNodeStatus> = {
   RUNNING: 'running',
   SUCCESS: 'success',
   FAILED: 'failed',
@@ -61,7 +61,7 @@ const STEP_STATUS: Record<string, CanvasNodeStatus> = {
 };
 
 /** The text a step or run produced, for reading rather than as raw JSON. */
-function readableOutput(output: Record<string, unknown> | null | undefined): string {
+export function readableOutput(output: Record<string, unknown> | null | undefined): string {
   if (!output) return '';
   for (const key of ['output', 'entityResponse', 'aiOutput', 'result', 'toolResult', 'extracted', 'loopResults', 'merged', 'reason', 'error']) {
     const value = output[key];
@@ -73,8 +73,8 @@ function readableOutput(output: Record<string, unknown> | null | undefined): str
 }
 
 /** A trigger's "output" is the whole run context; the card only wants what started the run. */
-const isTriggerStep = (step: CanvasRunStep) => /^(TRIGGER|START)/i.test(step.nodeType);
-function triggerInput(output: Record<string, unknown> | null | undefined): string {
+export const isTriggerStep = (step: CanvasRunStep) => /^(TRIGGER|START)/i.test(step.nodeType);
+export function triggerInput(output: Record<string, unknown> | null | undefined): string {
   if (!output) return '';
   const input = output['input'] && typeof output['input'] === 'object' ? (output['input'] as Record<string, unknown>) : undefined;
   for (const value of [output['message'], input?.['message'], output['__last'], output['payload'], input]) {
@@ -84,13 +84,13 @@ function triggerInput(output: Record<string, unknown> | null | undefined): strin
   return '';
 }
 
-function formatDuration(ms: number): string {
+export function formatDuration(ms: number): string {
   if (ms < 1_000) return `${ms} ms`;
   if (ms < 60_000) return `${(ms / 1_000).toFixed(1)} s`;
   return `${Math.floor(ms / 60_000)} min ${Math.round((ms % 60_000) / 1_000)} s`;
 }
 
-function StatusIcon({ status, className }: { status: string; className?: string }) {
+export function StatusIcon({ status, className }: { status: string; className?: string }) {
   const s = status.toUpperCase();
   const cls = cn('size-3.5 shrink-0', className);
   if (s === 'RUNNING') return <Loader2 className={cn(cls, 'animate-spin text-primary')} aria-label="Running" />;
@@ -100,6 +100,54 @@ function StatusIcon({ status, className }: { status: string; className?: string 
   if (s === 'SKIPPED') return <SkipForward className={cn(cls, 'text-muted-foreground')} aria-label="Skipped" />;
   if (s === 'CANCELLED') return <Ban className={cn(cls, 'text-muted-foreground')} aria-label="Cancelled" />;
   return <Circle className={cn(cls, 'text-muted-foreground')} aria-label={status} />;
+}
+
+/** A run as the canvas shows it: each node's state, and what it produced, from its latest step. */
+export function runToCanvas(run: CanvasAgentRunDetail): {
+  statuses: Record<string, CanvasNodeStatus>;
+  results: Record<string, NodeRunResult>;
+} {
+  const statuses: Record<string, CanvasNodeStatus> = {};
+  for (const step of run.steps) statuses[step.stepId] = STEP_STATUS[step.status] ?? 'idle';
+  for (const task of run.agentTasks) {
+    if (statuses[task.agentKey] === undefined || task.status === 'RUNNING') {
+      statuses[task.agentKey] = task.status === 'RUNNING' ? 'running' : task.status === 'FAILED' ? 'failed' : task.status === 'COMPLETED' ? 'success' : 'waiting';
+    }
+  }
+  const results: Record<string, NodeRunResult> = {};
+  // Steps come in order; a later attempt of the same step replaces the earlier one.
+  for (const step of run.steps) {
+    const finished = step.finishedAt ? new Date(step.finishedAt).getTime() : Date.now();
+    results[step.stepId] = {
+      status: STEP_STATUS[step.status] ?? 'idle',
+      output: isTriggerStep(step) ? triggerInput(step.outputJson) : readableOutput(step.outputJson),
+      tokens: step.tokensUsed ?? 0,
+      latencyMs: step.latencyMs || Math.max(0, finished - new Date(step.startedAt).getTime()),
+      error: step.errorMessage,
+    };
+  }
+  // Agents drawn on the canvas (and their sub-agents) report as team tasks keyed by node id.
+  for (const task of run.agentTasks) {
+    const started = task.startedAt ? new Date(task.startedAt).getTime() : new Date(task.createdAt).getTime();
+    const ended = task.completedAt ? new Date(task.completedAt).getTime() : Date.now();
+    const prev = results[task.agentKey];
+    results[task.agentKey] = {
+      status: statuses[task.agentKey] ?? 'idle',
+      output: task.output?.result ?? prev?.output ?? '',
+      tokens: Math.max(task.tokensUsed ?? 0, prev?.tokens ?? 0),
+      latencyMs: Math.max(ended - started, prev?.latencyMs ?? 0),
+      error: task.error ?? prev?.error,
+    };
+  }
+  return { statuses, results };
+}
+
+/** The answer a finished run gave: its Output step, or else the last step that succeeded. */
+export function finalRunStep(run: CanvasAgentRunDetail): CanvasRunStep | undefined {
+  return (
+    [...run.steps].reverse().find((s) => s.status === 'SUCCESS' && s.nodeType === 'OUTPUT') ??
+    [...run.steps].reverse().find((s) => s.status === 'SUCCESS')
+  );
 }
 
 /** Tasks as a tree: each delegation under the agent that handed it over. */
@@ -149,43 +197,9 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
   // Light up the canvas: each node takes the state of its latest step.
   useEffect(() => {
     if (!run) return;
-    const statuses: Record<string, CanvasNodeStatus> = {};
-    for (const step of run.steps) statuses[step.stepId] = STEP_STATUS[step.status] ?? 'idle';
-    for (const task of run.agentTasks) {
-      if (statuses[task.agentKey] === undefined || task.status === 'RUNNING') {
-        statuses[task.agentKey] = task.status === 'RUNNING' ? 'running' : task.status === 'FAILED' ? 'failed' : task.status === 'COMPLETED' ? 'success' : 'waiting';
-      }
-    }
+    const { statuses, results } = runToCanvas(run);
     onNodeStatuses(statuses);
-
-    if (onNodeResults) {
-      const results: Record<string, NodeRunResult> = {};
-      // Steps come in order; a later attempt of the same step replaces the earlier one.
-      for (const step of run.steps) {
-        const finished = step.finishedAt ? new Date(step.finishedAt).getTime() : Date.now();
-        results[step.stepId] = {
-          status: STEP_STATUS[step.status] ?? 'idle',
-          output: isTriggerStep(step) ? triggerInput(step.outputJson) : readableOutput(step.outputJson),
-          tokens: step.tokensUsed ?? 0,
-          latencyMs: step.latencyMs || Math.max(0, finished - new Date(step.startedAt).getTime()),
-          error: step.errorMessage,
-        };
-      }
-      // Agents drawn on the canvas (and their sub-agents) report as team tasks keyed by node id.
-      for (const task of run.agentTasks) {
-        const started = task.startedAt ? new Date(task.startedAt).getTime() : new Date(task.createdAt).getTime();
-        const ended = task.completedAt ? new Date(task.completedAt).getTime() : Date.now();
-        const prev = results[task.agentKey];
-        results[task.agentKey] = {
-          status: statuses[task.agentKey] ?? 'idle',
-          output: task.output?.result ?? prev?.output ?? '',
-          tokens: Math.max(task.tokensUsed ?? 0, prev?.tokens ?? 0),
-          latencyMs: Math.max(ended - started, prev?.latencyMs ?? 0),
-          error: task.error ?? prev?.error,
-        };
-      }
-      onNodeResults(results);
-    }
+    onNodeResults?.(results);
   }, [run, onNodeStatuses, onNodeResults]);
 
   useEffect(() => {
@@ -243,7 +257,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
 
   const tasks = run ? taskTree(run.agentTasks) : [];
   const pendingApproval = run?.approvals.find((a) => a.state === 'PENDING');
-  const finalStep = run ? [...run.steps].reverse().find((s) => s.status === 'SUCCESS' && s.nodeType === 'OUTPUT') ?? [...run.steps].reverse().find((s) => s.status === 'SUCCESS') : undefined;
+  const finalStep = run ? finalRunStep(run) : undefined;
   const selectedStep = selection?.kind === 'step' ? run?.steps.find((s) => s.id === selection.id) : undefined;
   const selectedTask = selection?.kind === 'task' ? run?.agentTasks.find((t) => t.id === selection.id) : undefined;
   const taskMessages = selectedTask ? run?.agentMessages.filter((m) => m.taskId === selectedTask.id) ?? [] : [];

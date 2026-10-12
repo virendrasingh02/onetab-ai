@@ -173,6 +173,46 @@ describe('layoutWorkflow', () => {
     expect(Math.abs(centerY(out.get('kb')!) - centerY(agent))).toBeLessThan(1);
   });
 
+  describe('tree arrangement', () => {
+    const fan = {
+      nodes: [node('s', 'START'), node('a'), node('b'), node('a1'), node('a2'), node('b1'), node('m', 'AGENT', { width: 300, height: 160 })],
+      edges: [edge('s', 'a'), edge('s', 'b'), edge('a', 'a1'), edge('a', 'a2'), edge('b', 'b1'), edge('a2', 'm'), edge('b1', 'm')],
+    };
+
+    it('centres each parent on its children and never overlaps', () => {
+      const list = layoutWorkflow(fan.nodes, fan.edges, { arrange: 'tree' });
+      for (let i = 0; i < list.length; i++)
+        for (let j = i + 1; j < list.length; j++) expect(overlaps(list[i], list[j]), `${list[i].id}/${list[j].id}`).toBe(false);
+      const out = byId(list);
+      const mid = (x: string, y: string) => (centerY(out.get(x)!) + centerY(out.get(y)!)) / 2;
+      expect(Math.abs(centerY(out.get('a')!) - mid('a1', 'a2'))).toBeLessThan(1);
+      expect(Math.abs(centerY(out.get('s')!) - mid('a', 'b'))).toBeLessThan(1);
+      // a's whole branch sits on one side of b's
+      expect(box(out.get('a2')!).bottom).toBeLessThanOrEqual(out.get('b1')!.position.y);
+    });
+
+    it('still runs every edge forward, merges included', () => {
+      const out = byId(layoutWorkflow(fan.nodes, fan.edges, { arrange: 'tree' }));
+      for (const e of fan.edges) expect(out.get(e.source)!.position.x).toBeLessThan(out.get(e.target)!.position.x);
+    });
+
+    it('lays out top to bottom too', () => {
+      const out = byId(layoutWorkflow(fan.nodes, fan.edges, { direction: 'TB', arrange: 'tree' }));
+      expect(out.get('s')!.position.y).toBeLessThan(out.get('a')!.position.y);
+      expect(out.get('a')!.position.x).toBeLessThan(out.get('b')!.position.x);
+    });
+  });
+
+  it('spreads further apart with more spacing', () => {
+    const nodes = [node('s', 'START'), node('a'), node('b')];
+    const edges = [edge('s', 'a'), edge('s', 'b')];
+    const gapOf = (spacing: 'compact' | 'spacious') => {
+      const out = byId(layoutWorkflow(nodes, edges, { spacing }));
+      return out.get('a')!.position.x - box(out.get('s')!).right;
+    };
+    expect(gapOf('spacious')).toBeGreaterThan(gapOf('compact'));
+  });
+
   it('nests a sub-agent’s own attachments under it', () => {
     const nodes = [node('start', 'START'), node('lead', 'AGENT'), node('sub', 'SUB_AGENT'), node('subPrompt', 'PROMPT_TEMPLATE')];
     const out = byId(layoutWorkflow(nodes, [edge('start', 'lead'), edge('lead', 'sub', 'agents'), edge('sub', 'subPrompt', 'prompt')]));

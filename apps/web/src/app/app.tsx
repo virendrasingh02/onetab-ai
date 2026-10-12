@@ -232,6 +232,11 @@ const WorkflowCanvasView = lazy(() =>
     default: m.WorkflowCanvasView,
   })),
 );
+const AutomationCenterLayout = lazy(() =>
+  import('@org/web-automations').then((m) => ({
+    default: m.AutomationCenterLayout,
+  })),
+);
 const IntegrationHubView = lazy(() =>
   import('@org/web-integrations').then((m) => ({
     default: m.IntegrationHubView,
@@ -557,9 +562,12 @@ export function App() {
             <Route path="agents/builder" element={<LegacyAIRedirect to="agent-builder" />} />
             <Route path="agents/logs" element={<LegacyAIRedirect to="agent-logs" />} />
             <Route path="coworkers" element={<LegacyAIRedirect to="coworkers" />} />
-            <Route path="automations" element={<LegacyAIRedirect to="automations" />} />
-            <Route path="automations/builder" element={<LegacyAIRedirect to="workflow-builder" />} />
-            <Route path="automations/logs" element={<LegacyAIRedirect to="workflow-logs" />} />
+
+            {/* Unified Automation Center */}
+            <Route path="automations" element={<AutomationCenterLayout />} />
+            <Route path="automations/builder" element={<WorkflowCanvasView />} />
+            <Route path="automations/builder/:workflowId" element={<WorkflowCanvasView />} />
+            <Route path="automations/logs" element={<Navigate to="../automations?tab=runs-logs" replace />} />
 
             {/* Apps & integrations: third-party apps and agents to install. */}
             <Route path="marketplace" element={<AgentMarketplaceView />} />

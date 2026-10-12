@@ -135,6 +135,31 @@ export class AutomationTriggerListener {
     void this.dispatch(AppEvent.ChannelMessagePosted, e as unknown as Record<string, unknown> & { workspaceId: string });
   }
 
+  @OnEvent(AppEvent.MemberJoined)
+  onMemberJoined(e: Record<string, unknown> & { workspaceId: string }) {
+    void this.dispatch(AppEvent.MemberJoined, e);
+  }
+
+  @OnEvent(AppEvent.FileShared)
+  onFileShared(e: Record<string, unknown> & { workspaceId: string }) {
+    void this.dispatch(AppEvent.FileShared, e);
+  }
+
+  @OnEvent(AppEvent.MeetingScheduled)
+  onMeetingScheduled(e: Record<string, unknown> & { workspaceId: string }) {
+    void this.dispatch(AppEvent.MeetingScheduled, e);
+  }
+
+  @OnEvent(AppEvent.MeetingCancelled)
+  onMeetingCancelled(e: Record<string, unknown> & { workspaceId: string }) {
+    void this.dispatch(AppEvent.MeetingCancelled, e);
+  }
+
+  @OnEvent(AppEvent.TaskCommentCreated)
+  onTaskCommentCreated(e: Record<string, unknown> & { workspaceId: string }) {
+    void this.dispatch(AppEvent.TaskCommentCreated, e);
+  }
+
   /**
    * Emits `task.overdue` for open tasks whose due date passed since the last
    * sweep — once per task, with no state to keep: each sweep only looks at
