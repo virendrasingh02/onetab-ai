@@ -104,6 +104,7 @@ import {
   AlertTriangle,
   Search,
   Settings,
+  Store,
   ShieldCheck,
   Sparkles,
   Tag,
@@ -147,6 +148,7 @@ import { MemoryTab } from '../components/agent-detail/memory-tab.jsx';
 import { VariablesTab } from '../components/agent-detail/variables-tab.jsx';
 import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
 import { AgentDeploymentTab } from '../components/agent-detail/agent-deployment-tab.js';
+import { AgentMarketplaceTab } from '../components/agent-detail/agent-marketplace-tab.js';
 import { agentService } from '../services/agentService.js';
 import { analyticsService } from '../services/analyticsService.js';
 import {
@@ -390,11 +392,12 @@ const AGENT_TABS = [
   { id: 'evaluations', label: 'Evaluation', icon: Award },
   { id: 'versions', label: 'Versions', icon: Clock },
   { id: 'deploy', label: 'Deploy', icon: Rocket },
+  { id: 'marketplace', label: 'Marketplace', icon: Store },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
 type AgentTab = (typeof AGENT_TABS)[number]['id'];
 /** Shown inline in the header; the rest sit under "More". */
-const PRIMARY_TAB_IDS: readonly AgentTab[] = ['build', 'executions', 'versions', 'deploy', 'settings'];
+const PRIMARY_TAB_IDS: readonly AgentTab[] = ['build', 'executions', 'versions', 'deploy', 'marketplace', 'settings'];
 const PRIMARY_AGENT_TABS = AGENT_TABS.filter((tab) => PRIMARY_TAB_IDS.includes(tab.id));
 const OVERFLOW_AGENT_TABS = AGENT_TABS.filter((tab) => !PRIMARY_TAB_IDS.includes(tab.id));
 const isAgentTab = (value: string | null): value is AgentTab =>
@@ -4378,6 +4381,9 @@ export function AgentDetailPage() {
         {activeTab === 'deploy' && (
           <AgentDeploymentTab agent={agent} />
         )}
+
+        {/* TAB: MARKETPLACE */}
+        {activeTab === 'marketplace' && <AgentMarketplaceTab agent={agent} />}
 
         {/* TAB 5: SETTINGS */}
         {activeTab === 'settings' && (

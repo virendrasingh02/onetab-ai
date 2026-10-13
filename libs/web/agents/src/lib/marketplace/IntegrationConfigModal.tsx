@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { MarketplaceInstallation } from '@org/types';
 import {
+  AppSelect,
+  Badge,
   Button,
   Dialog,
   DialogBody,
@@ -8,12 +10,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  Field,
   Switch,
   Input,
-  Label,
 } from '@org/ui';
-import { renderEntityIcon } from './MarketplaceCard';
+import { EntityIcon } from './marketplace-ui';
 import { Shield, Check } from 'lucide-react';
+
+const NOTIFY_CHANNELS = [
+  { value: 'general', label: '# general' },
+  { value: 'engineering', label: '# engineering' },
+  { value: 'alerts', label: '# alerts-feed' },
+  { value: 'product', label: '# product-updates' },
+];
 
 interface IntegrationConfigModalProps {
   isOpen: boolean;
@@ -70,16 +79,16 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-surface border-border rounded-2xl">
+      <DialogContent className="max-w-md">
         <DialogHeader className="space-y-2">
           <div className="flex items-center gap-3">
-            {renderEntityIcon(installation.iconUrl ?? undefined, installation.kind, 'size-10')}
+            <EntityIcon iconUrl={installation.iconUrl} kind={installation.kind} />
             <div>
-              <DialogTitle className="text-base font-bold text-foreground">
+              <DialogTitle>
                 Configure {installation.name}
               </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                Settings & Channel Routing
+                Settings & channel routing
               </p>
             </div>
           </div>
@@ -87,41 +96,28 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
 
         <form onSubmit={handleSave}>
           <DialogBody className="space-y-4">
-          {/* Notification channel */}
-          <div>
-            <Label className="text-xs font-semibold text-foreground">
-              Primary Notification Channel
-            </Label>
-            <select
+          <Field label="Primary notification channel">
+            <AppSelect
+              aria-label="Primary notification channel"
               value={notifyChannel}
-              onChange={(e) => setNotifyChannel(e.target.value)}
-              className="w-full mt-1.5 text-xs bg-surface border border-border text-foreground rounded-lg px-3 py-2"
-            >
-              <option value="general"># general</option>
-              <option value="engineering"># engineering</option>
-              <option value="alerts"># alerts-feed</option>
-              <option value="product"># product-updates</option>
-            </select>
-          </div>
+              onValueChange={setNotifyChannel}
+              options={NOTIFY_CHANNELS}
+            />
+          </Field>
 
-          {/* Webhook endpoint (if applicable) */}
-          <div>
-            <Label className="text-xs font-semibold text-foreground">
-              Custom Webhook URL (Optional)
-            </Label>
+          <Field label="Custom webhook URL" optional>
             <Input
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder="https://hooks.yourcompany.com/services/..."
-              className="mt-1.5 text-xs font-mono"
+              className="font-mono"
             />
-          </div>
+          </Field>
 
-          {/* Slash Commands Switch */}
-          <div className="rounded-xl border border-border/80 bg-surface-raised/40 p-3.5 flex items-center justify-between">
+          <div className="rounded-xl border border-border/60 bg-surface-raised/40 p-3.5 flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-foreground block">
-                Enable Slash Commands
+              <span className="text-xs font-semibold block text-foreground">
+                Enable slash commands
               </span>
               <span className="text-[11px] text-muted-foreground">
                 Allow members to trigger commands in chat
@@ -130,24 +126,21 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
             <Switch
               checked={enableSlashCommands}
               onCheckedChange={setEnableSlashCommands}
+              aria-label="Enable slash commands"
             />
           </div>
 
-          {/* Scopes Overview */}
           {installation.grantedScopes && installation.grantedScopes.length > 0 && (
-            <div className="rounded-xl border border-border/70 bg-surface-raised/30 p-3 space-y-1.5">
-              <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                <Shield className="size-3" />
-                Active Permissions
+            <div className="rounded-xl border border-border/60 bg-surface-raised/30 p-3 space-y-1.5">
+              <span className="text-[11px] font-semibold gap-1 flex items-center text-muted-foreground">
+                <Shield className="size-3" aria-hidden />
+                Active permissions
               </span>
-              <div className="flex flex-wrap gap-1">
+              <div className="gap-1 flex flex-wrap">
                 {installation.grantedScopes.map((sc) => (
-                  <span
-                    key={sc}
-                    className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface border border-border/70 text-muted-foreground"
-                  >
+                  <Badge key={sc} variant="neutral" className="font-mono">
                     {sc}
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -155,24 +148,12 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
           </DialogBody>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={onClose}
-              className="text-xs"
-            >
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="xs"
-              loading={isSaving}
-              className="text-xs font-semibold"
-            >
-              <Check className="size-3.5 mr-1" />
-              Save Configuration
+            <Button type="submit" variant="primary" size="sm" loading={isSaving}>
+              <Check aria-hidden />
+              Save configuration
             </Button>
           </DialogFooter>
         </form>

@@ -46,6 +46,9 @@
     },
     {
       "path": "../ai/tsconfig.lib.json"
+    },
+    {
+      "path": "../marketplace/tsconfig.lib.json"
     }
   ]
 }

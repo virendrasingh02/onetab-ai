@@ -58,7 +58,6 @@ import {
   type WorkspaceState,
 } from '@org/web-workspace';
 import {
-  Activity,
   BellOff,
   Bookmark,
   Clock,
@@ -159,7 +158,6 @@ const MORE_DESTINATIONS: readonly NavEntry[] = [
      stood in the channel it belonged to. It is a destination now. */
   { path: 'saved', label: 'Saved', icon: Bookmark },
   { path: 'meetings', label: 'Meetings', icon: Video },
-  { path: 'pulse', label: 'Pulse', icon: Activity },
   { path: 'schedule', label: 'Schedule', icon: Clock },
   { path: 'directory', label: 'Team Directory', icon: Users },
   { path: 'files', label: 'Files', icon: HardDrive },

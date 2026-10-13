@@ -2853,6 +2853,12 @@ model MarketplaceListing {
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
   publishedAt        DateTime?
+  /// PUBLIC is visible to every workspace; WORKSPACE only to `ownerWorkspaceId`.
+  visibility         String                    @default("PUBLIC")
+  /// Workspace that published the listing from AI Agent Studio (null = platform/community).
+  ownerWorkspaceId   String?
+  /// Studio agent the listing was published from, so re-publishing updates in place.
+  sourceAgentId      String?
   installations      MarketplaceInstallation[]
   publisher          MarketplacePublisher?     @relation(fields: [publisherId], references: [id])
   reviews            MarketplaceReview[]
@@ -2861,6 +2867,8 @@ model MarketplaceListing {
   @@index([kind, status])
   @@index([kind, category])
   @@index([status, isFeatured])
+  @@index([ownerWorkspaceId])
+  @@unique([ownerWorkspaceId, sourceAgentId])
   @@map("marketplace_listings")
 }
 

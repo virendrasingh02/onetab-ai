@@ -577,34 +577,40 @@ export function WorkspaceAvatar({
     );
 
   const imageSrc = src || (isImageIcon ? icon : null);
+  // A glyph is a registry name or an emoji. An icon that is itself an image URL
+  // is the image's own concern — it has no glyph to fall back on.
+  const glyph = isImageIcon ? null : icon;
 
   return (
     <Avatar size={size} shape={shape} className={className} {...props}>
       {imageSrc ? <AvatarImage src={imageSrc} alt={name} /> : null}
-      {!imageSrc ? (
-        <AvatarFallback
-          style={
-            // An icon supplies its own colour; the tinted tile is for initials.
-            icon
-              ? undefined
-              : { backgroundColor: avatarTint(seed?.trim() ? seed : name) }
-          }
-          className={
-            icon ? 'border border-border bg-surface-raised' : undefined
-          }
-        >
-          {icon ? (
-            <IconRenderer
-              icon={icon}
-              iconColor={iconColor ?? undefined}
-              sizeClassName={ICON_SIZES[size ?? 'md']}
-              fallbackEmoji={initials(name)}
-            />
-          ) : (
-            initials(name)
-          )}
-        </AvatarFallback>
-      ) : null}
+      {/*
+       * Always rendered: Radix shows it only until the image has loaded, which
+       * is exactly what makes a logo that 404s (a deleted blob, a stale API
+       * port) degrade to the icon or initial instead of an empty tile.
+       */}
+      <AvatarFallback
+        style={
+          // An icon supplies its own colour; the tinted tile is for initials.
+          glyph
+            ? undefined
+            : { backgroundColor: avatarTint(seed?.trim() ? seed : name) }
+        }
+        className={
+          glyph ? 'border border-border bg-surface-raised' : undefined
+        }
+      >
+        {glyph ? (
+          <IconRenderer
+            icon={glyph}
+            iconColor={iconColor ?? undefined}
+            sizeClassName={ICON_SIZES[size ?? 'md']}
+            fallbackEmoji={initials(name)}
+          />
+        ) : (
+          initials(name)
+        )}
+      </AvatarFallback>
     </Avatar>
   );
 }

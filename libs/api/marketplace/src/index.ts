@@ -37,3 +37,4 @@ export type {
   PublishListingInput,
   ReviewView,
 } from './lib/marketplace.types.js';
+export type { PublishStudioAgentInput } from './lib/marketplace.service.js';

@@ -35,6 +35,11 @@ export interface ListingSummary {
    */
   payload?: Record<string, unknown>;
   entityType?: 'APP' | 'AGENT';
+  /** WORKSPACE listings are visible only to `ownerWorkspaceId`. */
+  visibility?: 'PUBLIC' | 'WORKSPACE';
+  ownerWorkspaceId?: string | null;
+  /** `studio` when published from AI Agent Studio. */
+  source?: 'studio';
   badge?: string;
   capabilities?: string[];
   permissions?: Array<{ scope: string; name: string; level: string; description: string }>;

@@ -9,10 +9,15 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { WorkspaceRoleGuard } from '@org/api-auth';
+import {
+  MarketplaceService,
+  type PublishStudioAgentInput,
+} from '@org/api-marketplace';
 import {
   CurrentUser,
   RequireWorkspacePermissions,
@@ -27,6 +32,7 @@ import {
   createAgentSchema,
   executeAIEntitySchema,
   linkAgentSchema,
+  publishAgentListingSchema,
   setEnabledSchema,
   testMcpToolSchema,
   updateAgentSchema,
@@ -53,7 +59,10 @@ import { CanManageAIEntity } from './ai-entity-access.guard.js';
 @Controller({ path: 'workspaces/:workspaceId/agents', version: '1' })
 @UseGuards(WorkspaceRoleGuard)
 export class AgentsController {
-  constructor(private readonly agentsService: AgentsService) {}
+  constructor(
+    private readonly agentsService: AgentsService,
+    private readonly marketplace: MarketplaceService,
+  ) {}
 
   @Get()
   getAgents(@WorkspaceId() workspaceId: string) {
@@ -151,6 +160,40 @@ export class AgentsController {
     @Body(zodBody(agentVersionSchema)) body: { summary?: string },
   ) {
     return this.agentsService.publishAgent(workspaceId, agentId, body.summary);
+  }
+
+  // --- AI Agent Studio -> marketplace -------------------------------------
+
+  /** The marketplace listing this agent has been published as, or `null`. */
+  @Get(':agentId/marketplace')
+  getMarketplaceListing(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.marketplace.getStudioListing(workspaceId, agentId);
+  }
+
+  /** Publishes (or re-publishes) the agent's latest published version as a listing. */
+  @Put(':agentId/marketplace')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('agentId')
+  publishToMarketplace(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(publishAgentListingSchema)) body: PublishStudioAgentInput,
+  ) {
+    return this.marketplace.publishStudioAgent(workspaceId, agentId, userId, body);
+  }
+
+  @Delete(':agentId/marketplace')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @CanManageAIEntity('agentId')
+  unpublishFromMarketplace(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.marketplace.unpublishStudioAgent(workspaceId, agentId);
   }
 
   @Post(':agentId/unpublish')

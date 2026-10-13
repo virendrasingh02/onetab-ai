@@ -11,7 +11,13 @@ import { ApiError, getAccessToken, refreshSession, setAccessToken } from './http
 
 /** A definitive "not signed in", as opposed to the API being unreachable. */
 function isSignedOut(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+  // Duck-typed: a dev server can load this library twice, and `instanceof` then
+  // fails across the copies, turning a plain sign-out into an "unreachable" outage.
+  const status = (error as { status?: unknown } | null)?.status;
+  return (
+    (error instanceof ApiError || (error instanceof Error && error.name === 'ApiError')) &&
+    (status === 401 || status === 403)
+  );
 }
 
 /**

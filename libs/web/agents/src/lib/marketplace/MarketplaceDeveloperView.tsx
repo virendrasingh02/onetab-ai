@@ -1,7 +1,27 @@
 import React, { useState } from 'react';
 import type { MarketplaceKind } from '@org/types';
-import { Button, Card, Input, Label, Textarea } from '@org/ui';
-import { Code2, Send } from 'lucide-react';
+import {
+  AppSelect,
+  Button,
+  Card,
+  Field,
+  Input,
+  PageSection,
+  Textarea,
+} from '@org/ui';
+import { Bot, ExternalLink, Send } from 'lucide-react';
+
+const CATEGORIES = [
+  'Developer Tools',
+  'Productivity',
+  'Collaboration',
+  'Engineering',
+  'Support',
+  'Analytics',
+].map((value) => ({ value, label: value }));
+
+/** Agents are not listed here: they carry a blueprint, which only AI Agent Studio can produce. */
+const KIND: MarketplaceKind = 'INTEGRATION';
 
 interface MarketplaceDeveloperViewProps {
   onPublishCustom: (data: {
@@ -16,13 +36,16 @@ interface MarketplaceDeveloperViewProps {
     manifest?: Record<string, unknown>;
   }) => Promise<any>;
   isLoading?: boolean;
+  /** Opens the standalone AI Agent Studio, where agents are built and published. */
+  onOpenStudio?: () => void;
 }
 
 export const MarketplaceDeveloperView: React.FC<MarketplaceDeveloperViewProps> = ({
   onPublishCustom,
   isLoading = false,
+  onOpenStudio,
 }) => {
-  const [kind, setKind] = useState<MarketplaceKind>('INTEGRATION');
+  const kind = KIND;
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [tagline, setTagline] = useState('');
@@ -88,173 +111,133 @@ export const MarketplaceDeveloperView: React.FC<MarketplaceDeveloperViewProps> =
   };
 
   return (
-    <div className="py-6 space-y-8 max-w-4xl mx-auto">
-      <div>
-        <div className="flex items-center gap-2">
-          <Code2 className="size-6 text-primary" />
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            Developer & Integration Portal
-          </h2>
+    <div className="mx-auto max-w-5xl space-y-6 py-3">
+      <PageSection
+        variant="plain"
+        title="Developer & integration portal"
+        description="Publish custom internal applications and bot webhooks into your workspace marketplace."
+        className="mb-0"
+      />
+
+      <Card className="flex flex-wrap items-center gap-3 p-4">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Bot className="size-4.5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground">
+            Publishing an AI agent?
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Agents are built and published from AI Agent Studio — open the
+            agent, then use its Marketplace tab. The listing carries the exact
+            version you published, so installs work out of the box.
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          Publish custom internal applications, bot webhooks, or autonomous agents directly into your workspace marketplace.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Form Column */}
-        <form
-          onSubmit={handleSubmit}
-          className="lg:col-span-7 space-y-5 rounded-2xl border border-border/80 bg-surface p-6 shadow-xs"
-        >
-          {/* Kind Selector */}
-          <div>
-            <Label className="text-xs font-semibold text-foreground">Type</Label>
-            <div className="grid grid-cols-2 gap-3 mt-1.5">
-              <button
-                type="button"
-                onClick={() => setKind('INTEGRATION')}
-                className={`px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${
-                  kind === 'INTEGRATION'
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-surface-raised text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                App / Integration
-              </button>
-              <button
-                type="button"
-                onClick={() => setKind('AGENT')}
-                className={`px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${
-                  kind === 'AGENT'
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-surface-raised text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                AI Agent
-              </button>
-            </div>
-          </div>
-
-          {/* Name & Slug */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs font-semibold text-foreground">Name</Label>
-              <Input
-                value={name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="e.g. Sentry Monitor"
-                required
-                className="mt-1 text-xs"
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-foreground">Slug</Label>
-              <Input
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="e.g. sentry-monitor"
-                required
-                className="mt-1 text-xs font-mono"
-              />
-            </div>
-          </div>
-
-          {/* Tagline */}
-          <div>
-            <Label className="text-xs font-semibold text-foreground">
-              Tagline (One-line summary)
-            </Label>
-            <Input
-              value={tagline}
-              onChange={(e) => setTagline(e.target.value)}
-              placeholder="Real-time error tracking and regression alerts"
-              className="mt-1 text-xs"
-            />
-          </div>
-
-          {/* Category & Version */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-xs font-semibold text-foreground">Category</Label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full mt-1 text-xs bg-surface border border-border text-foreground rounded-lg px-3 py-2"
-              >
-                <option value="Developer Tools">Developer Tools</option>
-                <option value="Productivity">Productivity</option>
-                <option value="Collaboration">Collaboration</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Support">Support</option>
-                <option value="Analytics">Analytics</option>
-              </select>
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-foreground">Version</Label>
-              <Input
-                value={version}
-                onChange={(e) => setVersion(e.target.value)}
-                placeholder="1.0.0"
-                className="mt-1 text-xs font-mono"
-              />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <Label className="text-xs font-semibold text-foreground">
-              Full Description & Workflows
-            </Label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe key features, supported slash commands, and how team members can use it..."
-              rows={4}
-              className="mt-1 text-xs"
-            />
-          </div>
-
-          {/* Slash Command (Optional) */}
-          <div className="border-t border-border/60 pt-4 space-y-3">
-            <Label className="text-xs font-semibold text-foreground">
-              Slash Command Trigger (Optional)
-            </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                value={commandName}
-                onChange={(e) => setCommandName(e.target.value)}
-                placeholder="/sentry alert"
-                className="text-xs font-mono"
-              />
-              <Input
-                value={commandDesc}
-                onChange={(e) => setCommandDesc(e.target.value)}
-                placeholder="Trigger an issue query"
-                className="text-xs"
-              />
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="sm"
-            loading={isLoading}
-            disabled={!name || !slug}
-            className="w-full text-xs font-semibold shadow-xs"
-          >
-            <Send className="size-3.5 mr-1.5" />
-            Publish to Workspace
+        {onOpenStudio && (
+          <Button variant="outline" size="sm" onClick={onOpenStudio}>
+            Open AI Agent Studio
+            <ExternalLink className="size-3 ml-1.5 opacity-70" aria-hidden />
           </Button>
-        </form>
+        )}
+      </Card>
 
-        {/* Live Manifest Preview Column */}
-        <div className="lg:col-span-5 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Manifest Preview (SDK v1)
+      <div className="gap-6 lg:grid-cols-12 grid grid-cols-1">
+        <Card className="p-6 lg:col-span-7">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="gap-4 sm:grid-cols-2 grid grid-cols-1">
+              <Field label="Name" required>
+                <Input
+                  value={name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="e.g. Sentry Monitor"
+                />
+              </Field>
+              <Field label="Slug" required>
+                <Input
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="e.g. sentry-monitor"
+                  className="font-mono"
+                />
+              </Field>
+            </div>
+
+            <Field label="Tagline" hint="One-line summary">
+              <Input
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                placeholder="Real-time error tracking and regression alerts"
+              />
+            </Field>
+
+            <div className="gap-4 sm:grid-cols-2 grid grid-cols-1">
+              <Field label="Category">
+                <AppSelect
+                  aria-label="Category"
+                  value={category}
+                  onValueChange={setCategory}
+                  options={CATEGORIES}
+                />
+              </Field>
+              <Field label="Version">
+                <Input
+                  value={version}
+                  onChange={(e) => setVersion(e.target.value)}
+                  placeholder="1.0.0"
+                  className="font-mono"
+                />
+              </Field>
+            </div>
+
+            <Field label="Full description & workflows">
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe key features, supported slash commands, and how team members can use it..."
+                rows={4}
+              />
+            </Field>
+
+            <div className="space-y-3 border-t border-border/60 pt-4">
+              <Field label="Slash command trigger" optional>
+                <div className="gap-4 sm:grid-cols-2 grid grid-cols-1">
+                  <Input
+                    value={commandName}
+                    onChange={(e) => setCommandName(e.target.value)}
+                    placeholder="/sentry alert"
+                    className="font-mono"
+                    aria-label="Slash command"
+                  />
+                  <Input
+                    value={commandDesc}
+                    onChange={(e) => setCommandDesc(e.target.value)}
+                    placeholder="Trigger an issue query"
+                    aria-label="Slash command description"
+                  />
+                </div>
+              </Field>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              loading={isLoading}
+              disabled={!name || !slug}
+              className="w-full"
+            >
+              <Send aria-hidden />
+              Publish to workspace
+            </Button>
+          </form>
+        </Card>
+
+        {/* Live manifest preview */}
+        <div className="space-y-3 lg:col-span-5">
+          <h3 className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+            Manifest preview (SDK v1)
           </h3>
-          <Card className="p-4 bg-surface-raised/50 border-border/80 font-mono text-[11px] overflow-x-auto text-muted-foreground">
+          <Card className="overflow-x-auto bg-surface-raised/50 p-4 font-mono text-[11px] text-muted-foreground">
             <pre>
               {JSON.stringify(
                 {

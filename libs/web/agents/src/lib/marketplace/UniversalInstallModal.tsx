@@ -1,7 +1,21 @@
 import React, { useState } from 'react';
 import type { MarketplaceListing, MarketplaceListingDetail } from '@org/types';
-import { Button, Dialog, DialogContent, Switch } from '@org/ui';
-import { renderEntityIcon } from './MarketplaceCard';
+import {
+  AppSelect,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Field,
+  Switch,
+} from '@org/ui';
+import { cn } from '@org/utils';
 import {
   ArrowLeft,
   ArrowRight,
@@ -10,7 +24,32 @@ import {
   ShieldCheck,
   Terminal,
 } from 'lucide-react';
-import { cn } from '@org/utils';
+import { EntityIcon } from './marketplace-ui';
+
+type Step = 'review' | 'workspace' | 'permissions' | 'config' | 'confirmation';
+
+const STEPS_ORDER: Step[] = [
+  'review',
+  'workspace',
+  'permissions',
+  'config',
+  'confirmation',
+];
+
+const STEP_LABELS: Record<Step, string> = {
+  review: 'Overview',
+  workspace: 'Workspace isolation',
+  permissions: 'Grant permissions',
+  config: 'Initial configuration',
+  confirmation: 'Installation complete',
+};
+
+const NOTIFY_CHANNELS = [
+  { value: 'general', label: '# general' },
+  { value: 'engineering', label: '# engineering' },
+  { value: 'alerts', label: '# alerts-feed' },
+  { value: 'product', label: '# product-updates' },
+];
 
 interface UniversalInstallModalProps {
   isOpen: boolean;
@@ -23,8 +62,6 @@ interface UniversalInstallModalProps {
     settings: Record<string, unknown>;
   }) => Promise<void>;
 }
-
-type Step = 'review' | 'workspace' | 'permissions' | 'config' | 'confirmation';
 
 export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
   isOpen,
@@ -47,14 +84,7 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
   const [enableSlashCommands, setEnableSlashCommands] = useState(true);
   const [enableMentionRouting, setEnableMentionRouting] = useState(true);
 
-  const stepsOrder: Step[] = [
-    'review',
-    'workspace',
-    'permissions',
-    'config',
-    'confirmation',
-  ];
-  const stepIdx = stepsOrder.indexOf(currentStep);
+  const stepIdx = STEPS_ORDER.indexOf(currentStep);
 
   const toggleScope = (scope: string) => {
     setSelectedScopes((prev) =>
@@ -81,8 +111,8 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
       }
     } else {
       const nextIdx = stepIdx + 1;
-      if (nextIdx < stepsOrder.length) {
-        setCurrentStep(stepsOrder[nextIdx]);
+      if (nextIdx < STEPS_ORDER.length) {
+        setCurrentStep(STEPS_ORDER[nextIdx]);
       }
     }
   };
@@ -90,7 +120,7 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
   const handleBack = () => {
     const prevIdx = stepIdx - 1;
     if (prevIdx >= 0) {
-      setCurrentStep(stepsOrder[prevIdx]);
+      setCurrentStep(STEPS_ORDER[prevIdx]);
     }
   };
 
@@ -101,88 +131,84 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleModalClose()}>
-      <DialogContent className="max-w-xl p-0 overflow-hidden bg-surface border-border rounded-2xl">
-        {/* Header / Stepper Bar */}
-        <div className="border-b border-border/80 bg-surface-raised/40 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {renderEntityIcon(listing.iconUrl ?? undefined, listing.kind, 'size-9')}
+      <DialogContent className="max-w-xl">
+        <DialogHeader className="border-b border-border/60 pb-4">
+          <div className="gap-3 flex items-center justify-between">
+            <div className="gap-3 flex items-center">
+              <EntityIcon iconUrl={listing.iconUrl} kind={listing.kind} />
               <div>
-                <h3 className="font-bold text-sm text-foreground">
-                  Install {listing.name}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Step {stepIdx + 1} of {stepsOrder.length} •{' '}
-                  {currentStep === 'review' && 'Overview'}
-                  {currentStep === 'workspace' && 'Workspace Isolation'}
-                  {currentStep === 'permissions' && 'Grant Permissions'}
-                  {currentStep === 'config' && 'Initial Configuration'}
-                  {currentStep === 'confirmation' && 'Installation Complete'}
-                </p>
+                <DialogTitle>Install {listing.name}</DialogTitle>
+                <DialogDescription>
+                  Step {stepIdx + 1} of {STEPS_ORDER.length} ·{' '}
+                  {STEP_LABELS[currentStep]}
+                </DialogDescription>
               </div>
             </div>
 
-            {/* Step indicators */}
-            <div className="flex items-center gap-1.5">
-              {stepsOrder.map((step, idx) => (
+            <div className="gap-1.5 flex items-center" aria-hidden>
+              {STEPS_ORDER.map((step, idx) => (
                 <div
                   key={step}
                   className={cn(
-                    'size-2 rounded-full transition-all',
+                    'h-2 rounded-full transition-all',
                     idx === stepIdx
-                      ? 'bg-primary w-4'
+                      ? 'w-4 bg-primary'
                       : idx < stepIdx
-                      ? 'bg-primary/50'
-                      : 'bg-muted-foreground/30',
+                        ? 'w-2 bg-primary/50'
+                        : 'w-2 bg-muted-foreground/30',
                   )}
                 />
               ))}
             </div>
           </div>
-        </div>
+        </DialogHeader>
 
-        {/* Step Body */}
-        <div className="p-6 max-h-[60vh] overflow-y-auto">
+        <DialogBody className="max-h-[60vh] overflow-y-auto py-4">
           {/* STEP 1: REVIEW */}
           {currentStep === 'review' && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-border/80 bg-surface-raised/40 p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">Publisher</span>
-                  <span className="text-xs text-muted-foreground">
-                    {listing.publisherName || listing.publisher?.name || 'OneTab Official'}
+              <Card className="gap-2 p-4 bg-surface-raised/40">
+                <SummaryRow label="Publisher">
+                  {listing.publisherName ||
+                    listing.publisher?.name ||
+                    'OneTab Official'}
+                </SummaryRow>
+                <SummaryRow label="Version">
+                  <span className="font-mono">{listing.version || '1.0.0'}</span>
+                </SummaryRow>
+                <SummaryRow label="Pricing">
+                  <span className="font-medium text-success-text">
+                    {listing.pricingModel === 'FREE'
+                      ? 'Free integration'
+                      : 'Subscription'}
                   </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">Version</span>
-                  <span className="text-xs font-mono text-muted-foreground">
-                    {listing.version || '1.0.0'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground">Pricing</span>
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                    {listing.pricingModel === 'FREE' ? 'Free Integration' : 'Subscription'}
-                  </span>
-                </div>
-              </div>
+                </SummaryRow>
+              </Card>
 
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                  What this {listing.kind === 'AGENT' ? 'agent' : 'integration'} can do
+                <h4 className="mb-2 text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+                  What this {listing.kind === 'AGENT' ? 'agent' : 'integration'}{' '}
+                  can do
                 </h4>
                 <div className="space-y-2">
-                  {(listing.capabilities || [listing.tagline || (listing as any).description || 'Ready to use']).map(
-                    (cap, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-start gap-2.5 text-xs text-foreground bg-surface-raised/30 p-2.5 rounded-lg border border-border/60"
-                      >
-                        <Check className="size-4 text-primary flex-shrink-0 mt-0.5" />
-                        <span>{cap}</span>
-                      </div>
-                    ),
-                  )}
+                  {(
+                    listing.capabilities || [
+                      listing.tagline ||
+                        (listing as { description?: string }).description ||
+                        'Ready to use',
+                    ]
+                  ).map((cap) => (
+                    <div
+                      key={cap}
+                      className="gap-2.5 rounded-lg border border-border/60 bg-surface-raised/30 p-2.5 text-xs flex items-start text-foreground"
+                    >
+                      <Check
+                        className="mt-0.5 size-4 shrink-0 text-primary-text"
+                        aria-hidden
+                      />
+                      <span>{cap}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -191,97 +217,92 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
           {/* STEP 2: WORKSPACE ISOLATION */}
           {currentStep === 'workspace' && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3">
-                <ShieldCheck className="size-5 text-primary flex-shrink-0 mt-0.5" />
+              <div className="gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4 flex items-start">
+                <ShieldCheck
+                  className="mt-0.5 size-5 shrink-0 text-primary-text"
+                  aria-hidden
+                />
                 <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-foreground">
-                    Strict Workspace Boundary Enforced
+                  <h4 className="text-xs font-semibold text-foreground">
+                    Strict workspace boundary enforced
                   </h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    This installation is strictly isolated to your target workspace. It will not have access to any other workspaces or corporate data outside this perimeter.
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    This installation is strictly isolated to your target
+                    workspace. It will not have access to any other workspaces
+                    or corporate data outside this perimeter.
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border/80 bg-surface-raised/40 p-4">
-                <label className="text-xs font-semibold text-foreground block mb-1">
-                  Target Workspace
-                </label>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-surface border border-border">
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
+              <Field label="Target workspace">
+                <div className="rounded-lg border border-border bg-surface p-3 flex items-center justify-between">
+                  <div className="gap-2.5 flex items-center">
+                    <div className="size-8 text-xs font-semibold flex items-center justify-center rounded-lg bg-primary/10 text-primary-text">
                       {currentWorkspace.name.substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-foreground">
+                      <p className="text-xs font-semibold text-foreground">
                         {currentWorkspace.name}
                       </p>
-                      <p className="text-[11px] font-mono text-muted-foreground">
+                      <p className="font-mono text-[11px] text-muted-foreground">
                         /w/{currentWorkspace.slug}
                       </p>
                     </div>
                   </div>
-                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                    Selected
-                  </span>
+                  <Badge variant="success">Selected</Badge>
                 </div>
-              </div>
+              </Field>
             </div>
           )}
 
-          {/* STEP 3: PERMISSIONS BREAKDOWN */}
+          {/* STEP 3: PERMISSIONS */}
           {currentStep === 'permissions' && (
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground">
-                Review and selectively grant the granular permissions requested by this {listing.kind === 'AGENT' ? 'agent' : 'application'}.
+                Review and selectively grant the granular permissions requested
+                by this {listing.kind === 'AGENT' ? 'agent' : 'application'}.
               </p>
 
-              <div className="divide-y divide-border/60 rounded-xl border border-border/80 bg-surface-raised/30 overflow-hidden">
+              <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-surface-raised/30">
                 {permissionsList.length === 0 ? (
                   <div className="p-4 text-xs text-muted-foreground">
                     No special permissions requested.
                   </div>
                 ) : (
-                  permissionsList.map((perm) => {
-                    const isSelected = selectedScopes.includes(perm.scope);
-                    const isAdmin = perm.level === 'ADMIN';
-
-                    return (
-                      <div
-                        key={perm.scope}
-                        className="p-3.5 flex items-start justify-between gap-3 hover:bg-surface-raised/60 transition-colors"
-                      >
-                        <div className="space-y-0.5 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-foreground">
-                              {perm.name}
-                            </span>
-                            <span
-                              className={cn(
-                                'text-[10px] font-bold px-1.5 py-0.2 rounded border uppercase',
-                                isAdmin
-                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                                  : 'bg-surface border-border text-muted-foreground',
-                              )}
-                            >
-                              {perm.level}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {perm.description}
-                          </p>
-                          <span className="font-mono text-[10px] text-muted-foreground/70 block">
-                            scope: {perm.scope}
+                  permissionsList.map((perm) => (
+                    <div
+                      key={perm.scope}
+                      className="gap-3 p-3.5 flex items-start justify-between"
+                    >
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="gap-2 flex items-center">
+                          <span className="text-xs font-semibold text-foreground">
+                            {perm.name}
                           </span>
+                          <Badge
+                            variant={
+                              perm.level === 'ADMIN' ? 'destructive' : 'neutral'
+                            }
+                            className="uppercase"
+                          >
+                            {perm.level}
+                          </Badge>
                         </div>
-
-                        <Switch
-                          checked={isSelected}
-                          onCheckedChange={() => toggleScope(perm.scope)}
-                        />
+                        <p className="text-xs text-muted-foreground">
+                          {perm.description}
+                        </p>
+                        <span className="block font-mono text-[10px] text-muted-foreground">
+                          scope: {perm.scope}
+                        </span>
                       </div>
-                    );
-                  })
+
+                      <Switch
+                        checked={selectedScopes.includes(perm.scope)}
+                        onCheckedChange={() => toggleScope(perm.scope)}
+                        aria-label={`Grant ${perm.name}`}
+                      />
+                    </div>
+                  ))
                 )}
               </div>
             </div>
@@ -291,71 +312,46 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
           {currentStep === 'config' && (
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground">
-                Configure default interactions and notification channel bindings.
+                Configure default interactions and notification channel
+                bindings.
               </p>
 
-              <div className="space-y-3">
-                <div className="rounded-xl border border-border/80 bg-surface-raised/40 p-3.5 space-y-2">
-                  <label className="text-xs font-semibold text-foreground block">
-                    Default Alert Channel
-                  </label>
-                  <select
-                    value={notifyChannel}
-                    onChange={(e) => setNotifyChannel(e.target.value)}
-                    className="w-full text-xs bg-surface border border-border text-foreground rounded-lg px-3 py-2"
-                  >
-                    <option value="general"># general</option>
-                    <option value="engineering"># engineering</option>
-                    <option value="alerts"># alerts-feed</option>
-                    <option value="product"># product-updates</option>
-                  </select>
-                </div>
+              <Field label="Default alert channel">
+                <AppSelect
+                  aria-label="Default alert channel"
+                  value={notifyChannel}
+                  onValueChange={setNotifyChannel}
+                  options={NOTIFY_CHANNELS}
+                />
+              </Field>
 
-                <div className="rounded-xl border border-border/80 bg-surface-raised/40 p-3.5 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-semibold text-foreground block">
-                      Enable Slash Commands
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      Allow workspace members to invoke this tool using `/` commands
-                    </span>
-                  </div>
-                  <Switch
-                    checked={enableSlashCommands}
-                    onCheckedChange={setEnableSlashCommands}
-                  />
-                </div>
-
-                <div className="rounded-xl border border-border/80 bg-surface-raised/40 p-3.5 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-semibold text-foreground block">
-                      Enable @ Mention Routing
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      Route messages to this agent when mentioned with @
-                    </span>
-                  </div>
-                  <Switch
-                    checked={enableMentionRouting}
-                    onCheckedChange={setEnableMentionRouting}
-                  />
-                </div>
-              </div>
+              <ToggleRow
+                title="Enable slash commands"
+                description="Allow workspace members to invoke this tool using / commands"
+                checked={enableSlashCommands}
+                onCheckedChange={setEnableSlashCommands}
+              />
+              <ToggleRow
+                title="Enable @ mention routing"
+                description="Route messages to this agent when mentioned with @"
+                checked={enableMentionRouting}
+                onCheckedChange={setEnableMentionRouting}
+              />
             </div>
           )}
 
-          {/* STEP 5: CONFIRMATION & SUCCESS */}
+          {/* STEP 5: CONFIRMATION */}
           {currentStep === 'confirmation' && (
-            <div className="text-center py-6 space-y-4">
-              <div className="size-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="size-8" />
+            <div className="space-y-4 py-6 text-center">
+              <div className="size-14 mx-auto flex items-center justify-center rounded-full border border-success/25 bg-success/10 text-success-text">
+                <CheckCircle2 className="size-8" aria-hidden />
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-foreground">
-                  {listing.name} is installed and ready!
+                <h3 className="text-lg font-semibold text-foreground">
+                  {listing.name} is installed and ready
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
                   Available immediately across all channels in{' '}
                   <span className="font-semibold text-foreground">
                     {currentWorkspace.name}
@@ -365,73 +361,109 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
               </div>
 
               {listing.commands && listing.commands.length > 0 && (
-                <div className="rounded-xl border border-border/80 bg-surface-raised/40 p-3.5 text-left max-w-sm mx-auto space-y-2">
-                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-                    Try running in chat:
+                <Card className="mx-auto max-w-sm gap-2 p-3.5 text-left bg-surface-raised/40">
+                  <span className="block text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
+                    Try running in chat
                   </span>
                   {listing.commands.map((cmd) => (
                     <div
                       key={cmd.command}
-                      className="font-mono text-xs bg-surface p-2 rounded-lg border border-border text-primary font-semibold flex items-center gap-2"
+                      className="gap-2 rounded-lg border border-border bg-surface p-2 font-mono text-xs font-semibold flex items-center text-primary-text"
                     >
-                      <Terminal className="size-3.5 text-muted-foreground" />
-                      <span>{cmd.command} {cmd.args || ''}</span>
+                      <Terminal
+                        className="size-3.5 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <span>
+                        {cmd.command} {cmd.args || ''}
+                      </span>
                     </div>
                   ))}
-                </div>
+                </Card>
               )}
             </div>
           )}
-        </div>
+        </DialogBody>
 
-        {/* Footer Navigation Controls */}
-        <div className="border-t border-border/80 bg-surface-raised/30 px-6 py-3.5 flex items-center justify-between">
+        <DialogFooter className="border-t border-border/60 pt-4 sm:justify-between">
           {currentStep === 'confirmation' ? (
             <Button
               variant="primary"
               size="sm"
               onClick={handleModalClose}
-              className="w-full text-xs font-semibold"
+              className="w-full"
             >
               Done
             </Button>
           ) : (
             <>
               {stepIdx > 0 ? (
-                <Button
-                  variant="outline"
-                  size="xs"
-                  onClick={handleBack}
-                  className="text-xs"
-                >
-                  <ArrowLeft className="size-3.5 mr-1" />
+                <Button variant="outline" size="sm" onClick={handleBack}>
+                  <ArrowLeft aria-hidden />
                   Back
                 </Button>
               ) : (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={handleModalClose}
-                  className="text-xs text-muted-foreground"
-                >
+                <Button variant="ghost" size="sm" onClick={handleModalClose}>
                   Cancel
                 </Button>
               )}
 
               <Button
                 variant="primary"
-                size="xs"
+                size="sm"
                 onClick={handleNext}
                 loading={isSubmitting}
-                className="text-xs font-semibold"
               >
-                {currentStep === 'config' ? 'Confirm & Install' : 'Continue'}
-                <ArrowRight className="size-3.5 ml-1" />
+                {currentStep === 'config' ? 'Confirm & install' : 'Continue'}
+                <ArrowRight aria-hidden />
               </Button>
             </>
           )}
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
+
+function SummaryRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="text-xs flex items-center justify-between">
+      <span className="font-semibold text-foreground">{label}</span>
+      <span className="text-muted-foreground">{children}</span>
+    </div>
+  );
+}
+
+function ToggleRow({
+  title,
+  description,
+  checked,
+  onCheckedChange,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="gap-3 rounded-xl border border-border/60 bg-surface-raised/40 p-3.5 flex items-center justify-between">
+      <div>
+        <span className="block text-xs font-semibold text-foreground">
+          {title}
+        </span>
+        <span className="text-[11px] text-muted-foreground">{description}</span>
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        aria-label={title}
+      />
+    </div>
+  );
+}

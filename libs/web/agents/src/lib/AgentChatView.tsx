@@ -177,7 +177,7 @@ export function AgentChatView() {
  */
 function AgentConversation({ agentId }: { agentId: string }) {
   const { workspaceId } = useCurrentWorkspace();
-  const agentsQuery = useAgents(workspaceId);
+  const agentsQuery = useAgents(workspaceId, { includeDrafts: true });
 
   const agent = agentsQuery.data?.find((a) => a.id === agentId);
 

@@ -1,7 +1,18 @@
 import { avatarGradient, avatarTint, normalizeAvatarSeed } from '@org/design-system';
 import { render } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { AvatarPresenceProvider, PresenceDot, UserAvatar } from './avatar.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  AvatarPresenceProvider,
+  PresenceDot,
+  UserAvatar,
+  WorkspaceAvatar,
+} from './avatar.js';
+
+// The authenticated-media resolver only rewrites Matrix URLs; stubbing it keeps
+// this spec off the hook's own React copy, which is irrelevant to what it tests.
+vi.mock('@org/hooks', () => ({
+  useAuthenticatedMediaSrc: (src?: string) => src,
+}));
 
 /**
  * The whole point of the avatar work: one person, one fallback colour, on every
@@ -157,5 +168,47 @@ describe('UserAvatar status indicator', () => {
         .join(' ');
     expect(cls(inAvatar.container)).toBe(cls(standalone.container));
     expect(cls(standalone.container)).toBe('bg-destructive');
+  });
+});
+
+describe('WorkspaceAvatar', () => {
+  const fallbackText = (node: HTMLElement) =>
+    node.querySelector('[data-slot="avatar-fallback"]')?.textContent ?? null;
+
+  it('draws an initial tile when there is no logo or icon', () => {
+    const { container } = render(<WorkspaceAvatar name="Dev Space" seed="ws-1" />);
+    expect(fallbackText(container)).toMatch(/^D/);
+  });
+
+  it('keeps the initial behind a logo, so a logo that fails to load is never a blank tile', () => {
+    // jsdom never loads the image, which is the same state as a 404: Radix only
+    // drops the fallback once the image has actually loaded.
+    const { container } = render(
+      <WorkspaceAvatar
+        name="Dev Space"
+        seed="ws-1"
+        src="https://cdn.example.com/missing-logo.webp"
+      />,
+    );
+    expect(fallbackText(container)).toMatch(/^D/);
+  });
+
+  it('falls back to the initial, not the raw URL, when an image-URL icon fails', () => {
+    const { container } = render(
+      <WorkspaceAvatar
+        name="Dev Space"
+        seed="ws-1"
+        icon="https://cdn.example.com/missing-icon.png"
+      />,
+    );
+    expect(fallbackText(container)).toMatch(/^D/);
+    expect(fallbackText(container)).not.toContain('http');
+  });
+
+  it('shows an emoji icon in place of the initial', () => {
+    const { container } = render(
+      <WorkspaceAvatar name="Dev Space" seed="ws-1" icon="🚀" />,
+    );
+    expect(fallbackText(container)).toBe('🚀');
   });
 });

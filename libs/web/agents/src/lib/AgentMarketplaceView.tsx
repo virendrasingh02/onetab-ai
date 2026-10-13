@@ -1,11 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Accent } from '@org/design-system';
-import type { MarketplaceListing, MarketplaceListingDetail, MarketplaceInstallation } from '@org/types';
-import { accentClasses, toast } from '@org/ui';
+import type {
+  MarketplaceListing,
+  MarketplaceListingDetail,
+  MarketplaceInstallation,
+} from '@org/types';
+import { accentClasses, confirm, toast } from '@org/ui';
 import { cn } from '@org/utils';
-import { useCreationPolicies, useCurrentWorkspace } from '@org/web-workspace';
-import { useAgents, useAgentMutations } from './use-agents';
+import { studioWorkspacePath } from '@org/platform';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   useMarketplaceBrowse,
   useMarketplaceInstallations,
@@ -19,7 +23,11 @@ import {
   MarketplaceDiscoverView,
   MarketplaceCatalogView,
   MarketplaceInstalledView,
-  MarketplaceMyItemsView,
+  MarketplaceWorkspaceView,
+  isWorkspaceFilter,
+  type WorkspaceFilter,
+  openStudioTab,
+  useWorkspaceCatalog,
   MarketplaceDeveloperView,
   UniversalInstallModal,
   RequestAccessModal,
@@ -111,7 +119,7 @@ export function AgentAvatar({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-lg border transition-transform shadow-xs',
+        'flex shrink-0 items-center justify-center rounded-lg border shadow-xs transition-transform',
         accentClasses[preset.accent].soft,
         accentClasses[preset.accent].border,
         sizeClasses[size],
@@ -125,21 +133,63 @@ export function AgentAvatar({
 
 /* ------------------------------------------------------------- main view ---- */
 
-export function AgentMarketplaceView() {
+export interface AgentMarketplaceViewProps {
+  /**
+   * Renders the coworker creation dialog. Coworkers live in a library above
+   * this one, so the app supplies it; without it the "New coworker" button is hidden.
+   */
+  renderCoworkerCreate?: (props: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    workspaceId: string;
+  }) => ReactNode;
+}
+
+export function AgentMarketplaceView({
+  renderCoworkerCreate,
+}: AgentMarketplaceViewProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { workspace, workspaceId, slug } = useCurrentWorkspace();
-  const { canCreateAgents } = useCreationPolicies(workspaceId);
 
   const activeWorkspaceId = workspaceId || '';
   const activeWorkspaceSlug = slug || 'default';
   const activeWorkspaceName = workspace?.name || 'My Workspace';
 
   // Read URL query params
-  const urlTab = (searchParams.get('tab') as MarketplaceActiveTab) || 'discover';
+  const rawTab = searchParams.get('tab');
+  // `my-agents` / `my-apps` were folded into the combined workspace view.
+  const urlTab =
+    (rawTab === 'my-agents' || rawTab === 'my-apps'
+      ? 'workspace'
+      : (rawTab as MarketplaceActiveTab | null)) || 'discover';
   const urlApp = searchParams.get('app');
   const urlAgent = searchParams.get('agent');
   const urlQuery = searchParams.get('q') || '';
+
+  const rawType = searchParams.get('type');
+  const workspaceFilter: WorkspaceFilter = isWorkspaceFilter(rawType)
+    ? rawType
+    : 'all';
+  const [coworkerCreateOpen, setCoworkerCreateOpen] = useState(
+    searchParams.get('create') === 'coworker',
+  );
+
+  // The sidebar's "Add coworker" can arrive while the marketplace is already open.
+  const createParam = searchParams.get('create');
+  useEffect(() => {
+    if (createParam === 'coworker') setCoworkerCreateOpen(true);
+  }, [createParam]);
+
+  const handleWorkspaceFilterChange = (next: WorkspaceFilter) => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      if (next === 'all') params.delete('type');
+      else params.set('type', next);
+      params.delete('create');
+      return params;
+    });
+  };
 
   const [activeTab, setActiveTab] = useState<MarketplaceActiveTab>(urlTab);
   const [searchQuery, setSearchQuery] = useState(urlQuery);
@@ -182,7 +232,6 @@ export function AgentMarketplaceView() {
   );
   const installationsQuery = useMarketplaceInstallations(activeWorkspaceId);
   const approvalsQuery = useMarketplaceApprovals(activeWorkspaceId);
-  const customAgentsQuery = useAgents(activeWorkspaceId);
 
   // Mutations
   const {
@@ -195,8 +244,6 @@ export function AgentMarketplaceView() {
     publishCustom,
   } = useMarketplaceMutations(activeWorkspaceId);
 
-  const { remove: removeCustomAgent } = useAgentMutations(activeWorkspaceId);
-
   // Modals state
   const [installModalListing, setInstallModalListing] =
     useState<MarketplaceListing | null>(null);
@@ -208,7 +255,7 @@ export function AgentMarketplaceView() {
   const listings = browseQuery.data?.items || [];
   const installations = installationsQuery.data || [];
   const approvals = approvalsQuery.data || [];
-  const customAgents = customAgentsQuery.data || [];
+  const catalog = useWorkspaceCatalog(activeWorkspaceId, installations);
 
   // Active detail page selection
   const selectedAppListing = useMemo(() => {
@@ -247,10 +294,9 @@ export function AgentMarketplaceView() {
     });
   };
 
-  /** Workspace agents open in the AI Workspace editor. */
-  const handleOpenBuilder = (agentId?: string) => {
-    navigate(`/w/${activeWorkspaceSlug}/ai/agents/${agentId ?? 'new'}`);
-  };
+  /** Agents and automations are built in the standalone AI Agent Studio. */
+  const handleOpenStudio = (path?: string) =>
+    openStudioTab(path ?? studioWorkspacePath(activeWorkspaceSlug));
 
   const handleOpenChat = (agentId: string, prompt?: string) => {
     if (prompt) {
@@ -264,7 +310,10 @@ export function AgentMarketplaceView() {
     }
   };
 
-  const handleStartChatForInstalledAgent = (agentSlug: string, prompt?: string) => {
+  const handleStartChatForInstalledAgent = (
+    agentSlug: string,
+    prompt?: string,
+  ) => {
     const inst = installations.find((i) => i.listingSlug === agentSlug);
     if (inst) {
       handleOpenChat(inst.id, prompt);
@@ -291,6 +340,26 @@ export function AgentMarketplaceView() {
     });
   };
 
+  /** Removing an app cuts its access to the workspace, so it is always confirmed. */
+  const handleUninstall = async (slug: string) => {
+    const installation = installations.find(
+      (i) => (i.listingSlug || i.listing?.slug) === slug,
+    );
+    const name =
+      installation?.name ||
+      installation?.listing?.name ||
+      listings.find((l) => l.slug === slug)?.name ||
+      'this item';
+    const confirmed = await confirm({
+      title: `Uninstall ${name}?`,
+      description:
+        'It loses access to this workspace right away. You can install it again later.',
+      confirmLabel: 'Uninstall',
+      destructive: true,
+    });
+    if (confirmed) uninstall.mutate(slug);
+  };
+
   const handleSaveSettingsConfirm = async (
     slug: string,
     settings: Record<string, unknown>,
@@ -303,162 +372,206 @@ export function AgentMarketplaceView() {
     handleTabChange('discover');
   };
 
+  const showDirectory = !selectedAppListing && !selectedAgentListing;
+
   return (
-    <div className="flex flex-col h-full overflow-y-auto px-6 py-6 max-w-7xl mx-auto w-full">
-      {/* If viewing App Detail */}
-      {selectedAppListing ? (
-        <AppDetailPage
-          app={selectedAppListing as MarketplaceListingDetail}
-          onBack={handleBackToDirectory}
-          onInstall={() => setInstallModalListing(selectedAppListing)}
-          onRequestAccess={() => setRequestAccessListing(selectedAppListing)}
-          onConfigure={() => {
-            const inst = installations.find(
-              (i) => i.listingSlug === selectedAppListing.slug,
-            );
-            if (inst) setConfigModalItem(inst);
-          }}
-          onUninstall={() => uninstall.mutate(selectedAppListing.slug)}
-        />
-      ) : selectedAgentListing ? (
-        /* If viewing Agent Detail */
-        <AgentDetailPage
-          agent={selectedAgentListing as MarketplaceListingDetail}
-          onBack={handleBackToDirectory}
-          onInstall={() => setInstallModalListing(selectedAgentListing)}
-          onRequestAccess={() => setRequestAccessListing(selectedAgentListing)}
-          onConfigure={() => {
-            const inst = installations.find(
-              (i) => i.listingSlug === selectedAgentListing.slug,
-            );
-            if (inst) setConfigModalItem(inst);
-          }}
-          onUninstall={() => uninstall.mutate(selectedAgentListing.slug)}
-          onStartChat={(prompt) =>
-            handleStartChatForInstalledAgent(selectedAgentListing.slug, prompt)
-          }
-        />
-      ) : (
-        /* Standard Unified Directory View */
-        <div className="space-y-6">
+    <div className="min-h-0 flex flex-1 flex-col">
+      {/* Same compact sticky bar as Home, Inbox and the AI Agent Studio. */}
+      {showDirectory && (
+        <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
           <MarketplaceHeader
             searchQuery={searchQuery}
             onSearchChange={handleSearchChange}
             pendingApprovalsCount={pendingApprovalsCount}
             onOpenApprovals={() => handleTabChange('installed')}
-            onOpenAgentBuilder={() => handleOpenBuilder()}
+            onOpenStudio={() => handleOpenStudio()}
             onOpenDeveloper={() => handleTabChange('developer')}
-            canCreateAgents={canCreateAgents}
           />
-
           <MarketplaceTabs
             activeTab={activeTab}
             onTabChange={handleTabChange}
             installedCount={installations.length}
-            myAgentsCount={customAgents.length}
+            workspaceCount={catalog.items.length}
           />
-
-          {/* Sub-tab Views */}
-          {activeTab === 'discover' && (
-            <MarketplaceDiscoverView
-              listings={listings}
-              isLoading={browseQuery.isLoading}
-              onSelectListing={handleSelectListing}
-              onInstall={(l) => setInstallModalListing(l)}
-              onRequestAccess={(l) => setRequestAccessListing(l)}
-              onConfigure={(l) => {
-                const inst = installations.find((i) => i.listingSlug === l.slug);
-                if (inst) setConfigModalItem(inst);
-              }}
-              onViewAllApps={() => handleTabChange('apps')}
-              onViewAllAgents={() => handleTabChange('agents')}
-            />
-          )}
-
-          {activeTab === 'apps' && (
-            <MarketplaceCatalogView
-              listings={listings}
-              kind="INTEGRATION"
-              searchQuery={searchQuery}
-              onSelectListing={handleSelectListing}
-              onInstall={(l) => setInstallModalListing(l)}
-              onRequestAccess={(l) => setRequestAccessListing(l)}
-              onConfigure={(l) => {
-                const inst = installations.find((i) => i.listingSlug === l.slug);
-                if (inst) setConfigModalItem(inst);
-              }}
-            />
-          )}
-
-          {activeTab === 'agents' && (
-            <MarketplaceCatalogView
-              listings={listings}
-              kind="AGENT"
-              searchQuery={searchQuery}
-              onSelectListing={handleSelectListing}
-              onInstall={(l) => setInstallModalListing(l)}
-              onRequestAccess={(l) => setRequestAccessListing(l)}
-              onConfigure={(l) => {
-                const inst = installations.find((i) => i.listingSlug === l.slug);
-                if (inst) setConfigModalItem(inst);
-              }}
-            />
-          )}
-
-          {activeTab === 'installed' && (
-            <MarketplaceInstalledView
-              installations={installations}
-              approvals={approvals}
-              isAdmin={true}
-              onConfigure={(inst) => setConfigModalItem(inst)}
-              onToggleEnabled={(slug, enabled) =>
-                setEnabled.mutate({ slug, enabled })
-              }
-              onUninstall={(slug) => uninstall.mutate(slug)}
-              onApprove={(slug) =>
-                resolveApproval.mutate({ slug, action: 'APPROVE' })
-              }
-              onReject={(slug, reason) =>
-                resolveApproval.mutate({
-                  slug,
-                  action: 'REJECT',
-                  rejectionReason: reason,
-                })
-              }
-              onBrowseMore={() => handleTabChange('discover')}
-            />
-          )}
-
-          {activeTab === 'my-agents' && (
-            <MarketplaceMyItemsView
-              type="agents"
-              agents={customAgents}
-              onOpenBuilder={handleOpenBuilder}
-              onOpenChat={handleOpenChat}
-              onDeleteAgent={(id) => removeCustomAgent.mutate(id)}
-              onOpenDeveloper={() => handleTabChange('developer')}
-              canCreateAgents={canCreateAgents}
-            />
-          )}
-
-          {activeTab === 'my-apps' && (
-            <MarketplaceMyItemsView
-              type="apps"
-              agents={[]}
-              onOpenBuilder={handleOpenBuilder}
-              onOpenChat={handleOpenChat}
-              onOpenDeveloper={() => handleTabChange('developer')}
-            />
-          )}
-
-          {activeTab === 'developer' && (
-            <MarketplaceDeveloperView
-              onPublishCustom={handlePublishCustomListing}
-              isLoading={publishCustom.isPending}
-            />
-          )}
         </div>
       )}
+
+      {/* Full-width scroll area: the scrollbar sits on the page edge. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 w-full">
+          {/* If viewing App Detail */}
+          {selectedAppListing ? (
+            <AppDetailPage
+              app={selectedAppListing as MarketplaceListingDetail}
+              onBack={handleBackToDirectory}
+              onInstall={() => setInstallModalListing(selectedAppListing)}
+              onRequestAccess={() =>
+                setRequestAccessListing(selectedAppListing)
+              }
+              onConfigure={() => {
+                const inst = installations.find(
+                  (i) => i.listingSlug === selectedAppListing.slug,
+                );
+                if (inst) setConfigModalItem(inst);
+              }}
+              onUninstall={() => handleUninstall(selectedAppListing.slug)}
+            />
+          ) : selectedAgentListing ? (
+            /* If viewing Agent Detail */
+            <AgentDetailPage
+              agent={selectedAgentListing as MarketplaceListingDetail}
+              onBack={handleBackToDirectory}
+              onInstall={() => setInstallModalListing(selectedAgentListing)}
+              onRequestAccess={() =>
+                setRequestAccessListing(selectedAgentListing)
+              }
+              onConfigure={() => {
+                const inst = installations.find(
+                  (i) => i.listingSlug === selectedAgentListing.slug,
+                );
+                if (inst) setConfigModalItem(inst);
+              }}
+              onUninstall={() => handleUninstall(selectedAgentListing.slug)}
+              onStartChat={(prompt) =>
+                handleStartChatForInstalledAgent(
+                  selectedAgentListing.slug,
+                  prompt,
+                )
+              }
+            />
+          ) : (
+            /* Standard Unified Directory View */
+            <div className="space-y-4">
+              {/* Sub-tab Views */}
+              {activeTab === 'discover' && (
+                <MarketplaceDiscoverView
+                  listings={listings}
+                  isLoading={browseQuery.isLoading}
+                  onSelectListing={handleSelectListing}
+                  onInstall={(l) => setInstallModalListing(l)}
+                  onRequestAccess={(l) => setRequestAccessListing(l)}
+                  onConfigure={(l) => {
+                    const inst = installations.find(
+                      (i) => i.listingSlug === l.slug,
+                    );
+                    if (inst) setConfigModalItem(inst);
+                  }}
+                  onViewAllApps={() => handleTabChange('apps')}
+                  onViewAllAgents={() => handleTabChange('agents')}
+                  onOpenBuilder={() => handleTabChange('developer')}
+                />
+              )}
+
+              {activeTab === 'apps' && (
+                <MarketplaceCatalogView
+                  listings={listings}
+                  kind="INTEGRATION"
+                  searchQuery={searchQuery}
+                  onSelectListing={handleSelectListing}
+                  onInstall={(l) => setInstallModalListing(l)}
+                  onRequestAccess={(l) => setRequestAccessListing(l)}
+                  onConfigure={(l) => {
+                    const inst = installations.find(
+                      (i) => i.listingSlug === l.slug,
+                    );
+                    if (inst) setConfigModalItem(inst);
+                  }}
+                />
+              )}
+
+              {activeTab === 'agents' && (
+                <MarketplaceCatalogView
+                  listings={listings}
+                  kind="AGENT"
+                  searchQuery={searchQuery}
+                  onSelectListing={handleSelectListing}
+                  onInstall={(l) => setInstallModalListing(l)}
+                  onRequestAccess={(l) => setRequestAccessListing(l)}
+                  onConfigure={(l) => {
+                    const inst = installations.find(
+                      (i) => i.listingSlug === l.slug,
+                    );
+                    if (inst) setConfigModalItem(inst);
+                  }}
+                />
+              )}
+
+              {activeTab === 'installed' && (
+                <MarketplaceInstalledView
+                  installations={installations}
+                  approvals={approvals}
+                  isAdmin={true}
+                  onConfigure={(inst) => setConfigModalItem(inst)}
+                  onToggleEnabled={(slug, enabled) =>
+                    setEnabled.mutate({ slug, enabled })
+                  }
+                  onUninstall={handleUninstall}
+                  onApprove={(slug) =>
+                    resolveApproval.mutate({ slug, action: 'APPROVE' })
+                  }
+                  onReject={(slug, reason) =>
+                    resolveApproval.mutate({
+                      slug,
+                      action: 'REJECT',
+                      rejectionReason: reason,
+                    })
+                  }
+                  onBrowseMore={() => handleTabChange('discover')}
+                />
+              )}
+
+              {activeTab === 'workspace' && (
+                <MarketplaceWorkspaceView
+                  filter={workspaceFilter}
+                  onFilterChange={handleWorkspaceFilterChange}
+                  onCreateCoworker={
+                    renderCoworkerCreate
+                      ? () => setCoworkerCreateOpen(true)
+                      : undefined
+                  }
+                  items={catalog.items}
+                  isLoading={catalog.isLoading}
+                  workspaceSlug={activeWorkspaceSlug}
+                  searchQuery={searchQuery}
+                  onOpenStudio={handleOpenStudio}
+                  onConfigure={(inst) => setConfigModalItem(inst)}
+                  onOpenListing={(slug, kind) =>
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.set(kind === 'AGENT' ? 'agent' : 'app', slug);
+                      return next;
+                    })
+                  }
+                  onBrowse={() => handleTabChange('apps')}
+                />
+              )}
+
+              {activeTab === 'developer' && (
+                <MarketplaceDeveloperView
+                  onPublishCustom={handlePublishCustomListing}
+                  isLoading={publishCustom.isPending}
+                  onOpenStudio={() => handleOpenStudio()}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {renderCoworkerCreate?.({
+        open: coworkerCreateOpen,
+        onOpenChange: (open) => {
+          setCoworkerCreateOpen(open);
+          if (!open && searchParams.get('create')) {
+            setSearchParams((prev) => {
+              const params = new URLSearchParams(prev);
+              params.delete('create');
+              return params;
+            });
+          }
+        },
+        workspaceId: activeWorkspaceId,
+      })}
 
       {/* Universal 5-step Install Modal */}
       {installModalListing && (

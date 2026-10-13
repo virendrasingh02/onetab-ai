@@ -56,7 +56,7 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
   onClose,
 }) => {
   const navigate = useNavigate();
-  const agentsQuery = useAgents(workspaceId);
+  const agentsQuery = useAgents(workspaceId, { includeDrafts: true });
   const mutations = useAgentMutations(workspaceId);
 
   const agentId = profile.entityId || profile.userId.replace(/^agent-/, '');

@@ -147,49 +147,125 @@ function titleCaseProvider(provider: string): string {
     .join(' ');
 }
 
-export function AppLogo({
-  providerId,
-  name,
-  className,
-  sizeClassName,
-  fallbackIcon,
-}: {
-  providerId: string;
-  name?: string;
-  className?: string;
-  sizeClassName?: string;
-  fallbackIcon?: string;
-}) {
-  const [hasError, setHasError] = useState(false);
-  const normalizedKey = providerId.toLowerCase().replace(/[^a-z0-9_]/g, '');
-  const logoUrl =
-    APP_LOGOS[normalizedKey] ?? APP_LOGOS[providerId.toLowerCase()];
+const TILE_SIZE = {
+  /** Sidebar rows. */
+  md: { box: 'size-6 rounded-md text-[10px]', glyph: 'size-3.5' },
+  /** Compact lists (the Inactive dropdown). */
+  sm: { box: 'size-4 rounded-[5px] text-[8px]', glyph: 'size-2.5' },
+} as const;
 
-  if (!logoUrl || hasError) {
-    return (
-      <IconRenderer
-        icon={fallbackIcon ?? PROVIDER_ICON[providerId.toUpperCase()] ?? 'Plug'}
-        fallbackEmoji="🧩"
-        sizeClassName={sizeClassName}
-      />
-    );
-  }
+const TILE_TONE = {
+  primary: 'border-primary/20 bg-primary/10 text-primary',
+  neutral: 'border-border/60 bg-surface-raised text-muted-foreground',
+} as const;
+
+function tileInitials(label: string): string {
+  const parts = label.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (label.trim().slice(0, 2) || 'AI').toUpperCase();
+}
+
+const isImageSource = (value?: string | null): value is string =>
+  !!value && /^(https?:\/\/|data:image)/.test(value);
+
+/**
+ * The one leading tile every AI/app sidebar row uses, so a coworker photo, an
+ * agent icon and a brand logo all sit in an identical frame (same size, radius,
+ * border, optical padding). The content is chosen in order: an image (photo →
+ * `cover`, brand logo → `contain` with padding), a named icon/emoji, then the
+ * initials of `label` — and a failing image drops to the next of those instead
+ * of leaving a broken frame.
+ */
+export function NavEntityTile({
+  label,
+  image,
+  icon,
+  fit = 'cover',
+  tone = 'neutral',
+  size = 'md',
+  fallbackEmoji,
+  className,
+}: {
+  label: string;
+  image?: string | null;
+  icon?: string;
+  fit?: 'cover' | 'contain';
+  tone?: keyof typeof TILE_TONE;
+  size?: keyof typeof TILE_SIZE;
+  fallbackEmoji?: string;
+  className?: string;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const { box, glyph } = TILE_SIZE[size];
+  const src = !imageFailed ? (isImageSource(image) ? image : isImageSource(icon) ? icon : null) : null;
+  const namedIcon = icon && !isImageSource(icon) ? icon : undefined;
 
   return (
     <span
       className={cn(
-        'p-0.5 relative flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent/40',
-        sizeClassName,
+        'relative flex shrink-0 items-center justify-center overflow-hidden border font-semibold leading-none shadow-xs',
+        box,
+        // A logo on a transparent PNG still needs a quiet, light backdrop.
+        src && fit === 'contain' ? TILE_TONE.neutral : TILE_TONE[tone],
         className,
       )}
     >
-      <img
-        src={logoUrl}
-        alt={name ?? providerId}
-        className="size-full object-contain dark:brightness-110"
-        loading="lazy"
-        onError={() => setHasError(true)}
-      />
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          className={cn(
+            'size-full dark:brightness-110',
+            fit === 'contain' ? 'object-contain p-[3px]' : 'object-cover',
+          )}
+          onError={() => setImageFailed(true)}
+        />
+      ) : namedIcon || fallbackEmoji ? (
+        <IconRenderer
+          icon={namedIcon}
+          fallbackEmoji={fallbackEmoji}
+          sizeClassName={glyph}
+          className={namedIcon ? undefined : 'text-xs leading-none'}
+        />
+      ) : (
+        <span aria-hidden>{tileInitials(label)}</span>
+      )}
+    </span>
+  );
+}
+
+export function AppLogo({
+  providerId,
+  name,
+  size = 'md',
+  fallbackIcon,
+}: {
+  providerId: string;
+  name?: string;
+  size?: keyof typeof TILE_SIZE;
+  fallbackIcon?: string;
+}) {
+  const normalizedKey = providerId.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const logoUrl =
+    APP_LOGOS[normalizedKey] ?? APP_LOGOS[providerId.toLowerCase()];
+
+  return (
+    <NavEntityTile
+      label={name ?? providerId}
+      image={logoUrl}
+      icon={fallbackIcon ?? PROVIDER_ICON[providerId.toUpperCase()] ?? 'Plug'}
+      fit="contain"
+      size={size}
+    />
+  );
+}
+
+/** Centres a `+` in the same 24px slot the tiles use, so "Add …" rows line up. */
+function NavAddGlyph() {
+  return (
+    <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
+      <Plus className="size-4" aria-hidden />
     </span>
   );
 }
@@ -346,12 +422,7 @@ export function CoworkerNavRow({
       entity={coworker}
       depth={depth}
     >
-      <span
-        className={navIconClass(
-          depth,
-          'relative flex items-center justify-center shrink-0',
-        )}
-      >
+      <span className="relative flex size-6 shrink-0 items-center justify-center">
         <CoworkerAvatar
           name={coworker.name}
           avatarUrl={coworker.avatarUrl}
@@ -359,7 +430,7 @@ export function CoworkerNavRow({
           size="xs"
         />
       </span>
-      <span className="flex-1 truncate font-medium">{coworker.name}</span>
+      <span className="flex-1 truncate">{coworker.name}</span>
     </ResourceRowShell>
   );
 }
@@ -427,20 +498,12 @@ export function AgentNavRow({
       entity={agent}
       depth={depth}
     >
-      <span
-        className={navIconClass(
-          depth,
-          'relative flex items-center justify-center',
-        )}
-      >
-        <span className="flex size-6 items-center justify-center rounded-md border border-primary/20 bg-primary/10">
-          <IconRenderer
-            icon={agent.icon ?? 'Bot'}
-            fallbackEmoji="🤖"
-            sizeClassName="size-3.5 text-primary"
-          />
-        </span>
-      </span>
+      <NavEntityTile
+        label={agent.name}
+        icon={agent.icon ?? 'Bot'}
+        fallbackEmoji="🤖"
+        tone="primary"
+      />
       <span className="flex-1 truncate">{agent.name}</span>
     </ResourceRowShell>
   );
@@ -522,12 +585,7 @@ export function AppNavRow({
       entity={app}
       depth={depth}
     >
-      <AppLogo
-        providerId={app.id}
-        name={app.name}
-        sizeClassName={navIconClass(depth)}
-        fallbackIcon={app.icon}
-      />
+      <AppLogo providerId={app.id} name={app.name} fallbackIcon={app.icon} />
       <span className="flex-1 truncate">{app.name}</span>
     </ResourceRowShell>
   );
@@ -869,16 +927,13 @@ export function CoworkersSection({
         name: cw.name,
         to: path,
         lastActiveAt: inactiveCoworkerLastActive[cw.id],
-        icon: cw.avatarUrl ? (
-          <CoworkerAvatar
-            avatarUrl={cw.avatarUrl}
-            name={cw.name}
-            size="xs"
-            showStatusDot={false}
-            className="size-4 shrink-0"
+        icon: (
+          <NavEntityTile
+            label={cw.name}
+            image={cw.avatarUrl}
+            size="sm"
+            tone="primary"
           />
-        ) : (
-          <UserCheck className="size-4 text-muted-foreground shrink-0" aria-hidden />
         ),
         actions: [
           {
@@ -979,7 +1034,7 @@ export function CoworkersSection({
             aria-label="Add coworker"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/ai/agents?type=coworker`}>
+            <NavLink to={`/w/${workspaceSlug}/marketplace?tab=workspace&type=coworker&create=coworker`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -1023,10 +1078,10 @@ export function CoworkersSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/ai/agents?type=coworker`}
+          to={`/w/${workspaceSlug}/marketplace?tab=workspace&type=coworker&create=coworker`}
           className={navActionClass({ depth: 1 })}
         >
-          <Plus className={navIconClass(1)} aria-hidden />
+          <NavAddGlyph />
           <span className="flex-1 truncate">Add coworker</span>
         </NavLink>
       </li>
@@ -1120,7 +1175,12 @@ export function AgentsSection({
         to: chatPath,
         lastActiveAt: inactiveAgentLastActive[agent.id],
         icon: (
-          <Bot className="size-4 text-muted-foreground shrink-0" aria-hidden />
+          <NavEntityTile
+            label={agent.name}
+            icon="Bot"
+            size="sm"
+            tone="primary"
+          />
         ),
         actions: [
           {
@@ -1210,7 +1270,7 @@ export function AgentsSection({
       emptyLabel={
         inactiveAgentItems.length > 0
           ? 'No recent activity — quieter agents are under Inactive.'
-          : 'No agents deployed yet.'
+          : 'No published agents yet. Publish one from the AI Agent Studio.'
       }
       action={
         <Hint label="Add agent">
@@ -1221,7 +1281,7 @@ export function AgentsSection({
             aria-label="Add agent"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/ai/agents`}>
+            <NavLink to={`/w/${workspaceSlug}/marketplace?tab=agents`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -1268,10 +1328,10 @@ export function AgentsSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/ai/agents`}
+          to={`/w/${workspaceSlug}/marketplace?tab=agents`}
           className={navActionClass({ depth: 1 })}
         >
-          <Plus className={navIconClass(1)} aria-hidden />
+          <NavAddGlyph />
           <span className="flex-1 truncate">Add agent</span>
         </NavLink>
       </li>
@@ -1370,8 +1430,7 @@ export function AppsSection({
           <AppLogo
             providerId={integration.provider}
             name={titleCaseProvider(integration.provider)}
-            className="size-4 rounded-xs shrink-0"
-            sizeClassName="size-4"
+            size="sm"
           />
         ),
         actions: [
@@ -1474,7 +1533,7 @@ export function AppsSection({
             aria-label="Add app"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/integrations`}>
+            <NavLink to={`/w/${workspaceSlug}/marketplace?tab=apps`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -1526,10 +1585,10 @@ export function AppsSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/integrations`}
+          to={`/w/${workspaceSlug}/marketplace?tab=apps`}
           className={navActionClass({ depth: 1 })}
         >
-          <Plus className={navIconClass(1)} aria-hidden />
+          <NavAddGlyph />
           <span className="flex-1 truncate">Add app</span>
         </NavLink>
       </li>
@@ -1644,7 +1703,7 @@ export function WorkflowsSection({
             aria-label="Add workflow"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/ai/workflows`}>
+            <NavLink to={`/w/${workspaceSlug}/marketplace?tab=workspace&type=automation`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -1694,7 +1753,7 @@ export function WorkflowsSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/ai/workflows`}
+          to={`/w/${workspaceSlug}/marketplace?tab=workspace&type=automation`}
           className={navActionClass({ depth: 1 })}
         >
           <Plus className={navIconClass(1)} aria-hidden />

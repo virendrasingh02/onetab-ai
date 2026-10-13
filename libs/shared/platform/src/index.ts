@@ -72,3 +72,5 @@ export {
   type MobileStoreConfig,
 } from './lib/download-config.js';
 
+
+export { studioAppUrl, studioWorkspacePath } from './lib/studio-url.js';

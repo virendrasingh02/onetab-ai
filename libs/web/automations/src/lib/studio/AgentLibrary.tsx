@@ -71,7 +71,7 @@ export function AgentLibrary() {
   const canManageResource = useCanManageAIResource();
   const { canCreateCoworkers, isLoading: policiesLoading } = useCreationPolicies(workspaceId);
   const studio = useStudioAgents(workspaceId);
-  const assistants = useAgents(workspaceId);
+  const assistants = useAgents(workspaceId, { includeDrafts: true });
   const coworkers = useCoworkers(workspaceId);
   const { favorites, toggle } = useAgentFavorites(workspaceId);
   const mutations = useStudioMutations(workspaceId);

@@ -130,6 +130,17 @@ export const agentVersionSchema = z.object({
   summary: text(500).optional(),
 });
 
+/** Studio → marketplace: how an agent's listing reads and who can see it. */
+export const publishAgentListingSchema = z.object({
+  visibility: z.enum(['WORKSPACE', 'PUBLIC']).optional(),
+  name: text(120).optional(),
+  tagline: text(160).optional(),
+  description: text(5_000).optional(),
+  category: text(60).optional(),
+  tags: z.array(text(40)).max(10).optional(),
+  changeNotes: text(500).optional(),
+});
+
 export const validateAgentGraphSchema = z.object({
   graphJson: graphJson.optional(),
 });

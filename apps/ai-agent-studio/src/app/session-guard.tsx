@@ -17,14 +17,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import {
-  WEB_APP_URL,
-  cameBackFromLogin,
-  clearLoginRedirect,
-  redirectToLogin,
-  redirectToLogout,
-} from './auth-redirect.js';
-import { SignedOutScreen } from './signed-out-screen.js';
+import { WEB_APP_URL } from './auth-redirect.js';
+import { StudioSignIn } from './studio-sign-in.js';
 
 const ACTIVE_WORKSPACE_KEY = 'onetab_active_workspace_id';
 
@@ -70,7 +64,6 @@ type Phase =
   | { kind: 'loading' }
   /** Signed out; the tab is on its way to the web app's sign-in. */
   | { kind: 'redirecting' }
-  /** Went to sign in and came back without a session. */
   | { kind: 'signed-out'; cameBack: boolean }
   /** The API couldn't be reached — not the same as being signed out. */
   | { kind: 'unreachable'; message: string }
@@ -102,18 +95,10 @@ export function SessionGuard({ children }: { children: ReactNode }) {
       if (!current()) return;
 
       if (!user) {
-        if (cameBackFromLogin()) {
-          // We already sent them to sign in a moment ago. Sending them again
-          // would loop forever when the session can't reach this tab.
-          setPhase({ kind: 'signed-out', cameBack: true });
-        } else {
-          setPhase({ kind: 'redirecting' });
-          redirectToLogin();
-        }
+        // Studio signs people in itself, so it works without the main web app.
+        setPhase({ kind: 'signed-out', cameBack: false });
         return;
       }
-
-      clearLoginRedirect();
 
       const workspaces = await workspaceApi.list();
       if (!current()) return;
@@ -142,9 +127,25 @@ export function SessionGuard({ children }: { children: ReactNode }) {
   // The platform refused to renew the session (revoked, expired, signed out
   // elsewhere): go back to sign-in and return to the same page afterwards.
   useEffect(() => {
-    setSessionExpiredHandler(() => redirectToLogin());
+    setSessionExpiredHandler(() => setPhase({ kind: 'signed-out', cameBack: false }));
     return () => setSessionExpiredHandler(null);
   }, []);
+
+  // Signed in to the main app in another tab? The refresh cookie is shared, so
+  // coming back to this tab while signed out picks that session up on its own.
+  const signedOut = phase.kind === 'signed-out';
+  useEffect(() => {
+    if (!signedOut) return;
+    const recheck = () => {
+      if (document.visibilityState === 'visible') void initSession();
+    };
+    window.addEventListener('focus', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      window.removeEventListener('focus', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+    };
+  }, [signedOut, initSession]);
 
   const setActiveWorkspace = useCallback((activeWorkspace: Workspace) => {
     saveWorkspaceId(activeWorkspace.id);
@@ -172,7 +173,7 @@ export function SessionGuard({ children }: { children: ReactNode }) {
     }
     setAccessToken(null);
     saveWorkspaceId(null);
-    redirectToLogout();
+    setPhase({ kind: 'signed-out', cameBack: false });
   }, []);
 
   if (phase.kind === 'loading') {
@@ -195,19 +196,7 @@ export function SessionGuard({ children }: { children: ReactNode }) {
   }
 
   if (phase.kind === 'signed-out') {
-    return (
-      <SignedOutScreen
-        cameBackSignedOut={phase.cameBack}
-        onSignIn={() => {
-          clearLoginRedirect();
-          redirectToLogin();
-        }}
-        onRetry={() => {
-          clearLoginRedirect();
-          void initSession();
-        }}
-      />
-    );
+    return <StudioSignIn onSignedIn={() => void initSession()} />;
   }
 
   if (phase.kind === 'no-workspace') {

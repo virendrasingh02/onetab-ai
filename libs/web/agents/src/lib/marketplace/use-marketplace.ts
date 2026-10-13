@@ -85,6 +85,8 @@ export function useMarketplaceMutations(workspaceId: string) {
     queryClient.invalidateQueries({
       queryKey: queryKeys.marketplace.approvals(workspaceId),
     });
+    // Installing or removing an agent changes the sidebar's AI Agents list.
+    queryClient.invalidateQueries({ queryKey: queryKeys.agents.all(workspaceId) });
   };
 
   const install = useMutation({

@@ -1,20 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import type { MarketplaceInstallation } from '@org/types';
-import {
-  Button,
-  Card,
-  EmptyState,
-  Switch,
-} from '@org/ui';
-import { renderEntityIcon } from './MarketplaceCard';
-import {
-  Check,
-  Settings,
-  ShieldAlert,
-  Trash2,
-  XCircle,
-} from 'lucide-react';
-import { cn } from '@org/utils';
+import { Badge, Button, Card, EmptyState, Switch } from '@org/ui';
+import { Check, Settings, ShieldAlert, Trash2, XCircle } from 'lucide-react';
+import { EntityIcon, KindBadge, SectionTabs } from './marketplace-ui';
+
+type InstalledFilter = 'all' | 'active' | 'disabled' | 'agents' | 'apps';
 
 interface MarketplaceInstalledViewProps {
   installations: MarketplaceInstallation[];
@@ -22,6 +12,7 @@ interface MarketplaceInstalledViewProps {
   isAdmin: boolean;
   onConfigure: (installation: MarketplaceInstallation) => void;
   onToggleEnabled: (slug: string, enabled: boolean) => void;
+  /** The parent confirms before removing; this just reports the intent. */
   onUninstall: (slug: string) => void;
   onApprove: (slug: string) => void;
   onReject: (slug: string, reason?: string) => void;
@@ -39,8 +30,7 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
   onReject,
   onBrowseMore,
 }) => {
-  const [filter, setFilter] = useState<'all' | 'active' | 'disabled' | 'agents' | 'apps'>('all');
-  const [confirmUninstallSlug, setConfirmUninstallSlug] = useState<string | null>(null);
+  const [filter, setFilter] = useState<InstalledFilter>('all');
 
   const filteredInstallations = useMemo(() => {
     return installations.filter((item) => {
@@ -57,27 +47,25 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
   );
 
   return (
-    <div className="space-y-8 py-3">
-      {/* Admin Approval Queue Section (if admin or if there are requests) */}
+    <div className="space-y-6 py-3">
+      {/* Admin approval queue */}
       {isAdmin && pendingApprovals.length > 0 && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <ShieldAlert className="size-4" />
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-foreground">
-                  Pending Access Requests ({pendingApprovals.length})
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Workspace members have requested the following apps or agents. Review and grant permissions.
-                </p>
-              </div>
+        <Card className="p-5 gap-4 border-warning/30 bg-warning/5">
+          <div className="gap-2.5 flex items-center">
+            <div className="size-8 flex items-center justify-center rounded-lg bg-warning/10 text-warning-text">
+              <ShieldAlert className="size-4" aria-hidden />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Pending access requests ({pendingApprovals.length})
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Workspace members have requested the following apps or agents. Review and grant permissions.
+              </p>
             </div>
           </div>
 
-          <div className="divide-y divide-amber-500/20 rounded-xl border border-amber-500/20 bg-surface overflow-hidden">
+          <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
             {pendingApprovals.map((req) => {
               const reqSlug = req.listingSlug || req.listing?.slug || '';
               const reqName = req.name || req.listing?.name || 'Integration';
@@ -87,21 +75,19 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
               return (
                 <div
                   key={req.id}
-                  className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  className="gap-4 p-4 md:flex-row md:items-center flex flex-col justify-between"
                 >
-                  <div className="flex items-start gap-3 min-w-0">
-                    {renderEntityIcon(reqIcon, reqKind, 'size-10')}
+                  <div className="min-w-0 gap-3 flex items-start">
+                    <EntityIcon iconUrl={reqIcon} kind={reqKind} />
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-sm text-foreground">
+                      <div className="gap-2 flex items-center">
+                        <h4 className="text-sm font-semibold text-foreground">
                           {reqName}
                         </h4>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                          {reqKind === 'AGENT' ? 'AI Agent' : 'Integration'}
-                        </span>
+                        <KindBadge kind={reqKind} />
                       </div>
 
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         Requested by{' '}
                         <span className="font-medium text-foreground">
                           {req.requesterName || req.requestedBy || 'Team member'}
@@ -109,96 +95,77 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
                       </p>
 
                       {req.requestReason && (
-                        <p className="text-xs italic text-muted-foreground/90 mt-1 bg-surface-raised/50 px-2.5 py-1 rounded-md border border-border/60">
-                          "{req.requestReason}"
+                        <p className="mt-1 rounded-md border border-border/60 bg-surface-raised/50 px-2.5 py-1 text-xs italic text-muted-foreground">
+                          “{req.requestReason}”
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end md:self-auto flex-shrink-0">
+                  <div className="gap-2 flex shrink-0 items-center self-end md:self-auto">
                     <Button
                       variant="outline"
                       size="xs"
                       onClick={() => onReject(reqSlug)}
-                      className="text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border-rose-500/30"
+                      className="border-destructive/30 text-destructive-text hover:bg-destructive/10"
                     >
-                      <XCircle className="size-3.5 mr-1" />
+                      <XCircle aria-hidden />
                       Reject
                     </Button>
                     <Button
-                      variant="primary"
+                      variant="success"
                       size="xs"
                       onClick={() => onApprove(reqSlug)}
-                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                     >
-                      <Check className="size-3.5 mr-1" />
-                      Approve & Install
+                      <Check aria-hidden />
+                      Approve & install
                     </Button>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Filter Tabs */}
-      <div className="flex items-center justify-between gap-4 border-b border-border/60 pb-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          {[
-            { id: 'all', label: 'All Installed', count: installations.length },
+      {/* Filters */}
+      <div className="gap-3 flex items-center justify-between">
+        <SectionTabs
+          aria-label="Filter installed items"
+          value={filter}
+          onValueChange={setFilter}
+          className="flex-1"
+          items={[
+            { value: 'all', label: 'All installed', count: installations.length },
             {
-              id: 'active',
+              value: 'active',
               label: 'Active',
               count: installations.filter((i) => i.enabled).length,
             },
             {
-              id: 'disabled',
+              value: 'disabled',
               label: 'Disabled',
               count: installations.filter((i) => !i.enabled).length,
             },
             {
-              id: 'agents',
-              label: 'AI Agents',
+              value: 'agents',
+              label: 'AI agents',
               count: installations.filter((i) => i.kind === 'AGENT').length,
             },
             {
-              id: 'apps',
+              value: 'apps',
               label: 'Apps',
               count: installations.filter((i) => i.kind === 'INTEGRATION').length,
             },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setFilter(tab.id as any)}
-              className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5',
-                filter === tab.id
-                  ? 'bg-surface-raised text-foreground font-semibold border border-border/80 shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised/40',
-              )}
-            >
-              <span>{tab.label}</span>
-              <span className="text-[10px] text-muted-foreground/80 px-1.5 py-0.2 rounded-full bg-muted">
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </div>
+          ]}
+        />
 
-        <Button
-          variant="outline"
-          size="xs"
-          onClick={onBrowseMore}
-          className="text-xs whitespace-nowrap"
-        >
-          Browse Directory
+        <Button variant="outline" size="sm" onClick={onBrowseMore}>
+          Browse directory
         </Button>
       </div>
 
-      {/* Installations Table / List */}
+      {/* Installations */}
       {filteredInstallations.length === 0 ? (
         <EmptyState
           title="No installed integrations or agents"
@@ -210,7 +177,7 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
           action={
             filter === 'all' ? (
               <Button variant="primary" size="sm" onClick={onBrowseMore}>
-                Browse Marketplace
+                Browse marketplace
               </Button>
             ) : (
               <Button variant="outline" size="sm" onClick={() => setFilter('all')}>
@@ -220,47 +187,38 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
           {filteredInstallations.map((item) => {
             const itemSlug = item.listingSlug || item.listing?.slug || item.listingId;
             const itemName = item.name || item.listing?.name || 'Integration';
             const itemKind = item.kind || item.listing?.kind || 'INTEGRATION';
             const itemIcon = item.iconUrl || item.listing?.iconUrl || undefined;
-            const isEnabled = item.enabled ?? (item.status === 'ACTIVE');
+            const isEnabled = item.enabled ?? item.status === 'ACTIVE';
+            const scopes = item.grantedScopes ?? [];
 
             return (
               <Card
                 key={item.id || itemSlug}
-                className="p-4 flex flex-col justify-between border border-border/80 bg-surface hover:shadow-xs transition-shadow rounded-2xl"
+                className="p-4 justify-between"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderEntityIcon(itemIcon, itemKind, 'size-11')}
+                  <div className="mb-3 gap-3 flex items-start justify-between">
+                    <div className="min-w-0 gap-3 flex items-center">
+                      <EntityIcon iconUrl={itemIcon} kind={itemKind} />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="font-semibold text-sm text-foreground truncate">
+                        <div className="gap-1.5 flex items-center">
+                          <h4 className="text-sm font-semibold truncate text-foreground">
                             {itemName}
                           </h4>
-                          <span
-                            className={cn(
-                              'text-[10px] font-semibold px-2 py-0.2 rounded-full border',
-                              itemKind === 'AGENT'
-                                ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
-                                : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-                            )}
-                          >
-                            {itemKind === 'AGENT' ? 'AI Agent' : 'App'}
-                          </span>
+                          <KindBadge kind={itemKind} />
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
+                        <p className="text-xs truncate text-muted-foreground">
                           Installed {new Date(item.installedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
 
-                    {/* Enable / Disable toggle */}
-                    <div className="flex items-center gap-2">
+                    <div className="gap-2 flex shrink-0 items-center">
                       <span className="text-xs font-medium text-muted-foreground">
                         {isEnabled ? 'Active' : 'Disabled'}
                       </span>
@@ -269,29 +227,25 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
                         onCheckedChange={(checked) =>
                           onToggleEnabled(itemSlug, checked)
                         }
-                        title={isEnabled ? 'Click to disable' : 'Click to enable'}
+                        aria-label={`${isEnabled ? 'Disable' : 'Enable'} ${itemName}`}
                       />
                     </div>
                   </div>
 
-                  {/* Granted scopes or command previews */}
-                  {item.grantedScopes && item.grantedScopes.length > 0 && (
+                  {scopes.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-[11px] font-medium text-muted-foreground mb-1.5">
-                        Granted Scopes:
+                      <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
+                        Granted scopes
                       </p>
-                      <div className="flex flex-wrap gap-1">
-                        {item.grantedScopes.slice(0, 3).map((scope) => (
-                          <span
-                            key={scope}
-                            className="px-1.5 py-0.5 rounded bg-surface-raised border border-border/60 text-[10px] font-mono text-muted-foreground"
-                          >
+                      <div className="gap-1 flex flex-wrap items-center">
+                        {scopes.slice(0, 3).map((scope) => (
+                          <Badge key={scope} variant="neutral" className="font-mono">
                             {scope}
-                          </span>
+                          </Badge>
                         ))}
-                        {item.grantedScopes.length > 3 && (
-                          <span className="text-[10px] text-muted-foreground/70 self-center">
-                            +{item.grantedScopes.length - 3} more
+                        {scopes.length > 3 && (
+                          <span className="text-[11px] text-muted-foreground">
+                            +{scopes.length - 3} more
                           </span>
                         )}
                       </div>
@@ -299,54 +253,20 @@ export const MarketplaceInstalledView: React.FC<MarketplaceInstalledViewProps> =
                   )}
                 </div>
 
-                {/* Action buttons */}
-                <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    onClick={() => onConfigure(item)}
-                    className="text-xs"
-                  >
-                    <Settings className="size-3 mr-1" />
+                <div className="gap-2 pt-3 flex items-center justify-between border-t border-border/60">
+                  <Button variant="outline" size="xs" onClick={() => onConfigure(item)}>
+                    <Settings aria-hidden />
                     Configure
                   </Button>
-
-                  {confirmUninstallSlug === itemSlug ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-rose-500 font-medium">
-                        Confirm?
-                      </span>
-                      <Button
-                        variant="destructive"
-                        size="xs"
-                        className="text-xs"
-                        onClick={() => {
-                          onUninstall(itemSlug);
-                          setConfirmUninstallSlug(null);
-                        }}
-                      >
-                        Yes, Remove
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        className="text-xs"
-                        onClick={() => setConfirmUninstallSlug(null)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setConfirmUninstallSlug(itemSlug)}
-                      className="text-xs text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400"
-                    >
-                      <Trash2 className="size-3 mr-1" />
-                      Uninstall
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => onUninstall(itemSlug)}
+                    className="hover:text-destructive-text"
+                  >
+                    <Trash2 aria-hidden />
+                    Uninstall
+                  </Button>
                 </div>
               </Card>
             );

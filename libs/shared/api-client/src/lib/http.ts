@@ -274,6 +274,16 @@ export async function refreshSession(): Promise<string> {
   try {
     return await refreshAccessToken(getAccessToken());
   } catch (error) {
+    // A rejected session is a definitive "signed out" (401), not an outage.
+    if (error instanceof SessionRejectedError) {
+      throw new ApiError({
+        statusCode: 401,
+        code: ApiErrorCode.UNAUTHORIZED,
+        message: error.message,
+        path: '/auth/refresh',
+        timestamp: new Date().toISOString(),
+      });
+    }
     throw toApiError(error);
   }
 }

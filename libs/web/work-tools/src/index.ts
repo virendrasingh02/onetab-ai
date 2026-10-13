@@ -157,7 +157,6 @@ export {
 } from './lib/WhiteboardCanvas.js';
 export { CalendarView } from './lib/CalendarView.js';
 export { FileManagerView } from './lib/FileManagerView.js';
-export { ActivityTimelineView } from './lib/ActivityTimelineView.js';
 export { MeetingsView } from './lib/MeetingsView.js';
 export { InboxView } from './lib/InboxView.js';
 export { ScheduleView } from './lib/ScheduleView.js';

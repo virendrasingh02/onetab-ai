@@ -462,16 +462,6 @@ export function WorkspaceSettingsPage({
     false,
   );
 
-  const [trackOnlineStatus, setTrackOnlineStatus] = useWorkspacePreference(
-    workspaceId,
-    'trackOnlineStatus',
-    true,
-  );
-  const [trackCommitsInPulse, setTrackCommitsInPulse] = useWorkspacePreference(
-    workspaceId,
-    'trackCommitsInPulse',
-    true,
-  );
 
   // Workflow Automations preferences
   const [githubPRWebhook, setGithubPRWebhook] = useWorkspacePreference(
@@ -2927,46 +2917,6 @@ export function WorkspaceSettingsPage({
               <Switch
                 checked={autoRecordMeetings}
                 onCheckedChange={setAutoRecordMeetings}
-              />
-            </SettingsRow>
-          </SettingsCard>
-        </div>
-      )}
-
-      {currentTab === 'pulse' && (
-        <div className="space-y-8">
-          <SettingsSectionHeader
-            title={<>Pulse Activity Feed</>}
-            description={
-              <>
-                Configure online status tracking and workspace activity event
-                filters.
-              </>
-            }
-          />
-
-          <SettingsCard divided>
-            <SettingsRow
-              title={<>Track Member Online Status</>}
-              description={
-                <>Show active presence indicators across channel list</>
-              }
-            >
-              <Switch
-                checked={trackOnlineStatus}
-                onCheckedChange={setTrackOnlineStatus}
-              />
-            </SettingsRow>
-
-            <SettingsRow
-              title={<>Include GitHub Commit Events in Pulse</>}
-              description={
-                <>Display code commit events inside workspace pulse feed</>
-              }
-            >
-              <Switch
-                checked={trackCommitsInPulse}
-                onCheckedChange={setTrackCommitsInPulse}
               />
             </SettingsRow>
           </SettingsCard>

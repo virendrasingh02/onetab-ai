@@ -7,7 +7,6 @@ import { AgentDetailPage } from './pages/agent-detail-page.js';
 import { AgentsListPage } from './pages/agents-list-page.js';
 import { AnalyticsPage } from './pages/analytics-page.js';
 import { CreateAgentPage } from './pages/create-agent-page.js';
-import { ApprovalsPage } from './pages/approvals-page.js';
 import { DeveloperPage } from './pages/developer-page.jsx';
 import { ExecutionsPage } from './pages/executions-page.js';
 import { KnowledgePage } from './pages/knowledge-page.js';
@@ -23,7 +22,8 @@ import { WorkflowsPage } from './pages/workflows-page.jsx';
 import { WidgetCenterPage } from './pages/widget-center-page.js';
 import { WidgetBuilderPage } from './pages/widget-builder-page.js';
 import { Providers } from './providers.js';
-import { SessionGuard } from './session-guard.js';
+import { studioCorePath, studioCoreRoutes } from './studio-core-bridge.js';
+import { SessionGuard, useStudioSession } from './session-guard.js';
 
 const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/': { section: 'Platform', page: 'Studio Overview' },
@@ -46,6 +46,11 @@ const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
 };
 
 function getBreadcrumb(pathname: string): { section: string; page: string } {
+  const core = /^\/w\/[^/]+\/ai(?:\/([^/]+))?/.exec(pathname)?.[1];
+  if (pathname.startsWith('/w/')) {
+    const page = core === 'agents' ? 'Planned Agents' : core === 'runs' ? 'Runs' : core === 'approvals' ? 'Human Approvals' : core === 'studio' ? 'Planned Agent' : core === 'workflows' ? 'Workflow Canvas' : 'Studio Home';
+    return { section: 'Plan, Run & Approve', page };
+  }
   if (BREADCRUMB_MAP[pathname]) return BREADCRUMB_MAP[pathname];
   for (const [key, value] of Object.entries(BREADCRUMB_MAP)) {
     if (key !== '/' && pathname.startsWith(key)) {
@@ -66,6 +71,7 @@ function StudioShell() {
   });
 
   const location = useLocation();
+  const { activeWorkspace } = useStudioSession();
   const isAgentCanvas =
     location.pathname.startsWith('/agents/') && location.pathname !== '/agents';
   const isUserChat = location.pathname.startsWith('/chat/');
@@ -158,7 +164,8 @@ function StudioShell() {
                 <Route path="/tools" element={<ToolsPage />} />
                 <Route path="/mcp" element={<McpPage />} />
                 <Route path="/knowledge" element={<KnowledgePage />} />
-                <Route path="/approvals" element={<ApprovalsPage />} />
+                <Route path="/approvals" element={<Navigate to={studioCorePath(activeWorkspace.slug, "approvals")} replace />} />
+                {studioCoreRoutes()}
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/developer" element={<DeveloperPage />} />

@@ -38,6 +38,9 @@ import {
   ChevronsUpDown,
   Code2,
   ExternalLink,
+  Home,
+  MessageSquare,
+  Sparkles,
   GitBranch,
   Layers,
   LayoutDashboard,
@@ -50,7 +53,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -58,6 +61,7 @@ import {
   workspaceApprovalsKey,
 } from '../services/approvals-query.js';
 import { useStudioSession } from '../session-guard.js';
+import { studioCorePath } from '../studio-core-bridge.js';
 
 const WEB_APP_URL =
   (import.meta.env?.['VITE_WEB_APP_URL'] as string | undefined) ??
@@ -83,7 +87,24 @@ export interface NavGroup {
 /**
  * Navigation groups matching the studio architecture with authentic nav names.
  */
-const NAV_GROUPS: NavGroup[] = [
+function buildNavGroups(slug: string): NavGroup[] {
+  return [
+  {
+    id: 'plan-run',
+    title: 'Plan, Run & Approve',
+    showsPendingApprovals: true,
+    items: [
+      { to: studioCorePath(slug), label: 'Studio Home', icon: Home, end: true },
+      { to: studioCorePath(slug, 'agents'), label: 'Planned Agents', icon: Sparkles },
+      { to: studioCorePath(slug, 'runs'), label: 'Runs', icon: Activity },
+      {
+        to: studioCorePath(slug, 'approvals'),
+        label: 'Human Approvals',
+        icon: ShieldAlert,
+        showsPendingApprovals: true,
+      },
+    ],
+  },
   {
     id: 'build-orchestrate',
     title: 'Build & Orchestrate',
@@ -143,14 +164,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         to: '/executions',
-        label: 'Executions & Logs',
-        icon: Activity,
-      },
-      {
-        to: '/approvals',
-        label: 'Human Approvals',
-        icon: ShieldAlert,
-        showsPendingApprovals: true,
+        label: 'Agent Chat Logs',
+        icon: MessageSquare,
       },
       {
         to: '/analytics',
@@ -175,7 +190,8 @@ const NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
-];
+  ];
+}
 
 /**
  * Invite Team Dialog
@@ -415,6 +431,7 @@ export function StudioSidebar({
   const navigate = useNavigate();
 
   const [inviteOpen, setInviteOpen] = useState(false);
+  const navGroups = useMemo(() => buildNavGroups(activeWorkspace.slug), [activeWorkspace.slug]);
 
   const { data: pendingApprovals = [] } = useQuery({
     queryKey: workspaceApprovalsKey(activeWorkspace.id, 'PENDING'),
@@ -425,7 +442,7 @@ export function StudioSidebar({
 
   // All sections open by default; the user's folds persist across reloads.
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
-    const defaults = Object.fromEntries(NAV_GROUPS.map((g) => [g.id, true]));
+    const defaults = Object.fromEntries(navGroups.map((g) => [g.id, true]));
     try {
       const saved = localStorage.getItem(EXPANDED_GROUPS_KEY);
       if (saved) return { ...defaults, ...JSON.parse(saved) };
@@ -446,7 +463,7 @@ export function StudioSidebar({
   // Unfold the section holding the current route on direct navigation.
   useEffect(() => {
     const p = location.pathname;
-    const activeGroup = NAV_GROUPS.find((g) =>
+    const activeGroup = navGroups.find((g) =>
       g.items.some((item) =>
         item.end ? p === item.to : p === item.to || p.startsWith(item.to + '/'),
       ),
@@ -548,7 +565,7 @@ export function StudioSidebar({
             onNavigate={onCloseMobile}
           />
 
-          {NAV_GROUPS.map((group) => {
+          {navGroups.map((group) => {
             const rows = group.items.map((item) => (
               <StudioNavRow
                 key={item.to}

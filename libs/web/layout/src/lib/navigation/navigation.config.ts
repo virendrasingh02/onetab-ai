@@ -1,5 +1,4 @@
 import {
-  Activity,
   Bookmark,
   Bot,
   Calendar,
@@ -200,17 +199,6 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     group: 'work',
     description: 'Scheduled messages, events, and timeline',
     keywords: ['schedule', 'calendar', 'events', 'timeline', 'messages'],
-  },
-  {
-    id: 'pulse',
-    label: 'Activity Pulse',
-    icon: Activity,
-    href: 'pulse',
-    visible: true,
-    order: 5,
-    group: 'work',
-    description: 'Live timeline of workspace actions and changes',
-    keywords: ['pulse', 'activity', 'timeline', 'updates'],
   },
   {
     id: 'files',

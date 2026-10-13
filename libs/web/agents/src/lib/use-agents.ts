@@ -66,13 +66,39 @@ export function useAgentRunProgress(workspaceId: string | undefined) {
   return runs;
 }
 
-/** The workspace's own agents. */
-export function useAgents(workspaceId: string | undefined) {
+/**
+ * Whether an agent has been published from the AI Agent Studio
+ * (`AgentsService.publishAgent` sets `configuration.status`;
+ * `unpublishAgent` sets it back to `draft`).
+ */
+export function isAgentPublished(agent: { configuration?: unknown }): boolean {
+  const config = agent.configuration;
+  return (
+    !!config &&
+    typeof config === 'object' &&
+    (config as { status?: unknown }).status === 'published'
+  );
+}
+
+/**
+ * The workspace's agents as the app shows them: only agents published from the
+ * AI Agent Studio. Drafts stay in the Studio until someone publishes them.
+ * Pass `includeDrafts` where a draft must still resolve (looking an agent up
+ * by id, or the Studio's own pickers). Both share one cache entry.
+ */
+export function useAgents(
+  workspaceId: string | undefined,
+  options: { includeDrafts?: boolean } = {},
+) {
+  const includeDrafts = options.includeDrafts ?? false;
   return useQuery({
     queryKey: queryKeys.agents.list(workspaceId ?? ''),
     queryFn: () => agentsApi.list(workspaceId as string),
     enabled: !!workspaceId,
     staleTime: 30_000,
+    // Publishing happens in the AI Agent Studio (another app): refresh on return.
+    refetchOnWindowFocus: 'always',
+    select: (agents) => (includeDrafts ? agents : agents.filter(isAgentPublished)),
   });
 }
 

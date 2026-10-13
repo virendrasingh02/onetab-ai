@@ -14,7 +14,6 @@ import {
 import { cn } from '@org/utils';
 import { NotificationEnableBar } from '@org/notifications';
 import {
-  Activity,
   AlertTriangle,
   ArrowLeft,
   BarChart3,
@@ -112,7 +111,6 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'channels', label: 'Channels & DMs', icon: MessageSquare, keywords: 'chat rooms private public encrypted' },
       { id: 'chat', label: 'Chat & Messaging', icon: MessageSquare, keywords: 'composer read receipts typing' },
       { id: 'schedule', label: 'Schedule & Meetings', icon: Calendar, keywords: 'calendar huddle recording google' },
-      { id: 'pulse', label: 'Pulse Activity Feed', icon: Activity, keywords: 'presence commits status' },
     ],
   },
   {

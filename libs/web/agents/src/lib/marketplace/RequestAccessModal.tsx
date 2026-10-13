@@ -8,10 +8,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  Field,
   Textarea,
-  Label,
 } from '@org/ui';
-import { renderEntityIcon } from './MarketplaceCard';
+import { EntityIcon } from './marketplace-ui';
 import { Lock, Send } from 'lucide-react';
 
 interface RequestAccessModalProps {
@@ -46,16 +46,16 @@ export const RequestAccessModal: React.FC<RequestAccessModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-surface border-border rounded-2xl">
+      <DialogContent className="max-w-md">
         <DialogHeader className="space-y-2">
           <div className="flex items-center gap-3">
-            {renderEntityIcon(listing.iconUrl ?? undefined, listing.kind, 'size-10')}
+            <EntityIcon iconUrl={listing.iconUrl} kind={listing.kind} />
             <div>
-              <DialogTitle className="text-base font-bold text-foreground">
-                Request Access for {listing.name}
+              <DialogTitle>
+                Request access for {listing.name}
               </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                Requires Workspace Admin Approval
+                Requires workspace admin approval
               </p>
             </div>
           </div>
@@ -63,48 +63,36 @@ export const RequestAccessModal: React.FC<RequestAccessModalProps> = ({
 
         <form onSubmit={handleSubmit}>
           <DialogBody className="space-y-4">
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-start gap-2.5">
-            <Lock className="size-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="gap-2.5 rounded-xl border border-warning/30 bg-warning/10 p-3 flex items-start">
+            <Lock className="mt-0.5 size-4 shrink-0 text-warning-text" aria-hidden />
             <p className="text-xs text-muted-foreground leading-relaxed">
               This {listing.kind === 'AGENT' ? 'agent' : 'integration'} requests administrative or elevated workspace permissions. An admin must review your request before it is activated.
             </p>
           </div>
 
-          <div>
-            <Label className="text-xs font-semibold text-foreground">
-              Reason for request
-            </Label>
+          <Field label="Reason for request" required>
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Need GitHub PR notifications in our team channel to coordinate weekly releases..."
               rows={3}
-              required
-              className="mt-1.5 text-xs"
             />
-          </div>
+          </Field>
           </DialogBody>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={onClose}
-              className="text-xs"
-            >
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
               Cancel
             </Button>
             <Button
               type="submit"
               variant="primary"
-              size="xs"
+              size="sm"
               loading={isSubmitting}
               disabled={!reason.trim()}
-              className="text-xs font-semibold"
             >
-              <Send className="size-3.5 mr-1.5" />
-              Submit Request
+              <Send aria-hidden />
+              Submit request
             </Button>
           </DialogFooter>
         </form>

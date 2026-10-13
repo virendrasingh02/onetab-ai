@@ -1,14 +1,39 @@
 import React, { useState, useMemo } from 'react';
 import type { MarketplaceListing, MarketplaceKind } from '@org/types';
-import { Button, EmptyState } from '@org/ui';
-import { MarketplaceCard, renderEntityIcon } from './MarketplaceCard';
 import {
-  Grid,
-  List as ListIcon,
-  RotateCcw,
-  ShieldCheck,
-} from 'lucide-react';
-import { cn } from '@org/utils';
+  AppSelect,
+  Badge,
+  Button,
+  EmptyState,
+  Toggle,
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@org/ui';
+import { MarketplaceCard } from './MarketplaceCard';
+import {
+  EntityIcon,
+  ListingActionButton,
+  SectionTabs,
+  VerifiedBadge,
+  listingActionState,
+} from './marketplace-ui';
+import { LayoutGrid, List as ListIcon, RotateCcw, ShieldCheck } from 'lucide-react';
+
+type PricingFilter = 'all' | 'free' | 'paid';
+type SortBy = 'recommended' | 'popular' | 'rating' | 'alphabetical';
+
+const PRICING_OPTIONS = [
+  { value: 'all', label: 'All pricing' },
+  { value: 'free', label: 'Free only' },
+  { value: 'paid', label: 'Paid only' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'recommended', label: 'Recommended' },
+  { value: 'popular', label: 'Most popular' },
+  { value: 'rating', label: 'Highest rated' },
+  { value: 'alphabetical', label: 'Alphabetical' },
+];
 
 interface MarketplaceCatalogViewProps {
   listings: MarketplaceListing[];
@@ -30,9 +55,9 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
   onConfigure,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [pricingFilter, setPricingFilter] = useState<'all' | 'free' | 'paid'>('all');
+  const [pricingFilter, setPricingFilter] = useState<PricingFilter>('all');
   const [verifiedOnly, setVerifiedOnly] = useState<boolean>(false);
-  const [sortBy, setSortBy] = useState<'recommended' | 'popular' | 'rating' | 'alphabetical'>('recommended');
+  const [sortBy, setSortBy] = useState<SortBy>('recommended');
   const [isCompactList, setIsCompactList] = useState<boolean>(false);
 
   // Extract all distinct categories
@@ -119,124 +144,81 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 py-3">
-      {/* Filter Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/60 pb-4">
-        {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('all')}
-            className={cn(
-              'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
-              selectedCategory === 'all'
-                ? 'bg-foreground text-background font-semibold'
-                : 'bg-surface-raised border border-border/80 text-muted-foreground hover:text-foreground',
-            )}
-          >
-            All Categories
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setSelectedCategory(cat)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
-                selectedCategory === cat
-                  ? 'bg-foreground text-background font-semibold'
-                  : 'bg-surface-raised border border-border/80 text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+    <div className="space-y-4 py-3">
+      {/* Filter toolbar */}
+      <div className="gap-3 md:flex-row md:items-center flex flex-col justify-between">
+        <SectionTabs
+          aria-label="Filter by category"
+          value={selectedCategory}
+          onValueChange={setSelectedCategory}
+          items={[
+            { value: 'all', label: 'All categories' },
+            ...categories.map((cat) => ({ value: cat, label: cat })),
+          ]}
+          className="md:flex-1"
+        />
 
-        {/* Secondary controls: Verified toggle, Pricing, Sort, Layout */}
-        <div className="flex items-center gap-2.5 self-end md:self-auto flex-wrap">
-          {/* Verified toggle button */}
-          <button
-            type="button"
-            onClick={() => setVerifiedOnly(!verifiedOnly)}
-            className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-              verifiedOnly
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-semibold'
-                : 'bg-surface border-border/80 text-muted-foreground hover:text-foreground',
-            )}
+        <div className="gap-2 flex flex-wrap items-center">
+          <Toggle
+            variant="outline"
+            size="md"
+            pressed={verifiedOnly}
+            onPressedChange={setVerifiedOnly}
           >
-            <ShieldCheck className="size-3.5" />
+            <ShieldCheck className="mr-1.5" aria-hidden />
             Verified only
-          </button>
+          </Toggle>
 
-          {/* Pricing dropdown */}
-          <select
+          <AppSelect
+            aria-label="Filter by pricing"
+            size="sm"
+            className="w-36"
             value={pricingFilter}
-            onChange={(e) => setPricingFilter(e.target.value as any)}
-            className="text-xs bg-surface border border-border/80 text-muted-foreground rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="all">All Pricing</option>
-            <option value="free">Free Only</option>
-            <option value="paid">Paid Only</option>
-          </select>
+            onValueChange={(next) => setPricingFilter(next as PricingFilter)}
+            options={PRICING_OPTIONS}
+          />
 
-          {/* Sort dropdown */}
-          <select
+          <AppSelect
+            aria-label="Sort listings"
+            size="sm"
+            className="w-40"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="text-xs bg-surface border border-border/80 text-muted-foreground rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="recommended">Recommended</option>
-            <option value="popular">Most Popular</option>
-            <option value="rating">Highest Rated</option>
-            <option value="alphabetical">Alphabetical</option>
-          </select>
+            onValueChange={(next) => setSortBy(next as SortBy)}
+            options={SORT_OPTIONS}
+          />
 
-          {/* Grid / List toggle */}
-          <div className="flex items-center rounded-lg border border-border/80 p-0.5 bg-surface-raised">
-            <button
-              type="button"
-              onClick={() => setIsCompactList(false)}
-              className={cn(
-                'p-1 rounded-md text-muted-foreground hover:text-foreground',
-                !isCompactList && 'bg-surface text-foreground shadow-xs',
-              )}
-              title="Grid view"
-            >
-              <Grid className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsCompactList(true)}
-              className={cn(
-                'p-1 rounded-md text-muted-foreground hover:text-foreground',
-                isCompactList && 'bg-surface text-foreground shadow-xs',
-              )}
-              title="List view"
-            >
-              <ListIcon className="size-3.5" />
-            </button>
-          </div>
+          <ToggleGroup
+            type="single"
+            size="sm"
+            aria-label="Layout"
+            value={isCompactList ? 'list' : 'grid'}
+            onValueChange={(next) => {
+              if (next) setIsCompactList(next === 'list');
+            }}
+          >
+            <ToggleGroupItem value="grid" aria-label="Grid view" title="Grid view">
+              <LayoutGrid aria-hidden />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view" title="List view">
+              <ListIcon aria-hidden />
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
       </div>
 
-      {/* Results Count & Active Filter Indicator */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      {/* Results count & reset */}
+      <div className="text-xs flex items-center justify-between text-muted-foreground">
         <span>
-          Showing <span className="font-semibold text-foreground">{sorted.length}</span>{' '}
+          Showing{' '}
+          <span className="font-semibold text-foreground">{sorted.length}</span>{' '}
           {kind === 'AGENT' ? 'agents' : kind === 'INTEGRATION' ? 'apps' : 'items'}
         </span>
 
         {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
-          >
-            <RotateCcw className="size-3" />
-            Reset all filters
-          </button>
+          <Button variant="ghost" size="xs" onClick={resetFilters}>
+            <RotateCcw aria-hidden />
+            Reset filters
+          </Button>
         )}
       </div>
 
@@ -254,7 +236,7 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
           }
         />
       ) : !isCompactList ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 grid grid-cols-1">
           {sorted.map((item) => (
             <MarketplaceCard
               key={item.id || item.slug}
@@ -267,75 +249,51 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
           ))}
         </div>
       ) : (
-        /* Compact List View */
-        <div className="divide-y divide-border/60 rounded-xl border border-border/80 bg-surface overflow-hidden">
-          {sorted.map((item) => {
-            const isInstalled = Boolean(item.installed);
-            return (
-              <div
-                key={item.id || item.slug}
-                onClick={() => onSelectListing(item)}
-                className="flex items-center justify-between p-3.5 hover:bg-surface-raised/60 transition-colors cursor-pointer gap-4"
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  {renderEntityIcon(item.iconUrl ?? undefined, item.kind, 'size-9')}
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-foreground truncate">
-                        {item.name}
-                      </span>
-                      {item.badge === 'OFFICIAL' && (
-                        <ShieldCheck className="size-3.5 text-primary" />
-                      )}
-                      <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-surface-raised border border-border/70 text-muted-foreground">
-                        {item.category}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate max-w-md">
-                      {item.tagline || item.description}
-                    </p>
+        /* Compact list view */
+        <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-card">
+          {sorted.map((item) => (
+            <div
+              key={item.id || item.slug}
+              onClick={() => onSelectListing(item)}
+              className="gap-4 p-3 flex cursor-pointer items-center justify-between transition-colors hover:bg-surface-raised/60"
+            >
+              <div className="min-w-0 gap-3 flex items-center">
+                <EntityIcon
+                  iconUrl={item.iconUrl}
+                  kind={item.kind}
+                  className="size-9"
+                />
+                <div className="min-w-0">
+                  <div className="gap-2 flex items-center">
+                    <span className="text-sm font-semibold truncate text-foreground">
+                      {item.name}
+                    </span>
+                    <VerifiedBadge badge={item.badge} />
+                    <Badge variant="neutral">{item.category}</Badge>
                   </div>
-                </div>
-
-                <div
-                  className="flex items-center gap-3 flex-shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <span className="text-xs text-muted-foreground">
-                    {item.pricingModel === 'FREE' ? 'Free' : 'Subscription'}
-                  </span>
-                  {isInstalled ? (
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                      onClick={() => onConfigure(item)}
-                    >
-                      Configure
-                    </Button>
-                  ) : item.requiresAdmin ? (
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="text-xs"
-                      onClick={() => onRequestAccess(item)}
-                    >
-                      Request
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      size="xs"
-                      className="text-xs"
-                      onClick={() => onInstall(item)}
-                    >
-                      Install
-                    </Button>
-                  )}
+                  <p className="max-w-md text-xs truncate text-muted-foreground">
+                    {item.tagline || item.description}
+                  </p>
                 </div>
               </div>
-            );
-          })}
+
+              <div
+                className="gap-3 flex shrink-0 items-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-xs text-muted-foreground">
+                  {item.pricingModel === 'FREE' ? 'Free' : 'Subscription'}
+                </span>
+                <ListingActionButton
+                  {...listingActionState(item)}
+                  installedLabel="Configure"
+                  onInstall={() => onInstall(item)}
+                  onRequestAccess={() => onRequestAccess(item)}
+                  onConfigure={() => onConfigure(item)}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

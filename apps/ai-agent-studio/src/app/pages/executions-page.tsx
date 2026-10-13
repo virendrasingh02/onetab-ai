@@ -36,6 +36,11 @@ import {
 import { useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
 
+/**
+ * Agent chat turns. Workflow and canvas-agent runs live in the Runs page
+ * (live timeline, pause / resume / restart, approvals), so they are not
+ * repeated here.
+ */
 export function ExecutionsPage() {
   const { activeWorkspace } = useStudioSession();
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
@@ -57,7 +62,7 @@ export function ExecutionsPage() {
       {
         const [agentLogs, engineRuns] = await Promise.allSettled([
           agentsApi.workspaceLogs(activeWorkspace.id),
-          aiExecutionsApi.list(activeWorkspace.id),
+          Promise.resolve([] as any[]), // engine runs: see the Runs page
         ]);
 
         if (agentLogs.status === 'fulfilled' && Array.isArray(agentLogs.value)) {
@@ -87,8 +92,8 @@ export function ExecutionsPage() {
           results.push(...mappedRuns);
         }
 
-        // Both sources down is an outage, not "no runs": say so.
-        if (agentLogs.status === 'rejected' && engineRuns.status === 'rejected') throw engineRuns.reason;
+        // A failed read is an outage, not "no logs": say so.
+        if (agentLogs.status === 'rejected') throw agentLogs.reason;
       }
       return results.sort((a, b) => {
         const timeA = new Date(a.executedAt || a.startedAt || 0).getTime();
@@ -141,8 +146,8 @@ export function ExecutionsPage() {
     <Page width="wide" padding="none" className="space-y-6">
       {/* Header matching Admin PageHeader */}
       <PageHeader
-        title="Executions & Telemetry Logs"
-        description={`Observe runtime traces, step-by-step waterfall latency, model invocations and token telemetry across ${activeWorkspace.name}.`}
+        title="Agent Chat Logs"
+        description={`Prompts, answers, latency and token use for agent conversations in ${activeWorkspace.name}.`}
         icon={<Activity className="size-5" />}
         accent="blue"
         actions={

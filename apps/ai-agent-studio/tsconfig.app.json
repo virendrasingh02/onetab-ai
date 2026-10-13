@@ -39,22 +39,34 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../../libs/shared/types/tsconfig.lib.json"
+      "path": "../../libs/web/ai/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/shared/utils/tsconfig.lib.json"
+      "path": "../../libs/web/automations/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/shared/ui/tsconfig.lib.json"
+      "path": "../../libs/shared/realtime/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/shared/hooks/tsconfig.lib.json"
+      "path": "../../libs/web/auth/tsconfig.lib.json"
     },
     {
       "path": "../../libs/shared/design-system/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/shared/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/shared/hooks/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/shared/types/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/api-client/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/shared/ui/tsconfig.lib.json"
     }
   ]
 }

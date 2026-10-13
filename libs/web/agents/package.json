@@ -19,6 +19,7 @@
     "@org/chat-ui": "*",
     "@org/design-system": "*",
     "@org/hooks": "*",
+    "@org/platform": "*",
     "@org/types": "*",
     "@org/ui": "*",
     "@org/utils": "*",

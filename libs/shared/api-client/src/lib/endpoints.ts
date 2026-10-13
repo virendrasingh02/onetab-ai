@@ -181,6 +181,7 @@ import type {
   MarketplaceCategoryCount,
   MarketplaceInstallation,
   MarketplaceKind,
+  MarketplaceListing,
   MarketplaceListingDetail,
   MarketplacePage,
   MarketplaceReview,
@@ -216,6 +217,7 @@ import type {
   PromptTemplate,
   ProviderConnectionTestResult,
   PublicUser,
+  PublishAgentListingInput,
   PushDevice,
   ReportDefinition,
   ReportType,
@@ -2678,6 +2680,27 @@ export const agentsApi = {
   unpublish: (workspaceId: string, agentId: string) =>
     request<{ success: boolean; agent: AIAgent }>(
       http.post(`/workspaces/${workspaceId}/agents/${agentId}/unpublish`, {}),
+    ),
+
+  /** The marketplace listing this agent was published as from Studio, or `null`. */
+  marketplaceListing: (workspaceId: string, agentId: string) =>
+    // The API answers an unlisted agent with an empty body.
+    request<MarketplaceListing | ''>(
+      http.get(`/workspaces/${workspaceId}/agents/${agentId}/marketplace`),
+    ).then((listing) => listing || null),
+
+  publishToMarketplace: (
+    workspaceId: string,
+    agentId: string,
+    input: PublishAgentListingInput = {},
+  ) =>
+    request<MarketplaceListing>(
+      http.put(`/workspaces/${workspaceId}/agents/${agentId}/marketplace`, input),
+    ),
+
+  unpublishFromMarketplace: (workspaceId: string, agentId: string) =>
+    request<MarketplaceListing>(
+      http.delete(`/workspaces/${workspaceId}/agents/${agentId}/marketplace`),
     ),
 
   getVersions: (workspaceId: string, agentId: string) =>

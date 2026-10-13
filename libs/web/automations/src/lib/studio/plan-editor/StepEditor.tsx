@@ -446,7 +446,7 @@ function DelegateFields({
   step: AgentBlueprintStep;
   onChange: (next: AgentBlueprintStep) => void;
 }) {
-  const agents = useAgents(workspaceId);
+  const agents = useAgents(workspaceId, { includeDrafts: true });
   return (
     <div className="grid gap-3">
       <Field label="Hand off to" hint="An assistant agent with its own tools. It answers with what it did.">

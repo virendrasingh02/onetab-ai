@@ -2,6 +2,7 @@ export {
   useAgentLogs,
   useAgentMutations,
   useAgents,
+  isAgentPublished,
   useWorkspaceAgentLogs,
 } from './lib/use-agents.js';
 

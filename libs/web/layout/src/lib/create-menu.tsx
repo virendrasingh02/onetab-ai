@@ -12,19 +12,13 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Bot,
-  Database,
-  FileText,
-  FolderKanban,
   Hash,
   Headphones,
   Plus,
   SlidersHorizontal,
   Sparkles,
   SquarePen,
-  UserCheck,
   UserPlus,
-  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect } from 'react';
@@ -37,7 +31,7 @@ interface CreateAction {
   /** Tailwind classes for the icon medallion. */
   tone: string;
   shortcut?: string;
-  category: 'communicate' | 'work' | 'workspace';
+  category: 'communicate';
   /** Path relative to the workspace root, or `null` for a custom handler. */
   path: string | null;
 }
@@ -76,63 +70,6 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
     tone: 'bg-accent-green/15 border-accent-green/30 text-accent-green',
     category: 'communicate',
     path: 'meetings',
-  },
-  {
-    label: 'Project Board',
-    description: 'Track tasks & project boards',
-    icon: FolderKanban,
-    tone: 'bg-accent-amber/15 border-accent-amber/30 text-accent-amber',
-    category: 'work',
-    path: 'tasks',
-  },
-  {
-    label: 'Doc & Note',
-    description: 'Write collaborative documents & notes',
-    icon: FileText,
-    tone: 'bg-accent-blue/15 border-accent-blue/30 text-accent-blue',
-    shortcut: 'mod+shift+n',
-    category: 'work',
-    path: 'docs',
-  },
-  {
-    label: 'AI Agent',
-    description: 'Say what you want done — the Studio plans the agent',
-    icon: Sparkles,
-    tone: 'bg-accent-violet/15 border-accent-violet/30 text-accent-violet',
-    category: 'work',
-    path: 'ai/studio/new',
-  },
-  {
-    label: 'Assistant Agent',
-    description: 'A model with instructions, tools and knowledge, to chat with',
-    icon: Bot,
-    tone: 'bg-accent-cyan/15 border-accent-cyan/30 text-accent-cyan',
-    category: 'work',
-    path: 'ai/agents/new',
-  },
-  {
-    label: 'AI Coworker',
-    description: 'A persistent AI colleague with a role and tools',
-    icon: UserCheck,
-    tone: 'bg-accent-violet/15 border-accent-violet/30 text-accent-violet',
-    category: 'work',
-    path: 'ai/agents?create=coworker',
-  },
-  {
-    label: 'Workflow',
-    description: 'Automate steps with the visual builder',
-    icon: Workflow,
-    tone: 'bg-accent-rose/15 border-accent-rose/30 text-accent-rose',
-    category: 'work',
-    path: 'ai/workflows/new',
-  },
-  {
-    label: 'Knowledge Base',
-    description: 'Upload docs for agents to search and cite',
-    icon: Database,
-    tone: 'bg-accent-blue/15 border-accent-blue/30 text-accent-blue',
-    category: 'work',
-    path: 'ai/knowledge',
   },
 ];
 
@@ -200,7 +137,6 @@ export function SidebarFooterActions({
   const communicateActions = CREATE_ACTIONS.filter(
     (a) => a.category === 'communicate',
   );
-  const workActions = CREATE_ACTIONS.filter((a) => a.category === 'work');
 
   // --- Collapsed Sidebar View (Clean vertical action buttons with tooltips) ---
   if (isCollapsed) {
@@ -241,51 +177,6 @@ export function SidebarFooterActions({
             </DropdownMenuLabel>
             <DropdownMenuGroup>
               {communicateActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <DropdownMenuItem
-                    key={action.label}
-                    onSelect={() => run(action)}
-                    className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
-                  >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        'size-8 flex shrink-0 items-center justify-center rounded-lg border',
-                        action.tone,
-                      )}
-                    >
-                      <Icon className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="gap-2 flex items-center justify-between">
-                        <span className="text-xs font-medium text-foreground">
-                          {action.label}
-                        </span>
-                        {action.shortcut ? (
-                          <KbdShortcut
-                            shortcut={action.shortcut}
-                            size="xs"
-                            variant="muted"
-                          />
-                        ) : null}
-                      </span>
-                      <span className="block truncate text-[11px] text-muted-foreground">
-                        {action.description}
-                      </span>
-                    </span>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuGroup>
-
-            <DropdownMenuSeparator className="my-1" />
-
-            <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-[11px] text-muted-foreground uppercase">
-              Work & Tools
-            </DropdownMenuLabel>
-            <DropdownMenuGroup>
-              {workActions.map((action) => {
                 const Icon = action.icon;
                 return (
                   <DropdownMenuItem
@@ -459,51 +350,6 @@ export function SidebarFooterActions({
 
           <DropdownMenuSeparator className="my-1" />
 
-          <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-[11px] text-muted-foreground uppercase">
-            Work & Tools
-          </DropdownMenuLabel>
-          <DropdownMenuGroup>
-            {workActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <DropdownMenuItem
-                  key={action.label}
-                  onSelect={() => run(action)}
-                  className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
-                >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      'size-8 flex shrink-0 items-center justify-center rounded-lg border',
-                      action.tone,
-                    )}
-                  >
-                    <Icon className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="gap-2 flex items-center justify-between">
-                      <span className="text-xs font-medium text-foreground">
-                        {action.label}
-                      </span>
-                      {action.shortcut ? (
-                        <KbdShortcut
-                          shortcut={action.shortcut}
-                          size="xs"
-                          variant="muted"
-                        />
-                      ) : null}
-                    </span>
-                    <span className="block truncate text-[11px] text-muted-foreground">
-                      {action.description}
-                    </span>
-                  </span>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuGroup>
-
-          <DropdownMenuSeparator className="my-1" />
-
           <DropdownMenuItem
             onSelect={() => {
               if (onOpenInvite) {
@@ -556,24 +402,6 @@ export function SidebarFooterActions({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {/* Customize Sidebar Quick Button */}
-      {onOpenCustomizer && (
-        <Hint label="Customize navigation">
-          <button
-            type="button"
-            onClick={onOpenCustomizer}
-            className={cn(
-              'size-8 flex shrink-0 items-center justify-center rounded-lg border border-border/70',
-              'bg-surface-raised/80 text-muted-foreground hover:border-border hover:bg-accent/80 hover:text-foreground',
-              'cursor-pointer transition-all duration-150 ease-standard outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
-            )}
-            aria-label="Customize sidebar navigation"
-          >
-            <SlidersHorizontal className="size-3.5" />
-          </button>
-        </Hint>
-      )}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { SidebarFooterActions } from './create-menu.js';
 
 describe('SidebarFooterActions', () => {
-  it('renders expanded footer with Invite members button, customizer, and create trigger', () => {
+  it('renders expanded footer with Invite members button and create trigger', () => {
     const handleOpenInvite = vi.fn();
     const handleCreateChannel = vi.fn();
     const handleOpenCustomizer = vi.fn();
@@ -31,10 +31,9 @@ describe('SidebarFooterActions', () => {
     fireEvent.click(inviteBtn);
     expect(handleOpenInvite).toHaveBeenCalled();
 
-    const customizerBtn = screen.getByRole('button', { name: /customize sidebar/i });
-    expect(customizerBtn).toBeInTheDocument();
-    fireEvent.click(customizerBtn);
-    expect(handleOpenCustomizer).toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: /customize sidebar/i }),
+    ).not.toBeInTheDocument();
 
     const createBtn = screen.getByRole('button', { name: /create new item/i });
     expect(createBtn).toBeInTheDocument();

@@ -1,38 +1,30 @@
 import React from 'react';
-import { cn } from '@org/utils';
+import { ResponsiveTabsList, Tabs, TabsTrigger } from '@org/ui';
 import {
-  Compass,
   Boxes,
   Bot,
   CheckCircle2,
-  FolderGit2,
   Code2,
+  Compass,
   UserCheck,
 } from 'lucide-react';
 
 export type MarketplaceActiveTab =
-  | 'discover'
-  | 'apps'
-  | 'agents'
-  | 'installed'
-  | 'my-apps'
-  | 'my-agents'
-  | 'developer';
+  'discover' | 'apps' | 'agents' | 'installed' | 'workspace' | 'developer';
 
 interface MarketplaceTabsProps {
   activeTab: MarketplaceActiveTab;
   onTabChange: (tab: MarketplaceActiveTab) => void;
   installedCount?: number;
-  myAgentsCount?: number;
-  className?: string;
+  workspaceCount?: number;
 }
 
+/** The edge-to-edge underline tab strip under the header, as on the other top-level views. */
 export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
   activeTab,
   onTabChange,
   installedCount,
-  myAgentsCount,
-  className,
+  workspaceCount,
 }) => {
   const tabs: {
     id: MarketplaceActiveTab;
@@ -43,57 +35,45 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
     { id: 'discover', label: 'Discover', icon: Compass },
     { id: 'apps', label: 'Apps & Integrations', icon: Boxes },
     { id: 'agents', label: 'AI Agents', icon: Bot },
-    { id: 'installed', label: 'Installed', icon: CheckCircle2, count: installedCount },
-    { id: 'my-agents', label: 'My Agents', icon: UserCheck, count: myAgentsCount },
-    { id: 'my-apps', label: 'My Apps', icon: FolderGit2 },
+    {
+      id: 'installed',
+      label: 'Installed',
+      icon: CheckCircle2,
+      count: installedCount,
+    },
+    {
+      id: 'workspace',
+      label: 'Your workspace',
+      icon: UserCheck,
+      count: workspaceCount,
+    },
     { id: 'developer', label: 'Developer', icon: Code2 },
   ];
 
   return (
-    <div
-      className={cn(
-        'flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-border/70 py-1.5',
-        className,
-      )}
-    >
-      {tabs.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
-
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onTabChange(tab.id)}
-            className={cn(
-              'inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap',
-              isActive
-                ? 'bg-surface-raised text-foreground font-semibold shadow-xs border border-border/80'
-                : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised/50',
-            )}
-          >
-            <Icon
-              className={cn(
-                'size-4',
-                isActive ? 'text-primary' : 'text-muted-foreground',
-              )}
-            />
-            <span>{tab.label}</span>
-            {tab.count !== undefined && tab.count > 0 && (
-              <span
-                className={cn(
-                  'px-1.5 py-0.2 rounded-full text-[10px] font-semibold',
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-muted text-muted-foreground',
-                )}
-              >
-                {tab.count}
-              </span>
-            )}
-          </button>
-        );
-      })}
+    <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
+      <Tabs
+        value={activeTab}
+        onValueChange={(next) => onTabChange(next as MarketplaceActiveTab)}
+      >
+        <ResponsiveTabsList
+          variant="underline"
+          size="sm"
+          className="min-w-0 w-full border-b-0"
+          aria-label="Marketplace sections"
+        >
+          {tabs.map(({ id, label, icon: Icon, count }) => (
+            <TabsTrigger
+              key={id}
+              value={id}
+              icon={<Icon className="size-3.5" aria-hidden />}
+              count={count && count > 0 ? count : undefined}
+            >
+              {label}
+            </TabsTrigger>
+          ))}
+        </ResponsiveTabsList>
+      </Tabs>
     </div>
   );
 };

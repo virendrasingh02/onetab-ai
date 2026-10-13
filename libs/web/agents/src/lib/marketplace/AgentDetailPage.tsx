@@ -1,20 +1,32 @@
 import React, { useState } from 'react';
 import type { MarketplaceListingDetail } from '@org/types';
-import { Button, Card, SkeletonList } from '@org/ui';
-import { renderEntityIcon } from './MarketplaceCard';
+import { Button, Card, Skeleton, SkeletonList } from '@org/ui';
+import {
+  EntityIcon,
+  KindBadge,
+  OriginBadge,
+  ListingActionButton,
+  SectionTabs,
+  VerifiedBadge,
+  listingActionState,
+} from './marketplace-ui';
 import {
   ArrowLeft,
-  Bot,
   Check,
-  Clock,
-  Lock,
   MessageSquare,
-  ShieldCheck,
   Sparkles,
   Terminal,
   Trash2,
 } from 'lucide-react';
-import { cn } from '@org/utils';
+
+type AgentTab = 'overview' | 'capabilities' | 'tools' | 'security';
+
+const AGENT_TABS: { value: AgentTab; label: string }[] = [
+  { value: 'overview', label: 'Overview & persona' },
+  { value: 'capabilities', label: 'Capabilities & boundaries' },
+  { value: 'tools', label: 'Tools & commands' },
+  { value: 'security', label: 'Safety & boundaries' },
+];
 
 interface AgentDetailPageProps {
   agent: MarketplaceListingDetail;
@@ -37,55 +49,44 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
   onUninstall,
   onStartChat,
 }) => {
-  const [activeTab, setActiveTab] = useState<
-    'overview' | 'capabilities' | 'tools' | 'security' | 'prompts'
-  >('overview');
+  const [activeTab, setActiveTab] = useState<AgentTab>('overview');
 
   if (isLoading) {
     return (
       <div className="py-6 space-y-6 max-w-5xl mx-auto">
-        <div className="h-8 w-32 rounded-lg bg-surface-raised animate-pulse" />
-        <div className="h-32 rounded-2xl bg-surface-raised animate-pulse" />
+        <Skeleton className="h-8 w-32 rounded-lg" />
+        <Skeleton className="h-32 rounded-2xl" />
         <SkeletonList rows={4} />
       </div>
     );
   }
 
-  const isInstalled = Boolean(agent.installed);
-  const isPending = agent.approvalStatus === 'PENDING';
-  const requiresAdmin = Boolean(agent.requiresAdmin);
+  const action = listingActionState(agent);
 
   return (
     <div className="max-w-6xl mx-auto py-4 space-y-8">
-      {/* Back Button */}
-      <button
-        type="button"
-        onClick={onBack}
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="size-3.5" />
-        Back to Agents Directory
-      </button>
+      <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
+        <ArrowLeft aria-hidden />
+        Back to agents directory
+      </Button>
 
       {/* Hero Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-border/70">
         <div className="flex items-start gap-4 min-w-0">
-          {renderEntityIcon(agent.iconUrl ?? undefined, agent.kind, 'size-16')}
+          <EntityIcon iconUrl={agent.iconUrl} kind={agent.kind} className="size-16" />
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold text-foreground truncate">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground truncate">
                 {agent.name}
               </h1>
-              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                <Bot className="size-3.5" />
-                Autonomous AI Agent
-              </span>
-              {agent.badge === 'OFFICIAL' && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                  <ShieldCheck className="size-3.5" />
-                  Official Agent
-                </span>
-              )}
+              <KindBadge kind={agent.kind} long />
+              <OriginBadge listing={agent} />
+              <VerifiedBadge
+                badge={agent.badge}
+                label={
+                  agent.badge === 'OFFICIAL' ? 'Official agent' : 'Verified publisher'
+                }
+              />
             </div>
 
             <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
@@ -93,7 +94,7 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
             </p>
 
             <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
-              <span>By <strong className="text-foreground">{agent.publisherName || 'OneTab AI'}</strong></span>
+              <span>By <strong className="text-foreground">{agent.publisher?.name || agent.publisherName || 'OneTab AI'}</strong></span>
               <span>•</span>
               <span>{agent.category}</span>
               <span>•</span>
@@ -102,120 +103,74 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
           </div>
         </div>
 
-        {/* Action Button */}
-        <div className="flex items-center gap-3 self-start md:self-center flex-shrink-0">
-          {isInstalled ? (
-            <div className="flex items-center gap-2">
-              {onStartChat && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => onStartChat()}
-                  className="text-xs font-semibold shadow-xs"
-                >
-                  <MessageSquare className="size-3.5 mr-1.5" />
-                  Chat with Agent
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onConfigure}
-                className="text-xs"
-              >
-                Configure
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onUninstall}
-                className="text-xs text-rose-500 hover:text-rose-600"
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
-          ) : isPending ? (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled
-              className="text-xs text-amber-600 dark:text-amber-400 border-amber-500/30"
-            >
-              <Clock className="size-3.5 mr-1.5 animate-pulse" />
-              Approval Pending
+        {/* Actions */}
+        <div className="gap-2 flex shrink-0 items-center self-start md:self-center">
+          {action.installed && onStartChat && (
+            <Button variant="primary" size="sm" onClick={() => onStartChat()}>
+              <MessageSquare aria-hidden />
+              Chat with agent
             </Button>
-          ) : requiresAdmin ? (
+          )}
+          <ListingActionButton
+            {...action}
+            size="sm"
+            installLabel="Install agent"
+            installedLabel="Configure"
+            requestLabel="Request access"
+            pendingLabel="Approval pending"
+            onInstall={onInstall}
+            onRequestAccess={onRequestAccess}
+            onConfigure={onConfigure}
+          />
+          {action.installed && (
             <Button
-              variant="primary"
-              size="sm"
-              onClick={onRequestAccess}
-              className="text-xs font-semibold shadow-xs"
+              variant="ghost"
+              size="icon-sm"
+              onClick={onUninstall}
+              aria-label="Uninstall agent"
+              title="Uninstall"
+              className="hover:text-destructive-text"
             >
-              <Lock className="size-3.5 mr-1.5" />
-              Request Access
-            </Button>
-          ) : (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={onInstall}
-              className="text-xs font-semibold shadow-xs"
-            >
-              Install Agent
+              <Trash2 aria-hidden />
             </Button>
           )}
         </div>
       </div>
 
-      {/* Example Prompt Chips (Linear / AI-native style) */}
+      {/* Example prompts */}
       {agent.examplePrompts && agent.examplePrompts.length > 0 && (
-        <div className="rounded-2xl border border-border/80 bg-surface-raised/40 p-4 space-y-2.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-            <Sparkles className="size-3.5 text-amber-500" />
-            <span>Example Instructions & Prompts</span>
+        <Card className="p-4 gap-2.5 bg-surface-raised/40">
+          <div className="gap-2 text-xs font-semibold flex items-center text-foreground">
+            <Sparkles className="size-3.5 text-accent-amber" aria-hidden />
+            <span>Example instructions & prompts</span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {agent.examplePrompts.map((prompt, i) => (
-              <button
-                key={i}
-                type="button"
+          <div className="gap-2 flex flex-wrap">
+            {agent.examplePrompts.map((prompt) => (
+              <Button
+                key={prompt}
+                variant="outline"
+                size="sm"
                 onClick={() => (onStartChat ? onStartChat(prompt) : onInstall())}
-                className="text-left text-xs px-3 py-1.5 rounded-xl bg-surface border border-border/80 hover:border-primary/60 text-muted-foreground hover:text-foreground transition-all shadow-xs"
+                className="h-auto py-1.5 text-left font-normal whitespace-normal"
               >
-                "{prompt}"
-              </button>
+                “{prompt}”
+              </Button>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Main Content & Side Rail Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Column */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Detail Tabs Bar */}
-          <div className="flex items-center gap-1 border-b border-border/70 pb-2">
-            {[
-              { id: 'overview', label: 'Overview & Persona' },
-              { id: 'capabilities', label: 'Capabilities & Boundaries' },
-              { id: 'tools', label: 'Tools & Commands' },
-              { id: 'security', label: 'Safety & Boundaries' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as any)}
-                className={cn(
-                  'px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                  activeTab === tab.id
-                    ? 'bg-surface-raised text-foreground font-semibold border border-border/80 shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <SectionTabs
+            variant="underline"
+            aria-label="Agent details"
+            value={activeTab}
+            onValueChange={setActiveTab}
+            items={AGENT_TABS}
+          />
 
           {/* TAB: OVERVIEW */}
           {activeTab === 'overview' && (
@@ -226,7 +181,7 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
 
               {agent.capabilities && (
                 <div className="space-y-3 pt-4 border-t border-border/60">
-                  <h3 className="text-sm font-bold text-foreground">
+                  <h3 className="text-sm font-semibold text-foreground">
                     Core Autonomous Behaviors
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -235,7 +190,7 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
                         key={i}
                         className="flex items-start gap-2.5 p-3 rounded-xl bg-surface border border-border/70 text-xs text-foreground"
                       >
-                        <Check className="size-4 text-purple-500 flex-shrink-0 mt-0.5" />
+                        <Check className="mt-0.5 size-4 shrink-0 text-primary-text" aria-hidden />
                         <span>{cap}</span>
                       </div>
                     ))}
@@ -248,15 +203,15 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
           {/* TAB: CAPABILITIES & BOUNDARIES */}
           {activeTab === 'capabilities' && (
             <div className="space-y-6">
-              <div className="rounded-xl border border-border/80 p-5 bg-surface space-y-3">
-                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+              <Card className="p-5 space-y-3">
+                <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
                   Operational Scope & Safeguards
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {agent.security?.dataBoundaries ||
                     'Operates strictly inside the assigned workspace. Never shares reasoning or data across workspace boundaries.'}
                 </p>
-              </div>
+              </Card>
             </div>
           )}
 
@@ -264,7 +219,7 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
           {activeTab === 'tools' && (
             <div className="space-y-6">
               <div className="space-y-3">
-                <h3 className="text-sm font-bold text-foreground">
+                <h3 className="text-sm font-semibold text-foreground">
                   Available Slash Commands
                 </h3>
                 {(!agent.commands || agent.commands.length === 0) ? (
@@ -276,7 +231,7 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
                     {agent.commands.map((cmd) => (
                       <div key={cmd.command} className="p-4 space-y-1">
                         <div className="flex items-center gap-2">
-                          <Terminal className="size-4 text-primary" />
+                          <Terminal className="size-4 text-primary-text" aria-hidden />
                           <span className="font-mono text-xs font-semibold text-foreground">
                             {cmd.command} {cmd.args || ''}
                           </span>
@@ -295,27 +250,27 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
           {/* TAB: SECURITY */}
           {activeTab === 'security' && (
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-foreground">
+              <h3 className="text-sm font-semibold text-foreground">
                 Data Privacy & Model Safety
               </h3>
 
-              <Card className="p-5 space-y-4 bg-surface border-border/80 rounded-xl">
+              <Card className="p-5 space-y-4">
                 <div>
-                  <h4 className="text-xs font-bold text-foreground">Data Read Scope</h4>
+                  <h4 className="text-xs font-semibold text-foreground">Data Read Scope</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {agent.security?.dataAccessed?.join(', ') || 'Channel messages and explicit uploads only.'}
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-border/60">
-                  <h4 className="text-xs font-bold text-foreground">LLM Provider</h4>
+                  <h4 className="text-xs font-semibold text-foreground">LLM Provider</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {agent.security?.externalServices?.join(', ') || 'Internal OneTab Orchestrator'}
                   </p>
                 </div>
 
                 <div className="pt-3 border-t border-border/60">
-                  <h4 className="text-xs font-bold text-foreground">Retention Policy</h4>
+                  <h4 className="text-xs font-semibold text-foreground">Retention Policy</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {agent.security?.dataStorage || 'No secondary storage of prompts or reasoning chains.'}
                   </p>
@@ -327,8 +282,8 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
 
         {/* Side Rail Column */}
         <div className="lg:col-span-4 space-y-5">
-          <Card className="p-5 bg-surface border-border/80 rounded-2xl space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <Card className="p-5 space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Agent Specifications
             </h3>
 
@@ -361,7 +316,7 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
 
               <div className="pt-2 flex items-center justify-between">
                 <span className="text-muted-foreground">Pricing</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="font-semibold text-success-text">
                   {agent.pricingModel === 'FREE' ? 'Free' : 'Subscription'}
                 </span>
               </div>

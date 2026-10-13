@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -47,6 +48,52 @@ function toSlug(value: string): string {
     .slice(0, 64);
 }
 
+/** What an install copies out of a Studio-published agent. */
+interface AgentBlueprint {
+  name: string;
+  role: string;
+  description: string | null;
+  avatarUrl: string | null;
+  systemPrompt: string;
+  systemInstructions?: string;
+  provider: string;
+  model: string;
+  /** JSON-encoded string array, as stored on `AIAgent.tools`. */
+  tools: string;
+  graphJson: string | null;
+  configuration?: Record<string, unknown>;
+}
+
+export interface PublishStudioAgentInput {
+  visibility?: 'WORKSPACE' | 'PUBLIC';
+  name?: string;
+  tagline?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  changeNotes?: string;
+}
+
+function parseTools(raw: unknown): string[] {
+  const list = Array.isArray(raw)
+    ? raw
+    : parseJson<unknown[]>(typeof raw === 'string' ? raw : null, []);
+  return list.filter((t): t is string => typeof t === 'string');
+}
+
+/**
+ * The agent configuration minus anything that belongs to the publishing
+ * workspace: version history/lifecycle bookkeeping and anything that smells like
+ * a credential. Shared listings are readable by other workspaces.
+ */
+function stripWorkspaceSpecific(config: Record<string, any>): Record<string, unknown> {
+  const dropped = new Set(['versions', 'status', 'publishedAt', 'currentVersion', 'marketplace']);
+  const sensitive = /secret|token|password|credential|api[-_]?key|webhook|variables/i;
+  return Object.fromEntries(
+    Object.entries(config).filter(([key]) => !dropped.has(key) && !sensitive.test(key)),
+  );
+}
+
 /** Publisher fields a listing response is allowed to carry. */
 const PUBLISHER_SELECT = {
   select: { name: true, slug: true, isVerified: true, websiteUrl: true, supportEmail: true },
@@ -86,6 +133,9 @@ interface ListingRow {
   } | null;
   payloadJson?: string;
   manifestJson?: string;
+  visibility?: string;
+  ownerWorkspaceId?: string | null;
+  sourceAgentId?: string | null;
 }
 
 @Injectable()
@@ -181,6 +231,7 @@ export class MarketplaceService implements OnModuleInit {
     const search = query.search?.trim();
     const where: Record<string, unknown> = {
       status: 'PUBLISHED',
+      AND: [this.visibleTo(workspaceId)],
       ...(query.kind ? { kind: query.kind } : {}),
       ...(query.entityType === 'AGENT'
         ? { kind: 'AGENT' }
@@ -244,7 +295,7 @@ export class MarketplaceService implements OnModuleInit {
     const [grouped, installed] = await Promise.all([
       this.prisma.marketplaceListing.groupBy({
         by: ['kind'],
-        where: { status: 'PUBLISHED' },
+        where: { status: 'PUBLISHED', AND: [this.visibleTo(workspaceId)] },
         _count: { _all: true },
         _sum: { installCount: true },
       }),
@@ -281,7 +332,9 @@ export class MarketplaceService implements OnModuleInit {
         reviews: { orderBy: { createdAt: 'desc' }, take: 20 },
       },
     });
-    if (!listing) throw new NotFoundException(`Listing '${slug}' not found.`);
+    if (!listing || !this.canSee(listing, workspaceId)) {
+      throw new NotFoundException(`Listing '${slug}' not found.`);
+    }
 
     const installed = workspaceId
       ? (await this.installedListingIds(workspaceId, [listing.id])).has(listing.id)
@@ -404,6 +457,9 @@ export class MarketplaceService implements OnModuleInit {
    */
   async install(input: InstallInput): Promise<InstallationView> {
     const listing = await this.requireListing(input.listingSlug);
+    if (!this.canSee(listing, input.workspaceId)) {
+      throw new NotFoundException(`Listing '${input.listingSlug}' not found.`);
+    }
     if (listing.status !== 'PUBLISHED') {
       throw new BadRequestException(
         `'${listing.slug}' is ${listing.status.toLowerCase()} and cannot be installed.`,
@@ -457,38 +513,8 @@ export class MarketplaceService implements OnModuleInit {
       });
     }
 
-    // When an AGENT is installed, ensure a corresponding workspace AIAgent exists
     if (listing.kind === 'AGENT') {
-      try {
-        const existingAgent = await this.prisma.aIAgent.findFirst({
-          where: { workspaceId: input.workspaceId, name: listing.name },
-        });
-        if (!existingAgent) {
-          await this.prisma.aIAgent.create({
-            data: {
-              workspaceId: input.workspaceId,
-              name: listing.name,
-              role: listing.category,
-              description: listing.tagline || listing.description,
-              avatarUrl: listing.iconUrl,
-              systemPrompt: `You are ${listing.name}, an autonomous ${listing.category} assistant.`,
-              isMarketplace: true,
-              isActive: true,
-            },
-          });
-        } else if (!existingAgent.isActive) {
-          await this.prisma.aIAgent.update({
-            where: { id: existingAgent.id },
-            data: { isActive: true },
-          });
-        }
-      } catch (err) {
-        this.logger.warn(
-          `Could not auto-provision workspace AIAgent: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-      }
+      await this.provisionAgent(input.workspaceId, listing, input.installedById);
     }
 
     this.logger.log(
@@ -507,19 +533,7 @@ export class MarketplaceService implements OnModuleInit {
     });
 
     if (listing.kind === 'AGENT') {
-      try {
-        const agent = await this.prisma.aIAgent.findFirst({
-          where: { workspaceId, name: listing.name },
-        });
-        if (agent) {
-          await this.prisma.aIAgent.update({
-            where: { id: agent.id },
-            data: { isActive: false },
-          });
-        }
-      } catch (err) {
-        this.logger.warn(`Could not deactivate AIAgent: ${err}`);
-      }
+      await this.deprovisionAgent(workspaceId, listing);
     }
 
     if (installation.status !== 'UNINSTALLED') {
@@ -689,8 +703,20 @@ export class MarketplaceService implements OnModuleInit {
     iconUrl?: string;
     version?: string;
   }): Promise<ListingSummary> {
+    if (input.kind === 'AGENT') {
+      throw new BadRequestException(
+        'AI agents are published from AI Agent Studio (open the agent → Marketplace tab).',
+      );
+    }
     const slug = toSlug(input.slug || input.name);
     const publisher = await this.ensurePublisher('community-developer', 'Community Developer');
+
+    // Re-publishing a custom listing is fine; taking over an official or
+    // Studio-published one by reusing its slug is not.
+    const taken = await this.prisma.marketplaceListing.findUnique({ where: { slug } });
+    if (taken && (taken.isOfficial || taken.sourceAgentId || taken.publisherId !== publisher.id)) {
+      throw new ConflictException(`The slug '${slug}' is already taken.`);
+    }
 
     const manifest = {
       entityType: input.kind === 'AGENT' ? 'AGENT' : 'APP',
@@ -900,6 +926,356 @@ export class MarketplaceService implements OnModuleInit {
     return new Set(rows.map((row) => row.listingId));
   }
 
+  // -------------------------------------------------------------------------
+  // Agents: install / uninstall
+  // -------------------------------------------------------------------------
+
+  /** The workspace agent an AGENT listing resolves to, however it got there. */
+  private async findListingAgent(
+    workspaceId: string,
+    listing: { slug: string; name: string; sourceAgentId?: string | null; ownerWorkspaceId?: string | null },
+  ) {
+    // The publishing workspace already owns the real agent — never clone it onto itself.
+    if (listing.sourceAgentId && listing.ownerWorkspaceId === workspaceId) {
+      return this.prisma.aIAgent.findFirst({
+        where: { id: listing.sourceAgentId, workspaceId },
+      });
+    }
+    const installed = await this.prisma.aIAgent.findFirst({
+      where: {
+        workspaceId,
+        configuration: { path: ['marketplace', 'listingSlug'], equals: listing.slug },
+      },
+    });
+    if (installed) return installed;
+    // Seeded/legacy listings were matched by name.
+    return this.prisma.aIAgent.findFirst({ where: { workspaceId, name: listing.name } });
+  }
+
+  /**
+   * Makes an installed AGENT listing a real workspace agent. A listing published
+   * from AI Agent Studio carries the agent's blueprint, so the install is an
+   * exact, independent copy (own graph, prompt, tools); seeded listings without
+   * one still get a plain agent so they can be chatted with.
+   */
+  private async provisionAgent(
+    workspaceId: string,
+    listing: {
+      slug: string;
+      name: string;
+      category: string;
+      tagline: string;
+      description: string;
+      iconUrl: string | null;
+      version: string;
+      payloadJson: string;
+      sourceAgentId?: string | null;
+      ownerWorkspaceId?: string | null;
+    },
+    userId?: string,
+  ) {
+    try {
+      const existing = await this.findListingAgent(workspaceId, listing);
+      if (existing) {
+        if (!existing.isActive) {
+          await this.prisma.aIAgent.update({
+            where: { id: existing.id },
+            data: { isActive: true },
+          });
+        }
+        return;
+      }
+
+      const blueprint = parseJson<{ blueprint?: AgentBlueprint }>(listing.payloadJson, {}).blueprint;
+      const marketplace = { listingSlug: listing.slug, version: listing.version };
+
+      if (blueprint) {
+        const now = new Date().toISOString();
+        await this.prisma.aIAgent.create({
+          data: {
+            workspaceId,
+            creatorId: userId ?? null,
+            type: 'agent',
+            name: blueprint.name || listing.name,
+            role: blueprint.role || listing.category,
+            description: blueprint.description || listing.tagline || listing.description,
+            avatarUrl: blueprint.avatarUrl ?? listing.iconUrl,
+            systemPrompt: blueprint.systemPrompt,
+            systemInstructions: blueprint.systemInstructions ?? '',
+            provider: blueprint.provider,
+            model: blueprint.model,
+            tools: blueprint.tools,
+            graphJson: blueprint.graphJson ?? null,
+            isMarketplace: true,
+            isActive: true,
+            configuration: {
+              ...(blueprint.configuration ?? {}),
+              // A copy starts live in the new workspace, as its own version 1.
+              status: 'published',
+              currentVersion: 1,
+              publishedAt: now,
+              versions: [
+                {
+                  version: 1,
+                  versionTag: 'v1.0.0',
+                  name: blueprint.name || listing.name,
+                  description: blueprint.description ?? null,
+                  model: blueprint.model,
+                  provider: blueprint.provider,
+                  graphJson: blueprint.graphJson ?? null,
+                  tools: blueprint.tools,
+                  publishedAt: now,
+                  changeSummary: `Installed from marketplace (${listing.slug} v${listing.version})`,
+                  status: 'PUBLISHED',
+                },
+              ],
+              marketplace,
+            },
+          },
+        });
+        return;
+      }
+
+      await this.prisma.aIAgent.create({
+        data: {
+          workspaceId,
+          creatorId: userId ?? null,
+          name: listing.name,
+          role: listing.category,
+          description: listing.tagline || listing.description,
+          avatarUrl: listing.iconUrl,
+          systemPrompt: `You are ${listing.name}, an autonomous ${listing.category} assistant.`,
+          isMarketplace: true,
+          isActive: true,
+          configuration: { status: 'published', marketplace },
+        },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Could not auto-provision workspace AIAgent: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  private async deprovisionAgent(
+    workspaceId: string,
+    listing: { slug: string; name: string; sourceAgentId?: string | null; ownerWorkspaceId?: string | null },
+  ) {
+    // Uninstalling your own published listing must not switch off your own agent.
+    if (listing.sourceAgentId && listing.ownerWorkspaceId === workspaceId) return;
+    try {
+      const agent = await this.findListingAgent(workspaceId, listing);
+      if (agent) {
+        await this.prisma.aIAgent.update({
+          where: { id: agent.id },
+          data: { isActive: false },
+        });
+      }
+    } catch (err) {
+      this.logger.warn(`Could not deactivate AIAgent: ${err}`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Publishing from AI Agent Studio
+  // -------------------------------------------------------------------------
+
+  /** The marketplace listing (if any) a Studio agent has been published as. */
+  async getStudioListing(workspaceId: string, agentId: string) {
+    const row = await this.prisma.marketplaceListing.findUnique({
+      where: {
+        ownerWorkspaceId_sourceAgentId: { ownerWorkspaceId: workspaceId, sourceAgentId: agentId },
+      },
+      include: { publisher: PUBLISHER_SELECT },
+    });
+    return row ? this.toSummary(row) : null;
+  }
+
+  /**
+   * Publishes (or re-publishes) a Studio agent as a marketplace listing. The
+   * listing carries a snapshot of the agent's latest *published* version, not
+   * its draft, so what other workspaces install is what the author shipped.
+   * Defaults to workspace-only; `PUBLIC` shares it with every workspace.
+   */
+  async publishStudioAgent(
+    workspaceId: string,
+    agentId: string,
+    userId: string,
+    input: PublishStudioAgentInput = {},
+  ): Promise<ListingSummary> {
+    const agent = await this.prisma.aIAgent.findFirst({
+      where: { id: agentId, workspaceId, type: 'agent' },
+    });
+    if (!agent) throw new NotFoundException('Agent not found.');
+
+    const config = (agent.configuration as Record<string, any>) ?? {};
+    const versions: any[] = Array.isArray(config.versions) ? config.versions : [];
+    const latest = versions[0];
+    if (config.status !== 'published' || !latest) {
+      throw new BadRequestException(
+        'Publish this agent in Studio first — only a published version can be shared to the marketplace.',
+      );
+    }
+    if (config.marketplace?.listingSlug) {
+      throw new BadRequestException(
+        'This agent was installed from the marketplace. Duplicate it before publishing your own version.',
+      );
+    }
+
+    const visibility = input.visibility === 'PUBLIC' ? 'PUBLIC' : 'WORKSPACE';
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { name: true },
+    });
+    const publisher = await this.ensurePublisher(
+      `ws-${workspaceId.slice(-10).toLowerCase()}`,
+      workspace?.name ?? 'Workspace',
+      userId,
+    );
+
+    const existing = await this.prisma.marketplaceListing.findUnique({
+      where: {
+        ownerWorkspaceId_sourceAgentId: { ownerWorkspaceId: workspaceId, sourceAgentId: agentId },
+      },
+    });
+
+    const versionNumber = Number(latest.version) || Number(config.currentVersion) || 1;
+    const version = `${versionNumber}.0.0`;
+    const name = (input.name ?? agent.name).trim() || agent.name;
+    const tagline = (input.tagline ?? agent.description ?? '').slice(0, 160);
+    const category = input.category?.trim() || agent.role || 'Productivity';
+    const rawTools = latest.tools ?? agent.tools;
+    const tools = parseTools(rawTools);
+
+    const blueprint: AgentBlueprint = {
+      name: agent.name,
+      role: agent.role,
+      description: agent.description,
+      avatarUrl: agent.avatarUrl,
+      systemPrompt: agent.systemPrompt,
+      systemInstructions: agent.systemInstructions,
+      provider: latest.provider ?? agent.provider,
+      model: latest.model ?? agent.model,
+      tools: typeof rawTools === 'string' ? rawTools : JSON.stringify(tools),
+      graphJson: latest.graphJson ?? agent.graphJson ?? null,
+      configuration: stripWorkspaceSpecific(config),
+    };
+
+    const previous = parseJson<Record<string, any>>(existing?.manifestJson, {});
+    const changelog = [
+      {
+        version,
+        date: new Date().toISOString().slice(0, 10),
+        notes: input.changeNotes?.trim() || latest.changeSummary || 'Published from AI Agent Studio',
+      },
+      ...(Array.isArray(previous['changelog']) ? previous['changelog'] : []).filter(
+        (c: any) => c?.version !== version,
+      ),
+    ].slice(0, 20);
+
+    const manifest = {
+      entityType: 'AGENT',
+      badge: visibility === 'PUBLIC' ? 'COMMUNITY' : 'INTERNAL',
+      source: 'studio',
+      capabilities: tools,
+      permissions: [],
+      commands: [],
+      examplePrompts: Array.isArray(config.examplePrompts) ? config.examplePrompts.slice(0, 6) : [],
+      requiresAdmin: false,
+      security: {
+        dataAccessed: ['Workspace context'],
+        authentication: 'Workspace membership',
+        dataStorage: 'Isolated workspace context',
+        externalServices: [],
+        dataBoundaries: 'Workspace isolated',
+        modelProvider: String(blueprint.provider),
+      },
+      compatibility: { platforms: ['Web', 'Desktop', 'Mobile'] },
+      changelog,
+    };
+
+    const data = {
+      kind: 'AGENT' as ListingKind,
+      name,
+      tagline,
+      description: (input.description ?? agent.description ?? '').trim(),
+      category,
+      version,
+      iconUrl: agent.avatarUrl ?? null,
+      tags: JSON.stringify(input.tags ?? [category.toLowerCase(), 'studio']),
+      manifestJson: JSON.stringify(manifest),
+      payloadJson: JSON.stringify({ blueprint }),
+      pricingModel: 'FREE',
+      priceCents: 0,
+      status: 'PUBLISHED',
+      visibility,
+      publisherId: publisher.id,
+    };
+
+    const row = existing
+      ? await this.prisma.marketplaceListing.update({
+          where: { id: existing.id },
+          data: { ...data, publishedAt: new Date() },
+          include: { publisher: PUBLISHER_SELECT },
+        })
+      : await this.prisma.marketplaceListing.create({
+          data: {
+            ...data,
+            slug: await this.uniqueSlug(`${toSlug(name) || 'agent'}-${workspaceId.slice(-6).toLowerCase()}`),
+            ownerWorkspaceId: workspaceId,
+            sourceAgentId: agentId,
+            publishedAt: new Date(),
+          },
+          include: { publisher: PUBLISHER_SELECT },
+        });
+
+    this.logger.log(
+      `Studio agent ${agentId} published as ${visibility} listing '${row.slug}' v${row.version}`,
+    );
+    return this.toSummary(row);
+  }
+
+  /** Takes a Studio-published listing off the storefront (installs elsewhere keep working). */
+  async unpublishStudioAgent(workspaceId: string, agentId: string) {
+    const existing = await this.prisma.marketplaceListing.findUnique({
+      where: {
+        ownerWorkspaceId_sourceAgentId: { ownerWorkspaceId: workspaceId, sourceAgentId: agentId },
+      },
+    });
+    if (!existing) throw new NotFoundException('This agent is not on the marketplace.');
+    const row = await this.prisma.marketplaceListing.update({
+      where: { id: existing.id },
+      data: { status: 'DEPRECATED' },
+      include: { publisher: PUBLISHER_SELECT },
+    });
+    return this.toSummary(row);
+  }
+
+  private async uniqueSlug(base: string) {
+    let slug = base;
+    for (let i = 2; await this.prisma.marketplaceListing.findUnique({ where: { slug } }); i++) {
+      slug = `${base}-${i}`;
+    }
+    return slug;
+  }
+
+  /** Listings a workspace may see: everything public plus its own workspace-only ones. */
+  private visibleTo(workspaceId?: string) {
+    return workspaceId
+      ? { OR: [{ visibility: 'PUBLIC' }, { ownerWorkspaceId: workspaceId }] }
+      : { visibility: 'PUBLIC' };
+  }
+
+  private canSee(
+    listing: { visibility?: string; ownerWorkspaceId?: string | null },
+    workspaceId?: string,
+  ) {
+    return (
+      listing.visibility !== 'WORKSPACE' ||
+      (!!workspaceId && listing.ownerWorkspaceId === workspaceId)
+    );
+  }
+
   /** Shared by every path that resolves a listing from a URL slug. */
   async requireListing(slug: string) {
     const listing = await this.prisma.marketplaceListing.findUnique({
@@ -955,6 +1331,9 @@ export class MarketplaceService implements OnModuleInit {
         ? { payload: parseJson<Record<string, unknown>>(row.payloadJson, {}) }
         : {}),
       entityType: isAgent ? 'AGENT' : 'APP',
+      visibility: row.visibility === 'WORKSPACE' ? 'WORKSPACE' : 'PUBLIC',
+      ownerWorkspaceId: row.ownerWorkspaceId ?? null,
+      source: row.sourceAgentId ? 'studio' : undefined,
       badge:
         (manifest['badge'] as string) ||
         (row.isOfficial ? 'OFFICIAL' : 'COMMUNITY'),

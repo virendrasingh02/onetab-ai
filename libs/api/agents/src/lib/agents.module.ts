@@ -4,6 +4,7 @@ import { AuthModule } from '@org/api-auth';
 import { PrismaModule } from '@org/database';
 import { AIInfrastructureModule } from '@org/api-ai';
 import { IntegrationsModule } from '@org/api-integrations';
+import { MarketplaceModule } from '@org/api-marketplace';
 import { MatrixModule } from '@org/api-matrix';
 import { RealtimeModule } from '@org/api-realtime';
 import { WorkToolsModule } from '@org/api-work-tools';
@@ -44,6 +45,8 @@ import { AgentPublicController } from './deployments/agent-public.controller.js'
     AIInfrastructureModule,
     IntegrationsModule,
     MatrixModule,
+    // Studio's "Publish to marketplace" writes listings through it.
+    MarketplaceModule,
     RealtimeModule,
     WorkspaceModule,
     // Agent tools create and update tasks through WorkToolsService, so they

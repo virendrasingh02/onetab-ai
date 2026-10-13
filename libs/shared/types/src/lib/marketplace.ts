@@ -31,6 +31,19 @@ export type MarketplaceSort = 'popular' | 'rating' | 'newest' | 'name';
 
 export type IntegrationEntityType = 'APP' | 'AGENT';
 
+export type MarketplaceVisibility = 'PUBLIC' | 'WORKSPACE';
+
+/** What AI Agent Studio sends to turn a published agent into a listing. */
+export interface PublishAgentListingInput {
+  visibility?: MarketplaceVisibility;
+  name?: string;
+  tagline?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  changeNotes?: string;
+}
+
 export type VerificationBadge =
   | 'VERIFIED'
   | 'OFFICIAL'
@@ -120,6 +133,11 @@ export interface MarketplaceListing {
   payload?: Record<string, unknown>;
   /** First-class entity designation */
   entityType?: IntegrationEntityType;
+  /** `WORKSPACE` listings are only visible to the workspace that published them. */
+  visibility?: MarketplaceVisibility;
+  ownerWorkspaceId?: string | null;
+  /** `studio` when published from AI Agent Studio. */
+  source?: 'studio';
   badge?: VerificationBadge;
   capabilities?: string[];
   permissions?: IntegrationPermission[];

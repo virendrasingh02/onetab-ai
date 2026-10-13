@@ -132,6 +132,18 @@ export default defineConfig(() => ({
       'react',
       'react-dom',
       'use-sync-external-store/shim/with-selector.js',
+      'use-sync-external-store/with-selector.js',
+      // The plan-first Studio pages (`@org/web-automations`, `@org/web-ai`)
+      // reach recharts (→ react-redux → the same CJS shim) and, through
+      // `@org/web-coworkers`, `matrix-js-sdk`'s deep files and their CJS-only
+      // leaf deps. Same interop failures as apps/web/vite.config.mts.
+      'recharts',
+      'matrix-js-sdk',
+      'matrix-js-sdk/lib/webrtc/call.js',
+      'matrix-js-sdk/lib/crypto-api/index.js',
+      'loglevel',
+      'debug',
+      'prismjs',
       '@lobehub/icons',
       '@emotion/react',
       'hoist-non-react-statics',

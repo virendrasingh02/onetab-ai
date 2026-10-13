@@ -28,9 +28,10 @@ import { EncryptionSecurityPanel, SavedView, ThreadsView } from '@org/web-chat';
  * nothing behind it, and trips `@nx/enforce-module-boundaries`' check against
  * importing the same library both ways.
  */
+import { studioAppUrl } from '@org/platform';
 import { PlatformDiagnosticsPage } from '@org/web-desktop';
-import { lazy, Suspense } from 'react';
-import { Link, Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { Link, Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { DocumentTitle } from './document-title';
 
 /**
@@ -148,11 +149,6 @@ const DocumentEditor = lazy(() =>
 const FileManagerView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.FileManagerView })),
 );
-const ActivityTimelineView = lazy(() =>
-  import('@org/web-work-tools').then((m) => ({
-    default: m.ActivityTimelineView,
-  })),
-);
 const InboxView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.InboxView })),
 );
@@ -172,51 +168,34 @@ const AIChatView = lazy(() =>
   import('@org/web-coworkers').then((m) => ({ default: m.AIChatView })),
 );
 /*
- * The AI Workspace (`/w/:slug/ai`) — the one place agents, coworkers and
- * workflows are built, run and reviewed. Each section comes from the library
- * that owns it; the route layer is the first place that may depend on all of
- * them (`@org/web-coworkers` already sits above `@org/web-agents`).
+ * The AI Agent Studio is its own app (`apps/ai-agent-studio`). Anything under
+ * `/w/:slug/ai` hands off to it; only the agent/coworker profile editor stays
+ * here, because the sidebar opens it.
  */
-const AIWorkspaceLayout = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIWorkspaceLayout })),
-);
-/*
- * The AI Agent Studio's own pages live with the workflows they compile to
- * (`@org/web-automations`): Home, the agent library, AI Mode and the agent page.
- */
-const StudioHome = lazy(() =>
-  import('@org/web-automations').then((m) => ({ default: m.StudioHome })),
-);
-const AgentLibrary = lazy(() =>
-  import('@org/web-automations').then((m) => ({ default: m.AgentLibrary })),
-);
-const AgentCreatePage = lazy(() =>
-  import('@org/web-automations').then((m) => ({ default: m.AgentCreatePage })),
-);
-const AgentDetailPage = lazy(() =>
-  import('@org/web-automations').then((m) => ({ default: m.AgentDetailPage })),
-);
-const AIRunsSection = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIRunsSection })),
-);
-const AIApprovalsSection = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIApprovalsSection })),
-);
-const AIKnowledgeSection = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIKnowledgeSection })),
-);
-const AIToolsSection = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIToolsSection })),
-);
-const AIPromptsSection = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIPromptsSection })),
-);
 const AIEntityEditorRoute = lazy(() =>
   import('@org/web-coworkers').then((m) => ({ default: m.AIEntityEditorRoute })),
 );
 const AgentMarketplaceView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentMarketplaceView })),
 );
+const CoworkerCreateDialog = lazy(() =>
+  import('@org/web-coworkers').then((m) => ({ default: m.CoworkerCreateDialog })),
+);
+
+/** The marketplace, with coworker creation (which lives above `@org/web-agents`) plugged in. */
+function MarketplaceRoute() {
+  return (
+    <AgentMarketplaceView
+      renderCoworkerCreate={(props) =>
+        props.open ? (
+          <Suspense fallback={null}>
+            <CoworkerCreateDialog {...props} />
+          </Suspense>
+        ) : null
+      }
+    />
+  );
+}
 const AgentChatView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentChatView })),
 );
@@ -224,9 +203,6 @@ const CoworkerChatView = lazy(() =>
   import('@org/web-coworkers').then((m) => ({
     default: m.CoworkerChatView,
   })),
-);
-const WorkflowListView = lazy(() =>
-  import('@org/web-automations').then((m) => ({ default: m.WorkflowListView })),
 );
 const WorkflowCanvasView = lazy(() =>
   import('@org/web-automations').then((m) => ({
@@ -293,10 +269,19 @@ const STUDIO_TAB_TO_SECTION: Record<string, string> = {
   analytics: '',
 };
 
+/** Hands `/w/:slug/ai/...` to the standalone AI Agent Studio, same path. */
+function StudioRedirect() {
+  const location = useLocation();
+  useEffect(() => {
+    window.location.replace(studioAppUrl(`${location.pathname}${location.search}${location.hash}`));
+  }, [location.pathname, location.search, location.hash]);
+  return <LoadingState fullPage />;
+}
+
 /**
  * Sends a bookmark or link to any former AI surface — AI Studio, the separate
  * Agent Studio app, the Agent Builder, Automations, the coworker directory —
- * to its place in the AI Workspace, keeping the id it referred to.
+ * to the AI Agent Studio, keeping the id it referred to.
  */
 function LegacyAIRedirect({ to }: { to: 'studio' | 'agents' | 'agent-builder' | 'agent-logs' | 'coworkers' | 'automations' | 'workflow-builder' | 'workflow-logs' }) {
   const { workspaceSlug, tab } = useParams<{ workspaceSlug: string; tab?: string }>();
@@ -524,9 +509,10 @@ export function App() {
             <Route path="docs" element={<DocumentEditor />} />
             <Route path="docs/:docId" element={<DocumentEditor />} />
             <Route path="files" element={<FileManagerView />} />
-            <Route path="pulse" element={<ActivityTimelineView />} />
-            <Route path="timeline" element={<ActivityTimelineView />} />
-            <Route path="activity" element={<ActivityTimelineView />} />
+            {/* Pulse was removed; old links land on the dashboard. */}
+            <Route path="pulse" element={<Navigate to="../dashboard" replace />} />
+            <Route path="timeline" element={<Navigate to="../dashboard" replace />} />
+            <Route path="activity" element={<Navigate to="../dashboard" replace />} />
             <Route path="meetings" element={<MeetingsView />} />
             <Route path="calls" element={<CallDetailPage />} />
             <Route path="dms" element={<DirectMessagesPage />} />
@@ -536,23 +522,9 @@ export function App() {
             <Route path="ai-chat" element={<AIChatView />} />
             <Route path="whiteboards" element={<WhiteboardCanvas />} />
 
-            {/* --- AI Agent Studio: agents, coworkers, workflows, runs --- */}
-            <Route path="ai" element={<AIWorkspaceLayout />}>
-              <Route index element={<StudioHome />} />
-              <Route path="agents" element={<AgentLibrary />} />
-              {/* Canvas workflows and their starters; listed with the agents too. */}
-              <Route path="workflows" element={<WorkflowListView />} />
-              <Route path="runs" element={<AIRunsSection />} />
-              <Route path="approvals" element={<AIApprovalsSection />} />
-              <Route path="knowledge" element={<AIKnowledgeSection />} />
-              <Route path="tools" element={<AIToolsSection />} />
-              <Route path="prompts" element={<AIPromptsSection />} />
-            </Route>
-            {/* Agent pages and editors take the whole content area, outside the section frame. */}
-            <Route path="ai/studio/new" element={<AgentCreatePage />} />
-            <Route path="ai/studio/:workflowId" element={<AgentDetailPage />} />
+            {/* --- AI Agent Studio: a separate app; published agents appear in the sidebar --- */}
             <Route path="ai/agents/:agentId" element={<AIEntityEditorRoute />} />
-            <Route path="ai/workflows/:workflowId" element={<WorkflowCanvasView />} />
+            <Route path="ai/*" element={<StudioRedirect />} />
 
             {/* Conversations with an agent or coworker stay where chat lives. */}
             <Route path="agents/chat" element={<AgentChatView />} />
@@ -572,10 +544,10 @@ export function App() {
             <Route path="automations/logs" element={<Navigate to="../automations?tab=runs-logs" replace />} />
 
             {/* Apps & integrations: third-party apps and agents to install. */}
-            <Route path="marketplace" element={<AgentMarketplaceView />} />
+            <Route path="marketplace" element={<MarketplaceRoute />} />
             <Route path="marketplace/apps/:slug" element={<MarketplaceItemRedirect kind="app" />} />
             <Route path="marketplace/agents/:slug" element={<MarketplaceItemRedirect kind="agent" />} />
-            <Route path="marketplace/developer" element={<AgentMarketplaceView />} />
+            <Route path="marketplace/developer" element={<MarketplaceRoute />} />
             <Route path="integrations" element={<IntegrationHubView />} />
             <Route path="apps" element={<AppChatView />} />
             <Route path="apps/chat" element={<AppChatView />} />
