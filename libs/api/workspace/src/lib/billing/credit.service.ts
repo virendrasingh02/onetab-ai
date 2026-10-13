@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { PLANS_CONFIG, normalizePlanTier, type CreditAccountDto, type CreditTransactionDto } from '@org/types';
 
@@ -6,7 +8,10 @@ import { PLANS_CONFIG, normalizePlanTier, type CreditAccountDto, type CreditTran
 export class CreditService {
   private readonly logger = new Logger(CreditService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly events?: EventEmitter2,
+  ) {}
 
   /**
    * Retrieves or creates the workspace shared AI credit account.
@@ -28,7 +33,7 @@ export class CreditService {
         where: { workspaceId },
         select: { planTier: true },
       });
-      const plan = normalizePlanTier(sub?.planTier ?? 'starter');
+      const plan = normalizePlanTier(sub?.planTier ?? 'free');
       const initialCredits = PLANS_CONFIG[plan].machineLimits.aiCreditsUsd > 0
         ? PLANS_CONFIG[plan].machineLimits.aiCreditsUsd
         : 5.0;
@@ -79,6 +84,9 @@ export class CreditService {
 
   /**
    * Deducts AI credits from the workspace shared balance.
+   *
+   * The balance check and the decrement are one conditional UPDATE, so
+   * concurrent runs can never overdraw the account (no read-then-write race).
    */
   async deductCredits(
     workspaceId: string,
@@ -87,36 +95,41 @@ export class CreditService {
     referenceId: string,
     description: string,
   ): Promise<CreditTransactionDto> {
-    if (amount <= 0) {
+    if (!(amount > 0)) {
       throw new BadRequestException('Deduction amount must be greater than zero.');
     }
 
     const account = await this.getOrCreateAccount(workspaceId);
-    if (account.balance < amount) {
-      throw new BadRequestException({
-        code: 'CREDIT_LIMIT_REACHED',
-        message: `Insufficient AI credits. Current balance: $${account.balance.toFixed(2)}, required: $${amount.toFixed(2)}. Please top up your shared credits.`,
+
+    const tx = await this.prisma.$transaction(async (db) => {
+      const updated = await db.creditAccount.updateMany({
+        where: { id: account.id, balance: { gte: amount } },
+        data: { balance: { decrement: amount } },
       });
-    }
-
-    const newBalance = Math.max(0, Number((account.balance - amount).toFixed(4)));
-
-    const [tx] = await this.prisma.$transaction([
-      this.prisma.creditTransaction.create({
+      if (updated.count === 0) {
+        const current = await db.creditAccount.findUnique({ where: { id: account.id }, select: { balance: true } });
+        throw new BadRequestException({
+          code: 'CREDIT_LIMIT_REACHED',
+          message: `Insufficient AI credits. Current balance: $${(current?.balance ?? 0).toFixed(2)}, required: $${amount.toFixed(2)}. Please top up your shared credits.`,
+        });
+      }
+      const after = await db.creditAccount.findUniqueOrThrow({
+        where: { id: account.id },
+        select: { balance: true },
+      });
+      return db.creditTransaction.create({
         data: {
           accountId: account.id,
           amount: -amount,
-          balanceAfter: newBalance,
+          balanceAfter: Number(after.balance.toFixed(4)),
           description,
           referenceType,
           referenceId,
         },
-      }),
-      this.prisma.creditAccount.update({
-        where: { id: account.id },
-        data: { balance: newBalance },
-      }),
-    ]);
+      });
+    });
+
+    this.warnOnThresholdCrossing(workspaceId, account.balance, tx.balanceAfter);
 
     return {
       id: tx.id,
@@ -131,39 +144,90 @@ export class CreditService {
   }
 
   /**
-   * Tops up the workspace shared AI credit balance.
+   * Notifies billing managers exactly when a deduction *crosses* the low-credit
+   * line or empties the balance — so each condition fires once per drawdown,
+   * not on every later run. The low line is `BILLING_LOW_CREDIT_USD` (default $1).
    */
-  async topUpCredits(
+  private warnOnThresholdCrossing(workspaceId: string, before: number, after: number): void {
+    if (!this.events) return;
+    const configured = Number(process.env['BILLING_LOW_CREDIT_USD'] ?? 1);
+    const low = Number.isFinite(configured) && configured > 0 ? configured : 1;
+    const empty = 0.01;
+
+    let title: string | null = null;
+    let body = '';
+    if (before >= empty && after < empty) {
+      title = 'AI credits exhausted';
+      body = 'Agent runs and workflows that use AI credits will stop until you top up or your plan renews.';
+    } else if (before >= low && after < low) {
+      title = 'AI credits running low';
+      body = `Only $${after.toFixed(2)} of shared AI credits remain.`;
+    }
+    if (!title) return;
+    this.events.emit(AppEvent.BillingNotice, {
+      workspaceId,
+      actorId: null,
+      title,
+      body,
+      dedupeKey: `credits:${workspaceId}:${title === 'AI credits exhausted' ? 'empty' : 'low'}:${Date.now().toString(36)}`,
+    });
+  }
+
+  /**
+   * Adds credits for a *verified* reason (a confirmed payment or a plan grant).
+   *
+   * `idempotencyKey` is stored as the transaction's referenceId; a second call
+   * with the same (referenceType, key) is a no-op, which is what makes webhook
+   * retries safe. There is deliberately no public path that calls this without a
+   * payment or plan event behind it.
+   */
+  async credit(
     workspaceId: string,
     amount: number,
-    paymentMethodId?: string,
-  ): Promise<CreditAccountDto> {
-    if (amount <= 0 || isNaN(amount)) {
-      throw new BadRequestException('Top-up amount must be a positive number.');
+    referenceType: 'TOP_UP' | 'PLAN_GRANT',
+    idempotencyKey: string,
+    description: string,
+  ): Promise<boolean> {
+    if (!(amount > 0) || !Number.isFinite(amount)) {
+      throw new BadRequestException('Credit amount must be a positive number.');
     }
-
     const account = await this.getOrCreateAccount(workspaceId);
-    const newBalance = Number((account.balance + amount).toFixed(4));
 
-    await this.prisma.$transaction([
-      this.prisma.creditTransaction.create({
+    return this.prisma.$transaction(async (db) => {
+      const existing = await db.creditTransaction.findFirst({
+        where: { accountId: account.id, referenceType, referenceId: idempotencyKey },
+        select: { id: true },
+      });
+      if (existing) return false;
+      await db.creditAccount.update({ where: { id: account.id }, data: { balance: { increment: amount } } });
+      const after = await db.creditAccount.findUniqueOrThrow({ where: { id: account.id }, select: { balance: true } });
+      await db.creditTransaction.create({
         data: {
           accountId: account.id,
           amount,
-          balanceAfter: newBalance,
-          description: `AI credit top-up ($${amount.toFixed(2)})`,
-          referenceType: 'TOP_UP',
-          metadata: paymentMethodId ? { paymentMethodId } : {},
+          balanceAfter: Number(after.balance.toFixed(4)),
+          description,
+          referenceType,
+          referenceId: idempotencyKey,
         },
-      }),
-      this.prisma.creditAccount.update({
-        where: { id: account.id },
-        data: { balance: newBalance },
-      }),
-    ]);
+      });
+      this.logger.log(`Workspace ${workspaceId} credited $${amount.toFixed(2)} (${referenceType}).`);
+      return true;
+    });
+  }
 
-    this.logger.log(`Workspace ${workspaceId} topped up $${amount.toFixed(2)}. New balance: $${newBalance.toFixed(2)}`);
-    return this.getOrCreateAccount(workspaceId);
+  /** Grants the plan's included AI-credit allowance for a billing period (idempotent per period key). */
+  async grantPlanAllowance(workspaceId: string, planInput: string, periodKey: string): Promise<boolean> {
+    const plan = normalizePlanTier(planInput);
+    const allowance = PLANS_CONFIG[plan].machineLimits.aiCreditsUsd;
+    if (!(allowance > 0)) return false; // free-form / custom (-1) allowances are set by contract
+    return this.credit(
+      workspaceId,
+      allowance,
+      'PLAN_GRANT',
+      `plan:${plan}:${periodKey}`,
+      `${PLANS_CONFIG[plan].name} plan included AI credits`,
+    );
   }
 
   /**

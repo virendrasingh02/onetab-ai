@@ -224,7 +224,7 @@ export class AIEntitiesService {
         });
       }
 
-      const planTier = normalizePlanTier(sub?.planTier ?? 'starter');
+      const planTier = normalizePlanTier(sub?.planTier ?? 'free');
       const planConfig = PLANS_CONFIG[planTier];
       const maxAgents = planConfig.machineLimits.microAgents;
 
@@ -338,12 +338,12 @@ export class AIEntitiesService {
         where: { workspaceId },
         select: { planTier: true },
       });
-      const planTier = normalizePlanTier(sub?.planTier ?? 'starter');
+      const planTier = normalizePlanTier(sub?.planTier ?? 'free');
       if (!canUpgradeAgent(planTier)) {
         throw new BadRequestException({
           code: 'FEATURE_NOT_AVAILABLE',
           message:
-            'Agent upgrades and custom model performance configurations are not included in the Starter plan. Please upgrade to Pro or Business.',
+            'Agent upgrades and custom model performance configurations are not included in the Free plan. Please upgrade to Pro or Max.',
         });
       }
     }
@@ -427,7 +427,7 @@ export class AIEntitiesService {
    *
    * Plans without custom-model upgrades keep the workspace default model: the
    * derived provider/model/sampling are dropped with a warning rather than
-   * failing the whole save, so a Starter workspace can still build agents.
+   * failing the whole save, so a Free workspace can still build agents.
    */
   private async applyGraph(
     workspaceId: string,
@@ -442,7 +442,7 @@ export class AIEntitiesService {
       where: { workspaceId },
       select: { planTier: true },
     });
-    const planAllowsModels = canUpgradeAgent(normalizePlanTier(sub?.planTier ?? 'starter'));
+    const planAllowsModels = canUpgradeAgent(normalizePlanTier(sub?.planTier ?? 'free'));
 
     const { runtime } = derived;
     const columns: GraphApplication['columns'] = {
@@ -459,7 +459,7 @@ export class AIEntitiesService {
       delete runtime.temperature;
       delete runtime.maxTokens;
       warnings.push(
-        'Custom models and sampling settings need a Pro or Business plan — this agent uses the workspace default model.',
+        'Custom models and sampling settings need a Pro or Max plan — this agent uses the workspace default model.',
       );
     }
 

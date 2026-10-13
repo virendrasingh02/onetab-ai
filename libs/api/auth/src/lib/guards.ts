@@ -155,7 +155,7 @@ export class WorkspaceRoleGuard implements CanActivate {
     }
 
     const role = membership.role as WorkspaceRole;
-    const plan = normalizePlanTier(workspace.subscription?.planTier ?? 'starter');
+    const plan = normalizePlanTier(workspace.subscription?.planTier ?? 'free');
     const policies = resolveWorkspacePolicy(workspace.settings?.policies);
 
     // Update lastActiveAt asynchronously

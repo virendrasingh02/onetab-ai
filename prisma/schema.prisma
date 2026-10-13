@@ -370,6 +370,8 @@ model Workspace {
   subscription              WorkspaceSubscription?
   creditAccount             CreditAccount?
   enterpriseInquiries       EnterpriseSalesInquiry[]
+  checkoutSessions          BillingCheckoutSession[]
+  billingInvoices           BillingInvoice[]
   meetings                  Meeting[]
   crossObjectLinks          CrossObjectLink[]
   bookmarks                 Bookmark[]
@@ -2575,64 +2577,190 @@ model OrganizationSubscription {
 }
 
 model WorkspaceSubscription {
-  id                   String    @id @default(cuid())
-  workspaceId          String    @unique
-  planTier             String    @default("STARTER")
-  billingInterval      String    @default("MONTHLY")
-  status               String    @default("ACTIVE")
-  seatsTotal           Int       @default(5)
-  seatsUsed            Int       @default(1)
-  customLlmConfig      String?
-  cancelAtPeriodEnd    Boolean   @default(false)
-  currentPeriodStart   DateTime  @default(now())
-  currentPeriodEnd     DateTime  @default(now())
-  renewAt              DateTime  @default(now())
-  trialStart           DateTime?
-  trialEnd             DateTime?
-  trialStatus          String?
-  trialUsed            Boolean   @default(false)
-  convertedAt          DateTime?
-  appliedPromotionCode String?
-  discountPercent      Float?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id                      String    @id @default(cuid())
+  workspaceId             String    @unique
+  planTier                String    @default("FREE")
+  billingInterval         String    @default("MONTHLY")
+  status                  String    @default("ACTIVE")
+  seatsTotal              Int       @default(5)
+  seatsUsed               Int       @default(1)
+  customLlmConfig         String?
+  cancelAtPeriodEnd       Boolean   @default(false)
+  currentPeriodStart      DateTime  @default(now())
+  currentPeriodEnd        DateTime  @default(now())
+  renewAt                 DateTime  @default(now())
+  trialStart              DateTime?
+  trialEnd                DateTime?
+  trialStatus             String?
+  trialUsed               Boolean   @default(false)
+  convertedAt             DateTime?
+  appliedPromotionCode    String?
+  discountPercent         Float?
+  /// Where entitlement comes from: PROVIDER (paid via payment provider),
+  /// PROMOTION (server-approved zero-total checkout), CONTRACT (enterprise,
+  /// set by a platform admin) or FREE.
+  source                  String    @default("FREE")
+  provider                String?
+  providerCustomerId      String?
+  providerSubscriptionId  String?
+  pastDueSince            DateTime?
+  /// Timestamp of the newest provider event applied; older events are ignored.
+  providerEventAt         DateTime?
+  cancelledAt             DateTime?
+  scheduledPlanTier       String?
+  scheduledBillingInterval String?
+  scheduledChangeAt       DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  workspace               Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([planTier, status])
+  @@index([providerSubscriptionId])
+  @@index([currentPeriodEnd, source])
   @@map("workspace_subscriptions")
 }
 
 model Promotion {
-  id               String                @id @default(cuid())
-  code             String                @unique
-  discountType     String                @default("PERCENTAGE")
-  discountValue    Float                 @default(100.0)
-  applicablePlans  String[]              @default(["starter", "pro", "business"])
-  validFrom        DateTime              @default(now())
-  validUntil       DateTime?
-  maxRedemptions   Int?
-  redemptionsCount Int                   @default(0)
-  perUserLimit     Int                   @default(1)
-  active           Boolean               @default(true)
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  redemptions      PromotionRedemption[]
+  id                   String                @id @default(cuid())
+  code                 String                @unique
+  name                 String?
+  description          String?
+  discountType         String                @default("PERCENTAGE")
+  /// PERCENTAGE: 0-100. FIXED: amount in minor units (cents) of `currency`.
+  discountValue        Float                 @default(0)
+  currency             String                @default("USD")
+  applicablePlans      String[]              @default(["pro", "max"])
+  /// Empty = every interval. Otherwise subset of MONTHLY / ANNUAL.
+  applicableIntervals  String[]              @default([])
+  minPurchaseCents     Int?
+  firstTimeCustomerOnly Boolean              @default(false)
+  trialExtensionDays   Int?
+  /// DISABLED | TEST_ONLY | APPROVED — whether a fully-discounted checkout may
+  /// activate a plan without a payment-provider confirmation. TEST_ONLY only
+  /// works while BILLING_MODE != live.
+  freeCheckoutPolicy   String                @default("DISABLED")
+  validFrom            DateTime              @default(now())
+  validUntil           DateTime?
+  maxRedemptions       Int?
+  redemptionsCount     Int                   @default(0)
+  perUserLimit         Int                   @default(1)
+  active               Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  redemptions          PromotionRedemption[]
 
   @@map("promotions")
 }
 
 model PromotionRedemption {
-  id          String    @id @default(cuid())
-  promotionId String
-  workspaceId String
-  userId      String
-  redeemedAt  DateTime  @default(now())
-  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  promotionId   String
+  workspaceId   String
+  userId        String
+  /// Checkout session that reserved/consumed this redemption (one per checkout).
+  checkoutId    String?   @unique
+  /// RESERVED (checkout open) | APPLIED (payment/approval confirmed) | RELEASED
+  status        String    @default("APPLIED")
+  discountCents Int       @default(0)
+  currency      String    @default("USD")
+  redeemedAt    DateTime  @default(now())
+  promotion     Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
 
   @@index([promotionId, workspaceId])
   @@index([promotionId, userId])
   @@map("promotion_redemptions")
+}
+
+/// A priced, server-computed attempt to buy a plan. Entitlements are only ever
+/// changed when a session reaches COMPLETED via a verified provider event or an
+/// approved zero-total rule.
+model BillingCheckoutSession {
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  userId              String
+  /// SUBSCRIPTION | CREDIT_TOPUP
+  kind                String    @default("SUBSCRIPTION")
+  planTier            String
+  billingInterval     String
+  seats               Int       @default(1)
+  trialDays           Int       @default(0)
+  currency            String    @default("USD")
+  subtotalCents       Int
+  discountCents       Int       @default(0)
+  taxCents            Int       @default(0)
+  totalCents          Int
+  promotionCode       String?
+  /// PENDING | COMPLETED | FAILED | CANCELLED | EXPIRED
+  status              String    @default("PENDING")
+  provider            String?
+  providerSessionId   String?   @unique
+  providerUrl         String?
+  idempotencyKey      String?   @unique
+  failureReason       String?
+  expiresAt           DateTime
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@map("billing_checkout_sessions")
+}
+
+model BillingInvoice {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  number            String    @unique
+  providerInvoiceId String?   @unique
+  checkoutId        String?
+  amountCents       Int
+  currency          String    @default("USD")
+  /// PAID | OPEN | VOID | UNCOLLECTIBLE | REFUNDED
+  status            String
+  description       String
+  periodStart       DateTime
+  periodEnd         DateTime
+  hostedUrl         String?
+  pdfUrl            String?
+  paidAt            DateTime?
+  createdAt         DateTime  @default(now())
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@map("billing_invoices")
+}
+
+/// Idempotency + ordering record for payment-provider webhooks.
+model BillingWebhookEvent {
+  id              String    @id @default(cuid())
+  provider        String
+  providerEventId String
+  type            String
+  /// RECEIVED | PROCESSED | IGNORED | FAILED
+  status          String    @default("RECEIVED")
+  error           String?
+  payload         Json      @default("{}")
+  receivedAt      DateTime  @default(now())
+  processedAt     DateTime?
+
+  @@unique([provider, providerEventId])
+  @@map("billing_webhook_events")
+}
+
+model BillingAuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  actorId     String?
+  action      String
+  targetType  String
+  targetId    String?
+  details     Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([targetType, targetId])
+  @@map("billing_audit_logs")
 }
 
 model CreditAccount {

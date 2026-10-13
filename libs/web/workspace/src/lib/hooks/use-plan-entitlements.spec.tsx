@@ -38,7 +38,7 @@ describe('usePlanEntitlements', () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 
-  it('defaults to Starter plan before query loads', () => {
+  it('defaults to Free plan before query loads', () => {
     (billingApi.summary as any).mockReturnValue(
       new Promise(() => {
         /* never resolves — simulates a pending query */
@@ -49,7 +49,7 @@ describe('usePlanEntitlements', () => {
       wrapper,
     });
 
-    expect(result.current.plan).toBe('starter');
+    expect(result.current.plan).toBe('free');
     expect(result.current.hasFeature('core_workspace')).toBe(true);
     expect(result.current.hasFeature('advanced_views')).toBe(false);
     expect(result.current.getLimit('max_members')).toBe(5);

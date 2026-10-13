@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -34,39 +34,41 @@ export function CreditTopupModal({
   const [isCustom, setIsCustom] = useState(false);
   const [customAmount, setCustomAmount] = useState<string>('');
 
+  const [error, setError] = useState<string | null>(null);
+  const idempotencyKey = useRef(crypto.randomUUID());
+
+  const amountToCharge = isCustom ? parseFloat(customAmount) || 0 : selectedAmount;
+
   const topupMutation = useMutation({
     mutationFn: (amountUsd: number) => {
       if (!workspaceId) {
         throw new Error('Workspace ID is required.');
       }
-      return billingApi.topUpCredits(workspaceId, { amount: amountUsd });
+      return billingApi.topUpCredits(workspaceId, {
+        amount: amountUsd,
+        idempotencyKey: idempotencyKey.current,
+      });
     },
-    onSuccess: (account) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.billing.all(workspaceId as string),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.billing.credits(workspaceId as string),
-      });
-      toast.success(
-        `Added $${amountToCharge.toFixed(2)} AI credits! New balance: $${account.balance.toFixed(2)}.`,
-      );
+    onSuccess: (session) => {
+      setError(null);
+      if (session.redirectUrl) {
+        // Credits are added only after the payment provider confirms payment.
+        window.location.assign(session.redirectUrl);
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.billing.all(workspaceId as string) });
+      toast.info('Top-up started. Credits appear once payment is confirmed.');
       onOpenChange(false);
     },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Failed to top up AI credits.');
-    },
+    onError: (err: Error) => setError(err.message || 'Could not start the top-up.'),
   });
 
-  const amountToCharge = isCustom
-    ? parseFloat(customAmount) || 0
-    : selectedAmount;
-
   const handleTopup = () => {
-    if (amountToCharge < 1) {
-      toast.error('Minimum credit top-up is $1.00.');
+    if (amountToCharge < 5) {
+      setError('Minimum credit top-up is $5.00.');
       return;
     }
+    setError(null);
     topupMutation.mutate(amountToCharge);
   };
 
@@ -131,7 +133,7 @@ export function CreditTopupModal({
               </label>
               <Input
                 type="number"
-                min="1"
+                min="5"
                 step="1"
                 placeholder="25"
                 value={customAmount}
@@ -143,6 +145,9 @@ export function CreditTopupModal({
 
           <div className="rounded-lg bg-surface-muted/40 border border-border/60 p-3 text-[11px] text-muted-foreground space-y-1">
             <p>
+              • You will be sent to our payment provider; credits are added after payment is confirmed.
+            </p>
+            <p>
               • Credits never expire as long as your workspace is active.
             </p>
             <p>
@@ -150,6 +155,12 @@ export function CreditTopupModal({
             </p>
           </div>
         </div>
+
+        {error && (
+          <p role="alert" className="px-5 pb-3 text-xs text-destructive">
+            {error}
+          </p>
+        )}
 
         <DialogFooter className="p-4 border-t border-border bg-surface-muted/30 flex justify-end gap-2">
           <Button
@@ -164,16 +175,16 @@ export function CreditTopupModal({
             type="button"
             variant="primary"
             size="sm"
-            disabled={amountToCharge < 1 || topupMutation.isPending}
+            disabled={amountToCharge < 5 || topupMutation.isPending}
             onClick={handleTopup}
           >
             {topupMutation.isPending ? (
               <>
                 <Loader2 className="size-3.5 mr-2 animate-spin" />
-                Processing...
+                Opening payment…
               </>
             ) : (
-              `Add $${amountToCharge.toFixed(2)} Credits`
+              `Pay $${amountToCharge.toFixed(2)}`
             )}
           </Button>
         </DialogFooter>

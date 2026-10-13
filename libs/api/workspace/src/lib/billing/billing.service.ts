@@ -1,14 +1,20 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
-  ACTIVE_PROMOTION_CODE,
   PLANS_CONFIG,
-  PLAN_TIERS,
+  PLAN_HIERARCHY,
+  planPeriodCents,
   WorkspacePermission,
   WorkspaceRole,
   getPlanLimit,
@@ -18,7 +24,7 @@ import {
   isNearLimit,
   normalizePlanTier,
   roleHasPermission,
-  type CheckoutPlanInput,
+  type BillingPortalResponse,
   type CustomLLMConfigDto,
   type DowngradeImpactSummary,
   type DowngradePlanInput,
@@ -30,18 +36,22 @@ import {
   type SaveCustomLLMInput,
   type TestCustomLLMInput,
   type TestCustomLLMResponse,
-  type UpgradePlanInput,
   type WorkspaceBillingSummary,
 } from '@org/types';
+import { BillingAuditService } from './billing-audit.service.js';
+import { resolveBillingMode } from './billing-mode.js';
 import { CreditService } from './credit.service.js';
-import { PromotionService } from './promotion.service.js';
+import { PAYMENT_PROVIDER, PaymentProviderError, type PaymentProvider } from './payment-provider.js';
 
 @Injectable()
 export class BillingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly creditService: CreditService,
-    private readonly promotionService: PromotionService,
+    private readonly audit: BillingAuditService,
+    private readonly config: ConfigService,
+    private readonly events: EventEmitter2,
+    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
   ) {}
 
   /**
@@ -62,7 +72,7 @@ export class BillingService {
       throw new NotFoundException('Workspace not found.');
     }
 
-    const planTier = normalizePlanTier(workspace.subscription?.planTier ?? 'starter');
+    const planTier = normalizePlanTier(workspace.subscription?.planTier ?? 'free');
     const planConfig = PLANS_CONFIG[planTier];
 
     const currentMonthStart = new Date();
@@ -236,24 +246,22 @@ export class BillingService {
           convertedAt: workspace.subscription.convertedAt?.toISOString() ?? null,
           appliedPromotionCode: workspace.subscription.appliedPromotionCode ?? null,
           discountPercent: workspace.subscription.discountPercent ?? null,
+          source: (workspace.subscription.source as any) ?? 'FREE',
+          provider: workspace.subscription.provider ?? null,
+          pastDueSince: workspace.subscription.pastDueSince?.toISOString() ?? null,
+          scheduledPlanTier: workspace.subscription.scheduledPlanTier
+            ? normalizePlanTier(workspace.subscription.scheduledPlanTier)
+            : null,
+          scheduledBillingInterval: workspace.subscription.scheduledBillingInterval
+            ? workspace.subscription.scheduledBillingInterval.toLowerCase() === 'annual'
+              ? ('annual' as const)
+              : ('monthly' as const)
+            : null,
+          scheduledChangeAt: workspace.subscription.scheduledChangeAt?.toISOString() ?? null,
           createdAt: workspace.subscription.createdAt.toISOString(),
           updatedAt: workspace.subscription.updatedAt.toISOString(),
         }
       : null;
-
-    let activePromotion: any = null;
-    try {
-      const promoRes = await this.promotionService.validatePromotion(
-        ACTIVE_PROMOTION_CODE,
-        planTier,
-        workspaceId,
-      );
-      if (promoRes.valid) {
-        activePromotion = promoRes;
-      }
-    } catch {
-      // ignore
-    }
 
     return {
       workspaceId: workspace.id,
@@ -265,141 +273,134 @@ export class BillingService {
       usage,
       entitlements,
       canManageBilling,
-      activePromotion,
+      paymentsEnabled: this.provider.isConfigured(),
+      paymentProvider: this.provider.isConfigured() ? this.provider.name : null,
+      billingMode: resolveBillingMode(this.config),
     };
   }
 
-  /**
-   * Upgrades or changes subscription tier (instant activation & entitlement unlock).
-   */
-  async upgradePlan(
-    workspaceId: string,
-    userId: string,
-    input: UpgradePlanInput,
-  ): Promise<WorkspaceBillingSummary> {
-    return this.checkout(workspaceId, userId, {
-      targetPlan: input.targetPlan,
-      billingInterval: input.billingInterval,
-      seats: input.seats,
-      paymentMethodId: input.paymentMethodId,
-    });
-  }
-
-  /**
-   * Complete checkout and subscription provisioning with server-side promotion and trial validation.
-   */
-  async checkout(
-    workspaceId: string,
-    userId: string,
-    input: CheckoutPlanInput,
-  ): Promise<WorkspaceBillingSummary> {
-    const targetPlan = normalizePlanTier(input.targetPlan);
-    if (!PLAN_TIERS.includes(targetPlan)) {
-      throw new BadRequestException(`Invalid plan tier: ${input.targetPlan}`);
-    }
-
-    const targetConfig = PLANS_CONFIG[targetPlan];
-    const isAnnual = input.billingInterval === 'annual';
-
-    const existingSub = await this.prisma.workspaceSubscription.findUnique({
-      where: { workspaceId },
-    });
-
-    let discountPercent = 0;
-    let validatedPromoCode: string | null = null;
-    if (input.promotionCode) {
-      const promoResult = await this.promotionService.validatePromotion(
-        input.promotionCode,
-        targetPlan,
-        workspaceId,
-        userId,
+  private async requireSubscription(workspaceId: string) {
+    const sub = await this.prisma.workspaceSubscription.findUnique({ where: { workspaceId } });
+    if (!sub || normalizePlanTier(sub.planTier) === 'free') {
+      throw new BadRequestException(
+        'This workspace is on the Free plan — there is no paid subscription to change.',
       );
-      if (!promoResult.valid) {
-        throw new BadRequestException(promoResult.message || 'Invalid promotional code');
-      }
-      discountPercent = promoResult.discountPercent;
-      validatedPromoCode = promoResult.code;
     }
-
-    const now = new Date();
-    const periodEnd = new Date(now);
-    if (isAnnual) {
-      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-    } else {
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
-    }
-
-    let trialStart: Date | null = null;
-    let trialEnd: Date | null = null;
-    let trialStatus: string | null = null;
-    let trialUsed = existingSub?.trialUsed ?? false;
-
-    if (input.startTrial && targetConfig.trialDays && targetConfig.trialDays > 0) {
-      if (existingSub?.trialUsed) {
-        throw new BadRequestException('A free trial has already been used for this workspace.');
-      }
-      trialStart = now;
-      trialEnd = new Date(now.getTime() + targetConfig.trialDays * 24 * 3600 * 1000);
-      trialStatus = 'ACTIVE';
-      trialUsed = true;
-    }
-
-    const defaultSeats =
-      input.seats ??
-      (targetPlan === 'starter' ? 5 : targetPlan === 'pro' ? 25 : targetPlan === 'business' ? 50 : 100);
-
-    await this.prisma.workspaceSubscription.upsert({
-      where: { workspaceId },
-      create: {
-        workspaceId,
-        planTier: targetPlan.toUpperCase(),
-        billingInterval: isAnnual ? 'ANNUAL' : 'MONTHLY',
-        status: trialStatus === 'ACTIVE' ? 'TRIALING' : 'ACTIVE',
-        seatsTotal: defaultSeats,
-        currentPeriodStart: now,
-        currentPeriodEnd: periodEnd,
-        renewAt: periodEnd,
-        trialStart,
-        trialEnd,
-        trialStatus,
-        trialUsed,
-        appliedPromotionCode: validatedPromoCode,
-        discountPercent: discountPercent > 0 ? discountPercent : null,
-      },
-      update: {
-        planTier: targetPlan.toUpperCase(),
-        billingInterval: isAnnual ? 'ANNUAL' : 'MONTHLY',
-        status: trialStatus === 'ACTIVE' ? 'TRIALING' : 'ACTIVE',
-        seatsTotal: defaultSeats,
-        currentPeriodStart: now,
-        currentPeriodEnd: periodEnd,
-        renewAt: periodEnd,
-        cancelAtPeriodEnd: false,
-        ...(trialStatus ? { trialStart, trialEnd, trialStatus, trialUsed } : {}),
-        appliedPromotionCode: validatedPromoCode,
-        discountPercent: discountPercent > 0 ? discountPercent : null,
-      },
-    });
-
-    if (validatedPromoCode) {
-      await this.promotionService.recordRedemption(validatedPromoCode, workspaceId, userId);
-    }
-
-    // Ensure shared credit account exists with initial plan grant ($5)
-    await this.creditService.getOrCreateAccount(workspaceId);
-
-    return this.getBillingSummary(workspaceId, WorkspaceRole.OWNER);
+    return sub;
   }
 
-  /**
-   * Schedules subscription cancellation at end of current billing period.
-   */
-  async cancelSubscription(workspaceId: string): Promise<WorkspaceBillingSummary> {
+  /** Keeps paid access until the period ends, then returns the workspace to Free. */
+  async cancelSubscription(workspaceId: string, actorId?: string): Promise<WorkspaceBillingSummary> {
+    const sub = await this.requireSubscription(workspaceId);
+    if (sub.providerSubscriptionId) {
+      await this.callProvider(() => this.provider.cancelAtPeriodEnd(sub.providerSubscriptionId as string));
+    }
     await this.prisma.workspaceSubscription.update({
       where: { workspaceId },
-      data: { cancelAtPeriodEnd: true },
+      data: { cancelAtPeriodEnd: true, scheduledPlanTier: 'FREE', scheduledChangeAt: sub.currentPeriodEnd },
     });
+    await this.audit.record({
+      action: 'SUBSCRIPTION_CANCEL_SCHEDULED',
+      targetType: 'subscription',
+      targetId: workspaceId,
+      workspaceId,
+      actorId,
+      details: { effectiveAt: sub.currentPeriodEnd },
+    });
+    this.notify(
+      workspaceId,
+      'cancel',
+      'Cancellation scheduled',
+      `Your plan stays active until ${sub.currentPeriodEnd.toDateString()}, then moves to Free.`,
+    );
     return this.getBillingSummary(workspaceId, WorkspaceRole.OWNER);
+  }
+
+  /** Undo a scheduled cancellation or downgrade while the period is still running. */
+  async reactivateSubscription(workspaceId: string, actorId?: string): Promise<WorkspaceBillingSummary> {
+    const sub = await this.requireSubscription(workspaceId);
+    if (!sub.cancelAtPeriodEnd && !sub.scheduledPlanTier) {
+      throw new BadRequestException('There is no pending cancellation or downgrade to undo.');
+    }
+    if (sub.currentPeriodEnd <= new Date()) {
+      throw new ConflictException('The billing period has already ended. Please subscribe again.');
+    }
+    if (sub.providerSubscriptionId) {
+      await this.callProvider(() => this.provider.resume(sub.providerSubscriptionId as string));
+    }
+    await this.prisma.workspaceSubscription.update({
+      where: { workspaceId },
+      data: {
+        cancelAtPeriodEnd: false,
+        scheduledPlanTier: null,
+        scheduledBillingInterval: null,
+        scheduledChangeAt: null,
+      },
+    });
+    await this.audit.record({
+      action: 'SUBSCRIPTION_REACTIVATED',
+      targetType: 'subscription',
+      targetId: workspaceId,
+      workspaceId,
+      actorId,
+    });
+    this.notify(workspaceId, 'reactivate', 'Subscription reactivated', 'Your plan will renew as normal.');
+    return this.getBillingSummary(workspaceId, WorkspaceRole.OWNER);
+  }
+
+  /** Hosted payment-method / invoice management page from the payment provider. */
+  async createPortalSession(workspaceId: string): Promise<BillingPortalResponse> {
+    if (!this.provider.isConfigured()) {
+      throw new ServiceUnavailableException({
+        code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+        message: 'Payment management is unavailable because no payment provider is configured.',
+      });
+    }
+    const sub = await this.prisma.workspaceSubscription.findUnique({
+      where: { workspaceId },
+      select: { providerCustomerId: true, workspace: { select: { slug: true } } },
+    });
+    if (!sub?.providerCustomerId) {
+      throw new BadRequestException(
+        'This workspace has no payment profile yet — subscribe to a paid plan first.',
+      );
+    }
+    const base = (
+      this.config.get<string>('WEB_APP_URL') ||
+      this.config.get<string>('APP_URL') ||
+      'http://localhost:4200'
+    ).replace(/\/+$/, '');
+    const url = await this.callProvider(() =>
+      this.provider.createPortalSession(
+        sub.providerCustomerId as string,
+        `${base}/w/${sub.workspace.slug}/settings/billing`,
+      ),
+    );
+    return { url };
+  }
+
+  private async callProvider<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof PaymentProviderError) {
+        throw new ServiceUnavailableException({
+          code: 'PAYMENT_PROVIDER_ERROR',
+          message: 'The payment provider could not complete that request. Nothing was changed — please retry.',
+        });
+      }
+      throw err;
+    }
+  }
+
+  private notify(workspaceId: string, kind: string, title: string, body: string): void {
+    this.events.emit(AppEvent.BillingNotice, {
+      workspaceId,
+      actorId: null,
+      title,
+      body,
+      dedupeKey: `${kind}:${workspaceId}:${Date.now().toString(36)}`,
+    });
   }
 
   /**
@@ -480,7 +481,7 @@ export class BillingService {
         resource: 'Agent Upgrades',
         currentUsage: 1,
         targetLimit: 0,
-        impactDescription: 'Agent upgrades and custom performance configurations are not included on the Starter plan and will be disabled.',
+        impactDescription: 'Agent upgrades and custom performance configurations are not included on the Free plan and will be disabled.',
         requiresReduction: false,
       });
     }
@@ -500,7 +501,8 @@ export class BillingService {
   }
 
   /**
-   * Safely downgrades plan, preserving data and enforcing policies for future writes.
+   * Schedules a move to a lower plan at the end of the current period. Nothing
+   * is removed now; limits then apply to *new* writes only (data is preserved).
    */
   async downgradePlan(
     workspaceId: string,
@@ -508,23 +510,58 @@ export class BillingService {
     input: DowngradePlanInput,
   ): Promise<WorkspaceBillingSummary> {
     const targetPlan = normalizePlanTier(input.targetPlan);
-    const targetConfig = PLANS_CONFIG[targetPlan];
+    const sub = await this.requireSubscription(workspaceId);
+    const currentPlan = normalizePlanTier(sub.planTier);
+    if (PLAN_HIERARCHY[targetPlan] >= PLAN_HIERARCHY[currentPlan]) {
+      throw new BadRequestException('The target plan must be lower than your current plan.');
+    }
+    if (targetPlan === 'free') return this.cancelSubscription(workspaceId, userId);
 
-    await this.prisma.workspaceSubscription.upsert({
+    const impact = await this.getDowngradeImpact(workspaceId, targetPlan);
+    if (impact.warnings.length > 0 && !input.acknowledgeOverages) {
+      throw new ConflictException({
+        code: 'DOWNGRADE_OVERAGES_UNACKNOWLEDGED',
+        message: 'This downgrade puts the workspace over some limits. Review and confirm to continue.',
+        impact,
+      });
+    }
+
+    const interval = sub.billingInterval.toLowerCase() === 'annual' ? 'annual' : 'monthly';
+    if (sub.providerSubscriptionId) {
+      await this.callProvider(() =>
+        this.provider.scheduleChangeAtPeriodEnd({
+          providerSubscriptionId: sub.providerSubscriptionId as string,
+          planTier: targetPlan,
+          billingInterval: interval,
+          currency: 'USD',
+          productName: `${PLANS_CONFIG[targetPlan].name} plan (${interval})`,
+          unitAmountCents: planPeriodCents(targetPlan, interval),
+          workspaceId,
+        }),
+      );
+    }
+    await this.prisma.workspaceSubscription.update({
       where: { workspaceId },
-      create: {
-        workspaceId,
-        planTier: targetPlan.toUpperCase(),
-        billingInterval: 'MONTHLY',
-        status: 'ACTIVE',
-        seatsTotal: targetConfig.limits.max_members === -1 ? 50 : targetConfig.limits.max_members,
-      },
-      update: {
-        planTier: targetPlan.toUpperCase(),
-        seatsTotal: targetConfig.limits.max_members === -1 ? 50 : targetConfig.limits.max_members,
+      data: {
+        scheduledPlanTier: targetPlan.toUpperCase(),
+        scheduledBillingInterval: interval.toUpperCase(),
+        scheduledChangeAt: sub.currentPeriodEnd,
       },
     });
-
+    await this.audit.record({
+      action: 'DOWNGRADE_SCHEDULED',
+      targetType: 'subscription',
+      targetId: workspaceId,
+      workspaceId,
+      actorId: userId,
+      details: { from: currentPlan, to: targetPlan, effectiveAt: sub.currentPeriodEnd, reason: input.reason },
+    });
+    this.notify(
+      workspaceId,
+      'downgrade',
+      'Downgrade scheduled',
+      `Your workspace moves to ${PLANS_CONFIG[targetPlan].name} on ${sub.currentPeriodEnd.toDateString()}.`,
+    );
     return this.getBillingSummary(workspaceId, WorkspaceRole.OWNER);
   }
 
@@ -569,7 +606,7 @@ export class BillingService {
       select: { planTier: true, customLlmConfig: true },
     });
 
-    const plan = normalizePlanTier(sub?.planTier ?? 'starter');
+    const plan = normalizePlanTier(sub?.planTier ?? 'free');
     if (!hasFeature(plan, 'custom_llm')) {
       throw new ForbiddenException(
         'Custom LLM configuration is exclusively available on the Enterprise plan.',
@@ -616,7 +653,7 @@ export class BillingService {
       select: { planTier: true, customLlmConfig: true },
     });
 
-    const plan = normalizePlanTier(sub?.planTier ?? 'starter');
+    const plan = normalizePlanTier(sub?.planTier ?? 'free');
     if (!hasFeature(plan, 'custom_llm')) {
       throw new ForbiddenException(
         'Custom LLM configuration is exclusively available on the Enterprise plan.',
@@ -757,32 +794,24 @@ export class BillingService {
     }
   }
 
-  /**
-   * Retrieves sample invoice & payment history for workspace.
-   */
+  /** Real invoices recorded from payment-provider events and approved activations. */
   async getInvoices(workspaceId: string): Promise<InvoiceItemDto[]> {
-    const summary = await this.getBillingSummary(workspaceId);
-    if (summary.plan === 'starter') {
-      return [];
-    }
-
-    const now = new Date();
-    const prevMonth = new Date(now);
-    prevMonth.setMonth(prevMonth.getMonth() - 1);
-
-    const price = PLANS_CONFIG[summary.plan].pricing.monthly;
-
-    return [
-      {
-        id: `inv_${workspaceId.slice(0, 6)}_01`,
-        invoiceNumber: `INV-2026-${workspaceId.slice(0, 4).toUpperCase()}-01`,
-        amountCents: price * 100 * (summary.subscription?.seatsTotal ?? 5),
-        currency: 'USD',
-        status: 'PAID',
-        periodStart: prevMonth.toISOString(),
-        periodEnd: now.toISOString(),
-        description: `${PLANS_CONFIG[summary.plan].name} Plan Subscription (${summary.subscription?.seatsTotal ?? 5} seats)`,
-      },
-    ];
+    const rows = await this.prisma.billingInvoice.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      invoiceNumber: r.number,
+      amountCents: r.amountCents,
+      currency: r.currency,
+      status: r.status as InvoiceItemDto['status'],
+      periodStart: r.periodStart.toISOString(),
+      periodEnd: r.periodEnd.toISOString(),
+      pdfUrl: r.pdfUrl ?? undefined,
+      hostedUrl: r.hostedUrl ?? undefined,
+      description: r.description,
+    }));
   }
 }

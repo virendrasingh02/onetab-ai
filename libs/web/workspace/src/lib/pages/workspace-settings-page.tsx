@@ -3057,7 +3057,7 @@ export function WorkspaceSettingsPage({
             variant="compact"
             totalMembers={workspace?.memberCount ?? 1}
             maxSeats={5}
-            currentPlan="starter"
+            currentPlan="free"
             onUpgradeClick={() => handleTabChange('billing')}
           />
           <SettingsSectionHeader

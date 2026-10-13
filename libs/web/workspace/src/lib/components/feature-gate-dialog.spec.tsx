@@ -29,16 +29,16 @@ describe('FeatureGateDialog', () => {
       <FeatureGateDialog
         isOpen={true}
         onClose={onClose}
-        requiredPlan="business"
+        requiredPlan="max"
         featureName="Audit Logs"
         onUpgradeClick={onUpgradeClick}
       />,
     );
 
-    const upgradeBtn = screen.getByText('Upgrade to Business');
+    const upgradeBtn = screen.getByText('Upgrade to Max');
     fireEvent.click(upgradeBtn);
 
     expect(onClose).toHaveBeenCalled();
-    expect(onUpgradeClick).toHaveBeenCalledWith('business');
+    expect(onUpgradeClick).toHaveBeenCalledWith('max');
   });
 });

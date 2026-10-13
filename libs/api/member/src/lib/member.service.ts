@@ -505,7 +505,7 @@ export class MemberService {
       where: { workspaceId },
       select: { planTier: true, seatsTotal: true },
     });
-    const plan = normalizePlanTier(sub?.planTier ?? 'starter');
+    const plan = normalizePlanTier(sub?.planTier ?? 'free');
     const maxLimit = getPlanLimit(plan, 'max_members');
     const currentMemberCount = await this.prisma.workspaceMember.count({
       where: { workspaceId, status: 'ACTIVE' },
@@ -975,7 +975,7 @@ export class MemberService {
       where: { workspaceId: invitation.workspaceId },
       select: { planTier: true },
     });
-    const plan = normalizePlanTier(sub?.planTier ?? 'starter');
+    const plan = normalizePlanTier(sub?.planTier ?? 'free');
     const maxLimit = getPlanLimit(plan, 'max_members');
     if (maxLimit !== -1) {
       const currentMemberCount = await this.prisma.workspaceMember.count({

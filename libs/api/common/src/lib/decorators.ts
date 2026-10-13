@@ -129,9 +129,9 @@ export const WorkspacePolicies = createParamDecorator(
 
 export const REQUIRE_PLAN_KEY = 'requirePlan';
 /**
- * Minimum plan tier required for this route (e.g. 'pro', 'business', 'enterprise').
+ * Minimum plan tier required for this route (e.g. 'pro', 'max', 'enterprise').
  */
-export const RequirePlan = (plan: 'starter' | 'pro' | 'business' | 'enterprise') =>
+export const RequirePlan = (plan: 'free' | 'pro' | 'max' | 'enterprise') =>
   SetMetadata(REQUIRE_PLAN_KEY, plan);
 
 export const REQUIRE_PLAN_FEATURE_KEY = 'requirePlanFeature';

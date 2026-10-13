@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
+import { normalizePlanTier, planPeriodCents } from '@org/types';
 import { detectDeviceEnvironment } from '@org/platform';
 import type {
   AdminAnalyticsFilter,
@@ -28,6 +29,18 @@ import {
   type DateRangePreset,
   type DateRangeValue,
 } from '@org/utils';
+
+/**
+ * Monthly list-price revenue (USD) for a subscription, from the central plan
+ * config. Plans are priced per workspace, not per seat. This is an estimate: it
+ * ignores coupons and trials — recorded invoices are the source of truth for
+ * revenue actually collected.
+ */
+function monthlyListPriceUsd(planTier: string, billingInterval?: string | null): number {
+  const interval = (billingInterval ?? 'MONTHLY').toUpperCase() === 'ANNUAL' ? 'annual' : 'monthly';
+  const cents = planPeriodCents(normalizePlanTier(planTier), interval);
+  return (interval === 'annual' ? cents / 12 : cents) / 100;
+}
 
 interface ResolvedDateRange {
   days: number;
@@ -264,13 +277,7 @@ export class AdminAnalyticsService {
 
     let mrr = 0;
     for (const sub of subscriptions) {
-      if (sub.status === 'ACTIVE') {
-        const tier = sub.planTier.toLowerCase();
-        const seats = Math.max(1, sub.seatsTotal);
-        if (tier === 'pro') mrr += 12 * seats;
-        else if (tier === 'business') mrr += 25 * seats;
-        else if (tier === 'enterprise') mrr += 50 * seats;
-      }
+      if (sub.status === 'ACTIVE') mrr += monthlyListPriceUsd(sub.planTier, sub.billingInterval);
     }
     const arr = mrr * 12;
     const prevMrr = Math.round(mrr * 0.94);
@@ -788,13 +795,9 @@ export class AdminAnalyticsService {
       ]);
 
     const items: AdminWorkspaceAnalyticsRow[] = workspaces.map((ws) => {
-      const plan = ws.subscription?.planTier ?? 'STARTER';
+      const plan = ws.subscription?.planTier ?? 'FREE';
       const billingStatus = ws.subscription?.status ?? 'ACTIVE';
-      const seats = ws.subscription?.seatsTotal ?? ws._count.members;
-      let revenue = 0;
-      if (plan.toUpperCase() === 'PRO') revenue = 12 * seats;
-      else if (plan.toUpperCase() === 'BUSINESS') revenue = 25 * seats;
-      else if (plan.toUpperCase() === 'ENTERPRISE') revenue = 50 * seats;
+      const revenue = monthlyListPriceUsd(plan, ws.subscription?.billingInterval);
 
       return {
         id: ws.id,
@@ -904,12 +907,13 @@ export class AdminAnalyticsService {
       percentage: uploads.length > 0 ? Math.round((value / uploads.length) * 100) : 0,
     }));
 
-    const plan = ws.subscription?.planTier ?? 'STARTER';
-    const seats = ws.subscription?.seatsTotal ?? ws._count.members;
-    let rev = 0;
-    if (plan.toUpperCase() === 'PRO') rev = 12 * seats;
-    else if (plan.toUpperCase() === 'BUSINESS') rev = 25 * seats;
-    else if (plan.toUpperCase() === 'ENTERPRISE') rev = 50 * seats;
+    const plan = ws.subscription?.planTier ?? 'FREE';
+    const rev = monthlyListPriceUsd(plan, ws.subscription?.billingInterval);
+    const invoices = await this.prisma.billingInvoice.findMany({
+      where: { workspaceId: ws.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
 
     return {
       overview: {
@@ -960,18 +964,16 @@ export class AdminAnalyticsService {
         billingStatus: ws.subscription?.status ?? 'ACTIVE',
         subscriptionAmount: rev,
         revenue: rev,
-        paymentStatus: 'PAID',
+        paymentStatus: ['PAST_DUE', 'UNPAID'].includes(ws.subscription?.status ?? '') ? 'FAILED' : 'PAID',
         renewalDate: ws.subscription?.renewAt ? ws.subscription.renewAt.toISOString() : null,
         billingInterval: ws.subscription?.billingInterval ?? 'MONTHLY',
-        billingHistory: [
-          {
-            id: 'inv_1',
-            date: toIsoDay(new Date()),
-            amount: rev,
-            status: 'PAID',
-            description: `${plan} Plan (${seats} seats)`,
-          },
-        ],
+        billingHistory: invoices.map((i) => ({
+          id: i.id,
+          date: toIsoDay(i.createdAt),
+          amount: i.amountCents / 100,
+          status: i.status,
+          description: i.description,
+        })),
       },
     };
   }
@@ -1356,22 +1358,11 @@ export class AdminAnalyticsService {
 
     for (const sub of subscriptions) {
       if (sub.status === 'ACTIVE') {
-        const tier = sub.planTier.toLowerCase();
-        const seats = Math.max(1, sub.seatsTotal);
-        let amount = 0;
-        if (tier === 'pro') amount = 12 * seats;
-        else if (tier === 'business') amount = 25 * seats;
-        else if (tier === 'enterprise') amount = 50 * seats;
+        const amount = monthlyListPriceUsd(sub.planTier, sub.billingInterval);
 
         mrr += amount;
         planRevenueMap.set(sub.planTier, (planRevenueMap.get(sub.planTier) ?? 0) + amount);
       }
-    }
-
-    if (mrr === 0) {
-      mrr = 2450;
-      planRevenueMap.set('PRO', 1200);
-      planRevenueMap.set('BUSINESS', 1250);
     }
 
     const arr = mrr * 12;
@@ -1398,7 +1389,7 @@ export class AdminAnalyticsService {
       workspaceId: s.workspaceId,
       workspaceName: s.workspace.name,
       plan: s.planTier,
-      amount: s.seatsTotal * (s.planTier.toUpperCase() === 'PRO' ? 12 : 25),
+      amount: monthlyListPriceUsd(s.planTier, s.billingInterval),
     }));
 
     return {
@@ -1450,22 +1441,14 @@ export class AdminAnalyticsService {
     const planCounts = new Map<string, number>();
 
     for (const s of subscriptions) {
-      planCounts.set(s.planTier, (planCounts.get(s.planTier) ?? 0) + 1);
-      if (s.planTier.toLowerCase() === 'starter') freeCount += 1;
+      const tier = normalizePlanTier(s.planTier).toUpperCase();
+      planCounts.set(tier, (planCounts.get(tier) ?? 0) + 1);
+      if (tier === 'FREE') freeCount += 1;
       else if (s.status === 'TRIALING') trialCount += 1;
       else paidCount += 1;
     }
 
-    if (freeCount + trialCount + paidCount === 0) {
-      freeCount = 12;
-      trialCount = 4;
-      paidCount = 18;
-      planCounts.set('STARTER', 12);
-      planCounts.set('PRO', 14);
-      planCounts.set('BUSINESS', 4);
-    }
-
-    const total = freeCount + trialCount + paidCount;
+    const total = Math.max(1, freeCount + trialCount + paidCount);
     const planDistribution = Array.from(planCounts.entries()).map(([label, value]) => ({
       label,
       value,

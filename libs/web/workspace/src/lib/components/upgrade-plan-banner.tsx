@@ -9,7 +9,7 @@ import {
   Zap,
 } from 'lucide-react';
 
-import { PLANS_CONFIG, type PlanTier } from '@org/types';
+import { PLANS_CONFIG, normalizePlanTier, type PlanTier } from '@org/types';
 
 export interface UpgradePlanBannerProps {
   totalMembers?: number;
@@ -23,13 +23,13 @@ export interface UpgradePlanBannerProps {
 export function UpgradePlanBanner({
   totalMembers = 1,
   maxSeats = 5,
-  currentPlan = 'starter',
+  currentPlan = 'free',
   onUpgradeClick,
   className = '',
   variant = 'hero',
 }: UpgradePlanBannerProps) {
-  const normalizedPlan = (currentPlan?.toLowerCase().trim() || 'starter') as PlanTier;
-  const isPaid = normalizedPlan !== 'starter';
+  const normalizedPlan = normalizePlanTier(currentPlan);
+  const isPaid = normalizedPlan !== 'free';
   const effectiveMaxSeats = maxSeats === -1 ? 100 : maxSeats;
   const percentUsed = Math.min(
     100,
@@ -40,8 +40,8 @@ export function UpgradePlanBanner({
 
   if (isPaid) {
     const isEnterprise = normalizedPlan === 'enterprise';
-    const isBusiness = normalizedPlan === 'business';
-    const Icon = isEnterprise ? Crown : isBusiness ? Building2 : Sparkles;
+    const isMax = normalizedPlan === 'max';
+    const Icon = isEnterprise ? Crown : isMax ? Building2 : Sparkles;
 
     return (
       <div
@@ -64,8 +64,8 @@ export function UpgradePlanBanner({
               <p className="text-xs text-muted-foreground mt-0.5">
                 {isEnterprise
                   ? 'Your workspace has custom private LLM integration, dedicated support, and enterprise governance.'
-                  : isBusiness
-                    ? 'Your workspace has organization controls, audit logs, SAML SSO, and advanced analytics.'
+                  : isMax
+                    ? 'Your workspace has the highest usage quotas, advanced agent capabilities, audit logs and SSO.'
                     : 'Your workspace has expanded member seats, priority compute, and advanced project views.'}
               </p>
             </div>
@@ -96,7 +96,7 @@ export function UpgradePlanBanner({
           </div>
           <div>
             <span className="font-medium text-foreground">
-              Free Starter Tier:
+              Free Tier:
             </span>{' '}
             <span className="text-muted-foreground">
               {totalMembers} of {maxSeats} seats used ({seatsRemaining} left)
@@ -145,7 +145,7 @@ export function UpgradePlanBanner({
               </Badge>
             ) : (
               <span className="text-xs text-muted-foreground">
-                Current: <strong className="text-foreground">Starter (Free)</strong>
+                Current: <strong className="text-foreground">Free</strong>
               </span>
             )}
           </div>

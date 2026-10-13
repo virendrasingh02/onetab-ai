@@ -480,7 +480,7 @@ export class WorkflowEngineService {
       });
     }
 
-    const planTier = normalizePlanTier(sub?.planTier ?? 'starter');
+    const planTier = normalizePlanTier(sub?.planTier ?? 'free');
     const planConfig = PLANS_CONFIG[planTier];
 
     const creditAccount = await this.prisma.creditAccount.findUnique({

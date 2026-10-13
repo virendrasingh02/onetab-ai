@@ -12,6 +12,7 @@ import {
 } from '@org/ui';
 import {
   PLANS_CONFIG,
+  PLAN_HIERARCHY,
   type PlanTier,
 } from '@org/types';
 import {
@@ -31,6 +32,8 @@ export interface PricingCardProps {
   tier: PlanTier;
   isAnnual: boolean;
   isCurrent?: boolean;
+  /** The workspace's current plan, so lower tiers read "Downgrade" rather than "Choose". */
+  currentTier?: PlanTier;
   canManageBilling?: boolean;
   isLoading?: boolean;
   onSelectPlan: (tier: PlanTier) => void;
@@ -59,6 +62,7 @@ export function PricingCard({
   tier,
   isAnnual,
   isCurrent = false,
+  currentTier,
   canManageBilling = true,
   isLoading = false,
   onSelectPlan,
@@ -71,9 +75,8 @@ export function PricingCard({
   }
 
   const basePrice = isAnnual ? plan.pricing.annual : plan.pricing.monthly;
-  const promo = plan.promotionalDisplay;
-  const hasPromo = Boolean(promo && promo.discountPercent > 0);
-  const displayPrice = hasPromo ? promo?.discountedMonthlyPrice ?? 0 : basePrice;
+  const displayPrice = basePrice;
+  const isDowngrade = !!currentTier && PLAN_HIERARCHY[tier] < PLAN_HIERARCHY[currentTier];
 
   return (
     <Card
@@ -139,31 +142,15 @@ export function PricingCard({
                 </span>
                 <span className="text-xs text-muted-foreground">/ month</span>
 
-                {hasPromo && (
-                  <span className="text-sm line-through text-muted-foreground/70">
-                    ${basePrice}
-                  </span>
-                )}
               </div>
-
-              {/* Promo Callout Banner */}
-              {hasPromo && promo && (
-                <div className="mt-1 flex items-center gap-1.5">
-                  <Badge
-                    variant="primary"
-                    className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                  >
-                    <Sparkles className="size-3 mr-1 inline" />
-                    {promo.label}
-                  </Badge>
-                </div>
-              )}
 
               {/* Annual vs Monthly note */}
               <p className="text-[11px] text-muted-foreground pt-0.5">
-                {isAnnual
-                  ? `Billed annually ($${plan.pricing.annual * 12}/yr)`
-                  : 'Billed monthly, cancel anytime'}
+                {plan.pricing.monthly === 0
+                  ? 'Free forever, no card required'
+                  : isAnnual
+                    ? `Billed annually ($${plan.pricing.annual * 12}/yr)`
+                    : 'Billed monthly, cancel anytime'}
               </p>
             </div>
           )}
@@ -335,6 +322,8 @@ export function PricingCard({
             'Current Plan'
           ) : plan.isCustomQuote ? (
             'Talk to Sales'
+          ) : isDowngrade ? (
+            `Downgrade to ${plan.name}`
           ) : (
             plan.ctaLabel || `Choose ${plan.name}`
           )}

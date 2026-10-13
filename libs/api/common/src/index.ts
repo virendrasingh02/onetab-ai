@@ -21,6 +21,7 @@ export {
   type HuddleUpdatedEvent,
   type WorkspaceMembershipChangedEvent,
   type FileSharedEvent,
+  type BillingNoticeEvent,
   type WorkspaceInvitedEvent,
   type MemberJoinedEvent,
   type MentionCreatedEvent,

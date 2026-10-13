@@ -8,17 +8,13 @@ import {
 } from '@org/ui';
 import { analyticsApi } from '@org/api-client';
 import {
-  ACTIVE_PROMOTION_CODE,
   PLAN_TIERS,
   PLANS_CONFIG,
   type PlanTier,
 } from '@org/types';
 import {
-  ArrowRight,
   CheckCircle2,
-  Copy,
   HelpCircle,
-  Percent,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
@@ -38,7 +34,7 @@ export interface PricingPageProps {
 export function PricingPage({ embedded = false }: PricingPageProps) {
   const navigate = useNavigate();
   const { workspaceId } = useCurrentWorkspace();
-  const { plan: currentPlan, canManageBilling } = usePlanEntitlements(workspaceId);
+  const { plan: currentPlan, canManageBilling, paymentsEnabled } = usePlanEntitlements(workspaceId);
 
   const [isAnnual, setIsAnnual] = useState(true);
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] =
@@ -46,7 +42,6 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
   const [selectedPlanForDowngrade, setSelectedPlanForDowngrade] =
     useState<PlanTier | null>(null);
   const [isEnterpriseModalOpen, setIsEnterpriseModalOpen] = useState(false);
-  const promoCodeToApply = ACTIVE_PROMOTION_CODE;
 
   // Track page view
   useEffect(() => {
@@ -114,11 +109,6 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
     }
   };
 
-  const handleCopyPromo = () => {
-    navigator.clipboard.writeText(ACTIVE_PROMOTION_CODE);
-    toast.success(`Copied code "${ACTIVE_PROMOTION_CODE}" to clipboard!`);
-  };
-
   const faqs = [
     {
       q: 'What is a Micro Agent?',
@@ -126,19 +116,19 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
     },
     {
       q: 'How do shared AI credits work?',
-      a: 'Every monthly billing cycle provides a pool of shared AI credits ($5 on Starter, Pro, and Business). These credits are drawn down transparently across model requests, embeddings, and tool executions. You can also top up credits at any time.',
+      a: 'Each plan includes a pool of shared AI credits that is drawn down across model requests, embeddings, and tool executions. Paid plans refresh their included credits every billing period, and you can top up at any time.',
     },
     {
-      q: 'What is the 7-day free trial policy?',
-      a: 'You can trial any tier (Starter, Pro, or Business) completely free for 7 days. You will not be charged until the trial concludes, and you can cancel anytime from your Billing settings without penalty.',
+      q: 'Is there a free trial?',
+      a: 'Eligible paid plans offer a one-time free trial. A payment method is required to start it and you are charged automatically when it ends unless you cancel first from Billing settings.',
     },
     {
-      q: 'How do promotional discount codes work?',
-      a: `Applying code "${ACTIVE_PROMOTION_CODE}" gives you a 100% discount ($0/month) across our subscription tiers. Enter the code during checkout or click "Apply Promo" to unlock immediate activation.`,
+      q: 'How do coupon codes work?',
+      a: 'Enter a coupon code at checkout. The discount is calculated and verified on our servers for the plan and billing interval you choose, and you see the exact total before you pay.',
     },
     {
       q: 'Can I change my plan or cancel at any time?',
-      a: 'Yes. Upgrades take effect immediately with prorated credits. Downgrades allow you to keep existing data while adapting your resource allocations. Subscriptions can be paused or cancelled anytime.',
+      a: 'Upgrades start immediately. Downgrades and cancellations take effect at the end of your current billing period, so you keep what you paid for, and your data is always preserved.',
     },
   ];
 
@@ -186,52 +176,6 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
         </div>
       </div>
 
-      {/* 2. Promotional Announcement Banner */}
-      <div className="max-w-4xl mx-auto">
-        <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-card p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-center gap-3.5 text-left">
-            <div className="size-10 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 text-primary">
-              <Percent className="size-5" />
-            </div>
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground text-sm">
-                  Limited Time Launch Promotion: 100% OFF
-                </span>
-                <Badge variant="primary" className="text-[10px] font-mono font-bold">
-                  {ACTIVE_PROMOTION_CODE}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Get full access to all plans for $0/mo with promotional code{' '}
-                <strong className="text-foreground">{ACTIVE_PROMOTION_CODE}</strong>. Includes 7-day free trial.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyPromo}
-              className="text-xs h-8.5 gap-1.5 flex-1 sm:flex-none"
-            >
-              <Copy className="size-3.5" />
-              Copy Code
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => handlePlanSelection('pro')}
-              className="text-xs h-8.5 gap-1.5 font-semibold flex-1 sm:flex-none"
-            >
-              Claim Offer
-              <ArrowRight className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* 3. The 4 Plan Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {PLAN_TIERS.map((tier) => (
@@ -240,6 +184,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
             tier={tier}
             isAnnual={isAnnual}
             isCurrent={currentPlan === tier}
+            currentTier={currentPlan}
             canManageBilling={canManageBilling}
             onSelectPlan={handlePlanSelection}
           />
@@ -262,7 +207,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
             Frequently Asked Questions
           </h3>
           <p className="text-xs text-muted-foreground">
-            Everything you need to know about micro-agent limits, compute quotas, and billing.
+            Everything you need to know about plans, limits, and billing.
           </p>
         </div>
 
@@ -309,7 +254,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
         targetPlan={selectedPlanForCheckout}
         isAnnual={isAnnual}
         workspaceId={workspaceId}
-        initialPromoCode={promoCodeToApply}
+        paymentsEnabled={paymentsEnabled}
         onSuccess={() => setSelectedPlanForCheckout(null)}
       />
 

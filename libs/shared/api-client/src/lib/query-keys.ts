@@ -50,6 +50,9 @@ export const queryKeys = {
     credits: (workspaceId: string) => ['billing', workspaceId, 'credits'] as const,
     promotion: (code: string, planTier: string) =>
       ['billing', 'promotion', code, planTier] as const,
+    quote: (workspaceId: string, plan: string, interval: string, code: string, trial: boolean) =>
+      ['billing', workspaceId, 'quote', plan, interval, code, trial] as const,
+    redemptions: (workspaceId: string) => ['billing', workspaceId, 'redemptions'] as const,
   },
 
   channels: {

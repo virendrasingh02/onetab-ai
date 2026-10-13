@@ -1,321 +1,121 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { BillingService } from './billing.service.js';
+import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceRole } from '@org/types';
+import { BillingService } from './billing.service.js';
 
-describe('BillingService', () => {
-  let service: BillingService;
-  let mockPrisma: any;
+function build(sub: Record<string, unknown> | null, providerConfigured = false) {
+  const count = (n = 0) => ({ count: vi.fn().mockResolvedValue(n) });
+  const prisma: any = {
+    workspace: {
+      findUnique: vi.fn().mockResolvedValue({ id: 'ws_1', name: 'Acme', subscription: sub }),
+    },
+    workspaceMember: count(1),
+    project: count(1),
+    upload: { aggregate: vi.fn().mockResolvedValue({ _sum: { size: 0 } }) },
+    aIChatSession: count(),
+    automationWorkflow: count(),
+    externalIntegration: count(),
+    aIAgent: count(1),
+    workflowExecution: count(),
+    workspaceSubscription: { findUnique: vi.fn().mockResolvedValue(sub), update: vi.fn() },
+    billingInvoice: { findMany: vi.fn().mockResolvedValue([]) },
+  };
+  const credits: any = {
+    getOrCreateAccount: vi.fn().mockResolvedValue({ id: 'c', workspaceId: 'ws_1', balance: 5, currency: 'USD', updatedAt: new Date().toISOString() }),
+  };
+  const provider: any = { name: 'fake', isConfigured: () => providerConfigured };
+  const service = new BillingService(
+    prisma,
+    credits,
+    { record: vi.fn() } as never,
+    { get: (k: string) => (k === 'BILLING_MODE' ? 'test' : undefined) } as never,
+    { emit: vi.fn() } as never,
+    provider,
+  );
+  return { service, prisma };
+}
 
-  beforeEach(() => {
-    mockPrisma = {
-      workspace: {
-        findUnique: vi.fn(),
-      },
-      workspaceMember: {
-        count: vi.fn().mockResolvedValue(1),
-      },
-      project: {
-        count: vi.fn().mockResolvedValue(1),
-      },
-      upload: {
-        aggregate: vi.fn().mockResolvedValue({ _sum: { size: 0 } }),
-      },
-      aIChatSession: {
-        count: vi.fn().mockResolvedValue(0),
-      },
-      automationWorkflow: {
-        count: vi.fn().mockResolvedValue(0),
-      },
-      externalIntegration: {
-        count: vi.fn().mockResolvedValue(0),
-      },
-      aIAgent: {
-        count: vi.fn().mockResolvedValue(1),
-      },
-      workflowExecution: {
-        count: vi.fn().mockResolvedValue(0),
-      },
-      workspaceSubscription: {
-        findUnique: vi.fn(),
-        upsert: vi.fn(),
-        update: vi.fn(),
-      },
-      enterpriseSalesInquiry: {
-        create: vi.fn(),
-      },
-    };
+const paidSub = (over: Record<string, unknown> = {}) => ({
+  id: 's', workspaceId: 'ws_1', planTier: 'PRO', billingInterval: 'MONTHLY', status: 'ACTIVE',
+  seatsTotal: 25, seatsUsed: 1, cancelAtPeriodEnd: false,
+  currentPeriodStart: new Date(), currentPeriodEnd: new Date(Date.now() + 864e5), renewAt: new Date(),
+  trialStart: null, trialEnd: null, trialStatus: null, trialUsed: false, convertedAt: null,
+  appliedPromotionCode: null, discountPercent: null, source: 'PROVIDER', provider: 'fake', pastDueSince: null,
+  scheduledPlanTier: null, scheduledBillingInterval: null, scheduledChangeAt: null,
+  createdAt: new Date(), updatedAt: new Date(), ...over,
+});
 
-    const mockCreditService: any = {
-      getOrCreateAccount: vi.fn().mockResolvedValue({
-        id: 'c_1',
-        workspaceId: 'ws_1',
-        balance: 5.0,
-        currency: 'USD',
-        updatedAt: new Date().toISOString(),
-        transactions: [],
-      }),
-      deductCredits: vi.fn(),
-      topUpCredits: vi.fn(),
-    };
-
-    const mockPromotionService: any = {
-      validatePromotion: vi.fn().mockResolvedValue({
-        valid: true,
-        code: 's1nu00780',
-        discountPercent: 100,
-        finalMonthlyPrice: 0,
-        finalAnnualPrice: 0,
-      }),
-      recordRedemption: vi.fn(),
-    };
-
-    service = new BillingService(mockPrisma, mockCreditService, mockPromotionService);
+describe('BillingService.getBillingSummary', () => {
+  it('treats a workspace with no subscription as Free and reports payments as disabled', async () => {
+    const { service } = build(null);
+    const s = await service.getBillingSummary('ws_1', WorkspaceRole.OWNER);
+    expect(s.plan).toBe('free');
+    expect(s.subscription).toBeNull();
+    expect(s.paymentsEnabled).toBe(false);
+    expect(s.paymentProvider).toBeNull();
+    expect(s.billingMode).toBe('test');
+    expect(s.entitlements.agent_upgrades).toBe(false);
   });
 
-  describe('getBillingSummary', () => {
-    it('returns Starter defaults when workspace has no subscription row', async () => {
-      mockPrisma.workspace.findUnique.mockResolvedValue({
-        id: 'ws_1',
-        name: 'Acme Corp',
-        subscription: null,
-      });
-
-      mockPrisma.workspaceMember.count.mockResolvedValue(3);
-      mockPrisma.project.count.mockResolvedValue(2);
-      mockPrisma.upload.aggregate.mockResolvedValue({ _sum: { size: 1024 * 1024 * 100 } });
-      mockPrisma.aIChatSession.count.mockResolvedValue(15);
-      mockPrisma.automationWorkflow.count.mockResolvedValue(1);
-      mockPrisma.externalIntegration.count.mockResolvedValue(1);
-
-      const result = await service.getBillingSummary('ws_1', WorkspaceRole.OWNER);
-
-      expect(result.plan).toBe('starter');
-      expect(result.usage.members.used).toBe(3);
-      expect(result.usage.members.limit).toBe(5);
-      expect(result.usage.members.percentage).toBe(60);
-      expect(result.usage.members.isLimitReached).toBe(false);
-      expect(result.entitlements.core_workspace).toBe(true);
-      expect(result.entitlements.advanced_views).toBe(false);
-      expect(result.canManageBilling).toBe(true);
-    });
-
-    it('returns Pro limits and entitlements when on Pro plan', async () => {
-      mockPrisma.workspace.findUnique.mockResolvedValue({
-        id: 'ws_1',
-        name: 'Acme Corp',
-        subscription: {
-          id: 'sub_1',
-          workspaceId: 'ws_1',
-          planTier: 'PRO',
-          billingInterval: 'MONTHLY',
-          status: 'ACTIVE',
-          seatsTotal: 25,
-          cancelAtPeriodEnd: false,
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(),
-          renewAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-
-      mockPrisma.workspaceMember.count.mockResolvedValue(10);
-      mockPrisma.project.count.mockResolvedValue(12);
-      mockPrisma.upload.aggregate.mockResolvedValue({ _sum: { size: 1024 * 1024 * 1024 } });
-      mockPrisma.aIChatSession.count.mockResolvedValue(200);
-      mockPrisma.automationWorkflow.count.mockResolvedValue(5);
-      mockPrisma.externalIntegration.count.mockResolvedValue(4);
-
-      const result = await service.getBillingSummary('ws_1', WorkspaceRole.MEMBER);
-
-      expect(result.plan).toBe('pro');
-      expect(result.usage.members.limit).toBe(25);
-      expect(result.usage.projects.limit).toBe(-1); // Unlimited
-      expect(result.entitlements.advanced_views).toBe(true);
-      expect(result.entitlements.agent_builder).toBe(true);
-      expect(result.entitlements.sso_saml).toBe(false);
-      expect(result.canManageBilling).toBe(false);
-    });
+  it('maps a legacy STARTER row to Free and a BUSINESS row to Max', async () => {
+    expect((await build(paidSub({ planTier: 'STARTER' })).service.getBillingSummary('ws_1')).plan).toBe('free');
+    expect((await build(paidSub({ planTier: 'BUSINESS' })).service.getBillingSummary('ws_1')).plan).toBe('max');
   });
 
-  describe('upgradePlan', () => {
-    it('creates or updates subscription to target plan', async () => {
-      mockPrisma.workspaceSubscription.upsert.mockResolvedValue({
-        id: 'sub_1',
-        workspaceId: 'ws_1',
-        planTier: 'PRO',
-      });
-
-      mockPrisma.workspace.findUnique.mockResolvedValue({
-        id: 'ws_1',
-        name: 'Acme Corp',
-        subscription: {
-          id: 'sub_1',
-          workspaceId: 'ws_1',
-          planTier: 'PRO',
-          billingInterval: 'ANNUAL',
-          status: 'ACTIVE',
-          seatsTotal: 25,
-          cancelAtPeriodEnd: false,
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(),
-          renewAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-
-      mockPrisma.workspaceMember.count.mockResolvedValue(5);
-      mockPrisma.project.count.mockResolvedValue(2);
-      mockPrisma.upload.aggregate.mockResolvedValue({ _sum: { size: 0 } });
-      mockPrisma.aIChatSession.count.mockResolvedValue(0);
-      mockPrisma.automationWorkflow.count.mockResolvedValue(0);
-      mockPrisma.externalIntegration.count.mockResolvedValue(0);
-
-      const result = await service.upgradePlan('ws_1', 'user_1', {
-        targetPlan: 'pro',
-        billingInterval: 'annual',
-      });
-
-      expect(mockPrisma.workspaceSubscription.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { workspaceId: 'ws_1' },
-          create: expect.objectContaining({
-            planTier: 'PRO',
-            billingInterval: 'ANNUAL',
-          }),
-        }),
-      );
-      expect(result.plan).toBe('pro');
-    });
+  it('exposes entitlements from the central config and the scheduled change', async () => {
+    const when = new Date(Date.now() + 5 * 864e5);
+    const { service } = build(
+      paidSub({ planTier: 'MAX', scheduledPlanTier: 'PRO', scheduledChangeAt: when }),
+      true,
+    );
+    const s = await service.getBillingSummary('ws_1', WorkspaceRole.OWNER);
+    expect(s.plan).toBe('max');
+    expect(s.entitlements.audit_logs).toBe(true);
+    expect(s.entitlements.custom_llm).toBe(false);
+    expect(s.subscription?.scheduledPlanTier).toBe('pro');
+    expect(s.paymentsEnabled).toBe(true);
   });
 
-  describe('getDowngradeImpact', () => {
-    it('returns overage warnings when usage exceeds target limits', async () => {
-      mockPrisma.workspace.findUnique.mockResolvedValue({
-        id: 'ws_1',
-        name: 'Acme Corp',
-        subscription: {
-          id: 'sub_1',
-          workspaceId: 'ws_1',
-          planTier: 'BUSINESS',
-          billingInterval: 'MONTHLY',
-          status: 'ACTIVE',
-          seatsTotal: 50,
-          cancelAtPeriodEnd: false,
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(),
-          renewAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
+  it('flags usage limits for the plan (Free = 3 micro agents)', async () => {
+    const s = await build(null).service.getBillingSummary('ws_1');
+    expect(s.usage.microAgents.limit).toBe(3);
+  });
+});
 
-      mockPrisma.workspaceMember.count.mockResolvedValue(15);
-      mockPrisma.project.count.mockResolvedValue(8);
-      mockPrisma.upload.aggregate.mockResolvedValue({ _sum: { size: 0 } });
-
-      mockPrisma.aIChatSession.count.mockResolvedValue(0);
-      mockPrisma.automationWorkflow.count.mockResolvedValue(0);
-      mockPrisma.externalIntegration.count.mockResolvedValue(0);
-
-      const impact = await service.getDowngradeImpact('ws_1', 'starter');
-
-      expect(impact.warnings.length).toBeGreaterThan(0);
-      const memberWarning = impact.warnings.find((w) => w.resource === 'Team Members');
-      expect(memberWarning).toBeDefined();
-      expect(memberWarning?.currentUsage).toBe(15);
-      expect(memberWarning?.targetLimit).toBe(5);
-      expect(impact.restrictedFeatures).toContain('sso_saml');
-      expect(impact.restrictedFeatures).toContain('audit_logs');
-    });
+describe('BillingService subscription changes', () => {
+  it('cannot cancel or downgrade from the Free plan', async () => {
+    const { service } = build(null);
+    await expect(service.cancelSubscription('ws_1')).rejects.toThrow(/Free plan/);
+    await expect(service.downgradePlan('ws_1', 'u', { targetPlan: 'free' })).rejects.toThrow(/Free plan/);
   });
 
-  describe('Enterprise Inquiries', () => {
-    it('creates an enterprise sales inquiry', async () => {
-      mockPrisma.enterpriseSalesInquiry.create.mockResolvedValue({
-        id: 'inq_123',
-      });
-
-      const res = await service.submitEnterpriseInquiry('ws_1', 'user_1', {
-        name: 'Jane Doe',
-        email: 'jane@enterprise.com',
-        companyName: 'MegaCorp Inc',
-        teamSize: '500+',
-        customLlmRequirements: 'Need self-hosted vLLM integration',
-      });
-
-      expect(res.success).toBe(true);
-      expect(res.inquiryId).toBe('inq_123');
-    });
+  it('rejects a "downgrade" to an equal or higher plan', async () => {
+    const { service, prisma } = build(paidSub());
+    await expect(service.downgradePlan('ws_1', 'u', { targetPlan: 'max' })).rejects.toThrow(/lower/);
+    expect(prisma.workspaceSubscription.update).not.toHaveBeenCalled();
   });
 
-  describe('Checkout & Promotions', () => {
-    it('applies 100% promotion code and activates trial when requested', async () => {
-      mockPrisma.workspaceSubscription.upsert.mockResolvedValue({
-        id: 'sub_1',
-        workspaceId: 'ws_1',
-        planTier: 'PRO',
-      });
+  it('has nothing to reactivate unless a change is pending', async () => {
+    const { service } = build(paidSub());
+    await expect(service.reactivateSubscription('ws_1')).rejects.toThrow(/no pending/);
+  });
 
-      mockPrisma.workspace.findUnique.mockResolvedValue({
-        id: 'ws_1',
-        name: 'Acme Corp',
-        subscription: {
-          id: 'sub_1',
-          workspaceId: 'ws_1',
-          planTier: 'PRO',
-          billingInterval: 'MONTHLY',
-          status: 'TRIALING',
-          seatsTotal: 25,
-          trialUsed: true,
-          appliedPromotionCode: 's1nu00780',
-          discountPercent: 100,
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(),
-          renewAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
+  it('needs a payment profile before opening the provider portal', async () => {
+    const { service, prisma } = build(paidSub(), true);
+    prisma.workspaceSubscription.findUnique.mockResolvedValue({ providerCustomerId: null, workspace: { slug: 'acme' } });
+    await expect(service.createPortalSession('ws_1')).rejects.toThrow(/payment profile/);
+  });
+});
 
-      const summary = await service.checkout('ws_1', 'user_1', {
-        targetPlan: 'pro',
-        billingInterval: 'monthly',
-        promotionCode: 's1nu00780',
-        startTrial: true,
-      });
-
-      expect(mockPrisma.workspaceSubscription.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          create: expect.objectContaining({
-            planTier: 'PRO',
-            appliedPromotionCode: 's1nu00780',
-            discountPercent: 100,
-            trialStatus: 'ACTIVE',
-          }),
-        }),
-      );
-      expect(summary.plan).toBe('pro');
-    });
-
-    it('cancels subscription at period end', async () => {
-      mockPrisma.workspaceSubscription.update.mockResolvedValue({
-        id: 'sub_1',
-        cancelAtPeriodEnd: true,
-      });
-
-      mockPrisma.workspace.findUnique.mockResolvedValue({
-        id: 'ws_1',
-        name: 'Acme Corp',
-        subscription: null,
-      });
-
-      await service.cancelSubscription('ws_1');
-      expect(mockPrisma.workspaceSubscription.update).toHaveBeenCalledWith({
-        where: { workspaceId: 'ws_1' },
-        data: { cancelAtPeriodEnd: true },
-      });
-    });
+describe('BillingService.getInvoices', () => {
+  it('returns recorded invoices only — never fabricated ones', async () => {
+    const { service, prisma } = build(paidSub());
+    expect(await service.getInvoices('ws_1')).toEqual([]);
+    prisma.billingInvoice.findMany.mockResolvedValue([
+      { id: 'i1', number: 'INV-1', amountCents: 3000, currency: 'USD', status: 'PAID', description: 'Pro plan',
+        periodStart: new Date('2026-10-01'), periodEnd: new Date('2026-11-01'), pdfUrl: null, hostedUrl: 'https://x' },
+    ]);
+    const [inv] = await service.getInvoices('ws_1');
+    expect(inv).toMatchObject({ invoiceNumber: 'INV-1', amountCents: 3000, status: 'PAID', hostedUrl: 'https://x' });
+    expect(prisma.billingInvoice.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { workspaceId: 'ws_1' } }));
   });
 });

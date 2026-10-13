@@ -326,7 +326,7 @@ export function WorkspaceMembersSettings({
       <UpgradePlanBanner
         totalMembers={totalCount}
         maxSeats={maxFreeSeats}
-        currentPlan="starter"
+        currentPlan="free"
         onUpgradeClick={() => {
           if (onNavigateToTab) {
             onNavigateToTab('billing');

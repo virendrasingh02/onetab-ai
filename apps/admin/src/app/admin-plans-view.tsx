@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -7,7 +8,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Separator,
   Table,
   TableBody,
   TableCell,
@@ -16,7 +16,6 @@ import {
   TableRow,
 } from '@org/ui';
 import {
-  ACTIVE_PROMOTION_CODE,
   PLAN_TIERS,
   PLANS_CONFIG,
   type PlanTier,
@@ -36,7 +35,7 @@ import {
 } from 'lucide-react';
 
 export function AdminPlansView() {
-  const [selectedTier, setSelectedTier] = useState<PlanTier>('starter');
+  const [selectedTier, setSelectedTier] = useState<PlanTier>('free');
 
   const selectedPlan = PLANS_CONFIG[selectedTier];
 
@@ -59,42 +58,23 @@ export function AdminPlansView() {
         </div>
       </div>
 
-      {/* Active Promotion Summary Card */}
-      <Card className="border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="size-11 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+      {/* Coupons moved to the persisted, audited billing console */}
+      <Card className="border-border bg-card p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="size-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
               <Tag className="size-5" />
             </div>
             <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-foreground">
-                  Global Promotional Campaign Active
-                </h3>
-                <Badge
-                  variant="primary"
-                  className="font-mono text-xs font-bold bg-emerald-500 text-white"
-                >
-                  {ACTIVE_PROMOTION_CODE}
-                </Badge>
-              </div>
+              <h3 className="text-sm font-bold text-foreground">Coupons & promotions</h3>
               <p className="text-xs text-muted-foreground">
-                100% discount applied across all tiers. Includes 7-day free trial and automated credit allocations.
+                Create, edit, disable and audit coupons (including the DEMO test coupon) in Billing & Coupons.
               </p>
             </div>
           </div>
-
-          <div className="flex items-center gap-3 text-xs">
-            <div className="text-right">
-              <p className="font-semibold text-foreground">Discount Rate</p>
-              <p className="text-emerald-600 dark:text-emerald-400 font-bold">100% OFF</p>
-            </div>
-            <Separator orientation="vertical" className="h-8" />
-            <div className="text-right">
-              <p className="font-semibold text-foreground">Trial Duration</p>
-              <p className="text-foreground font-bold">7 Days</p>
-            </div>
-          </div>
+          <Button asChild variant="outline" size="sm" className="text-xs">
+            <Link to="/billing">Open Billing & Coupons</Link>
+          </Button>
         </div>
       </Card>
 

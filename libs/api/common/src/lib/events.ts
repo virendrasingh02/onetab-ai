@@ -47,6 +47,12 @@ export const AppEvent = {
    */
   WorkspaceMembershipChanged: 'workspace.membership.changed',
   FileShared: 'file.shared',
+  /**
+   * A billing lifecycle fact worth telling workspace billing managers about
+   * (payment succeeded/failed, plan changed, trial ending, usage threshold).
+   * `dedupeKey` makes webhook retries produce one notification.
+   */
+  BillingNotice: 'billing.notice',
   MeetingScheduled: 'meeting.scheduled',
   MeetingUpdated: 'meeting.updated',
   MeetingCancelled: 'meeting.cancelled',
@@ -304,6 +310,14 @@ export interface ChannelMembershipChangedEvent extends BaseEvent {
   action: 'join' | 'leave';
   /** Channel role after the change; null on leave. */
   role: 'ADMIN' | 'MEMBER' | null;
+}
+
+export interface BillingNoticeEvent extends BaseEvent {
+  workspaceId: string;
+  title: string;
+  body: string;
+  /** Stable per underlying fact (invoice id, checkout id…) so retries do not duplicate. */
+  dedupeKey: string;
 }
 
 export interface ChannelAccessExpiredEvent extends BaseEvent {
@@ -671,6 +685,7 @@ export interface AppEventPayloads {
   [AppEvent.HuddleUpdated]: HuddleUpdatedEvent;
   [AppEvent.WorkspaceMembershipChanged]: WorkspaceMembershipChangedEvent;
   [AppEvent.FileShared]: FileSharedEvent;
+  [AppEvent.BillingNotice]: BillingNoticeEvent;
   [AppEvent.WorkspaceInvited]: WorkspaceInvitedEvent;
   [AppEvent.MemberJoined]: MemberJoinedEvent;
   [AppEvent.MentionCreated]: MentionCreatedEvent;

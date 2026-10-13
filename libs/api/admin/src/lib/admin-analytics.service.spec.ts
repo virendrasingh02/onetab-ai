@@ -62,7 +62,7 @@ describe('AdminAnalyticsService', () => {
     expect(res.platformKpis['activeUsers']?.value).toBe(3);
     expect(res.communicationKpis['messagesSent']?.value).toBe(500);
     expect(res.filesKpis['totalStorageConsumed']?.value).toBe(52428800);
-    expect(res.revenueKpis['mrr']?.value).toBe(60); // 12 * 5 seats
+    expect(res.revenueKpis['mrr']?.value).toBe(30); // Pro list price, per workspace
   });
 
   it('computes Web vs Desktop breakdown from session user agents', async () => {

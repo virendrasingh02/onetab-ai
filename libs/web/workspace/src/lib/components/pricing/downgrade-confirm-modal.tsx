@@ -66,7 +66,9 @@ export function DowngradeConfirmModal({
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all() });
       toast.success(
-        `Your workspace has been downgraded to ${PLANS_CONFIG[updated.plan].name}.`,
+        updated.subscription?.scheduledChangeAt
+          ? `Scheduled: your workspace moves to ${plan?.name ?? 'the new plan'} on ${new Date(updated.subscription.scheduledChangeAt).toLocaleDateString()}.`
+          : 'Plan change scheduled.',
       );
       onOpenChange(false);
       setAcknowledged(false);
@@ -158,7 +160,7 @@ export function DowngradeConfirmModal({
                 </p>
                 <p className="text-muted-foreground text-[11px]">
                   {plan.name} provides {plan.machineLimits.microAgents} Micro Agents.
-                  Active agents beyond this limit will remain saved but will not execute until upgraded or pruned.
+                  Agents beyond this limit stay saved, but you cannot create more until you are under the limit.
                 </p>
               </div>
 
@@ -174,7 +176,7 @@ export function DowngradeConfirmModal({
                   htmlFor="acknowledge-downgrade"
                   className="text-xs text-muted-foreground leading-tight cursor-pointer select-none"
                 >
-                  I understand that higher-tier features will be disabled immediately and overages will be locked.
+                  I understand this takes effect at the end of my current billing period. My data is kept, but anything over the new plan's limits is locked for new activity.
                 </label>
               </div>
             </>
@@ -201,10 +203,10 @@ export function DowngradeConfirmModal({
             {downgradeMutation.isPending ? (
               <>
                 <Loader2 className="size-3.5 mr-2 animate-spin" />
-                Downgrading...
+                Scheduling…
               </>
             ) : (
-              `Confirm Downgrade to ${plan.name}`
+              `Schedule downgrade to ${plan.name}`
             )}
           </Button>
         </DialogFooter>

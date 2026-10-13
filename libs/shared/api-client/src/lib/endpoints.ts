@@ -263,6 +263,11 @@ import type {
   Initiative,
   IntakeRequest,
   Module,
+  BillingPortalResponse,
+  PromotionDto,
+  SavePromotionInput,
+  CheckoutQuote,
+  CheckoutSessionDto,
   CustomLLMConfigDto,
   CheckoutPlanInput,
   CreditAccountDto,
@@ -276,7 +281,6 @@ import type {
   SaveCustomLLMInput,
   TestCustomLLMInput,
   TestCustomLLMResponse,
-  UpgradePlanInput,
   WorkspaceBillingSummary,
   WorkspacePolicy,
   WorkspaceAuditLogDto,
@@ -834,14 +838,26 @@ export const billingApi = {
       http.get(`/workspaces/${workspaceId}/billing`),
     ),
 
+  /** Server-computed price (incl. coupon) — never compute totals on the client. */
+  quote: (workspaceId: string, input: CheckoutPlanInput) =>
+    request<CheckoutQuote>(
+      http.post(`/workspaces/${workspaceId}/billing/quote`, input),
+    ),
+
+  /** Starts checkout; follow `redirectUrl` to the payment provider when present. */
   checkout: (workspaceId: string, input: CheckoutPlanInput) =>
-    request<WorkspaceBillingSummary>(
+    request<CheckoutSessionDto>(
       http.post(`/workspaces/${workspaceId}/billing/checkout`, input),
     ),
 
-  upgrade: (workspaceId: string, input: UpgradePlanInput) =>
-    request<WorkspaceBillingSummary>(
-      http.post(`/workspaces/${workspaceId}/billing/upgrade`, input),
+  getCheckout: (workspaceId: string, checkoutId: string) =>
+    request<CheckoutSessionDto>(
+      http.get(`/workspaces/${workspaceId}/billing/checkout/${checkoutId}`),
+    ),
+
+  cancelCheckout: (workspaceId: string, checkoutId: string) =>
+    request<CheckoutSessionDto>(
+      http.post(`/workspaces/${workspaceId}/billing/checkout/${checkoutId}/cancel`),
     ),
 
   cancel: (workspaceId: string) =>
@@ -849,25 +865,50 @@ export const billingApi = {
       http.post(`/workspaces/${workspaceId}/billing/cancel`),
     ),
 
+  reactivate: (workspaceId: string) =>
+    request<WorkspaceBillingSummary>(
+      http.post(`/workspaces/${workspaceId}/billing/reactivate`),
+    ),
+
+  portal: (workspaceId: string) =>
+    request<BillingPortalResponse>(
+      http.post(`/workspaces/${workspaceId}/billing/portal`),
+    ),
+
   validatePromotion: (
     workspaceId: string,
     code: string,
     planTier: PlanTier,
+    billingInterval: 'monthly' | 'annual' = 'monthly',
   ) =>
     request<ValidatePromotionResponse>(
       http.post(`/workspaces/${workspaceId}/billing/promotion/validate`, {
         code,
         planTier,
+        billingInterval,
       }),
     ),
+
+  redemptions: (workspaceId: string) =>
+    request<
+      Array<{
+        id: string;
+        code: string;
+        status: string;
+        discountCents: number;
+        currency: string;
+        redeemedAt: string;
+      }>
+    >(http.get(`/workspaces/${workspaceId}/billing/redemptions`)),
 
   getCredits: (workspaceId: string) =>
     request<CreditAccountDto>(
       http.get(`/workspaces/${workspaceId}/billing/credits`),
     ),
 
+  /** Credits are added only after the provider confirms payment. */
   topUpCredits: (workspaceId: string, input: TopUpCreditsInput) =>
-    request<CreditAccountDto>(
+    request<CheckoutSessionDto>(
       http.post(`/workspaces/${workspaceId}/billing/credits/top-up`, input),
     ),
 
@@ -4494,6 +4535,105 @@ export const notificationApi = {
  * non-operator loading the console sees "not found" rather than a wall of
  * permission errors.
  */
+
+export interface AdminBillingStats {
+  range: { from: string; to: string };
+  paidRevenueCents: number;
+  paidInvoiceCount: number;
+  estimatedMrrCents: number;
+  estimatedMrrNote: string;
+  failedPaymentSubscriptions: number;
+  subscriptionsEnded: number;
+  trialsStarted: number;
+  trialsConverted: number;
+  trialConversionRate: number | null;
+  subscriptionsByPlan: Array<{ plan: string; count: number }>;
+}
+
+export interface AdminBillingSubscription {
+  workspaceId: string;
+  workspaceName: string;
+  workspaceSlug: string;
+  plan: string;
+  billingInterval: string;
+  status: string;
+  source: string;
+  provider: string | null;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: string;
+  pastDueSince: string | null;
+  trialStatus: string | null;
+  appliedPromotionCode: string | null;
+  scheduledPlanTier: string | null;
+}
+
+export interface AdminBillingInvoice {
+  id: string;
+  number: string;
+  workspaceId: string;
+  workspaceName: string;
+  amountCents: number;
+  currency: string;
+  status: string;
+  description: string;
+  createdAt: string;
+  paidAt: string | null;
+}
+
+export interface AdminBillingAuditEntry {
+  id: string;
+  workspaceId: string | null;
+  actorId: string | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+
+/** Platform-admin billing (SUPERADMIN only; workspace admins get 404). */
+export const adminBillingApi = {
+  stats: (params: { from?: string; to?: string } = {}) =>
+    request<AdminBillingStats>(http.get('/admin/billing/stats', { params })),
+
+  coupons: () => request<PromotionDto[]>(http.get('/admin/billing/coupons')),
+
+  saveCoupon: (input: SavePromotionInput) =>
+    request<PromotionDto>(http.put('/admin/billing/coupons', input)),
+
+  subscriptions: (params: {
+    search?: string;
+    plan?: string;
+    status?: string;
+    source?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}) =>
+    request<{ total: number; page: number; pageSize: number; items: AdminBillingSubscription[] }>(
+      http.get('/admin/billing/subscriptions', { params }),
+    ),
+
+  invoices: (params: {
+    status?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}) =>
+    request<{ total: number; page: number; pageSize: number; items: AdminBillingInvoice[] }>(
+      http.get('/admin/billing/invoices', { params }),
+    ),
+
+  audit: (params: { workspaceId?: string; take?: number } = {}) =>
+    request<AdminBillingAuditEntry[]>(http.get('/admin/billing/audit', { params })),
+
+  /** CSV downloads go through the authenticated client, then to a Blob. */
+  exportCsv: async (kind: 'subscriptions' | 'invoices', params: Record<string, string | undefined> = {}) => {
+    const res = await http.get(`/admin/billing/${kind}.csv`, { params, responseType: 'blob' });
+    return res.data as Blob;
+  },
+};
+
 export const adminApi = {
   overview: () => request<AdminOverview>(http.get('/admin/overview')),
 

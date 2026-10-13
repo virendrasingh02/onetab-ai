@@ -12,25 +12,25 @@ import {
 
 describe('Plan Entitlements & Configuration', () => {
   it('defines the 4 target plans', () => {
-    expect(PLANS_CONFIG.starter).toBeDefined();
+    expect(PLANS_CONFIG.free).toBeDefined();
     expect(PLANS_CONFIG.pro).toBeDefined();
-    expect(PLANS_CONFIG.business).toBeDefined();
+    expect(PLANS_CONFIG.max).toBeDefined();
     expect(PLANS_CONFIG.enterprise).toBeDefined();
   });
 
   describe('hasFeature & canAccess', () => {
-    it('grants basic features to starter plan', () => {
-      expect(hasFeature('starter', 'core_workspace')).toBe(true);
-      expect(hasFeature('starter', 'basic_views')).toBe(true);
-      expect(hasFeature('starter', 'basic_projects')).toBe(true);
+    it('grants basic features to free plan', () => {
+      expect(hasFeature('free', 'core_workspace')).toBe(true);
+      expect(hasFeature('free', 'basic_views')).toBe(true);
+      expect(hasFeature('free', 'basic_projects')).toBe(true);
     });
 
-    it('withholds advanced features from starter plan', () => {
-      expect(hasFeature('starter', 'advanced_views')).toBe(false);
-      expect(hasFeature('starter', 'advanced_ai')).toBe(false);
-      expect(hasFeature('starter', 'sso_saml')).toBe(false);
-      expect(hasFeature('starter', 'custom_llm')).toBe(false);
-      expect(hasFeature('starter', 'audit_logs')).toBe(false);
+    it('withholds advanced features from free plan', () => {
+      expect(hasFeature('free', 'advanced_views')).toBe(false);
+      expect(hasFeature('free', 'advanced_ai')).toBe(false);
+      expect(hasFeature('free', 'sso_saml')).toBe(false);
+      expect(hasFeature('free', 'custom_llm')).toBe(false);
+      expect(hasFeature('free', 'audit_logs')).toBe(false);
     });
 
     it('grants pro features to pro plan', () => {
@@ -42,12 +42,12 @@ describe('Plan Entitlements & Configuration', () => {
       expect(hasFeature('pro', 'custom_llm')).toBe(false);
     });
 
-    it('grants enterprise security and organization features to business plan', () => {
-      expect(hasFeature('business', 'sso_saml')).toBe(true);
-      expect(hasFeature('business', 'scim_provisioning')).toBe(true);
-      expect(hasFeature('business', 'audit_logs')).toBe(true);
-      expect(hasFeature('business', 'custom_roles')).toBe(true);
-      expect(hasFeature('business', 'custom_llm')).toBe(false);
+    it('grants enterprise security and organization features to max plan', () => {
+      expect(hasFeature('max', 'sso_saml')).toBe(true);
+      expect(hasFeature('max', 'scim_provisioning')).toBe(true);
+      expect(hasFeature('max', 'audit_logs')).toBe(true);
+      expect(hasFeature('max', 'custom_roles')).toBe(true);
+      expect(hasFeature('max', 'custom_llm')).toBe(false);
     });
 
     it('grants custom LLM and enterprise capabilities to enterprise plan', () => {
@@ -60,67 +60,71 @@ describe('Plan Entitlements & Configuration', () => {
 
   describe('getPlanLimit & machineLimits', () => {
     it('returns member and storage limits per plan', () => {
-      expect(getPlanLimit('starter', 'max_members')).toBe(5);
+      expect(getPlanLimit('free', 'max_members')).toBe(5);
       expect(getPlanLimit('pro', 'max_members')).toBe(25);
-      expect(getPlanLimit('business', 'max_members')).toBe(100);
+      expect(getPlanLimit('max', 'max_members')).toBe(100);
       expect(getPlanLimit('enterprise', 'max_members')).toBe(-1); // Unlimited
     });
 
     it('returns micro agents limits per plan', () => {
-      expect(getPlanLimit('starter', 'micro_agents')).toBe(3);
+      expect(getPlanLimit('free', 'micro_agents')).toBe(3);
       expect(getPlanLimit('pro', 'micro_agents')).toBe(10);
-      expect(getPlanLimit('business', 'micro_agents')).toBe(25);
+      expect(getPlanLimit('max', 'micro_agents')).toBe(25);
       expect(getPlanLimit('enterprise', 'micro_agents')).toBe(-1);
     });
 
     it('returns request and execution limits per plan', () => {
-      expect(getPlanLimit('starter', 'requests_per_month')).toBe(5000);
-      expect(getPlanLimit('pro', 'requests_per_month')).toBe(5000);
-      expect(getPlanLimit('business', 'requests_per_month')).toBe(5000);
+      expect(getPlanLimit('free', 'requests_per_month')).toBe(5000);
+      expect(getPlanLimit('pro', 'requests_per_month')).toBe(25000);
+      expect(getPlanLimit('max', 'requests_per_month')).toBe(100000);
       expect(getPlanLimit('enterprise', 'requests_per_month')).toBe(-1);
-      expect(getPlanLimit('starter', 'concurrent_executions')).toBe(20);
-      expect(getPlanLimit('starter', 'max_execution_time_ms')).toBe(400);
+      expect(getPlanLimit('free', 'concurrent_executions')).toBe(20);
+      expect(getPlanLimit('free', 'max_execution_time_ms')).toBe(400);
     });
 
     it('validates agent upgrades capability per plan', () => {
-      expect(PLANS_CONFIG.starter.machineLimits.agentUpgrades).toBe(false);
+      expect(PLANS_CONFIG.free.machineLimits.agentUpgrades).toBe(false);
       expect(PLANS_CONFIG.pro.machineLimits.agentUpgrades).toBe(true);
-      expect(PLANS_CONFIG.business.machineLimits.agentUpgrades).toBe(true);
+      expect(PLANS_CONFIG.max.machineLimits.agentUpgrades).toBe(true);
       expect(PLANS_CONFIG.enterprise.machineLimits.agentUpgrades).toBe(true);
     });
 
-    it('validates pricing and active promotional code', () => {
-      expect(PLANS_CONFIG.starter.pricing.monthly).toBe(15);
+    it('validates pricing (Free is permanently $0)', () => {
+      expect(PLANS_CONFIG.free.pricing.monthly).toBe(0);
       expect(PLANS_CONFIG.pro.pricing.monthly).toBe(30);
-      expect(PLANS_CONFIG.business.pricing.monthly).toBe(45);
+      expect(PLANS_CONFIG.max.pricing.monthly).toBe(45);
       expect(PLANS_CONFIG.enterprise.isCustomQuote).toBe(true);
-      expect(PLANS_CONFIG.starter.promotionalDisplay?.code).toBe('s1nu00780');
-      expect(PLANS_CONFIG.starter.promotionalDisplay?.discountPercent).toBe(100);
-    });
+      expect(PLANS_CONFIG.free.pricing.annual).toBe(0);
+          });
   });
 
   describe('normalizePlanTier', () => {
-    it('defaults undefined or invalid tiers to starter', () => {
-      expect(normalizePlanTier(undefined)).toBe('starter');
-      expect(normalizePlanTier(null)).toBe('starter');
-      expect(normalizePlanTier('UNKNOWN')).toBe('starter');
+    it('defaults undefined or invalid tiers to free', () => {
+      expect(normalizePlanTier(undefined)).toBe('free');
+      expect(normalizePlanTier(null)).toBe('free');
+      expect(normalizePlanTier('UNKNOWN')).toBe('free');
+    });
+
+    it('maps legacy tier names to the new tiers', () => {
+      expect(normalizePlanTier('STARTER')).toBe('free');
+      expect(normalizePlanTier('Business')).toBe('max');
     });
 
     it('normalizes valid strings case-insensitively', () => {
       expect(normalizePlanTier('PRO')).toBe('pro');
-      expect(normalizePlanTier('Business')).toBe('business');
+      expect(normalizePlanTier('Max')).toBe('max');
       expect(normalizePlanTier('enterprise')).toBe('enterprise');
     });
   });
 
   describe('isPlanAtLeast', () => {
     it('evaluates hierarchy correctly', () => {
-      expect(isPlanAtLeast('starter', 'starter')).toBe(true);
-      expect(isPlanAtLeast('starter', 'pro')).toBe(false);
-      expect(isPlanAtLeast('pro', 'starter')).toBe(true);
-      expect(isPlanAtLeast('business', 'pro')).toBe(true);
-      expect(isPlanAtLeast('enterprise', 'business')).toBe(true);
-      expect(isPlanAtLeast('business', 'enterprise')).toBe(false);
+      expect(isPlanAtLeast('free', 'free')).toBe(true);
+      expect(isPlanAtLeast('free', 'pro')).toBe(false);
+      expect(isPlanAtLeast('pro', 'free')).toBe(true);
+      expect(isPlanAtLeast('max', 'pro')).toBe(true);
+      expect(isPlanAtLeast('enterprise', 'max')).toBe(true);
+      expect(isPlanAtLeast('max', 'enterprise')).toBe(false);
     });
   });
 

@@ -205,6 +205,12 @@ const AdminPlansView = lazy(() =>
   })),
 );
 
+const AdminBillingView = lazy(() =>
+  import('./admin-billing-view').then((m) => ({
+    default: m.AdminBillingView,
+  })),
+);
+
 const EmailDeliveriesView = lazy(() =>
   import('./email-deliveries-view').then((m) => ({
     default: m.EmailDeliveriesView,
@@ -282,6 +288,7 @@ export function App() {
 
           {/* Plans, Tiers & Promotional Code Management */}
           <Route path="/plans" element={<AdminPlansView />} />
+          <Route path="/billing" element={<AdminBillingView />} />
 
           <Route path="/versions" element={<VersionsManagementView />} />
 

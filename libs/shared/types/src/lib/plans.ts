@@ -2,18 +2,18 @@
  * Centralized Plan Configuration & Entitlement Engine
  *
  * Defines the 4 platform tiers:
- * 1. Starter (Free entry-level)
+ * 1. Free (permanent entry-level plan)
  * 2. Pro (Growing teams & advanced features)
- * 3. Business (Organizations, administration & security)
+ * 3. Max (power users, agents & automation)
  * 4. Enterprise — Custom LLM (Custom limits, dedicated support, custom LLM integration)
  */
 
-export type PlanTier = 'starter' | 'pro' | 'business' | 'enterprise';
+export type PlanTier = 'free' | 'pro' | 'max' | 'enterprise';
 
 export const PLAN_TIERS: readonly PlanTier[] = [
-  'starter',
+  'free',
   'pro',
-  'business',
+  'max',
   'enterprise',
 ] as const;
 
@@ -55,7 +55,7 @@ export type PlanFeature =
   | 'custom_prompt_templates'
   | 'agent_marketplace'
   | 'agent_builder'
-  | 'agent_upgrades' // Pro/Business/Enterprise only
+  | 'agent_upgrades' // Pro/Max/Enterprise only
   | 'per_agent_config'
   | 'transparent_ai_billing'
   | 'unlimited_testing_staging'
@@ -138,12 +138,6 @@ export interface PlanDefinition {
   isPopular?: boolean;
   isCustomQuote?: boolean;
   trialDays?: number;
-  promotionalDisplay?: {
-    code: string;
-    discountPercent: number;
-    discountedMonthlyPrice: number;
-    label: string;
-  };
   pricing: PlanPricing;
   features: readonly PlanFeature[];
   limits: Record<PlanLimit, number>; // -1 represents Infinity / Custom
@@ -154,26 +148,17 @@ export interface PlanDefinition {
   ctaVariant: 'outline' | 'primary' | 'secondary' | 'gradient';
 }
 
-export const ACTIVE_PROMOTION_CODE = 's1nu00780';
-
 export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
-  starter: {
-    id: 'starter',
-    slug: 'starter',
-    name: 'Starter',
-    tagline: 'Everything you need to explore AI workflows',
-    description: 'Everything you need to explore AI workflows.',
-    trialDays: 7,
-    promotionalDisplay: {
-      code: ACTIVE_PROMOTION_CODE,
-      discountPercent: 100,
-      discountedMonthlyPrice: 0,
-      label: '100% off with code: s1nu00780',
-    },
+  free: {
+    id: 'free',
+    slug: 'free',
+    name: 'Free',
+    tagline: 'Free forever to explore AI workflows',
+    description: 'Permanent free access with basic AI chat and core workspace features.',
     pricing: {
-      monthly: 15,
-      annual: 12,
-      annualDiscountPercent: 20,
+      monthly: 0,
+      annual: 0,
+      annualDiscountPercent: 0,
     },
     features: [
       'core_workspace',
@@ -243,7 +228,7 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
       { id: 'f_logs', label: 'Activity & execution log retention', included: true, valueText: '7 days', category: 'Logs' },
       { id: 'f_support', label: 'Community & standard support', included: true, category: 'Support' },
     ],
-    ctaLabel: 'Choose Starter',
+    ctaLabel: 'Start for free',
     ctaVariant: 'outline',
   },
 
@@ -251,17 +236,11 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
     id: 'pro',
     slug: 'pro',
     name: 'Pro',
-    tagline: 'Higher limits and team-level control',
-    description: 'Higher limits and team-level control.',
+    tagline: 'For professionals and regular AI users',
+    description: 'Higher AI usage, more agents, workflows and integrations for individual professionals.',
     badgeText: 'MOST POPULAR',
     isPopular: true,
     trialDays: 7,
-    promotionalDisplay: {
-      code: ACTIVE_PROMOTION_CODE,
-      discountPercent: 100,
-      discountedMonthlyPrice: 0,
-      label: '100% off with code: s1nu00780',
-    },
     pricing: {
       monthly: 30,
       annual: 24,
@@ -298,40 +277,40 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
       max_members: 25,
       max_projects: -1, // Unlimited
       storage_bytes: 25 * 1024 * 1024 * 1024, // 25 GB
-      monthly_ai_requests: 5000,
+      monthly_ai_requests: 25000,
       max_active_automations: 50,
       max_active_integrations: 25,
       api_rate_limit_rpm: 120,
       micro_agents: 10,
-      cpu: 2,
-      ram_gb: 4,
-      requests_per_month: 5000,
-      concurrent_executions: 20,
-      max_execution_time_ms: 400,
-      network_transfer_gb: 8,
-      ai_credits_usd: 5.0,
+      cpu: 4,
+      ram_gb: 8,
+      requests_per_month: 25000,
+      concurrent_executions: 50,
+      max_execution_time_ms: 1000,
+      network_transfer_gb: 50,
+      ai_credits_usd: 20.0,
       log_retention_days: 30,
     },
     machineLimits: {
       microAgents: 10,
-      cpu: 2,
-      ramGb: 4,
-      requestsPerMonth: 5000,
-      concurrentExecutions: 20,
-      maxExecutionTimeMs: 400,
-      networkTransferGb: 8,
-      aiCreditsUsd: 5.0,
+      cpu: 4,
+      ramGb: 8,
+      requestsPerMonth: 25000,
+      concurrentExecutions: 50,
+      maxExecutionTimeMs: 1000,
+      networkTransferGb: 50,
+      aiCreditsUsd: 20.0,
       logRetentionDays: 30,
       agentUpgrades: true,
     },
     highlightedFeatures: [
       '10 Micro Agents (Upgradeable)',
-      '2 CPUs & 4 GB RAM',
-      '5K requests per month',
-      '$5 shared AI credits for agents, workflows & builder runtime',
+      '4 CPUs & 8 GB RAM',
+      '25K requests per month',
+      '$20 shared AI credits for agents, workflows & builder runtime',
       '30-day activity, execution & usage logs',
-      '8 GB total data transfer across agents & workflows',
-      'Up to 20 concurrent executions (max 400ms runtime)',
+      '50 GB total data transfer across agents & workflows',
+      'Up to 50 concurrent executions (max 1s runtime)',
       'Agent upgrades included & higher performance',
       'Access to additional platform features',
     ],
@@ -339,14 +318,14 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
       { id: 'f_agents', label: 'Micro Agents', included: true, valueText: '10 Micro Agents', category: 'AI Agents' },
       { id: 'f_upgrades', label: 'Agent Upgrades', included: true, valueText: 'Included (Higher performance)', category: 'AI Agents' },
       { id: 'f_per_agent', label: 'Per micro-agent controls & builder', included: true, category: 'AI Agents' },
-      { id: 'f_credits', label: 'Shared AI Credits', included: true, valueText: '$5 / mo', category: 'AI Credits' },
+      { id: 'f_credits', label: 'Shared AI Credits', included: true, valueText: '$20 / mo', category: 'AI Credits' },
       { id: 'f_billing', label: 'Transparent AI billing & credit top-ups', included: true, category: 'AI Credits' },
       { id: 'f_builders', label: 'Unlimited testing, staging & workflow builders', included: true, category: 'Workflow' },
-      { id: 'f_requests', label: 'Requests per month', included: true, valueText: '5,000 requests', category: 'Execution' },
-      { id: 'f_concurrent', label: 'Concurrent executions', included: true, valueText: 'Up to 20 concurrent', category: 'Execution' },
-      { id: 'f_runtime', label: 'Max execution time per request', included: true, valueText: '400ms', category: 'Execution' },
-      { id: 'f_cpu', label: 'Compute Resources', included: true, valueText: '2 CPUs, 4 GB RAM', category: 'Infrastructure' },
-      { id: 'f_transfer', label: 'Network Transfer', included: true, valueText: '8 GB total across workflows', category: 'Infrastructure' },
+      { id: 'f_requests', label: 'Requests per month', included: true, valueText: '25,000 requests', category: 'Execution' },
+      { id: 'f_concurrent', label: 'Concurrent executions', included: true, valueText: 'Up to 50 concurrent', category: 'Execution' },
+      { id: 'f_runtime', label: 'Max execution time per request', included: true, valueText: '1s', category: 'Execution' },
+      { id: 'f_cpu', label: 'Compute Resources', included: true, valueText: '4 CPUs, 8 GB RAM', category: 'Infrastructure' },
+      { id: 'f_transfer', label: 'Network Transfer', included: true, valueText: '50 GB total across workflows', category: 'Infrastructure' },
       { id: 'f_logs', label: 'Activity & execution log retention', included: true, valueText: '30 days', category: 'Logs' },
       { id: 'f_support', label: 'Priority email & agent support', included: true, category: 'Support' },
     ],
@@ -354,20 +333,14 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
     ctaVariant: 'primary',
   },
 
-  business: {
-    id: 'business',
-    slug: 'business',
-    name: 'Business',
-    tagline: 'Advanced governance and scale',
-    description: 'Advanced governance and scale.',
-    badgeText: 'ADVANCED GOVERNANCE',
+  max: {
+    id: 'max',
+    slug: 'max',
+    name: 'Max',
+    tagline: 'For power users, agents and automation',
+    description: 'Higher quotas, advanced Agent Studio capabilities and premium features for intensive usage.',
+    badgeText: 'POWER USERS',
     trialDays: 7,
-    promotionalDisplay: {
-      code: ACTIVE_PROMOTION_CODE,
-      discountPercent: 100,
-      discountedMonthlyPrice: 0,
-      label: '100% off with code: s1nu00780',
-    },
     pricing: {
       monthly: 45,
       annual: 36,
@@ -412,66 +385,66 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
       max_members: 100,
       max_projects: -1, // Unlimited
       storage_bytes: 100 * 1024 * 1024 * 1024, // 100 GB
-      monthly_ai_requests: 5000,
+      monthly_ai_requests: 100000,
       max_active_automations: -1, // Unlimited
       max_active_integrations: -1, // Unlimited
       api_rate_limit_rpm: 300,
       micro_agents: 25,
-      cpu: 2,
-      ram_gb: 4,
-      requests_per_month: 5000,
-      concurrent_executions: 20,
-      max_execution_time_ms: 400,
-      network_transfer_gb: 8,
-      ai_credits_usd: 5.0,
+      cpu: 8,
+      ram_gb: 16,
+      requests_per_month: 100000,
+      concurrent_executions: 100,
+      max_execution_time_ms: 5000,
+      network_transfer_gb: 200,
+      ai_credits_usd: 60.0,
       log_retention_days: 90,
     },
     machineLimits: {
       microAgents: 25,
-      cpu: 2,
-      ramGb: 4,
-      requestsPerMonth: 5000,
-      concurrentExecutions: 20,
-      maxExecutionTimeMs: 400,
-      networkTransferGb: 8,
-      aiCreditsUsd: 5.0,
+      cpu: 8,
+      ramGb: 16,
+      requestsPerMonth: 100000,
+      concurrentExecutions: 100,
+      maxExecutionTimeMs: 5000,
+      networkTransferGb: 200,
+      aiCreditsUsd: 60.0,
       logRetentionDays: 90,
       agentUpgrades: true,
     },
     highlightedFeatures: [
       '25 Micro Agents (Upgradeable)',
-      '2 CPUs & 4 GB RAM',
-      '5K requests per month',
-      '$5 shared AI credits across agents, workflows & builder',
+      '8 CPUs & 16 GB RAM',
+      '100K requests per month',
+      '$60 shared AI credits across agents, workflows & builder',
       '3-month activity, execution & audit logs',
       'Agent upgrades & extended execution hours included',
       'Individual & shared AI credit top-ups across all agents',
-      'Additional business-level governance & security features',
+      'Governance, audit logs, SSO & SCIM',
     ],
     expandedFeatures: [
       { id: 'f_agents', label: 'Micro Agents', included: true, valueText: '25 Micro Agents', category: 'AI Agents' },
       { id: 'f_upgrades', label: 'Agent Upgrades', included: true, valueText: 'Included (Higher performance)', category: 'AI Agents' },
       { id: 'f_per_agent', label: 'Per micro-agent controls & builder', included: true, category: 'AI Agents' },
-      { id: 'f_credits', label: 'Shared AI Credits', included: true, valueText: '$5 / mo (Shared across all)', category: 'AI Credits' },
+      { id: 'f_credits', label: 'Shared AI Credits', included: true, valueText: '$60 / mo (Shared across all)', category: 'AI Credits' },
       { id: 'f_billing', label: 'Individual & shared AI credit top-ups', included: true, category: 'AI Credits' },
       { id: 'f_builders', label: 'Unlimited testing, staging & workflow builders', included: true, category: 'Workflow' },
-      { id: 'f_requests', label: 'Requests per month', included: true, valueText: '5,000 requests', category: 'Execution' },
-      { id: 'f_concurrent', label: 'Concurrent executions', included: true, valueText: 'Up to 20 concurrent', category: 'Execution' },
-      { id: 'f_runtime', label: 'Max execution time per request', included: true, valueText: '400ms + Extended hours', category: 'Execution' },
-      { id: 'f_cpu', label: 'Compute Resources', included: true, valueText: '2 CPUs, 4 GB RAM', category: 'Infrastructure' },
-      { id: 'f_transfer', label: 'Network Transfer', included: true, valueText: '8 GB total across workflows', category: 'Infrastructure' },
+      { id: 'f_requests', label: 'Requests per month', included: true, valueText: '100,000 requests', category: 'Execution' },
+      { id: 'f_concurrent', label: 'Concurrent executions', included: true, valueText: 'Up to 100 concurrent', category: 'Execution' },
+      { id: 'f_runtime', label: 'Max execution time per request', included: true, valueText: '5s + Extended hours', category: 'Execution' },
+      { id: 'f_cpu', label: 'Compute Resources', included: true, valueText: '8 CPUs, 16 GB RAM', category: 'Infrastructure' },
+      { id: 'f_transfer', label: 'Network Transfer', included: true, valueText: '200 GB total across workflows', category: 'Infrastructure' },
       { id: 'f_logs', label: 'Activity, execution & audit logs', included: true, valueText: '90 days (3 months)', category: 'Logs' },
       { id: 'f_gov', label: 'SAML SSO, SCIM, & custom roles', included: true, category: 'Governance' },
       { id: 'f_support', label: '24/7 dedicated priority support', included: true, category: 'Support' },
     ],
-    ctaLabel: 'Choose Business',
+    ctaLabel: 'Choose Max',
     ctaVariant: 'gradient',
   },
 
   enterprise: {
     id: 'enterprise',
     slug: 'enterprise',
-    name: 'Enterprise (Custom LLM)',
+    name: 'Enterprise',
     tagline: 'Custom scale, security & support',
     description: 'Custom scale, security & support.',
     badgeText: 'CUSTOM SCALE & LLM',
@@ -612,12 +585,12 @@ export function isPlanTrialEligible(plan: PlanTier | string | undefined | null):
 }
 
 /**
- * Plan hierarchy index for comparison: starter (0) < pro (1) < business (2) < enterprise (3)
+ * Plan hierarchy index for comparison: free (0) < pro (1) < max (2) < enterprise (3)
  */
 export const PLAN_HIERARCHY: Record<PlanTier, number> = {
-  starter: 0,
+  free: 0,
   pro: 1,
-  business: 2,
+  max: 2,
   enterprise: 3,
 };
 
@@ -654,15 +627,17 @@ export function getPlanLimit(plan: PlanTier | string | undefined | null, limit: 
 }
 
 /**
- * Normalizes any string representation to a valid PlanTier, defaulting to 'starter'.
+ * Normalizes any string representation to a valid PlanTier, defaulting to 'free'.
+ * Legacy tier names are accepted so existing rows/clients keep working:
+ * `starter` -> `free`, `business` -> `max`.
  */
 export function normalizePlanTier(tier: string | undefined | null): PlanTier {
-  if (!tier) return 'starter';
+  if (!tier) return 'free';
   const lower = tier.toLowerCase().trim();
   if (lower === 'pro') return 'pro';
-  if (lower === 'business') return 'business';
+  if (lower === 'max' || lower === 'business') return 'max';
   if (lower === 'enterprise') return 'enterprise';
-  return 'starter';
+  return 'free';
 }
 
 /**

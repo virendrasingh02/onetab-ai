@@ -49,9 +49,9 @@ export function PlanComparisonTable({
           catItems.set(item.id, {
             label: item.label,
             planValues: {
-              starter: undefined,
+              free: undefined,
               pro: undefined,
-              business: undefined,
+              max: undefined,
               enterprise: undefined,
             },
           });

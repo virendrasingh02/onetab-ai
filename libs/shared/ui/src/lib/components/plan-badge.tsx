@@ -12,13 +12,16 @@ export interface PlanBadgeProps {
 }
 
 export function PlanBadge({
-  plan = 'starter',
+  plan = 'free',
   size = 'sm',
   variant = 'subtle',
   showIcon = true,
   className,
 }: PlanBadgeProps) {
-  const normalized = (plan?.toLowerCase().trim() || 'starter') as PlanTier;
+  // Legacy tier names (starter/business) still arrive from older rows and clients.
+  const raw = plan?.toLowerCase().trim() || 'free';
+  const normalized: PlanTier =
+    raw === 'business' ? 'max' : raw === 'starter' ? 'free' : (raw as PlanTier);
 
   const sizeClasses = {
     xs: 'text-[10px] px-1.5 py-0 gap-1 h-4',
@@ -48,8 +51,8 @@ export function PlanBadge({
             : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25';
       break;
 
-    case 'business':
-      label = 'Business';
+    case 'max':
+      label = 'Max';
       Icon = Building2;
       styleClasses =
         variant === 'gradient'
@@ -70,9 +73,9 @@ export function PlanBadge({
             : 'bg-primary/10 text-primary border-primary/25';
       break;
 
-    case 'starter':
+    case 'free':
     default:
-      label = 'Starter';
+      label = 'Free';
       Icon = Bot;
       styleClasses = 'bg-surface-muted text-muted-foreground border-border';
       break;

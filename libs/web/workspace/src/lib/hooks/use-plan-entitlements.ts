@@ -29,7 +29,7 @@ export function usePlanEntitlements(workspaceIdOverride?: string) {
     staleTime: 30_000,
   });
 
-  const plan: PlanTier = normalizePlanTier(billingSummary?.plan ?? 'starter');
+  const plan: PlanTier = normalizePlanTier(billingSummary?.plan ?? 'free');
   const planConfig = PLANS_CONFIG[plan];
 
   const hasFeature = (feature: PlanFeature): boolean => {
@@ -73,7 +73,8 @@ export function usePlanEntitlements(workspaceIdOverride?: string) {
     usage: billingSummary?.usage,
     entitlements: billingSummary?.entitlements,
     canManageBilling: isOwner || (billingSummary?.canManageBilling ?? false),
-    activePromotion: billingSummary?.activePromotion ?? null,
+    paymentsEnabled: billingSummary?.paymentsEnabled ?? false,
+    billingMode: billingSummary?.billingMode ?? 'test',
     canUpgradeAgent: planConfig.machineLimits.agentUpgrades,
     microAgentLimit: planConfig.machineLimits.microAgents,
     microAgentsUsed: billingSummary?.usage?.microAgents?.used ?? 0,

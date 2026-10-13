@@ -13,6 +13,7 @@ export {
 
 export {
   adminApi,
+  adminBillingApi,
   aiEntitiesApi,
   agentGraphsApi,
   agentArchitectApi,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Badge,
   Button,
@@ -12,6 +12,8 @@ import {
   TableHeader,
   TableRow,
   UsageMeter,
+  confirm,
+  toast,
 } from '@org/ui';
 import { billingApi, queryKeys } from '@org/api-client';
 import {
@@ -19,7 +21,8 @@ import {
   type InvoiceItemDto,
   type PlanTier,
 } from '@org/types';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Bot,
@@ -27,9 +30,11 @@ import {
   ChevronDown,
   ChevronUp,
   Coins,
+  CreditCard,
   Database,
   FileText,
   Plus,
+  RotateCcw,
   Sparkles,
   Tag,
   Zap,
@@ -66,8 +71,11 @@ export function WorkspaceBillingSettings({
     creditBalance,
     isTrialing,
     trialDaysRemaining,
-    activePromotion,
+    paymentsEnabled,
+    billingMode,
   } = usePlanEntitlements(workspaceId);
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [isAnnual, setIsAnnual] = useState(true);
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] =
@@ -82,8 +90,110 @@ export function WorkspaceBillingSettings({
   const { data: invoices = [] } = useQuery<InvoiceItemDto[]>({
     queryKey: queryKeys.billing.invoices(workspaceId ?? ''),
     queryFn: () => billingApi.invoices(workspaceId as string),
-    enabled: !!workspaceId && plan !== 'starter',
+    enabled: !!workspaceId,
   });
+
+  const { data: redemptions = [] } = useQuery({
+    queryKey: queryKeys.billing.redemptions(workspaceId ?? ''),
+    queryFn: () => billingApi.redemptions(workspaceId as string),
+    enabled: !!workspaceId && canManageBilling,
+  });
+
+  const refreshBilling = () =>
+    queryClient.invalidateQueries({ queryKey: queryKeys.billing.all(workspaceId as string) });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => billingApi.cancel(workspaceId as string),
+    onSuccess: () => {
+      toast.success('Cancellation scheduled. You keep your plan until the period ends.');
+      void refreshBilling();
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+  const reactivateMutation = useMutation({
+    mutationFn: () => billingApi.reactivate(workspaceId as string),
+    onSuccess: () => {
+      toast.success('Your plan will renew as normal.');
+      void refreshBilling();
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+  const portalMutation = useMutation({
+    mutationFn: () => billingApi.portal(workspaceId as string),
+    onSuccess: ({ url }) => window.location.assign(url),
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleCancel = async () => {
+    const ok = await confirm({
+      title: 'Cancel your subscription?',
+      description: `You keep ${planConfig.name} until ${
+        subscription?.currentPeriodEnd
+          ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
+          : 'the end of the billing period'
+      }, then the workspace moves to Free. Your data is kept.`,
+      confirmLabel: 'Cancel subscription',
+      cancelLabel: 'Keep my plan',
+      destructive: true,
+    });
+    if (ok) cancelMutation.mutate();
+  };
+
+  // Returning from the payment provider: the webhook may land a moment after the
+  // redirect, so poll the checkout until the server says it is settled.
+  useEffect(() => {
+    const checkoutId = searchParams.get('session');
+    const outcome = searchParams.get('checkout') ?? searchParams.get('topup');
+    if (!workspaceId || !checkoutId || !outcome) return;
+    const clear = () => {
+      const next = new URLSearchParams(searchParams);
+      ['session', 'checkout', 'topup'].forEach((k) => next.delete(k));
+      setSearchParams(next, { replace: true });
+    };
+    if (outcome === 'cancelled') {
+      void billingApi.cancelCheckout(workspaceId, checkoutId).catch(() => undefined);
+      toast.info('Checkout cancelled. You have not been charged.');
+      clear();
+      return;
+    }
+    let tries = 0;
+    let stopped = false;
+    const tick = async () => {
+      try {
+        const res = await billingApi.getCheckout(workspaceId, checkoutId);
+        if (res.status === 'COMPLETED') {
+          toast.success('Payment confirmed — your workspace is updated.');
+          void refreshBilling();
+          return clear();
+        }
+        if (res.status !== 'PENDING') {
+          toast.error(res.failureReason ?? 'The payment did not complete.');
+          return clear();
+        }
+      } catch {
+        /* transient; retry */
+      }
+      if (!stopped && ++tries < 20) setTimeout(tick, 2000);
+      else if (!stopped) {
+        toast.info('Still waiting for payment confirmation. This page will update when it arrives.');
+        clear();
+      }
+    };
+    void tick();
+    return () => {
+      stopped = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, searchParams]);
+
+  const upgradeTarget: PlanTier = plan === 'free' ? 'pro' : 'max';
+  const isPastDue = subscription?.status === 'PAST_DUE' || subscription?.status === 'UNPAID';
+  const pendingChange =
+    subscription?.cancelAtPeriodEnd || subscription?.scheduledPlanTier
+      ? subscription?.scheduledPlanTier && subscription.scheduledPlanTier !== 'free'
+        ? `Moves to ${subscription.scheduledPlanTier.toUpperCase()}`
+        : 'Cancels'
+      : null;
 
   const handlePlanAction = (targetTier: PlanTier) => {
     if (targetTier === plan) return;
@@ -126,7 +236,12 @@ export function WorkspaceBillingSettings({
                 variant="secondary"
                 className="font-semibold text-[10px] border border-primary/20 bg-primary/10 text-primary"
               >
-                7-DAY TRIAL
+                FREE TRIAL
+              </Badge>
+            )}
+            {billingMode === 'test' && (
+              <Badge variant="secondary" className="font-semibold text-[10px]">
+                TEST MODE
               </Badge>
             )}
           </div>
@@ -137,11 +252,16 @@ export function WorkspaceBillingSettings({
           </p>
         </div>
 
-        {subscription?.renewAt && plan !== 'starter' && (
+        {subscription?.renewAt && plan !== 'free' && (
           <div className="gap-2 text-xs px-3 py-1.5 flex shrink-0 items-center rounded-lg border border-border bg-surface-muted text-muted-foreground">
             <Calendar className="size-3.5 text-primary" />
             <span>
-              Renews {new Date(subscription.renewAt).toLocaleDateString()} (
+              {pendingChange
+                ? `${pendingChange} on`
+                : subscription.source === 'PROMOTION'
+                  ? 'Coupon plan ends'
+                  : 'Renews'}{' '}
+              {new Date(subscription.currentPeriodEnd ?? subscription.renewAt).toLocaleDateString()} (
               {subscription.billingInterval})
             </span>
           </div>
@@ -159,39 +279,97 @@ export function WorkspaceBillingSettings({
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs font-bold text-foreground">
-                  7-Day Free Trial Active ({trialDaysRemaining ?? 7} days remaining)
+                  Free trial active ({trialDaysRemaining ?? 0} days remaining)
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   You are experiencing the full {planConfig.name} plan. You can cancel or change your plan anytime.
                 </p>
               </div>
             </div>
-            <Button
-              size="xs"
-              variant="outline"
-              onClick={() => setSelectedPlanForCheckout(plan)}
-              className="text-xs"
-            >
-              Manage Subscription
-            </Button>
+            {paymentsEnabled && (
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => portalMutation.mutate()}
+                disabled={portalMutation.isPending}
+                className="text-xs"
+              >
+                Manage subscription
+              </Button>
+            )}
           </div>
         )}
 
-        {/* Active Promotion Banner */}
-        {(activePromotion || subscription?.appliedPromotionCode) && (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-center justify-between shadow-xs">
-            <div className="flex items-center gap-3 text-emerald-800 dark:text-emerald-200">
-              <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
-                <Tag className="size-4" />
-              </div>
+        {/* Payment problems / pending changes / unavailable payments */}
+        {isPastDue && (
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-3 text-destructive">
+              <AlertTriangle className="size-4 shrink-0" />
               <div className="space-y-0.5">
-                <p className="text-xs font-bold">
-                  Promotional Code Active: {subscription?.appliedPromotionCode || activePromotion?.code}
-                </p>
-                <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
-                  {subscription?.discountPercent || activePromotion?.discountPercent || 100}% discount applied to your workspace subscription.
+                <p className="text-xs font-bold">Your last payment failed</p>
+                <p className="text-[11px] opacity-80">
+                  Update your payment method to keep {planConfig.name}. Paid features pause if payment is not
+                  received within the grace period.
                 </p>
               </div>
+            </div>
+            {canManageBilling && paymentsEnabled && (
+              <Button size="xs" variant="primary" onClick={() => portalMutation.mutate()} className="text-xs shrink-0">
+                <CreditCard className="size-3.5 mr-1.5" />
+                Update payment method
+              </Button>
+            )}
+          </div>
+        )}
+
+        {pendingChange && plan !== 'free' && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <p className="text-xs text-amber-800 dark:text-amber-200">
+              <strong>
+                {pendingChange} on{' '}
+                {subscription?.currentPeriodEnd
+                  ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
+                  : 'period end'}
+                .
+              </strong>{' '}
+              You keep {planConfig.name} until then.
+            </p>
+            {canManageBilling && (
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={reactivateMutation.isPending}
+                onClick={() => reactivateMutation.mutate()}
+                className="text-xs shrink-0"
+              >
+                <RotateCcw className="size-3.5 mr-1.5" />
+                Keep my plan
+              </Button>
+            )}
+          </div>
+        )}
+
+        {!paymentsEnabled && canManageBilling && (
+          <div className="rounded-xl border border-border bg-surface-muted/40 p-3 text-[11px] text-muted-foreground">
+            Online payments are not enabled on this deployment, so paid plans cannot be purchased yet.
+          </div>
+        )}
+
+        {subscription?.appliedPromotionCode && (
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-center gap-3 text-emerald-800 dark:text-emerald-200">
+            <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <Tag className="size-4" />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs font-bold">Coupon applied: {subscription.appliedPromotionCode}</p>
+              {subscription.discountPercent ? (
+                <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
+                  {subscription.discountPercent}% off your first payment.
+                </p>
+              ) : null}
             </div>
           </div>
         )}
@@ -215,7 +393,7 @@ export function WorkspaceBillingSettings({
             <Button
               size="xs"
               variant="primary"
-              onClick={() => handlePlanAction(plan === 'starter' ? 'pro' : 'business')}
+              onClick={() => handlePlanAction(upgradeTarget)}
               className="text-xs shrink-0"
             >
               Upgrade Micro-Agents
@@ -296,7 +474,7 @@ export function WorkspaceBillingSettings({
               }
             }
             icon={Bot}
-            onUpgradeClick={() => handlePlanAction(plan === 'starter' ? 'pro' : 'business')}
+            onUpgradeClick={() => handlePlanAction(upgradeTarget)}
           />
 
           {/* Shared AI Credits Meter / Card */}
@@ -356,12 +534,12 @@ export function WorkspaceBillingSettings({
               <UsageMeter
                 metric={usage.aiRequests}
                 icon={Sparkles}
-                onUpgradeClick={() => handlePlanAction('pro')}
+                onUpgradeClick={() => handlePlanAction(upgradeTarget)}
               />
               <UsageMeter
                 metric={usage.storage}
                 icon={Database}
-                onUpgradeClick={() => handlePlanAction('pro')}
+                onUpgradeClick={() => handlePlanAction(upgradeTarget)}
               />
             </>
           )}
@@ -412,6 +590,7 @@ export function WorkspaceBillingSettings({
               tier={tier}
               isAnnual={isAnnual}
               isCurrent={plan === tier}
+              currentTier={plan}
               canManageBilling={canManageBilling}
               onSelectPlan={handlePlanAction}
             />
@@ -450,58 +629,130 @@ export function WorkspaceBillingSettings({
         )}
       </div>
 
-      {/* 5. Invoices & Billing History */}
-      {invoices.length > 0 && (
-        <div className="space-y-4 pt-4 border-t border-border">
-          <div className="space-y-0.5">
-            <h3 className="text-base font-bold gap-2 flex items-center text-foreground">
-              <FileText className="size-4 text-primary" />
-              Invoices & Payment Receipts
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              View and download previous billing receipts and statements.
-            </p>
-          </div>
+      {/* 5. Subscription management */}
+      {plan !== 'free' && canManageBilling && (
+        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border">
+          {paymentsEnabled && subscription?.provider && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs gap-1.5"
+              disabled={portalMutation.isPending}
+              onClick={() => portalMutation.mutate()}
+            >
+              <CreditCard className="size-3.5" />
+              Payment method & invoices
+            </Button>
+          )}
+          {!pendingChange && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs text-destructive"
+              disabled={cancelMutation.isPending}
+              onClick={() => void handleCancel()}
+            >
+              Cancel subscription
+            </Button>
+          )}
+        </div>
+      )}
 
-          <div className="rounded-xl border border-border overflow-hidden">
+      {/* 6. Invoices & Billing History */}
+      <div className="space-y-4 pt-4 border-t border-border">
+        <div className="space-y-0.5">
+          <h3 className="text-base font-bold gap-2 flex items-center text-foreground">
+            <FileText className="size-4 text-primary" />
+            Invoices & Payment Receipts
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Receipts for subscription payments, credit top-ups and coupon activations.
+          </p>
+        </div>
+
+        {invoices.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            No invoices yet.
+          </p>
+        ) : (
+          <div className="rounded-xl border border-border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-surface-muted/50 text-xs">
-                  <TableHead>Invoice ID</TableHead>
+                  <TableHead>Invoice</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">
+                    <span className="sr-only">Download</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invoices.map((inv) => (
                   <TableRow key={inv.id}>
-                    <TableCell className="font-mono text-xs text-foreground">
-                      {inv.invoiceNumber}
-                    </TableCell>
+                    <TableCell className="font-mono text-xs text-foreground">{inv.invoiceNumber}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(inv.periodStart).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="text-xs text-foreground">
-                      {inv.description}
-                    </TableCell>
+                    <TableCell className="text-xs text-foreground">{inv.description}</TableCell>
                     <TableCell className="text-xs font-semibold text-foreground">
-                      ${(inv.amountCents / 100).toFixed(2)}
+                      {new Intl.NumberFormat(undefined, {
+                        style: 'currency',
+                        currency: inv.currency,
+                      }).format(inv.amountCents / 100)}
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant="primary"
-                        className="font-bold bg-emerald-500/15 text-emerald-600 border-emerald-500/20 text-[10px]"
+                        className={`font-bold text-[10px] ${
+                          inv.status === 'PAID'
+                            ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20'
+                            : 'bg-amber-500/15 text-amber-600 border-amber-500/20'
+                        }`}
                       >
                         {inv.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right text-xs">
+                      {inv.pdfUrl || inv.hostedUrl ? (
+                        <a
+                          className="text-primary hover:underline"
+                          href={inv.pdfUrl ?? inv.hostedUrl}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                        >
+                          Download
+                        </a>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
+        )}
+      </div>
+
+      {/* 7. Coupon history */}
+      {redemptions.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold gap-2 flex items-center text-foreground">
+            <Tag className="size-4 text-primary" />
+            Coupon history
+          </h3>
+          <ul className="divide-y divide-border rounded-xl border border-border text-xs">
+            {redemptions.map((r) => (
+              <li key={r.id} className="flex items-center justify-between px-4 py-2.5">
+                <span className="font-mono text-foreground">{r.code}</span>
+                <span className="text-muted-foreground">
+                  {r.status === 'APPLIED' ? 'Redeemed' : r.status === 'RESERVED' ? 'Pending' : 'Released'} ·{' '}
+                  {new Date(r.redeemedAt).toLocaleDateString()}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -512,6 +763,7 @@ export function WorkspaceBillingSettings({
         targetPlan={selectedPlanForCheckout}
         isAnnual={isAnnual}
         workspaceId={workspaceId}
+        paymentsEnabled={paymentsEnabled}
         onSuccess={() => setSelectedPlanForCheckout(null)}
       />
 

@@ -513,7 +513,7 @@ export function WorkspaceMenu({
               setMenuOpen(false);
               setInviteMembersOpen(true, current);
             }}
-            className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+            className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
             <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
               <MailPlus className="size-3" />
@@ -526,7 +526,7 @@ export function WorkspaceMenu({
           {/* Action: Add another account — the only account-level action here */}
           <DropdownMenuItem
             onClick={handleOpenAddAccount}
-            className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+            className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
             <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-dashed border-border text-primary">
               <UserPlus className="size-3" />
@@ -539,7 +539,7 @@ export function WorkspaceMenu({
           {/* Action: Workspace Settings */}
           <DropdownMenuItem
             asChild
-            className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+            className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
             <Link
               to={`/w/${current.slug}/settings`}
@@ -556,7 +556,7 @@ export function WorkspaceMenu({
               since the create request rides the signed-in account's token. */}
           <DropdownMenuItem
             asChild
-            className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+            className="gap-2.5 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
             <Link to="/workspaces/new" onClick={() => setMenuOpen(false)}>
               <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-dashed border-border text-subtle">

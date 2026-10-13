@@ -129,6 +129,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/analytics/revenue', label: 'Revenue & Finance', icon: DollarSign },
       { to: '/analytics/subscriptions', label: 'Subscriptions', icon: CreditCard },
+      { to: '/billing', label: 'Billing & Coupons', icon: DollarSign },
     ],
   },
   {

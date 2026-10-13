@@ -5,6 +5,7 @@ import {
   type AiAgentMessageEvent,
   type AiApprovalRequestedEvent,
   type AiRunFinishedEvent,
+  type BillingNoticeEvent,
   type CallActionItemUpdatedEvent,
   type CallSummarySharedEvent,
   type CallSummaryUpdatedEvent,
@@ -412,6 +413,30 @@ export class DomainEventsListener {
         resourceId: e.channelId,
       }),
     );
+  }
+
+  /** Tells workspace owners/admins about a billing fact; the dedupe key makes retries a no-op. */
+  @OnEvent(AppEvent.BillingNotice)
+  async onBillingNotice(e: BillingNoticeEvent): Promise<void> {
+    await this.safeNotify(async () => {
+      const managers = await this.prisma.workspaceMember.findMany({
+        where: { workspaceId: e.workspaceId, status: 'ACTIVE', role: { in: ['OWNER', 'ADMIN'] } },
+        select: { userId: true },
+      });
+      for (const m of managers) {
+        await this.notifications.create({
+          workspaceId: e.workspaceId,
+          recipientId: m.userId,
+          actorId: null,
+          kind: NotificationKind.SYSTEM,
+          title: e.title,
+          body: e.body,
+          deepLink: 'settings/billing',
+          resourceType: 'billing',
+          resourceId: e.dedupeKey,
+        });
+      }
+    });
   }
 
   @OnEvent(AppEvent.FileShared)
