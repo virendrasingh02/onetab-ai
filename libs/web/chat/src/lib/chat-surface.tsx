@@ -62,6 +62,7 @@ import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import {
   Badge,
   Button,
+  Checkbox,
   DetachedMenuItem,
   Hint,
   toast,
@@ -286,6 +287,7 @@ export interface ChatSurfaceProps {
   onSend: (
     body: string,
     threadRootId?: string,
+    options?: { alsoSendToChannel?: boolean },
   ) => void | string | undefined | Promise<void | string | undefined>;
   onEdit?: (eventId: string, body: string) => void | Promise<void>;
   onDelete?: (eventId: string) => void | Promise<void>;
@@ -461,6 +463,10 @@ export function ChatSurface({
   useRegisterActiveConversation(conversationId ?? undefined);
   const [panel, setPanel] = useState<SidePanel>('none');
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
+  // "Also send to #channel" — per reply, so it clears after every send and
+  // whenever another thread is opened.
+  const [alsoSendToChannel, setAlsoSendToChannel] = useState(false);
+  useEffect(() => setAlsoSendToChannel(false), [threadRootId]);
   const [editing, setEditing] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -594,7 +600,7 @@ export function ChatSurface({
     () =>
       messages.filter(
         (message) =>
-          !message.threadRootId &&
+          (!message.threadRootId || message.alsoSentToChannel) &&
           (!message.isRedacted || repliesByRoot.has(message.id)),
       ),
     [messages, repliesByRoot],
@@ -1935,11 +1941,44 @@ export function ChatSurface({
                       showFormatting={false}
                       placeholder="Reply in thread…"
                       className="bg-transparent"
+                      contextSlot={
+                        <label className="gap-2 mb-2 flex w-fit cursor-pointer items-center text-xs text-muted-foreground">
+                          <Checkbox
+                            checked={alsoSendToChannel}
+                            onCheckedChange={(checked) =>
+                              setAlsoSendToChannel(checked === true)
+                            }
+                          />
+                          <span className="gap-1 flex items-center">
+                            Also send to
+                            {!welcome?.kind || welcome.kind === 'channel' ? (
+                              <span className="gap-0.5 font-semibold flex items-center text-foreground">
+                                {(welcome?.isPrivate ?? isEncrypted) ? (
+                                  <Lock className="size-3" aria-hidden />
+                                ) : (
+                                  <Hash className="size-3" aria-hidden />
+                                )}
+                                {title.replace(/^#/, '')}
+                              </span>
+                            ) : (
+                              <span className="font-semibold text-foreground">
+                                this conversation
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                      }
                       readOnlyMessage={
                         threadComposerReadOnlyMessage ?? composerReadOnlyMessage
                       }
                       onSend={async (body, meta) => {
-                        const anchorId = await onSend(body, threadRoot.id);
+                        const broadcast = alsoSendToChannel;
+                        setAlsoSendToChannel(false);
+                        const anchorId = await onSend(
+                          body,
+                          threadRoot.id,
+                          broadcast ? { alsoSendToChannel: true } : undefined,
+                        );
                         threadControl.raiseMentionNotice(meta?.mentions, {
                           ...noticePlacement,
                           threadRootId: threadRoot.id,

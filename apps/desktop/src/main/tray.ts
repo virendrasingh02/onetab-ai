@@ -1,6 +1,7 @@
 import { app, Menu, nativeImage, Tray } from 'electron';
 import { existsSync } from 'node:fs';
 import { IPC_EVENT, type DesktopCommand } from '../shared/ipc.js';
+import { getStartupState, setStartupState } from './startup.js';
 import { getPreference, setPreference } from './store.js';
 import { getMainWindow, markQuitting, showMainWindow } from './window.js';
 
@@ -57,10 +58,10 @@ export function buildTrayMenu(): Menu {
     {
       label: 'Launch at login',
       type: 'checkbox',
-      checked: app.getLoginItemSettings().openAtLogin,
+      checked: getStartupState().openAtLogin,
+      enabled: getStartupState().supported,
       click: (item) => {
-        app.setLoginItemSettings({ openAtLogin: item.checked, openAsHidden: true });
-        setPreference('launchAtLogin', item.checked);
+        setStartupState({ openAtLogin: item.checked });
         refreshTrayMenu();
       },
     },
@@ -77,6 +78,7 @@ export function buildTrayMenu(): Menu {
 
 export function refreshTrayMenu(): void {
   tray?.setContextMenu(buildTrayMenu());
+  if (process.platform === 'darwin') app.dock?.setMenu(buildTrayMenu());
 }
 
 export function createTray(iconPath: string): void {
@@ -89,10 +91,60 @@ export function createTray(iconPath: string): void {
   // so this is a Windows/macOS affordance.
   tray.on('click', () => showMainWindow());
   tray.on('double-click', () => showMainWindow());
+
+  // The dock menu mirrors the tray menu so macOS users get the same shortcuts.
+  if (process.platform === 'darwin') app.dock?.setMenu(buildTrayMenu());
 }
 
 export function setTrayBadge(count: number): void {
   tray?.setToolTip(count > 0 ? `OneTab AI — ${count} unread` : 'OneTab AI');
+}
+
+let overlayIcon: Electron.NativeImage | null = null;
+
+/**
+ * Windows has no numeric badge API, only a small overlay on the taskbar icon.
+ * A plain red dot is drawn from raw pixels (BGRA, premultiplied is not needed
+ * for fully opaque pixels) so no icon asset has to ship; the exact count goes
+ * in the accessible description.
+ */
+function buildOverlayDot(): Electron.NativeImage {
+  if (overlayIcon) return overlayIcon;
+  const size = 16;
+  const buffer = Buffer.alloc(size * size * 4);
+  const centre = (size - 1) / 2;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const distance = Math.hypot(x - centre, y - centre);
+      if (distance > 7.2) continue;
+      const offset = (y * size + x) * 4;
+      // Anti-alias the rim; the interior is solid so premultiplication is moot.
+      const alpha = distance > 6.2 ? Math.round((7.2 - distance) * 255) : 255;
+      buffer[offset] = Math.round((0x3b * alpha) / 255); // B
+      buffer[offset + 1] = Math.round((0x3b * alpha) / 255); // G
+      buffer[offset + 2] = Math.round((0xe5 * alpha) / 255); // R
+      buffer[offset + 3] = alpha;
+    }
+  }
+  overlayIcon = nativeImage.createFromBitmap(buffer, { width: size, height: size });
+  return overlayIcon;
+}
+
+function setWindowsOverlay(count: number): void {
+  const window = getMainWindow();
+  if (!window || window.isDestroyed()) return;
+  if (count > 0) {
+    window.setOverlayIcon(buildOverlayDot(), `${count} unread`);
+  } else {
+    window.setOverlayIcon(null, '');
+  }
+}
+
+/** The one place a badge count reaches the OS (dock/launcher badge, taskbar overlay, tray tooltip). */
+export function applyBadgeCount(count: number): void {
+  if (process.platform === 'win32') setWindowsOverlay(count);
+  else app.setBadgeCount(count);
+  setTrayBadge(count);
 }
 
 export function destroyTray(): void {

@@ -25,6 +25,7 @@ import { CallManager } from './calls.js';
 import { toMatrixError, withRetry } from './errors.js';
 import {
   collectUnreadMentions,
+  ALSO_SEND_TO_CHANNEL_KEY,
   FORWARDED_CONTENT_KEY,
   forwardFallbackBody,
   type ForwardedContent,
@@ -1211,9 +1212,19 @@ export class OneTabMatrixClient {
       threadRootId?: EventId;
       replyToId?: EventId;
       html?: string;
+      /** With `threadRootId`: also show this reply in the channel timeline. */
+      alsoSendToChannel?: boolean;
     } = {},
   ): Promise<string> {
-    return this.sendTextEvent(roomId, body, options);
+    const { alsoSendToChannel, ...rest } = options;
+    if (!alsoSendToChannel || !options.threadRootId) {
+      return this.sendTextEvent(roomId, body, rest);
+    }
+    return this.sendTextEvent(roomId, body, {
+      ...rest,
+      extraContent: { [ALSO_SEND_TO_CHANNEL_KEY]: true },
+      echo: { alsoSentToChannel: true },
+    });
   }
 
   /**
@@ -1447,6 +1458,9 @@ export class OneTabMatrixClient {
     });
 
     const content: Record<string, unknown> = {
+      ...(retriedMessage.alsoSentToChannel
+        ? { [ALSO_SEND_TO_CHANNEL_KEY]: true }
+        : {}),
       msgtype: 'm.text',
       body: retriedMessage.body,
       ...(retriedMessage.formattedBody

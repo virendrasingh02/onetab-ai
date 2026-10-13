@@ -310,6 +310,9 @@ export function extractStructuredEvent(
 /** Content key under which a forwarded message travels — see `ForwardedContent`. */
 export const FORWARDED_CONTENT_KEY = 'org.onetab.forwarded';
 
+/** Content flag on a thread reply that is also shown in the channel timeline. */
+export const ALSO_SEND_TO_CHANNEL_KEY = 'org.onetab.also_send_to_channel';
+
 /**
  * The wire shape of a forward, stored under `FORWARDED_CONTENT_KEY` on an
  * ordinary `m.text` event.
@@ -528,6 +531,11 @@ export function toMessage(
     isRedacted: event.isRedacted(),
     threadRootId:
       relation?.rel_type === 'm.thread' ? relation.event_id : undefined,
+    alsoSentToChannel:
+      relation?.rel_type === 'm.thread' &&
+      (content as Record<string, unknown>)[ALSO_SEND_TO_CHANNEL_KEY] === true
+        ? true
+        : undefined,
     replyToId: relation?.['m.in_reply_to']?.event_id,
     sendState,
     transactionId,

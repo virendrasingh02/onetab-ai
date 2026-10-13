@@ -46,7 +46,6 @@ import { useNavigate } from 'react-router-dom';
 import { useCanManageTrackerMonitor } from '@org/web-workspace';
 import { CoworkerAvatar } from './CoworkerAvatar.js';
 import { CoworkerCreateDialog } from './CoworkerCreateDialog.js';
-import { CoworkerStatusDot } from './CoworkerStatusDot.js';
 import {
   useCoworker,
   useCoworkerLogs,
@@ -772,9 +771,6 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
                 size="sm"
               />
             </div>
-            <div className="flex items-center gap-1.5">
-              <CoworkerStatusDot status={coworker.status} showLabel />
-            </div>
           </div>
         </div>
       </div>
@@ -824,12 +820,6 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Joined Workspace:</span>
               <span className="font-semibold text-foreground">{formattedJoinedDate}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Operational Status:</span>
-              <div className="flex items-center gap-1 font-medium text-foreground">
-                <CoworkerStatusDot status={coworker.status} showLabel />
-              </div>
             </div>
           </div>
         </div>

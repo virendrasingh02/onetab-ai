@@ -9,6 +9,7 @@ export const TITLE_BAR_INSET = process.platform === 'darwin' ? 78 : 0;
 
 let mainWindow: BrowserWindow | null = null;
 let quitting = false;
+let hiddenLaunch = false;
 
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
@@ -167,9 +168,15 @@ export interface CreateWindowOptions {
   /** URL the renderer loads — Vite in dev, the internal static server in prod. */
   appUrl: string;
   preloadPath: string;
+  /** Launched by the OS at login: stay in the tray until the user asks for the window. */
+  startHidden?: boolean;
 }
 
-export function createMainWindow({ appUrl, preloadPath }: CreateWindowOptions): BrowserWindow {
+export function createMainWindow({
+  appUrl,
+  preloadPath,
+  startHidden = false,
+}: CreateWindowOptions): BrowserWindow {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.focus();
     return mainWindow;
@@ -204,6 +211,7 @@ export function createMainWindow({ appUrl, preloadPath }: CreateWindowOptions): 
   });
 
   mainWindow = window;
+  hiddenLaunch = startHidden;
 
   if (saved.isMaximized) window.maximize();
 
@@ -224,6 +232,7 @@ export function createMainWindow({ appUrl, preloadPath }: CreateWindowOptions): 
   });
 
   window.once('ready-to-show', () => {
+    if (hiddenLaunch) return;
     window.show();
     if (saved.isMaximized) window.maximize();
   });
@@ -269,9 +278,15 @@ export function createMainWindow({ appUrl, preloadPath }: CreateWindowOptions): 
   return window;
 }
 
+/** True until the user first asks for a window that was launched hidden. */
+export function isHiddenLaunch(): boolean {
+  return hiddenLaunch;
+}
+
 export function showMainWindow(): void {
   const window = mainWindow;
   if (!window || window.isDestroyed()) return;
+  hiddenLaunch = false;
   if (window.isMinimized()) window.restore();
   window.show();
   window.focus();

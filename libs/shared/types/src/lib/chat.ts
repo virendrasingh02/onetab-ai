@@ -208,6 +208,11 @@ export interface Message {
   isRedacted: boolean;
   /** Set when this message is a threaded reply. */
   threadRootId?: EventId;
+  /**
+   * Set on a thread reply the author also sent to the channel ("Also send to
+   * #channel"): it shows in the main timeline as well as in its thread.
+   */
+  alsoSentToChannel?: boolean;
   /** Set when this message is an inline reply. */
   replyToId?: EventId;
   /** Present for locally echoed messages that have not been acknowledged. */

@@ -290,7 +290,7 @@ function ThreadDetail({
   ]);
 
   return (
-    <div className="border-t border-border bg-muted/20">
+    <div className="border-t border-border bg-muted/20 last:rounded-b-[inherit]">
       <div className="flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium text-muted-foreground">
         <span className="h-px flex-1 bg-border" aria-hidden />
         <span>
@@ -645,32 +645,32 @@ function RoomThreadSection({
 
   return (
     <section>
-      <div className="mb-2.5 flex items-start justify-between gap-3 px-1">
+      <div className="mb-3 flex items-start justify-between gap-3 px-1">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link
               to={roomLink}
-              className="group inline-flex min-w-0 items-center gap-1.5 transition-colors"
+              className="group inline-flex min-w-0 items-center gap-2 transition-colors"
             >
               <Icon
-                className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors"
+                className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors"
                 aria-hidden
               />
-              <h3 className="truncate text-[13px] font-semibold text-foreground group-hover:underline">
+              <h3 className="truncate text-[15px] font-semibold text-foreground group-hover:underline">
                 {group.roomName}
               </h3>
             </Link>
-            <Badge variant="neutral" className="h-4 px-1.5 py-0 text-[10px]">
+            <Badge variant="neutral" className="h-[18px] px-1.5 py-0 text-[11px]">
               {group.threads.length}
             </Badge>
             {group.unreadCount > 0 ? (
-              <Badge variant="primary" className="h-4 px-1.5 py-0 text-[10px]">
+              <Badge variant="primary" className="h-[18px] px-1.5 py-0 text-[11px]">
                 {group.unreadCount} unread
               </Badge>
             ) : null}
           </div>
           {memberSubtitle ? (
-            <p className="mt-0.5 pl-5 truncate text-[11px] text-muted-foreground">
+            <p className="mt-0.5 pl-6 truncate text-xs text-muted-foreground">
               {memberSubtitle}
             </p>
           ) : null}
@@ -682,8 +682,8 @@ function RoomThreadSection({
         ) : null}
       </div>
 
-      <Card className="gap-0 overflow-hidden p-0">
-        <ul className="divide-y divide-border">
+      <Card className="gap-0 p-0">
+        <ul className="divide-y divide-border rounded-[inherit] pt-3">
           {group.threads.map((thread) => (
             <ThreadRow
               key={thread.id}

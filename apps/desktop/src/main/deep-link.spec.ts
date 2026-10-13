@@ -7,7 +7,7 @@ vi.mock('electron', () => ({
   shell: { openExternal: vi.fn() },
 }));
 
-const { deepLinkFromArgv, parseDeepLink, isSupportedProtocol } = await import('./deep-link.js');
+const { deepLinkFromArgv, parseDeepLink, isSupportedProtocol, isSafeRoute } = await import('./deep-link.js');
 
 describe('isSupportedProtocol', () => {
   it('accepts onetab and mie protocols', () => {
@@ -75,5 +75,42 @@ describe('deepLinkFromArgv', () => {
 
   it('returns undefined for an ordinary launch without deep links', () => {
     expect(deepLinkFromArgv(['electron.exe', '--enable-logging'])).toBeUndefined();
+  });
+});
+
+describe('deep link destination safety', () => {
+  it.each([
+    `onetab://w/acme/${'a'.repeat(3000)}`,
+    'onetab://w/acme/%00',
+    'onetab://w/acme/%0d%0a',
+  ])('rejects %s', (raw) => {
+    expect(parseDeepLink(raw)).toBeNull();
+  });
+
+  // The WHATWG URL parser resolves dot segments (including %2e) before we see
+  // the path, so these cannot escape: whatever survives is a normal in-app route.
+  it.each([
+    'onetab://w/acme/../../etc',
+    'onetab://w/acme/%2e%2e/admin',
+    'onetab:////evil.example/x',
+  ])('never yields a traversal or scheme-relative route for %s', (raw) => {
+    const route = parseDeepLink(raw)?.route;
+    if (route === undefined) return;
+    expect(route.startsWith('/')).toBe(true);
+    expect(route.startsWith('//')).toBe(false);
+    expect(route.split('/')).not.toContain('..');
+  });
+
+  it('isSafeRoute rejects traversal, backslashes and embedded schemes directly', () => {
+    expect(isSafeRoute('/w/../x')).toBe(false);
+    expect(isSafeRoute('/w/%2e%2e/x')).toBe(false);
+    expect(isSafeRoute('/w\\evil')).toBe(false);
+    expect(isSafeRoute('//evil.example')).toBe(false);
+    expect(isSafeRoute('/javascript:alert(1)')).toBe(false);
+    expect(isSafeRoute('/w/acme/inbox?x=1#y')).toBe(true);
+  });
+
+  it('still accepts ordinary routes with queries', () => {
+    expect(parseDeepLink('onetab://w/acme/search?q=a%20b')?.route).toBe('/w/acme/search?q=a%20b');
   });
 });

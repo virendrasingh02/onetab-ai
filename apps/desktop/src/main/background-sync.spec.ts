@@ -18,9 +18,9 @@ vi.mock('./auth.js', () => ({
   refreshSecureSession: (...args: unknown[]) => refreshSecureSession(...args),
 }));
 
-const setTrayBadge = vi.fn();
+const applyBadgeCount = vi.fn();
 vi.mock('./tray.js', () => ({
-  setTrayBadge: (...args: unknown[]) => setTrayBadge(...args),
+  applyBadgeCount: (...args: unknown[]) => applyBadgeCount(...args),
 }));
 
 const getMainWindow = vi.fn(() => null);
@@ -61,7 +61,7 @@ describe('background sync poll', () => {
     await pollOnceForTest();
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(setTrayBadge).not.toHaveBeenCalled();
+    expect(applyBadgeCount).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 
@@ -89,7 +89,7 @@ describe('background sync poll', () => {
 
     await pollOnceForTest();
 
-    expect(setTrayBadge).toHaveBeenCalledWith(8);
+    expect(applyBadgeCount).toHaveBeenCalledWith(8);
     vi.unstubAllGlobals();
   });
 
@@ -112,7 +112,7 @@ describe('background sync poll', () => {
     await pollOnceForTest();
 
     expect(refreshSecureSession).toHaveBeenCalledTimes(1);
-    expect(setTrayBadge).toHaveBeenCalledWith(1);
+    expect(applyBadgeCount).toHaveBeenCalledWith(1);
     vi.unstubAllGlobals();
   });
 
@@ -159,12 +159,12 @@ describe('background sync poll', () => {
     await pollOnceForTest();
 
     expect(Notification).not.toHaveBeenCalled();
-    expect(setTrayBadge).toHaveBeenCalledWith(2);
+    expect(applyBadgeCount).toHaveBeenCalledWith(2);
     vi.unstubAllGlobals();
   });
 
   it('resetBadgeOnSignOut zeroes the badge', () => {
     resetBadgeOnSignOut();
-    expect(setTrayBadge).toHaveBeenCalledWith(0);
+    expect(applyBadgeCount).toHaveBeenCalledWith(0);
   });
 });

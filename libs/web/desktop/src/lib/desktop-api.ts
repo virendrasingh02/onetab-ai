@@ -172,6 +172,70 @@ export interface DesktopHandoffRequest {
   fallbackUrl?: string;
 }
 
+export type DesktopPathKey = 'userData' | 'logs' | 'crashDumps';
+
+export interface DesktopStartupState {
+  supported: boolean;
+  reason?: string;
+  openAtLogin: boolean;
+  startHidden: boolean;
+  launchedAtLogin: boolean;
+}
+
+export interface DesktopStartupRequest {
+  openAtLogin?: boolean;
+  startHidden?: boolean;
+}
+
+export interface DesktopProcessMetric {
+  pid: number;
+  type: string;
+  name?: string;
+  cpuPercent: number;
+  workingSetKb: number;
+}
+
+export interface DesktopProtocolStatus {
+  scheme: string;
+  registered: boolean;
+}
+
+/** Mirrors `DesktopDiagnostics` in `apps/desktop/src/shared/ipc.ts`. */
+export interface DesktopDiagnostics {
+  collectedAt: string;
+  identity: {
+    name: string;
+    version: string;
+    isPackaged: boolean;
+    isReady: boolean;
+    appUserModelId: string | null;
+    uptimeSeconds: number;
+  };
+  runtime: {
+    electron: string;
+    chrome: string;
+    node: string;
+    v8: string;
+    platform: DesktopPlatform;
+    arch: string;
+    osVersion: string;
+    runningUnderTranslation: boolean;
+  };
+  locale: { app: string; system: string; preferred: string[] };
+  paths: Record<DesktopPathKey | 'temp' | 'sessionData', string>;
+  gpu: {
+    hardwareAccelerationEnabled: boolean;
+    hardwareAccelerationPreference: boolean;
+    featureStatus: Record<string, string>;
+    renderer: string | null;
+  };
+  accessibilitySupportEnabled: boolean;
+  singleInstance: boolean;
+  startup: DesktopStartupState;
+  protocols: DesktopProtocolStatus[];
+  metrics: DesktopProcessMetric[];
+}
+
 type Unsubscribe = () => void;
 
 export interface OneTabDesktopApi {
@@ -251,6 +315,11 @@ export interface OneTabDesktopApi {
   };
   app: {
     relaunch: () => Promise<void>;
+    quit: () => Promise<void>;
+    getDiagnostics: () => Promise<DesktopDiagnostics>;
+    getStartup: () => Promise<DesktopStartupState>;
+    setStartup: (request: DesktopStartupRequest) => Promise<DesktopStartupState>;
+    openPath: (key: DesktopPathKey) => Promise<boolean>;
   };
   onDeepLink: (handler: (link: DesktopDeepLink) => void) => Unsubscribe;
   onCommand: (handler: (command: DesktopCommand) => void) => Unsubscribe;

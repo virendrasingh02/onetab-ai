@@ -153,3 +153,7 @@ export {
 export * from './lib/use-calls.js';
 
 
+export {
+  useMatrixPresenceResolver,
+  useMirrorPresenceToMatrix,
+} from './lib/matrix-presence.js';

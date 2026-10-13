@@ -95,7 +95,7 @@ function CoworkerEditorView({ coworkerId }: { coworkerId: string }) {
               </Link>
             </Button>
           </Hint>
-          <AIEntityAvatar name={data.name} type="coworker" avatarUrl={data.avatarUrl} status={data.status} showStatusDot size="sm" />
+          <AIEntityAvatar name={data.name} type="coworker" avatarUrl={data.avatarUrl} size="sm" />
           <div className="min-w-0">
             <h1 className="truncate text-sm font-semibold text-foreground">{data.name}</h1>
             <p className="truncate text-[11px] text-muted-foreground">{data.role}</p>

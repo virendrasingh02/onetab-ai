@@ -1,8 +1,10 @@
 import { app } from 'electron';
+import { resolve } from 'node:path';
 import {
   DEEP_LINK_PROTOCOLS,
   IPC_EVENT,
   type DesktopDeepLink,
+  type DesktopProtocolStatus,
 } from '../shared/ipc.js';
 import { handleAuthCallback, handleAuthCallbackError } from './auth.js';
 import { triggerBackgroundSyncNow } from './background-sync.js';
@@ -26,11 +28,39 @@ export function isSupportedProtocol(raw: string): boolean {
   return false;
 }
 
+/** Longest link accepted; real routes are far shorter, and argv can be attacker-shaped. */
+const MAX_DEEP_LINK_LENGTH = 2048;
+
+/**
+ * A link can only ever name a route *inside* the renderer, so anything that
+ * could escape it — traversal, scheme-relative or backslash tricks, control
+ * characters, an embedded scheme — is dropped here rather than trusted to the
+ * renderer's router.
+ */
+// eslint-disable-next-line no-control-regex
+const CONTROL_OR_BACKSLASH = /[\u0000-\u001f\u007f\\]/;
+
+export function isSafeRoute(route: string): boolean {
+  if (route.length > MAX_DEEP_LINK_LENGTH) return false;
+  if (CONTROL_OR_BACKSLASH.test(route)) return false;
+  if (!route.startsWith('/') || route.startsWith('//')) return false;
+  const path = route.split(/[?#]/, 1)[0];
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(path);
+  } catch {
+    return false;
+  }
+  if (CONTROL_OR_BACKSLASH.test(decoded)) return false;
+  if (decoded.split('/').some((segment) => segment === '..' || segment === '.')) return false;
+  return !/^\/*[a-z][a-z0-9+.-]*:/i.test(decoded);
+}
+
 /**
  * Parses and sanitizes a custom protocol deep-link URL into a valid in-app route.
  */
 export function parseDeepLink(raw: string): DesktopDeepLink | null {
-  if (!raw || !isSupportedProtocol(raw)) return null;
+  if (!raw || raw.length > MAX_DEEP_LINK_LENGTH || !isSupportedProtocol(raw)) return null;
 
   try {
     const url = new URL(raw);
@@ -49,6 +79,10 @@ export function parseDeepLink(raw: string): DesktopDeepLink | null {
     }
 
     const route = `/${cleanPath}${url.search}${url.hash}`;
+    if (!isSafeRoute(route)) {
+      logger.warn('DeepLink', 'Rejected an unsafe deep link route');
+      return null;
+    }
 
     return {
       route,
@@ -61,18 +95,35 @@ export function parseDeepLink(raw: string): DesktopDeepLink | null {
   }
 }
 
+/**
+ * In dev the OS must be told to launch `electron <script>`, not bare
+ * `electron`, and the script path has to be absolute for that to work.
+ */
+function protocolClientArgs(): { path?: string; args?: string[] } {
+  if (!process.defaultApp) return {};
+  const script = process.argv[1];
+  return script ? { path: process.execPath, args: [resolve(script)] } : {};
+}
+
 export function registerProtocol(): void {
+  const { path, args } = protocolClientArgs();
   for (const protocol of DEEP_LINK_PROTOCOLS) {
-    if (process.defaultApp) {
-      const script = process.argv[1];
-      if (script) {
-        app.setAsDefaultProtocolClient(protocol, process.execPath, [script]);
-      }
-    } else {
-      app.setAsDefaultProtocolClient(protocol);
+    // Returns false when the OS refuses (e.g. policy-locked defaults); that is
+    // worth knowing about but never fatal.
+    if (!app.setAsDefaultProtocolClient(protocol, path, args)) {
+      logger.warn('DeepLink', `The OS refused to register ${protocol}://`);
     }
   }
   logger.info('DeepLink', `Registered custom protocols: ${DEEP_LINK_PROTOCOLS.join(', ')}`);
+}
+
+/** Whether the OS currently routes each scheme to this app (for Settings). */
+export function listProtocolStatus(): DesktopProtocolStatus[] {
+  const { path, args } = protocolClientArgs();
+  return DEEP_LINK_PROTOCOLS.map((scheme) => ({
+    scheme,
+    registered: app.isDefaultProtocolClient(scheme, path, args),
+  }));
 }
 
 export async function dispatchDeepLink(raw: string | undefined | null): Promise<void> {

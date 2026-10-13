@@ -32,7 +32,9 @@ import { useDesktop } from './desktop-provider.js';
 import { notify, openExternal } from './desktop-api.js';
 import { PlatformDiagnosticsLink } from './platform-diagnostics-link.js';
 import { useAllFeatures } from './use-feature.js';
+import { DesktopDiagnosticsCard } from './desktop-diagnostics-card.js';
 import { useDesktopPreference } from './use-desktop-preference.js';
+import { useDesktopStartup } from './use-desktop-startup.js';
 
 const DISTRIBUTION_LABELS: Record<string, string> = {
   'mac-app-store': 'Mac App Store',
@@ -102,7 +104,7 @@ export function DesktopSettingsCard() {
     installUpdate,
   } = useDesktop();
 
-  const [launchAtLogin, setLaunchAtLogin] = useDesktopPreference('launchAtLogin', false);
+  const [startup, updateStartup] = useDesktopStartup();
   const [minimizeToTray, setMinimizeToTray] = useDesktopPreference(
     'minimizeToTray',
     appInfo?.platform === 'darwin',
@@ -163,9 +165,23 @@ export function DesktopSettingsCard() {
             id="desktop-launch-at-login"
             title="Launch at login"
             description="Automatically start OneTab AI in the background when you log in to your computer."
-            checked={launchAtLogin}
-            onCheckedChange={setLaunchAtLogin}
-            disabled={!capabilities.autoLaunch}
+            checked={startup?.openAtLogin ?? false}
+            onCheckedChange={(value) => void updateStartup({ openAtLogin: value })}
+            disabled={!capabilities.autoLaunch || !startup?.supported}
+          />
+          {startup && !startup.supported && startup.reason && (
+            <p className="pb-2 text-[11px] text-muted-foreground">{startup.reason}</p>
+          )}
+
+          <Separator />
+
+          <Row
+            id="desktop-start-hidden"
+            title="Start minimized to the tray"
+            description="When launched at login, stay in the background instead of opening a window."
+            checked={startup?.startHidden ?? true}
+            onCheckedChange={(value) => void updateStartup({ startHidden: value })}
+            disabled={!startup?.supported || !startup.openAtLogin}
           />
 
           <Separator />
@@ -336,6 +352,8 @@ export function DesktopSettingsCard() {
           </div>
         </CardContent>
       </Card>
+
+      <DesktopDiagnosticsCard />
 
       {/* 5. PLATFORM & FEATURES — grouped by @org/platform's evaluated state, not a
           hardcoded per-platform list, so a new store policy changes this

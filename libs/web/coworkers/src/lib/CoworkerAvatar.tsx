@@ -6,6 +6,7 @@ import {
   Code2,
   Globe,
   Layers,
+  Loader2,
   MessageSquare,
   Rocket,
   Search,
@@ -14,7 +15,6 @@ import {
   Zap,
 } from 'lucide-react';
 import type { FC } from 'react';
-import { CoworkerStatusDot } from './CoworkerStatusDot.js';
 
 export interface CoworkerAvatarProps {
   name: string;
@@ -139,9 +139,17 @@ export const CoworkerAvatar: FC<CoworkerAvatarProps> = ({
         )}
       </div>
 
-      {showStatusDot && status && (
-        <span className={cn('absolute z-10', sizeConfig.dotOffset)}>
-          <CoworkerStatusDot status={status} size={sizeConfig.dotSize} />
+      {showStatusDot && (status === 'WORKING' || status === 'RUNNING_TASK') && (
+        <span
+          role="status"
+          aria-label="Working"
+          className={cn(
+            'absolute z-10 flex items-center justify-center rounded-full bg-background shadow-xs',
+            size === 'xs' || size === 'sm' ? 'size-3' : 'size-4',
+            sizeConfig.dotOffset,
+          )}
+        >
+          <Loader2 className="size-full animate-spin p-px text-primary" />
         </span>
       )}
     </div>

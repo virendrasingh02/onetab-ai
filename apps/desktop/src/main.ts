@@ -15,14 +15,22 @@ import {
   registerProtocol,
   setApiUrlForDeepLinks,
 } from './main/deep-link.js';
+import { setSingleInstanceHeld } from './main/diagnostics.js';
 import { registerIpcHandlers } from './main/ipc.js';
 import { logger } from './main/logger.js';
 import { installAppMenu } from './main/menu.js';
 import { startStaticServer, type StaticServer } from './main/static-server.js';
 import { createTray, destroyTray } from './main/tray.js';
 import { scheduleUpdateChecks } from './main/updater.js';
+import { shouldStartHidden, syncLoginItemOnLaunch } from './main/startup.js';
 import { getPreference } from './main/store.js';
-import { createMainWindow, getMainWindow, markQuitting, showMainWindow } from './main/window.js';
+import {
+  createMainWindow,
+  getMainWindow,
+  isHiddenLaunch,
+  markQuitting,
+  showMainWindow,
+} from './main/window.js';
 
 /** Directory of the compiled `dist/main.js`, not of this source file. */
 const here = __dirname;
@@ -32,10 +40,14 @@ let staticServer: StaticServer | null = null;
 
 /**
  * A second launch must hand its deep link to the running app instead of opening
- * a duplicate window. Acquiring the lock has to happen before anything else —
- * `app.quit()` here is the cheapest possible exit for the losing process.
+ * a duplicate window. Acquiring the lock has to happen before anything else.
+ * The losing process must also *not* go on to register listeners or open a
+ * window: `app.quit()` is asynchronous, so everything below is gated on this.
  */
-if (!app.requestSingleInstanceLock()) {
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+setSingleInstanceHeld(hasSingleInstanceLock);
+
+if (!hasSingleInstanceLock) {
   logger.info('App', 'Another instance is already running. Handing off and quitting second instance.');
   app.quit();
 }
@@ -43,12 +55,20 @@ if (!app.requestSingleInstanceLock()) {
 /*
  * Both are needed and neither implies the other. The AppUserModelID is what
  * Windows uses to attribute toast notifications and group taskbar windows; the
- * name is what appears in the About panel, in notification banners, and — since
- * it decides `app.getPath('userData')` — where preferences and window state
+ * name is what appears in the About panel, in notification banners, and - since
+ * it decides `app.getPath('userData')` - where preferences and window state
  * live.
  */
 app.setAppUserModelId('ai.onetab.desktop');
 app.setName('OneTab AI');
+
+/**
+ * GPU acceleration can only be switched off before `ready`, which is why the
+ * saved preference is read here and why changing it asks for a restart.
+ */
+if (hasSingleInstanceLock && !getPreference<boolean>('hardwareAcceleration', true)) {
+  app.disableHardwareAcceleration();
+}
 
 /**
  * Where the renderer comes from.
@@ -146,28 +166,50 @@ process.on('unhandledRejection', (reason) => {
   logger.error('Process', 'Unhandled rejection in main process', reason);
 });
 
-async function bootstrap(): Promise<void> {
-  logger.info('App', `Starting OneTab AI Desktop (Platform: ${process.platform}, Dev: ${isDev})`);
+let appInitialized = false;
+let windowOpening = false;
+let resolvedAppUrl: string | null = null;
 
+/**
+ * Everything that must happen exactly once per process. `activate` on macOS can
+ * reopen a window long after launch, and re-running this would throw on the
+ * second `ipcMain.handle` and stack duplicate listeners and timers.
+ */
+async function initializeApp(): Promise<string> {
   const appUrl = await resolveAppUrl();
   const apiUrl = process.env['VITE_API_URL'] || 'http://localhost:3000/api/v1';
   setApiUrlForDeepLinks(apiUrl);
   setApiUrlForAuth(apiUrl);
   setApiUrlForBackgroundSync(apiUrl);
 
-  const preloadPath = join(here, 'preload.js');
-
   applySessionPolicy(appUrl);
   registerIpcHandlers(isDev, appUrl);
   installAppMenu(isDev);
+  configureAboutPanel();
 
   const savedTheme = getPreference<'system' | 'light' | 'dark'>('theme', 'system');
   nativeTheme.themeSource = savedTheme;
+  nativeTheme.on('updated', () => {
+    getMainWindow()?.webContents.send(IPC_EVENT.themeChanged, {
+      shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
+    });
+  });
 
-  const window = createMainWindow({ appUrl, preloadPath });
+  createTray(join(resolveResourcesDir(), 'tray-icon.png'));
+  registerGlobalShortcuts();
+  scheduleUpdateChecks(isDev);
+  startBackgroundSync();
+  syncLoginItemOnLaunch();
+
+  appInitialized = true;
+  return appUrl;
+}
+
+function openWindow(appUrl: string, startHidden: boolean): void {
+  const window = createMainWindow({ appUrl, preloadPath: join(here, 'preload.js'), startHidden });
 
   window.webContents.on('did-finish-load', () => {
-    showMainWindow();
+    if (!isHiddenLaunch()) showMainWindow();
     flushPendingDeepLink();
     window.webContents.send(IPC_EVENT.onlineStatus, true);
 
@@ -189,56 +231,105 @@ async function bootstrap(): Promise<void> {
       }, 1000);
     });
   }
-
-  createTray(join(resolveResourcesDir(), 'tray-icon.png'));
-  registerGlobalShortcuts();
-  scheduleUpdateChecks(isDev);
-  startBackgroundSync();
-
-  nativeTheme.on('updated', () => {
-    window.webContents.send(IPC_EVENT.themeChanged, {
-      shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
-    });
-  });
-
-  // Launched by clicking a link (Windows/Linux put it in argv).
-  dispatchDeepLink(deepLinkFromArgv(process.argv));
 }
 
-app.on('second-instance', (_event, argv) => {
-  showMainWindow();
-  dispatchDeepLink(deepLinkFromArgv(argv));
-});
+/** Launch and macOS `activate` both land here; initialization runs only the first time. */
+async function bootstrap(): Promise<void> {
+  if (windowOpening) return;
+  windowOpening = true;
+  try {
+    if (!appInitialized) {
+      logger.info('App', `Starting OneTab AI Desktop (Platform: ${process.platform}, Dev: ${isDev})`);
+      resolvedAppUrl = await initializeApp();
+    }
+    if (!resolvedAppUrl) return;
 
-// macOS delivers deep links as an event, before *and* after `whenReady`.
-app.on('open-url', (event, url) => {
-  event.preventDefault();
-  dispatchDeepLink(url);
-});
+    // A launch that carries a deep link is the user asking for the app, so it
+    // is never hidden even when started at login.
+    const launchLink = deepLinkFromArgv(process.argv);
+    openWindow(resolvedAppUrl, !launchLink && shouldStartHidden());
 
-app.whenReady().then(() => {
-  registerProtocol();
+    // Launched by clicking a link (Windows/Linux put it in argv).
+    void dispatchDeepLink(launchLink);
+  } finally {
+    windowOpening = false;
+  }
+}
 
-  bootstrap().catch((error) => {
-    reportFatal(error);
-    app.quit();
+/** Native About panel: what the macOS `about` role and Linux show. */
+function configureAboutPanel(): void {
+  app.setAboutPanelOptions({
+    applicationName: 'OneTab AI',
+    applicationVersion: app.getVersion(),
+    copyright: 'Copyright (c) OneTab AI Inc.',
+    website: 'https://onetab.ai',
+  });
+}
+
+function registerAppListeners(): void {
+  app.on('second-instance', (_event, argv) => {
+    showMainWindow();
+    void dispatchDeepLink(deepLinkFromArgv(argv));
+  });
+
+  // macOS delivers deep links as an event, before *and* after `whenReady`.
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    void dispatchDeepLink(url);
+  });
+
+  app.whenReady().then(() => {
+    registerProtocol();
+
+    bootstrap().catch((error) => {
+      reportFatal(error);
+      app.quit();
+    });
   });
 
   app.on('activate', () => {
     if (getMainWindow()) showMainWindow();
     else void bootstrap();
   });
-});
 
-app.on('before-quit', () => markQuitting());
+  app.on('before-quit', () => markQuitting());
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
 
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
-  destroyTray();
-  stopBackgroundSync();
-  void staticServer?.close();
-});
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
+    destroyTray();
+    stopBackgroundSync();
+    void staticServer?.close();
+  });
+
+  /*
+   * Observability only. None of these handlers calls preventDefault, so the
+   * secure default stands: a certificate error still rejects the request, and
+   * TLS validation is never relaxed globally.
+   */
+  app.on('certificate-error', (_event, _contents, url, error) => {
+    let origin = url;
+    try {
+      origin = new URL(url).origin;
+    } catch {
+      // keep the raw string
+    }
+    logger.warn('Security', `Rejected certificate for ${origin}: ${error}`);
+  });
+
+  app.on('child-process-gone', (_event, details) => {
+    logger.error(
+      'Process',
+      `Child process gone (type: ${details.type}, reason: ${details.reason}, exitCode: ${details.exitCode})`,
+    );
+  });
+
+  app.on('accessibility-support-changed', (_event, enabled) => {
+    logger.info('App', `Accessibility support ${enabled ? 'enabled' : 'disabled'}`);
+  });
+}
+
+if (hasSingleInstanceLock) registerAppListeners();

@@ -34,6 +34,11 @@ export const IPC = {
   downloadUpdate: 'onetab:updates/download',
   installUpdate: 'onetab:updates/install',
   relaunch: 'onetab:relaunch',
+  quit: 'onetab:quit',
+  getDiagnostics: 'onetab:diagnostics/get',
+  getStartup: 'onetab:startup/get',
+  setStartup: 'onetab:startup/set',
+  openPath: 'onetab:shell/open-path',
   authStartBrowserLogin: 'onetab:auth/start-browser-login',
   authGetSession: 'onetab:auth/get-session',
   authClearSession: 'onetab:auth/clear-session',
@@ -57,6 +62,76 @@ export const IPC_EVENT = {
   authFlowStatus: 'onetab:event/auth-flow-status',
   capabilitiesChanged: 'onetab:event/capabilities-changed',
 } as const;
+
+/** Named folders the renderer may ask the OS to reveal. Never a raw path. */
+export const DESKTOP_PATH_KEYS = ['userData', 'logs', 'crashDumps'] as const;
+export type DesktopPathKey = (typeof DESKTOP_PATH_KEYS)[number];
+
+export interface DesktopStartupState {
+  /** False in dev builds, on Linux, and anywhere the OS has no login-item API. */
+  supported: boolean;
+  reason?: string;
+  openAtLogin: boolean;
+  /** Launch to the tray without showing the window. */
+  startHidden: boolean;
+  /** True when this very process was started by the OS at login. */
+  launchedAtLogin: boolean;
+}
+
+export interface DesktopStartupRequest {
+  openAtLogin?: boolean;
+  startHidden?: boolean;
+}
+
+export interface DesktopProcessMetric {
+  pid: number;
+  type: string;
+  name?: string;
+  cpuPercent: number;
+  workingSetKb: number;
+}
+
+export interface DesktopProtocolStatus {
+  scheme: string;
+  /** Whether the OS currently routes this scheme to this app. */
+  registered: boolean;
+}
+
+export interface DesktopDiagnostics {
+  collectedAt: string;
+  identity: {
+    name: string;
+    version: string;
+    isPackaged: boolean;
+    isReady: boolean;
+    appUserModelId: string | null;
+    uptimeSeconds: number;
+  };
+  runtime: {
+    electron: string;
+    chrome: string;
+    node: string;
+    v8: string;
+    platform: DesktopPlatform;
+    arch: string;
+    osVersion: string;
+    runningUnderTranslation: boolean;
+  };
+  locale: { app: string; system: string; preferred: string[] };
+  paths: Record<DesktopPathKey | 'temp' | 'sessionData', string>;
+  gpu: {
+    hardwareAccelerationEnabled: boolean;
+    /** The saved preference; differs from the above until the next restart. */
+    hardwareAccelerationPreference: boolean;
+    featureStatus: Record<string, string>;
+    renderer: string | null;
+  };
+  accessibilitySupportEnabled: boolean;
+  singleInstance: boolean;
+  startup: DesktopStartupState;
+  protocols: DesktopProtocolStatus[];
+  metrics: DesktopProcessMetric[];
+}
 
 export type DesktopPlatform = 'win32' | 'darwin' | 'linux';
 

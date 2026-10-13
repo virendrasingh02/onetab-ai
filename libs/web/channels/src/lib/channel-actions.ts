@@ -26,7 +26,6 @@ import {
   MailOpen,
   Pencil,
   Settings,
-  Settings2,
   Star,
   Users,
 } from 'lucide-react';
@@ -229,36 +228,26 @@ export function buildChannelActions(
 
     !!onSetNotificationLevel &&
       isMember && {
-        id: 'mute',
-        group: 'notifications',
-        label: isMuted ? 'Unmute channel' : 'Mute channel',
-        icon: isMuted ? Bell : BellOff,
-        shortcut: 'M',
-        description: isMuted
-          ? undefined
-          : 'Hide unread activity. Mentions still notify you.',
-        // Unmuting returns to whatever level sat under the mute.
-        run: () =>
-          onSetNotificationLevel(
-            isMuted
-              ? channel.membership?.mentionsOnly
-                ? 'mentions'
-                : 'all'
-              : 'nothing',
-          ),
-      },
-    !!onSetNotificationLevel &&
-      isMember && {
         id: 'notifications',
         group: 'notifications',
         label: 'Notifications',
         icon: levelIcon[level],
-        hint: CHANNEL_NOTIFICATION_LEVEL_LABELS[level],
+        hint: isMuted ? 'Muted' : CHANNEL_NOTIFICATION_LEVEL_LABELS[level],
+        // Muting is the "nothing" level — one control, not a second menu item.
+        // Picking an active level while muted is the unmute.
         children: (['all', 'mentions', 'nothing'] as const).map(
           (value): EntityAction => ({
             id: `notify-${value}`,
-            label: CHANNEL_NOTIFICATION_LEVEL_LABELS[value],
+            label:
+              value === 'nothing'
+                ? 'Mute channel'
+                : CHANNEL_NOTIFICATION_LEVEL_LABELS[value],
+            description:
+              value === 'nothing'
+                ? 'Hide unread activity. Mentions still notify you.'
+                : undefined,
             icon: levelIcon[value],
+            shortcut: value === 'nothing' ? 'M' : undefined,
             checked: level === value,
             run: () => onSetNotificationLevel(value),
           }),
@@ -269,9 +258,6 @@ export function buildChannelActions(
       group: 'notifications',
       label: isHidden ? 'Show in sidebar' : 'Hide from sidebar',
       icon: isHidden ? Eye : EyeOff,
-      description: isHidden
-        ? undefined
-        : 'Moves it under Inactive. You stay a member.',
       run: onToggleHidden,
     },
 
@@ -312,21 +298,15 @@ export function buildChannelActions(
       icon: Info,
       run: () => onOpenDetails('about'),
     },
-    !!onRename && {
-      id: 'rename',
-      group: 'manage',
-      label: 'Rename…',
-      icon: Pencil,
-      hidden: !canManage,
-      run: onRename,
-    },
-    !!onEditDetails && {
+    // Rename lives inside the edit dialog; the quick prompt is only the
+    // fallback for hosts that cannot open it.
+    (!!onEditDetails || !!onRename) && {
       id: 'edit-details',
       group: 'manage',
-      label: 'Edit channel details…',
-      icon: Settings2,
+      label: 'Edit name & description…',
+      icon: Pencil,
       hidden: !canManage,
-      run: onEditDetails,
+      run: onEditDetails ?? onRename,
     },
     !!onAddPeople && {
       id: 'add-people',

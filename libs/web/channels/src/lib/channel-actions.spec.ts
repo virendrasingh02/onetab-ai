@@ -77,12 +77,10 @@ describe('buildChannelActions', () => {
       'new-window',
       'mark-unread',
       'favorite',
-      'mute',
       'notifications',
       'hide',
       'copy',
       'details',
-      'rename',
       'edit-details',
       'add-people',
       'settings',
@@ -106,7 +104,6 @@ describe('buildChannelActions', () => {
     });
     expect(ids(actions)).toEqual([
       'new-window',
-      'mute',
       'notifications',
       'priority',
       'copy',
@@ -123,7 +120,7 @@ describe('buildChannelActions', () => {
       onAddPeople: vi.fn(),
       onSetArchived: vi.fn(),
     });
-    for (const id of ['rename', 'edit-details', 'add-people', 'archive']) {
+    for (const id of ['edit-details', 'add-people', 'archive']) {
       expect(find(actions, id)?.hidden).toBe(true);
     }
   });
@@ -167,26 +164,30 @@ describe('buildChannelActions', () => {
     expect(find(actions, 'notifications')?.hint).toBe('Just mentions');
   });
 
-  it('unmutes back to the level underneath the mute', () => {
+  it('folds mute into the notifications submenu', () => {
     const onSetNotificationLevel = vi.fn();
-    const muted = buildChannelActions({
-      channel: withMembership({ isMuted: true, mentionsOnly: true }),
-      workspaceSlug: 'acme',
-      canManage: false,
-      onSetNotificationLevel,
-    });
-    expect(find(muted, 'mute')?.label).toBe('Unmute channel');
-    find(muted, 'mute')?.run?.();
-    expect(onSetNotificationLevel).toHaveBeenLastCalledWith('mentions');
-
     const unmuted = buildChannelActions({
       channel,
       workspaceSlug: 'acme',
       canManage: false,
       onSetNotificationLevel,
     });
-    find(unmuted, 'mute')?.run?.();
+    expect(find(unmuted, 'mute')).toBeUndefined();
+    const mute = find(unmuted, 'notifications')?.children?.find(
+      (c) => c.id === 'notify-nothing',
+    );
+    expect(mute?.label).toBe('Mute channel');
+    expect(mute?.shortcut).toBe('M');
+    mute?.run?.();
     expect(onSetNotificationLevel).toHaveBeenLastCalledWith('nothing');
+
+    const muted = buildChannelActions({
+      channel: withMembership({ isMuted: true, mentionsOnly: true }),
+      workspaceSlug: 'acme',
+      canManage: false,
+      onSetNotificationLevel,
+    });
+    expect(find(muted, 'notifications')?.hint).toBe('Muted');
   });
 
   it('routes details and settings to the right tab', () => {

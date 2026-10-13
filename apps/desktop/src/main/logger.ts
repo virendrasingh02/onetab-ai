@@ -18,7 +18,9 @@ class DesktopLogger {
   private getLogPath(): string {
     if (!this.logFilePath) {
       try {
-        const dir = app.getPath('userData');
+        // `logs` is Electron's per-OS convention (~/Library/Logs on macOS) and
+        // is what Diagnostics reveals; it nests under userData on Windows/Linux.
+        const dir = app.getPath('logs');
         mkdirSync(dir, { recursive: true });
         this.logFilePath = join(dir, 'desktop.log');
       } catch {

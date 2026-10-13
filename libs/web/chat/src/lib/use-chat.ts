@@ -532,9 +532,16 @@ export function useRoomActions(roomId: RoomId | undefined) {
   /** Resolves to the send's transaction id — kept on the message once the
    *  server acknowledges it, so callers can find "the message I just sent". */
   const send = useCallback(
-    async (body: string, threadRootId?: string): Promise<string | undefined> => {
+    async (
+      body: string,
+      threadRootId?: string,
+      options?: { alsoSendToChannel?: boolean },
+    ): Promise<string | undefined> => {
       if (!client || !roomId) return undefined;
-      return client.sendMessage(roomId, body, { threadRootId });
+      return client.sendMessage(roomId, body, {
+        threadRootId,
+        alsoSendToChannel: options?.alsoSendToChannel,
+      });
     },
     [client, roomId],
   );

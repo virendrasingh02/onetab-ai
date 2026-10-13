@@ -218,6 +218,8 @@ function useMenuShortcutHandler(actions: ActionList, onRun: (a: EntityAction) =>
         event.key === 'Delete' || event.key === 'Backspace' ? 'delete' : event.key.toLowerCase();
       const match = resolveActionSections(actions)
         .flatMap((s) => s.items)
+        // Submenu entries count too, so a shortcut can sit on a nested item.
+        .flatMap((a) => (a.children ? a.children : [a]))
         .find((a) => !a.disabled && !a.children && menuKeyFor(a.shortcut) === pressed);
       if (!match) return;
       event.preventDefault();

@@ -355,7 +355,7 @@ export function CoworkerNavRow({
         <CoworkerAvatar
           name={coworker.name}
           avatarUrl={coworker.avatarUrl}
-          status={coworker.status ?? 'AVAILABLE'}
+          status={coworker.status}
           size="xs"
         />
       </span>
@@ -433,17 +433,12 @@ export function AgentNavRow({
           'relative flex items-center justify-center',
         )}
       >
-        <IconRenderer
-          icon={agent.icon ?? 'Bot'}
-          fallbackEmoji="🤖"
-          sizeClassName="size-4 text-primary"
-        />
-        <span
-          className={cn(
-            '-right-0.5 -bottom-0.5 size-2 absolute rounded-full border-2 border-sidebar bg-success',
-          )}
-        >
-          <span className="sr-only">Active</span>
+        <span className="flex size-6 items-center justify-center rounded-md border border-primary/20 bg-primary/10">
+          <IconRenderer
+            icon={agent.icon ?? 'Bot'}
+            fallbackEmoji="🤖"
+            sizeClassName="size-3.5 text-primary"
+          />
         </span>
       </span>
       <span className="flex-1 truncate">{agent.name}</span>
@@ -879,7 +874,7 @@ export function CoworkersSection({
             avatarUrl={cw.avatarUrl}
             name={cw.name}
             size="xs"
-            status={cw.status}
+            showStatusDot={false}
             className="size-4 shrink-0"
           />
         ) : (

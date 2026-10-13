@@ -47,6 +47,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { compactBlankLines } from './blank-lines.js';
 import { useDraftsStore } from './drafts-store.js';
 import { useComposerInsertStore } from './composer-insert-store.js';
@@ -248,26 +249,30 @@ function StagedAttachmentChip({
 }) {
   const { file, previewUrl } = attachment;
   const caption = `${file.name} · ${formatBytes(file.size)}`;
+  const ext = (file.name.split('.').pop() ?? '').slice(0, 4).toUpperCase();
 
   return (
     <div className="group/chip relative shrink-0">
       {previewUrl ? (
         <Hint label={caption}>
-          <div className="size-16 overflow-hidden rounded-lg border border-border bg-muted">
+          <div className="size-[72px] relative overflow-hidden rounded-xl bg-muted ring-1 ring-black/5">
             <img
               src={previewUrl}
               alt={file.name}
-              className="size-full object-cover"
+              className="absolute inset-0 !h-full !w-full max-w-none object-cover"
             />
           </div>
         </Hint>
       ) : (
-        <div className="h-16 w-44 gap-2 px-2.5 flex items-center rounded-lg border border-border bg-surface-raised">
-          <span className="size-8 flex shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-            <FileIcon className="size-4" />
+        <div className="h-[72px] w-52 gap-2.5 px-3 flex items-center rounded-xl bg-muted/70">
+          <span className="size-10 text-[10px] font-bold tracking-wide flex shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary-text">
+            {ext || <FileIcon className="size-4" />}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-xs font-medium block truncate text-foreground">
+            <span
+              className="text-xs font-medium block truncate text-foreground"
+              title={file.name}
+            >
               {file.name}
             </span>
             <span className="block text-[11px] text-muted-foreground">
@@ -281,7 +286,7 @@ function StagedAttachmentChip({
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${file.name}`}
-        className="-right-1.5 -top-1.5 size-5 absolute flex items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover/chip:opacity-100 hover:text-destructive focus-visible:opacity-100 pointer-coarse:opacity-100"
+        className="-right-1.5 -top-1.5 size-5 absolute flex items-center justify-center rounded-full bg-foreground text-background shadow-sm transition-transform hover:scale-110 focus-visible:scale-110"
       >
         <X className="size-3" />
       </button>
@@ -436,6 +441,8 @@ export function Composer({
   const [hasContent, setHasContent] = useState(false);
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [dropRect, setDropRect] = useState<DOMRect | null>(null);
+  const composerBoxRef = useRef<HTMLDivElement | null>(null);
 
   const getDraft = useDraftsStore((s) => s.getDraft);
   const setDraft = useDraftsStore((s) => s.setDraft);
@@ -560,9 +567,80 @@ export function Composer({
     (files: FileList | File[] | null | undefined) => {
       if (!files || files.length === 0) return;
       setAttachments((current) => [...current, ...toStagedAttachments(files)]);
+      // Land the caret in the editor so the user can caption the files and
+      // hit Enter. Deferred so it wins over the file dialog / drop restoring
+      // focus to whatever opened it.
+      window.setTimeout(() => lexicalRef.current?.focus(), 0);
     },
     [],
   );
+
+  /* Slack-style drop target: while a file is dragged anywhere over the window
+     the whole conversation pane lights up, not just the composer. A depth
+     counter (not dragleave on one node) keeps it from flickering as the
+     cursor crosses child elements. */
+  useEffect(() => {
+    if (disabled) return;
+    let depth = 0;
+    const hasFiles = (event: DragEvent) =>
+      Array.from(event.dataTransfer?.types ?? []).includes('Files');
+    const paneRect = () => {
+      let node: HTMLElement | null = composerBoxRef.current;
+      const own = node?.getBoundingClientRect().height ?? 0;
+      while (node?.parentElement) {
+        node = node.parentElement;
+        const rect = node.getBoundingClientRect();
+        if (rect.height > own + 240 && rect.width > 280) return rect;
+      }
+      return null;
+    };
+    const end = () => {
+      depth = 0;
+      setIsDraggingOver(false);
+      setDropRect(null);
+    };
+    const onEnter = (event: DragEvent) => {
+      if (!hasFiles(event)) return;
+      depth += 1;
+      setDropRect(paneRect());
+      setIsDraggingOver(true);
+    };
+    const onOver = (event: DragEvent) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+    };
+    const onLeave = (event: DragEvent) => {
+      if (!hasFiles(event)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) end();
+    };
+    const onDropWindow = (event: DragEvent) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault(); // never let the browser navigate to the file
+      const rect = paneRect();
+      const inPane =
+        rect &&
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+      if (inPane && event.dataTransfer?.files.length)
+        stageFiles(event.dataTransfer.files);
+      end();
+    };
+    window.addEventListener('dragenter', onEnter);
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('drop', onDropWindow);
+    window.addEventListener('dragend', end);
+    return () => {
+      window.removeEventListener('dragenter', onEnter);
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('drop', onDropWindow);
+      window.removeEventListener('dragend', end);
+    };
+  }, [disabled, stageFiles]);
 
   const removeAttachment = useCallback((id: string) => {
     setAttachments((current) => {
@@ -1038,6 +1116,7 @@ export function Composer({
         />
       ) : (
         <div
+          ref={composerBoxRef}
           className={cn(
             // Raised card with a soft primary halo on focus, so the composer
             // reads as the page's main input rather than one more bordered box.
@@ -1045,32 +1124,42 @@ export function Composer({
             isDraggingOver && 'border-primary ring-4 ring-primary/25',
             disabled && 'pointer-events-none opacity-60',
           )}
-          onDragOver={(event) => {
-            if (!event.dataTransfer.types.includes('Files')) return;
-            event.preventDefault();
-            setIsDraggingOver(true);
-          }}
-          onDragLeave={() => setIsDraggingOver(false)}
-          onDrop={(event) => {
-            setIsDraggingOver(false);
-            if (!event.dataTransfer.files.length) return;
-            event.preventDefault();
-            stageFiles(event.dataTransfer.files);
-          }}
           onPaste={(event) => {
             const files = Array.from(event.clipboardData?.files ?? []);
             if (files.length > 0) stageFiles(files);
           }}
         >
-          {isDraggingOver ? (
-            <div className="inset-1.5 gap-2 text-xs font-semibold pointer-events-none absolute z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary/50 bg-primary/10 text-primary-text backdrop-blur-[1px]">
-              <Plus className="size-4" aria-hidden="true" />
-              Drop to attach
-            </div>
-          ) : null}
+          {isDraggingOver && dropRect && typeof document !== 'undefined'
+            ? createPortal(
+                <div
+                  role="presentation"
+                  style={{
+                    position: 'fixed',
+                    top: dropRect.top,
+                    left: dropRect.left,
+                    width: dropRect.width,
+                    height: dropRect.height,
+                  }}
+                  className="p-3 pointer-events-none z-[1000] bg-background/70 backdrop-blur-[2px]"
+                >
+                  <div className="gap-3 flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary bg-primary/10 text-primary-text">
+                    <div className="flex size-14 items-center justify-center rounded-full bg-primary/15">
+                      <Plus className="size-7" aria-hidden="true" />
+                    </div>
+                    <div className="text-base font-semibold">
+                      Drop files to attach
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Release to add them to your message
+                    </div>
+                  </div>
+                </div>,
+                document.body,
+              )
+            : null}
 
           {attachments.length > 0 ? (
-            <div className="gap-2 px-3.5 pt-3 pb-2.5 flex scrollbar-none items-start overflow-x-auto border-b border-border">
+            <div className="gap-3 px-3.5 pt-3.5 pb-1 flex scrollbar-none items-start overflow-x-auto">
               {attachments.map((attachment) => (
                 <StagedAttachmentChip
                   key={attachment.id}

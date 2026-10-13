@@ -21,6 +21,10 @@ import type {
   DesktopWindowState,
   DesktopAgentExecuteRequest,
   DesktopAgentExecuteResponse,
+  DesktopDiagnostics,
+  DesktopPathKey,
+  DesktopStartupRequest,
+  DesktopStartupState,
 } from './shared/ipc.js';
 
 /**
@@ -55,6 +59,11 @@ const IPC = {
   downloadUpdate: 'onetab:updates/download',
   installUpdate: 'onetab:updates/install',
   relaunch: 'onetab:relaunch',
+  quit: 'onetab:quit',
+  getDiagnostics: 'onetab:diagnostics/get',
+  getStartup: 'onetab:startup/get',
+  setStartup: 'onetab:startup/set',
+  openPath: 'onetab:shell/open-path',
   authStartBrowserLogin: 'onetab:auth/start-browser-login',
   authGetSession: 'onetab:auth/get-session',
   authClearSession: 'onetab:auth/clear-session',
@@ -185,6 +194,12 @@ const api = {
 
   app: {
     relaunch: (): Promise<void> => ipcRenderer.invoke(IPC.relaunch),
+    quit: (): Promise<void> => ipcRenderer.invoke(IPC.quit),
+    getDiagnostics: (): Promise<DesktopDiagnostics> => ipcRenderer.invoke(IPC.getDiagnostics),
+    getStartup: (): Promise<DesktopStartupState> => ipcRenderer.invoke(IPC.getStartup),
+    setStartup: (request: DesktopStartupRequest): Promise<DesktopStartupState> =>
+      ipcRenderer.invoke(IPC.setStartup, request),
+    openPath: (key: DesktopPathKey): Promise<boolean> => ipcRenderer.invoke(IPC.openPath, key),
   },
 
   agent: {

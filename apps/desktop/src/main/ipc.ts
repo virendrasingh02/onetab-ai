@@ -25,6 +25,7 @@ import {
   type DesktopPlatform,
   type DesktopSaveFileRequest,
   type DesktopSaveResult,
+  type DesktopStartupRequest,
   type DesktopAgentExecuteRequest,
   type DesktopAgentExecuteResponse,
 } from '../shared/ipc.js';
@@ -37,13 +38,15 @@ import {
 } from './auth.js';
 import { resetBadgeOnSignOut } from './background-sync.js';
 import { detectDesktopCapabilities, detectDistribution, isMasBuild } from './capabilities.js';
+import { collectDiagnostics, openAppPath } from './diagnostics.js';
+import { quitApp, restartApp } from './lifecycle.js';
 import { logger } from './logger.js';
+import { getStartupState, setStartupState } from './startup.js';
 import { checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
 import { getPreference, setPreference } from './store.js';
-import { refreshTrayMenu, setTrayBadge } from './tray.js';
+import { applyBadgeCount, refreshTrayMenu } from './tray.js';
 import {
   getMainWindow,
-  markQuitting,
   showMainWindow,
   TITLE_BAR_INSET,
   USES_CUSTOM_TITLE_BAR,
@@ -238,8 +241,7 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
     IPC.setBadgeCount,
     guard((_event, count: number) => {
       const value = Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
-      if (process.platform !== 'win32') app.setBadgeCount(value);
-      setTrayBadge(value);
+      applyBadgeCount(value);
     }),
   );
 
@@ -366,10 +368,10 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
   ipcMain.handle(
     IPC.setPreference,
     guard((_event, key: string, value: unknown) => {
-      setPreference(key, value);
-      if (key === 'launchAtLogin') {
-        app.setLoginItemSettings({ openAtLogin: Boolean(value), openAsHidden: true });
-      }
+      // Login-item state belongs to the startup service (it also owns the
+      // hidden-launch flag and the unsupported-platform fallbacks).
+      if (key === 'launchAtLogin') setStartupState({ openAtLogin: Boolean(value) });
+      else setPreference(key, value);
       refreshTrayMenu();
     }),
   );
@@ -405,11 +407,34 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
 
   ipcMain.handle(
     IPC.relaunch,
-    guard(() => {
-      markQuitting();
-      app.relaunch();
-      app.exit(0);
-    }),
+    guard(() => restartApp()),
+  );
+
+  ipcMain.handle(
+    IPC.quit,
+    guard(() => quitApp()),
+  );
+
+  /* --- diagnostics & startup -------------------------------------------- */
+
+  ipcMain.handle(
+    IPC.getDiagnostics,
+    guard(() => collectDiagnostics()),
+  );
+
+  ipcMain.handle(
+    IPC.getStartup,
+    guard(() => getStartupState()),
+  );
+
+  ipcMain.handle(
+    IPC.setStartup,
+    guard((_event, request: unknown) => setStartupState(request as DesktopStartupRequest)),
+  );
+
+  ipcMain.handle(
+    IPC.openPath,
+    guard((_event, key: unknown) => openAppPath(key)),
   );
 
   ipcMain.handle(

@@ -18,6 +18,8 @@ import {
 import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
 import {
   AuthenticatedMediaBridge,
+  useMatrixPresenceResolver,
+  useMirrorPresenceToMatrix,
   CallOverlayBridge,
   LinkPreviewBridge,
   MatrixProvider,
@@ -131,9 +133,15 @@ function RealtimeAppBridge({ children }: { children: ReactNode }) {
  */
 function AvatarPresenceBridge({ children }: { children: ReactNode }) {
   const presenceMap = useUserPresenceMap();
+  // Matrix `m.presence` backs up users the platform has no reading for (chat
+  // participants outside this workspace's roster, bridged users…); the
+  // platform reading stays authoritative whenever it exists.
+  const matrixPresence = useMatrixPresenceResolver();
+  useMirrorPresenceToMatrix();
   const resolve = useCallback(
-    (userId: string) => presenceMap[userId]?.status,
-    [presenceMap],
+    (userId: string) =>
+      presenceMap[userId]?.status ?? matrixPresence(userId),
+    [presenceMap, matrixPresence],
   );
   return (
     <AvatarPresenceProvider resolve={resolve}>{children}</AvatarPresenceProvider>

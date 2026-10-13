@@ -56,6 +56,8 @@ import {
   format,
   isSameDay,
   isSameMonth,
+  isSameYear,
+  isYesterday,
   isToday,
   startOfMonth,
   startOfWeek,
@@ -174,16 +176,13 @@ export function formatShortTimestamp(timestamp: number): string {
  */
 export function formatDaySeparatorLabel(timestamp: number): string {
   const date = new Date(timestamp);
-  const today = new Date();
-  const yesterday = new Date(today.getTime() - 86_400_000);
-
-  if (date.toDateString() === today.toDateString()) return 'Today';
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString(undefined, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  if (isToday(date)) return 'Today';
+  if (isYesterday(date)) return 'Yesterday';
+  // "Monday, October 5th" — the year only appears once it isn't this one.
+  return format(
+    date,
+    isSameYear(date, new Date()) ? 'EEEE, MMMM do' : 'EEEE, MMMM do, yyyy',
+  );
 }
 
 export function formatFullTimestamp(timestamp: number): string {
@@ -1172,6 +1171,17 @@ export function ChatBubble({
           </header>
         ) : null}
 
+        {message.alsoSentToChannel && showThreadConnector && onOpenThread ? (
+          <button
+            type="button"
+            onClick={onOpenThread}
+            className="gap-1 mb-0.5 -ml-1 px-1 py-0.5 flex w-fit items-center rounded text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <MessageSquare className="size-3" aria-hidden />
+            Replied to a thread
+          </button>
+        ) : null}
+
         {message.decryptionError ? (
           <p className="gap-1.5 py-0.5 text-message flex items-center text-warning-text italic">
             <AlertTriangle className="size-3.5 shrink-0 text-warning-text" />
@@ -1743,7 +1753,7 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="gap-1.5 px-4 py-1.5 text-xs font-semibold flex cursor-pointer items-center rounded-full border border-border bg-surface text-foreground shadow-xs transition-colors hover:bg-accent hover:text-foreground"
+            className="gap-1.5 px-4 py-1.5 text-[13px] font-semibold flex cursor-pointer items-center rounded-full border border-border bg-surface text-foreground shadow-xs transition-colors hover:bg-accent hover:text-foreground"
           >
             <span>{label}</span>
             <ChevronDown className="size-3 text-muted-foreground" />

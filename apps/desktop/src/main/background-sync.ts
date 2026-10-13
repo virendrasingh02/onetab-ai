@@ -1,8 +1,8 @@
-import { app, Notification } from 'electron';
+import { Notification } from 'electron';
 import { IPC_EVENT } from '../shared/ipc.js';
 import { loadSecureSession, refreshSecureSession } from './auth.js';
 import { logger } from './logger.js';
-import { setTrayBadge } from './tray.js';
+import { applyBadgeCount } from './tray.js';
 import { getMainWindow, showMainWindow } from './window.js';
 
 /**
@@ -87,8 +87,7 @@ function fireNativeNotification(item: NotificationLite, workspaceSlug: string): 
 }
 
 function applyBadge(count: number): void {
-  if (process.platform !== 'win32') app.setBadgeCount(count);
-  setTrayBadge(count);
+  applyBadgeCount(count);
 }
 
 export async function pollOnce(): Promise<void> {
