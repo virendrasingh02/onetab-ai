@@ -17,7 +17,16 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { WEB_APP_URL } from './auth-redirect.js';
+import {
+  cameBackFromLogin,
+  clearLoginRedirect,
+  enteredViaMainApp,
+  hasHandoffFragment,
+  isLeavingForLogin,
+  markEnteredViaMainApp,
+  redirectToLogin,
+  WEB_APP_URL,
+} from './auth-redirect.js';
 import { StudioSignIn } from './studio-sign-in.js';
 
 const ACTIVE_WORKSPACE_KEY = 'onetab_active_workspace_id';
@@ -86,6 +95,20 @@ export function SessionGuard({ children }: { children: ReactNode }) {
   const initSession = useCallback(async () => {
     const mine = ++run.current;
     const current = () => run.current === mine;
+
+    // Studio always starts in the main web app, signed in or not: it either
+    // shows its sign-in or bounces straight back with the session attached.
+    // A tab that already came back (hand-off token, or a signed-out return
+    // within the window) is never sent again, so this cannot loop.
+    if (isLeavingForLogin()) return;
+    if (hasHandoffFragment() || cameBackFromLogin()) {
+      markEnteredViaMainApp();
+      clearLoginRedirect();
+    } else if (!enteredViaMainApp()) {
+      setPhase({ kind: 'redirecting' });
+      redirectToLogin();
+      return;
+    }
     setPhase({ kind: 'loading' });
 
     try {
@@ -95,7 +118,8 @@ export function SessionGuard({ children }: { children: ReactNode }) {
       if (!current()) return;
 
       if (!user) {
-        // Studio signs people in itself, so it works without the main web app.
+        // Back from the main app without a session (or it never answered):
+        // Studio's own sign-in keeps it usable.
         setPhase({ kind: 'signed-out', cameBack: false });
         return;
       }

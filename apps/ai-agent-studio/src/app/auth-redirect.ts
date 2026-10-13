@@ -14,6 +14,7 @@ export const WEB_APP_URL: string =
   'http://localhost:4200';
 
 const MARK_KEY = 'onetab_studio_login_redirect_at';
+const ENTERED_KEY = 'onetab_studio_entered_via_main_app';
 
 /**
  * How long after leaving for sign-in a signed-out return counts as "the
@@ -84,7 +85,39 @@ export function clearLoginRedirect(): void {
   }
 }
 
+/**
+ * Whether this tab has already been through the main web app. Studio always
+ * starts there — signed in or not — so a fresh tab without this mark is sent
+ * to the web app first; a reload inside the same tab is not.
+ */
+export function enteredViaMainApp(): boolean {
+  try {
+    return storage()?.getItem(ENTERED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function markEnteredViaMainApp(): void {
+  try {
+    storage()?.setItem(ENTERED_KEY, '1');
+  } catch {
+    // Without storage every load starts at the web app, which is still correct.
+  }
+}
+
+/** The web app's hand-off carries the session back in `#token=` (see `withHandoffToken`). */
+export function hasHandoffFragment(hash: string = typeof window === 'undefined' ? '' : window.location.hash): boolean {
+  const params = new URLSearchParams(hash.replace(/^#/, ''));
+  return Boolean(params.get('token') ?? params.get('accessToken'));
+}
+
 let leaving = false;
+
+/** True once this tab has started navigating to the web app's sign-in. */
+export function isLeavingForLogin(): boolean {
+  return leaving;
+}
 
 /**
  * Sends the tab to the web app's sign-in. Safe to call from several places at

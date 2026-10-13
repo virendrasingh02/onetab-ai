@@ -4,6 +4,9 @@ import {
   buildLoginUrl,
   buildLogoutUrl,
   cameBackFromLogin,
+  enteredViaMainApp,
+  hasHandoffFragment,
+  markEnteredViaMainApp,
   clearLoginRedirect,
   markLoginRedirect,
 } from './auth-redirect.js';
@@ -63,5 +66,22 @@ describe('redirect loop guard', () => {
   it('ignores a mark from the future (clock change) instead of looping on it', () => {
     markLoginRedirect(10_000);
     expect(cameBackFromLogin(1_000)).toBe(false);
+  });
+});
+
+describe('entering Studio via the main app', () => {
+  beforeEach(() => sessionStorage.clear());
+
+  it('treats a fresh tab as not yet through the main app, then remembers it', () => {
+    expect(enteredViaMainApp()).toBe(false);
+    markEnteredViaMainApp();
+    expect(enteredViaMainApp()).toBe(true);
+  });
+
+  it('recognises the hand-off token the web app returns in the fragment', () => {
+    expect(hasHandoffFragment('#token=abc')).toBe(true);
+    expect(hasHandoffFragment('#accessToken=abc')).toBe(true);
+    expect(hasHandoffFragment('#section=1')).toBe(false);
+    expect(hasHandoffFragment('')).toBe(false);
   });
 });
