@@ -25,6 +25,13 @@ export interface TokenResult {
   metadata?: Record<string, unknown>;
 }
 
+/** Who an action runs as; see `ProviderAdapter.executeAction`. */
+export interface ActionContext {
+  actingUserId?: string;
+  /** The workspace the action runs in (a personal credential has none of its own). */
+  workspaceId?: string;
+}
+
 export interface ResolvedCredential {
   id: string;
   provider: string;
@@ -148,12 +155,15 @@ export interface ProviderAdapter {
    * Runs one named action. `IntegrationsService.executeAction` looks the
    * definition up via `getActions()` first — the adapter can assume `actionId`
    * is one of its own and `input` has already cleared the definition's
-   * permission/confirmation checks server-side.
+   * permission/confirmation checks server-side. `context.actingUserId` is the
+   * person the action runs as (already access-checked) — an adapter that acts
+   * *for a person* (e.g. an attendance punch) must use it, never `input`.
    */
   executeAction?(
     credential: ResolvedCredential,
     actionId: string,
     input: Record<string, unknown>,
+    context?: ActionContext,
   ): Promise<AppActionResult>;
 
   /**

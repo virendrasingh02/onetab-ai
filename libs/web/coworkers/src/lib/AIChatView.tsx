@@ -10,7 +10,7 @@ import {
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { AI_MODELS } from './ai-models.js';
+import { AI_MODELS } from '@org/web-ai';
 import {
   Check,
   Copy,
@@ -26,9 +26,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AIErrorRow, AIMessage, AIThinkingRow, Composer } from '@org/chat-ui';
-import { AI_STUDIO_SLASH_COMMANDS } from './ai-composer-commands.js';
-import { AIModelPicker } from './ai-model-picker.js';
-import { useAIConversation } from './use-ai-conversation.js';
+import { AI_STUDIO_SLASH_COMMANDS, AIModelPicker } from '@org/web-ai';
+import { useAssistantConversation } from './use-assistant-conversation.js';
 
 /**
  * Greeting word, icon, and the boundaries between them — all by wall-clock
@@ -67,9 +66,12 @@ function useDaypartClock() {
  * assistant panel; the only thing it decides for itself is where the composer
  * sits — centred with the headline while the conversation is empty, docked to
  * the bottom of the column once it is not.
+ *
+ * The conversation itself is the workspace Assistant's Matrix DM, so it
+ * persists and syncs across devices.
  */
 export function AIChatView() {
-  const chat = useAIConversation();
+  const chat = useAssistantConversation();
   const user = useCurrentUser();
   const { greeting } = useDaypartClock();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -118,6 +120,7 @@ export function AIChatView() {
         <AIModelPicker model={chat.model} onModelChange={chat.setModel} />
       }
       placeholder={chat.isEmpty ? 'Ask anything…' : 'Ask a follow-up…'}
+      className="bg-transparent"
     />
   );
 
@@ -137,21 +140,6 @@ export function AIChatView() {
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
               {firstName ? `${greeting}, ${firstName}` : greeting}
             </h1>
-            {/* <p className="gap-1.5 text-sm flex items-center justify-center text-muted-foreground">
-              <DaypartIcon className="size-3.5" aria-hidden />
-              <span>
-                {now.toLocaleDateString(undefined, {
-                  weekday: 'long',
-                  month: 'short',
-                  day: 'numeric',
-                })}
-                {' · '}
-                {now.toLocaleTimeString(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </p> */}
           </div>
 
           {composer}
@@ -245,12 +233,14 @@ export function AIChatView() {
           </header>
 
           {/* Native scroll container without SimpleBar */}
-          <div className="max-w-3xl min-h-0 px-4 w-full flex-1 overflow-y-auto">
+          {/* Full-width scroller so the scrollbar sits at the far right edge;
+              the transcript itself stays centred in a readable column. */}
+          <div className="min-h-0 w-full flex-1 overflow-y-auto">
             <div
               role="log"
               aria-live="polite"
               aria-label="Conversation"
-              className="space-y-3"
+              className="max-w-3xl mx-auto space-y-6 px-4 pb-4"
             >
               {chat.messages.map((message) => (
                 <AIMessage
@@ -259,6 +249,11 @@ export function AIChatView() {
                   assistantLabel={`${chat.modelLabel} Copilot`}
                   modelId={activeOption?.model || (chat.model === 'auto' ? 'nemotron' : chat.model)}
                   provider={activeOption?.provider}
+                  user={{
+                    id: user?.id,
+                    name: user?.displayName ?? user?.name,
+                    avatarUrl: user?.avatarUrl,
+                  }}
                 />
               ))}
 

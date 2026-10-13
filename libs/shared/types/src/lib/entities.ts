@@ -201,6 +201,8 @@ export interface Workspace extends IconSelection {
   defaultLandingView?: string | null;
   allowExternalSharing?: boolean;
   aiProjectRecaps?: boolean;
+  /** The signed-in member's grants in this workspace, as the workspaces list returns them. */
+  permissions?: readonly WorkspacePermission[];
   archivedAt: IsoDateString | null;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;

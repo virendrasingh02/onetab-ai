@@ -280,3 +280,39 @@ describe('isStudioGraph', () => {
     expect(isStudioGraph(null)).toBe(false);
   });
 });
+
+describe('location trigger + attendance', () => {
+  it('compiles the geofence onto the trigger and the attendance card into its app action', () => {
+    const compiled = compileStudioGraph({
+      nodes: [
+        node('geo', 'TRIGGER_LOCATION', { latitude: '12.97', longitude: 77.59, radiusMeters: 9999, eventType: 'enter', officeName: 'HQ' }),
+        node('punch', 'ATTENDANCE_ACTION', { provider: 'SLACK', actionId: 'check_in', input: { note: 'hi' } }),
+      ],
+      edges: [edge('geo', 'punch')],
+    });
+    expect(compiled.issues.filter((i) => i.level === 'error')).toEqual([]);
+    expect(compiled.nodes[0].config).toEqual({
+      trigger: 'TRIGGER_LOCATION',
+      geofence: {
+        event: 'ENTER',
+        officeName: 'HQ',
+        latitude: 12.97,
+        longitude: 77.59,
+        radiusMeters: 5000,
+        dwellMinutes: 3,
+        accuracyMeters: 100,
+        cooldownMinutes: 60,
+      },
+    });
+    // Bound to Attendance whatever `provider` says.
+    expect(compiled.nodes[1]).toMatchObject({ type: 'MCP_TOOL', config: { toolName: 'ATTENDANCE.check_in', input: { note: 'hi' } } });
+  });
+
+  it('refuses a location trigger with no office coordinates', () => {
+    const compiled = compileStudioGraph({
+      nodes: [node('geo', 'TRIGGER_LOCATION', { radiusMeters: 100 }, 'Office'), node('punch', 'ATTENDANCE_ACTION', { actionId: 'check_in' })],
+      edges: [edge('geo', 'punch')],
+    });
+    expect(compiled.issues).toContainEqual(expect.objectContaining({ nodeId: 'geo', level: 'error', message: expect.stringContaining('latitude') }));
+  });
+});

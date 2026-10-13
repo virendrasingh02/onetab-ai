@@ -246,7 +246,7 @@ function CoworkerMessageHeader({
 }
 
 /** Real Matrix Chat Panel for Coworkers — Identical to AI Agents & Apps */
-function CoworkerConversationPanel({
+export function CoworkerConversationPanel({
   coworker,
   workspaceId,
 }: {

@@ -207,14 +207,6 @@ export function AddPeopleDialog({
               #{channel.name}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
-            aria-label="Close"
-          >
-            <X className="size-4" />
-          </button>
         </div>
 
         {/* Input & Autocomplete Area */}

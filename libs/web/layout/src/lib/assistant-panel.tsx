@@ -7,8 +7,8 @@ import {
   AIMessage,
   AIModelPicker,
   AIThinkingRow,
-  useAIConversation,
 } from '@org/web-ai';
+import { useAssistantConversation } from '@org/web-coworkers';
 import { RotateCcw, Sparkles, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
@@ -29,7 +29,7 @@ export interface AssistantPanelProps {
  * view uses — this file is now only the rail's chrome around them.
  */
 export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
-  const chat = useAIConversation({ greeting: true });
+  const chat = useAssistantConversation({ greeting: true });
 
   const endRef = useRef<HTMLDivElement>(null);
 

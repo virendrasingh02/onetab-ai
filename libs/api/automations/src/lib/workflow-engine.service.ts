@@ -2285,9 +2285,13 @@ export class WorkflowEngineService {
 
       // This workspace's integration, or the workflow creator's own — never
       // another member's personal connection (it would be refused anyway).
+      // A card that picked an account uses exactly that one: quietly running
+      // as a different account would act as the wrong person.
+      const pickedId = typeof cfg['integrationId'] === 'string' ? cfg['integrationId'].trim() : '';
       const integration = await this.prisma.externalIntegration.findFirst({
         where: {
           provider: providerKey,
+          ...(pickedId ? { id: pickedId } : {}),
           OR: [
             { workspaceId, scopeType: { not: 'USER' } },
             ...(creatorId ? [{ scopeType: 'USER', userId: creatorId }] : []),
@@ -2298,7 +2302,11 @@ export class WorkflowEngineService {
       });
       const appName = providerKey.charAt(0) + providerKey.slice(1).toLowerCase().replace(/_/g, ' ');
       if (!integration) {
-        throw new Error(`${appName} isn’t connected. Connect ${appName} in Integrations, then run the agent again.`);
+        throw new Error(
+          pickedId
+            ? `The ${appName} account picked on this step is no longer connected. Pick another account, then run the agent again.`
+            : `${appName} isn’t connected. Connect ${appName} in Integrations, then run the agent again.`,
+        );
       }
       if (integration.status !== 'CONNECTED') {
         throw new Error(`The ${appName} connection is ${String(integration.status).toLowerCase()}. Reconnect ${appName} in Integrations to continue.`);
@@ -2316,6 +2324,12 @@ export class WorkflowEngineService {
           // node placed before this one in the graph, not an implicit check
           // per tool node — so a `requiresConfirmation` action here is
           // confirmed automatically rather than silently rejected.
+          // An action that takes an idempotency key gets one per run + step,
+          // so a retried step never repeats the action (e.g. a double punch).
+          const schemaProps = (match.inputSchema as { properties?: Record<string, unknown> } | undefined)?.properties;
+          if (schemaProps && 'idempotencyKey' in schemaProps && input['idempotencyKey'] === undefined) {
+            input['idempotencyKey'] = `${env.runId}:${node.id}`;
+          }
           const result = await this.integrations.executeAction(
             integration.id,
             match.id,
@@ -2324,7 +2338,20 @@ export class WorkflowEngineService {
             creatorId,
             workspaceId,
           );
-          return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { toolResult: result } };
+          // An app that answered "no" is a failed step, not a success with a
+          // buried error. Its data is spread so later steps can read
+          // `{{status}}`, `{{punchId}}`… directly.
+          const data = result.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : {};
+          return {
+            stepId: node.id,
+            type: node.type,
+            status: result.success === false ? 'FAILED' : 'SUCCESS',
+            output: {
+              ...data,
+              toolResult: result,
+              ...(result.success === false ? { error: result.message || `${appName} couldn’t complete '${match.label}'.` } : {}),
+            },
+          };
         }
       }
     }

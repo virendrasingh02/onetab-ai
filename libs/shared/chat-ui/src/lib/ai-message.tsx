@@ -1,6 +1,6 @@
-import { Button, AIModelIcon } from '@org/ui';
+import { Button, AIModelIcon, UserAvatar } from '@org/ui';
 import { cn } from '@org/utils';
-import { Sparkles, TriangleAlert, User } from 'lucide-react';
+import { Sparkles, TriangleAlert } from 'lucide-react';
 import { MarkdownMessage } from './markdown-message.js';
 
 /**
@@ -36,53 +36,74 @@ export interface AIMessageProps {
   modelId?: string;
   provider?: string;
   density?: AIDensity;
+  /** The signed-in person, shown beside their own turns. */
+  user?: { id?: string; name?: string; avatarUrl?: string | null };
 }
 
+/**
+ * Your turns are a soft right-aligned bubble with your avatar; the assistant's
+ * are plain text beside a model avatar — no card, no per-message chrome. The
+ * sender and time stay available on hover/title rather than taking a row.
+ */
 export function AIMessage({
   message,
   assistantLabel = 'Copilot',
   modelId,
   provider,
   density = 'comfortable',
+  user,
 }: AIMessageProps) {
   const isUser = message.role === 'user';
   const isCompact = density === 'compact';
+  const avatarSize = isCompact ? 'size-6' : 'size-8';
+  const title = `${isUser ? (user?.name ?? 'You') : assistantLabel} · ${timeLabel(message.at)}`;
 
   return (
     <div
+      title={title}
       className={cn(
-        'space-y-1 rounded-card leading-relaxed',
-        isCompact ? 'max-w-[90%] p-3 text-xs' : 'max-w-[85%] p-3.5 text-sm',
-        isUser
-          ? 'ml-auto bg-primary text-primary-foreground'
-          : 'mr-auto border border-border bg-surface-raised text-foreground',
+        'gap-3 flex items-start',
+        isUser ? 'flex-row-reverse' : 'flex-row',
       )}
     >
-      <div className="gap-3 text-[10px] flex items-center justify-between opacity-70">
-        <span className="gap-1.5 font-medium flex items-center">
-          {isUser ? (
-            <User className="size-3" aria-hidden />
-          ) : (
-            <AIModelIcon
-              modelId={modelId || assistantLabel}
-              provider={provider}
-              size={13}
-              className="shrink-0"
-            />
-          )}
-          <span className="truncate">{isUser ? 'You' : assistantLabel}</span>
-        </span>
-        <time dateTime={message.at} className="shrink-0">
-          {timeLabel(message.at)}
-        </time>
-      </div>
-      <MarkdownMessage
-        text={message.content}
+      <div
         className={cn(
-          'text-sm leading-relaxed',
-          isUser && 'text-primary-foreground [&_a]:text-primary-foreground',
+          'flex shrink-0 items-center justify-center overflow-hidden rounded-full',
+          avatarSize,
+          !isUser && 'border border-border bg-surface-raised',
         )}
-      />
+      >
+        {isUser ? (
+          <UserAvatar
+            name={user?.name ?? 'You'}
+            src={user?.avatarUrl ?? undefined}
+            seed={user?.id}
+            size={isCompact ? 'xs' : 'sm'}
+            indicator={false}
+          />
+        ) : (
+          <AIModelIcon
+            modelId={modelId || assistantLabel}
+            provider={provider}
+            size={isCompact ? 14 : 18}
+            className="shrink-0"
+          />
+        )}
+      </div>
+      <div
+        className={cn(
+          'min-w-0 leading-relaxed',
+          isCompact ? 'text-xs' : 'text-sm',
+          isUser
+            ? 'max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-foreground'
+            : 'max-w-full flex-1 pt-1 text-foreground',
+        )}
+      >
+        <MarkdownMessage
+          text={message.content}
+          className="text-sm leading-relaxed"
+        />
+      </div>
     </div>
   );
 }
@@ -91,9 +112,8 @@ export function AIThinkingRow({ density = 'comfortable' }: { density?: AIDensity
   return (
     <div
       className={cn(
-        'gap-2 rounded-card mr-auto flex w-fit items-center',
-        'border border-border bg-surface-raised text-muted-foreground',
-        density === 'compact' ? 'p-3 text-xs' : 'p-3.5 text-sm',
+        'gap-2 mr-auto flex w-fit items-center py-1 text-muted-foreground',
+        density === 'compact' ? 'text-xs' : 'text-sm',
       )}
       role="status"
     >

@@ -169,7 +169,7 @@ const WhiteboardCanvas = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.WhiteboardCanvas })),
 );
 const AIChatView = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIChatView })),
+  import('@org/web-coworkers').then((m) => ({ default: m.AIChatView })),
 );
 /*
  * The AI Workspace (`/w/:slug/ai`) — the one place agents, coworkers and

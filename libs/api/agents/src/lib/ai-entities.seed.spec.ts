@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AIEntitiesService } from './ai-entities.service.js';
 
+const ASSISTANT_ROW = { id: 'a', name: 'Assistant', permissions: { allowActions: [] }, configuration: { coworkerType: 'assistant' } };
+
 function setup(rows: Array<{ id: string; name: string; permissions: unknown; configuration: unknown }>) {
   const aIAgent = {
     findMany: vi.fn().mockResolvedValue(rows),
@@ -16,19 +18,21 @@ function setup(rows: Array<{ id: string; name: string; permissions: unknown; con
 }
 
 describe('AIEntitiesService.initializeDefaultCoworkers', () => {
-  it('seeds Scheduler and Tracker with their write grants, under the workspace lock', async () => {
+  it('seeds Assistant, Scheduler and Tracker with their write grants, under the workspace lock', async () => {
     const { service, aIAgent, tx } = setup([]);
     await service.initializeDefaultCoworkers('ws-1');
     expect(tx.$executeRaw).toHaveBeenCalled();
     const created = aIAgent.create.mock.calls.map(([arg]: [any]) => arg.data);
-    expect(created.map((d: any) => d.name)).toEqual(['Scheduler', 'Tracker']);
-    expect(created[0].permissions.allowActions).toContain('create_reminder');
-    expect(created[1].permissions.allowActions).toContain('create_monitor');
-    expect(created[1].configuration).toEqual(expect.objectContaining({ coworkerType: 'tracker', monitors: [] }));
+    expect(created.map((d: any) => d.name)).toEqual(['Assistant', 'Scheduler', 'Tracker']);
+    expect(created[0].configuration).toEqual(expect.objectContaining({ coworkerType: 'assistant' }));
+    expect(created[1].permissions.allowActions).toContain('create_reminder');
+    expect(created[2].permissions.allowActions).toContain('create_monitor');
+    expect(created[2].configuration).toEqual(expect.objectContaining({ coworkerType: 'tracker', monitors: [] }));
   });
 
   it('does nothing — and opens no transaction — when the workspace is up to date', async () => {
     const { service, prisma } = setup([
+      ASSISTANT_ROW,
       { id: 's', name: 'Scheduler', permissions: { allowActions: [] }, configuration: { coworkerType: 'scheduler' } },
       { id: 't', name: 'Tracker', permissions: { allowActions: ['notify_user'] }, configuration: { coworkerType: 'tracker' } },
     ]);
@@ -38,6 +42,7 @@ describe('AIEntitiesService.initializeDefaultCoworkers', () => {
 
   it('grants an old default its writes, keeping its other permissions', async () => {
     const { service, aIAgent } = setup([
+      ASSISTANT_ROW,
       { id: 's', name: 'Scheduler', permissions: { knowledgeAccess: true }, configuration: { coworkerType: 'scheduler' } },
       { id: 't', name: 'Tracker', permissions: { allowActions: [] }, configuration: { coworkerType: 'tracker' } },
     ]);
@@ -52,6 +57,7 @@ describe('AIEntitiesService.initializeDefaultCoworkers', () => {
 
   it('does not re-create a default someone renamed', async () => {
     const { service, aIAgent } = setup([
+      ASSISTANT_ROW,
       { id: 's', name: 'Launch Planner', permissions: { allowActions: [] }, configuration: { coworkerType: 'scheduler' } },
     ]);
     await service.initializeDefaultCoworkers('ws-1');

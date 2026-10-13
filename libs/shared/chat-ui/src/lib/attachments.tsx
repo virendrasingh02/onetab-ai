@@ -1,4 +1,4 @@
-import { useAuthenticatedMediaSrc } from '@org/hooks';
+import { useAuthenticatedMedia, useAuthenticatedMediaSrc } from '@org/hooks';
 import { downloadMediaItem } from '@org/media-preview';
 import type { Attachment } from '@org/types';
 import {
@@ -348,14 +348,14 @@ export function ImagePreview({
   // Matrix's thumbnail/download URLs require an auth header a plain <img>
   // can't attach — this fetches and swaps in a blob: URL when that's the
   // case, and is a no-op for any other kind of attachment URL.
-  const imageSrc = useAuthenticatedMediaSrc(attachment.url);
+  const { src: imageSrc, failed: srcFailed } = useAuthenticatedMedia(attachment.url);
 
   const ratio =
     attachment.width && attachment.height
       ? attachment.width / attachment.height
       : 4 / 3;
 
-  if (failed) {
+  if (failed || srcFailed) {
     return <AttachmentCard attachment={attachment} onOpen={onOpen} />;
   }
 
@@ -695,11 +695,11 @@ function AttachmentGridTile({
   // Images: the original bytes, for the same full-quality reason as
   // `ImagePreview`. Videos: the sender's poster thumbnail, if any — the tile
   // can't play the video file itself, so there is no "original" fallback.
-  const imageSrc = useAuthenticatedMediaSrc(
+  const { src: imageSrc, failed: srcFailed } = useAuthenticatedMedia(
     isVideo ? attachment.thumbnailUrl : attachment.url,
   );
 
-  if (failed) {
+  if (failed || srcFailed) {
     return (
       <button
         type="button"

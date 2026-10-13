@@ -31,6 +31,7 @@ import { OneTabAppProvider } from './providers/onetab-app.provider.js';
 import { MicrosoftTeamsProvider } from './providers/microsoft-teams.provider.js';
 import { SlackProvider } from './providers/slack.provider.js';
 import { TrelloProvider } from './providers/trello.provider.js';
+import { AttendanceProvider } from './providers/attendance.provider.js';
 import { SlackImporterService } from './slack-importer.service.js';
 import { WebhooksController } from './webhooks.controller.js';
 import { MigrationController } from './migration/migration.controller.js';
@@ -91,6 +92,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     TrelloProvider,
     CustomApiProvider,
     OneTabAppProvider,
+    AttendanceProvider,
 
     // Importers
     SlackImporterService,
@@ -119,6 +121,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     SlackProvider,
     TrelloProvider,
     CustomApiProvider,
+    AttendanceProvider,
     SlackImporterService,
     NotionImporterService,
     SlackCapabilityChecker,

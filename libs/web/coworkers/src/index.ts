@@ -5,3 +5,6 @@ export * from './lib/CoworkerChatView.js';
 export * from './lib/CoworkerCreateDialog.js';
 export * from './lib/CoworkerProfilePanel.js';
 export * from './lib/ai-workspace/index.js';
+export * from './lib/assistant-conversation.js';
+export * from './lib/use-assistant-conversation.js';
+export * from './lib/AIChatView.js';

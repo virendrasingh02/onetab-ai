@@ -6,6 +6,7 @@ import {
   compileStudioGraph,
   isStudioGraph,
   type CompiledStudioGraph,
+  type GeofenceTriggerConfig,
   type StudioGraphIssue,
 } from '@org/types';
 import type { RunCanvasAgentInput } from '@org/validation';
@@ -18,6 +19,15 @@ export function canvasSchedule(compiled: CompiledStudioGraph): { cron: string; t
   if (typeof cron !== 'string' || cron.split(/\s+/).length !== 5) return null;
   const timezone = trigger?.config['timezone'];
   return { cron, timezone: typeof timezone === 'string' && timezone ? timezone : null };
+}
+
+/** The geofence a compiled canvas graph starts on, if its trigger is a Location trigger. */
+export function canvasGeofence(compiled: CompiledStudioGraph): GeofenceTriggerConfig | null {
+  const trigger = compiled.nodes.find((n) => n.type === 'TRIGGER');
+  const geofence = trigger?.config['geofence'];
+  return trigger?.config['trigger'] === 'TRIGGER_LOCATION' && geofence && typeof geofence === 'object'
+    ? (geofence as GeofenceTriggerConfig)
+    : null;
 }
 
 /** The app event a compiled canvas graph starts with, if its trigger is a connector trigger. */
@@ -213,6 +223,38 @@ export class CanvasAgentRunService {
         trigger,
         compiled,
       });
+    }
+    return out;
+  }
+
+  /**
+   * Switched-on agents in a workspace that start on a Location trigger and
+   * belong to `userId`. Only a person's own agents react to their device: a
+   * location ping is personal, and the agent's app actions run as its creator.
+   */
+  async activeLocationTriggers(workspaceId: string, userId: string) {
+    const workflows = await this.prisma.automationWorkflow.findMany({
+      where: { workspaceId, creatorId: userId, isActive: true, archivedAt: null, triggerType: CANVAS_AGENT_TRIGGER },
+      select: { id: true, description: true },
+    });
+    const out: Array<{
+      workflowId: string;
+      agent: { id: string; name: string; creatorId: string | null };
+      geofence: GeofenceTriggerConfig;
+      compiled: CompiledStudioGraph;
+    }> = [];
+    for (const workflow of workflows) {
+      const agentId = workflow.description?.startsWith('canvas-agent:') ? workflow.description.slice('canvas-agent:'.length) : null;
+      if (!agentId) continue;
+      const agent = await this.prisma.aIAgent.findFirst({
+        where: { id: agentId, type: 'agent', creatorId: userId },
+        select: { id: true, name: true, creatorId: true, graphJson: true },
+      });
+      if (!agent?.graphJson || !isStudioGraph(agent.graphJson)) continue;
+      const compiled = compileStudioGraph(JSON.parse(agent.graphJson) as Record<string, unknown>);
+      const geofence = canvasGeofence(compiled);
+      if (!geofence || compiled.issues.some((i) => i.level === 'error')) continue;
+      out.push({ workflowId: workflow.id, agent: { id: agent.id, name: agent.name, creatorId: agent.creatorId }, geofence, compiled });
     }
     return out;
   }

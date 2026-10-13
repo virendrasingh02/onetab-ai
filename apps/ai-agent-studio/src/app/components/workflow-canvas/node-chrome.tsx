@@ -45,8 +45,8 @@ export function NodeAnalyticsBadge({
     analytics.relativeIntensity > 0.7
       ? 'border-rose-500/60 bg-rose-500/15 text-rose-500 ring-2 ring-rose-500/20'
       : analytics.relativeIntensity > 0.35
-      ? 'border-amber-500/60 bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/20'
-      : 'border-emerald-500/60 bg-emerald-500/15 text-emerald-500';
+      ? 'border-warning/60 bg-warning/15 text-warning ring-1 ring-warning/20'
+      : 'border-success/60 bg-success/15 text-success';
 
   return (
     <div

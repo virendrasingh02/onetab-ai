@@ -1,5 +1,4 @@
 export { AISidebar, type AISidebarProps } from './lib/AISidebar.js';
-export { AIChatView } from './lib/AIChatView.js';
 export { PromptLibraryView, type PromptLibraryViewProps } from './lib/PromptLibraryView.js';
 export { AIImageGeneratorView } from './lib/AIImageGeneratorView.js';
 /*
@@ -34,6 +33,7 @@ export {
 
 export {
   AI_MODELS,
+  modelLabelFor,
   resolveModel,
   useAIChat,
   useAIImageGeneration,

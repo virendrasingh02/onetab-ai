@@ -114,29 +114,43 @@ async function resolve(url: string): Promise<string | null> {
 export function useAuthenticatedMediaSrc(
   src: string | null | undefined,
 ): string | null | undefined {
+  return useAuthenticatedMedia(src).src;
+}
+
+// The fetcher is wired by a parent effect (so it is still null when a child's
+// first resolve runs) and the Matrix token may not exist until the client has
+// connected — both are transient, so a failed resolve is retried with backoff
+// before the media is declared broken.
+const RETRY_DELAYS_MS = [400, 1200, 3000, 6000];
+
+/**
+ * Same resolution as `useAuthenticatedMediaSrc`, plus `failed` once every
+ * retry has been exhausted — so a caller can swap its endless skeleton for a
+ * file-card/download fallback instead of spinning forever.
+ */
+export function useAuthenticatedMedia(src: string | null | undefined): {
+  src: string | null | undefined;
+  failed: boolean;
+} {
   const needsAuth = !!src && isAuthenticatedMediaUrl(src);
 
   /*
-   * Reset in render, not in an effect. `src` changing on an already-mounted
-   * element (a header avatar whose backing user changes, a message's image
-   * swapped by an edit) used to hold the *previous* value in `useState` for
-   * one committed paint — the effect that clears it only runs after that
-   * commit — so the browser flashed the old avatar before blanking to the
-   * loading state and only then showing the new one. Computing the value for
-   * the new `src` synchronously here means the very first render to see a
-   * changed `src` already shows its correct starting point (a cache hit, or
-   * `undefined` while a fetch is needed), so the stale blob for the old `src`
-   * is never painted.
+   * Reset in render, not in an effect: the first render to see a changed `src`
+   * must already show its correct starting point (a cache hit, or `undefined`
+   * while a fetch is needed), so a stale blob for the old `src` is never
+   * painted.
    */
   const bound = useRef<{
     src: string | null | undefined;
     resolved: string | null | undefined;
-  }>({ src: undefined, resolved: undefined });
+    failed: boolean;
+  }>({ src: undefined, resolved: undefined, failed: false });
 
   if (bound.current.src !== src) {
     bound.current = {
       src,
       resolved: needsAuth ? blobCache.get(src as string) : src,
+      failed: false,
     };
   }
 
@@ -146,19 +160,33 @@ export function useAuthenticatedMediaSrc(
     if (!needsAuth || blobCache.get(src as string)) return;
 
     let cancelled = false;
-    void resolve(src as string).then((blobUrl) => {
-      if (cancelled) return;
-      bound.current = { src, resolved: blobUrl ?? undefined };
-      forceRender((n) => n + 1);
-    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const attempt = (n: number) => {
+      void resolve(src as string).then((blobUrl) => {
+        if (cancelled) return;
+        if (blobUrl) {
+          bound.current = { src, resolved: blobUrl, failed: false };
+          forceRender((c) => c + 1);
+        } else if (n < RETRY_DELAYS_MS.length) {
+          timer = setTimeout(() => attempt(n + 1), RETRY_DELAYS_MS[n]);
+        } else {
+          bound.current = { src, resolved: undefined, failed: true };
+          forceRender((c) => c + 1);
+        }
+      });
+    };
+    attempt(0);
+
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
     // `needsAuth` is derived from `src`; re-running on `src` alone is enough.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
-  return bound.current.resolved;
+  return { src: bound.current.resolved, failed: bound.current.failed };
 }
 
 /**

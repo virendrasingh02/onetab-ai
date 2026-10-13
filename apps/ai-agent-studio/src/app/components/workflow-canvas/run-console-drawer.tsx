@@ -1,4 +1,4 @@
-import { agentGraphsApi, aiExecutionsApi, ApiError, approvalsApi } from '@org/api-client';
+import { agentGraphsApi, ApiError } from '@org/api-client';
 import type { AgentMessageRecord, AgentTaskRecord, CanvasAgentRunDetail, CanvasRunStep, StudioGraphIssue } from '@org/types';
 import { AIRunStatusBadge, Badge, Button, CodeBlock, EmptyState, SegmentedControl, Textarea, toast, Label } from '@org/ui';
 import { cn } from '@org/utils';
@@ -28,6 +28,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useStudioSession } from '../../session-guard.js';
 import type { NodeRunResult } from './node-chrome.js';
+import { useCanvasRunControls } from './use-canvas-run-controls.js';
 
 /** Run statuses after which nothing more will happen without someone acting. */
 export const SETTLED = new Set(['COMPLETED', 'FAILED', 'CANCELLED', 'SUCCESS']);
@@ -168,6 +169,26 @@ function taskTree(tasks: AgentTaskRecord[]): Array<{ task: AgentTaskRecord; dept
   return out;
 }
 
+/** What to tell the person when a run can't start, by what actually went wrong. */
+function describeStartError(error: unknown): { title: string; detail: string } {
+  if (error instanceof ApiError) {
+    if (error.status === 403) {
+      return {
+        title: 'You can’t run this agent',
+        detail: 'Only its creator or a workspace admin can run or change it. Ask one of them, or build your own agent.',
+      };
+    }
+    if (error.status === 402 || error.status === 429) {
+      return { title: 'Run limit reached', detail: error.message };
+    }
+    return { title: 'Couldn’t start the run', detail: error.message };
+  }
+  return {
+    title: 'Couldn’t start the run',
+    detail: error instanceof Error ? error.message : 'Something went wrong. Try again.',
+  };
+}
+
 export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, onBeforeRun, onNodeStatuses, onNodeResults }: RunConsoleDrawerProps) {
   const { activeWorkspace } = useStudioSession();
   const workspaceId = activeWorkspace.id;
@@ -228,29 +249,15 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
     meta: { disableToast: true },
   });
 
-  const control = useMutation({
-    mutationFn: async (action: 'pause' | 'resume' | 'cancel' | 'retry') => {
-      if (!runId) return;
-      if (action === 'retry') {
-        const retried = await aiExecutionsApi.retry(workspaceId, runId);
-        const next = (retried as { executionId?: string }).executionId;
-        if (next) setRunId(next);
-        return;
-      }
-      await aiExecutionsApi[action](workspaceId, runId);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['canvas-run', workspaceId] }),
-    meta: { errorMessage: 'That didn’t work on this run.' },
-  });
+  // Problems with the graph are listed under "Fix before running"; anything else
+  // that stops a run from starting is shown here, where the person is looking.
+  const startError = start.isError && !issues.some((i) => i.level === 'error') ? describeStartError(start.error) : null;
 
-  const decide = useMutation({
-    mutationFn: ({ id, decision }: { id: string; decision: 'APPROVED' | 'REJECTED' }) =>
-      approvalsApi.decide(workspaceId, id, { decision, comment: decision === 'APPROVED' ? 'Approved in the Studio' : 'Rejected in the Studio' }),
-    onSuccess: (_d, v) => {
-      toast.success(v.decision === 'APPROVED' ? 'Approved — the run continues.' : 'Rejected — the run stops here.');
-      queryClient.invalidateQueries({ queryKey: ['canvas-run', workspaceId] });
-    },
-    meta: { errorMessage: 'Couldn’t record the decision.' },
+  const { control, decide } = useCanvasRunControls({
+    workspaceId,
+    runId,
+    setRunId,
+    surface: 'Studio',
   });
 
   if (!isOpen) return null;
@@ -371,7 +378,16 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
           </section>
         )}
 
-        {!runId && (
+        {startError && (
+          <section className="space-y-1.5 rounded-xl border border-destructive/40 bg-destructive/5 p-3" role="alert" aria-label="Run could not start">
+            <div className="flex items-center gap-1.5 font-semibold text-destructive">
+              <AlertTriangle className="size-3.5" /> {startError.title}
+            </div>
+            <p className="text-[11px] text-muted-foreground">{startError.detail}</p>
+          </section>
+        )}
+
+        {!runId && !startError && (
           <EmptyState
             size="sm"
             icon={<Bot className="size-5" />}

@@ -433,10 +433,10 @@ export function ChannelWelcome({
       }
       className={cn('px-4 pt-8 pb-5 sm:px-6', className)}
     >
-      <div className="max-w-2xl">
+      <div className="max-w-4xl">
         {header}
 
-        <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           {intro}
         </p>
 
@@ -488,7 +488,7 @@ export function ChannelWelcome({
         ) : null}
 
         {actions.length > 0 ? (
-          <ul className="mt-5 gap-2 sm:grid-cols-2 grid">
+          <ul className="mt-5 max-w-2xl gap-2 sm:grid-cols-2 grid">
             {actions.map((action) => (
               <li key={action.key}>
                 <button

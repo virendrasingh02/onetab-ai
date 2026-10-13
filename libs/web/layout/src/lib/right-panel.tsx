@@ -1,12 +1,7 @@
 import { UserProfileRightPanel } from '@org/chat-ui';
 import type { CurrentUser } from '@org/types';
 import { Button, Hint, useRightPanelStore } from '@org/ui';
-import {
-  MessagesSquare,
-  User as UserIcon,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+import { X } from 'lucide-react';
 import { useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AgentProfileRightPanel } from '@org/web-agents';
@@ -99,7 +94,6 @@ export function RightPanel({
   if (view === 'details' && hosted.details) {
     return hosted.details.title ? (
       <PanelFrame
-        icon={UserIcon}
         title={hosted.details.title}
         onClose={onClose}
       >
@@ -113,7 +107,6 @@ export function RightPanel({
   if (view === 'threads' && hosted.threads) {
     return (
       <PanelFrame
-        icon={MessagesSquare}
         title={hosted.threads.title}
         subtitle={hosted.threads.subtitle}
         onClose={onClose}
@@ -170,7 +163,6 @@ export function RightPanel({
 
     return (
       <PanelFrame
-        icon={UserIcon}
         title={person ? person.name : 'Your profile'}
         onClose={onClose}
       >
@@ -242,13 +234,11 @@ function HostedSlot({
  * needs the standalone version on mobile, where the rail becomes a sheet.
  */
 function PanelFrame({
-  icon: Icon,
   title,
   subtitle,
   onClose,
   children,
 }: {
-  icon: LucideIcon;
   title: string;
   subtitle?: ReactNode;
   onClose: () => void;
@@ -258,9 +248,8 @@ function PanelFrame({
     <div className="min-h-0 flex h-full flex-col">
       <div className="h-12 px-3 flex shrink-0 items-center justify-between border-b border-border">
         <div className="min-w-0 gap-2 flex items-center text-foreground">
-          <Icon className="size-4 shrink-0 text-primary" aria-hidden />
           <div className="min-w-0">
-            <span className="truncate font-semibold text-sm block leading-tight">{title}</span>
+            <h2 className="truncate text-base font-semibold tracking-tight leading-tight">{title}</h2>
             {subtitle ? (
               <div className="text-[11px] font-normal text-muted-foreground truncate leading-tight">
                 {subtitle}

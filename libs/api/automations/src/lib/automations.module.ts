@@ -22,6 +22,7 @@ import { WidgetStudioController } from './studio/widgets/widget-studio.controlle
 import { WidgetStudioService } from './studio/widgets/widget-studio.service.js';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
+import { LocationAutomationService } from './location-automation.service.js';
 
 @Module({
   imports: [
@@ -54,7 +55,8 @@ import { WorkflowScheduleListener } from './workflow-schedule.listener.js';
     // Starts switched-on agents on app events (New email, New issue…).
     ConnectorTriggerPollerService,
     WidgetStudioService,
+    LocationAutomationService,
   ],
-  exports: [AutomationsService, WorkflowEngineService, AgentStudioService, WidgetStudioService],
+  exports: [AutomationsService, WorkflowEngineService, AgentStudioService, WidgetStudioService, LocationAutomationService],
 })
 export class AutomationsModule {}

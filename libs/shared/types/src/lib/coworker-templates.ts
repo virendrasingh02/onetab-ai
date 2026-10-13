@@ -12,6 +12,7 @@ import type { CoworkerPermissions } from './automation.js';
  * added here as templates, not as new code paths.
  */
 export type CoworkerTemplateKey =
+  | 'assistant'
   | 'scheduler'
   | 'tracker'
   | 'researcher'
@@ -50,6 +51,47 @@ export interface CoworkerTemplate {
 }
 
 export const COWORKER_TEMPLATES: readonly CoworkerTemplate[] = [
+  {
+    key: 'assistant',
+    name: 'Assistant',
+    role: 'Workspace AI Assistant',
+    description:
+      'The general-purpose workspace assistant behind AI Home and the docked copilot. Answers questions about the workspace and hands specialised work to other coworkers.',
+    personality:
+      'Friendly, concise, and practical. Answers directly, asks a clarifying question only when it must.',
+    welcomeMessage:
+      'Hi! I am your workspace Assistant. Ask me about your tasks, docs, projects, or anything else, and I will help or hand it to the right coworker.',
+    systemPrompt:
+      'You are Assistant, the general-purpose AI assistant of this workspace. You help members find information, summarise work, and get things done.',
+    systemInstructions:
+      'Answer questions about the workspace using the available read tools. Be concise. For reminders and deadlines hand off to Scheduler; for ongoing monitoring hand off to Tracker. Never invent workspace data.',
+    tools: [
+      'find_tasks',
+      'list_tasks',
+      'list_projects',
+      'list_channels',
+      'list_meetings',
+      'get_project_overview',
+      'get_activity',
+      'search_docs',
+      'read_doc',
+    ],
+    permissions: {
+      knowledgeAccess: true,
+      allowActions: [],
+      projectAccess: true,
+      taskAccess: true,
+      activityAccess: true,
+    },
+    capabilities: [
+      'Answer workspace questions',
+      'Search docs and tasks',
+      'Summarise projects and activity',
+      'Hand work to Scheduler and Tracker',
+    ],
+    collaborators: ['scheduler', 'tracker'],
+    seedByDefault: true,
+  },
   {
     key: 'scheduler',
     name: 'Scheduler',

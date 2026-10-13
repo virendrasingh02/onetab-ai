@@ -608,7 +608,7 @@ export class IntegrationsService {
     }
     const startedAt = Date.now();
     try {
-      return await adapter.executeAction(credential, actionId, input);
+      return await adapter.executeAction(credential, actionId, input, { actingUserId: userId, workspaceId });
     } catch (error) {
       await this.auditLogger.logAudit({
         integrationId,
@@ -660,7 +660,7 @@ export class IntegrationsService {
 
     const startedAt = Date.now();
     try {
-      const result = await adapter.executeAction(credential, actionId, input);
+      const result = await adapter.executeAction(credential, actionId, input, { actingUserId: userId, workspaceId });
       await this.auditLogger.logAudit({
         integrationId,
         workspaceId,

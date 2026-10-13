@@ -20,8 +20,10 @@ export { GmailProvider } from './lib/providers/gmail.provider.js';
 export { MicrosoftTeamsProvider } from './lib/providers/microsoft-teams.provider.js';
 export { CustomApiProvider } from './lib/providers/custom-api.provider.js';
 export { OneTabAppProvider } from './lib/providers/onetab-app.provider.js';
+export { AttendanceProvider } from './lib/providers/attendance.provider.js';
 
 export type {
+  ActionContext,
   ProviderAdapter,
   TokenResult,
   ResolvedCredential,

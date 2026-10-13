@@ -154,7 +154,7 @@ export function AgentDetailDrawer({
                 </Card>
                 <Card className="p-3 bg-surface-raised">
                   <div className="text-[11px] text-muted-foreground">Success Rate</div>
-                  <div className="mt-1 text-xl font-bold text-emerald-500">
+                  <div className="mt-1 text-xl font-bold text-success">
                     {agent.successRate.toFixed(1)}%
                   </div>
                 </Card>
@@ -322,7 +322,7 @@ export function AgentDetailDrawer({
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold">
                     p95
                   </div>
-                  <div className="mt-1 text-lg font-bold text-amber-500">
+                  <div className="mt-1 text-lg font-bold text-warning">
                     {Math.round(agent.latencyPercentiles.p95)}ms
                   </div>
                 </div>
@@ -423,7 +423,7 @@ export function AgentDetailDrawer({
                 </div>
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
                   <div className="text-[11px] text-muted-foreground">Cost per Successful Task</div>
-                  <div className="mt-1 text-xl font-bold text-emerald-500">
+                  <div className="mt-1 text-xl font-bold text-success">
                     ${agent.costPerSuccessfulTask.toFixed(4)}
                   </div>
                 </div>
@@ -485,7 +485,7 @@ export function AgentDetailDrawer({
                 </div>
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
                   <div className="text-[10px] text-muted-foreground font-semibold">Timeouts</div>
-                  <div className="mt-1 text-lg font-bold text-amber-500">
+                  <div className="mt-1 text-lg font-bold text-warning">
                     {agent.timeoutCount}
                   </div>
                 </div>

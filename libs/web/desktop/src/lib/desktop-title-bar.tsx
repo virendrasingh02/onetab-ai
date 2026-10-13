@@ -43,7 +43,7 @@ export function DesktopTitleBar() {
           strip grabbable across its full width without labelling it. */}
       <div className="min-w-0 flex-1" aria-hidden />
 
-      <DesktopWindowControls />
+      <DesktopWindowControls className="-mr-2" />
     </div>
   );
 }

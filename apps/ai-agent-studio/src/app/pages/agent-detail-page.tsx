@@ -36,7 +36,7 @@ import {
   Textarea,
   toast,
 } from '@org/ui';
-import { compileStudioGraph, diffStudioGraphs, type StudioCanvasGraph, type StudioGraphIssue } from '@org/types';
+import { canManageOwnedAIResource, compileStudioGraph, isStudioGraph, diffStudioGraphs, type StudioCanvasGraph, type StudioGraphIssue } from '@org/types';
 import { cn } from '@org/utils';
 import {
   addEdge,
@@ -1318,11 +1318,11 @@ function WorkflowCanvasInner({
           {/* Color Legend */}
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-1">
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-emerald-500" />
+              <span className="size-2 rounded-full bg-success" />
               Optimal
             </span>
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-amber-500" />
+              <span className="size-2 rounded-full bg-warning" />
               Elevated
             </span>
             <span className="flex items-center gap-1">
@@ -1583,7 +1583,7 @@ function RemeasureHandlesOnDirection({ direction }: { direction: WorkflowDirecti
 
 export function AgentDetailPage() {
   const { agentId } = useParams<{ agentId: string }>();
-  const { activeWorkspace } = useStudioSession();
+  const { activeWorkspace, user } = useStudioSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -1609,7 +1609,7 @@ export function AgentDetailPage() {
   // `?copilot=1` (an agent fresh from "Create with one prompt") opens the Copilot.
   const [showAiPanel, setShowAiPanel] = useState(() => searchParams.get('copilot') === '1');
   const copilotWelcome = useRef(searchParams.get('copilot') === '1').current;
-  const [isCanvasLocked, setIsCanvasLocked] = useState(false);
+  const [canvasLockToggled, setIsCanvasLocked] = useState(false);
   // Bumped when a different graph is loaded, remounting the canvas so it fits the new graph
   const [canvasEpoch, setCanvasEpoch] = useState(0);
   const [workflowDirection, setWorkflowDirection] = useState<WorkflowDirection>('horizontal');
@@ -1847,6 +1847,11 @@ export function AgentDetailPage() {
     },
     enabled: !!agentId && !!activeWorkspace.id,
   });
+
+  // The server only lets an agent's creator or a workspace admin change it. Mirror
+  // that here so everyone else gets a read-only canvas up front, not a 403 on save.
+  const canManage = !agent || canManageOwnedAIResource(agent.creatorId, { userId: user.id, permissions: activeWorkspace.permissions });
+  const isCanvasLocked = canvasLockToggled || !canManage;
 
   // Fetch Agent Executions
   const { data: executions = [] } = useQuery({
@@ -2260,11 +2265,20 @@ export function AgentDetailPage() {
     },
   });
 
+  /**
+   * Runs, publishes and snapshots all read the *stored* graph. An agent that was never
+   * saved from the canvas (seeded, or created before the canvas existed) only has the
+   * default scaffold in memory — not dirty, yet not stored — so save that too.
+   */
+  const saveIfNeeded = async () => {
+    if (isDirty || !isStudioGraph(agent?.graphJson)) await persistAgent();
+  };
+
   const publishMutation = useMutation({
     mutationFn: async () => {
       if (!agentId) return;
       // Publishing validates and snapshots the stored graph — save first.
-      if (isDirty) await persistAgent();
+      await saveIfNeeded();
       return agentsApi.publish(
         activeWorkspace.id,
         agentId,
@@ -2304,7 +2318,7 @@ export function AgentDetailPage() {
     mutationFn: async () => {
       if (!agentId) return;
       // A snapshot captures the stored graph, so include unsaved edits.
-      if (isDirty) await persistAgent();
+      await saveIfNeeded();
       return agentsApi.createVersion(
         activeWorkspace.id,
         agentId,
@@ -3942,6 +3956,15 @@ export function AgentDetailPage() {
       </header>
       )}
 
+      {!canManage && (
+        <div role="status" className="flex shrink-0 items-center gap-2 border-b border-border bg-surface-raised px-4 py-2 text-xs text-muted-foreground">
+          <Lock className="size-3.5 shrink-0" aria-hidden />
+          <span>
+            <strong className="font-semibold text-foreground">View only.</strong> Only this agent’s creator or a workspace admin can edit it.
+          </span>
+        </div>
+      )}
+
       {/* Main Tab Views */}
       <div className="flex-1 overflow-hidden">
         {/* TAB 1: BUILD CANVAS */}
@@ -4126,7 +4149,7 @@ export function AgentDetailPage() {
                   if (target) focusNode(target);
                 }}
                 onBeforeRun={async () => {
-                  if (isDirty) await persistAgent();
+                  await saveIfNeeded();
                 }}
                 onNodeStatuses={showRunStatuses}
                 onNodeResults={setRunResults}
@@ -4170,7 +4193,7 @@ export function AgentDetailPage() {
 
         {/* TAB 3: EXECUTIONS */}
         {activeTab === 'executions' && (
-          <div className="flex-1 space-y-4 p-6 overflow-y-auto">
+          <div className="h-full space-y-4 p-6 overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-foreground">Execution History for {agent.name}</h2>
@@ -4266,7 +4289,7 @@ export function AgentDetailPage() {
 
         {/* TAB 4: VERSIONS */}
         {activeTab === 'versions' && (
-          <div className="flex-1 space-y-4 p-6 overflow-y-auto max-w-4xl mx-auto">
+          <div className="h-full space-y-4 overflow-y-auto py-6 px-[max(1.5rem,calc((100%-56rem)/2))]">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-foreground">Version Snapshots & Rollback</h2>
@@ -4358,7 +4381,7 @@ export function AgentDetailPage() {
 
         {/* TAB 5: SETTINGS */}
         {activeTab === 'settings' && (
-          <div className="flex-1 space-y-6 p-6 overflow-y-auto max-w-4xl mx-auto">
+          <div className="h-full space-y-6 overflow-y-auto py-6 px-[max(1.5rem,calc((100%-56rem)/2))]">
             <div>
               <h2 className="text-base font-bold text-foreground">Agent Configuration, Intelligence & Guardrails</h2>
               <p className="text-xs text-muted-foreground">
@@ -4784,7 +4807,7 @@ export function AgentDetailPage() {
           isOpen={isTestDrawerOpen}
           onClose={() => setIsTestDrawerOpen(false)}
           onBeforeRun={async () => {
-            if (isDirty) await persistAgent();
+            await saveIfNeeded();
           }}
           onNodeStatuses={showRunStatuses}
           onNodeResults={setRunResults}

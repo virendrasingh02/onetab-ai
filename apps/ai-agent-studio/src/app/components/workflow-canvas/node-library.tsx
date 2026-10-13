@@ -131,6 +131,23 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     badge: 'Trigger',
     defaultConfig: { eventType: 'document.created' },
   },
+  {
+    type: 'TRIGGER_LOCATION',
+    category: 'triggers',
+    label: 'Location Trigger',
+    subtitle: 'Office arrival / departure',
+    description: 'Starts the agent when its owner arrives at or leaves an office, with GPS accuracy, dwell-time and cooldown safeguards',
+    icon: Globe,
+    badge: 'Location',
+    defaultConfig: {
+      eventType: 'BOTH',
+      officeName: 'Main office',
+      radiusMeters: 100,
+      dwellTimeMinutes: 3,
+      accuracyThresholdMeters: 100,
+      cooldownMinutes: 60,
+    },
+  },
 
   // 2. AI & REASONING (Module 3.2)
   {
@@ -456,6 +473,20 @@ export const CATALOG_NODES: CatalogNodeItem[] = [
     icon: Boxes,
     badge: 'Connector',
     defaultConfig: { input: {} },
+  },
+  {
+    type: 'ATTENDANCE_ACTION',
+    category: 'tools',
+    label: 'Attendance',
+    subtitle: 'Check-in / Check-out',
+    description: 'Check in, check out, or read attendance status — in the built-in ledger or your HR system',
+    icon: UserCheck,
+    badge: 'Attendance',
+    defaultConfig: {
+      provider: 'ATTENDANCE',
+      actionId: 'check_in',
+      input: {},
+    },
   },
 
   // 7. HUMAN INTERACTION (Module 3.7)

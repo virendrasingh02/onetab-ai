@@ -28,6 +28,7 @@ export function ConnectorNodeConfig({
   config,
   setConfig,
   readOnly,
+  lockedProvider,
 }: {
   node: Node;
   nodes: Node[];
@@ -35,6 +36,8 @@ export function ConnectorNodeConfig({
   config: Record<string, unknown>;
   setConfig: (patch: Record<string, unknown>) => void;
   readOnly?: boolean;
+  /** A card bound to one app (e.g. Attendance): no app picker. */
+  lockedProvider?: string;
 }) {
   const navigate = useNavigate();
   const { activeWorkspace } = useStudioSession();
@@ -46,7 +49,7 @@ export function ConnectorNodeConfig({
     () => (connectors.data ?? []).filter((c) => (kind === 'trigger' ? c.triggers.length > 0 : c.capabilities.length > 0)),
     [connectors.data, kind],
   );
-  const provider = providerOf(config);
+  const provider = lockedProvider ?? providerOf(config);
   const connector: ConnectorSummary | undefined = list.find((c) => c.provider === provider);
   const capabilityId = String(config[kind === 'action' ? 'actionId' : 'triggerId'] ?? '');
   const capability = kind === 'action' ? connector?.capabilities.find((c) => c.id === capabilityId) : undefined;
@@ -57,7 +60,13 @@ export function ConnectorNodeConfig({
       : (trigger?.inputSchema ?? connector?.capabilities.find((c) => c.id === trigger?.pollActionId)?.inputSchema);
   const values = inputToFieldValues(config['input'] as Record<string, unknown> | undefined);
   const missing = schema ? missingRequired(schema, values) : [];
-  const connection = connector ? usableConnection(connector) : null;
+  const activeConnections = useMemo(
+    () => (connector?.connections ?? []).filter((c) => c.status === 'CONNECTED'),
+    [connector?.connections],
+  );
+  const connection = connector
+    ? activeConnections.find((c) => c.id === config['integrationId']) ?? usableConnection(connector)
+    : null;
 
   const variables = useMemo(() => {
     const items = [{ value: '{{__last}}', label: 'Previous step’s result' }];
@@ -105,6 +114,7 @@ export function ConnectorNodeConfig({
 
   return (
     <div className="space-y-3.5 border-t border-border pt-3">
+      {!lockedProvider && (
       <div className="space-y-1.5">
         <span className="text-[11px] font-semibold text-foreground">App</span>
         <AppSelect
@@ -117,6 +127,8 @@ export function ConnectorNodeConfig({
               connectorId: next?.slug,
               [kind === 'action' ? 'actionId' : 'triggerId']: first,
               input: kind === 'trigger' ? { ...(next?.triggers[0]?.defaultInput ?? {}) } : {},
+              // An account belongs to one app.
+              integrationId: undefined,
             });
           }}
           searchable
@@ -124,21 +136,44 @@ export function ConnectorNodeConfig({
           options={list.map((c) => ({ value: c.provider, label: c.status === 'connected' ? c.name : `${c.name} (not connected)` }))}
         />
       </div>
+      )}
 
       {connector && (
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-raised/60 p-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <AppConnectorIcon connectorId={connector.slug} name={connector.name} category={connector.category} size={18} />
-            <span className="truncate text-xs text-foreground">
-              {connection ? `As ${connection.accountEmail ?? connection.accountName ?? connection.displayName ?? connector.name}` : `${connector.name} isn’t connected`}
-            </span>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-foreground">Connected Account</span>
+            {activeConnections.length > 1 && (
+              <Badge variant="outline" className="text-[10px] py-0 font-normal">
+                {activeConnections.length} accounts
+              </Badge>
+            )}
           </div>
-          {connection ? (
-            <Badge variant="success">Connected</Badge>
+          {activeConnections.length > 1 ? (
+            <AppSelect
+              value={String(config['integrationId'] ?? connection?.id ?? '')}
+              onValueChange={(id) => setConfig({ integrationId: id })}
+              placeholder="Select account"
+              options={activeConnections.map((c) => ({
+                value: c.id,
+                label: `${c.accountEmail ?? c.accountName ?? c.displayName ?? 'Account'}${c.mine ? ' (personal)' : ' (shared)'}`,
+              }))}
+            />
           ) : (
-            <Button size="xs" variant="outline" onClick={() => navigate(`/connectors/${connector.slug}`)}>
-              Connect <ExternalLink className="ml-0.5 size-3" aria-hidden="true" />
-            </Button>
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-raised/60 p-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <AppConnectorIcon connectorId={connector.slug} name={connector.name} category={connector.category} size={18} />
+                <span className="truncate text-xs text-foreground">
+                  {connection ? `As ${connection.accountEmail ?? connection.accountName ?? connection.displayName ?? connector.name}` : `${connector.name} isn’t connected`}
+                </span>
+              </div>
+              {connection ? (
+                <Badge variant="success">Connected</Badge>
+              ) : (
+                <Button size="xs" variant="outline" onClick={() => navigate(`/connectors/${connector.slug}`)}>
+                  Connect <ExternalLink className="ml-0.5 size-3" aria-hidden="true" />
+                </Button>
+              )}
+            </div>
           )}
         </div>
       )}

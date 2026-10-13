@@ -84,6 +84,7 @@ export {
   type ForwardedMessageCardProps,
 } from './lib/forwarded-message-card.js';
 
+export { InlineMessageEditor, type InlineMessageEditorProps } from './lib/inline-message-editor.js';
 export {
   LexicalComposerInput,
   LexicalToolbar,

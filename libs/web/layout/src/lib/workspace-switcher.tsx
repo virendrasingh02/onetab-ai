@@ -288,18 +288,10 @@ export function WorkspaceMenu({
               />
             </span>
 
-            {/* Workspace Name & Plan Badge */}
+            {/* Workspace Name — the plan lives in the switcher menu */}
             <span className="min-w-0 leading-tight flex flex-1 flex-col justify-center">
               <span className="font-semibold tracking-tight text-sm sm:text-base gap-1.5 flex items-center truncate text-foreground">
                 <span className="truncate">{current.name}</span>
-                <PlanBadge
-                  plan={plan}
-                  size="sm"
-                  showIcon={false}
-                  variant="subtle"
-                  // On a phone the name needs the room.
-                  className="font-semibold shrink-0 text-[10px] max-sm:hidden"
-                />
                 <ChevronDown
                   className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) group-data-[state=open]/trigger:rotate-180"
                   aria-hidden
@@ -405,8 +397,19 @@ export function WorkspaceMenu({
                                 className="shrink-0 rounded-sm"
                               />
                               <span className="min-w-0 leading-tight flex-1">
-                                <span className="font-semibold block truncate text-foreground">
-                                  {workspace.name}
+                                <span className="gap-1.5 flex items-center">
+                                  <span className="font-semibold truncate text-foreground">
+                                    {workspace.name}
+                                  </span>
+                                  {isSelected ? (
+                                    <PlanBadge
+                                      plan={plan}
+                                      size="sm"
+                                      showIcon={false}
+                                      variant="subtle"
+                                      className="font-semibold shrink-0 text-[9px]"
+                                    />
+                                  ) : null}
                                 </span>
                                 <span className="font-normal block truncate text-[10px] text-muted-foreground">
                                   {workspace.memberCount} member

@@ -124,7 +124,7 @@ const CHIP_BASE_CLASS =
 const LINK_CHIP_CLASS = cn(
   CHIP_BASE_CLASS,
   'bg-info/10 text-info-text no-underline [overflow-wrap:anywhere] [&_strong]:text-inherit [&_span]:text-inherit',
-  'hover:bg-info/20 hover:underline underline-offset-2',
+  'hover:bg-info/20 hover:no-underline',
   'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-info',
 );
 

@@ -1,8 +1,8 @@
-import { agentGraphsApi, aiExecutionsApi, approvalsApi } from '@org/api-client';
+import { agentGraphsApi } from '@org/api-client';
 import type { CanvasAgentRunDetail } from '@org/types';
 import { Button, toast } from '@org/ui';
 import { cn } from '@org/utils';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, Maximize2, RotateCcw, Square, UserCheck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
@@ -16,6 +16,7 @@ import {
   type CanvasNodeStatus,
 } from '../workflow-canvas/run-console-drawer.js';
 import type { NodeRunResult } from '../workflow-canvas/node-chrome.js';
+import { useCanvasRunControls } from '../workflow-canvas/use-canvas-run-controls.js';
 
 /** Steps shown before "+N more" — the run console has the full list. */
 const VISIBLE_STEPS = 6;
@@ -95,30 +96,11 @@ export function CopilotRunCard({
     onSettled?.(run);
   }, [run, settled, reported, onSettled, queryClient, workspaceId, agentId]);
 
-  const control = useMutation({
-    mutationFn: async (action: 'cancel' | 'retry') => {
-      if (action === 'retry') {
-        const retried = (await aiExecutionsApi.retry(workspaceId, runId)) as { executionId?: string };
-        if (retried.executionId) setRunId(retried.executionId);
-        return;
-      }
-      await aiExecutionsApi.cancel(workspaceId, runId);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['canvas-run', workspaceId] }),
-    meta: { errorMessage: 'That didn’t work on this run.' },
-  });
-
-  const decide = useMutation({
-    mutationFn: ({ id, decision }: { id: string; decision: 'APPROVED' | 'REJECTED' }) =>
-      approvalsApi.decide(workspaceId, id, {
-        decision,
-        comment: decision === 'APPROVED' ? 'Approved in the Copilot' : 'Rejected in the Copilot',
-      }),
-    onSuccess: (_d, v) => {
-      toast.success(v.decision === 'APPROVED' ? 'Approved — the run continues.' : 'Rejected — the run stops here.');
-      queryClient.invalidateQueries({ queryKey: ['canvas-run', workspaceId] });
-    },
-    meta: { errorMessage: 'Couldn’t record the decision.' },
+  const { control, decide } = useCanvasRunControls({
+    workspaceId,
+    runId,
+    setRunId,
+    surface: 'Copilot',
   });
 
   const status = run?.status ?? 'PENDING';

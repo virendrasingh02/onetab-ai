@@ -196,6 +196,19 @@ export const triggerWorkflowSchema = record.refine(
   'This payload is too large.',
 );
 
+/**
+ * One device location reading. Always about the caller — there is no user id
+ * field, so nobody can report someone else's position.
+ */
+export const locationEventSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  accuracy: z.number().positive().max(100_000),
+  /** When the device took the reading (ISO 8601 or epoch ms); defaults to now. */
+  recordedAt: z.union([z.string().datetime({ offset: true }), z.number().int().positive()]).optional(),
+});
+export type LocationEventInput = z.infer<typeof locationEventSchema>;
+
 /* ----------------------------------------------------------------- runs ---- */
 
 /** Query-string filters arrive as strings; numbers are coerced and bounded. */

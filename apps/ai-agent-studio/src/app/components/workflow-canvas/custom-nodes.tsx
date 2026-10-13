@@ -993,7 +993,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[220px] max-w-[290px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-emerald-500 border-emerald-500 shadow-md' : 'hover:border-emerald-500/50',
+        selected ? 'ring-2 ring-success border-success shadow-md' : 'hover:border-success/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
@@ -1006,7 +1006,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
         defaultTitle={defaultTitle}
         defaultDescription={defaultDesc}
         icon={Play}
-        iconBg="bg-emerald-500/15 text-emerald-500"
+        iconBg="bg-success/15 text-success"
         locked={Boolean(nodeData.locked)}
         onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
         onUpdateMetadata={nodeData.onUpdateMetadata}
@@ -1035,7 +1035,7 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
       )}
       <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        colorClass="bg-emerald-500"
+        colorClass="bg-success"
         onConnectNext={nodeData.onConnectNext}
       />
     </div>
@@ -2517,7 +2517,7 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Preview KPI</div>
               <div className="text-base font-bold text-foreground mt-0.5">128,450</div>
             </div>
-            <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">+14.2%</span>
+            <span className="text-[10px] font-semibold text-success bg-success/10 px-1.5 py-0.5 rounded">+14.2%</span>
           </div>
         )}
         {componentType.includes('chart') && (
@@ -2545,7 +2545,7 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
         )}
         {isApproval && (
           <div className="flex items-center gap-1.5 pt-0.5">
-            <span className="rounded bg-emerald-500/15 text-emerald-600 px-2 py-0.5 text-[9px] font-semibold">Approve</span>
+            <span className="rounded bg-success/15 text-success px-2 py-0.5 text-[9px] font-semibold">Approve</span>
             <span className="rounded bg-destructive/15 text-destructive px-2 py-0.5 text-[9px] font-semibold">Reject</span>
           </div>
         )}
@@ -2587,6 +2587,7 @@ const BASE_NODE_TYPES: Record<string, any> = {
   TRIGGER_EVENT: StartNode,
   APP_CONNECTOR_TRIGGER: StartNode,
   TEAMS_TRIGGER_MESSAGE: StartNode,
+  TRIGGER_LOCATION: StartNode,
 
   // UI Widgets
   WIDGET_TRIGGER: WidgetNode,
@@ -2633,6 +2634,7 @@ const BASE_NODE_TYPES: Record<string, any> = {
   EMAIL_SEND: MCPToolNode,
   GITHUB_ACTION: MCPToolNode,
   APP_CONNECTOR_ACTION: AppConnectorNode,
+  ATTENDANCE_ACTION: AppConnectorNode,
   TEAMS_SEND_MESSAGE: AppConnectorNode,
   TEAMS_CREATE_MEETING: AppConnectorNode,
 

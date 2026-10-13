@@ -143,12 +143,9 @@ export const AppProfileRightPanel: FC<AppProfileRightPanelProps> = ({
     <aside className="flex h-full w-full flex-col bg-surface text-foreground overflow-hidden">
       {/* Drawer Top Bar */}
       <header className="flex items-center justify-between border-b border-border px-4 py-2.5 bg-muted/20 shrink-0">
-        <div className="flex items-center gap-2">
-          <Plug className="h-4 w-4 text-accent-violet" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Connected App Details
-          </span>
-        </div>
+        <h2 className="min-w-0 truncate text-base font-semibold tracking-tight">
+          Connected App Details
+        </h2>
         <div className="flex items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

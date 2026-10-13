@@ -49,14 +49,6 @@ export function CodeBlockHeader({
     >
       {/* Left side: Terminal dots or Language / Filename Info */}
       <div className="flex items-center gap-2 min-w-0">
-        {isTerminal ? (
-          <div className="flex items-center gap-1.5 mr-1" aria-hidden="true">
-            <span className="size-2.5 rounded-full bg-rose-500/80 inline-block" />
-            <span className="size-2.5 rounded-full bg-amber-500/80 inline-block" />
-            <span className="size-2.5 rounded-full bg-emerald-500/80 inline-block" />
-          </div>
-        ) : null}
-
         {/* Icon */}
         <div className="text-muted-foreground shrink-0">
           {isTerminal ? (

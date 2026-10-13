@@ -10,7 +10,6 @@ import {
   LoadingState,
   confirm,
   toast,
-  Label,
   Input,
   ResponsiveTabs,
   Button,
@@ -173,16 +172,15 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
         )}
 
         {/* Search */}
-        <Label className="flex h-10 items-center gap-2.5 rounded-xl border border-border bg-surface px-3 transition-colors focus-within:border-primary/60">
-          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search apps"
-            aria-label="Search apps"
-            className="h-full text-sm"
-          />
-        </Label>
+        <Input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search apps"
+          aria-label="Search apps"
+          prefix={<Search className="size-4 text-muted-foreground" aria-hidden="true" />}
+          className="h-10 text-sm"
+        />
 
         {/* Category pills */}
         <ResponsiveTabs
@@ -280,11 +278,12 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
                       aria-hidden="true"
                       title={c.status === 'connected' ? `Add ${c.name}` : `Connect ${c.name}`}
                       className={cn(
-                        'flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors',
+                        'flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-border text-muted-foreground transition-colors',
+                        c.status === 'connected' || unavailable ? 'w-8' : 'px-2.5 text-xs font-medium',
                         !unavailable && 'group-hover:border-primary/50 group-hover:text-foreground',
                       )}
                     >
-                      <Plus className="size-4" />
+                      {c.status === 'connected' || unavailable ? <Plus className="size-4" /> : 'Connect'}
                     </span>
                   )}
                 </div>
@@ -292,6 +291,25 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
             })}
           </div>
         )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border-strong bg-surface-muted p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">Need another app?</p>
+            <p className="text-xs text-muted-foreground">
+              Connect a new app once and every agent in the workspace can use it. Anything with a REST API works as a custom API.
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            {!query && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setQuery('custom')} className="gap-1.5">
+                <Plus className="size-3.5" aria-hidden="true" /> Custom API
+              </Button>
+            )}
+            <Button type="button" size="sm" onClick={() => navigate('/connectors')} className="gap-1.5">
+              <ExternalLink className="size-3.5" aria-hidden="true" /> Browse all connectors
+            </Button>
+          </div>
+        </div>
 
         <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Bot className="size-3.5" aria-hidden="true" /> Canvas agents get apps by plugging an app action into the agent’s Tools slot.

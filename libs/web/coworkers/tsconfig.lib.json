@@ -26,6 +26,9 @@
       "path": "../agents/tsconfig.lib.json"
     },
     {
+      "path": "../ai/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/utils/tsconfig.lib.json"
     },
     {

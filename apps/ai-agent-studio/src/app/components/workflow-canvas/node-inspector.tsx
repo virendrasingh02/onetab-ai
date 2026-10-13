@@ -696,6 +696,17 @@ export function NodeInspector({
             setConfig={(patch) => onUpdateNode(selectedNode.id, { ...data, config: { ...config, ...patch } })}
           />
         )}
+        {nodeType === 'ATTENDANCE_ACTION' && (
+          <ConnectorNodeConfig
+            node={selectedNode}
+            nodes={nodes}
+            kind="action"
+            config={config}
+            readOnly={readOnly}
+            lockedProvider="ATTENDANCE"
+            setConfig={(patch) => onUpdateNode(selectedNode.id, { ...data, config: { ...config, ...patch } })}
+          />
+        )}
         {(nodeType === 'APP_CONNECTOR_TRIGGER' || nodeType === 'TEAMS_TRIGGER_MESSAGE') && (
           <ConnectorNodeConfig
             node={selectedNode}
@@ -1075,6 +1086,64 @@ export function NodeInspector({
                   className="h-8 text-xs font-mono"
                 />
                 <span className="text-[10px] text-muted-foreground">Every weekday at 09:00 UTC</span>
+              </div>
+            )}
+            {nodeType === 'TRIGGER_LOCATION' && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-foreground">Starts when its owner</Label>
+                  <AppSelect
+                    value={String(config.eventType || 'BOTH').toUpperCase()}
+                    onValueChange={(v) => updateConfig('eventType', v)}
+                    options={[
+                      { value: 'BOTH', label: 'Arrives or leaves' },
+                      { value: 'ENTER', label: 'Arrives' },
+                      { value: 'EXIT', label: 'Leaves' },
+                    ]}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-foreground">Office name</Label>
+                  <Input value={config.officeName ?? ''} onChange={(e) => updateConfig('officeName', e.target.value)} placeholder="Main office" className="h-8 text-xs" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ['latitude', 'Latitude', '12.9716'],
+                      ['longitude', 'Longitude', '77.5946'],
+                    ] as const
+                  ).map(([key, label, placeholder]) => (
+                    <div key={key} className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold text-foreground">{label}</Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        value={config[key] ?? ''}
+                        onChange={(e) => updateConfig(key, e.target.value === '' ? undefined : Number(e.target.value))}
+                        placeholder={placeholder}
+                        className="h-8 text-xs font-mono"
+                      />
+                    </div>
+                  ))}
+                </div>
+                {(
+                  [
+                    ['radiusMeters', 'Radius', 100, 25, 1000, 'm'],
+                    ['dwellTimeMinutes', 'Must stay', 3, 0, 30, 'min'],
+                    ['accuracyThresholdMeters', 'Ignore readings less accurate than', 100, 10, 500, 'm'],
+                    ['cooldownMinutes', 'At most once every', 60, 0, 480, 'min'],
+                  ] as const
+                ).map(([key, label, fallback, min, max, unit]) => (
+                  <div key={key} className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold text-foreground">
+                      {label}: {config[key] ?? fallback} {unit}
+                    </Label>
+                    <Slider min={min} max={max} value={[Number(config[key] ?? fallback)]} onValueChange={([v]) => updateConfig(key, v)} />
+                  </div>
+                ))}
+                <span className="block text-[10px] text-muted-foreground">
+                  Runs for the agent’s owner, from their device’s location updates. Readings at the edge of the zone are ignored.
+                </span>
               </div>
             )}
             {nodeType === 'TRIGGER_WEBHOOK' && (

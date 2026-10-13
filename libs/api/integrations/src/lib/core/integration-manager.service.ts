@@ -21,6 +21,7 @@ import { OneTabAppProvider } from '../providers/onetab-app.provider.js';
 import { SlackProvider } from '../providers/slack.provider.js';
 import { TrelloProvider } from '../providers/trello.provider.js';
 import { MicrosoftTeamsProvider } from '../providers/microsoft-teams.provider.js';
+import { AttendanceProvider } from '../providers/attendance.provider.js';
 import { IntegrationEncryptionService } from './integration-encryption.service.js';
 import type { ProviderAdapter, ResolvedCredential } from './provider-adapter.interface.js';
 import { WebhookService } from './webhook.service.js';
@@ -47,6 +48,7 @@ export class IntegrationManagerService implements OnModuleInit {
     private readonly customApiProvider: CustomApiProvider,
     private readonly oneTabAppProvider: OneTabAppProvider,
     @Optional() private readonly microsoftTeamsProvider?: MicrosoftTeamsProvider,
+    @Optional() private readonly attendanceProvider?: AttendanceProvider,
   ) {}
 
   onModuleInit() {
@@ -64,6 +66,9 @@ export class IntegrationManagerService implements OnModuleInit {
     this.registerAdapter(this.oneTabAppProvider);
     if (this.microsoftTeamsProvider) {
       this.registerAdapter(this.microsoftTeamsProvider);
+    }
+    if (this.attendanceProvider) {
+      this.registerAdapter(this.attendanceProvider);
     }
     this.logger.log(`Initialized IntegrationManager with ${this.adapters.size} providers.`);
   }

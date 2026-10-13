@@ -140,6 +140,61 @@ export interface CompiledStudioGraph {
   limits: AgentRunLimits;
 }
 
+/** The zone and safeguards a Location trigger card sets (compiled onto its TRIGGER step). */
+export interface GeofenceTriggerConfig {
+  /** Which crossing starts the agent. */
+  event: 'ENTER' | 'EXIT' | 'BOTH';
+  officeName: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+  /** Minutes a device must stay on one side before the crossing counts. */
+  dwellMinutes: number;
+  /** Readings less precise than this (metres) are ignored. */
+  accuracyMeters: number;
+  /** Minimum minutes between two starts for the same person. */
+  cooldownMinutes: number;
+}
+
+export const GEOFENCE_LIMITS = {
+  radiusMeters: [25, 5000],
+  dwellMinutes: [0, 60],
+  accuracyMeters: [10, 1000],
+  cooldownMinutes: [0, 1440],
+} as const;
+
+/**
+ * Reads a Location trigger card's settings. Null (with the reason) when the
+ * zone is missing or out of range — a guessed zone would punch people in from
+ * the wrong place.
+ */
+export function readGeofenceConfig(cfg: Record<string, unknown>): { config: GeofenceTriggerConfig | null; problem?: string } {
+  const num = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN);
+  const latitude = num(cfg['latitude']);
+  const longitude = num(cfg['longitude']);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    return { config: null, problem: 'set the office’s latitude and longitude' };
+  }
+  const bounded = (key: keyof typeof GEOFENCE_LIMITS, raw: unknown, fallback: number) => {
+    const n = num(raw);
+    const [min, max] = GEOFENCE_LIMITS[key];
+    return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : fallback;
+  };
+  const event = String(cfg['eventType'] ?? cfg['event'] ?? 'BOTH').toUpperCase();
+  return {
+    config: {
+      event: event === 'ENTER' || event === 'EXIT' ? event : 'BOTH',
+      officeName: typeof cfg['officeName'] === 'string' && cfg['officeName'].trim() ? cfg['officeName'].trim() : 'Office',
+      latitude,
+      longitude,
+      radiusMeters: bounded('radiusMeters', cfg['radiusMeters'], 100),
+      dwellMinutes: bounded('dwellMinutes', cfg['dwellTimeMinutes'] ?? cfg['dwellMinutes'], 3),
+      accuracyMeters: bounded('accuracyMeters', cfg['accuracyThresholdMeters'] ?? cfg['accuracyMeters'], 100),
+      cooldownMinutes: bounded('cooldownMinutes', cfg['cooldownMinutes'], 60),
+    },
+  };
+}
+
 /** Engine context key holding the latest step's text — the default input of the next step. */
 export const LAST_OUTPUT_KEY = '__last';
 const LAST = `{{${LAST_OUTPUT_KEY}}}`;
@@ -166,7 +221,10 @@ const TOOL_NODE_NAMES: Record<string, string> = {
 const TOOL_ALIASES: Record<string, string> = { kb_search: 'search_docs' };
 
 /** Generic connector cards — any app, any capability. */
-const CONNECTOR_ACTION_TYPES = new Set(['APP_CONNECTOR_ACTION', 'TEAMS_SEND_MESSAGE', 'TEAMS_CREATE_MEETING']);
+const CONNECTOR_ACTION_TYPES = new Set(['APP_CONNECTOR_ACTION', 'TEAMS_SEND_MESSAGE', 'TEAMS_CREATE_MEETING', 'ATTENDANCE_ACTION']);
+
+/** Connector cards bound to one app; the card only picks the action. */
+const SINGLE_APP_CARDS: Record<string, string> = { ATTENDANCE_ACTION: 'ATTENDANCE' };
 const CONNECTOR_TRIGGER_TYPES = new Set(['APP_CONNECTOR_TRIGGER', 'TEAMS_TRIGGER_MESSAGE']);
 
 /** Cards from the first connector release that named one app and action in their type. */
@@ -206,7 +264,7 @@ export function connectorRefOf(
         ? Object.fromEntries(Object.entries(legacy.input(cfg)).filter(([, v]) => v !== undefined && v !== ''))
         : {};
   if (CONNECTOR_ACTION_TYPES.has(type) || CONNECTOR_TRIGGER_TYPES.has(type) || (type === 'TRIGGER_APP_EVENT' && (cfg['provider'] || cfg['connectorId']))) {
-    const provider = providerKey(typeof cfg['provider'] === 'string' ? cfg['provider'] : typeof cfg['connectorId'] === 'string' ? cfg['connectorId'] : legacy?.provider);
+    const provider = SINGLE_APP_CARDS[type] ?? providerKey(typeof cfg['provider'] === 'string' ? cfg['provider'] : typeof cfg['connectorId'] === 'string' ? cfg['connectorId'] : legacy?.provider);
     const idKey = CONNECTOR_ACTION_TYPES.has(type) ? 'actionId' : 'triggerId';
     const id = (typeof cfg[idKey] === 'string' && cfg[idKey]) ? (cfg[idKey] as string) : legacy?.id;
     return { provider, id, input };
@@ -556,6 +614,14 @@ export function compileStudioGraph(graph: {
       const cron = type === 'TRIGGER_SCHEDULE' ? asText(cfg['cron']) : undefined;
       if (type === 'TRIGGER_SCHEDULE' && (!cron || cron.split(/\s+/).length !== 5)) {
         issues.push({ nodeId: node.id, level: 'warning', message: `${label ?? 'Schedule'} has no valid schedule, so it only runs when started by hand.` });
+      }
+      if (type === 'TRIGGER_LOCATION') {
+        const { config: geofence, problem } = readGeofenceConfig(cfg);
+        if (!geofence) {
+          issues.push({ nodeId: node.id, level: 'error', message: `${label ?? 'Location trigger'}: ${problem}.` });
+          return step('TRIGGER', { trigger: type });
+        }
+        return step('TRIGGER', { trigger: type, geofence });
       }
       return step('TRIGGER', {
         trigger: type,

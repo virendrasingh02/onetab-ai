@@ -2403,6 +2403,7 @@ model AutomationWorkflow {
   versions    AIWorkflowVersion[]
   aiExecutions AIExecution[]
   connectorTriggerState ConnectorTriggerState?
+  geofencePresences GeofencePresence[]
 
   @@index([workspaceId, isActive])
   @@map("automation_workflows")
@@ -2433,6 +2434,53 @@ model ConnectorTriggerState {
 
   @@index([workspaceId])
   @@map("connector_trigger_states")
+}
+
+/// Where one person's device stands against one location-triggered agent's
+/// geofence — the dwell / cooldown memory that keeps GPS jitter from firing it.
+model GeofencePresence {
+  id             String             @id @default(cuid())
+  workflowId     String
+  workspaceId    String
+  userId         String
+  /// First in-zone reading of the current stay; null while outside.
+  firstInsideAt  DateTime?
+  /// First out-of-zone reading since the last confirmed entry; null while inside.
+  firstOutsideAt DateTime?
+  lastSeenAt     DateTime
+  /// The last event that started the agent: ENTER | EXIT.
+  lastEvent      String?
+  lastEventAt    DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  workflow       AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, userId])
+  @@index([workspaceId, userId])
+  @@map("geofence_presences")
+}
+
+/// The built-in attendance ledger (the ATTENDANCE connector without an HRMS).
+model AttendancePunch {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  userId         String
+  /// CHECK_IN | CHECK_OUT
+  type           String
+  occurredAt     DateTime @default(now())
+  latitude       Float?
+  longitude      Float?
+  locationName   String?
+  note           String?
+  /// INTERNAL_LEDGER | EXTERNAL_HRMS
+  source         String   @default("INTERNAL_LEDGER")
+  /// Same key twice = the same punch (a retried step never punches twice).
+  idempotencyKey String?
+  createdAt      DateTime @default(now())
+
+  @@unique([workspaceId, idempotencyKey])
+  @@index([workspaceId, userId, occurredAt])
+  @@map("attendance_punches")
 }
 
 model WorkflowExecution {

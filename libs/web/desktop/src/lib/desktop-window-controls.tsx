@@ -1,4 +1,5 @@
 import { Button, Hint } from '@org/ui';
+import { cn } from '@org/utils';
 import { Copy, Minus, Square, X } from 'lucide-react';
 import { NO_DRAG } from './drag-region.js';
 import { useDesktop } from './desktop-provider.js';
@@ -14,7 +15,15 @@ import { useDesktop } from './desktop-provider.js';
  * nothing once full screen hides the OS chrome entirely (the controls would
  * be a dead cluster floating over an otherwise borderless window).
  */
-export function DesktopWindowControls() {
+export function DesktopWindowControls({
+  className,
+  buttonClassName = 'h-8',
+}: {
+  /** Wrapper classes — callers use a negative right margin to sit flush with the window edge. */
+  className?: string;
+  /** Button height; match the host bar so the controls span it edge to edge. */
+  buttonClassName?: string;
+} = {}) {
   const { isDesktop, appInfo, windowState, minimize, toggleMaximize, close } =
     useDesktop();
 
@@ -25,12 +34,12 @@ export function DesktopWindowControls() {
   return (
     // Every interactive child must opt out of the drag region or the click
     // is swallowed by the window move handler.
-    <div style={NO_DRAG} className="gap-0.5 flex items-center">
+    <div style={NO_DRAG} className={cn('flex items-center', className)}>
       <Hint label="Minimise">
         <Button
           variant="ghost"
           size="icon-sm"
-          className="size-7 rounded-sm"
+          className={cn('w-11 rounded-none', buttonClassName)}
           onClick={minimize}
           aria-label="Minimise window"
         >
@@ -42,7 +51,7 @@ export function DesktopWindowControls() {
         <Button
           variant="ghost"
           size="icon-sm"
-          className="size-7 rounded-sm"
+          className={cn('w-11 rounded-none', buttonClassName)}
           onClick={toggleMaximize}
           aria-label={
             windowState.isMaximized ? 'Restore window' : 'Maximise window'
@@ -63,7 +72,7 @@ export function DesktopWindowControls() {
           /* Native window chrome turns the close control red on hover; the
              destructive token is that red, and unlike the literal it keeps
              its paired foreground legible in both themes. */
-          className="size-7 rounded-sm hover:bg-destructive hover:text-destructive-foreground"
+          className={cn('w-11 rounded-none hover:bg-destructive hover:text-destructive-foreground', buttonClassName)}
           onClick={close}
           aria-label="Close window"
         >

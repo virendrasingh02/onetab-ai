@@ -36,7 +36,7 @@ export function CodeBlock({
   showCopy = true,
   showDownload = true,
   showWrap = true,
-  showExpand = true,
+  showExpand = false,
   showHeader: propShowHeader,
   maxHeight,
   className,
@@ -76,10 +76,9 @@ export function CodeBlock({
   const [isEditing, setIsEditing] = useState(variant === 'editor' && editable && !readOnly);
   const [isDirty, setIsDirty] = useState(false);
   const [isWordWrap, setIsWordWrap] = useState(false);
-  const [showLineNumbers, setShowLineNumbers] = useState(
+  const showLineNumbers =
     propShowLineNumbers ??
-      (variant === 'default' || variant === 'editor' || variant === 'diff'),
-  );
+    (variant === 'default' || variant === 'editor' || variant === 'diff');
   const [internalPreview, setInternalPreview] = useState(false);
   const isPreview = variant === 'preview' || internalPreview;
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -158,7 +157,6 @@ export function CodeBlock({
       onReset={isEditing ? () => setCurrentCode(rawCode) : undefined}
       onCancel={isEditing ? handleCancel : undefined}
       onToggleWrap={() => setIsWordWrap(!isWordWrap)}
-      onToggleLineNumbers={() => setShowLineNumbers(!showLineNumbers)}
       onToggleExpand={() => setIsModalOpen(true)}
       onTogglePreview={canPreview ? () => setInternalPreview(!internalPreview) : undefined}
       onExecute={onExecute ? () => onExecute(rawCode) : undefined}
@@ -183,7 +181,6 @@ export function CodeBlock({
             language={resolvedLanguage}
             filename={filename}
             title={title}
-            lineCount={lineCount}
             variant={variant}
             isEditing={isEditing}
             isDirty={isDirty}

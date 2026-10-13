@@ -87,9 +87,61 @@ const EVENT_TYPE_ICONS: Partial<Record<SystemActivityEventContent['eventType'], 
   permissions_changed: ShieldCheck,
 };
 
-/** A small circular marker for the event's own icon — separate from the
- * target's avatar, the way a Slack-style activity row pairs a glyph with a
- * photo (brief §9, §21 `<SystemEventIcon>`). */
+type EventTone = 'success' | 'danger' | 'info' | 'warning' | 'neutral';
+
+const TONE_CLASSES: Record<EventTone, string> = {
+  success: 'bg-success/15 text-success-text',
+  danger: 'bg-destructive/10 text-destructive-text',
+  info: 'bg-info/15 text-info-text',
+  warning: 'bg-warning/15 text-warning-text',
+  neutral: 'bg-muted text-muted-foreground',
+};
+
+/** Semantic colour for an event: arrivals read green, departures red, state
+ * changes blue/amber — so a long run of activity rows is scannable at a glance. */
+function getEventTone(eventType: SystemActivityEventContent['eventType']): EventTone {
+  switch (eventType) {
+    case 'member_joined':
+    case 'member_added':
+    case 'app_added':
+    case 'app_connected':
+    case 'app_enabled':
+    case 'agent_added':
+    case 'agent_joined':
+    case 'agent_enabled':
+    case 'coworker_added':
+    case 'coworker_enabled':
+    case 'channel_unarchived':
+    case 'conversation_created':
+      return 'success';
+    case 'member_left':
+    case 'member_removed':
+    case 'app_removed':
+    case 'app_disconnected':
+    case 'app_disabled':
+    case 'agent_removed':
+    case 'agent_left':
+    case 'agent_disabled':
+    case 'coworker_removed':
+    case 'coworker_disabled':
+      return 'danger';
+    case 'channel_archived':
+    case 'permissions_changed':
+      return 'warning';
+    case 'member_role_changed':
+    case 'member_promoted':
+    case 'member_demoted':
+    case 'channel_renamed':
+    case 'channel_description_updated':
+      return 'info';
+    default:
+      return 'neutral';
+  }
+}
+
+/** A small circular, tone-tinted marker for the event's own icon. It sits in
+ * the same 40px gutter as message avatars so activity rows line up with the
+ * conversation around them (brief §9, §21 `<SystemEventIcon>`). */
 export function SystemEventIcon({
   eventType,
 }: {
@@ -99,9 +151,12 @@ export function SystemEventIcon({
   return (
     <span
       aria-hidden
-      className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+      className={cn(
+        'flex size-7 shrink-0 items-center justify-center rounded-full',
+        TONE_CLASSES[getEventTone(eventType)],
+      )}
     >
-      <Icon className="size-5" />
+      <Icon className="size-3.5" />
     </span>
   );
 }
@@ -188,8 +243,8 @@ function entityKindLabel(kind: SystemEventEntity['kind']): string {
 export function SystemEventEntityAvatar({ entity }: { entity: SystemEventEntity }) {
   if (entity.kind === 'channel') {
     return (
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-        <Hash className="size-4" />
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        <Hash className="size-3" />
       </span>
     );
   }
@@ -198,8 +253,8 @@ export function SystemEventEntityAvatar({ entity }: { entity: SystemEventEntity 
       name={entity.name}
       src={entity.avatarUrl}
       seed={entity.id ?? entity.name}
-      size="md"
-      className="size-10"
+      size="xs"
+      className="size-5"
       indicator={false}
     />
   );
@@ -524,41 +579,36 @@ export function SystemEventCard({
       data-message-id={message.id}
       aria-label={message.body}
       className={cn(
-        'group/message relative flex gap-4 px-4 pt-2.5 pb-0.5 text-sm transition-colors hover:bg-accent',
+        'group/message relative flex items-center gap-4 px-4 py-1.5 text-sm transition-colors hover:bg-accent/60',
         isHighlighted && 'border-l-2 border-l-primary',
       )}
     >
-      <div className="w-10 shrink-0">
-        {primaryEntity ? (
-          <SystemEventEntityAvatar entity={primaryEntity} />
-        ) : (
-          <SystemEventIcon eventType={event.eventType} />
-        )}
+      <div className="flex w-10 shrink-0 justify-center">
+        <SystemEventIcon eventType={event.eventType} />
       </div>
 
-      <div className="min-w-0 flex-1">
-        <header className="flex flex-wrap items-baseline gap-2">
-          {primaryEntity ? (
-            <>
-              <SystemEventEntityName
-                entity={primaryEntity}
-                onClick={onViewEntity}
-                weight="bold"
-                className="text-sm tracking-wide text-foreground"
-              />
-              <SystemEventEntityBadge kind={primaryEntity.kind} />
-            </>
-          ) : null}
-          <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
-        </header>
-
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1">
+        {primaryEntity ? (
+          <>
+            <SystemEventEntityAvatar entity={primaryEntity} />
+            <SystemEventEntityName
+              entity={primaryEntity}
+              onClick={onViewEntity}
+              weight="semibold"
+              className="text-foreground"
+            />
+            <SystemEventEntityBadge kind={primaryEntity.kind} />
+          </>
+        ) : null}
         <SystemEventAction event={event} onViewEntity={onViewEntity} />
-
+        <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
         {message.reactions.length > 0 ? (
-          <ReactionBar
-            reactions={message.reactions}
-            onToggle={onReact ? (key) => onReact(key) : undefined}
-          />
+          <div className="basis-full">
+            <ReactionBar
+              reactions={message.reactions}
+              onToggle={onReact ? (key) => onReact(key) : undefined}
+            />
+          </div>
         ) : null}
       </div>
 

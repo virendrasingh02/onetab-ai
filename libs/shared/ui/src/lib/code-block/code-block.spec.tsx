@@ -164,20 +164,6 @@ describe('CodeBlock System', () => {
       expect(screen.getByLabelText('Disable word wrap')).toBeInTheDocument();
     });
 
-    it('supports toggling line numbers', () => {
-      render(
-        <CodeBlock
-          code="const a = 10;"
-          showLineNumbers={true}
-        />,
-      );
-
-      expect(screen.getByText('1')).toBeInTheDocument();
-      const lineToggle = screen.getByLabelText('Hide line numbers');
-      fireEvent.click(lineToggle);
-      expect(screen.queryByText('1')).not.toBeInTheDocument();
-    });
-
     it('renders editable mode with editing, saving, and dirty tracking', () => {
       const onSaveMock = vi.fn();
       render(

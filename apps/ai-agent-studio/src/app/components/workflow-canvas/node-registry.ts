@@ -210,6 +210,31 @@ class AgentNodeRegistry {
         defaultConfig: { input: {} },
         runtime: 'connector',
       },
+      {
+        type: 'TRIGGER_LOCATION',
+        category: 'triggers',
+        label: 'Location Trigger',
+        subtitle: 'Office arrival / departure',
+        description: 'Starts the agent when its owner arrives at or leaves an office, with GPS accuracy, dwell-time and cooldown safeguards',
+        icon: Globe,
+        color: '#10b981',
+        badge: 'Location',
+        version: '1.0.0',
+        inputs: [],
+        outputs: [
+          { id: 'output', label: 'Location Event', type: 'json', position: 'right' },
+        ],
+        // No default coordinates — a guessed office would punch people in from the wrong place.
+        defaultConfig: {
+          eventType: 'BOTH',
+          officeName: 'Main office',
+          radiusMeters: 100,
+          dwellTimeMinutes: 3,
+          accuracyThresholdMeters: 100,
+          cooldownMinutes: 60,
+        },
+        runtime: 'server',
+      },
 
       // 2. AI & Agents
       {
@@ -626,6 +651,24 @@ class AgentNodeRegistry {
           { id: 'error', label: 'Error', type: 'error', position: 'right' },
         ],
         defaultConfig: { input: {} },
+        runtime: 'connector',
+      },
+      {
+        type: 'ATTENDANCE_ACTION',
+        category: 'connectors',
+        label: 'Attendance',
+        subtitle: 'Check-in / Check-out',
+        description: 'Check in, check out, or read attendance status — in the built-in ledger or your HR system',
+        icon: UserCheck,
+        color: '#10b981',
+        badge: 'Attendance',
+        version: '1.0.0',
+        inputs: [{ id: 'input', label: 'Punch Request', type: 'flow', position: 'left' }],
+        outputs: [
+          { id: 'output', label: 'Punch Record', type: 'json', position: 'right' },
+          { id: 'error', label: 'Error', type: 'error', position: 'right' },
+        ],
+        defaultConfig: { provider: 'ATTENDANCE', actionId: 'check_in', input: {} },
         runtime: 'connector',
       },
 

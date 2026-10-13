@@ -214,12 +214,9 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
     >
       {/* Drawer Top Bar */}
       <header className="flex items-center justify-between border-b border-border px-4 py-2.5 bg-muted/20 shrink-0">
-        <div className="flex items-center gap-2">
-          <UserCheck className="h-4 w-4 text-primary" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Coworker Profile
-          </span>
-        </div>
+        <h2 className="min-w-0 truncate text-base font-semibold tracking-tight">
+          Coworker Profile
+        </h2>
         <div className="flex items-center gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

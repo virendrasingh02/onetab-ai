@@ -5,22 +5,52 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight,
   Bot,
-  Flame,
+  Calendar,
+  CheckSquare,
+  Clock,
+  CreditCard,
+  FileCheck,
+  GitPullRequest,
+  Inbox,
   Layers,
+  MapPin,
   Search,
+  Target,
   Users,
+  Zap,
+  type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { STUDIO_TEMPLATES, type StudioTemplate } from '../data/templates.js';
 import { agentService } from '../services/agentService.js';
+import { useConnectors } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
+
+/** The icons templates name in `StudioTemplate.icon`. */
+const TEMPLATE_ICONS: Record<string, LucideIcon> = {
+  Calendar,
+  CheckSquare,
+  Clock,
+  CreditCard,
+  FileCheck,
+  GitPullRequest,
+  Inbox,
+  Layers,
+  MapPin,
+  Target,
+};
+
+/** Apps a template's steps use (`slack.send_message` → `SLACK`). */
+const templateApps = (template: StudioTemplate) =>
+  Array.from(new Set(template.requiredTools.filter((t) => t.includes('.')).map((t) => t.split('.')[0].toUpperCase())));
 
 export function TemplatesPage() {
   const { activeWorkspace } = useStudioSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+  const connectorsQuery = useConnectors();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
@@ -68,11 +98,11 @@ export function TemplatesPage() {
 
   const categories = [
     { id: 'all', label: 'All Templates' },
-    { id: 'research', label: 'Web & Deep Research' },
-    { id: 'automation', label: 'Automation & Monitoring' },
-    { id: 'support', label: 'Customer Support & Knowledge' },
-    { id: 'writer', label: 'Content & Editorial' },
-    { id: 'multi-agent', label: 'Multi-Agent Systems' },
+    { id: 'automation', label: 'Office & Automation' },
+    { id: 'productivity', label: 'Daily Ops & Productivity' },
+    { id: 'engineering', label: 'Engineering & DevOps' },
+    { id: 'support', label: 'Support & Triage' },
+    { id: 'multi-agent', label: 'Multi-App Workflows' },
   ];
 
   const filteredTemplates = STUDIO_TEMPLATES.filter((tpl) => {
@@ -125,11 +155,19 @@ export function TemplatesPage() {
       {/* Templates Grid using standard Card */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredTemplates.map((template) => {
-          const isFirecrawl = template.tags.includes('Firecrawl');
           const isPreselected = template.id === preselectedId;
           const isCreating =
             createFromTemplateMutation.isPending &&
             createFromTemplateMutation.variables?.id === template.id;
+
+          // Apps the template needs that aren't connected yet (unknown while loading).
+          const missingApps = connectorsQuery.data
+            ? templateApps(template).filter(
+                (p) => connectorsQuery.data.find((c) => c.provider === p)?.status !== 'connected',
+              )
+            : null;
+          const TemplateIcon = TEMPLATE_ICONS[template.icon] ?? (template.category === 'multi-agent' ? Users : Bot);
+
           return (
             <Card
               key={template.id}
@@ -144,18 +182,14 @@ export function TemplatesPage() {
                   <div className="flex items-center gap-2.5">
                     <div
                       className={`flex size-9 items-center justify-center rounded-xl font-bold shrink-0 ${
-                        isFirecrawl
-                          ? 'bg-warning/15 text-warning'
-                          : 'bg-primary/10 text-primary'
+                        template.category === 'automation'
+                          ? 'bg-success/15 text-success-text'
+                          : template.category === 'engineering'
+                            ? 'bg-info/15 text-info-text'
+                            : 'bg-primary/10 text-primary'
                       }`}
                     >
-                      {isFirecrawl ? (
-                        <Flame className="size-5" />
-                      ) : template.category === 'multi-agent' ? (
-                        <Users className="size-5" />
-                      ) : (
-                        <Bot className="size-5" />
-                      )}
+                      <TemplateIcon className="size-5" />
                     </div>
                     <div>
                       <h3 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
@@ -173,8 +207,26 @@ export function TemplatesPage() {
                   {template.description}
                 </p>
 
+                {missingApps && (
+                  <div className="mt-2.5 flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                        missingApps.length === 0
+                          ? 'border-success/30 bg-success/10 text-success-text'
+                          : 'border-warning/30 bg-warning/10 text-warning-text',
+                      )}
+                    >
+                      <Zap className="size-2.5" aria-hidden="true" />
+                      {missingApps.length === 0
+                        ? 'All apps connected'
+                        : `Connect ${missingApps.map((p) => p.charAt(0) + p.slice(1).toLowerCase().replace(/_/g, ' ')).join(', ')}`}
+                    </span>
+                  </div>
+                )}
+
                 {/* Tags */}
-                <div className="mt-3.5 flex flex-wrap gap-1">
+                <div className="mt-3 flex flex-wrap gap-1">
                   {template.tags.map((tag) => (
                     <Badge
                       key={tag}

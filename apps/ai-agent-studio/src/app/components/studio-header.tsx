@@ -1,9 +1,6 @@
 import { billingApi } from '@org/api-client';
 import { useTheme } from '@org/design-system';
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Badge,
   Button,
   DropdownMenu,
@@ -13,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
+  UserAvatar,
 } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -83,15 +81,6 @@ export function StudioHeader({
     queryFn: () => billingApi.getCredits(activeWorkspace.id),
     staleTime: 30_000,
   });
-
-  const initials = user.name
-    ? user.name
-        .split(' ')
-        .map((p) => p[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
-    : 'NB';
 
   const displayName = user.name || 'Nick Bold';
   const displayEmail = user.email || 'admin@onetab.ai';
@@ -165,14 +154,13 @@ export function StudioHeader({
               className="size-8 rounded-full p-0 ml-1"
               aria-label="User account"
             >
-              <Avatar className="size-7 border border-border/60">
-                {user.avatarUrl ? (
-                  <AvatarImage src={user.avatarUrl} alt={displayName} />
-                ) : null}
-                <AvatarFallback className="text-xs font-medium bg-foreground text-background">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={displayName}
+                src={user.avatarUrl ?? undefined}
+                seed={user.id}
+                size="sm"
+                indicator={false}
+              />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

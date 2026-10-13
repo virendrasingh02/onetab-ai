@@ -12,6 +12,7 @@ import {
   Coins,
   GitBranch,
   Layers,
+  type LucideIcon,
   Users,
   Zap,
 } from 'lucide-react';
@@ -35,6 +36,53 @@ interface OverviewViewProps {
   onNavigateToTab: (tabId: string) => void;
   onSelectAgent?: (agentId: string) => void;
   onSelectWorkflow?: (workflowId: string) => void;
+}
+
+function SlowestCard({
+  icon: Icon,
+  title,
+  subtitle,
+  emptyText,
+  items,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  emptyText: string;
+  items: { name: string; durationMs: number }[];
+}) {
+  return (
+    <Card className="p-4 shadow-2xs">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+          <Icon className="size-3.5 text-primary" />
+          {title}
+        </span>
+        <span className="text-[10px] text-muted-foreground">{subtitle}</span>
+      </div>
+      <div className="space-y-2">
+        {items.length === 0 ? (
+          <div className="text-xs text-muted-foreground py-2 text-center">
+            {emptyText}
+          </div>
+        ) : (
+          items.map((item, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between p-2 rounded-md bg-surface-raised border border-border text-xs"
+            >
+              <span className="font-medium text-foreground truncate max-w-[150px]">
+                {item.name}
+              </span>
+              <Badge variant="outline" className="text-[10px]">
+                {Math.round(item.durationMs)}ms
+              </Badge>
+            </div>
+          ))
+        )}
+      </div>
+    </Card>
+  );
 }
 
 export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
@@ -509,101 +557,27 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
 
       {/* SECTION 4: BOTTLENECKS & RANKINGS */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Slowest Workflows */}
-        <Card className="p-4 shadow-2xs">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <GitBranch className="size-3.5 text-primary" />
-              Slowest Workflows
-            </span>
-            <span className="text-[10px] text-muted-foreground">by avg latency</span>
-          </div>
-          <div className="space-y-2">
-            {performance.slowestWorkflows.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-2 text-center">
-                No latency bottlenecks detected
-              </div>
-            ) : (
-              performance.slowestWorkflows.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-2 rounded-md bg-surface-raised border border-border text-xs"
-                >
-                  <span className="font-medium text-foreground truncate max-w-[150px]">
-                    {item.name}
-                  </span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {Math.round(item.durationMs)}ms
-                  </Badge>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-
-        {/* Slowest Agents */}
-        <Card className="p-4 shadow-2xs">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <Bot className="size-3.5 text-primary" />
-              Slowest Agents
-            </span>
-            <span className="text-[10px] text-muted-foreground">by task duration</span>
-          </div>
-          <div className="space-y-2">
-            {performance.slowestAgents.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-2 text-center">
-                All agents operating normally
-              </div>
-            ) : (
-              performance.slowestAgents.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-2 rounded-md bg-surface-raised border border-border text-xs"
-                >
-                  <span className="font-medium text-foreground truncate max-w-[150px]">
-                    {item.name}
-                  </span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {Math.round(item.durationMs)}ms
-                  </Badge>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-
-        {/* Slowest Nodes */}
-        <Card className="p-4 shadow-2xs">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <Layers className="size-3.5 text-primary" />
-              Slowest Nodes
-            </span>
-            <span className="text-[10px] text-muted-foreground">by node type</span>
-          </div>
-          <div className="space-y-2">
-            {performance.slowestNodes.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-2 text-center">
-                Node runtimes optimal
-              </div>
-            ) : (
-              performance.slowestNodes.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-2 rounded-md bg-surface-raised border border-border text-xs"
-                >
-                  <span className="font-medium text-foreground truncate max-w-[150px]">
-                    {item.name}
-                  </span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {Math.round(item.durationMs)}ms
-                  </Badge>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
+        <SlowestCard
+          icon={GitBranch}
+          title="Slowest Workflows"
+          subtitle="by avg latency"
+          emptyText="No latency bottlenecks detected"
+          items={performance.slowestWorkflows}
+        />
+        <SlowestCard
+          icon={Bot}
+          title="Slowest Agents"
+          subtitle="by task duration"
+          emptyText="All agents operating normally"
+          items={performance.slowestAgents}
+        />
+        <SlowestCard
+          icon={Layers}
+          title="Slowest Nodes"
+          subtitle="by node type"
+          emptyText="Node runtimes optimal"
+          items={performance.slowestNodes}
+        />
       </div>
 
       {/* SECTION 5: ACTIVE POPULATION FOOTER */}

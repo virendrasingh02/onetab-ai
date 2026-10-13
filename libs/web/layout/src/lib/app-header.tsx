@@ -547,7 +547,10 @@ export function AppHeader({
           </DropdownMenu>
 
           {/* Windows/Linux window controls */}
-          <DesktopWindowControls />
+          <DesktopWindowControls
+            className="-mr-2.5 ml-1 sm:-mr-4"
+            buttonClassName="h-11"
+          />
         </div>
       </header>
     </>

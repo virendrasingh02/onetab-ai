@@ -46,6 +46,8 @@ export interface MessageRendererProps {
   onReact?: (key: string) => void;
   onReply?: () => void;
   onEdit?: () => void;
+  /** Inline edit box that replaces the body — see `ChatBubble`. */
+  editSlot?: ReactNode;
   onDelete?: () => void;
   onOpenThread?: () => void;
   onTogglePin?: () => void;

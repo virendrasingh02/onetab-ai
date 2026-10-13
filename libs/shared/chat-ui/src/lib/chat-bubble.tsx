@@ -77,7 +77,7 @@ import {
 import { detectLinks, normalizeUrl } from './link-detector.js';
 import { LinkPreviewCard } from './link-preview-card.js';
 import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
-import { useMediaPreview } from '@org/media-preview';
+import { type MediaItem, useMediaPreview } from '@org/media-preview';
 import { MarkdownMessage } from './markdown-message.js';
 import { ReactionBar, reactionAddButtonClass } from './reaction-bar.js';
 import { ForwardedMessageCard } from './forwarded-message-card.js';
@@ -94,6 +94,8 @@ export interface ChatBubbleProps {
   onReact?: (key: string) => void;
   onReply?: () => void;
   onEdit?: () => void;
+  /** When set, replaces the message body in place — the inline edit box. */
+  editSlot?: ReactNode;
   onDelete?: () => void;
   /** Holds `WorkspacePermission.MODERATE_MESSAGES` — may delete this message even when it is not theirs. */
   canModerateMessages?: boolean;
@@ -198,7 +200,18 @@ export function formatFullTimestamp(timestamp: number): string {
   });
 }
 
-function GifMessage({ url, title }: { url: string; title: string }) {
+function GifMessage({
+  url,
+  title,
+  sender,
+}: {
+  url: string;
+  title: string;
+  sender?: Pick<
+    MediaItem,
+    'senderId' | 'senderName' | 'senderAvatarUrl' | 'timestamp' | 'isEncrypted'
+  >;
+}) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const { openPreview } = useMediaPreview();
@@ -211,6 +224,7 @@ function GifMessage({ url, title }: { url: string; title: string }) {
         name: title || 'GIF',
         mimeType: 'image/gif',
         category: 'image',
+        ...sender,
       },
     ]);
   };
@@ -256,7 +270,9 @@ function GifMessage({ url, title }: { url: string; title: string }) {
         onError={() => setError(true)}
         className={cn(
           'max-h-72 w-full object-cover transition-opacity duration-200',
-          !loaded ? 'hidden' : 'block',
+          // Never `display:none` a lazy image — the browser then never loads it
+          // and the skeleton spins forever.
+          !loaded ? 'absolute inset-0 opacity-0' : 'block opacity-100',
         )}
       />
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover/gif:opacity-100">
@@ -304,7 +320,7 @@ function StickerMessage({ url, alt }: { url: string; alt: string }) {
         onError={() => setError(true)}
         className={cn(
           'max-h-40 max-w-40 object-contain drop-shadow-sm transition-transform hover:scale-105',
-          !loaded ? 'hidden' : 'block',
+          !loaded ? 'absolute inset-0 opacity-0' : 'block opacity-100',
         )}
       />
     </div>
@@ -385,7 +401,7 @@ function ThreadRepliesButton({
       type="button"
       onClick={onOpen}
       className={cn(
-        'mt-1.5 gap-2 px-2.5 py-1 text-xs font-semibold flex items-center rounded-md bg-surface text-info-text transition-colors hover:bg-accent hover:underline',
+        'mt-1.5 gap-2 px-2.5 py-1 text-[13px] font-medium flex items-center rounded-md bg-surface text-info-text no-underline transition-colors hover:bg-accent hover:no-underline',
         hasUnread && 'ring-1 ring-info-text/30',
       )}
     >
@@ -425,7 +441,7 @@ function ThreadRepliesButton({
       </span>
       {lastReplyAt ? (
         <Hint label={formatFullTimestamp(lastReplyAt)}>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-xs font-normal text-muted-foreground no-underline">
             Last reply {formatShortTimestamp(lastReplyAt)}
           </span>
         </Hint>
@@ -459,6 +475,7 @@ export function ChatBubble({
   onReact,
   onReply,
   onEdit,
+  editSlot,
   onDelete,
   canModerateMessages = false,
   editWindowMinutes = null,
@@ -1025,8 +1042,8 @@ export function ChatBubble({
       aria-label={`Message from ${message.senderName}, ${formatFullTimestamp(message.timestamp)}`}
       ref={articleRef}
       className={cn(
-        'group/message relative flex transition-[background-color,opacity] hover:bg-accent',
-        actionsPinned && 'bg-accent',
+        'group/message relative flex transition-[background-color,opacity] hover:bg-foreground/[0.035]',
+        actionsPinned && 'bg-foreground/[0.035]',
         isCompact
           ? cn(
               'chat-density-compact gap-2.5 px-3',
@@ -1166,8 +1183,20 @@ export function ChatBubble({
               isSticker ? (
                 <StickerMessage url={mediaMatch[2]} alt={stickerAlt || 'Sticker'} />
               ) : (
-                <GifMessage url={mediaMatch[2]} title={mediaMatch[1] || 'GIF'} />
+                <GifMessage
+                  url={mediaMatch[2]}
+                  title={mediaMatch[1] || 'GIF'}
+                  sender={{
+                    senderId: message.senderId,
+                    senderName: message.senderName,
+                    senderAvatarUrl: message.senderAvatarUrl,
+                    timestamp: message.timestamp,
+                    isEncrypted: message.isEncrypted,
+                  }}
+                />
               )
+            ) : editSlot ? (
+              editSlot
             ) : message.body ? (
               <MarkdownMessage
                 text={message.body}
@@ -1176,7 +1205,7 @@ export function ChatBubble({
                 mentionProfiles={mentionProfiles}
               />
             ) : null}
-            {message.isEdited ? (
+            {message.isEdited && !editSlot ? (
               <span className="ml-1 text-[11px] text-muted-foreground select-none">
                 (edited)
               </span>
@@ -1379,7 +1408,7 @@ export function ChatBubble({
         role="toolbar"
         aria-label="Message actions"
         className={cn(
-          '-top-4.5 right-4 p-1 gap-1 absolute z-20 items-center rounded-xl border border-border/80 bg-surface-raised/95 backdrop-blur-sm shadow-md transition-all duration-200 ease-out hover:shadow-lg animate-in fade-in-0 zoom-in-95',
+          '-top-4.5 right-4 p-1 gap-1 absolute z-20 items-center rounded-xl border border-border/80 bg-white dark:bg-surface-raised shadow-md transition-all duration-200 ease-out hover:shadow-lg animate-in fade-in-0 zoom-in-95',
           isMenuOpen || isReactionOpen || actionsPinned
             ? 'flex'
             : 'hidden group-focus-within/message:flex group-hover/message:flex',
@@ -1396,7 +1425,7 @@ export function ChatBubble({
           >
             <button
               aria-label="Add a reaction"
-              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95"
+              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95"
             >
               <Smile className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:rotate-12" />
             </button>
@@ -1411,7 +1440,7 @@ export function ChatBubble({
                 onOpenThread();
                 setActionsPinned(false);
               }}
-              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95"
+              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95"
             >
               <MessageSquare className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-rotate-6" />
             </button>
@@ -1426,7 +1455,7 @@ export function ChatBubble({
                 (onReply ?? onOpenThread)?.();
                 setActionsPinned(false);
               }}
-              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95"
+              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95"
             >
               <Reply className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-translate-x-0.5" />
             </button>
@@ -1441,7 +1470,7 @@ export function ChatBubble({
                 (onForward ?? onCopyLink)?.();
                 setActionsPinned(false);
               }}
-              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95"
+              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95"
             >
               <Forward className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:translate-x-0.5" />
             </button>
@@ -1455,7 +1484,7 @@ export function ChatBubble({
               aria-pressed={isSaved}
               onClick={onToggleSave}
               className={cn(
-                'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95',
+                'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95',
                 isSaved && 'text-primary-text',
               )}
             >
@@ -1479,8 +1508,8 @@ export function ChatBubble({
             <button
               aria-label="More actions"
               className={cn(
-                'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-accent hover:text-foreground hover:scale-105 active:scale-95',
-                isMenuOpen && 'bg-accent text-foreground',
+                'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95',
+                isMenuOpen && 'bg-foreground/[0.06] text-foreground',
               )}
             >
               <MoreHorizontal className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110" />

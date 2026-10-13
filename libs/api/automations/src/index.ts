@@ -6,3 +6,4 @@ export { AgentStudioService } from './lib/studio/agent-studio.service.js';
 export { AgentPlannerService } from './lib/studio/agent-planner.service.js';
 export { WidgetStudioService } from './lib/studio/widgets/widget-studio.service.js';
 export { WidgetStudioController } from './lib/studio/widgets/widget-studio.controller.js';
+export { LocationAutomationService } from './lib/location-automation.service.js';

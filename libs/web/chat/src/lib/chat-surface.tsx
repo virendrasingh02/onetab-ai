@@ -14,6 +14,8 @@ import {
   Composer,
   ConversationSearch,
   HuddleBar,
+  InlineMessageEditor,
+  type MentionCandidate,
   MemberList,
   MessageList,
   type MessageListHandle,
@@ -566,6 +568,18 @@ export function ChatSurface({
   const memberById = useMemo(
     () => new Map(members.map((member) => [member.userId, member])),
     [members],
+  );
+
+  const editorMentionCandidates = useMemo<MentionCandidate[]>(
+    () =>
+      members.map((member) => ({
+        id: member.userId,
+        name: member.displayName,
+        avatarUrl: member.avatarUrl,
+        kind: 'user' as const,
+        isSelf: !!myUserId && member.userId === myUserId,
+      })),
+    [members, myUserId],
   );
 
   const repliesByRoot = useMemo(() => groupReplies(messages), [messages]);
@@ -1285,6 +1299,21 @@ export function ChatSurface({
               : undefined
           }
           onEdit={onEdit ? () => setEditing(message) : undefined}
+          editSlot={
+            editing?.id === message.id && onEdit ? (
+              <InlineMessageEditor
+                key={message.id}
+                initialMarkdown={editing.body}
+                enterToSend={chat?.enterToSend ?? true}
+                members={editorMentionCandidates}
+                onCancel={() => setEditing(null)}
+                onSave={async (body) => {
+                  await onEdit(message.id, body);
+                  setEditing(null);
+                }}
+              />
+            ) : undefined
+          }
           onDelete={onDelete ? () => void onDelete(message.id) : undefined}
           canModerateMessages={canModerateMessages}
           editWindowMinutes={editWindowMinutes}
@@ -1507,6 +1536,9 @@ export function ChatSurface({
       openThreadPanel,
       onReact,
       onEdit,
+      editing,
+      chat?.enterToSend,
+      editorMentionCandidates,
       onDelete,
       canModerateMessages,
       editWindowMinutes,
@@ -2046,8 +2078,8 @@ export function ChatSurface({
             enterToSend={chat?.enterToSend ?? true}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
             onSendVoice={onSendVoice}
-            readOnlyMessage={editing ? undefined : composerReadOnlyMessage}
-            anonymousPosting={editing ? undefined : anonymousPosting}
+            readOnlyMessage={composerReadOnlyMessage}
+            anonymousPosting={anonymousPosting}
             surfaceKind={composerContext?.surfaceKind}
             viewerCanManage={mainControl.viewerCanManage}
             isGuest={mainControl.isGuest}
@@ -2057,36 +2089,12 @@ export function ChatSurface({
             coworkerMentions={mainControl.coworkerMentions}
             appMentions={mainControl.appMentions}
             channelMentions={mainControl.channelMentions}
-            edit={
-              editing ? { messageId: editing.id, initialMarkdown: editing.body } : null
-            }
-            contextSlot={
-              editing ? (
-                <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">
-                  <span className="flex-1 truncate font-medium">
-                    Editing message
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditing(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              ) : null
-            }
             onSend={async (body, meta) => {
-              if (editing && onEdit) {
-                await onEdit(editing.id, body);
-                setEditing(null);
-              } else {
-                const anchorId = await onSend(body);
-                mainControl.raiseMentionNotice(meta?.mentions, {
-                  ...noticePlacement,
-                  anchorId: typeof anchorId === 'string' ? anchorId : undefined,
-                });
-              }
+              const anchorId = await onSend(body);
+              mainControl.raiseMentionNotice(meta?.mentions, {
+                ...noticePlacement,
+                anchorId: typeof anchorId === 'string' ? anchorId : undefined,
+              });
             }}
           />
         </div>

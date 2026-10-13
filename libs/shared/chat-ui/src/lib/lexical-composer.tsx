@@ -113,7 +113,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@org/utils';
-import { Badge, UserAvatar } from '@org/ui';
+import { Badge, Hint, UserAvatar } from '@org/ui';
 import {
   useCallback,
   useEffect,
@@ -1670,6 +1670,45 @@ function EmojiPickerPlugin({
 type BlockType =
   'paragraph' | 'h1' | 'h2' | 'h3' | 'quote' | 'code' | 'ul' | 'ol' | 'check';
 
+const TOOL_BUTTON_BASE =
+  'size-7 flex items-center justify-center rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60';
+const TOOL_BUTTON_ON = 'bg-primary/15 text-primary-text';
+const TOOL_BUTTON_OFF =
+  'text-muted-foreground hover:bg-accent hover:text-foreground';
+
+/**
+ * One formatting control. `onMouseDown` swallows focus so the editor keeps its
+ * selection while the button is pressed.
+ */
+function ToolButton({
+  label,
+  shortcut,
+  active,
+  onClick,
+  children,
+}: {
+  label: string;
+  shortcut?: string;
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Hint label={label} shortcut={shortcut} side="top">
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onClick}
+        className={cn(TOOL_BUTTON_BASE, active ? TOOL_BUTTON_ON : TOOL_BUTTON_OFF)}
+      >
+        {children}
+      </button>
+    </Hint>
+  );
+}
+
 /**
  * The formatting bar.
  *
@@ -1861,40 +1900,39 @@ export function ToolbarContent({
     <div
       role="toolbar"
       aria-label="Formatting tools"
-      className="gap-0.5 text-neutral-200 p-1 shadow-xl shadow-black/30 border-white/10 inline-flex items-center rounded-2xl border bg-[#2a2a2c] whitespace-nowrap select-none"
+      className="gap-0.5 p-1 shadow-lg border-border inline-flex items-center rounded-xl border bg-popover text-popover-foreground whitespace-nowrap select-none"
     >
       {/* Link Button & Popover */}
       <div ref={linkContainerRef} className="relative">
-        <button
-          type="button"
-          title={isLink ? 'Remove link' : 'Add link'}
-          aria-label={isLink ? 'Remove link' : 'Add link'}
-          aria-pressed={isLink}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            if (isLink) {
-              editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
-              return;
-            }
-            setLinkDraft((current) => (current === null ? '' : null));
-          }}
-          className={cn(
-            'size-7 flex items-center justify-center rounded-xl transition-colors',
-            isLink || linkDraft !== null
-              ? 'bg-white/20 text-white'
-              : 'text-neutral-300 hover:bg-white/10 hover:text-white',
-          )}
-        >
-          {isLink ? (
-            <Link2Off className="size-4" />
-          ) : (
-            <Link2 className="size-4" />
-          )}
-        </button>
+        <Hint label={isLink ? 'Remove link' : 'Add link'} side="top">
+          <button
+            type="button"
+            aria-label={isLink ? 'Remove link' : 'Add link'}
+            aria-pressed={isLink}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (isLink) {
+                editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+                return;
+              }
+              setLinkDraft((current) => (current === null ? '' : null));
+            }}
+            className={cn(
+              TOOL_BUTTON_BASE,
+              isLink || linkDraft !== null ? TOOL_BUTTON_ON : TOOL_BUTTON_OFF,
+            )}
+          >
+            {isLink ? (
+              <Link2Off className="size-4" />
+            ) : (
+              <Link2 className="size-4" />
+            )}
+          </button>
+        </Hint>
 
         {linkDraft !== null ? (
-          <div className="left-0 mt-1.5 gap-1.5 p-1.5 shadow-2xl border-white/10 absolute top-full z-50 flex items-center rounded-xl border bg-[#242426]">
-            <Link2 className="size-3.5 text-neutral-400 ml-1 shrink-0" />
+          <div className="left-0 mt-1.5 gap-1.5 p-1.5 shadow-lg border-border absolute top-full z-50 flex items-center rounded-xl border bg-popover text-popover-foreground">
+            <Link2 className="size-3.5 text-muted-foreground ml-1 shrink-0" />
             <input
               ref={linkInputRef}
               type="url"
@@ -1912,7 +1950,7 @@ export function ToolbarContent({
                   editor.focus();
                 }
               }}
-              className="w-48 text-xs bg-neutral-800/90 text-white placeholder:text-neutral-500 px-2.5 py-1 border-neutral-700/60 rounded-lg border transition-colors outline-none focus:border-primary"
+              className="w-48 text-xs bg-background text-foreground placeholder:text-subtle px-2.5 py-1 border-border rounded-lg border transition-colors outline-none focus:border-primary"
             />
             <button
               type="button"
@@ -1930,7 +1968,7 @@ export function ToolbarContent({
                 setLinkDraft(null);
                 editor.focus();
               }}
-              className="size-6 text-neutral-400 hover:text-white hover:bg-white/10 flex items-center justify-center rounded-lg transition-colors"
+              className="size-6 text-muted-foreground hover:text-foreground hover:bg-accent flex items-center justify-center rounded-lg transition-colors"
               aria-label="Cancel link"
             >
               <X className="size-3.5" />
@@ -1940,160 +1978,55 @@ export function ToolbarContent({
       </div>
 
       {/* Bold Button */}
-      <button
-        type="button"
-        title="Bold (Ctrl+B)"
-        aria-label="Bold"
-        aria-pressed={formats.bold}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
-        className={cn(
-          'size-7 flex items-center justify-center rounded-xl transition-colors',
-          formats.bold
-            ? 'bg-white/20 text-white'
-            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
-        )}
-      >
-        <span className="font-bold text-sm leading-none">B</span>
-      </button>
+      <ToolButton label="Bold" shortcut="Ctrl+B" active={formats.bold} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}>
+          <span className="font-bold text-sm leading-none">B</span>
+      </ToolButton>
 
       {/* Italic Button */}
-      <button
-        type="button"
-        title="Italic (Ctrl+I)"
-        aria-label="Italic"
-        aria-pressed={formats.italic}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
-        className={cn(
-          'size-7 flex items-center justify-center rounded-xl transition-colors',
-          formats.italic
-            ? 'bg-white/20 text-white'
-            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
-        )}
-      >
-        <span className="font-serif font-semibold text-sm leading-none italic">
-          I
-        </span>
-      </button>
+      <ToolButton label="Italic" shortcut="Ctrl+I" active={formats.italic} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}>
+          <span className="font-serif font-semibold text-sm leading-none italic">
+            I
+          </span>
+      </ToolButton>
 
       {/* Strikethrough Button */}
-      <button
-        type="button"
-        title="Strikethrough (Ctrl+Shift+X)"
-        aria-label="Strikethrough"
-        aria-pressed={formats.strikethrough}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() =>
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')
-        }
-        className={cn(
-          'size-7 flex items-center justify-center rounded-xl transition-colors',
-          formats.strikethrough
-            ? 'bg-white/20 text-white'
-            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
-        )}
-      >
-        <Strikethrough className="size-3.5" />
-      </button>
+      <ToolButton label="Strikethrough" shortcut="Ctrl+Shift+X" active={formats.strikethrough} onClick={() =>
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}>
+          <Strikethrough className="size-3.5" />
+      </ToolButton>
 
       {/* Inline Code Button */}
-      <button
-        type="button"
-        title="Inline code (Ctrl+Shift+C)"
-        aria-label="Inline code"
-        aria-pressed={formats.code}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
-        className={cn(
-          'size-7 flex items-center justify-center rounded-xl transition-colors',
-          formats.code
-            ? 'bg-white/20 text-white'
-            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
-        )}
-      >
-        <Code className="size-3.5" />
-      </button>
+      <ToolButton label="Inline code" shortcut="Ctrl+Shift+C" active={formats.code} onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}>
+          <Code className="size-3.5" />
+      </ToolButton>
 
-      <span className="mx-0.5 h-3.5 bg-white/10 w-px shrink-0" />
+      <span className="mx-1 h-4 bg-border w-px shrink-0" />
 
       {/* Bulleted List Button */}
-      <button
-        type="button"
-        title="Bulleted list (Ctrl+Shift+8)"
-        aria-label="Bulleted list"
-        aria-pressed={blockType === 'ul'}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => setBlock('ul')}
-        className={cn(
-          'size-7 flex items-center justify-center rounded-xl transition-colors',
-          blockType === 'ul'
-            ? 'bg-white/20 text-white'
-            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
-        )}
-      >
-        <List className="size-3.5" />
-      </button>
+      <ToolButton label="Bulleted list" shortcut="Ctrl+Shift+8" active={blockType === 'ul'} onClick={() => setBlock('ul')}>
+          <List className="size-3.5" />
+      </ToolButton>
 
       {/* Numbered List Button */}
-      <button
-        type="button"
-        title="Numbered list (Ctrl+Shift+7)"
-        aria-label="Numbered list"
-        aria-pressed={blockType === 'ol'}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => setBlock('ol')}
-        className={cn(
-          'size-7 flex items-center justify-center rounded-xl transition-colors',
-          blockType === 'ol'
-            ? 'bg-white/20 text-white'
-            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
-        )}
-      >
-        <ListOrdered className="size-3.5" />
-      </button>
+      <ToolButton label="Numbered list" shortcut="Ctrl+Shift+7" active={blockType === 'ol'} onClick={() => setBlock('ol')}>
+          <ListOrdered className="size-3.5" />
+      </ToolButton>
 
-      <span className="mx-0.5 h-3.5 bg-white/10 w-px shrink-0" />
+      <span className="mx-1 h-4 bg-border w-px shrink-0" />
 
       {/* Quote Button */}
-      <button
-        type="button"
-        title="Quote (Ctrl+Shift+9)"
-        aria-label="Quote"
-        aria-pressed={blockType === 'quote'}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => setBlock('quote')}
-        className={cn(
-          'size-7 flex items-center justify-center rounded-xl transition-colors',
-          blockType === 'quote'
-            ? 'bg-white/20 text-white'
-            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
-        )}
-      >
-        <Quote className="size-3.5" />
-      </button>
+      <ToolButton label="Quote" shortcut="Ctrl+Shift+9" active={blockType === 'quote'} onClick={() => setBlock('quote')}>
+          <Quote className="size-3.5" />
+      </ToolButton>
 
       {/* Code Block Button */}
-      <button
-        type="button"
-        title="Code block (```)"
-        aria-label="Code block"
-        aria-pressed={blockType === 'code'}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => setBlock('code')}
-        className={cn(
-          'size-7 flex items-center justify-center rounded-xl transition-colors',
-          blockType === 'code'
-            ? 'bg-white/20 text-white'
-            : 'text-neutral-300 hover:bg-white/10 hover:text-white',
-        )}
-      >
-        <SquareCode className="size-3.5" />
-      </button>
+      <ToolButton label="Code block" shortcut="```" active={blockType === 'code'} onClick={() => setBlock('code')}>
+          <SquareCode className="size-3.5" />
+      </ToolButton>
 
       {toolbarSlot ? (
         <>
-          <span className="mx-0.5 h-3.5 bg-white/10 w-px shrink-0" />
+          <span className="mx-1 h-4 bg-border w-px shrink-0" />
           {toolbarSlot}
         </>
       ) : null}
@@ -2325,7 +2258,7 @@ export function LexicalComposerInput({
                 aria-label="Message composer input"
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="left-4 top-3 pointer-events-none absolute text-message text-subtle select-none">
+                  <div className="left-4 right-4 top-3 pointer-events-none absolute truncate text-message text-subtle select-none">
                     {placeholder}
                   </div>
                 }

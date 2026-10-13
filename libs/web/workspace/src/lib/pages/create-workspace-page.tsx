@@ -21,7 +21,7 @@ import {
   ScrollArea,
   WorkspaceAvatar,
 } from '@org/ui';
-import { formErrorMessage } from '@org/auth';
+import { formErrorMessage, useCurrentUser } from '@org/auth';
 import { initials, slugify } from '@org/utils';
 import {
   createWorkspaceSchema,
@@ -119,6 +119,20 @@ export function CreateWorkspacePage() {
     defaultValues: { name: 'My Workspace', slug: '' },
     mode: 'onChange',
   });
+
+  // "Virendra's Workspace" from the signed-in user's first name, as soon as it
+  // is known and for as long as the user hasn't typed their own name.
+  const currentUser = useCurrentUser();
+  const firstName = (currentUser?.displayName || currentUser?.name || '')
+    .trim()
+    .split(/\s+/)[0];
+  const nameTouched = form.formState.dirtyFields.name;
+  useEffect(() => {
+    if (nameTouched || !firstName) return;
+    form.setValue('name', `${firstName}'s Workspace`, {
+      shouldValidate: true,
+    });
+  }, [firstName, nameTouched, form]);
 
   const name = form.watch('name');
   const slug = form.watch('slug');

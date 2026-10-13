@@ -26,12 +26,15 @@ import { WorkspacePermission } from '@org/types';
 import {
   agentVersionSchema,
   createWorkflowSchema,
+  locationEventSchema,
   triggerWorkflowSchema,
   updateWorkflowSchema,
   type CreateWorkflowInput,
+  type LocationEventInput,
   type UpdateWorkflowInput,
 } from '@org/validation';
 import { AutomationsService } from './automations.service.js';
+import { LocationAutomationService } from './location-automation.service.js';
 
 /**
  * Automation workflows for one workspace.
@@ -43,7 +46,10 @@ import { AutomationsService } from './automations.service.js';
 @Controller({ path: 'workspaces/:workspaceId/automations', version: '1' })
 @UseGuards(WorkspaceRoleGuard)
 export class AutomationsController {
-  constructor(private readonly automationsService: AutomationsService) {}
+  constructor(
+    private readonly automationsService: AutomationsService,
+    private readonly locationService: LocationAutomationService,
+  ) {}
 
   @Get('workflows')
   getWorkflows(@WorkspaceId() workspaceId: string) {
@@ -206,5 +212,23 @@ export class AutomationsController {
     @Param('workflowId') workflowId: string,
   ) {
     return this.automationsService.getExecutions(workspaceId, workflowId);
+  }
+
+  /** The caller's device location; starts their own Location-triggered agents. */
+  @Post('location/events')
+  @HttpCode(HttpStatus.OK)
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  ingestLocationEvent(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(locationEventSchema)) body: LocationEventInput,
+  ) {
+    return this.locationService.processLocationEvent(workspaceId, userId, {
+      latitude: body.latitude,
+      longitude: body.longitude,
+      accuracy: body.accuracy,
+      recordedAt: body.recordedAt === undefined ? new Date() : new Date(body.recordedAt),
+    });
   }
 }
