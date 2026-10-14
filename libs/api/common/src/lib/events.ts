@@ -166,6 +166,12 @@ export const AppEvent = {
   CoworkerHandoff: 'coworker.handoff',
   /** A Tracker monitor checked its condition and found something to report. */
   CoworkerMonitorTriggered: 'coworker.monitor.triggered',
+  /**
+   * An AI agent / coworker / Studio agent was created, edited, published,
+   * toggled or deleted. Fans out as realtime `agent.updated` so every open tab
+   * refreshes its agent lists and detail pages instead of waiting for a poll.
+   */
+  AgentChanged: 'agent.changed',
 } as const;
 
 export type AppEventName = (typeof AppEvent)[keyof typeof AppEvent];
@@ -573,6 +579,24 @@ export interface ChannelMessagePostedEvent extends BaseEvent {
   matrixEventId: string;
 }
 
+export type AgentChangeAction =
+  | 'created'
+  | 'updated'
+  | 'deleted'
+  | 'published'
+  | 'unpublished'
+  | 'version'
+  | 'state';
+
+export interface AgentChangedEvent {
+  workspaceId: string;
+  agentId: string;
+  /** `entity` = AIAgent row (agent or coworker); `workflow` = plan-first Studio agent. */
+  kind: 'entity' | 'workflow';
+  action: AgentChangeAction;
+  actorId?: string | null;
+}
+
 export interface AiRunFinishedEvent {
   workspaceId: string;
   runId: string;
@@ -731,4 +755,5 @@ export interface AppEventPayloads {
   [AppEvent.CoworkerFailed]: CoworkerFailedEvent;
   [AppEvent.CoworkerHandoff]: CoworkerHandoffEvent;
   [AppEvent.CoworkerMonitorTriggered]: CoworkerMonitorTriggeredEvent;
+  [AppEvent.AgentChanged]: AgentChangedEvent;
 }

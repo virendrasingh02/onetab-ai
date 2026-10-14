@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   ScrollArea,
+  AppSelect,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -65,8 +66,6 @@ export interface ImportBoardDialogProps {
   currentProjectName?: string;
 }
 
-const selectClass =
-  'w-full px-2 py-1.5 bg-surface border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary';
 const inputClass =
   'w-full px-3 py-1.5 bg-surface border border-border rounded-md text-xs text-foreground placeholder:text-subtle focus:outline-none focus:ring-1 focus:ring-primary';
 
@@ -356,23 +355,23 @@ export function ImportBoardDialog({
                 </span>
               </div>
 
-              <select
+              <AppSelect
+                size="sm"
                 value={sourceChoice}
-                onChange={(event) =>
-                  setSourceChoice(event.target.value as ImportSourceId | 'auto')
-                }
+                onValueChange={(v) => setSourceChoice(v as ImportSourceId | 'auto')}
                 aria-label="Read this file as"
-                className={cn(selectClass, 'w-auto')}
-              >
-                <option value="auto">
-                  Detect automatically{sourceName ? ` (${sourceName})` : ''}
-                </option>
-                {IMPORT_SOURCES.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    Read as {entry.name}
-                  </option>
-                ))}
-              </select>
+                className="w-auto min-w-48"
+                options={[
+                  {
+                    value: 'auto',
+                    label: `Detect automatically${sourceName ? ` (${sourceName})` : ''}`,
+                  },
+                  ...IMPORT_SOURCES.map((entry) => ({
+                    value: entry.id,
+                    label: `Read as ${entry.name}`,
+                  })),
+                ]}
+              />
             </div>
 
             {parsed && 'error' in parsed ? (
@@ -640,18 +639,16 @@ function ColumnMapping({
               {field.label}
               {field.required ? <span className="text-destructive"> *</span> : null}
             </span>
-            <select
+            <AppSelect
+              size="sm"
               value={mapping[field.key] ?? ''}
-              onChange={(event) => set(field.key, event.target.value)}
-              className={selectClass}
-            >
-              <option value="">— none —</option>
-              {table.headers.map((header) => (
-                <option key={header} value={header}>
-                  {header}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => set(field.key, v)}
+              aria-label={field.label}
+              options={[
+                { value: '', label: '— none —' },
+                ...table.headers.map((header) => ({ value: header, label: header })),
+              ]}
+            />
           </label>
         ))}
       </div>
@@ -660,18 +657,15 @@ function ColumnMapping({
         <span className="text-[11px] font-medium text-muted-foreground">
           Group cards into columns by
         </span>
-        <select
+        <AppSelect
+          size="sm"
           value={groupBy}
-          onChange={(event) => onGroupByChange(event.target.value)}
-          className={selectClass}
-        >
-          <option value="">Default for {sourceName || 'this source'}</option>
-          {table.headers.map((header) => (
-            <option key={header} value={header}>
-              {header}
-            </option>
-          ))}
-        </select>
+          onValueChange={onGroupByChange}
+          options={[
+            { value: '', label: `Default for ${sourceName || 'this source'}` },
+            ...table.headers.map((header) => ({ value: header, label: header })),
+          ]}
+        />
       </label>
     </details>
   );

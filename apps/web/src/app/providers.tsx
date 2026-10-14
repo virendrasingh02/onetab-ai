@@ -10,6 +10,7 @@ import {
   GifSourceProvider,
   StickerSourceProvider,
   Toaster,
+  NativeTitleTooltips,
   TooltipProvider,
   toast,
   type GifSource,
@@ -24,7 +25,9 @@ import {
   LinkPreviewBridge,
   MatrixProvider,
 } from '@org/web-chat';
+import { AgentAvatarProvider } from '@org/chat-ui';
 import { SyncProvider } from '@org/sync';
+import { useAgents } from '@org/web-agents';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import {
   MutationCache,
@@ -119,10 +122,34 @@ function RealtimeAppBridge({ children }: { children: ReactNode }) {
       manageCache={false}
     >
       <SyncProvider userId={user?.id} workspaceId={activeWorkspaceId}>
-        <AvatarPresenceBridge>{children}</AvatarPresenceBridge>
+        <AvatarPresenceBridge>
+          <AgentAvatarBridge workspaceId={activeWorkspaceId ?? undefined}>
+            {children}
+          </AgentAvatarBridge>
+        </AvatarPresenceBridge>
       </SyncProvider>
     </RealtimeProvider>
   );
+}
+
+/**
+ * Gives agent reply cards the agent's current uploaded avatar (the event only
+ * carries whatever it was when sent). Shares the sidebar's cached agent list.
+ */
+function AgentAvatarBridge({
+  workspaceId,
+  children,
+}: {
+  workspaceId: string | undefined;
+  children: ReactNode;
+}) {
+  const { data: agents } = useAgents(workspaceId, { includeDrafts: true });
+  const resolve = useCallback(
+    (agentId: string) =>
+      agents?.find((a) => a.id === agentId)?.avatarUrl ?? undefined,
+    [agents],
+  );
+  return <AgentAvatarProvider value={resolve}>{children}</AgentAvatarProvider>;
 }
 
 /**
@@ -288,6 +315,7 @@ export function Providers({ children }: { children: ReactNode }) {
                       </MediaPreviewProvider>
                       <AppToaster />
                       <ConfirmRoot />
+                      <NativeTitleTooltips />
                     </TooltipProvider>
                   </RealtimeAppBridge>
                 </AuthenticatedMediaBridge>

@@ -66,6 +66,7 @@ interface MessageContentShape {
     rel_type?: string;
     event_id?: string;
     key?: string;
+    is_falling_back?: boolean;
     'm.in_reply_to'?: { event_id?: string };
   };
   'm.new_content'?: { body?: string; formatted_body?: string };
@@ -187,46 +188,27 @@ export function toReaders(
 
   const readers: MessageReader[] = [];
   const myUserId = client.getUserId();
-
-  // Query receipts for this event if supported by the SDK Room instance
-  const roomAny = room as any;
-  if (typeof roomAny.getReceiptsForEvent === 'function') {
-    const rawReceipts: Array<{ userId: string; data?: { ts?: number } }> =
-      roomAny.getReceiptsForEvent({ getId: () => eventId }) ?? [];
-    for (const r of rawReceipts) {
-      if (!r.userId || r.userId === myUserId) continue;
-      const member = room.getMember(r.userId);
-      readers.push({
-        userId: r.userId,
-        displayName: member?.name ?? r.userId,
-        avatarUrl:
-          resolveMediaUrl(client, member?.getMxcAvatarUrl() ?? undefined, {
-            width: 64,
-            height: 64,
-          }) ?? undefined,
-        seenAt: r.data?.ts ?? Date.now(),
-      });
-    }
+  if (typeof room.getMembers !== 'function' || typeof room.hasUserReadEvent !== 'function') {
+    return readers;
   }
 
-  // If getReceiptsForEvent did not produce readers or is not present, fall back
-  // to checking members who have read up to or past this event
-  if (readers.length === 0 && typeof room.getMembers === 'function') {
-    for (const member of room.getMembers()) {
-      if (member.userId === myUserId || member.membership !== 'join') continue;
-      if (typeof room.hasUserReadEvent === 'function' && room.hasUserReadEvent(member.userId, eventId)) {
-        readers.push({
-          userId: member.userId,
-          displayName: member.name ?? member.userId,
-          avatarUrl:
-            resolveMediaUrl(client, member.getMxcAvatarUrl() ?? undefined, {
-              width: 64,
-              height: 64,
-            }) ?? undefined,
-          seenAt: Date.now(),
-        });
-      }
-    }
+  // A receipt sits on the reader's *latest* read event, so a message counts as
+  // seen by everyone whose read marker is at or past it — not only by users whose
+  // receipt happens to sit exactly on this event.
+  for (const member of room.getMembers()) {
+    if (member.userId === myUserId || member.membership !== 'join') continue;
+    if (!room.hasUserReadEvent(member.userId, eventId)) continue;
+    const receipt = room.getReadReceiptForUserId?.(member.userId);
+    readers.push({
+      userId: member.userId,
+      displayName: member.name ?? member.userId,
+      avatarUrl:
+        resolveMediaUrl(client, member.getMxcAvatarUrl() ?? undefined, {
+          width: 64,
+          height: 64,
+        }) ?? undefined,
+      seenAt: receipt?.data?.ts ?? 0,
+    });
   }
 
   return readers.sort((a, b) => b.seenAt - a.seenAt);
@@ -536,7 +518,11 @@ export function toMessage(
       (content as Record<string, unknown>)[ALSO_SEND_TO_CHANNEL_KEY] === true
         ? true
         : undefined,
-    replyToId: relation?.['m.in_reply_to']?.event_id,
+    // A thread reply's `m.in_reply_to` is only the spec's fallback pointer at
+    // the thread's latest message — not a reply the author chose.
+    replyToId: relation?.is_falling_back
+      ? undefined
+      : relation?.['m.in_reply_to']?.event_id,
     sendState,
     transactionId,
     isEncrypted: event.isEncrypted(),

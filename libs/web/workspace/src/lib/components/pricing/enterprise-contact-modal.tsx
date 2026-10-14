@@ -10,6 +10,7 @@ import {
   Input,
   Textarea,
   toast,
+  AppSelect,
 } from '@org/ui';
 import { billingApi } from '@org/api-client';
 import { type EnterpriseInquiryInput } from '@org/types';
@@ -164,18 +165,18 @@ export function EnterpriseContactModal({
                 <label className="text-xs font-semibold text-foreground">
                   Team Size
                 </label>
-                <select
+                <AppSelect
                   aria-label="Team Size"
                   value={form.teamSize}
-                  onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
-                  className="w-full text-xs h-9 rounded-md border border-input bg-background px-3 py-1 shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  <option value="1-20">1 - 20 employees</option>
-                  <option value="21-50">21 - 50 employees</option>
-                  <option value="51-200">51 - 200 employees</option>
-                  <option value="201-1000">201 - 1,000 employees</option>
-                  <option value="1000+">1,000+ enterprise</option>
-                </select>
+                  onValueChange={(v) => setForm({ ...form, teamSize: v })}
+                  options={[
+                    { value: '1-20', label: '1 - 20 employees' },
+                    { value: '21-50', label: '21 - 50 employees' },
+                    { value: '51-200', label: '51 - 200 employees' },
+                    { value: '201-1000', label: '201 - 1,000 employees' },
+                    { value: '1000+', label: '1,000+ enterprise' },
+                  ]}
+                />
               </div>
             </div>
 

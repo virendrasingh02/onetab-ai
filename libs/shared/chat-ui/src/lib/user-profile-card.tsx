@@ -53,6 +53,9 @@ export interface UserProfileCardProps {
   statusEmoji?: string | null;
   statusText?: string | null;
   statusExpiresAt?: string | null;
+  /** Non-person senders open their own rail profile (agent/app/coworker). */
+  entityKind?: 'user' | 'agent' | 'app' | 'coworker';
+  entityId?: string;
   children: ReactNode;
   onSendDirectMessage?: (userId: string) => void;
   onStartCall?: (userId: string) => void;
@@ -72,6 +75,8 @@ export function UserProfileCard({
   status = 'online',
   statusEmoji,
   statusText,
+  entityKind,
+  entityId,
   children,
   onSendDirectMessage,
   onStartCall: _onStartCall,
@@ -109,6 +114,8 @@ export function UserProfileCard({
     cancelHoverTimer();
     setPopoverOpen(false);
     openProfilePanel({
+      entityKind,
+      entityId,
       userId,
       name,
       avatarUrl,
@@ -142,12 +149,17 @@ export function UserProfileCard({
       <PopoverContent
         align="start"
         sideOffset={6}
+        // Stay fully on screen: flip to whichever side has room and keep the
+        // card inside the viewport rather than letting it clip under headers.
+        avoidCollisions
+        collisionPadding={12}
+        sticky="always"
         // The card arrives from a hover, not a deliberate open, so it must not
         // pull the caret out of whatever the user was typing in.
         onOpenAutoFocus={(e) => e.preventDefault()}
         onMouseEnter={cancelHoverTimer}
         onMouseLeave={() => scheduleHover(false, HOVER_CLOSE_DELAY_MS)}
-        className="w-80 p-0 shadow-2xl overflow-hidden rounded-2xl border border-border bg-popover text-foreground"
+        className="z-[100] w-80 max-w-[calc(100vw-1.5rem)] p-0 shadow-2xl overflow-hidden rounded-2xl border border-border bg-popover text-foreground"
       >
         {/* Header Banner Gradient */}
         <div

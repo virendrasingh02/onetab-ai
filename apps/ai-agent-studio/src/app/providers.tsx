@@ -3,6 +3,7 @@ import { ThemeProvider } from '@org/design-system';
 import {
   ConfirmRoot,
   ErrorBoundary,
+  NativeTitleTooltips,
   Toaster,
   TooltipProvider,
   toast,
@@ -83,6 +84,7 @@ export function Providers({ children }: { children: ReactNode }) {
             {children}
             <Toaster />
             <ConfirmRoot />
+            <NativeTitleTooltips />
           </TooltipProvider>
         </ThemeProvider>
       </QueryClientProvider>

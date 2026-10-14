@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   AppEvent,
+  type AgentChangedEvent,
   type CallActionItemUpdatedEvent,
   type CallDecisionUpdatedEvent,
   type CallEndedEvent,
@@ -48,6 +49,21 @@ export class RealtimeDomainBridgeListener {
         },
       });
     }
+  }
+
+  /** Agent edits are workspace-wide: ids only, the refetch enforces access. */
+  @OnEvent(AppEvent.AgentChanged)
+  async onAgentChanged(e: AgentChangedEvent): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'agent.updated',
+      actorId: e.actorId ?? null,
+      payload: {
+        workspaceId: e.workspaceId,
+        agentId: e.agentId,
+        kind: e.kind,
+        action: e.action,
+      },
+    });
   }
 
   @OnEvent(AppEvent.HuddleUpdated)

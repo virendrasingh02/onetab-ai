@@ -71,6 +71,10 @@ export const RealtimeEventType = {
   /** A workflow or Studio agent run moved on — a step started or finished,
    *  or the run ended (`WorkflowEngineService`). Drives the live timeline. */
   AIRunUpdated: 'ai.run.updated',
+
+  /** An agent / coworker / Studio agent was created, edited, published,
+   *  switched on or off, or deleted — by anyone, in any tab. Ids only. */
+  AgentUpdated: 'agent.updated',
 } as const;
 
 export type RealtimeEventType =
@@ -325,6 +329,13 @@ export interface CoworkerExecutionPayload {
   workspaceId: string;
   logId?: string;
   error?: string;
+}
+
+export interface AgentUpdatedPayload {
+  workspaceId: string;
+  agentId: string;
+  kind: 'entity' | 'workflow';
+  action: 'created' | 'updated' | 'deleted' | 'published' | 'unpublished' | 'version' | 'state';
 }
 
 export interface AgentRunProgressPayload {

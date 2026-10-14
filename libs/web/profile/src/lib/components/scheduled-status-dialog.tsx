@@ -14,6 +14,7 @@ import {
   Input,
   ScrollArea,
   Switch,
+  AppSelect,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import type { CreateScheduledStatusInput } from '@org/validation';
@@ -461,17 +462,16 @@ export function ScheduledStatusDialog({
                 </label>
                 <label className="flex-1 text-[11px] text-muted-foreground">
                   While active, set me to
-                  <select
+                  <AppSelect
                     value={draft.presence}
-                    onChange={(e) =>
-                      set('presence', e.target.value as DraftState['presence'])
-                    }
-                    className="mt-0.5 h-8 w-full rounded-md border border-border bg-surface px-2 text-xs text-foreground"
-                  >
-                    <option value="NONE">No change</option>
-                    <option value="BUSY">Do not disturb</option>
-                    <option value="AWAY">Away</option>
-                  </select>
+                    onValueChange={(v) => set('presence', v as DraftState['presence'])}
+                    options={[
+                      { value: 'NONE', label: 'No change' },
+                      { value: 'BUSY', label: 'Do not disturb' },
+                      { value: 'AWAY', label: 'Away' },
+                    ]}
+                    className="mt-0.5"
+                  />
                 </label>
               </div>
 

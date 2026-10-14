@@ -30,6 +30,7 @@ export function SelectTrigger({
       className={cn(
         'gap-2 flex w-fit items-center justify-between rounded-input border border-input bg-surface',
         'text-xs whitespace-nowrap text-foreground',
+        'hover:border-border-strong',
         'transition-[color,border-color,box-shadow] duration-(--duration-fast) ease-standard',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:outline-none',
         'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-disabled disabled:opacity-100',
@@ -64,7 +65,7 @@ export function SelectContent({
            are the same object to the eye, so they share radius and lift. */
         className={cn(
           'relative z-50 max-h-(--radix-select-content-available-height) bg-popover text-popover-foreground',
-          'min-w-36 max-w-[calc(100vw-1rem)] p-1 overflow-hidden rounded-popup border border-border shadow-overlay',
+          'min-w-44 max-w-[calc(100vw-1rem)] p-1 overflow-hidden rounded-popup border border-border shadow-overlay',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1.5 data-[side=top]:-translate-y-1.5',
           className,

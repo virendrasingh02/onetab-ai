@@ -1,4 +1,4 @@
-import { queryKeys } from '@org/api-client';
+import { queryKeys, scheduleAgentCacheRefresh, scheduleRunCacheRefresh } from '@org/api-client';
 import { RealtimeEventType, type RealtimeEvent } from '@org/realtime';
 import type { QueryClient } from '@tanstack/react-query';
 import { syncMetrics } from './sync-metrics.js';
@@ -157,6 +157,20 @@ export function applyRealtimeEvent(
       break;
     }
 
+    case RealtimeEventType.AgentUpdated: {
+      const agentId = (event.payload as { agentId?: string } | undefined)?.agentId;
+      scheduleAgentCacheRefresh(queryClient, ws, agentId);
+      invalidated.push(queryKeys.agents.all(ws) as unknown as unknown[]);
+      break;
+    }
+
+    case RealtimeEventType.AIRunUpdated: {
+      const run = event.payload as { workflowId?: string; status?: string } | undefined;
+      scheduleRunCacheRefresh(queryClient, ws, { workflowId: run?.workflowId, status: run?.status });
+      invalidated.push(queryKeys.aiExecutions.all(ws) as unknown as unknown[]);
+      break;
+    }
+
     case RealtimeEventType.HuddleUpdated: {
       invalidate(['huddle', ws]);
       break;
@@ -248,6 +262,8 @@ export const HANDLED_REALTIME_EVENTS: string[] = [
   RealtimeEventType.InvitationCreated,
   RealtimeEventType.InvitationUpdated,
   RealtimeEventType.HuddleUpdated,
+  RealtimeEventType.AgentUpdated,
+  RealtimeEventType.AIRunUpdated,
   RealtimeEventType.SettingsUpdated,
   RealtimeEventType.MessageCreated,
   RealtimeEventType.MessageUpdated,

@@ -415,17 +415,14 @@ export function DesignSystemStudio() {
           {/* Density Switcher */}
           <div className="flex items-center gap-1">
             <span className="text-[11px] font-medium text-subtle">Density:</span>
-            <select
+            <AppSelect
+              size="sm"
               value={density}
-              onChange={(e) => setDensity(e.target.value as Density)}
-              className="h-7 rounded-btn border border-border bg-surface px-2 text-xs text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-            >
-              {DENSITIES.map((d) => (
-                <option key={d} value={d}>
-                  {d.charAt(0).toUpperCase() + d.slice(1)}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => setDensity(v as Density)}
+              options={DENSITIES.map((d) => ({ value: d, label: d.charAt(0).toUpperCase() + d.slice(1) }))}
+              className="w-28"
+              aria-label="Density"
+            />
           </div>
 
           <Separator orientation="vertical" className="h-5" />
@@ -433,17 +430,14 @@ export function DesignSystemStudio() {
           {/* Radius Switcher */}
           <div className="flex items-center gap-1">
             <span className="text-[11px] font-medium text-subtle">Radius:</span>
-            <select
+            <AppSelect
+              size="sm"
               value={radius}
-              onChange={(e) => setRadius(e.target.value as RadiusPreset)}
-              className="h-7 rounded-btn border border-border bg-surface px-2 text-xs text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-            >
-              {RADII.map((r) => (
-                <option key={r} value={r}>
-                  {r.toUpperCase()}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => setRadius(v as RadiusPreset)}
+              options={RADII.map((r) => ({ value: r, label: r.toUpperCase() }))}
+              className="w-24"
+              aria-label="Radius"
+            />
           </div>
 
           <Separator orientation="vertical" className="h-5" />
@@ -451,17 +445,14 @@ export function DesignSystemStudio() {
           {/* Accent Color Picker */}
           <div className="flex items-center gap-1">
             <span className="text-[11px] font-medium text-subtle">Accent:</span>
-            <select
+            <AppSelect
+              size="sm"
               value={accent}
-              onChange={(e) => setAccent(e.target.value as Accent)}
-              className="h-7 rounded-btn border border-border bg-surface px-2 text-xs text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring capitalize"
-            >
-              {ACCENTS.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => setAccent(v as Accent)}
+              options={ACCENTS.map((a) => ({ value: a, label: a.charAt(0).toUpperCase() + a.slice(1) }))}
+              className="w-32"
+              aria-label="Accent"
+            />
           </div>
         </div>
       </header>

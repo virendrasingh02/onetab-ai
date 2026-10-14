@@ -1,5 +1,5 @@
 import type { FederatedSearchResultItem } from '@org/types';
-import { Button, Input, Switch, AIModelIcon } from '@org/ui';
+import { Button, Input, Switch, AIModelIcon, AppSelect } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowLeft, Search } from 'lucide-react';
@@ -198,22 +198,14 @@ export function GlobalSearchView() {
           </FilterGroup>
 
           <FilterGroup title="File type">
-            <select
+            <AppSelect
               value={filters.fileType ?? ''}
-              onChange={(e) =>
-                setFilters((f) => ({
-                  ...f,
-                  fileType: e.target.value || null,
-                }))
+              onValueChange={(v) =>
+                setFilters((f) => ({ ...f, fileType: v || null }))
               }
-              className="h-8 w-full rounded-md border border-border bg-surface px-2 text-xs text-foreground"
-            >
-              {FILE_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+              options={FILE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+              aria-label="File type"
+            />
           </FilterGroup>
 
           <label className="flex items-center justify-between text-foreground">

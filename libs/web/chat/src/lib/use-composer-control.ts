@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@org/ui';
 import { useMentionAddActions } from './use-mention-add-actions.js';
@@ -324,6 +324,7 @@ export function useComposerControl(
           id: a.id,
           name: a.name,
           avatarUrl: a.avatarUrl ?? undefined,
+          subtitle: a.description ?? a.role ?? undefined,
           kind: 'agent' as const,
         })),
     [workspaceAgentsQuery.data],
@@ -349,6 +350,7 @@ export function useComposerControl(
         .map((app) => ({
           id: app.id,
           name: app.displayName ?? app.provider,
+          subtitle: `App · ${app.provider}`,
           kind: 'app' as const,
         })),
     [workspaceIntegrationsQuery.data],
@@ -501,15 +503,89 @@ export function useComposerControl(
   ]);
 
   // ── Contextual slash commands ──────────────────────────────────────────────
-  const slashCommands = useMemo<SlashCommand[]>(
-    () =>
-      getContextualSlashCommands({
-        surfaceKind: context?.surfaceKind,
-        viewerCanManage,
-        isGuest,
-      }),
-    [context?.surfaceKind, viewerCanManage, isGuest],
+  // Apps connected to this channel expose their registered actions
+  // (`ProviderAdapter.getActions()`), which the `/` menu lists next to the
+  // built-ins — the same set `AppMatrixBridgeService` answers in chat.
+  const enabledChannelApps = useMemo(
+    () => (channelAppsQuery.data ?? []).filter((app) => app.isEnabled),
+    [channelAppsQuery.data],
   );
+  const appActionQueries = useQueries({
+    queries: enabledChannelApps.map((app) => ({
+      queryKey: queryKeys.integrations.actions(
+        workspaceId ?? '',
+        app.integrationId,
+      ),
+      queryFn: () =>
+        integrationsApi.getActions(workspaceId as string, app.integrationId),
+      enabled: isChannel,
+      staleTime: 60_000,
+    })),
+  });
+  // `useQueries` returns a fresh array each render; key the memo on the data.
+  const appActionsData = appActionQueries.map((q) => q.data);
+  const appActionsKey = appActionQueries
+    .map((q) => q.dataUpdatedAt)
+    .join(',');
+
+  const slashCommands = useMemo<SlashCommand[]>(() => {
+    const builtIn = getContextualSlashCommands({
+      surfaceKind: context?.surfaceKind,
+      viewerCanManage,
+      isGuest,
+    });
+    if (!isChannel) return builtIn;
+
+    const contributed: SlashCommand[] = [];
+
+    (channelAgentsQuery.data ?? [])
+      .filter((link) => link.isEnabled && link.agent.isActive)
+      .forEach((link) => {
+        contributed.push({
+          name: `/${link.agent.name.toLowerCase().replace(/\s+/g, '-')}`,
+          title: `Ask ${link.agent.name}`,
+          description:
+            link.agent.description ?? `Ask ${link.agent.name} for help`,
+          source: {
+            kind: 'agent',
+            label: link.agent.name,
+            avatarUrl: link.agent.avatarUrl ?? undefined,
+          },
+          insert: {
+            mention: {
+              id: link.agent.id,
+              name: link.agent.name,
+              kind: 'agent',
+            },
+          },
+        });
+      });
+
+    enabledChannelApps.forEach((link, index) => {
+      const appName = link.integration.displayName || link.integration.provider;
+      const provider = link.integration.provider.toLowerCase();
+      for (const action of appActionsData[index] ?? []) {
+        contributed.push({
+          name: `/${provider}`,
+          title: action.label,
+          description: action.description,
+          source: { kind: 'app', label: appName },
+          insert: { text: `${action.id} ` },
+        });
+      }
+    });
+
+    return [...builtIn, ...contributed];
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- appActionsData is keyed by appActionsKey
+  }, [
+    context?.surfaceKind,
+    viewerCanManage,
+    isGuest,
+    isChannel,
+    channelAgentsQuery.data,
+    enabledChannelApps,
+    appActionsKey,
+  ]);
 
   return {
     findUnreachable,

@@ -36,8 +36,11 @@ import {
   Check,
   CircleAlert,
   Copy,
+  ChevronDown,
   CornerDownRight,
+  Clock,
   Download,
+  MessageSquare,
   ExternalLink,
   FileText,
   Gauge,
@@ -138,6 +141,19 @@ const nextId = () => `m${++messageSeq}`;
 type Intent = 'explain' | 'debug' | 'optimize' | 'test' | 'permissions' | 'missing' | 'check' | 'create' | 'edit';
 
 /** What kind of request it is — editing goes to the API, the rest is answered from the graph and its runs. */
+/** Leading icon for a follow-up suggestion, picked from its wording. */
+function suggestionIcon(text: string): typeof Play {
+  const t = text.toLowerCase();
+  if (/\b(test|run a|try)\b/.test(t)) return Play;
+  if (/\b(every|weekday|schedule|daily|monday|at \d)/.test(t)) return Clock;
+  if (/\b(retry|retries|fail)/.test(t)) return RotateCcw;
+  if (/\b(faster|speed|optimi|cost)/.test(t)) return Gauge;
+  if (/\b(check|review|audit)/.test(t)) return Stethoscope;
+  if (/\b(add|connect|include)\b/.test(t)) return Plus;
+  if (/\b(explain|how|why)\b/.test(t)) return Lightbulb;
+  return CornerDownRight;
+}
+
 function intentOf(text: string): Intent {
   const t = text.toLowerCase();
   if (/^(build|create|make|design|start over with|rebuild)( me)? (an? |the )?(new |whole |fresh )?(agent|workflow|flow)\b/.test(t)) return 'create';
@@ -290,6 +306,8 @@ export function AgentCopilotPanel({
     staleTime: 30_000,
   });
   const [switching, setSwitching] = useState(false);
+  const [sugIndex, setSugIndex] = useState(-1);
+  const [sugDismissed, setSugDismissed] = useState(false);
 
   const suggestions = useMemo(
     () => suggestNextActions(graph, { hasRuns: runs.length > 0, lastRunFailed: runs[0]?.status === 'FAILED', knowledgeBases: 1 }),
@@ -298,6 +316,9 @@ export function AgentCopilotPanel({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    // A new reply brings a fresh set of suggestions
+    setSugDismissed(false);
+    setSugIndex(-1);
   }, [messages, busy]);
 
   // Dictated words land in the box when the mic stops, for review before sending
@@ -667,6 +688,13 @@ export function AgentCopilotPanel({
     : input;
 
   const iconBtn = 'rounded-md';
+  const started = messages.some((m) => m.role === 'user') || !!welcome;
+  const visibleMessages = started ? messages : [];
+  const shownSuggestions = suggestions.slice(0, 4);
+  const suggestionsOpen = showSuggestions && !sugDismissed && !input.trim() && !dictation.listening;
+  const activeMode = COMPOSER_MODES.find((x) => x.id === mode) ?? COMPOSER_MODES[0];
+  const ActiveModeIcon = activeMode.Icon;
+  const kbd = 'inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-border bg-surface-raised px-1 text-[10px] font-medium text-muted-foreground';
 
   return (
     <aside
@@ -678,15 +706,11 @@ export function AgentCopilotPanel({
       )}
     >
       {/* Header */}
-      <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
-            <Sparkles className="size-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold text-foreground">Agent Copilot</h2>
-            <p className="truncate text-[11px] text-muted-foreground">{graph.nodes.length} steps · {agentName}</p>
-          </div>
+      <header className="flex items-center justify-between gap-2 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Sparkles className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <h2 className="truncate text-sm font-semibold text-foreground">Agent Copilot</h2>
+          <span className="truncate text-[11px] text-muted-foreground">· {agentName}</span>
         </div>
         <div className="flex items-center gap-0.5">
           <Button variant="ghost" size="icon-sm" type="button" onClick={newChat} disabled={!!busy} className={iconBtn} aria-label="New chat" title="New chat">
@@ -699,7 +723,7 @@ export function AgentCopilotPanel({
       </header>
 
       {/* Runs on its own */}
-      <div className="mx-3 mt-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-raised/40 px-3 py-2">
+      <div className="mx-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-raised/40 px-3 py-2">
         <div className="min-w-0">
           <p className="text-xs font-medium text-foreground">Runs on its own</p>
           <p className={cn('truncate text-[11px]', appTrigger?.lastError ? 'text-warning-text' : 'text-muted-foreground')} title={runsOnItsOwnText}>
@@ -716,7 +740,38 @@ export function AgentCopilotPanel({
 
       {/* Conversation */}
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4" aria-live="polite">
-        {messages.map((m) =>
+        {!started && (
+          <div className="flex flex-col items-center pt-6 text-center">
+            <span className="relative mb-4 flex size-16 items-center justify-center" aria-hidden>
+              <span className="absolute inset-0 -rotate-6 rounded-2xl border border-border bg-surface-raised/50" />
+              <span className="absolute inset-0 rotate-6 rounded-2xl border border-border bg-surface-raised/70" />
+              <span className="relative flex size-14 items-center justify-center rounded-2xl border border-border bg-surface-raised text-primary shadow-sm">
+                <Sparkles className="size-6" />
+              </span>
+            </span>
+            <p className="text-base font-semibold text-foreground">Agent Copilot</p>
+            <p className="mt-1 max-w-[260px] text-[13px] text-muted-foreground">
+              Change, check, test or rebuild “{agentName}” in plain words. Nothing is saved until you Apply.
+            </p>
+            <div className="mt-6 w-full space-y-1.5 text-left">
+              <p className="px-1 text-xs font-medium text-muted-foreground">Quick actions</p>
+              {QUICK_ACTIONS.map(({ label, prompt, Icon }) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled={!!busy}
+                  onClick={() => void handle(prompt)}
+                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-surface-raised/40 px-3 py-2.5 text-left text-[13px] font-medium text-foreground transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  <MessageSquare className="size-3.5 shrink-0 text-muted-foreground/50" aria-hidden />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {visibleMessages.map((m) =>
           m.role === 'user' ? (
             <div key={m.id} className="flex justify-end">
               <p className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md border border-border bg-surface-raised px-3.5 py-2 text-[13px] leading-relaxed text-foreground">
@@ -919,52 +974,86 @@ export function AgentCopilotPanel({
           </p>
         )}
 
-        {/* Follow-ups */}
-        {showSuggestions && (
-          <div className="flex flex-col items-end gap-2 pt-1" aria-label="Suggestions">
-            {suggestions.slice(0, 4).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => void handle(s)}
-                className="group/sug inline-flex max-w-[90%] items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2 text-left text-[13px] text-foreground transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 cursor-pointer"
-              >
-                <span>{s}</span>
-                <CornerDownRight className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover/sug:text-foreground" aria-hidden />
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
+      {/* Follow-up suggestions: keyboard navigable, like a command list */}
+      {suggestionsOpen && (
+        <div className="mx-4 mb-2 overflow-hidden rounded-xl border border-border bg-surface-raised/40 shadow-sm" role="listbox" aria-label="Suggestions">
+          <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <Sparkles className="size-3 text-primary" aria-hidden />
+            Try next
+            <button type="button" onClick={() => setSugDismissed(true)} className="ml-auto inline-flex size-5 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground" aria-label="Hide suggestions">
+              <X className="size-3.5" aria-hidden />
+            </button>
+          </div>
+          <div className="px-1.5 pb-1.5">
+            {shownSuggestions.map((s, i) => {
+              const Icon = suggestionIcon(s);
+              const active = i === sugIndex;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onMouseEnter={() => setSugIndex(i)}
+                  onClick={() => void handle(s)}
+                  className={cn(
+                    'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors focus-visible:outline-none',
+                    active ? 'bg-primary/10 text-foreground' : 'text-muted-foreground hover:bg-surface-raised/70',
+                  )}
+                >
+                  <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-md border', active ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border bg-background')}>
+                    <Icon className="size-3.5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{s}</span>
+                  {active && <kbd className={cn(kbd, 'px-1.5')}>↵</kbd>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1.5 border-t border-border/60 px-3 py-1.5 text-[11px] text-muted-foreground">
+            <kbd className={kbd}>↑</kbd>
+            <kbd className={kbd}>↓</kbd>
+            <span>navigate</span>
+            <kbd className={cn(kbd, 'ml-1.5 px-1.5')}>Enter</kbd>
+            <span>select</span>
+            <kbd className={cn(kbd, 'ml-1.5 px-1.5')}>Esc</kbd>
+            <span>close</span>
+          </div>
+        </div>
+      )}
+
       {/* Composer */}
-      <div className="px-3 pb-2 pt-1">
+      <div className="px-4 pb-3">
         <form
           onSubmit={submit}
           className="rounded-2xl border border-border bg-background transition-colors focus-within:border-primary/50"
         >
-          <div role="radiogroup" aria-label="What to do" className="flex items-center gap-0.5 border-b border-border px-1.5 pt-1.5 pb-1">
-            {COMPOSER_MODES.map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={mode === id}
-                onClick={() => {
-                  setMode(id);
-                  inputRef.current?.focus();
-                }}
-                className={cn(
-                  'inline-flex h-6.5 items-center gap-1 rounded-md px-2 text-[11px] font-medium transition-colors cursor-pointer',
-                  mode === id ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground',
-                )}
-              >
-                <Icon className="size-3" aria-hidden /> {label}
-              </button>
-            ))}
-          </div>
           <Label htmlFor="copilot-input" className="sr-only">Ask the Copilot</Label>
           <Textarea id="copilot-input" ref={inputRef} rows={1} value={composerValue} readOnly={dictation.listening} disabled={!!busy} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => {
+              if (suggestionsOpen && !e.nativeEvent.isComposing) {
+                const n = shownSuggestions.length;
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setSugIndex((i) => (i + 1) % n);
+                  return;
+                }
+                if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setSugIndex((i) => (i <= 0 ? n - 1 : i - 1));
+                  return;
+                }
+                if (e.key === 'Escape') {
+                  setSugDismissed(true);
+                  return;
+                }
+                if (e.key === 'Enter' && !e.shiftKey && sugIndex >= 0) {
+                  e.preventDefault();
+                  void handle(shownSuggestions[sugIndex]);
+                  return;
+                }
+              }
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 if (dictation.listening) dictation.stop();
@@ -997,12 +1086,38 @@ export function AgentCopilotPanel({
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <span
-                className="ml-1 inline-flex items-center gap-1 rounded-md border border-border bg-surface px-1.5 py-0.5 text-[11px] text-muted-foreground"
-                title="The Copilot reads the whole canvas, including unsaved changes"
-              >
-                <Workflow className="size-3" aria-hidden /> Entire workflow
-              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={!!busy}
+                    title="The Copilot reads the whole canvas, including unsaved changes"
+                    className="ml-1 inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <ActiveModeIcon className="size-3.5" aria-hidden />
+                    <span className="font-medium">{activeMode.label}</span>
+                    <span aria-hidden>•</span>
+                    <span>Entire workflow</span>
+                    <ChevronDown className="size-3" aria-hidden />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top" className="w-52">
+                  <DropdownMenuLabel className="text-[11px] text-muted-foreground">What to do</DropdownMenuLabel>
+                  {COMPOSER_MODES.map(({ id, label, Icon }) => (
+                    <DropdownMenuItem
+                      key={id}
+                      onSelect={() => {
+                        setMode(id);
+                        inputRef.current?.focus();
+                      }}
+                      className="gap-2 text-xs"
+                    >
+                      <Icon className="size-3.5" /> {label}
+                      {mode === id && <Check className="ml-auto size-3.5" aria-hidden />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <div className="flex items-center gap-1">
               {dictation.supported && (
@@ -1024,8 +1139,8 @@ export function AgentCopilotPanel({
                 aria-label={mode === 'check' ? 'Check' : mode === 'test' ? 'Run test' : mode === 'create' ? 'Build it' : 'Send'}
                 title={mode === 'check' ? 'Check every step (Enter)' : mode === 'test' ? 'Run test (Enter)' : mode === 'create' ? 'Build it (Enter)' : 'Send (Enter)'}
                 className={cn(
-                  'flex h-8 items-center justify-center gap-1 rounded-full bg-primary text-primary-foreground shadow-sm transition-all hover:bg-primary-hover active:scale-95',
-                  'disabled:bg-surface-raised disabled:text-muted-foreground disabled:shadow-none cursor-pointer disabled:cursor-not-allowed',
+                  'flex h-8 items-center justify-center gap-1 rounded-full bg-foreground text-background shadow-sm transition-all hover:opacity-90 active:scale-95',
+                  'disabled:bg-surface-raised disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none cursor-pointer disabled:cursor-not-allowed',
                   mode === 'modify' ? 'w-8' : 'px-3 text-xs font-semibold',
                 )}
               >
@@ -1050,7 +1165,7 @@ export function AgentCopilotPanel({
             </div>
           </div>
         </form>
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
           Copilot can make mistakes — every change waits for your Apply.
         </p>
       </div>

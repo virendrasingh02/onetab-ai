@@ -5,9 +5,9 @@ import {
   Card,
   ErrorState,
   PageSection,
+  PromptComposer,
   Skeleton,
   StatCard,
-  Textarea,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import { aiWorkspacePath, studioAgentPath } from '@org/web-ai';
@@ -20,7 +20,6 @@ import {
   Loader2,
   PackagePlus,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -36,6 +35,40 @@ export const EXAMPLE_REQUESTS = [
   'Every Friday afternoon, write my weekly report',
   'Read a requirements doc and create a project plan',
 ];
+
+/** The one "describe your agent" box — Studio Home and the plan-first create page both use it. */
+export function AgentPromptComposer({
+  id,
+  value,
+  onChange,
+  onSubmit,
+  busy,
+  autoFocus,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  busy?: boolean;
+  autoFocus?: boolean;
+}) {
+  return (
+    <PromptComposer
+      id={id}
+      label="What should this agent do?"
+      value={value}
+      onChange={onChange}
+      onSubmit={onSubmit}
+      busy={busy}
+      autoFocus={autoFocus}
+      submitOn="enter"
+      placeholder="Describe your agent, e.g. “Every morning, create my to-do list from today’s meetings”"
+      suggestions={EXAMPLE_REQUESTS}
+      submitLabel="Plan it"
+      footnote="Studio can make mistakes — you review and approve the plan before anything is built."
+    />
+  );
+}
 
 /**
  * Where the AI Agent Studio opens: what your agents did today, what needs you,
@@ -211,67 +244,26 @@ function Hero({
   const navigate = useNavigate();
   const { can } = useWorkspacePermission();
   const [request, setRequest] = useState('');
-  const submit = (text: string) => {
-    const prompt = text.trim();
+  const submit = () => {
+    const prompt = request.trim();
     if (!prompt) return;
     navigate(planHref ? planHref(prompt) : `${aiWorkspacePath(slug, 'studio', 'new')}?prompt=${encodeURIComponent(prompt)}`);
   };
   const active = data?.stats.activeAgents ?? 0;
   return (
-    <section aria-labelledby="studio-greeting" className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-surface to-surface p-5 sm:p-7">
-      <h2 id="studio-greeting" className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-        {greeting()}
-        {data?.greetingName ? `, ${data.greetingName}` : ''}
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {active > 0
-          ? `Your AI agents are working for you — ${active} ${active === 1 ? 'is' : 'are'} switched on.`
-          : 'Tell the Studio what you want done, and it plans an agent to do it.'}
-      </p>
-      {can('create') ? (
-        <form
-          className="mt-4 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit(request);
-          }}
-        >
-          <label htmlFor="studio-request" className="sr-only">
-            What should I automate?
-          </label>
-          <div className="relative">
-            <Textarea
-              id="studio-request"
-              value={request}
-              onChange={(e) => setRequest(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  submit(request);
-                }
-              }}
-              rows={2}
-              placeholder="What should I automate? e.g. “Every morning, create my to-do list from today’s meetings”"
-              className="resize-none bg-surface pr-28 text-sm"
-            />
-            <Button type="submit" size="sm" className="absolute bottom-2 right-2" leadingIcon={<Sparkles />} disabled={!request.trim()}>
-              Plan it
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-1.5" aria-label="Examples">
-            {EXAMPLE_REQUESTS.slice(0, 4).map((example) => (
-              <button
-                key={example}
-                type="button"
-                onClick={() => submit(example)}
-                className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {example}
-              </button>
-            ))}
-          </div>
-        </form>
-      ) : null}
+    <section aria-labelledby="studio-greeting" className="mx-auto w-full max-w-3xl space-y-5 py-2">
+      <div className="space-y-1 text-center">
+        <h2 id="studio-greeting" className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          {greeting()}
+          {data?.greetingName ? `, ${data.greetingName}` : ''}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {active > 0
+            ? `Your AI agents are working for you — ${active} ${active === 1 ? 'is' : 'are'} switched on.`
+            : 'Tell the Studio what you want done, and it plans an agent to do it.'}
+        </p>
+      </div>
+      {can('create') ? <AgentPromptComposer id="studio-request" value={request} onChange={setRequest} onSubmit={submit} /> : null}
     </section>
   );
 }

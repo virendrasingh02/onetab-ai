@@ -2,7 +2,7 @@ import { automationsApi, queryKeys } from '@org/api-client';
 import { RealtimeEventType, useRealtime } from '@org/realtime';
 import type { AIRunUpdatePayload, StudioGraphEdge, StudioGraphNode } from '@org/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Keeps every open run, agent and the Studio home current while agents run —
@@ -14,7 +14,6 @@ import { useEffect, useRef, useState } from 'react';
 export function useAIRunUpdates(workspaceId: string | undefined) {
   const { bus } = useRealtime();
   const queryClient = useQueryClient();
-  const pendingLists = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -22,22 +21,10 @@ export function useAIRunUpdates(workspaceId: string | undefined) {
       const payload = event.payload;
       if (!payload?.runId) return;
       void queryClient.invalidateQueries({ queryKey: queryKeys.aiExecutions.detail(workspaceId, payload.runId) });
-      // Lists and summaries change less often than steps; batch them.
-      if (pendingLists.current) clearTimeout(pendingLists.current);
-      pendingLists.current = setTimeout(() => {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.aiExecutions.all(workspaceId), refetchType: 'active' });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.agentStudio.home(workspaceId) });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.agentStudio.list(workspaceId) });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.agentStudio.detail(workspaceId, payload.workflowId) });
-        if (payload.status === 'WAITING_APPROVAL' || payload.status === 'COMPLETED' || payload.status === 'FAILED') {
-          void queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all(workspaceId) });
-        }
-      }, 400);
+      // Lists, Studio summaries and approvals are refreshed app-wide (coalesced)
+      // by the realtime layer, so this screen only follows its own run.
     });
-    return () => {
-      unsubscribe();
-      if (pendingLists.current) clearTimeout(pendingLists.current);
-    };
+    return unsubscribe;
   }, [bus, queryClient, workspaceId]);
 }
 

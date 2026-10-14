@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  generateToolGuidance,
   composeAgentPrompt,
   DEFAULT_PROMPT_SETTINGS,
   estimateTokens,
@@ -188,5 +189,29 @@ describe('compileStudioGraph with module settings', () => {
     expect(agent.fallbackModel).toBe('gpt-4o-mini');
     expect(agent.knowledge).toEqual([{ knowledgeBaseId: 'kb1', topK: 3, mode: 'HYBRID', minScore: 0.5 }]);
     expect(agent.rules?.policies).toEqual({ slack_send_message: 'ask_user', create_task: 'blocked' });
+  });
+});
+
+describe('tool guidance', () => {
+  const src = {
+    toolName: 'slack_send_message',
+    label: 'Send message',
+    description: 'Post a message to a channel.',
+    app: 'Slack',
+    permissionLevel: 'write' as const,
+    inputSchema: { properties: { channel: { type: 'string', description: 'Channel name' } }, required: ['channel'] },
+  };
+  it('generates a note naming inputs and risk', () => {
+    const note = generateToolGuidance(src);
+    expect(note).toContain('`slack_send_message` (Slack)');
+    expect(note).toContain('`channel` (required)');
+    expect(note).toContain('changes data');
+  });
+  it('composes notes only for enabled tools', () => {
+    const settings = readPromptSettings({ toolGuidance: { 'SLACK.send_message': 'Note A', 'GITHUB.x': 'Note B' } });
+    const out = composeAgentPrompt('Hi', settings, ['SLACK.send_message']);
+    expect(out).toContain('## Tools');
+    expect(out).toContain('Note A');
+    expect(out).not.toContain('Note B');
   });
 });

@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent, type AgentChangeAction } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
   CANVAS_AGENT_TRIGGER,
@@ -41,7 +43,13 @@ export class AutomationsService {
     private readonly prisma: PrismaService,
     private readonly workflowEngine: WorkflowEngineService,
     @Optional() private readonly planGate?: PlanGateService,
+    @Optional() private readonly events?: EventEmitter2,
   ) {}
+
+  /** Realtime `agent.updated` — Studio agents are workflows underneath. */
+  emitAgentChange(workspaceId: string, workflowId: string, action: AgentChangeAction) {
+    this.events?.emit(AppEvent.AgentChanged, { workspaceId, agentId: workflowId, kind: 'workflow', action });
+  }
 
   async getWorkflows(workspaceId: string) {
     return this.prisma.automationWorkflow.findMany({
@@ -64,7 +72,7 @@ export class AutomationsService {
     },
   ) {
     await this.planGate?.assertCanCreate(workspaceId, 'workflow');
-    return this.prisma.automationWorkflow.create({
+    const created = await this.prisma.automationWorkflow.create({
       data: {
         workspaceId,
         creatorId,
@@ -76,6 +84,8 @@ export class AutomationsService {
         ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
       },
     });
+    this.emitAgentChange(workspaceId, created.id, 'created');
+    return created;
   }
 
   async updateWorkflow(
@@ -91,7 +101,7 @@ export class AutomationsService {
     },
   ) {
     await this.assertWorkflow(workspaceId, workflowId);
-    return this.prisma.automationWorkflow.update({
+    const updated = await this.prisma.automationWorkflow.update({
       where: { id: workflowId },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
@@ -106,11 +116,14 @@ export class AutomationsService {
         ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
       },
     });
+    this.emitAgentChange(workspaceId, workflowId, 'updated');
+    return updated;
   }
 
   async deleteWorkflow(workspaceId: string, workflowId: string): Promise<void> {
     await this.assertWorkflow(workspaceId, workflowId);
     await this.prisma.automationWorkflow.delete({ where: { id: workflowId } });
+    this.emitAgentChange(workspaceId, workflowId, 'deleted');
   }
 
   async triggerWorkflow(
@@ -209,6 +222,7 @@ export class AutomationsService {
         data: { isActive: true },
       });
     }
+    this.emitAgentChange(workspaceId, workflowId, options.publish ? 'published' : 'version');
     return version;
   }
 
@@ -218,7 +232,7 @@ export class AutomationsService {
       where: { workflowId_versionNumber: { workflowId, versionNumber } },
     });
     if (!version) throw new NotFoundException(`Version ${versionNumber} not found.`);
-    return this.prisma.automationWorkflow.update({
+    const restored = await this.prisma.automationWorkflow.update({
       where: { id: workflowId },
       data: {
         nodesJson: version.nodesJson,
@@ -229,6 +243,8 @@ export class AutomationsService {
         ...(version.agentProfile ? { agentProfile: version.agentProfile as object } : {}),
       },
     });
+    this.emitAgentChange(workspaceId, workflowId, 'updated');
+    return restored;
   }
 
   async getAutomationOverview(workspaceId: string): Promise<AutomationOverviewData> {

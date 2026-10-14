@@ -69,6 +69,7 @@ export {
   DEFAULT_SLASH_COMMANDS,
   getContextualSlashCommands,
   type SlashCommand,
+  type SlashCommandSource,
 } from './lib/slash-commands.js';
 
 export {
@@ -88,6 +89,13 @@ export {
   describeForwardSource,
   type ForwardedMessageCardProps,
 } from './lib/forwarded-message-card.js';
+
+export {
+  ReplyQuote,
+  ReplyingToBar,
+  toReplyPreview,
+  type ReplyPreview,
+} from './lib/reply-quote.js';
 
 export { InlineMessageEditor, type InlineMessageEditorProps } from './lib/inline-message-editor.js';
 export {
@@ -219,6 +227,11 @@ export {
 } from './lib/cards/message-renderer.js';
 
 export {
+  AgentAvatarProvider,
+  useAgentAvatar,
+  type AgentAvatarResolver,
+} from './lib/cards/agent-avatar-context.js';
+export {
   AgentMessageCard,
   formatDuration,
   type AgentMessageCardProps,
@@ -272,10 +285,7 @@ export {
   SystemEventEntityName,
   SystemEventAction,
   SystemEventTimestamp,
-  getSystemEventActions,
   type SystemEventCardProps,
-  type SystemEventActionDescriptor,
-  type SystemEventActionsContext,
 } from './lib/cards/system-event-card.js';
 
 export {

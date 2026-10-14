@@ -8,6 +8,7 @@ import {
   Input,
   Spinner,
   useRightPanelStore,
+  AppSelect,
 } from '@org/ui';
 import { useContextOverview, useContextLinkMutations } from '@org/web-work-tools';
 import {
@@ -181,31 +182,35 @@ export function UniversalContextPanel({
               <label className="text-[10px] text-muted-foreground uppercase font-semibold">
                 Type
               </label>
-              <select
+              <AppSelect
+                size="sm"
                 value={linkTargetType}
-                onChange={(e) => setLinkTargetType(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="task">Task</option>
-                <option value="message">Message</option>
-                <option value="doc">Document</option>
-                <option value="file">File</option>
-              </select>
+                onValueChange={setLinkTargetType}
+                aria-label="Link type"
+                options={[
+                  { value: 'task', label: 'Task' },
+                  { value: 'message', label: 'Message' },
+                  { value: 'doc', label: 'Document' },
+                  { value: 'file', label: 'File' },
+                ]}
+              />
             </div>
             <div>
               <label className="text-[10px] text-muted-foreground uppercase font-semibold">
                 Relation
               </label>
-              <select
+              <AppSelect
+                size="sm"
                 value={linkRelationType}
-                onChange={(e) => setLinkRelationType(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="RELATES_TO">Relates to</option>
-                <option value="RESOLVES">Resolves</option>
-                <option value="BLOCKED_BY">Blocked by</option>
-                <option value="DOCUMENTED_BY">Documented by</option>
-              </select>
+                onValueChange={setLinkRelationType}
+                aria-label="Relation"
+                options={[
+                  { value: 'RELATES_TO', label: 'Relates to' },
+                  { value: 'RESOLVES', label: 'Resolves' },
+                  { value: 'BLOCKED_BY', label: 'Blocked by' },
+                  { value: 'DOCUMENTED_BY', label: 'Documented by' },
+                ]}
+              />
             </div>
           </div>
           <div>

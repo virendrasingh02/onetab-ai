@@ -877,52 +877,44 @@ describe('toReaders', () => {
   const alice = '@alice:example.org';
   const bob = '@bob:example.org';
 
-  it('maps receipts for an event to MessageReader list', () => {
-    const client = fakeClient();
-    const room = {
-      roomId: '!room:example.org',
-      getReceiptsForEvent: () => [
-        { userId: alice, data: { ts: 1000 } },
-        { userId: bob, data: { ts: 2000 } },
-        { userId: me, data: { ts: 3000 } }, // should be ignored (own receipt)
-      ],
-      getMember: (id: string) => ({
-        name: id === alice ? 'Alice' : 'Bob',
-        getMxcAvatarUrl: () => `mxc://example.org/${id}`,
-      }),
-    } as unknown as SdkRoom;
-
-    const readers = toReaders(client, room, '$evt-1');
-    expect(readers).toHaveLength(2);
-    expect(readers[0]).toMatchObject({
-      userId: bob,
-      displayName: 'Bob',
-      seenAt: 2000,
-    });
-    expect(readers[1]).toMatchObject({
-      userId: alice,
-      displayName: 'Alice',
-      seenAt: 1000,
-    });
+  const member = (userId: string, name: string) => ({
+    userId,
+    name,
+    membership: 'join',
+    getMxcAvatarUrl: () => `mxc://example.org/${userId}`,
   });
 
-  it('falls back to hasUserReadEvent when getReceiptsForEvent yields no receipts', () => {
+  it('lists every joined member whose read marker is at or past the event', () => {
     const client = fakeClient();
+    const ts: Record<string, number> = { [alice]: 1000, [bob]: 2000, [me]: 3000 };
     const room = {
       roomId: '!room:example.org',
-      getReceiptsForEvent: () => [],
-      getMembers: () => [
-        { userId: alice, name: 'Alice', membership: 'join', getMxcAvatarUrl: () => null },
-        { userId: bob, name: 'Bob', membership: 'join', getMxcAvatarUrl: () => null },
-        { userId: me, name: 'Me', membership: 'join', getMxcAvatarUrl: () => null },
-      ],
-      hasUserReadEvent: (userId: string, _eventId: string) => userId === alice,
+      getMembers: () => [member(alice, 'Alice'), member(bob, 'Bob'), member(me, 'Me')],
+      hasUserReadEvent: () => true,
+      getReadReceiptForUserId: (id: string) => ({ data: { ts: ts[id] } }),
     } as unknown as SdkRoom;
 
     const readers = toReaders(client, room, '$evt-1');
-    expect(readers).toHaveLength(1);
-    expect(readers[0].userId).toBe(alice);
-    expect(readers[0].displayName).toBe('Alice');
+    expect(readers.map((r) => r.userId)).toEqual([bob, alice]); // own receipt ignored, newest first
+    expect(readers[0]).toMatchObject({ displayName: 'Bob', seenAt: 2000 });
+    expect(readers[1]).toMatchObject({ displayName: 'Alice', seenAt: 1000 });
+  });
+
+  it('skips members who have not read the event or have left', () => {
+    const client = fakeClient();
+    const room = {
+      roomId: '!room:example.org',
+      getMembers: () => [
+        member(alice, 'Alice'),
+        member(bob, 'Bob'),
+        { ...member('@carol:example.org', 'Carol'), membership: 'leave' },
+      ],
+      hasUserReadEvent: () => true,
+      getReadReceiptForUserId: () => ({ data: { ts: 1 } }),
+    } as unknown as SdkRoom;
+    room.hasUserReadEvent = ((userId: string) => userId !== bob) as never;
+
+    expect(toReaders(client, room, '$evt-1').map((r) => r.userId)).toEqual([alice]);
   });
 });
 

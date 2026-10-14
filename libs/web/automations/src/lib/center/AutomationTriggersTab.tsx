@@ -8,6 +8,7 @@ import {
   SearchInput,
   Textarea,
   toast,
+  AppSelect,
 } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -278,18 +279,16 @@ export function AutomationTriggersTab() {
                     </Button>
                   </div>
                 ) : (
-                  <select
-                    className="w-full text-sm border rounded-md px-3 py-2 bg-background text-foreground"
+                  <AppSelect
                     value={selectedWorkflowId}
-                    onChange={(e) => setSelectedWorkflowId(e.target.value)}
-                  >
-                    <option value="">Select a webhook workflow…</option>
-                    {webhookWorkflows.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name} ({w.isActive ? 'Active' : 'Paused'})
-                      </option>
-                    ))}
-                  </select>
+                    onValueChange={setSelectedWorkflowId}
+                    placeholder="Select a webhook workflow…"
+                    aria-label="Webhook workflow"
+                    options={webhookWorkflows.map((w) => ({
+                      value: w.id,
+                      label: `${w.name} (${w.isActive ? 'Active' : 'Paused'})`,
+                    }))}
+                  />
                 )}
               </div>
 

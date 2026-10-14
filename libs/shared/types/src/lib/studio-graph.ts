@@ -452,18 +452,9 @@ export function compileStudioGraph(graph: {
     // Structured prompt settings (objective, goals, examples, output…) are
     // composed into the instructions — unset settings add nothing.
     const promptSettings = readPromptSettings(cfg['promptSettings']);
-    const instructions = composeAgentPrompt(baseInstructions, promptSettings);
     const responseFormat = promptResponseFormat(promptSettings);
     const variableDefaults = promptVariableDefaults(promptSettings);
     const name = labelOf(node) ?? asText(cfg['name']) ?? asText(cfg['role']) ?? 'Agent';
-    if (!instructions) {
-      issues.push({
-        nodeId: node.id,
-        level: 'warning',
-        message: `${name} has no instructions, so it will only follow its name and role.`,
-      });
-    }
-
     const model = asText(llmCfg['model']) ?? asText(cfg['model']) ?? inherited.model;
     const fallbackModel = asText(llmCfg['fallbackModel']) ?? asText(cfg['fallbackModel']);
     const temperature = asNumber(llmCfg['temperature']) ?? asNumber(cfg['temperature']);
@@ -471,7 +462,9 @@ export function compileStudioGraph(graph: {
 
     const tools: string[] = [];
     const connectors: string[] = [];
+    const toolKeys: string[] = [];
     const addTool = (tool: string | undefined) => {
+      if (tool) toolKeys.push(tool);
       const ref = tool ? parseConnectorActionRef(tool) : null;
       if (ref) {
         // `SLACK.send_message` → the runtime's `slack_send_message`.
@@ -502,6 +495,17 @@ export function compileStudioGraph(graph: {
           message: `${labelOf(toolNode) ?? toolType} can’t be used as an agent tool yet, so ${name} won’t have it.`,
         });
       }
+    }
+
+    // Tool usage notes (generated when each tool was connected) ride along only
+    // for the tools this agent actually has.
+    const instructions = composeAgentPrompt(baseInstructions, promptSettings, toolKeys);
+    if (!instructions) {
+      issues.push({
+        nodeId: node.id,
+        level: 'warning',
+        message: `${name} has no instructions, so it will only follow its name and role.`,
+      });
     }
 
     const knowledge: InlineAgentSpec['knowledge'] = [];

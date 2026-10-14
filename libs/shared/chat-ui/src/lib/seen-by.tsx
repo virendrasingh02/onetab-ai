@@ -31,6 +31,7 @@ export interface SeenByProps {
  * Formats reader timestamp in a lightweight, localized format (e.g., "2:31 PM").
  */
 export function formatReaderTime(ts: number): string {
+  if (!ts) return '';
   try {
     const d = new Date(ts);
     return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -80,7 +81,8 @@ export function SeenBy({
   }
 
   const readerCount = readers.length;
-  const isDirect = roomKind === 'direct';
+  // A single reader renders like a DM ("Seen 4:38 PM" + details popover), in any room.
+  const isDirect = roomKind === 'direct' || readerCount === 1;
 
   // 1. Direct Message representation
   if (isDirect) {
@@ -158,6 +160,7 @@ export function SeenBy({
             className,
           )}
         >
+          <CheckCheck className="size-3 text-primary shrink-0" aria-hidden="true" />
           {variant !== 'text' && (
             <UserAvatarGroup
               users={avatarUsers}

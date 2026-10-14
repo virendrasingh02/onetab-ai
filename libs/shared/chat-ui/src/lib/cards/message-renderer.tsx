@@ -23,6 +23,8 @@ export interface MessageRendererProps {
   message: Message;
   isOwn: boolean;
   isGrouped?: boolean;
+  /** Show the "Seen by" read receipt under own messages — see `ChatBubble`. */
+  showReadReceipt?: boolean;
   senderBadge?: ReactNode;
   avatarSlot?: ReactNode;
   attachmentSlot?: ReactNode;
@@ -123,6 +125,11 @@ export const MessageRenderer = memo(function MessageRenderer(
               onOpenThread={onOpenThread}
               onToggleSave={onToggleSave}
               isSaved={isSaved}
+              onReact={onReact}
+              threadReplyCount={props.threadReplyCount}
+              threadHasUnread={props.threadHasUnread}
+              threadParticipants={props.threadParticipants}
+              lastReplyAt={props.lastReplyAt}
             />
           </div>
         );

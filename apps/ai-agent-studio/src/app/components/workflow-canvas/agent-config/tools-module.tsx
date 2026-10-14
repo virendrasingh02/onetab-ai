@@ -1,8 +1,8 @@
 import { agentsApi } from '@org/api-client';
 import { AppSelect, Badge, Button, Checkbox, confirm, Input, SearchInput, Textarea, Label } from '@org/ui';
 import { cn } from '@org/utils';
-import { connectorActionRef, READ_ONLY_AGENT_TOOLS, type CanvasToolPolicy, type ConnectorCapability, type ConnectorSummary } from '@org/types';
-import { ChevronRight, ExternalLink, Eye, Loader2, Play, Plug, ShieldAlert, Trash2, Wrench } from 'lucide-react';
+import { connectorActionRef, generateToolGuidance, readPromptSettings, READ_ONLY_AGENT_TOOLS, type ToolGuidanceSource, type CanvasToolPolicy, type ConnectorCapability, type ConnectorSummary } from '@org/types';
+import { ChevronRight, ExternalLink, Eye, Loader2, Play, Plug, RefreshCw, ShieldAlert, Trash2, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppConnectorIcon } from '../../common/app-connector-icon.jsx';
 import { runConnectorAction, usableConnection, useConnectors } from '../../../services/connectors.js';
@@ -44,8 +44,37 @@ export function ToolsModule({ view, agent, issues, readOnly, setConfig, actions,
   const capabilityOf = (e: ToolEntryView) => connectors.data?.find((c) => c.provider === e.provider)?.capabilities.find((c) => c.id === e.actionId);
   const connectorOf = (e: ToolEntryView) => connectors.data?.find((c) => c.provider === e.provider);
 
+  const promptSettings = readPromptSettings(cfg['promptSettings']);
+  const guidanceSource = (key: string): ToolGuidanceSource | null => {
+    const cap = connectors.data?.flatMap((c) => c.capabilities.map((k) => ({ c, k }))).find((x) => x.k.actionRef === key);
+    if (cap) {
+      return { toolName: cap.k.toolName, label: cap.k.label, description: cap.k.description, app: cap.c.name, permissionLevel: cap.k.permissionLevel, requiresConfirmation: cap.k.requiresConfirmation, inputSchema: cap.k.inputSchema };
+    }
+    const tool = builtin.data?.find((t) => t.name === key);
+    if (!tool) return null;
+    return {
+      toolName: tool.name,
+      label: tool.name.replace(/_/g, ' '),
+      description: tool.description,
+      permissionLevel: READ_ONLY_AGENT_TOOLS.includes(tool.name) ? 'read' : 'write',
+      inputSchema: { properties: tool.parameters },
+    };
+  };
+  const setGuidance = (guidance: Record<string, string>, tools?: string[]) =>
+    setConfig(view.agentId, { ...(tools ? { tools } : {}), promptSettings: { ...promptSettings, toolGuidance: guidance } });
   const setTools = (next: string[]) => setConfig(view.agentId, { tools: next });
-  const toggleTool = (name: string, on: boolean) => setTools(on ? [...new Set([...toolList, name])] : toolList.filter((t) => t !== name && !(name === 'search_docs' && t === 'kb_search')));
+  /** Turning a tool on writes its usage note into the prompt; turning it off drops it. */
+  const toggleTool = (name: string, on: boolean) => {
+    const next = on ? [...new Set([...toolList, name])] : toolList.filter((t) => t !== name && !(name === 'search_docs' && t === 'kb_search'));
+    const guidance = { ...promptSettings.toolGuidance };
+    if (!on) delete guidance[name];
+    else if (!guidance[name]) {
+      const src = guidanceSource(name);
+      if (src) guidance[name] = generateToolGuidance(src);
+    }
+    if (JSON.stringify(guidance) === JSON.stringify(promptSettings.toolGuidance)) setTools(next);
+    else setGuidance(guidance, next);
+  };
   const setPolicy = (key: string, policy: string) => {
     const next = { ...view.tools.policies } as Record<string, CanvasToolPolicy>;
     if (policy === 'default') delete next[key];
@@ -127,6 +156,45 @@ export function ToolsModule({ view, agent, issues, readOnly, setConfig, actions,
 
       <BuiltinTools builtin={builtin} enabled={view.tools.builtinNames} readOnly={readOnly} onToggle={toggleTool} />
       <AppTools connectors={connectors} enabledRefs={toolList} readOnly={readOnly} onToggle={toggleTool} />
+
+      <SettingSection id="guidance" title="Tool instructions" description="Written for you when a tool is turned on and added to the agent’s prompt. Edit freely, or regenerate from the tool’s definition.">
+        {entries.filter((e) => !e.nodeId).length === 0 && <p className="text-[11px] text-muted-foreground">Enable a tool to get instructions for it.</p>}
+        <ul className="space-y-2">
+          {entries
+            .filter((e) => !e.nodeId)
+            .map((e) => {
+              const src = guidanceSource(e.key);
+              const note = promptSettings.toolGuidance[e.key];
+              return (
+                <li key={e.key} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium capitalize text-foreground">{src?.label ?? e.label}</span>
+                    {!readOnly && src && (
+                      <Button type="button" variant="ghost" size="xs" onClick={() => setGuidance({ ...promptSettings.toolGuidance, [e.key]: generateToolGuidance(src) })}>
+                        <RefreshCw className="size-3" />
+                        {note ? 'Regenerate' : 'Generate'}
+                      </Button>
+                    )}
+                  </div>
+                  <Textarea
+                    minRows={2}
+                    maxRows={8}
+                    value={note ?? ''}
+                    disabled={readOnly}
+                    placeholder="No instructions — the model only sees the tool’s name and description."
+                    aria-label={`Instructions for ${e.label}`}
+                    onChange={(ev) => {
+                      const g = { ...promptSettings.toolGuidance, [e.key]: ev.target.value };
+                      if (!ev.target.value.trim()) delete g[e.key];
+                      setGuidance(g);
+                    }}
+                    className="text-[11px]"
+                  />
+                </li>
+              );
+            })}
+        </ul>
+      </SettingSection>
 
       <SettingSection id="permissions" title="Permissions" description="A canvas can only tighten permissions. Actions an app marks as needing confirmation, and deletes, always wait for approval.">
         {entries.length === 0 && <p className="text-[11px] text-muted-foreground">Enable a tool first.</p>}

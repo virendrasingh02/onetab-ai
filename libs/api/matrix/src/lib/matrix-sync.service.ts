@@ -35,7 +35,7 @@ export class MatrixSyncService {
   /** Matches the Matrix user id of a bot identity we provisioned (agent/app),
    *  regardless of which side of `agent-`/`app-` it is or what the localpart
    *  suffix is — see `toMatrixLocalpart`/`MatrixAuthService.resolveAgentIdentity`. */
-  private static readonly BOT_INVITE_PATTERN = /^@onetab_(agent|app)-/;
+  private static readonly BOT_INVITE_PATTERN = /^@onetab_(agent|coworker|app)-/;
 
   constructor(
     private readonly prisma: PrismaService,

@@ -3,7 +3,10 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent, type AgentChangeAction } from '@org/api-common';
 import { PrismaService, type Prisma } from '@org/database';
 import { creatorCanPostToChannel } from './agent-output-delivery.service.js';
 import {
@@ -88,7 +91,15 @@ export interface UpdateEntityDto {
 export class AIEntitiesService {
   private readonly logger = new Logger(AIEntitiesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly events?: EventEmitter2,
+  ) {}
+
+  /** Tells every open tab this agent/coworker changed (realtime `agent.updated`). */
+  private emitChange(workspaceId: string, agentId: string, action: AgentChangeAction) {
+    this.events?.emit(AppEvent.AgentChanged, { workspaceId, agentId, kind: 'entity', action });
+  }
 
   async getEntities(workspaceId: string, type?: AIEntityType) {
     if (type && !isAIEntityType(type)) {
@@ -313,6 +324,7 @@ export class AIEntitiesService {
       });
     }
 
+    this.emitChange(workspaceId, entity.id, 'created');
     const created = await this.getEntity(workspaceId, entity.id);
     return graph?.warnings.length ? { ...created, warnings: graph.warnings } : created;
   }
@@ -409,6 +421,7 @@ export class AIEntitiesService {
 
     if (graph) await this.syncBuilderSchedules(entityId, graph.schedules);
 
+    this.emitChange(workspaceId, entityId, 'updated');
     return {
       ...updated,
       permissions: parsePermissions(updated.permissions),
@@ -527,6 +540,7 @@ export class AIEntitiesService {
   async deleteEntity(workspaceId: string, entityId: string): Promise<void> {
     await this.assertEntity(workspaceId, entityId);
     await this.prisma.aIAgent.delete({ where: { id: entityId } });
+    this.emitChange(workspaceId, entityId, 'deleted');
   }
 
   async linkAgent(workspaceId: string, coworkerId: string, agentId: string) {

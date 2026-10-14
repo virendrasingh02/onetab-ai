@@ -113,6 +113,7 @@ export class AgentStudioService {
     });
     await this.automations.snapshot(workspaceId, workflow.id, { summary: describeBlueprintChanges(null, blueprint) });
     if (activate) await this.setState(workspaceId, workflow.id, 'active');
+    this.automations.emitAgentChange(workspaceId, workflow.id, 'created');
     return this.get(workspaceId, workflow.id, userId);
   }
 
@@ -155,6 +156,7 @@ export class AgentStudioService {
       },
     });
     await this.automations.snapshot(workspaceId, workflowId, { summary: describeBlueprintChanges(before, blueprint) });
+    this.automations.emitAgentChange(workspaceId, workflowId, 'updated');
     return this.get(workspaceId, workflowId, userId);
   }
 
@@ -337,6 +339,7 @@ export class AgentStudioService {
     } else {
       await this.prisma.automationWorkflow.update({ where: { id: workflowId }, data: { archivedAt: null } });
     }
+    this.automations.emitAgentChange(workspaceId, workflowId, 'state');
     return { id: workflowId, state };
   }
 
@@ -359,6 +362,7 @@ export class AgentStudioService {
       },
     });
     await this.automations.snapshot(workspaceId, copy.id, { summary: `Duplicated from “${workflow.name}”` });
+    this.automations.emitAgentChange(workspaceId, copy.id, 'created');
     return this.get(workspaceId, copy.id, userId);
   }
 

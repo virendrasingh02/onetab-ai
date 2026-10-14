@@ -135,7 +135,7 @@ import {
   CommandNode,
   MentionNode,
 } from './lexical-nodes.js';
-import type { SlashCommand } from './slash-commands.js';
+import type { SlashCommand, SlashCommandSource } from './slash-commands.js';
 
 /**
  * Classes the editor hangs on the DOM it renders.
@@ -1417,6 +1417,26 @@ function ChannelMentionsPlugin({
   );
 }
 
+/** Logo tile for an app/agent/coworker row in the `/` menu. */
+function SlashSourceIcon({ source }: { source: SlashCommandSource }) {
+  if (source.avatarUrl) {
+    return (
+      <img
+        src={source.avatarUrl}
+        alt=""
+        className="size-7 shrink-0 rounded-md object-cover"
+      />
+    );
+  }
+  const Icon =
+    source.kind === 'agent' ? Bot : source.kind === 'coworker' ? Sparkles : Blocks;
+  return (
+    <span className="size-7 flex shrink-0 items-center justify-center rounded-md border border-accent-violet/20 bg-accent-violet-soft text-accent-violet">
+      <Icon className="size-3.5" />
+    </span>
+  );
+}
+
 class CommandMenuOption extends MenuOption {
   constructor(readonly command: SlashCommand) {
     super(`command-${command.name}`);
@@ -1450,15 +1470,21 @@ function SlashCommandsPlugin({
 
   const options = useMemo(() => {
     const needle = (query ?? '').toLowerCase().trim();
-    return commands
-      .filter(
-        (command) =>
-          !needle ||
-          command.name.slice(1).toLowerCase().startsWith(needle) ||
-          command.description.toLowerCase().includes(needle),
-      )
-      .slice(0, 12)
-      .map((command) => new CommandMenuOption(command));
+    const matches = (command: SlashCommand) =>
+      !needle ||
+      command.name.slice(1).toLowerCase().startsWith(needle) ||
+      command.title?.toLowerCase().includes(needle) ||
+      command.source?.label.toLowerCase().includes(needle) ||
+      command.description.toLowerCase().includes(needle);
+
+    // Built-ins first, then each configured app / agent's entries in the order
+    // they were supplied. Built-ins keep the short cap; configured entries get
+    // a wider one (the list scrolls) so a connected app's actions aren't cut.
+    const builtIn = commands.filter((c) => !c.source && matches(c));
+    const contributed = commands.filter((c) => c.source && matches(c));
+    return [...builtIn.slice(0, 12), ...contributed.slice(0, 40)].map(
+      (command) => new CommandMenuOption(command),
+    );
   }, [commands, query]);
 
   const onSelectOption = useCallback(
@@ -1483,15 +1509,22 @@ function SlashCommandsPlugin({
           return;
         }
 
-        const chip = $createCommandNode(option.command.name);
+        const { insert } = option.command;
+        const chip = insert?.mention
+          ? $createMentionNode(
+              insert.mention.name,
+              insert.mention.id,
+              insert.mention.kind,
+            )
+          : $createCommandNode(option.command.name);
         if (nodeToReplace) {
           nodeToReplace.replace(chip);
         } else {
           $insertNodes([chip]);
         }
-        const spacer = $createTextNode(' ');
+        const spacer = $createTextNode(insert?.text ? ` ${insert.text}` : ' ');
         chip.insertAfter(spacer);
-        spacer.select();
+        spacer.selectEnd();
         closeMenu();
       });
     },
@@ -1530,33 +1563,66 @@ function SlashCommandsPlugin({
                 No matching commands found
               </li>
             ) : (
-              options.map((option, index) => (
-                <MenuItem
-                  key={option.key}
-                  id={`command-option-${index}`}
-                  option={option}
-                  isSelected={selectedIndex === index}
-                  onHighlight={() => setHighlightedIndex(index)}
-                  onSelect={() => selectOptionAndCleanUp(option)}
-                >
-                  <span className="size-6 flex shrink-0 items-center justify-center rounded-md border border-info/20 bg-info/10 text-info-text">
-                    {renderCommandIcon(option.command.icon)}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="font-semibold block truncate text-info-text">
-                      {option.command.name}
-                      {option.command.args ? (
-                        <span className="ml-1 font-normal text-muted-foreground">
-                          {option.command.args}
-                        </span>
-                      ) : null}
+              options.map((option, index) => {
+                const { command } = option;
+                const source = command.source;
+                return (
+                  <MenuItem
+                    key={option.key}
+                    id={`command-option-${index}`}
+                    option={option}
+                    isSelected={selectedIndex === index}
+                    onHighlight={() => setHighlightedIndex(index)}
+                    onSelect={() => selectOptionAndCleanUp(option)}
+                  >
+                    {source ? (
+                      <SlashSourceIcon source={source} />
+                    ) : (
+                      <span className="size-6 flex shrink-0 items-center justify-center rounded-md border border-info/20 bg-info/10 text-info-text">
+                        {renderCommandIcon(command.icon)}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={`font-semibold block truncate ${
+                          source ? 'text-foreground' : 'text-info-text'
+                        }`}
+                      >
+                        {source ? (command.title ?? command.name) : command.name}
+                        {command.args && !source ? (
+                          <span className="ml-1 font-normal text-muted-foreground">
+                            {command.args}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="block truncate text-[10px] text-muted-foreground">
+                        {source ? (
+                          <>
+                            <span className="font-medium text-foreground/70">
+                              {source.kind === 'app'
+                                ? 'App'
+                                : source.kind === 'agent'
+                                  ? 'Agent'
+                                  : 'Coworker'}{' '}
+                              · {source.label}
+                            </span>
+                            {command.description
+                              ? ` · ${command.description}`
+                              : ''}
+                          </>
+                        ) : (
+                          command.description
+                        )}
+                      </span>
                     </span>
-                    <span className="block truncate text-[10px] text-muted-foreground">
-                      {option.command.description}
-                    </span>
-                  </span>
-                </MenuItem>
-              ))
+                    {selectedIndex === index ? (
+                      <kbd className="rounded border border-border/60 bg-background/70 px-1.5 py-0.5 font-mono text-[10px] shrink-0 text-muted-foreground">
+                        Enter
+                      </kbd>
+                    ) : null}
+                  </MenuItem>
+                );
+              })
             )}
           </MenuShell>,
           anchorRef.current,

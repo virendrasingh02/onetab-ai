@@ -1,4 +1,11 @@
 export {
+  invalidateAgentCaches,
+  invalidateRunCaches,
+  scheduleAgentCacheRefresh,
+  scheduleRunCacheRefresh,
+} from './lib/agent-cache.js';
+
+export {
   ApiError,
   getAccessToken,
   http,

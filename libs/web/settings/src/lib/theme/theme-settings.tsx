@@ -7,7 +7,7 @@ import {
   type RadiusPreset,
   type ThemePreset,
 } from '@org/design-system';
-import { toast } from '@org/ui';
+import { toast, AppSelect } from '@org/ui';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { ThemeCustomizer } from './theme-customizer.js';
@@ -212,17 +212,13 @@ export function ThemeSettings() {
                 Adjust the spacing, padding, and height of buttons and inputs
               </p>
             </div>
-            <select
+            <AppSelect
               value={density}
-              onChange={(e) => setDensity(e.target.value as Density)}
-              className="h-8 rounded-lg border border-border bg-surface px-3 text-xs text-foreground outline-none"
-            >
-              {DENSITIES.map((d) => (
-                <option key={d} value={d}>
-                  {d.charAt(0).toUpperCase() + d.slice(1)}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => setDensity(v as Density)}
+              options={DENSITIES.map((d) => ({ value: d, label: d.charAt(0).toUpperCase() + d.slice(1) }))}
+              className="w-36"
+              aria-label="Control density"
+            />
           </div>
 
           <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
@@ -232,17 +228,13 @@ export function ThemeSettings() {
                 Customize the rounded curve on cards, popups, and buttons
               </p>
             </div>
-            <select
+            <AppSelect
               value={radius}
-              onChange={(e) => setRadius(e.target.value as RadiusPreset)}
-              className="h-8 rounded-lg border border-border bg-surface px-3 text-xs text-foreground outline-none"
-            >
-              {RADII.map((r) => (
-                <option key={r} value={r}>
-                  {r.toUpperCase()}
-                </option>
-              ))}
-            </select>
+              onValueChange={(v) => setRadius(v as RadiusPreset)}
+              options={RADII.map((r) => ({ value: r, label: r.toUpperCase() }))}
+              className="w-36"
+              aria-label="Corner radius"
+            />
           </div>
         </div>
       </div>

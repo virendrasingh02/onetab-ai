@@ -1,4 +1,5 @@
 import { cn } from '@org/utils';
+import { AppSelect } from './app-select.js';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { Button } from './button.js';
@@ -69,17 +70,14 @@ export function Pagination({
         {onPageSizeChange && pageSize !== undefined && (
           <div className="flex items-center gap-1.5 ml-2">
             <span className="text-[11px] text-subtle">Rows per page:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="h-6 rounded-btn border border-border bg-surface px-1.5 text-xs text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              {pageSizeOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
+            <AppSelect
+              size="sm"
+              className="w-20"
+              value={String(pageSize)}
+              onValueChange={(v) => onPageSizeChange(Number(v))}
+              aria-label="Rows per page"
+              options={pageSizeOptions.map((opt) => ({ value: String(opt), label: String(opt) }))}
+            />
           </div>
         )}
       </div>

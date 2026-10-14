@@ -55,6 +55,12 @@ export interface AgentPromptSettings {
   output: { format: PromptOutputFormat; schema: string };
   reasoning: { plan: boolean; selfCheck: boolean; askWhenUnclear: boolean };
   safety: { citeSources: boolean; noFabrication: boolean; protectPersonalData: boolean; escalation: string };
+  /**
+   * Usage notes per enabled tool, keyed by the tool's key in the agent's `tools`
+   * (`SLACK.send_message`, `search_docs`). Generated when the tool is connected;
+   * editable. Only notes for tools that are still enabled reach the prompt.
+   */
+  toolGuidance: Record<string, string>;
 }
 
 export const DEFAULT_PROMPT_SETTINGS: AgentPromptSettings = {
@@ -69,6 +75,7 @@ export const DEFAULT_PROMPT_SETTINGS: AgentPromptSettings = {
   output: { format: 'auto', schema: '' },
   reasoning: { plan: false, selfCheck: false, askWhenUnclear: false },
   safety: { citeSources: false, noFabrication: false, protectPersonalData: false, escalation: '' },
+  toolGuidance: {},
 };
 
 const obj = (v: unknown): Record<string, unknown> =>
@@ -124,7 +131,51 @@ export function readPromptSettings(raw: unknown): AgentPromptSettings {
       protectPersonalData: bool(safety['protectPersonalData']),
       escalation: str(safety['escalation']),
     },
+    toolGuidance: Object.fromEntries(
+      Object.entries(obj(r['toolGuidance'])).filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].trim() !== ''),
+    ),
   };
+}
+
+/** What `generateToolGuidance` needs to know about a tool (connector action or built-in). */
+export interface ToolGuidanceSource {
+  /** Runtime function name the model sees. */
+  toolName: string;
+  label: string;
+  description?: string;
+  /** App name for connector actions. */
+  app?: string;
+  permissionLevel?: 'read' | 'write' | 'destructive';
+  requiresConfirmation?: boolean;
+  inputSchema?: { properties?: Record<string, { type?: string; description?: string }>; required?: string[] } | Record<string, unknown>;
+}
+
+/**
+ * A short, editable usage note for one tool, built from its manifest: what it
+ * is for, which inputs it needs, and the care its risk level calls for.
+ */
+export function generateToolGuidance(tool: ToolGuidanceSource): string {
+  const schema = (tool.inputSchema ?? {}) as { properties?: Record<string, { type?: string; description?: string }>; required?: string[] };
+  const props = Object.entries(schema.properties ?? {});
+  const required = new Set(schema.required ?? []);
+  const desc = (tool.description ?? '').trim().replace(/\s+/g, ' ');
+  const lines: string[] = [];
+  lines.push(`Use \`${tool.toolName}\`${tool.app ? ` (${tool.app})` : ''} to ${desc ? desc.charAt(0).toLowerCase() + desc.slice(1).replace(/\.$/, '') : tool.label.toLowerCase()}.`);
+  if (props.length) {
+    const fields = props.map(([name, p]) => `\`${name}\`${required.has(name) ? ' (required)' : ''}${p.description ? ` — ${p.description.trim().replace(/\.$/, '')}` : ''}`);
+    lines.push(`Inputs: ${fields.join('; ')}.`);
+    if (required.size) lines.push('Ask for any required input you don’t have rather than guessing it.');
+  }
+  if (tool.permissionLevel === 'destructive') {
+    lines.push('This permanently changes or deletes data: confirm the exact target with the person first.');
+  } else if (tool.permissionLevel === 'write') {
+    lines.push('This changes data: call it only when the person asked for the change, then report what you did.');
+  } else {
+    lines.push('This only reads data: call it freely when you need facts instead of answering from memory.');
+  }
+  if (tool.requiresConfirmation) lines.push('A person approves each call, so make it count: one call with complete inputs.');
+  lines.push('If it fails, say what failed and don’t retry with invented values.');
+  return lines.join(' ');
 }
 
 const VARIABLE_NAME = /^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$/;
@@ -152,7 +203,7 @@ export function promptResponseFormat(settings: AgentPromptSettings): 'plain' | '
  * structured sections that are set. Settings left at their defaults add
  * nothing, so an agent that never opened these settings runs exactly as before.
  */
-export function composeAgentPrompt(instructions: string, settings: AgentPromptSettings): string {
+export function composeAgentPrompt(instructions: string, settings: AgentPromptSettings, enabledTools?: readonly string[]): string {
   const parts: string[] = [];
   const base = (instructions || '').trim();
   if (base) parts.push(base);
@@ -165,6 +216,9 @@ export function composeAgentPrompt(instructions: string, settings: AgentPromptSe
   if (settings.goals.length) section('Goals', bullets(settings.goals));
   if (settings.constraints.length) section('Constraints', bullets(settings.constraints));
   if (settings.successCriteria.length) section('A good answer', bullets(settings.successCriteria));
+
+  const toolNotes = Object.entries(settings.toolGuidance).filter(([key]) => !enabledTools || enabledTools.includes(key));
+  if (toolNotes.length) section('Tools', toolNotes.map(([, note]) => `- ${note.trim()}`).join('\n'));
 
   const work: string[] = [];
   if (settings.reasoning.plan) work.push('Before acting, make a short plan of the steps and tools you need.');

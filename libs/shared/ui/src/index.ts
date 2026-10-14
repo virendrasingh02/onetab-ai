@@ -174,6 +174,14 @@ export {
   CollapsibleTrigger,
 } from './lib/components/collapsible.js';
 
+export { NativeTitleTooltips } from './lib/components/native-title-tooltips.js';
+
+export {
+  PromptComposer,
+  type PromptComposerAction,
+  type PromptComposerProps,
+} from './lib/components/prompt-composer.js';
+
 export {
   Hint,
   Tooltip,

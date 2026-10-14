@@ -3,7 +3,7 @@ import { TooltipProvider } from '@org/ui';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { SystemEventCard, getSystemEventActions } from './system-event-card.js';
+import { SystemEventCard } from './system-event-card.js';
 
 function renderWithProviders(ui: React.ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
@@ -156,43 +156,5 @@ describe('SystemEventCard', () => {
 
     expect(screen.getByText('👍')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
-  });
-});
-
-describe('getSystemEventActions', () => {
-  const event = createEvent({
-    target: { kind: 'app', id: 'int-1', name: 'Outlook Calendar' },
-  });
-
-  it('always offers Copy event', () => {
-    const actions = getSystemEventActions(event, {});
-    expect(actions.some((a) => a.id === 'copy_event')).toBe(true);
-  });
-
-  it('offers "View app" only when a view handler is supplied and the target is live', () => {
-    expect(getSystemEventActions(event, {}).some((a) => a.id === 'view_target')).toBe(false);
-
-    const withHandler = getSystemEventActions(event, { onViewEntity: vi.fn() });
-    expect(withHandler.some((a) => a.id === 'view_target' && a.label === 'View app')).toBe(true);
-  });
-
-  it('never offers "View app" for a deleted entity', () => {
-    const deletedEvent = createEvent({
-      target: { kind: 'app', id: 'gone', name: 'Deleted app', isDeleted: true },
-    });
-    const actions = getSystemEventActions(deletedEvent, { onViewEntity: vi.fn() });
-    expect(actions.some((a) => a.id === 'view_target')).toBe(false);
-  });
-
-  it('offers "Delete event" only to someone who can manage the conversation', () => {
-    const onDelete = vi.fn();
-    expect(getSystemEventActions(event, { onDelete }).some((a) => a.id === 'delete_event')).toBe(false);
-    expect(
-      getSystemEventActions(event, { canManage: true, onDelete }).some((a) => a.id === 'delete_event'),
-    ).toBe(true);
-    // Even an admin gets nothing to click without a delete handler wired up.
-    expect(
-      getSystemEventActions(event, { canManage: true }).some((a) => a.id === 'delete_event'),
-    ).toBe(false);
   });
 });

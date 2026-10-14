@@ -1,3 +1,4 @@
+import { AppSelect } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   FolderGit2,
@@ -143,29 +144,35 @@ export function ViewDisplayMenu({
       <div className="space-y-3 pt-2 border-t border-border/60">
         <div className="flex items-center justify-between">
           <span className="font-semibold text-foreground">Group By</span>
-          <select
+          <AppSelect
+            size="sm"
+            className="w-32"
             value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value as any)}
-            className="bg-muted/60 border border-border/80 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="status">Status</option>
-            <option value="priority">Priority</option>
-            <option value="assignee">Assignee</option>
-          </select>
+            onValueChange={(v) => setGroupBy(v as any)}
+            aria-label="Group by"
+            options={[
+              { value: 'status', label: 'Status' },
+              { value: 'priority', label: 'Priority' },
+              { value: 'assignee', label: 'Assignee' },
+            ]}
+          />
         </div>
 
         <div className="flex items-center justify-between">
           <span className="font-semibold text-foreground">Order By</span>
-          <select
+          <AppSelect
+            size="sm"
+            className="w-32"
             value={orderBy}
-            onChange={(e) => setOrderBy(e.target.value as any)}
-            className="bg-muted/60 border border-border/80 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="manual">Manual</option>
-            <option value="priority">Priority</option>
-            <option value="due">Due Date</option>
-            <option value="created">Created</option>
-          </select>
+            onValueChange={(v) => setOrderBy(v as any)}
+            aria-label="Order by"
+            options={[
+              { value: 'manual', label: 'Manual' },
+              { value: 'priority', label: 'Priority' },
+              { value: 'due', label: 'Due Date' },
+              { value: 'created', label: 'Created' },
+            ]}
+          />
         </div>
       </div>
 

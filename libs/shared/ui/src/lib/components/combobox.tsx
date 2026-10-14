@@ -314,7 +314,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
           className={cn(
             'group relative flex w-full cursor-pointer select-none items-center rounded-btn px-2 py-1.5 text-xs outline-none transition-colors duration-(--duration-fast) ease-standard text-left',
             isHighlighted && 'bg-accent text-accent-foreground',
-            checked && !isHighlighted && 'bg-surface-raised font-medium text-foreground',
+            checked && 'font-medium',
             opt.disabled && 'pointer-events-none opacity-40 cursor-not-allowed',
           )}
         >
@@ -364,7 +364,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
               disabled={disabled}
               onKeyDown={handleTriggerKeyDown}
               className={cn(
-                'flex min-h-8 w-full items-center justify-between gap-1.5 rounded-input border border-input bg-surface px-2.5 py-1 text-xs text-foreground cursor-pointer shadow-xs',
+                'flex min-h-8 w-full items-center justify-between gap-1.5 rounded-input border border-input bg-surface px-2.5 py-1 text-xs text-foreground cursor-pointer',
                 'transition-colors duration-(--duration-fast) ease-standard outline-none text-left',
                 'hover:border-border-strong focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
                 disabled && 'pointer-events-none opacity-50 bg-surface-muted cursor-not-allowed',
@@ -454,7 +454,7 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
                     : popoverWidth,
               }}
               className={cn(
-                'z-50 min-w-48 rounded-popup border border-border bg-popover p-1 shadow-overlay text-popover-foreground outline-none',
+                'z-50 min-w-44 rounded-popup border border-border bg-popover p-1 shadow-overlay text-popover-foreground outline-none',
                 'max-h-(--radix-popover-content-available-height) max-w-[calc(100vw-1rem)]',
                 popoverClassName,
               )}

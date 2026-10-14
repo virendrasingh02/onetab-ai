@@ -144,6 +144,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     AppMatrixBridgeService,
   ],
   exports: [
+    AppMatrixBridgeService,
     IntegrationManagerService,
     IntegrationsService,
     ConnectorRegistryService,

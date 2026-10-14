@@ -528,7 +528,7 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <AgentConnectionsBanner agentId={agent.id} />
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex flex-1 flex-col">
     <ConversationTabsShell
       filesContext={{ type: 'AGENT', id: agent.id }}
       roomId={roomId}

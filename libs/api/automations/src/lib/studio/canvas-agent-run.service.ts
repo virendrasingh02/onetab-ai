@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent } from '@org/api-common';
 import { ConnectorRegistryService } from '@org/api-integrations';
 import { PrismaService } from '@org/database';
 import {
@@ -71,6 +73,7 @@ export class CanvasAgentRunService {
     private readonly prisma: PrismaService,
     private readonly engine: WorkflowEngineService,
     @Optional() private readonly connectors?: ConnectorRegistryService,
+    @Optional() private readonly events?: EventEmitter2,
   ) {}
 
   /** What would run, and what's wrong with it — for a saved graph or one being edited. */
@@ -143,6 +146,13 @@ export class CanvasAgentRunService {
    * owner's access, like any live run.
    */
   async setActive(workspaceId: string, agentId: string, active: boolean) {
+    const result = await this.applyActive(workspaceId, agentId, active);
+    // The agent's "on/off + schedule" shows in lists and its header everywhere.
+    this.events?.emit(AppEvent.AgentChanged, { workspaceId, agentId, kind: 'entity', action: 'state' });
+    return result;
+  }
+
+  private async applyActive(workspaceId: string, agentId: string, active: boolean) {
     const agent = await this.load(workspaceId, agentId);
     if (!active) {
       await this.prisma.automationWorkflow.updateMany({

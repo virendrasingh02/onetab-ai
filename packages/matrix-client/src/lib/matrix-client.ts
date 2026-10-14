@@ -525,6 +525,24 @@ export class OneTabMatrixClient {
         return;
       }
 
+      // An edit (`m.replace`) is not a timeline entry of its own — the SDK folds
+      // it into the original event. Without re-emitting that original, anything
+      // rewritten in place (an AI agent going queued → running → completed, a
+      // user's edited message) stays stale until the room is reloaded.
+      const edit = event.getRelation();
+      if (edit?.rel_type === 'm.replace' && edit.event_id) {
+        const targetId = edit.event_id;
+        const emitTarget = () => {
+          const original = room.findEventById(targetId);
+          const message = original ? toMessage(sdk, original, room) : null;
+          if (message) this.emit({ type: 'message.updated', message });
+        };
+        emitTarget();
+        // The SDK may apply the replacement just after this event is emitted.
+        setTimeout(emitTarget, 0);
+        return;
+      }
+
       if (
         type !== 'm.room.message' &&
         !type.startsWith('mie.') &&

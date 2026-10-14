@@ -1,4 +1,5 @@
 import {
+  connectorActionRef,
   connectorToolName,
   estimateTokens,
   composeAgentPrompt,
@@ -108,6 +109,7 @@ export const AGENT_MODULES: AgentModuleDef[] = [
       { id: 'enabled', label: 'Enabled tools', keywords: 'enabled attached remove' },
       { id: 'builtin', label: 'Built-in tools', keywords: 'built-in search docs tasks memory web firecrawl' },
       { id: 'apps', label: 'App connectors', keywords: 'apps connectors slack gmail github notion integrations' },
+      { id: 'guidance', label: 'Tool instructions', keywords: 'prompt guidance usage notes generate instructions' },
       { id: 'permissions', label: 'Permissions', keywords: 'approval ask block confirm permission read write delete' },
       { id: 'testing', label: 'Testing', keywords: 'test tool input output run' },
     ],
@@ -274,7 +276,11 @@ export function readAgentModules(agent: Node, nodes: Node[], edges: Edge[], grap
       text: promptText,
       role: text(cfg['role']),
       settings,
-      composed: composeAgentPrompt(promptText, settings),
+      composed: composeAgentPrompt(
+        promptText,
+        settings,
+        entries.map((e) => (e.kind === 'connector' && e.provider && e.actionId ? connectorActionRef(e.provider, e.actionId) : e.key.startsWith('node:') ? e.toolName : e.key)),
+      ),
     },
     llm: {
       targetNodeId: llmNode?.id ?? agent.id,

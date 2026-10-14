@@ -72,7 +72,6 @@ describe('buildChannelActions', () => {
       onLeave: noop,
     });
     expect(ids(actions)).toEqual([
-      'open',
       'split-view',
       'new-window',
       'mark-unread',
@@ -81,7 +80,6 @@ describe('buildChannelActions', () => {
       'hide',
       'copy',
       'details',
-      'edit-details',
       'add-people',
       'settings',
       'archive',
@@ -120,7 +118,7 @@ describe('buildChannelActions', () => {
       onAddPeople: vi.fn(),
       onSetArchived: vi.fn(),
     });
-    for (const id of ['edit-details', 'add-people', 'archive']) {
+    for (const id of ['add-people', 'archive']) {
       expect(find(actions, id)?.hidden).toBe(true);
     }
   });

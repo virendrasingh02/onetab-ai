@@ -20,11 +20,9 @@ import {
   Hash,
   Info,
   Link2,
-  Lock,
   LogOut,
   Mail,
   MailOpen,
-  Pencil,
   Settings,
   Star,
   Users,
@@ -147,7 +145,6 @@ export function buildChannelActions(
     hasUnread = false,
     isHidden = false,
     organizeActions = [],
-    onOpen,
     onOpenSplitView,
     onOpenDetails,
     onToggleFavorite,
@@ -176,13 +173,6 @@ export function buildChannelActions(
   };
 
   const actions: (EntityAction | false | undefined)[] = [
-    !!onOpen && {
-      id: 'open',
-      group: 'open',
-      label: 'Open channel',
-      icon: channel.visibility === 'PRIVATE' ? Lock : Hash,
-      run: onOpen,
-    },
     !!onOpenSplitView && {
       id: 'split-view',
       group: 'open',
@@ -291,22 +281,19 @@ export function buildChannelActions(
       ],
     },
 
-    !!onOpenDetails && {
+    // One entry: managers land in the editable dialog (name, description,
+    // topic); everyone else gets the read-only about panel.
+    (!!onOpenDetails || (canManage && (!!onEditDetails || !!onRename))) && {
       id: 'details',
       group: 'manage',
-      label: 'Channel details',
+      label: canManage && (onEditDetails || onRename)
+        ? 'Channel details…'
+        : 'Channel details',
       icon: Info,
-      run: () => onOpenDetails('about'),
-    },
-    // Rename lives inside the edit dialog; the quick prompt is only the
-    // fallback for hosts that cannot open it.
-    (!!onEditDetails || !!onRename) && {
-      id: 'edit-details',
-      group: 'manage',
-      label: 'Edit name & description…',
-      icon: Pencil,
-      hidden: !canManage,
-      run: onEditDetails ?? onRename,
+      run:
+        canManage && (onEditDetails || onRename)
+          ? (onEditDetails ?? onRename)
+          : () => onOpenDetails?.('about'),
     },
     !!onAddPeople && {
       id: 'add-people',

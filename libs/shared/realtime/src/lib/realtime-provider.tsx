@@ -1,5 +1,9 @@
-import { getAccessToken } from '@org/api-client';
-import { queryKeys } from '@org/api-client';
+import {
+  getAccessToken,
+  queryKeys,
+  scheduleAgentCacheRefresh,
+  scheduleRunCacheRefresh,
+} from '@org/api-client';
 import type { UserPresence } from '@org/types';
 import { useQueryClient } from '@tanstack/react-query';
 import React, {
@@ -17,6 +21,7 @@ import { RealtimeClient } from './realtime-client.js';
 import { RealtimeEventBus, type RealtimeEventHandler } from './realtime-event-bus.js';
 import {
   RealtimeEventType,
+  type AgentUpdatedPayload,
   type CommentCreatedPayload,
   type NotificationCreatedPayload,
   type NotificationReadPayload,
@@ -300,7 +305,28 @@ export function RealtimeProvider({
       queryClient.invalidateQueries({ queryKey: ['huddle', ws] });
     });
 
+    // 8. Agents — any edit/publish/toggle/delete, from any tab or teammate.
+    const unsubAgent = bus.on<AgentUpdatedPayload>(
+      RealtimeEventType.AgentUpdated,
+      (event: RealtimeEvent<AgentUpdatedPayload>) => {
+        scheduleAgentCacheRefresh(queryClient, ws, event.payload?.agentId);
+      },
+    );
+    // A run moved on — keep run lists, Studio summaries and approvals live on
+    // every screen, not just the ones that mount their own run listener.
+    const unsubRun = bus.on<{ workflowId?: string; status?: string }>(
+      RealtimeEventType.AIRunUpdated,
+      (event) => {
+        scheduleRunCacheRefresh(queryClient, ws, {
+          workflowId: event.payload?.workflowId,
+          status: event.payload?.status,
+        });
+      },
+    );
+
     return () => {
+      unsubAgent();
+      unsubRun();
       unsubNotifCreated();
       unsubNotifRead();
       unsubTaskCreated();

@@ -64,6 +64,7 @@ import { detectLinks, normalizeUrl } from './link-detector.js';
 import { LinkPreviewCard } from './link-preview-card.js';
 import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
 import { useLinkPreviewStore } from './use-link-preview.js';
+import { ReplyingToBar, type ReplyPreview } from './reply-quote.js';
 import {
   DEFAULT_SLASH_COMMANDS,
   getContextualSlashCommands,
@@ -360,6 +361,14 @@ export interface ComposerProps {
   };
   contextSlot?: ReactNode;
   /**
+   * Set while composing an inline reply: shows a "Replying to" strip above the
+   * input. Esc in the input (or the strip's ✕) calls `onCancelReply`. The host
+   * attaches the reply to the send itself.
+   */
+  replyingTo?: ReplyPreview | null;
+  onCancelReply?: () => void;
+  onJumpToReply?: () => void;
+  /**
    * Set while an existing message is being edited in place, instead of a new
    * one being composed. Swaps in the message's own content (cursor at the
    * end), suppresses draft persistence and slash-command reinterpretation for
@@ -427,6 +436,9 @@ export function Composer({
   readOnlyMessage,
   anonymousPosting,
   contextSlot,
+  replyingTo = null,
+  onCancelReply,
+  onJumpToReply,
   edit = null,
   enterToSend = true,
   onMentionsChange,
@@ -1135,6 +1147,17 @@ export function Composer({
             const files = Array.from(event.clipboardData?.files ?? []);
             if (files.length > 0) stageFiles(files);
           }}
+          onKeyDown={(event) => {
+            // An open @ / : menu handles (and prevents) its own Escape first.
+            if (
+              event.key === 'Escape' &&
+              replyingTo &&
+              onCancelReply &&
+              !event.defaultPrevented
+            ) {
+              onCancelReply();
+            }
+          }}
         >
           {isDraggingOver && dropRect && typeof document !== 'undefined'
             ? createPortal(
@@ -1164,6 +1187,14 @@ export function Composer({
                 document.body,
               )
             : null}
+
+          {replyingTo && onCancelReply && !edit ? (
+            <ReplyingToBar
+              preview={replyingTo}
+              onCancel={onCancelReply}
+              onJump={onJumpToReply}
+            />
+          ) : null}
 
           {attachments.length > 0 ? (
             <div className="gap-3 px-3.5 pt-3.5 pb-1 flex scrollbar-none items-start overflow-x-auto">

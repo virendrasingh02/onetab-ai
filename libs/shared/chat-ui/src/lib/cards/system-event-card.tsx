@@ -5,11 +5,6 @@ import type {
 } from '@org/types';
 import {
   Badge,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Hint,
   UserAvatar,
   toast,
@@ -22,20 +17,18 @@ import {
   Copy,
   Hash,
   type LucideIcon,
-  MoreHorizontal,
   Pencil,
   Plug,
   PlugZap,
   ShieldCheck,
   Smile,
-  Trash2,
   UserMinus,
   UserPlus,
   UserRoundCheck,
   UserRoundX,
   Users,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { ReactionPicker, formatFullTimestamp, formatShortTimestamp } from '../chat-bubble.js';
 import { ReactionBar } from '../reaction-bar.js';
 
@@ -139,9 +132,9 @@ function getEventTone(eventType: SystemActivityEventContent['eventType']): Event
   }
 }
 
-/** A small circular, tone-tinted marker for the event's own icon. It sits in
- * the same 40px gutter as message avatars so activity rows line up with the
- * conversation around them (brief §9, §21 `<SystemEventIcon>`). */
+/** A small circular, tone-tinted marker for the event's own icon. It sits
+ * inline before the sentence; the gutter is reserved for the entity avatar so
+ * activity rows line up with message rows (brief §9, §21 `<SystemEventIcon>`). */
 export function SystemEventIcon({
   eventType,
 }: {
@@ -152,31 +145,48 @@ export function SystemEventIcon({
     <span
       aria-hidden
       className={cn(
-        'flex size-7 shrink-0 items-center justify-center rounded-full',
+        'flex size-5 shrink-0 items-center justify-center rounded-full',
         TONE_CLASSES[getEventTone(eventType)],
       )}
     >
-      <Icon className="size-3.5" />
+      <Icon className="size-3" />
     </span>
   );
 }
 
-const ENTITY_BADGE_LABEL: Partial<Record<SystemEventEntity['kind'], string>> = {
-  app: 'APP',
-  agent: 'AI AGENT',
-  coworker: 'AI COWORKER',
-};
-
-/** The `APP` / `AI AGENT` / `AI COWORKER` type indicator (brief §10). Absent
- * for a plain user or channel — those need no disambiguating badge. */
+/** The `APP` / `AI AGENT` / `AI COWORKER` type indicator (brief §10) — the
+ * exact badges `ChatBubble` shows next to a sender. Absent for a plain user or
+ * channel — those need no disambiguating badge. */
 export function SystemEventEntityBadge({ kind }: { kind: SystemEventEntity['kind'] }) {
-  const label = ENTITY_BADGE_LABEL[kind];
-  if (!label) return null;
-  return (
-    <Badge variant="neutral" className="h-4 px-1.5 text-[9px] font-semibold tracking-wide">
-      {label}
-    </Badge>
-  );
+  const base = 'py-0 h-4 font-bold tracking-wider gap-0.5 text-[9px] uppercase';
+  if (kind === 'coworker') {
+    return (
+      <Badge
+        variant="primary"
+        className={cn(base, 'border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300')}
+      >
+        <span>AI COWORKER</span>
+      </Badge>
+    );
+  }
+  if (kind === 'agent') {
+    return (
+      <Badge variant="primary" className={base}>
+        <span>AI AGENT</span>
+      </Badge>
+    );
+  }
+  if (kind === 'app') {
+    return (
+      <Badge
+        variant="neutral"
+        className={cn(base, 'border-accent-violet/20 bg-accent-violet-soft text-accent-violet')}
+      >
+        <span>APP</span>
+      </Badge>
+    );
+  }
+  return null;
 }
 
 /** One named entity (a user, app, agent, coworker or channel), clickable when
@@ -204,7 +214,7 @@ export function SystemEventEntityName({
   const weightClass = ENTITY_NAME_WEIGHT_CLASS[weight];
 
   if (!clickable) {
-    return <span className={cn(weightClass, className)}>{label}</span>;
+    return <span className={cn('leading-5', weightClass, className)}>{label}</span>;
   }
 
   return (
@@ -212,7 +222,7 @@ export function SystemEventEntityName({
       type="button"
       onClick={() => onClick(entity)}
       className={cn(
-        'rounded-sm text-left hover:underline focus-visible:underline focus-visible:outline-none',
+        'rounded-sm text-left leading-5 hover:underline focus-visible:underline focus-visible:outline-none',
         weightClass,
         className,
       )}
@@ -243,8 +253,8 @@ function entityKindLabel(kind: SystemEventEntity['kind']): string {
 export function SystemEventEntityAvatar({ entity }: { entity: SystemEventEntity }) {
   if (entity.kind === 'channel') {
     return (
-      <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-        <Hash className="size-3" />
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <Hash className="size-4" />
       </span>
     );
   }
@@ -253,8 +263,12 @@ export function SystemEventEntityAvatar({ entity }: { entity: SystemEventEntity 
       name={entity.name}
       src={entity.avatarUrl}
       seed={entity.id ?? entity.name}
-      size="xs"
-      className="size-5"
+      size="md"
+      className={cn(
+        'size-10 rounded-full shadow-xs',
+        entity.kind === 'agent' && 'ring-2 ring-primary/40',
+        entity.kind === 'app' && 'ring-2 ring-accent-violet/40',
+      )}
       indicator={false}
     />
   );
@@ -359,7 +373,7 @@ export function SystemEventAction({
   const actor = event.actor;
 
   return (
-    <p className="text-sm text-muted-foreground">
+    <p className="m-0 text-sm leading-5 text-muted-foreground">
       {event.eventType === 'channel_renamed' && event.target ? (
         <>
           renamed this channel to{' '}
@@ -386,157 +400,55 @@ export function SystemEventTimestamp({ timestamp }: { timestamp: number }) {
     <Hint label={formatFullTimestamp(timestamp)}>
       <time
         dateTime={new Date(timestamp).toISOString()}
-        className="shrink-0 cursor-default text-[11px] text-muted-foreground tabular-nums"
+        className="shrink-0 cursor-default text-[11px] font-medium text-muted-foreground"
       >
-        {formatShortTimestamp(timestamp)}
+        {Date.now() - timestamp < 60_000 ? 'Just now' : formatShortTimestamp(timestamp)}
       </time>
     </Hint>
   );
 }
 
-// --- actions / more menu -----------------------------------------------------
+// --- actions -------------------------------------------------------------------
 
-export interface SystemEventActionDescriptor {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  onSelect: () => void;
-  destructive?: boolean;
-}
-
-export interface SystemEventActionsContext {
-  canManage?: boolean;
-  onViewEntity?: (entity: SystemEventEntity) => void;
-  onCopyEvent?: () => void;
-  onDelete?: () => void;
-}
-
-/**
- * The More-menu entries for one event — dynamically aware of what the event
- * actually names, so "View app" only appears on an app event and "Delete
- * event" only for someone who can manage the conversation (brief §11, §12).
- */
-export function getSystemEventActions(
-  event: SystemActivityEventContent,
-  ctx: SystemEventActionsContext,
-): SystemEventActionDescriptor[] {
-  const actions: SystemEventActionDescriptor[] = [];
-
-  actions.push({
-    id: 'copy_event',
-    label: 'Copy event',
-    icon: Copy,
-    onSelect: () => ctx.onCopyEvent?.(),
-  });
-
-  const target = event.target;
-  if (target && !target.isDeleted && target.id && ctx.onViewEntity) {
-    actions.push({
-      id: 'view_target',
-      label: `View ${entityKindLabel(target.kind)}`,
-      icon: target.kind === 'user' ? UserRoundCheck : Bot,
-      onSelect: () => ctx.onViewEntity?.(target),
-    });
-  }
-
-  if (ctx.canManage && ctx.onDelete) {
-    actions.push({
-      id: 'delete_event',
-      label: 'Delete event',
-      icon: Trash2,
-      destructive: true,
-      onSelect: () => ctx.onDelete?.(),
-    });
-  }
-
-  return actions;
-}
-
-/** The hover toolbar — reactions (when the event type allows them) plus the
- * dynamic More menu (brief §11). Reuses the exact reaction infrastructure
- * every other message uses (`onReact` → the same backend/Matrix reaction
- * path `ChatBubble` calls), never a second implementation (brief §13). */
+/** The hover toolbar — reactions (when the event type allows them) plus a
+ * one-click Copy. Reuses the exact reaction infrastructure every other message
+ * uses (`onReact` → the same backend/Matrix reaction path `ChatBubble` calls),
+ * never a second implementation (brief §13). Copy is the only extra action, so
+ * it is a direct button rather than a one-item menu. */
 function SystemEventActions({
   event,
   onReact,
-  actions,
+  onCopy,
 }: {
   event: SystemActivityEventContent;
   onReact?: (key: string) => void;
-  actions: SystemEventActionDescriptor[];
+  onCopy: () => void;
 }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReactionOpen, setIsReactionOpen] = useState(false);
   const showReact = event.capabilities.reactions && onReact;
+  const buttonClass =
+    'size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground';
 
   return (
     <div
       className={cn(
         '-top-3.5 right-4 p-0.5 absolute z-20 items-center rounded-lg border border-border bg-surface-raised shadow-lg',
-        isMenuOpen || isReactionOpen
-          ? 'flex'
-          : 'hidden group-focus-within/message:flex group-hover/message:flex',
+        isReactionOpen ? 'flex' : 'hidden group-focus-within/message:flex group-hover/message:flex',
       )}
     >
       {showReact ? (
         <ReactionPicker onSelect={onReact} open={isReactionOpen} onOpenChange={setIsReactionOpen}>
-          <button
-            aria-label="Add a reaction"
-            className="size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
+          <button aria-label="Add a reaction" className={buttonClass}>
             <Smile className="size-4" />
           </button>
         </ReactionPicker>
       ) : null}
-
-      {actions.length > 0 ? (
-        <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-          <DropdownMenuTrigger asChild>
-            <button
-              aria-label="More actions"
-              className={cn(
-                'size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                isMenuOpen && 'bg-accent text-foreground',
-              )}
-            >
-              <MoreHorizontal className="size-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            side="bottom"
-            sideOffset={4}
-            className="w-52 z-50 border-border bg-popover text-popover-foreground shadow-overlay"
-          >
-            {actions.map((action, index) => (
-              <ReactNodeMenuItem key={action.id} action={action} showSeparatorBefore={action.destructive && index > 0} />
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : null}
+      <Hint label="Copy event">
+        <button type="button" aria-label="Copy event" onClick={onCopy} className={buttonClass}>
+          <Copy className="size-4" />
+        </button>
+      </Hint>
     </div>
-  );
-}
-
-function ReactNodeMenuItem({
-  action,
-  showSeparatorBefore,
-}: {
-  action: SystemEventActionDescriptor;
-  showSeparatorBefore?: boolean;
-}): ReactNode {
-  const Icon = action.icon;
-  return (
-    <>
-      {showSeparatorBefore ? <DropdownMenuSeparator /> : null}
-      <DropdownMenuItem
-        onSelect={action.onSelect}
-        className={cn('hover:bg-accent', action.destructive && 'text-destructive-text')}
-      >
-        <Icon className="mr-2 size-4" />
-        {action.label}
-      </DropdownMenuItem>
-    </>
   );
 }
 
@@ -554,10 +466,8 @@ export function SystemEventCard({
   message,
   event,
   isHighlighted = false,
-  canManage = false,
   onReact,
   onViewEntity,
-  onDelete,
 }: SystemEventCardProps) {
   const primaryEntity = event.target ?? event.actor;
 
@@ -567,43 +477,45 @@ export function SystemEventCard({
       .then(() => toast.success('Event copied'));
   };
 
-  const actions = getSystemEventActions(event, {
-    canManage,
-    onViewEntity,
-    onCopyEvent: handleCopyEvent,
-    onDelete,
-  });
-
   return (
     <article
       data-message-id={message.id}
       aria-label={message.body}
       className={cn(
-        'group/message relative flex items-center gap-4 px-4 py-1.5 text-sm transition-colors hover:bg-accent/60',
+        'group/message relative flex min-h-11 items-center gap-4 px-4 py-1.5 text-sm transition-colors hover:bg-accent/60',
         isHighlighted && 'border-l-2 border-l-primary',
       )}
     >
-      <div className="flex w-10 shrink-0 justify-center">
-        <SystemEventIcon eventType={event.eventType} />
+      <div className="flex w-10 shrink-0 justify-center self-start">
+        {primaryEntity ? (
+          <SystemEventEntityAvatar entity={primaryEntity} />
+        ) : (
+          <SystemEventIcon eventType={event.eventType} />
+        )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1">
+      <div className="min-w-0 flex-1">
         {primaryEntity ? (
-          <>
-            <SystemEventEntityAvatar entity={primaryEntity} />
+          <header className="flex items-baseline gap-2">
             <SystemEventEntityName
               entity={primaryEntity}
               onClick={onViewEntity}
-              weight="semibold"
-              className="text-foreground"
+              weight="bold"
+              className="text-message text-foreground"
             />
             <SystemEventEntityBadge kind={primaryEntity.kind} />
-          </>
+            <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
+          </header>
         ) : null}
-        <SystemEventAction event={event} onViewEntity={onViewEntity} />
-        <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
+        <div className="flex items-center gap-1.5">
+          {primaryEntity ? <SystemEventIcon eventType={event.eventType} /> : null}
+          <SystemEventAction event={event} onViewEntity={onViewEntity} />
+          {primaryEntity ? null : (
+            <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
+          )}
+        </div>
         {message.reactions.length > 0 ? (
-          <div className="basis-full">
+          <div className="mt-1">
             <ReactionBar
               reactions={message.reactions}
               onToggle={onReact ? (key) => onReact(key) : undefined}
@@ -612,7 +524,7 @@ export function SystemEventCard({
         ) : null}
       </div>
 
-      <SystemEventActions event={event} onReact={onReact} actions={actions} />
+      <SystemEventActions event={event} onReact={onReact} onCopy={handleCopyEvent} />
     </article>
   );
 }

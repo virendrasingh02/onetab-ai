@@ -255,7 +255,10 @@ export function CoworkerConversationPanel({
 }) {
   const { configStatus } = useMatrix();
   const currentUser = useCurrentUser();
-  const peerId = coworker.matrixUserId || `coworker-${coworker.id}`;
+  // Always the `coworker-<id>` form: the server resolves (and lazily
+  // provisions) the Matrix identity from it. Passing the stored Matrix id here
+  // made the server treat it as a human user id and 404 once provisioned.
+  const peerId = `coworker-${coworker.id}`;
   const { roomId, error } = useDirectRoom(peerId);
 
   const composerContext = useMemo<ComposerContext>(

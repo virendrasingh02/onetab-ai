@@ -18,6 +18,7 @@ import {
   Input,
   LoadingState,
   ScrollArea,
+  AppSelect,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -397,15 +398,16 @@ function InviteTeamDialog({
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-foreground">Console Role</label>
-            <select
+            <AppSelect
               value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full h-9 px-3 text-xs rounded-md border border-input bg-background text-foreground"
-            >
-              <option value="operator">Platform Operator (Read/Write)</option>
-              <option value="admin">Administrator (Full Access)</option>
-              <option value="auditor">Auditor (Read-Only Telemetry)</option>
-            </select>
+              onValueChange={setRole}
+              aria-label="Console role"
+              options={[
+                { value: 'operator', label: 'Platform Operator (Read/Write)' },
+                { value: 'admin', label: 'Administrator (Full Access)' },
+                { value: 'auditor', label: 'Auditor (Read-Only Telemetry)' },
+              ]}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

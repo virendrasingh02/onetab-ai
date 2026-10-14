@@ -49,6 +49,7 @@ import type { ModuleEditorProps } from './module-drawer.js';
 import { runModelTest, type ModelTestResult } from './model-test.js';
 import { ResultCard } from './result-card.js';
 import { diffLines } from './text-diff.js';
+import { BUILT_IN_PROMPT_TEMPLATES } from './built-in-prompt-templates.js';
 import { findModel, useAgentVersionsWithGraphs, useAiModels, useModelOptions, usePromptTemplates, useWorkspaceId } from './use-agent-config-data.js';
 
 const SNIPPETS: Array<{ label: string; text: string }> = [
@@ -389,7 +390,22 @@ function TemplatePicker({ onUse, disabled }: { onUse: (text: string, mode: 'repl
   const [wanted, setWanted] = useState(false);
   const templates = usePromptTemplates(wanted);
   const [selected, setSelected] = useState('');
-  const chosen = templates.data?.find((t) => t.id === selected);
+  // Built-ins always show, so the picker is useful even before the workspace saves any of its own.
+  const all = useMemo(
+    () => [
+      ...(templates.data ?? []).map((t) => ({ id: t.id, title: t.title, category: t.category || 'Workspace', promptText: t.promptText, summary: t.isSystem ? 'Built-in' : 'Workspace template', mine: !t.isSystem })),
+      ...BUILT_IN_PROMPT_TEMPLATES.map((t) => ({ ...t, mine: false })),
+    ],
+    [templates.data],
+  );
+  const groups = useMemo(() => {
+    const byCategory = new Map<string, typeof all>();
+    for (const t of all) byCategory.set(t.mine ? 'Your workspace' : t.category, [...(byCategory.get(t.mine ? 'Your workspace' : t.category) ?? []), t]);
+    return [...byCategory.entries()]
+      .sort(([a], [b]) => (a === 'Your workspace' ? -1 : b === 'Your workspace' ? 1 : a === 'Starter' ? 1 : b === 'Starter' ? -1 : a.localeCompare(b)))
+      .map(([label, items]) => ({ label, options: items.map((t) => ({ value: t.id, label: t.title, description: t.summary })) }));
+  }, [all]);
+  const chosen = all.find((t) => t.id === selected);
   if (!wanted) {
     return (
       <Button type="button" variant="outline" size="xs" disabled={disabled} onClick={() => setWanted(true)}>
@@ -398,9 +414,9 @@ function TemplatePicker({ onUse, disabled }: { onUse: (text: string, mode: 'repl
       </Button>
     );
   }
-  if (templates.error) return <LoadError what="prompt templates" error={templates.error} onRetry={() => void templates.refetch()} />;
   return (
     <div className="space-y-2 rounded-lg border border-border bg-surface-raised/40 p-2.5">
+      {templates.error && <LoadError what="your workspace’s templates" error={templates.error} onRetry={() => void templates.refetch()} />}
       <AppSelect
         size="sm"
         searchable
@@ -408,10 +424,11 @@ function TemplatePicker({ onUse, disabled }: { onUse: (text: string, mode: 'repl
         placeholder="Choose a template"
         aria-label="Prompt template"
         value={selected}
-        options={(templates.data ?? []).map((t) => ({ value: t.id, label: t.title, description: `${t.category}${t.isSystem ? ' · built-in' : ''}` }))}
-        emptyText="No templates in this workspace yet"
+        options={groups}
+        emptyText="No templates match"
         onValueChange={setSelected}
       />
+      {chosen && <p className="text-[11px] text-muted-foreground">{chosen.summary}</p>}
       {chosen && <OutputBlock label="Preview">{chosen.promptText}</OutputBlock>}
       <div className="flex justify-end gap-1.5">
         <Button type="button" variant="ghost" size="xs" onClick={() => setWanted(false)}>

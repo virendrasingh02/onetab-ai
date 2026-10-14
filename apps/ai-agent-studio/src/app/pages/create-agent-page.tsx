@@ -11,7 +11,7 @@ import {
   type ArchitectUnderstandResult,
   type MissingConfigItem,
 } from '@org/types';
-import { Alert, AlertDescription, AlertTitle, Badge, Button, Input, Page, PageHeader, Textarea, toast, Label } from '@org/ui';
+import { Alert, AlertDescription, AlertTitle, Badge, Button, Input, Page, PromptComposer, toast, Label } from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -21,7 +21,6 @@ import {
   Check,
   CircleAlert,
   CircleCheck,
-  Clock,
   ExternalLink,
   FileUp,
   LayoutTemplate,
@@ -32,11 +31,10 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
-  Wand2,
   X,
   Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PlanLimitNotice } from '../plan/plan-limit-notice.js';
 import { readPlanLimit, type PlanLimitInfo } from '../plan/plan-limit.js';
@@ -81,6 +79,8 @@ function rememberPrompt(prompt: string) {
     // Private mode / blocked storage: recent prompts are only a convenience.
   }
 }
+
+const PROMPT_MAX = 4_000;
 
 const STEP_KIND_LABEL: Record<ArchitectStep['kind'], string> = {
   collect: 'Reads',
@@ -200,8 +200,7 @@ export function CreateAgentPage() {
     [finalSpec, deferred],
   );
 
-  const submit = (e?: FormEvent) => {
-    e?.preventDefault();
+  const submit = () => {
     void understand(prompt);
   };
 
@@ -348,51 +347,50 @@ export function CreateAgentPage() {
   if (phase === 'describe' || phase === 'understanding') {
     const busy = phase === 'understanding';
     return (
-      <Page width="wide" padding="none" className="mx-auto w-full max-w-4xl space-y-8">
-        <PageHeader
-          title="Create with AI"
-          description={`Describe the agent you need — ${DOMAINS.join(', ')} or any other domain — and Studio plans the workflow for you to review.`}
-          icon={<Sparkles className="size-5" />}
-          accent="violet"
-          className="mb-0"
-        />
-
-        <form onSubmit={submit} className="rounded-xl border border-border bg-surface p-3 shadow-sm focus-within:ring-2 focus-within:ring-ring/40">
-          <Label htmlFor="agent-prompt" className="sr-only">
-            What do you want your agent to do?
-          </Label>
-          <Textarea
-            id="agent-prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
-            }}
-            disabled={busy}
-            rows={4}
-            maxLength={4_000}
-            placeholder={`What do you want your agent to do? e.g. “${PROMPT_SUGGESTIONS[suggestion]}”`}
-            className="min-h-28 resize-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
-          />
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-            <div className="flex flex-wrap gap-1.5">
-              <Button type="button" variant="ghost" size="sm" asChild>
-                <Link to="/templates">
-                  <LayoutTemplate className="size-3.5" /> Start from template
-                </Link>
-              </Button>
-              <Button type="button" variant="ghost" size="sm" asChild>
-                <Link to="/agents?import=1">
-                  <FileUp className="size-3.5" /> Import existing workflow
-                </Link>
-              </Button>
-            </div>
-            <Button type="submit" size="lg" disabled={busy || prompt.trim().length < 3} className="gap-1.5">
-              {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Wand2 className="size-4" aria-hidden />}
-              {busy ? 'Understanding…' : 'Create agent'}
-            </Button>
+      <Page width="wide" padding="none" className="mx-auto w-full max-w-3xl space-y-8 py-6">
+        <header className="space-y-2 text-center">
+          <div className="mx-auto flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Sparkles className="size-5" aria-hidden />
           </div>
-        </form>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">What should your agent do?</h1>
+          <p className="mx-auto max-w-xl text-sm text-muted-foreground">
+            Describe it in plain words — {DOMAINS.slice(0, 5).join(', ')} or any other domain. Studio plans the workflow and you review it before anything is built.
+          </p>
+        </header>
+
+        <PromptComposer
+          id="agent-prompt"
+          label="What do you want your agent to do?"
+          value={prompt}
+          onChange={setPrompt}
+          onSubmit={submit}
+          busy={busy}
+          maxLength={PROMPT_MAX}
+          placeholder={`Describe your agent, e.g. “${PROMPT_SUGGESTIONS[suggestion]}”`}
+          suggestions={PROMPT_SUGGESTIONS}
+          recent={recent}
+          submitOn="enter"
+          submitLabel="Create agent"
+          actions={[
+            { label: 'Start from template', icon: <LayoutTemplate />, onSelect: () => navigate('/templates') },
+            { label: 'Import existing workflow', icon: <FileUp />, onSelect: () => navigate('/agents?import=1') },
+          ]}
+          toolbar={
+            <>
+              <Button type="button" variant="ghost" size="sm" asChild className="text-muted-foreground">
+                <Link to="/templates">
+                  <LayoutTemplate className="size-3.5" /> Templates
+                </Link>
+              </Button>
+              <Button type="button" variant="ghost" size="sm" asChild className="hidden text-muted-foreground sm:inline-flex">
+                <Link to="/agents?import=1">
+                  <FileUp className="size-3.5" /> Import
+                </Link>
+              </Button>
+            </>
+          }
+          footnote="Studio can make mistakes — you review and approve the plan before it’s built."
+        />
 
         <div aria-live="polite">
           {busy && (
@@ -427,35 +425,6 @@ export function CreateAgentPage() {
 
         {!busy && (
           <>
-            <section aria-label="Suggestions" className="flex flex-wrap justify-center gap-2">
-              {PROMPT_SUGGESTIONS.map((s) => (
-                <Button key={s} variant="outline" size="sm" onClick={() => setPrompt(s)} className="rounded-full">
-                  {s}
-                </Button>
-              ))}
-            </section>
-
-            {recent.length > 0 && (
-              <section aria-labelledby="recent-heading" className="space-y-2">
-                <h2 id="recent-heading" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Clock className="size-3.5" aria-hidden /> Recent prompts
-                </h2>
-                <ul className="space-y-1">
-                  {recent.map((p) => (
-                    <li key={p}>
-                      <button
-                        type="button"
-                        onClick={() => setPrompt(p)}
-                        className="w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                      >
-                        {p}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
             <section aria-labelledby="templates-heading" className="space-y-3">
               <h2 id="templates-heading" className="text-sm font-semibold text-foreground">
                 Or start from a template

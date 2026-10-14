@@ -19,6 +19,7 @@ import {
   UserAvatar,
   UserAvatarGroup,
   useRightPanelStore,
+  AppSelect,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import { useMutation } from '@tanstack/react-query';
@@ -1207,17 +1208,18 @@ function CardDetailsBody({
                 placeholder="Search tasks to link..."
                 emptyMessage="No other tasks in this project"
                 header={
-                  <select
-                    value={addRelationType}
-                    onChange={(e) => setAddRelationType(e.target.value as RelationType)}
-                    className="w-full mb-1 text-xs bg-surface border border-border rounded-md px-2 py-1 outline-none focus:border-primary"
-                  >
-                    {LINKABLE_RELATION_TYPES.map((option) => (
-                      <option key={option.type} value={option.type}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="mb-1">
+                    <AppSelect
+                      size="sm"
+                      value={addRelationType}
+                      onValueChange={(v) => setAddRelationType(v as RelationType)}
+                      options={LINKABLE_RELATION_TYPES.map((option) => ({
+                        value: option.type,
+                        label: option.label,
+                      }))}
+                      aria-label="Relation type"
+                    />
+                  </div>
                 }
                 trigger={
                   <button

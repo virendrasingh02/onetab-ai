@@ -1101,6 +1101,101 @@ export class MatrixAdminService {
   }
 
   /**
+   * True when the homeserver has no appservice registration for us, so it will
+   * never push events to `/matrix/transactions` and inbound messages have to be
+   * pulled with {@link syncAs} instead.
+   */
+  get needsPolledIntake(): boolean {
+    return this.config.enabled && this.isAdminMode;
+  }
+
+  private readonly syncTokens = new Map<
+    string,
+    { token: string; expiresAt: number }
+  >();
+
+  /**
+   * One non-blocking `/sync` as `matrixUserId`: new `m.room.message` events and
+   * the rooms it is invited to. Without `since` it only establishes a cursor
+   * (timeline limit 0), so history is never replayed.
+   */
+  async syncAs(
+    matrixUserId: string,
+    since?: string,
+  ): Promise<{
+    nextBatch: string;
+    invitedRoomIds: string[];
+    events: Array<{
+      type: string;
+      room_id: string;
+      event_id: string;
+      sender: string;
+      origin_server_ts: number;
+      content: Record<string, unknown>;
+    }>;
+  }> {
+    this.assertEnabled();
+    const cached = this.syncTokens.get(matrixUserId);
+    let token = cached && cached.expiresAt > Date.now() ? cached.token : '';
+    if (!token) {
+      const ttlMs = 30 * 60_000;
+      token = await this.actAs(matrixUserId, { expiresInMs: ttlMs });
+      // Renew a minute early so a poll never races the token's expiry.
+      this.syncTokens.set(matrixUserId, {
+        token,
+        expiresAt: Date.now() + ttlMs - 60_000,
+      });
+    }
+
+    const filter = {
+      presence: { types: [] },
+      account_data: { types: [] },
+      room: {
+        ephemeral: { types: [] },
+        account_data: { types: [] },
+        state: { types: [] },
+        timeline: { types: ['m.room.message'], limit: since ? 50 : 0 },
+      },
+    };
+    const query = new URLSearchParams({
+      timeout: '0',
+      filter: JSON.stringify(filter),
+      ...(since ? { since } : {}),
+    });
+
+    const response = await this.request<{
+      next_batch: string;
+      rooms?: {
+        invite?: Record<string, unknown>;
+        join?: Record<
+          string,
+          { timeline?: { events?: Array<Record<string, unknown>> } }
+        >;
+      };
+    }>(`/_matrix/client/v3/sync?${query.toString()}`, { accessToken: token });
+
+    const events = Object.entries(response.rooms?.join ?? {}).flatMap(
+      ([roomId, room]) =>
+        (room.timeline?.events ?? []).map((event) => ({
+          ...(event as {
+            type: string;
+            event_id: string;
+            sender: string;
+            origin_server_ts: number;
+            content: Record<string, unknown>;
+          }),
+          room_id: roomId,
+        })),
+    );
+
+    return {
+      nextBatch: response.next_batch,
+      invitedRoomIds: Object.keys(response.rooms?.invite ?? {}),
+      events,
+    };
+  }
+
+  /**
    * Joins a room as the given Matrix user.
    *
    * Bot identities (agents, apps) are invited to their DM room the same way a

@@ -90,28 +90,27 @@ export function AppResponseCard({
     <article
       data-message-id={message.id}
       className={cn(
-        'group/app-card relative my-2 rounded-2xl border border-border/80 bg-surface/90 backdrop-blur-sm p-4 transition-all duration-200 shadow-xs hover:shadow-md',
-        isHighlighted && 'ring-2 ring-primary/60',
+        'group/app-card relative -mx-4 flex gap-4 px-4 pt-2.5 pb-1 transition-colors hover:bg-foreground/[0.035]',
+        isHighlighted && 'border-l-2 border-l-primary bg-primary/5',
       )}
-      style={{
-        borderLeftWidth: event.accentColor ? '4px' : undefined,
-        borderLeftColor: event.accentColor,
-      }}
     >
-      {/* 1. APP HEADER */}
-      <header className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <UserAvatar
-            name={event.appName || message.senderName}
-            seed={event.appIcon || event.appId}
-            src={message.senderAvatarUrl}
-            size="md"
-            className="size-10 ring-2 ring-border shadow-xs"
-          />
+      <div className="w-10 shrink-0">
+        <UserAvatar
+          name={event.appName || message.senderName}
+          seed={event.appIcon || event.appId}
+          src={message.senderAvatarUrl}
+          size="md"
+          className="size-10 rounded-full shadow-xs"
+        />
+      </div>
 
+      <div className="min-w-0 flex-1">
+      {/* 1. APP HEADER — same shape as a normal message header */}
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-bold text-foreground tracking-tight">
+              <span className="text-message font-bold text-foreground">
                 {event.appName || message.senderName}
               </span>
 
@@ -135,17 +134,16 @@ export function AppResponseCard({
                   {event.badge.label}
                 </Badge>
               )}
-            </div>
-
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-              <time dateTime={new Date(message.timestamp).toISOString()}>
-                {new Date(message.timestamp).toLocaleTimeString([], {
+              <time
+                dateTime={new Date(message.timestamp).toISOString()}
+                className="font-medium text-[11px] text-muted-foreground"
+              >
+                {new Date(message.timestamp).toLocaleTimeString(undefined, {
                   hour: '2-digit',
                   minute: '2-digit',
+                  hour12: true,
                 })}
               </time>
-              <span>•</span>
-              <span className="font-mono text-[10px]">{event.eventType}</span>
             </div>
           </div>
         </div>
@@ -283,6 +281,7 @@ export function AppResponseCard({
           })}
         </div>
       )}
+      </div>
     </article>
   );
 }

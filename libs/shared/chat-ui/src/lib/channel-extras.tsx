@@ -1090,10 +1090,13 @@ export function UnreadDivider({ label = 'New' }: { label?: string }) {
       role="separator"
       aria-label={`${label} messages below`}
     >
-      <span className="h-px flex-1 bg-destructive" aria-hidden />
-      <span className="px-1.5 py-0.5 font-semibold tracking-wide rounded-full bg-destructive text-[10px] text-destructive-foreground uppercase">
+      <span className="px-2 py-0.5 font-semibold tracking-wide rounded-full bg-destructive text-[10px] text-destructive-foreground uppercase shrink-0">
         {label}
       </span>
+      <span
+        className="h-px flex-1 bg-gradient-to-r from-destructive/70 to-destructive/0"
+        aria-hidden
+      />
     </div>
   );
 }

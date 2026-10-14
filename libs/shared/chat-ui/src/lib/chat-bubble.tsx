@@ -83,6 +83,7 @@ import { type MediaItem, useMediaPreview } from '@org/media-preview';
 import { MarkdownMessage } from './markdown-message.js';
 import { ReactionBar, reactionAddButtonClass } from './reaction-bar.js';
 import { ForwardedMessageCard } from './forwarded-message-card.js';
+import { ReplyQuote, type ReplyPreview } from './reply-quote.js';
 import { reminderPresets } from './reminder-presets.js';
 import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
 import { UserProfileCard } from './user-profile-card.js';
@@ -95,6 +96,14 @@ export interface ChatBubbleProps {
   avatarSlot?: ReactNode;
   onReact?: (key: string) => void;
   onReply?: () => void;
+  /**
+   * The message this one replies to (`message.replyToId`), resolved by the
+   * host. `null` means the id is set but the original is not loaded — the
+   * quote still renders, as a placeholder that pages the original in.
+   */
+  replyTo?: ReplyPreview | null;
+  /** Scrolls to and highlights the replied-to message. */
+  onJumpToReply?: () => void;
   onEdit?: () => void;
   /** When set, replaces the message body in place — the inline edit box. */
   editSlot?: ReactNode;
@@ -150,6 +159,8 @@ export interface ChatBubbleProps {
   linkPreviewsEnabled?: boolean;
   workspacePolicy?: WorkspacePolicy;
   roomKind?: RoomKind;
+  /** Show the "Seen" receipt under this (own) message. Callers pass true only for the latest seen one. */
+  showReadReceipt?: boolean;
   /** "Mark unread" from this message. Hidden when absent. */
   onMarkUnread?: () => void;
   /** "Remind me about this" — called with the chosen time. Hidden when absent. */
@@ -382,7 +393,7 @@ function useThreadConnector(
   return style;
 }
 
-function ThreadRepliesButton({
+export function ThreadRepliesButton({
   count,
   hasUnread,
   participants,
@@ -473,6 +484,8 @@ export function ChatBubble({
   avatarSlot,
   onReact,
   onReply,
+  replyTo,
+  onJumpToReply,
   onEdit,
   editSlot,
   onDelete,
@@ -512,6 +525,7 @@ export function ChatBubble({
   linkPreviewsEnabled = true,
   workspacePolicy,
   roomKind,
+  showReadReceipt = true,
   onMarkUnread,
   onRemind,
   onToggleReplyNotifications,
@@ -730,6 +744,18 @@ export function ChatBubble({
         message.senderName,
       ));
 
+  /* Non-person senders open their own agent/coworker/app panel, not a user card. */
+  const profileEntityKind: 'agent' | 'coworker' | 'app' | undefined = isCoworker
+    ? 'coworker'
+    : isAgent
+      ? 'agent'
+      : isApp
+        ? 'app'
+        : undefined;
+  const profileEntityId = profileEntityKind
+    ? message.senderId.replace(/^(agent|coworker|app)-/, '')
+    : undefined;
+
   const effectiveBadge =
     senderBadge ||
     (isCoworker ? (
@@ -737,7 +763,6 @@ export function ChatBubble({
         variant="primary"
         className="py-0 h-4 font-bold tracking-wider gap-0.5 text-[9px] uppercase border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300"
       >
-        <UserCheck className="size-2.5 mr-0.5 inline-block" />
         <span>AI COWORKER</span>
       </Badge>
     ) : isAgent ? (
@@ -745,7 +770,6 @@ export function ChatBubble({
         variant="primary"
         className="py-0 h-4 font-bold tracking-wider gap-0.5 text-[9px] uppercase"
       >
-        <Bot className="size-2.5 mr-0.5 inline-block" />
         <span>AI AGENT</span>
       </Badge>
     ) : isDoc ? (
@@ -753,7 +777,6 @@ export function ChatBubble({
         variant="neutral"
         className="py-0 h-4 font-bold tracking-wider gap-0.5 border-info/30 bg-info/15 text-[9px] text-info-text uppercase"
       >
-        <FileText className="size-2.5 mr-0.5 inline-block" />
         <span>DOC</span>
       </Badge>
     ) : isTask ? (
@@ -761,7 +784,6 @@ export function ChatBubble({
         variant="neutral"
         className="py-0 h-4 font-bold tracking-wider gap-0.5 border-success/30 bg-success/15 text-[9px] text-success uppercase"
       >
-        <CheckSquare className="size-2.5 mr-0.5 inline-block" />
         <span>TASK</span>
       </Badge>
     ) : isKanban ? (
@@ -769,7 +791,6 @@ export function ChatBubble({
         variant="neutral"
         className="py-0 h-4 font-bold tracking-wider gap-0.5 border-warning/30 bg-warning/15 text-[9px] text-warning-text uppercase"
       >
-        <FolderKanban className="size-2.5 mr-0.5 inline-block" />
         <span>KANBAN</span>
       </Badge>
     ) : isApp ? (
@@ -777,7 +798,6 @@ export function ChatBubble({
         variant="neutral"
         className="py-0 h-4 font-bold tracking-wider gap-0.5 border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
       >
-        <Blocks className="size-2.5 mr-0.5 inline-block" />
         <span>APP</span>
       </Badge>
     ) : null);
@@ -1098,6 +1118,8 @@ export function ChatBubble({
             userId={message.senderId}
             name={message.senderName}
             avatarUrl={message.senderAvatarUrl}
+            entityKind={profileEntityKind}
+            entityId={profileEntityId}
           >
             <UserAvatar
               name={message.senderName}
@@ -1132,6 +1154,8 @@ export function ChatBubble({
               userId={message.senderId}
               name={message.senderName}
               avatarUrl={message.senderAvatarUrl}
+              entityKind={profileEntityKind}
+              entityId={profileEntityId}
             >
               <span className="text-message font-bold cursor-pointer text-foreground hover:underline">
                 {message.senderName}
@@ -1169,6 +1193,10 @@ export function ChatBubble({
               </Hint>
             ) : null}
           </header>
+        ) : null}
+
+        {replyTo !== undefined ? (
+          <ReplyQuote preview={replyTo} onJump={onJumpToReply} />
         ) : null}
 
         {message.alsoSentToChannel && showThreadConnector && onOpenThread ? (
@@ -1401,7 +1429,7 @@ export function ChatBubble({
         ) : null}
 
         {/* Seen By / Read Receipts */}
-        {!isAgent && message.readers && message.readers.length > 0 ? (
+        {!isAgent && isOwn && showReadReceipt && message.readers && message.readers.length > 0 ? (
           <div className="mt-1 flex items-center">
             <SeenBy
               readers={message.readers}

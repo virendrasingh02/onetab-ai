@@ -55,6 +55,11 @@ export interface AppSelectProps {
   name?: string;
 }
 
+/** Radix Select throws on an empty-string item value; map it to a sentinel. */
+const EMPTY = '__app_select_empty__';
+const toRadix = (v: string | undefined) => (v === '' ? EMPTY : v);
+const fromRadix = (v: string) => (v === EMPTY ? '' : v);
+
 function isGrouped(
   options: AppSelectOption[] | AppSelectGroup[],
 ): options is AppSelectGroup[] {
@@ -146,9 +151,9 @@ export function AppSelect({
 
   return (
     <Select
-      value={value}
-      defaultValue={defaultValue}
-      onValueChange={onValueChange}
+      value={toRadix(value)}
+      defaultValue={toRadix(defaultValue)}
+      onValueChange={(next) => onValueChange?.(fromRadix(next))}
       disabled={disabled}
       name={name}
     >
@@ -172,7 +177,7 @@ export function AppSelect({
               {group.options.map((opt) => (
                 <SelectItem
                   key={opt.value}
-                  value={opt.value}
+                  value={toRadix(opt.value) as string}
                   disabled={opt.disabled}
                 >
                   <span className="flex items-center gap-2">
@@ -185,7 +190,11 @@ export function AppSelect({
           ))
         ) : (
           options.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value} disabled={opt.disabled}>
+            <SelectItem
+              key={opt.value}
+              value={toRadix(opt.value) as string}
+              disabled={opt.disabled}
+            >
               <span className="flex items-center gap-2">
                 {opt.icon}
                 {opt.label}

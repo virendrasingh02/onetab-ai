@@ -1,4 +1,5 @@
 import { cn } from '@org/utils';
+import { AppSelect } from './app-select.js';
 import { Filter, Plus, Trash2 } from 'lucide-react';
 
 import {
@@ -120,46 +121,37 @@ export function FilterBuilder({
               </span>
 
               {/* Field Select */}
-              <select
+              <AppSelect
+                size="sm"
+                className="w-36"
                 value={rule.field}
-                onChange={(e) => updateRule(rule.id, { field: e.target.value })}
-                className="h-7 rounded-btn border border-border bg-surface px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {fields.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => updateRule(rule.id, { field: v })}
+                aria-label="Field"
+                options={fields.map((f) => ({ value: f.id, label: f.label }))}
+              />
 
               {/* Operator Select */}
-              <select
+              <AppSelect
+                size="sm"
+                className="w-36"
                 value={rule.operator}
-                onChange={(e) => updateRule(rule.id, { operator: e.target.value as FilterOperator })}
-                className="h-7 rounded-btn border border-border bg-surface px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {Object.entries(operatorLabels).map(([op, label]) => (
-                  <option key={op} value={op}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => updateRule(rule.id, { operator: v as FilterOperator })}
+                aria-label="Operator"
+                options={Object.entries(operatorLabels).map(([op, label]) => ({ value: op, label }))}
+              />
 
               {/* Value Input */}
               {rule.operator !== 'is_empty' && rule.operator !== 'is_not_empty' && (
                 selectedField?.type === 'select' && selectedField.options ? (
-                  <select
+                  <AppSelect
+                    size="sm"
+                    className="w-40"
                     value={rule.value}
-                    onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                    className="h-7 min-w-32 rounded-btn border border-border bg-surface px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    <option value="">Select value...</option>
-                    {selectedField.options.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    onValueChange={(v) => updateRule(rule.id, { value: v })}
+                    placeholder="Select value..."
+                    aria-label="Value"
+                    options={selectedField.options.map((opt) => ({ value: opt.value, label: opt.label }))}
+                  />
                 ) : (
                   <input
                     type={selectedField?.type === 'number' ? 'number' : 'text'}

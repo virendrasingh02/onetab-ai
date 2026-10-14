@@ -61,7 +61,7 @@ describe('SeenBy', () => {
     expect(time.length).toBeGreaterThan(0);
   });
 
-  it('renders single reader in channels/groups', () => {
+  it('renders a single reader DM-style ("Seen <time>") in channels/groups', () => {
     renderWithProviders(
       <SeenBy
         readers={[sampleReaders[0]]}
@@ -70,7 +70,8 @@ describe('SeenBy', () => {
     );
 
     const button = screen.getByRole('button');
-    expect(button).toHaveTextContent('Seen by Alice');
+    expect(button).toHaveTextContent(/^Seen/);
+    expect(button).not.toHaveTextContent('Seen by');
   });
 
   it('renders two readers in channels/groups', () => {

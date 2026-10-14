@@ -245,6 +245,26 @@ export class MatrixAuthService {
       return this.resolveAppIdentity(callerUserId, peerId.slice(4));
     }
 
+    // A bot's already-provisioned Matrix id (`@…:server`) — resolve it back to
+    // its agent/coworker/app row so callers holding only that id still work.
+    if (peerId.startsWith('@')) {
+      const agent = await this.prisma.aIAgent.findFirst({
+        where: {
+          matrixUserId: peerId,
+          isActive: true,
+          workspace: {
+            members: { some: { userId: callerUserId, status: 'ACTIVE' } },
+          },
+        },
+        select: { id: true, type: true },
+      });
+      if (agent) {
+        return agent.type === 'coworker'
+          ? this.resolveCoworkerIdentity(callerUserId, agent.id)
+          : this.resolveAgentIdentity(callerUserId, agent.id);
+      }
+    }
+
     // Your own id is a note-to-self DM. The client creates that room with no
     // invite (`getOrCreateDirectMessage`), so all it needs back is the
     // caller's own Matrix identity. Returning null here used to 404 every

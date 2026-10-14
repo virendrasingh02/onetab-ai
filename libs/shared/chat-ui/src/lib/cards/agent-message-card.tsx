@@ -2,6 +2,7 @@ import { generatedFileToMediaItem, useMediaPreview } from '@org/media-preview';
 import type {
   AIAgentMessageContent,
   Message,
+  RoomMember,
   StructuredMessageAction,
 } from '@org/types';
 import {
@@ -28,6 +29,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bookmark,
+  Bot,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -48,13 +50,17 @@ import {
   Search,
   Settings,
   ShieldAlert,
-  Sparkles,
+  SmilePlus,
   Terminal,
   XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { UserProfileCard } from '../user-profile-card.js';
 import { MarkdownMessage } from '../markdown-message.js';
+import { ThreadRepliesButton, ReactionPicker } from '../chat-bubble.js';
+import { ReactionBar, reactionAddButtonClass } from '../reaction-bar.js';
 import { executeStructuredAction } from './action-handler.js';
+import { useAgentAvatar } from './agent-avatar-context.js';
 import { useAICardPreferencesStore } from './card-preferences-store.js';
 import { CardSettingsDialog } from './card-settings-dialog.js';
 
@@ -68,6 +74,12 @@ export interface AgentMessageCardProps {
   onOpenThread?: () => void;
   onToggleSave?: () => void;
   isSaved?: boolean;
+  /** Same reaction + thread affordances a normal message row has. */
+  onReact?: (key: string) => void;
+  threadReplyCount?: number;
+  threadHasUnread?: boolean;
+  threadParticipants?: RoomMember[];
+  lastReplyAt?: number;
 }
 
 export function formatDuration(durationMs?: number): string {
@@ -87,6 +99,11 @@ export function AgentMessageCard({
   onOpenThread,
   onToggleSave,
   isSaved = false,
+  onReact,
+  threadReplyCount,
+  threadHasUnread,
+  threadParticipants,
+  lastReplyAt,
 }: AgentMessageCardProps) {
   const prefs = useAICardPreferencesStore();
   const { openPreview } = useMediaPreview();
@@ -99,8 +116,14 @@ export function AgentMessageCard({
   const [reasoningExpanded, setReasoningExpanded] = useState(false);
   const [expandedToolIds, setExpandedToolIds] = useState<Set<string>>(new Set());
 
+  const liveAvatarUrl = useAgentAvatar(event.agentId);
+  const avatarSrc =
+    liveAvatarUrl || event.agentAvatarUrl || message.senderAvatarUrl;
   const density = prefs.density;
   const isRunning = event.status === 'running' || event.status === 'starting';
+  const isPending = isRunning || event.status === 'queued';
+  // The bot posts "AI Agent Response" as a body placeholder before any text exists.
+  const hasContent = Boolean(event.responseText || event.summary);
   const isFailed = event.status === 'failed';
   const isWaitingApproval = event.status === 'waiting_for_approval';
 
@@ -223,6 +246,24 @@ export function AgentMessageCard({
     toast.success('Link copied to clipboard');
   };
 
+  // Clicking the agent's avatar or name opens the same right-rail profile a
+  // person gets, routed to the agent profile via `entityKind`.
+  const agentName = event.agentName || message.senderName;
+  const profileCard = (children: ReactNode) => (
+    <UserProfileCard
+      userId={`agent-${event.agentId}`}
+      entityKind="agent"
+      entityId={event.agentId}
+      name={agentName}
+      avatarUrl={avatarSrc}
+      title={event.model ? `${event.model} · AI Agent` : 'AI Agent'}
+      role={event.agentRole || 'AI Agent'}
+      bio={event.agentDescription || 'AI agent on OneTab AI.'}
+    >
+      {children}
+    </UserProfileCard>
+  );
+
   // Compact Mode Rendering
   if (density === 'compact') {
     return (
@@ -238,7 +279,7 @@ export function AgentMessageCard({
             <UserAvatar
               name={event.agentName || message.senderName}
               seed={event.agentAvatarSeed || event.agentId}
-              src={event.agentAvatarUrl || message.senderAvatarUrl}
+              src={avatarSrc}
               size="sm"
             />
             <div className="min-w-0">
@@ -293,104 +334,71 @@ export function AgentMessageCard({
     <article
       data-message-id={message.id}
       className={cn(
-        'group/card relative my-2 rounded-2xl border bg-surface/90 backdrop-blur-sm p-4 transition-all duration-200 shadow-xs hover:shadow-md',
-        statusConfig.border,
-        isHighlighted && 'ring-2 ring-primary/60',
-        isRunning && 'ring-1 ring-primary/40 animate-pulse-subtle',
+        // Same row rhythm as a normal message (ChatBubble comfy density).
+        'group/card relative -mx-4 flex gap-4 px-4 pt-2.5 pb-1 transition-colors hover:bg-foreground/[0.035]',
+        isHighlighted && 'border-l-2 border-l-primary bg-primary/5',
+        isFailed && 'bg-destructive/5',
       )}
     >
-      {/* 1. AGENT CARD HEADER */}
-      <header className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="relative">
+      <div className="relative w-10 shrink-0">
+        {profileCard(
+          avatarSrc ? (
             <UserAvatar
               name={event.agentName || message.senderName}
               seed={event.agentAvatarSeed || event.agentId}
-              src={event.agentAvatarUrl || message.senderAvatarUrl}
+              src={avatarSrc}
               size="md"
-              className={cn(
-                'size-10 shadow-xs ring-2',
-                isRunning ? 'ring-primary' : 'ring-border',
-              )}
+              indicator={false}
+              className="size-10 rounded-full shadow-xs"
             />
-            {isRunning && (
-              <span className="absolute -bottom-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-primary text-[8px] text-primary-foreground animate-spin">
-                ◌
-              </span>
-            )}
-          </div>
+          ) : (
+            // No uploaded photo: the same Bot tile the sidebar shows for agents.
+            <span
+              aria-hidden
+              className="flex size-10 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-xs"
+            >
+              <Bot className="size-5" />
+            </span>
+          ),
+        )}
+      </div>
 
+      <div className="min-w-0 flex-1">
+      {/* 1. AGENT HEADER — same shape as a normal message header */}
+      <header className="flex items-baseline justify-between gap-3">
+        <div className="flex items-baseline gap-3 min-w-0">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-bold text-foreground tracking-tight">
-                {event.agentName || message.senderName}
-              </span>
-
-              {event.agentHandle && (
-                <span className="text-[11px] font-mono text-muted-foreground">
-                  {event.agentHandle}
-                </span>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              {profileCard(
+                <span className="text-message font-bold text-foreground hover:underline">
+                  {event.agentName || message.senderName}
+                </span>,
               )}
 
               <Badge
                 variant="primary"
-                className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider gap-0.5"
+                className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider"
               >
-                <Sparkles className="size-2.5" />
-                <span>{event.agentRole || 'AI Agent'}</span>
+                <span>AI Agent</span>
               </Badge>
 
-              {prefs.showModel && event.model && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] py-0 h-4 font-mono font-medium text-muted-foreground"
-                >
-                  {event.model}
-                </Badge>
-              )}
-
-              {/* Status Pill */}
-              <Badge
-                variant={statusConfig.variant}
-                className={cn('text-[10px] py-0 h-4 gap-1 font-semibold', statusConfig.color)}
+              <time
+                dateTime={new Date(message.timestamp).toISOString()}
+                className="font-medium text-[11px] text-muted-foreground"
               >
-                {statusConfig.icon}
-                <span>{statusConfig.label}</span>
-                {prefs.showDuration && event.durationMs !== undefined && (
-                  <span className="opacity-75 font-mono ml-0.5">
-                    · {formatDuration(event.durationMs)}
-                  </span>
-                )}
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-              <time dateTime={new Date(message.timestamp).toISOString()}>
-                {new Date(message.timestamp).toLocaleTimeString([], {
+                {new Date(message.timestamp).toLocaleTimeString(undefined, {
                   hour: '2-digit',
                   minute: '2-digit',
+                  hour12: true,
                 })}
               </time>
-              {event.teamName && (
-                <>
-                  <span>•</span>
-                  <span>{event.teamName}</span>
-                </>
-              )}
-              {event.agentDescription && (
-                <>
-                  <span className="hidden sm:inline">•</span>
-                  <span className="hidden sm:inline truncate max-w-xs">
-                    {event.agentDescription}
-                  </span>
-                </>
-              )}
             </div>
+
           </div>
         </div>
 
         {/* Top-Right Card Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 self-start opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100">
           {prefs.showSaveAction && onToggleSave && (
             <Hint label={isSaved ? 'Remove from saved' : 'Save for later'}>
               <Button
@@ -472,21 +480,37 @@ export function AgentMessageCard({
       </header>
 
       {/* 2. LIVE / STREAMING EXECUTION PROGRESS */}
-      {isRunning && (
-        <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-semibold text-primary flex items-center gap-1.5">
-              <Loader2 className="size-3.5 animate-spin" />
-              <span>Executing Autonomous Plan…</span>
-            </span>
-            <span className="text-[10px] font-mono text-muted-foreground animate-pulse">
-              Live Stream Active
-            </span>
-          </div>
+      {isPending && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-2 text-xs animate-in fade-in-0 slide-in-from-bottom-1 duration-300"
+        >
+          <style>{`
+            @keyframes agent-status-shimmer {
+              from { background-position: 200% 0; }
+              to { background-position: -200% 0; }
+            }
+            .agent-status-text {
+              background-image: linear-gradient(90deg, currentColor 35%, var(--color-primary, #16a34a) 50%, currentColor 65%);
+              background-size: 200% 100%;
+              -webkit-background-clip: text;
+              background-clip: text;
+              -webkit-text-fill-color: transparent;
+              animation: agent-status-shimmer 2.2s linear infinite;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .agent-status-text { animation: none; -webkit-text-fill-color: currentColor; }
+            }
+          `}</style>
+          <span className="agent-status-text font-medium text-muted-foreground">
+            {event.status === 'queued' ? 'Waiting in queue' : 'Thinking'}
+            {event.tools?.some((t) => t.status === 'running') ? ' · using tools' : ''}…
+          </span>
 
           {/* Step Progression checklist */}
-          <div className="space-y-1.5 font-mono text-[11px]">
-            {event.tools && event.tools.length > 0 ? (
+          <div className="mt-2.5 space-y-1.5 font-mono text-[11px] empty:hidden">
+            {event.tools && event.tools.length > 0 &&
               event.tools.map((t, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   {t.status === 'success' ? (
@@ -509,13 +533,7 @@ export function AgentMessageCard({
                     </span>
                   )}
                 </div>
-              ))
-            ) : (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <span className="size-2 rounded-full bg-primary animate-ping" />
-                <span>Analyzing prompt parameters &amp; gathering context…</span>
-              </div>
-            )}
+              ))}
           </div>
         </div>
       )}
@@ -629,11 +647,11 @@ export function AgentMessageCard({
       )}
 
       {/* 7. MAIN AGENT RESPONSE BODY */}
-      {(event.responseText || event.summary || message.body) && (
-        <div className="mt-3 text-xs sm:text-sm text-foreground leading-relaxed">
+      {(hasContent || (!isPending && message.body)) && (
+        <div className="text-message text-foreground animate-in fade-in-0 duration-300">
           <MarkdownMessage
             text={event.responseText || event.summary || message.body}
-            className="text-sm leading-relaxed"
+            className="text-message"
           />
         </div>
       )}
@@ -987,8 +1005,43 @@ export function AgentMessageCard({
         </Dialog>
       )}
 
+      {/* Reactions + thread summary — identical to a normal message row */}
+      {message.reactions.length > 0 ? (
+        <div className="mt-1">
+          <ReactionBar
+            reactions={message.reactions}
+            onToggle={onReact ? (key) => onReact(key) : undefined}
+            addButton={
+              onReact ? (
+                <ReactionPicker onSelect={onReact}>
+                  <button
+                    type="button"
+                    aria-label="Add a reaction"
+                    className={reactionAddButtonClass}
+                  >
+                    <SmilePlus className="size-4" aria-hidden="true" />
+                  </button>
+                </ReactionPicker>
+              ) : null
+            }
+          />
+        </div>
+      ) : null}
+      {threadReplyCount && threadReplyCount > 0 ? (
+        <div className="mt-1 w-fit">
+          <ThreadRepliesButton
+            count={threadReplyCount}
+            hasUnread={threadHasUnread}
+            participants={threadParticipants}
+            lastReplyAt={lastReplyAt}
+            onOpen={onOpenThread}
+          />
+        </div>
+      ) : null}
+
       {/* Card Settings Dialog */}
       <CardSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      </div>
     </article>
   );
 }

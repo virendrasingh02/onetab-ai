@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AppEvent } from '@org/api-common';
+import { AppEvent, type AgentChangeAction } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
   appLabel,
@@ -19,6 +19,32 @@ import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
 /** Every app named by an agent on the canvas, sub-agents included. */
 function connectorsOf(agents: readonly InlineAgentSpec[]): string[] {
   return agents.flatMap((a) => [...(a.connectors ?? []), ...connectorsOf(a.members ?? [])]);
+}
+
+/**
+ * Next semver tag after the highest existing one: publish bumps minor
+ * (v1.0.0 → v1.1.0 → v1.2.0), snapshots bump patch. First tag is v1.0.0.
+ */
+function nextSemverTag(
+  versions: Array<{ versionTag?: string }>,
+  bump: 'minor' | 'patch',
+): string {
+  let best: [number, number, number] | null = null;
+  for (const v of versions) {
+    const m = /^v?(\d+)\.(\d+)\.(\d+)/.exec(v.versionTag ?? '');
+    if (!m) continue;
+    const cur: [number, number, number] = [+m[1], +m[2], +m[3]];
+    if (
+      !best ||
+      cur[0] > best[0] ||
+      (cur[0] === best[0] && (cur[1] > best[1] || (cur[1] === best[1] && cur[2] > best[2])))
+    ) {
+      best = cur;
+    }
+  }
+  if (!best) return 'v1.0.0';
+  const [major, minor, patch] = best;
+  return bump === 'minor' ? `v${major}.${minor + 1}.0` : `v${major}.${minor}.${patch + 1}`;
 }
 
 @Injectable()
@@ -47,6 +73,10 @@ export class AgentsService {
       providers = connectorsOf(compileStudioGraph(JSON.parse(agent.graphJson as string)).agents);
     }
     return this.integrationTools.getConnectionStatus(workspaceId, agent.id, userId, providers);
+  }
+
+  private emitChange(workspaceId: string, agentId: string, action: AgentChangeAction) {
+    this.events.emit(AppEvent.AgentChanged, { workspaceId, agentId, kind: 'entity', action });
   }
 
   async getAgents(workspaceId: string) {
@@ -237,7 +267,7 @@ export class AgentsService {
 
     const newVersion = {
       version: nextVersionNumber,
-      versionTag: `v${nextVersionNumber}.0.0`,
+      versionTag: nextSemverTag(versions, 'minor'),
       name: agent.name,
       description: agent.description,
       model: agent.model,
@@ -264,6 +294,7 @@ export class AgentsService {
       },
     });
 
+    this.emitChange(workspaceId, agent.id, 'published');
     return {
       success: true,
       agent: updated,
@@ -288,6 +319,7 @@ export class AgentsService {
       },
     });
 
+    this.emitChange(workspaceId, agent.id, 'unpublished');
     return { success: true, agent: updated };
   }
 
@@ -337,7 +369,7 @@ export class AgentsService {
 
     const newVersion = {
       version: nextVersionNumber,
-      versionTag: `v${nextVersionNumber}.0.0-snapshot`,
+      versionTag: `${nextSemverTag(versions, 'patch')}-snapshot`,
       name: agent.name,
       description: agent.description,
       model: agent.model,
@@ -361,6 +393,7 @@ export class AgentsService {
       },
     });
 
+    this.emitChange(workspaceId, agent.id, 'version');
     return newVersion;
   }
 
@@ -400,6 +433,7 @@ export class AgentsService {
       },
     });
 
+    this.emitChange(workspaceId, agent.id, 'updated');
     return { success: true, agent: updated, restoredVersion: target };
   }
 

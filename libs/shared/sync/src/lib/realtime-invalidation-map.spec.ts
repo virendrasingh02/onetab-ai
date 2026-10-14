@@ -32,6 +32,39 @@ describe('applyRealtimeEvent', () => {
     c = ctx();
   });
 
+  it('refreshes every agent cache family, and that agent’s detail, on agent.updated', () => {
+    vi.useFakeTimers();
+    const applied = applyRealtimeEvent(
+      evt('agent.updated', { workspaceId: WS, agentId: 'a1', kind: 'entity', action: 'updated' }),
+      { queryClient: c.qc, workspaceId: WS },
+    );
+    expect(applied).toBeGreaterThan(0);
+    vi.advanceTimersByTime(200);
+    const k = keys(c.invalidate);
+    expect(k).toContainEqual(['agents', WS]);
+    expect(k).toContainEqual(['agent-studio', WS]);
+    expect(k).toContainEqual(['studio-agents', WS]);
+    expect(k).toContainEqual(['agent-detail', WS, 'a1']);
+    expect(k).toContainEqual(['agent-versions', WS, 'a1']);
+    expect(k).toContainEqual(['ai-entities', WS]);
+    expect(k).toContainEqual(['coworkers', WS]);
+    vi.useRealTimers();
+  });
+
+  it('coalesces a burst of agent events into one refresh', () => {
+    vi.useFakeTimers();
+    for (let i = 0; i < 3; i++) {
+      applyRealtimeEvent(
+        evt('agent.updated', { workspaceId: WS, agentId: 'a2', kind: 'entity', action: 'updated' }),
+        { queryClient: c.qc, workspaceId: WS },
+      );
+    }
+    vi.advanceTimersByTime(200);
+    const agentLists = keys(c.invalidate).filter((k) => k.length === 2 && k[0] === 'agents');
+    expect(agentLists).toHaveLength(1); // one sweep for the whole burst, not 3x
+    vi.useRealTimers();
+  });
+
   it('drops an event whose workspace is not the active one', () => {
     const applied = applyRealtimeEvent(
       evt('channel.created', { workspaceId: 'ws_other' }, 'ws_other'),

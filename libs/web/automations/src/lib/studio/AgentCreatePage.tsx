@@ -1,11 +1,11 @@
 import { blueprintBlockers, findAgentTemplate, type AgentBlueprint, type PlanUnderstanding } from '@org/types';
-import { Button, Card, ErrorState, Hint, Skeleton, Textarea, toast } from '@org/ui';
+import { Button, Card, ErrorState, Hint, Skeleton, toast } from '@org/ui';
 import { aiWorkspacePath, errorText, studioAgentPath, useAIRunUpdates } from '@org/web-ai';
 import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
 import { ArrowLeft, FlaskConical, Play, Power, RotateCcw, Save, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { EXAMPLE_REQUESTS } from './StudioHome.js';
+import { AgentPromptComposer } from './StudioHome.js';
 import { PlanEditor } from './plan-editor/PlanEditor.js';
 import { usePlanAgent, useStudioCatalog, useStudioMutations } from './use-studio.js';
 
@@ -118,63 +118,27 @@ export function AgentCreatePage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-4xl space-y-6 p-3 pb-32 sm:p-6 sm:pb-32">
           {!blueprint && planning === null ? (
-            <Card className="space-y-4 p-5 sm:p-6">
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">What should this agent do?</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <div className="mx-auto w-full max-w-3xl space-y-6 pt-4 sm:pt-10">
+              <div className="space-y-2 text-center">
+                <div className="mx-auto flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Sparkles className="size-5" aria-hidden />
+                </div>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">What should this agent do?</h2>
+                <p className="mx-auto max-w-xl text-sm text-muted-foreground">
                   Describe it the way you’d ask a colleague — what, when, and where the result should go. You’ll see the plan before anything is saved.
                 </p>
               </div>
-              <form
-                className="space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (request.trim()) void startPlan(request.trim());
-                }}
-              >
-                <label htmlFor="agent-request" className="sr-only">
-                  Describe the agent
-                </label>
-                <Textarea
-                  id="agent-request"
-                  autoFocus
-                  rows={4}
-                  value={request}
-                  onChange={(e) => setRequest(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && request.trim()) void startPlan(request.trim());
-                  }}
-                  placeholder="e.g. Every evening at 6, prepare my daily report from what I completed, my meetings and project activity. Let me approve it, then save it as a doc."
-                />
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">Ctrl + Enter to plan</span>
-                  <Button type="submit" leadingIcon={<Sparkles />} disabled={!request.trim()}>
-                    Plan it
-                  </Button>
-                </div>
-              </form>
+              <AgentPromptComposer
+                id="agent-request"
+                autoFocus
+                value={request}
+                onChange={setRequest}
+                onSubmit={() => request.trim() && void startPlan(request.trim())}
+              />
               {planError ? (
                 <ErrorState title="Couldn’t plan that" description={errorText(planError)} onRetry={() => request.trim() && void startPlan(request.trim())} />
               ) : null}
-              <div>
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Try one of these</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {EXAMPLE_REQUESTS.map((example) => (
-                    <button
-                      key={example}
-                      type="button"
-                      onClick={() => {
-                        setRequest(example);
-                        void startPlan(example);
-                      }}
-                      className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {example}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </Card>
+            </div>
           ) : null}
 
           {planning !== null ? <Planning request={planning} /> : null}

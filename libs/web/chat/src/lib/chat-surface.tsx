@@ -292,7 +292,7 @@ export interface ChatSurfaceProps {
   onSend: (
     body: string,
     threadRootId?: string,
-    options?: { alsoSendToChannel?: boolean },
+    options?: { alsoSendToChannel?: boolean; replyToId?: string },
   ) => void | string | undefined | Promise<void | string | undefined>;
   onEdit?: (eventId: string, body: string) => void | Promise<void>;
   onDelete?: (eventId: string) => void | Promise<void>;
@@ -575,6 +575,18 @@ export function ChatSurface({
     () => new Map(messages.map((message) => [message.id, message])),
     [messages],
   );
+
+  // Slack-style: only the latest of my messages that others have seen carries
+  // the "Seen" receipt (per timeline — main list or each thread).
+  const receiptMessageIds = useMemo(() => {
+    const lastByScope = new Map<string, string>();
+    for (const message of messages) {
+      if (message.senderId === myUserId && message.readers && message.readers.length > 0) {
+        lastByScope.set(message.threadRootId ?? '', message.id);
+      }
+    }
+    return new Set(lastByScope.values());
+  }, [messages, myUserId]);
 
   const memberById = useMemo(
     () => new Map(members.map((member) => [member.userId, member])),
@@ -1211,6 +1223,21 @@ export function ChatSurface({
         });
         return;
       }
+      if (
+        (entity.kind === 'agent' ||
+          entity.kind === 'coworker' ||
+          entity.kind === 'app') &&
+        entity.id
+      ) {
+        handleOpenUserProfile({
+          userId: `${entity.kind}-${entity.id}`,
+          entityId: entity.id,
+          name: entity.name,
+          avatarUrl: entity.avatarUrl,
+          entityKind: entity.kind,
+        });
+        return;
+      }
       onViewSystemEventEntity?.(entity);
     },
     [handleOpenUserProfile, onViewSystemEventEntity],
@@ -1269,6 +1296,7 @@ export function ChatSurface({
           message={message}
           roomKind={roomKind}
           isOwn={message.senderId === myUserId}
+          showReadReceipt={receiptMessageIds.has(message.id)}
           isGrouped={grouped}
           density={messageDensity}
           linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}

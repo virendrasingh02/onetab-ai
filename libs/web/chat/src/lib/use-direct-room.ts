@@ -43,6 +43,10 @@ export function useDirectRoom(peerUserId: string | undefined) {
   return {
     roomId: query.data ?? null,
     isLoading: query.isLoading,
-    error: query.isError ? 'This conversation could not be opened.' : null,
+    error: query.isError
+      ? query.error instanceof Error && query.error.message
+        ? `This conversation could not be opened (${query.error.message}).`
+        : 'This conversation could not be opened.'
+      : null,
   };
 }

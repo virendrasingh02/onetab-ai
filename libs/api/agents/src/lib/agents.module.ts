@@ -9,6 +9,7 @@ import { MatrixModule } from '@org/api-matrix';
 import { RealtimeModule } from '@org/api-realtime';
 import { WorkToolsModule } from '@org/api-work-tools';
 import { WorkspaceModule } from '@org/api-workspace';
+import { AppChatAgentService } from './app-chat-agent.service.js';
 import { AgentApprovalListener } from './agent-approval.listener.js';
 import { AgentMatrixBridgeService } from './agent-matrix-bridge.service.js';
 import { AgentScheduleSweepService } from './agent-schedule-sweep.service.js';
@@ -71,6 +72,7 @@ import { AgentPublicController } from './deployments/agent-public.controller.js'
     FirecrawlService,
     IntegrationToolBridgeService,
     AgentMatrixBridgeService,
+    AppChatAgentService,
     AgentApprovalListener,
     AgentScheduleSweepService,
     AgentOutputDeliveryService,

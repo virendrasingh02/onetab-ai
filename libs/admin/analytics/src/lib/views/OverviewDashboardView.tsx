@@ -19,6 +19,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  AppSelect,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -563,15 +564,16 @@ function AddSectionModal({
 
               <div className="space-y-1">
                 <label className="text-xs font-medium text-foreground">Status</label>
-                <select
+                <AppSelect
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as SectionRow['status'])}
-                  className="w-full h-8 px-2 text-xs rounded-md border border-input bg-background text-foreground"
-                >
-                  <option value="In Process">In Process</option>
-                  <option value="Done">Done</option>
-                  <option value="Pending">Pending</option>
-                </select>
+                  onValueChange={(v) => setStatus(v as SectionRow['status'])}
+                  aria-label="Status"
+                  options={[
+                    { value: 'In Process', label: 'In Process' },
+                    { value: 'Done', label: 'Done' },
+                    { value: 'Pending', label: 'Pending' },
+                  ]}
+                />
               </div>
 
               <div className="space-y-1">

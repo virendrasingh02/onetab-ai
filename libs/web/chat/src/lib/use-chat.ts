@@ -284,10 +284,14 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
             let changed = false;
             const updated = current.messages.map((message) => {
               const freshReaders = client.getMessageReaders(roomId, message.id);
+              const previous = message.readers ?? [];
               if (
-                freshReaders.length !== (message.readers?.length ?? 0) ||
-                (freshReaders.length > 0 &&
-                  freshReaders[0].userId !== message.readers?.[0]?.userId)
+                freshReaders.length !== previous.length ||
+                freshReaders.some(
+                  (reader, index) =>
+                    reader.userId !== previous[index]?.userId ||
+                    reader.seenAt !== previous[index]?.seenAt,
+                )
               ) {
                 changed = true;
                 return { ...message, readers: freshReaders };
@@ -581,11 +585,12 @@ export function useRoomActions(roomId: RoomId | undefined) {
     async (
       body: string,
       threadRootId?: string,
-      options?: { alsoSendToChannel?: boolean },
+      options?: { alsoSendToChannel?: boolean; replyToId?: string },
     ): Promise<string | undefined> => {
       if (!client || !roomId) return undefined;
       return client.sendMessage(roomId, body, {
         threadRootId,
+        replyToId: options?.replyToId,
         alsoSendToChannel: options?.alsoSendToChannel,
       });
     },

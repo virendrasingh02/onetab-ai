@@ -7,6 +7,31 @@ import {
 import { PrismaService } from '@org/database';
 import { IntegrationsService } from './integrations.service.js';
 
+export interface AppChatIntegration {
+  id: string;
+  matrixUserId: string | null;
+  provider: string;
+  displayName: string | null;
+  workspaceId: string | null;
+}
+
+export interface AppChatRequest {
+  integration: AppChatIntegration;
+  roomId: string;
+  userId: string;
+  /** What the person asked, in their own words. */
+  text: string;
+  threadRootId?: string;
+  channel?: { id: string; name: string };
+}
+
+/**
+ * Turns a plain-language request into app actions. Supplied by `@org/api-agents`
+ * (it owns the model loop), because `api-agents` already depends on this
+ * library and not the other way round.
+ */
+export type AppChatPlanner = (request: AppChatRequest) => Promise<void>;
+
 /**
  * Makes a connected app answer inside its own Matrix DM room.
  *
@@ -30,8 +55,15 @@ export class AppMatrixBridgeService implements OnModuleInit {
     private readonly integrationsService: IntegrationsService,
   ) {}
 
+  private planner?: AppChatPlanner;
+
   onModuleInit(): void {
     this.router.register((event) => this.tryHandle(event));
+  }
+
+  /** Lets "create a task for the launch" run as real app actions. */
+  setPlanner(planner: AppChatPlanner): void {
+    this.planner = planner;
   }
 
   private async tryHandle(event: MatrixTimelineEvent): Promise<boolean> {
@@ -60,14 +92,22 @@ export class AppMatrixBridgeService implements OnModuleInit {
       },
     });
 
-    if (!integration && body.trim().startsWith('/')) {
+    // In a channel the app is addressed by its provider name — `/github
+    // create_issue {"title":"…"}` — so the provider token is dropped and what
+    // follows is handled exactly like a command typed in the app's own DM.
+    let effectiveBody = body;
+    let channelInfo: { id: string; name: string } | undefined;
+
+    // `/asana …` or `@asana …` — the app is named by its provider.
+    const named = /^\s*[/@]([a-z0-9_]+)\b/i.exec(body);
+    if (!integration && named) {
       const channel = await this.prisma.channel.findFirst({
         where: { matrixRoomId: event.room_id },
-        select: { id: true, workspaceId: true },
+        select: { id: true, name: true, workspaceId: true },
       });
 
       if (channel) {
-        const command = body.trim().slice(1).split(' ')[0].toLowerCase();
+        const command = named[1].toLowerCase();
         const candidate = await this.prisma.externalIntegration.findFirst({
           where: {
             workspaceId: channel.workspaceId,
@@ -95,6 +135,15 @@ export class AppMatrixBridgeService implements OnModuleInit {
 
           if (channelLink) {
             integration = candidate;
+            channelInfo = { id: channel.id, name: channel.name };
+            const afterProvider = body.trim().slice(1 + command.length).trim();
+            // `/asana create_task {…}` stays a direct command; anything else
+            // after the provider is a sentence for the app to act on.
+            effectiveBody = !afterProvider
+              ? 'help'
+              : /^[a-z0-9_]+(\s+\{[\s\S]*\})?$/i.test(afterProvider)
+                ? `/${afterProvider}`
+                : afterProvider;
             if (!threadRootId) {
               threadRootId = event.event_id;
             }
@@ -116,8 +165,9 @@ export class AppMatrixBridgeService implements OnModuleInit {
       integration,
       event.room_id,
       sender.id,
-      body,
+      effectiveBody,
       threadRootId,
+      channelInfo,
     ).catch((error) => {
       this.logger.error(
         `App bridge failed for ${integration.id} in ${event.room_id}: ${String(error)}`,
@@ -139,10 +189,29 @@ export class AppMatrixBridgeService implements OnModuleInit {
     userId: string,
     body: string,
     threadRootId?: string,
+    channel?: { id: string; name: string },
   ): Promise<void> {
     if (!integration.matrixUserId) return;
 
     const trimmed = body.trim();
+    if (trimmed !== 'help' && this.planner && !trimmed.startsWith('/')) {
+      try {
+        await this.planner({ integration, roomId, userId, text: trimmed, threadRootId, channel });
+      } catch (error) {
+        await this.messaging.sendStructured(
+          roomId,
+          integration.matrixUserId,
+          {
+            type: 'mie.system',
+            severity: 'error',
+            title: `${integration.displayName ?? integration.provider} could not do that`,
+            details: error instanceof Error ? error.message : String(error),
+          },
+          { threadRootId },
+        );
+      }
+      return;
+    }
     if (trimmed.startsWith('/')) {
       await this.runSlashCommand(
         integration,

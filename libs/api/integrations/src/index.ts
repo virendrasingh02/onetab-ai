@@ -1,4 +1,6 @@
 export { IntegrationsModule } from './lib/integrations.module.js';
+export { AppMatrixBridgeService } from './lib/app-matrix-bridge.service.js';
+export type { AppChatPlanner, AppChatRequest, AppChatIntegration } from './lib/app-matrix-bridge.service.js';
 export { IntegrationsService } from './lib/integrations.service.js';
 export { IntegrationsController } from './lib/integrations.controller.js';
 export { ConnectorRegistryService } from './lib/connectors/connector-registry.service.js';

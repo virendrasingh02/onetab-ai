@@ -22,6 +22,31 @@ export interface SlashCommand {
    * "start typing from here", not "tag this message with a command".
    */
   expandsTo?: string;
+  /**
+   * Set for entries contributed by a configured app / agent / coworker rather
+   * than built in. The menu renders them as "Title / App · Name · description"
+   * rows and groups them under their source.
+   */
+  source?: SlashCommandSource;
+  /** Row title (e.g. "Create an Issue"); falls back to `name`. */
+  title?: string;
+  /**
+   * What picking the row inserts. Unset → a `/name` command chip.
+   * `mention` → an `@` mention chip for the app/agent (so the message is
+   * addressed to it), followed by `insertText`.
+   */
+  insert?: {
+    mention?: { id: string; name: string; kind: 'agent' | 'coworker' | 'app' };
+    /** Plain text dropped after the chip, e.g. `create_issue `. */
+    text?: string;
+  };
+}
+
+export interface SlashCommandSource {
+  kind: 'app' | 'agent' | 'coworker';
+  /** Display name of the app/agent, e.g. "GitHub". */
+  label: string;
+  avatarUrl?: string;
 }
 
 export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [

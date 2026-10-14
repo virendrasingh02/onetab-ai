@@ -45,9 +45,7 @@ export function useAssistantConversation({
 }: UseAssistantConversationOptions = {}) {
   const { assistant, workspaceId } = useAssistantCoworker();
   const mutations = useCoworkerMutations(workspaceId);
-  const peerId = assistant
-    ? assistant.matrixUserId || `coworker-${assistant.id}`
-    : undefined;
+  const peerId = assistant ? `coworker-${assistant.id}` : undefined;
   const { roomId, error: roomError } = useDirectRoom(peerId);
   const room = useRoom(roomId ?? undefined);
   const actions = useRoomActions(roomId ?? undefined);

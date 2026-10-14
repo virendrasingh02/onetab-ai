@@ -5,6 +5,8 @@ export {
   AppEvent,
   type AppEventName,
   type AppEventPayloads,
+  type AgentChangeAction,
+  type AgentChangedEvent,
   type TaskCreatedEvent,
   type TaskAssignedEvent,
   type TaskCompletedEvent,
