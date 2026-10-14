@@ -15,7 +15,7 @@ import {
   TooltipTrigger,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Bot, ChevronRight, Layers, Plug, Search, Star, Wrench, Zap, Eye } from 'lucide-react';
+import { Bot, ChevronRight, Layers, Plug, Plus, Search, Star, Wrench, Zap, Eye } from 'lucide-react';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
@@ -106,6 +106,9 @@ export function ConnectorsPage() {
             <Button size="sm" variant="outline" onClick={() => navigate('/workflows')}>
               Open the canvas
             </Button>
+            <Button size="sm" onClick={() => navigate('/connectors/new')} leadingIcon={<Plus />}>
+              Build a connector
+            </Button>
           </div>
         }
       />
@@ -178,9 +181,10 @@ export function ConnectorsPage() {
             <EmptyState
               icon={<Plug />}
               title={list.length ? 'No connectors match' : 'No connectors on this server'}
-              description={list.length ? 'Try another search or clear the filters.' : 'Connectors appear here once their adapters are installed on the server.'}
+              description={list.length ? 'Can’t find the app you need? Build a connector for any REST API.' : 'Connectors appear here once their adapters are installed on the server.'}
               action={
                 list.length ? (
+                  <div className="flex flex-wrap justify-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -192,6 +196,10 @@ export function ConnectorsPage() {
                   >
                     Clear filters
                   </Button>
+                  <Button size="sm" onClick={() => navigate('/connectors/new')} leadingIcon={<Plus />}>
+                    Build a connector
+                  </Button>
+                  </div>
                 ) : undefined
               }
             />
@@ -208,6 +216,7 @@ export function ConnectorsPage() {
                   onAddToAgent={() => setAddingToAgent(c)}
                 />
               ))}
+              <BuildConnectorTile onClick={() => navigate('/connectors/new')} />
             </div>
           )}
         </>
@@ -266,7 +275,7 @@ export function ConnectorCard({
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold text-foreground group-hover:text-primary">{c.name}</span>
               <span className="block truncate text-[11px] text-muted-foreground">
-                {CATEGORY_LABEL.get(c.category) ?? c.category} · {AUTH_LABELS[c.authType] ?? c.authType}
+                {c.custom ? 'Custom' : (CATEGORY_LABEL.get(c.category) ?? c.category)} · {AUTH_LABELS[c.authType] ?? c.authType}
               </span>
             </span>
           </button>
@@ -329,6 +338,10 @@ export function ConnectorCard({
             <Bot className="mr-1 size-3" aria-hidden="true" />
             Use in an agent
           </Button>
+        ) : c.custom ? (
+          <Button size="xs" className="flex-1" onClick={onOpen}>
+            {c.status === 'needs_attention' ? 'Fix connection' : 'Open'}
+          </Button>
         ) : (
           <Button size="xs" className="flex-1" onClick={onConnect}>
             {c.status === 'needs_attention' ? 'Reconnect' : 'Connect'}
@@ -340,6 +353,24 @@ export function ConnectorCard({
         </Button>
       </div>
     </Card>
+  );
+}
+
+function BuildConnectorTile({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface p-5 text-center transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-surface-raised text-muted-foreground group-hover:text-primary">
+        <Plus className="size-5" aria-hidden="true" />
+      </span>
+      <span className="text-sm font-semibold text-foreground">Build your own connector</span>
+      <span className="max-w-xs text-xs text-muted-foreground">
+        Describe any REST API and its actions. Agents and workflows can then use it like any other app.
+      </span>
+    </button>
   );
 }
 

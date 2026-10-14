@@ -80,8 +80,8 @@ export function StudioHeader({
   const isFree = plan === 'free';
   const pastDue = subscription?.status === 'PAST_DUE' || subscription?.status === 'UNPAID';
 
-  const displayName = user.name || 'Nick Bold';
-  const displayEmail = user.email || 'admin@onetab.ai';
+  const displayName = user.name || user.email || 'Studio user';
+  const displayEmail = user.email || '';
 
   return (
     <header className="h-14 border-b border-border/60 bg-background/95 backdrop-blur-xs px-4 sm:px-6 flex shrink-0 items-center justify-between z-30">

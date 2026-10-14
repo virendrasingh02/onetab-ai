@@ -50,6 +50,30 @@ export function customApiConfigFromMetadata(
   };
 }
 
+/**
+ * The metadata to store for a custom API connection: the request config with
+ * every secret (key, token, password, header values) replaced by a mask and
+ * kept encrypted beside it. `customApiConfigFromMetadata` is the inverse.
+ */
+export function customApiMetadataWithEncryptedSecrets(
+  config: IntegrationCustomApiConfig,
+  encryption: Pick<IntegrationEncryptionService, 'encrypt' | 'maskSecret'>,
+): Record<string, unknown> {
+  const headerNames = config.customHeaders ? Object.keys(config.customHeaders) : [];
+  return {
+    ...config,
+    apiKey: encryption.maskSecret(config.apiKey),
+    bearerToken: encryption.maskSecret(config.bearerToken),
+    basicPassword: encryption.maskSecret(config.basicPassword),
+    customHeaders: headerNames.length ? Object.fromEntries(headerNames.map((h) => [h, '••••'])) : undefined,
+    encryptedApiKey: config.apiKey ? encryption.encrypt(config.apiKey) : undefined,
+    encryptedBearer: config.bearerToken ? encryption.encrypt(config.bearerToken) : undefined,
+    encryptedBasicPass: config.basicPassword ? encryption.encrypt(config.basicPassword) : undefined,
+    // Header values are often credentials too (`X-Api-Key`, `Authorization`).
+    encryptedCustomHeaders: headerNames.length ? encryption.encrypt(JSON.stringify(config.customHeaders)) : undefined,
+  };
+}
+
 const asRecord = (value: unknown): Record<string, string> | undefined => {
   if (!value) return undefined;
   if (typeof value === 'string') {

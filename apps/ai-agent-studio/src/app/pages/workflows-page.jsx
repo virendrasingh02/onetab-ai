@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Badge,
+  confirm,
   Button,
   Dialog,
   DialogContent,
@@ -276,10 +277,13 @@ export function WorkflowsPage() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      onClick={() => {
-                        if (confirm(`Delete workflow "${workflow.name}"?`)) {
-                          deleteMutation.mutate(workflow.id);
-                        }
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `Delete “${workflow.name}”?`,
+                          description: 'The workflow and its run history are removed. This can’t be undone.',
+                          destructive: true,
+                        });
+                        if (ok) deleteMutation.mutate(workflow.id);
                       }}
                       className="text-destructive hover:bg-destructive/10"
                       title="Delete"

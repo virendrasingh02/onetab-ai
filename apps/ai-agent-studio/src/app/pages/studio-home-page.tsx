@@ -10,6 +10,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Page,
+  PageHeader,
   PageSection,
   StatCard,
   AIModelBadge,
@@ -37,6 +39,7 @@ import {
   Pin,
   Plus,
   Search,
+  Sparkles,
   Trophy,
   Upload,
   Wand2,
@@ -71,11 +74,90 @@ const formatTokens = (v: number) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed
  * agent directory.
  */
 export function StudioHomePage() {
+  const { activeWorkspace } = useStudioSession();
+  const navigate = useNavigate();
   return (
-    <div className="space-y-8">
-      <StudioHome />
+    <Page width="wide" padding="none" className="space-y-8">
+      <PageHeader
+        title="Studio Home"
+        description={`What your agents are doing in ${activeWorkspace.name} — and what to build next.`}
+        icon={<Sparkles className="size-5" />}
+        accent="violet"
+        className="mb-0"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => navigate('/templates')} className="gap-1.5">
+              <Layers className="size-3.5" /> Templates
+            </Button>
+            <Button size="sm" onClick={() => navigate('/create')} className="gap-1.5">
+              <Wand2 className="size-3.5" /> Create with AI
+            </Button>
+          </>
+        }
+      />
+      <StudioHome planHref={(prompt) => `/create?prompt=${encodeURIComponent(prompt)}&go=1`} />
       <StudioInsights />
-    </div>
+    </Page>
+  );
+}
+
+interface JourneyStep {
+  id: string;
+  title: string;
+  hint: string;
+  done: boolean;
+  to: string;
+  cta: string;
+}
+
+/** Create → test → publish, driven by what the workspace has actually done. */
+function GettingStarted({ steps }: { steps: JourneyStep[] }) {
+  const doneCount = steps.filter((s) => s.done).length;
+  if (doneCount === steps.length) return null;
+  const nextId = steps.find((s) => !s.done)?.id;
+  return (
+    <section aria-labelledby="journey-heading" className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="journey-heading" className="text-sm font-bold text-foreground">
+          Get your first agent live
+        </h2>
+        <span className="text-xs text-muted-foreground">{doneCount} of {steps.length} done</span>
+      </div>
+      <ol className="mt-3 grid gap-2 sm:grid-cols-3">
+        {steps.map((step, i) => (
+          <li
+            key={step.id}
+            className={`flex flex-col justify-between gap-2 rounded-xl border p-3 ${
+              step.id === nextId ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-surface-raised/40'
+            }`}
+          >
+            <div className="flex items-start gap-2">
+              {step.done ? (
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+              ) : (
+                <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground" aria-hidden>
+                  {i + 1}
+                </span>
+              )}
+              <div className="min-w-0">
+                <div className={`text-xs font-semibold ${step.done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                  {step.title}
+                  <span className="sr-only">{step.done ? ' — done' : ''}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{step.hint}</p>
+              </div>
+            </div>
+            {!step.done && (
+              <Button size="xs" variant={step.id === nextId ? 'primary' : 'outline'} asChild className="self-start">
+                <Link to={step.to}>
+                  {step.cta} <ArrowRight className="size-3" />
+                </Link>
+              </Button>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -97,7 +179,7 @@ function StudioInsights() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
 
-  const { data: agents = [] } = useQuery({
+  const { data: agents = [], isLoading: isLoadingAgents } = useQuery({
     queryKey: ['agents', activeWorkspace.id],
     queryFn: async () => {
       try {
@@ -129,6 +211,27 @@ function StudioInsights() {
   const publishedAgents = agents.filter((a) => statusOf(a) === 'published');
   const archivedAgents = agents.filter((a) => statusOf(a) === 'archived');
   const draftAgents = agents.length - publishedAgents.length - archivedAgents.length;
+
+  const firstDraft = agents.find((a) => statusOf(a) !== 'published' && statusOf(a) !== 'archived') ?? agents[0];
+  const journey: JourneyStep[] = [
+    { id: 'create', title: 'Create an agent', hint: 'Describe it in plain words — Studio plans and builds it.', done: agents.length > 0, to: '/create', cta: 'Create with AI' },
+    {
+      id: 'test',
+      title: 'Run a test',
+      hint: 'Watch each step run before anything goes live.',
+      done: logs.length > 0,
+      to: firstDraft ? `/agents/${firstDraft.id}?copilot=1&test=1` : '/create',
+      cta: 'Run a test',
+    },
+    {
+      id: 'publish',
+      title: 'Publish it',
+      hint: 'Make it callable by API, widget or schedule.',
+      done: publishedAgents.length > 0,
+      to: firstDraft ? `/agents/${firstDraft.id}` : '/create',
+      cta: 'Open the agent',
+    },
+  ];
 
   const totalTokens = logs.reduce((acc, l) => acc + (l.tokensUsed || 0), 0);
   const successfulRuns = logs.filter((l) => l.status === 'SUCCESS').length;
@@ -214,104 +317,7 @@ function StudioInsights() {
 
   return (
     <div className="space-y-8">
-      <PageSection
-        title="Performance"
-        description={`All recorded runs in ${activeWorkspace.name}.`}
-        actions={
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/analytics">
-              Full analytics <ArrowRight className="size-3.5" />
-            </Link>
-          </Button>
-        }
-      >
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-          <StatCard
-            label="Total agents"
-            value={agents.length}
-            icon={Bot}
-            accent="green"
-            hint={`${publishedAgents.length} published · ${draftAgents} drafts${archivedAgents.length ? ` · ${archivedAgents.length} archived` : ''}`}
-          />
-          <StatCard label="Total runs" value={logs.length} icon={Activity} accent="indigo" hint={`${weekTotal} in the last 7 days`} />
-          <StatCard
-            label="Success rate"
-            value={successRate}
-            icon={Gauge}
-            accent="blue"
-            hint={`${successfulRuns} succeeded · ${failedRuns} failed`}
-          />
-          <StatCard label="Tokens used" value={totalTokens} format={formatTokens} icon={Coins} accent="violet" hint={`~${formatTokens(avgTokens)} per run`} />
-          <StatCard
-            label="Est. cost"
-            value={`$${(totalTokens * COST_PER_TOKEN).toFixed(2)}`}
-            icon={DollarSign}
-            accent="amber"
-            hint="At the credit ledger's rate"
-          />
-          <StatCard
-            label="Avg. cost / run"
-            value={`$${(avgTokens * COST_PER_TOKEN).toFixed(4)}`}
-            icon={Clock}
-            accent="teal"
-            hint="Across recorded runs"
-          />
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="rounded-xl border border-border bg-surface p-4 lg:col-span-2">
-            <div className="flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
-                <Activity className="size-4 text-accent-blue" /> Runs — last 7 days
-              </h3>
-              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-success" /> Succeeded</span>
-                <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> Failed</span>
-              </div>
-            </div>
-            <div className="mt-4 flex h-32 items-end gap-2" role="img" aria-label={`${weekTotal} runs in the last 7 days`}>
-              {weekly.map((d) => {
-                const total = d.ok + d.failed;
-                return (
-                  <div key={d.from} className="flex h-full flex-1 flex-col items-center justify-end gap-1" title={`${d.label}: ${d.ok} succeeded, ${d.failed} failed`}>
-                    <span className="text-[10px] tabular-nums text-muted-foreground">{total || ''}</span>
-                    <div className="flex w-full max-w-10 flex-col justify-end overflow-hidden rounded-t-md bg-surface-raised" style={{ height: `${Math.max(4, (total / weekMax) * 100)}%` }}>
-                      {d.failed > 0 && <div className="bg-destructive" style={{ flexGrow: d.failed }} />}
-                      {d.ok > 0 && <div className="bg-success" style={{ flexGrow: d.ok }} />}
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{d.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
-              <Trophy className="size-4 text-warning" /> Busiest agents
-            </h3>
-            {perAgent.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">No runs recorded yet.</p>
-            ) : (
-              <ul className="mt-3 space-y-2.5">
-                {perAgent.slice(0, 5).map((r) => (
-                  <li key={r.id}>
-                    <Link to={`/agents/${r.id}`} className="flex items-center justify-between gap-2 text-xs hover:text-primary">
-                      <span className="truncate font-semibold text-foreground">{r.name}</span>
-                      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{r.runs} runs · {Math.round((r.ok / r.runs) * 100)}%</span>
-                    </Link>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-raised">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${(r.runs / perAgent[0].runs) * 100}%` }} />
-                    </div>
-                    <div className="mt-0.5 text-[10px] text-muted-foreground">{formatTokens(r.tokens)} tokens</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      </PageSection>
-
+      {!isLoadingAgents && <GettingStarted steps={journey} />}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <PageSection
@@ -319,14 +325,8 @@ function StudioInsights() {
             description={`${filteredAgents.length} of ${agents.length} shown`}
             actions={
               <>
-                <Button variant="ghost" size="sm" onClick={() => navigate('/templates')} className="gap-1.5">
-                  <Layers className="size-3.5" /> Templates
-                </Button>
                 <Button variant="outline" size="sm" onClick={() => setIsImportModalOpen(true)} className="gap-1.5">
                   <Upload className="size-3.5" /> Import JSON
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate('/create')} className="gap-1.5">
-                  <Wand2 className="size-3.5" /> Build with AI
                 </Button>
                 <Button size="sm" onClick={() => navigate('/agents?create=blank')} className="gap-1.5">
                   <Plus className="size-3.5" /> New Agent
@@ -380,13 +380,38 @@ function StudioInsights() {
               {filteredAgents.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 p-10 text-center text-muted-foreground">
                   <Bot className="mb-2 size-12 text-muted-foreground/30" />
-                  <div className="text-sm font-semibold text-foreground">No Agents Found</div>
-                  <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-                    No agents match your active filters. Create a new agent from scratch or generate one with natural language.
-                  </p>
-                  <Button size="sm" onClick={() => navigate('/agents?create=blank')} className="mt-4 gap-1.5">
-                    <Plus className="size-3.5" /> Create Agent
-                  </Button>
+                  {agents.length === 0 ? (
+                    <>
+                      <div className="text-sm font-semibold text-foreground">No agents yet</div>
+                      <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                        Describe what you want done and Studio will plan and build the agent — or start from a template.
+                      </p>
+                      <div className="mt-4 flex flex-wrap justify-center gap-2">
+                        <Button size="sm" onClick={() => navigate('/create')} className="gap-1.5">
+                          <Wand2 className="size-3.5" /> Create with AI
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => navigate('/templates')} className="gap-1.5">
+                          <Layers className="size-3.5" /> Browse templates
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-sm font-semibold text-foreground">No agents match</div>
+                      <p className="mt-1 max-w-sm text-xs text-muted-foreground">Nothing fits the current search or status filter.</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSearch('');
+                          setStatusFilter('all');
+                        }}
+                        className="mt-4"
+                      >
+                        Clear filters
+                      </Button>
+                    </>
+                  )}
                 </div>
               ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -624,6 +649,104 @@ function StudioInsights() {
           </div>
         </div>
       </div>
+
+      <PageSection
+        title="Performance"
+        description={`All recorded runs in ${activeWorkspace.name}.`}
+        actions={
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/analytics">
+              Full analytics <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+          <StatCard
+            label="Total agents"
+            value={agents.length}
+            icon={Bot}
+            accent="green"
+            hint={`${publishedAgents.length} published · ${draftAgents} drafts${archivedAgents.length ? ` · ${archivedAgents.length} archived` : ''}`}
+          />
+          <StatCard label="Total runs" value={logs.length} icon={Activity} accent="indigo" hint={`${weekTotal} in the last 7 days`} />
+          <StatCard
+            label="Success rate"
+            value={successRate}
+            icon={Gauge}
+            accent="blue"
+            hint={`${successfulRuns} succeeded · ${failedRuns} failed`}
+          />
+          <StatCard label="Tokens used" value={totalTokens} format={formatTokens} icon={Coins} accent="violet" hint={`~${formatTokens(avgTokens)} per run`} />
+          <StatCard
+            label="Est. cost"
+            value={`$${(totalTokens * COST_PER_TOKEN).toFixed(2)}`}
+            icon={DollarSign}
+            accent="amber"
+            hint="At the credit ledger's rate"
+          />
+          <StatCard
+            label="Avg. cost / run"
+            value={`$${(avgTokens * COST_PER_TOKEN).toFixed(4)}`}
+            icon={Clock}
+            accent="teal"
+            hint="Across recorded runs"
+          />
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="rounded-xl border border-border bg-surface p-4 lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
+                <Activity className="size-4 text-accent-blue" /> Runs — last 7 days
+              </h3>
+              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-success" /> Succeeded</span>
+                <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> Failed</span>
+              </div>
+            </div>
+            <div className="mt-4 flex h-32 items-end gap-2" role="img" aria-label={`${weekTotal} runs in the last 7 days`}>
+              {weekly.map((d) => {
+                const total = d.ok + d.failed;
+                return (
+                  <div key={d.from} className="flex h-full flex-1 flex-col items-center justify-end gap-1" title={`${d.label}: ${d.ok} succeeded, ${d.failed} failed`}>
+                    <span className="text-[10px] tabular-nums text-muted-foreground">{total || ''}</span>
+                    <div className="flex w-full max-w-10 flex-col justify-end overflow-hidden rounded-t-md bg-surface-raised" style={{ height: `${Math.max(4, (total / weekMax) * 100)}%` }}>
+                      {d.failed > 0 && <div className="bg-destructive" style={{ flexGrow: d.failed }} />}
+                      {d.ok > 0 && <div className="bg-success" style={{ flexGrow: d.ok }} />}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{d.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface p-4">
+            <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
+              <Trophy className="size-4 text-warning" /> Busiest agents
+            </h3>
+            {perAgent.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">No runs recorded yet.</p>
+            ) : (
+              <ul className="mt-3 space-y-2.5">
+                {perAgent.slice(0, 5).map((r) => (
+                  <li key={r.id}>
+                    <Link to={`/agents/${r.id}`} className="flex items-center justify-between gap-2 text-xs hover:text-primary">
+                      <span className="truncate font-semibold text-foreground">{r.name}</span>
+                      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{r.runs} runs · {Math.round((r.ok / r.runs) * 100)}%</span>
+                    </Link>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-raised">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${(r.runs / perAgent[0].runs) * 100}%` }} />
+                    </div>
+                    <div className="mt-0.5 text-[10px] text-muted-foreground">{formatTokens(r.tokens)} tokens</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </PageSection>
 
       <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
         <DialogContent className="sm:max-w-lg">

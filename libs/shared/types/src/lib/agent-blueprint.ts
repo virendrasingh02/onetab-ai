@@ -106,6 +106,11 @@ const APP_LABELS: Record<string, string> = {
   linear: 'Linear',
   notion: 'Notion',
   trello: 'Trello',
+  vercel: 'Vercel',
+  hubspot: 'HubSpot',
+  clickup: 'ClickUp',
+  woocommerce: 'WooCommerce',
+  razorpay: 'Razorpay',
   google_calendar: 'Google Calendar',
   google_drive: 'Google Drive',
   google_docs: 'Google Docs',
@@ -115,6 +120,16 @@ const APP_LABELS: Record<string, string> = {
 export function appLabel(provider: string): string {
   const key = provider.toLowerCase();
   return APP_LABELS[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** One app a published agent needs, and whether the person asking has it connected. */
+export interface AgentConnectionStatus {
+  /** Upper-case provider key (`GMAIL`). */
+  provider: string;
+  label: string;
+  connected: boolean;
+  /** Connected through a workspace-shared account rather than the person's own. */
+  shared: boolean;
 }
 
 /** A scope in words, including `app:<provider>:<access>` scopes. */

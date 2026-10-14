@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IntegrationsService } from '@org/api-integrations';
 import { PrismaService } from '@org/database';
-import { connectorToolName, type AppActionDefinition } from '@org/types';
+import { appLabel, connectorToolName, type AppActionDefinition, type AgentConnectionStatus } from '@org/types';
 
 export interface IntegrationToolSchema {
   /** `<provider>_<actionId>`, namespaced so it can sit in the same OpenAI
@@ -54,18 +54,35 @@ export class IntegrationToolBridgeService {
      * engine uses for `PROVIDER.action` steps — never another member's.
      */
     providers: readonly string[] = [],
+    /**
+     * The person talking to the agent. Their own connected accounts are used,
+     * not the creator's: a published agent must never act in the creator's
+     * Gmail for whoever happens to ask. Scheduled runs have no requester and
+     * keep using the creator's.
+     */
+    requesterId?: string | null,
   ): Promise<IntegrationToolSchema[]> {
-    if (!actingUserId) return [];
+    const actor = requesterId ?? actingUserId;
+    if (!actor) return [];
 
     const links = await this.prisma.coworkerApp.findMany({
       where: { coworkerId: entityId },
       include: {
-        integration: { select: { id: true, provider: true, status: true } },
+        integration: { select: { id: true, provider: true, status: true, scopeType: true, userId: true } },
       },
     });
-    const connected = links.filter((link) => link.integration.status === 'CONNECTED');
+    // A personal connection belongs to the person who made it; another member
+    // resolves the same app to their own connection (below) or goes without.
+    const connected = links.filter(
+      (link) =>
+        link.integration.status === 'CONNECTED' &&
+        !(link.integration.scopeType === 'USER' && link.integration.userId !== actor),
+    );
     const linked = new Set(connected.map((link) => link.integration.provider.toUpperCase()));
-    const wanted = [...new Set(providers.map((p) => p.toUpperCase()))].filter((p) => !linked.has(p));
+    const personal = links
+      .filter((link) => link.integration.scopeType === 'USER' && link.integration.userId !== actor)
+      .map((link) => link.integration.provider);
+    const wanted = [...new Set([...providers, ...personal].map((p) => p.toUpperCase()))].filter((p) => !linked.has(p));
     if (wanted.length > 0) {
       const rows = await this.prisma.externalIntegration.findMany({
         where: {
@@ -73,7 +90,7 @@ export class IntegrationToolBridgeService {
           status: 'CONNECTED',
           OR: [
             { workspaceId, scopeType: { not: 'USER' } },
-            { scopeType: 'USER', userId: actingUserId },
+            { scopeType: 'USER', userId: actor },
           ],
         },
         orderBy: { updatedAt: 'desc' },
@@ -91,7 +108,7 @@ export class IntegrationToolBridgeService {
       try {
         const actions = (await this.integrations.getActions(
           link.integration.id,
-          actingUserId,
+          actor,
           workspaceId,
         )) as AppActionDefinition[];
 
@@ -113,6 +130,43 @@ export class IntegrationToolBridgeService {
       }
     }
     return results;
+  }
+
+  /**
+   * Which apps the agent needs and whether `userId` has them connected —
+   * a workspace-shared connection counts for everyone, a personal one only
+   * for its owner. Drives the "connect your accounts" prompt in the app.
+   */
+  async getConnectionStatus(
+    workspaceId: string,
+    entityId: string,
+    userId: string,
+    providers: readonly string[] = [],
+  ): Promise<AgentConnectionStatus[]> {
+    const links = await this.prisma.coworkerApp.findMany({
+      where: { coworkerId: entityId },
+      include: { integration: { select: { provider: true } } },
+    });
+    const required = [...new Set([...links.map((l) => l.integration.provider), ...providers].map((p) => p.toUpperCase()))];
+    if (required.length === 0) return [];
+
+    const rows = await this.prisma.externalIntegration.findMany({
+      where: {
+        provider: { in: required },
+        status: 'CONNECTED',
+        OR: [{ workspaceId, scopeType: { not: 'USER' } }, { scopeType: 'USER', userId }],
+      },
+      select: { provider: true, scopeType: true },
+    });
+    return required.map((provider) => {
+      const row = rows.find((r) => r.provider.toUpperCase() === provider);
+      return {
+        provider,
+        label: appLabel(provider),
+        connected: !!row,
+        shared: !!row && row.scopeType !== 'USER',
+      };
+    });
   }
 
   private toSchema(name: string, def: AppActionDefinition): Record<string, unknown> {

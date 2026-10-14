@@ -77,6 +77,7 @@ import type {
   AIEntityType,
   AIAgent,
   AIAgentDetail,
+  AgentConnectionStatus,
   AICoworker,
   AICoworkerDetail,
   CoworkerExecutionLog,
@@ -340,6 +341,7 @@ import type {
   ConnectorDetail,
   ConnectorGroup,
   ConnectorGroupInput,
+  CustomConnectorInput,
   ConnectorSummary,
   WidgetDefinition,
   WidgetTemplateItem,
@@ -2784,6 +2786,12 @@ export const agentsApi = {
       http.post(`/workspaces/${workspaceId}/agents/${agentId}/unpublish`, {}),
     ),
 
+  /** The apps the agent acts in and whether the signed-in member has each connected. */
+  connections: (workspaceId: string, agentId: string) =>
+    request<AgentConnectionStatus[]>(
+      http.get(`/workspaces/${workspaceId}/agents/${agentId}/connections`),
+    ),
+
   /** The marketplace listing this agent was published as from Studio, or `null`. */
   marketplaceListing: (workspaceId: string, agentId: string) =>
     // The API answers an unlisted agent with an empty body.
@@ -3702,6 +3710,21 @@ export const connectorsApi = {
   /** Checks a connection against the app itself and records the result. */
   testConnection: (workspaceId: string, integrationId: string) =>
     request<ConnectionTestResult>(http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/test`)),
+
+  /** Connectors the workspace defines itself: a REST API plus the named actions it offers. */
+  custom: {
+    create: (workspaceId: string, input: CustomConnectorInput) =>
+      request<{ provider: string; integrationId: string }>(http.post(`/workspaces/${workspaceId}/connectors-custom`, input)),
+    update: (workspaceId: string, integrationId: string, input: CustomConnectorInput) =>
+      request<{ provider: string; integrationId: string }>(http.put(`/workspaces/${workspaceId}/connectors-custom/${integrationId}`, input)),
+    remove: (workspaceId: string, integrationId: string) =>
+      request<{ deleted: true }>(http.delete(`/workspaces/${workspaceId}/connectors-custom/${integrationId}`)),
+    /** Runs one action of an unsaved definition against the real API. */
+    testAction: (
+      workspaceId: string,
+      body: { connector: CustomConnectorInput; actionId: string; values?: Record<string, unknown>; confirm?: boolean; integrationId?: string },
+    ) => request<AppActionResult>(http.post(`/workspaces/${workspaceId}/connectors-custom/test-action`, body)),
+  },
 
   /** Connector groups: named sets of apps (and their switched-on actions) an agent can be given at once. */
   groups: {

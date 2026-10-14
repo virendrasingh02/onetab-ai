@@ -1,12 +1,6 @@
 import React from 'react';
 import { Button, SearchInput } from '@org/ui';
-import {
-  Code2,
-  ExternalLink,
-  ShieldAlert,
-  Sparkles,
-  Store,
-} from 'lucide-react';
+import { ExternalLink, ShieldAlert, Sparkles, Store } from 'lucide-react';
 
 interface MarketplaceHeaderProps {
   searchQuery: string;
@@ -15,7 +9,6 @@ interface MarketplaceHeaderProps {
   onOpenApprovals?: () => void;
   /** Opens the standalone AI Agent Studio, where agents and automations are built and published. */
   onOpenStudio?: () => void;
-  onOpenDeveloper?: () => void;
 }
 
 /**
@@ -29,7 +22,6 @@ export const MarketplaceHeader: React.FC<MarketplaceHeaderProps> = ({
   pendingApprovalsCount = 0,
   onOpenApprovals,
   onOpenStudio,
-  onOpenDeveloper,
 }) => {
   return (
     <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
@@ -62,18 +54,6 @@ export const MarketplaceHeader: React.FC<MarketplaceHeaderProps> = ({
           wrapperClassName="w-full sm:w-64 lg:w-80"
           className="h-8 text-xs"
         />
-
-        {onOpenDeveloper && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenDeveloper}
-            className="h-8 text-xs font-medium"
-          >
-            <Code2 className="size-3.5 mr-1.5 text-muted-foreground" />
-            Developer Portal
-          </Button>
-        )}
 
         {onOpenStudio && (
           <Button

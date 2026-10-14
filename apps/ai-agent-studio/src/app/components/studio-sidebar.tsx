@@ -2,15 +2,9 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-  Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -18,10 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
-  Input,
   ScrollArea,
-  AppSelect,
-  Label,
   Sheet,
   SheetContent,
   SheetTitle,
@@ -49,6 +40,7 @@ import {
   Settings,
   ShieldAlert,
   UserPlus,
+  Wand2,
   Wrench,
   LogOut,
 } from 'lucide-react';
@@ -191,81 +183,6 @@ function buildNavGroups(slug: string): NavGroup[] {
     ],
   },
   ];
-}
-
-/**
- * Invite Team Dialog
- */
-function InviteTeamDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('developer');
-  const [sent, setSent] = useState(false);
-
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSent(true);
-    setTimeout(() => {
-      setSent(false);
-      setEmail('');
-      onOpenChange(false);
-    }, 1200);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-xl">
-        <DialogHeader>
-          <DialogTitle className="text-base font-semibold">Invite Team Members</DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Invite engineers, AI architects, or operators to this workspace.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSend} className="space-y-4 pt-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-foreground">Email address</Label>
-            <Input
-              type="email"
-              placeholder="colleague@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-foreground">Studio Role</Label>
-            <AppSelect
-              value={role}
-              onValueChange={(v) => setRole(v)}
-              options={[
-                { value: 'developer', label: 'Agent Developer (Full Builder)' },
-                { value: 'operator', label: 'Operator (Run & Monitor)' },
-                { value: 'auditor', label: 'Auditor (Read-Only Traces)' },
-              ]}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={sent}>
-              {sent ? 'Invitation Sent!' : 'Send Invitation'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 /*
@@ -430,7 +347,10 @@ export function StudioSidebar({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const openInvite = () => {
+    onCloseMobile?.();
+    navigate('/settings?tab=members&invite=1');
+  };
   const navGroups = useMemo(() => buildNavGroups(activeWorkspace.slug), [activeWorkspace.slug]);
 
   const { data: pendingApprovals = [] } = useQuery({
@@ -539,7 +459,7 @@ export function StudioSidebar({
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setInviteOpen(true)} className="gap-2 text-sm">
+            <DropdownMenuItem onClick={() => openInvite()} className="gap-2 text-sm">
               <UserPlus className="size-4" />
               <span>Invite Team…</span>
             </DropdownMenuItem>
@@ -551,6 +471,30 @@ export function StudioSidebar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
+
+      {/* Primary journey entry: describe → plan → build */}
+      <div className="shrink-0 px-2.5 pt-3">
+        {collapsed ? (
+          <Hint side="right" label="Create with AI">
+            <NavLink
+              to="/create"
+              onClick={onCloseMobile}
+              aria-label="Create with AI"
+              className="mx-auto flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-2xs transition-colors hover:bg-primary/90 outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <Wand2 className="size-4" />
+            </NavLink>
+          </Hint>
+        ) : (
+          <NavLink
+            to="/create"
+            onClick={onCloseMobile}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground shadow-2xs transition-colors hover:bg-primary/90 outline-none focus-visible:ring-1 focus-visible:ring-ring pointer-coarse:min-h-11"
+          >
+            <Wand2 className="size-4" /> Create with AI
+          </NavLink>
+        )}
       </div>
 
       {/* Scrollable Navigation Body */}
@@ -603,7 +547,7 @@ export function StudioSidebar({
           <Hint side="right" label="Invite Team">
             <button
               type="button"
-              onClick={() => setInviteOpen(true)}
+              onClick={() => openInvite()}
               aria-label="Invite Team"
               className={cn(ICON_ROW, ICON_IDLE)}
             >
@@ -611,7 +555,7 @@ export function StudioSidebar({
             </button>
           </Hint>
         ) : (
-          <button type="button" onClick={() => setInviteOpen(true)} className={cn(ROW_BASE, ROW_IDLE)}>
+          <button type="button" onClick={() => openInvite()} className={cn(ROW_BASE, ROW_IDLE)}>
             <UserPlus className="size-4 shrink-0" />
             <span className="flex-1 truncate">Invite Team</span>
           </button>
@@ -714,9 +658,6 @@ export function StudioSidebar({
           {renderPanel(false)}
         </SheetContent>
       </Sheet>
-
-      {/* Invite Team Dialog */}
-      <InviteTeamDialog open={inviteOpen} onOpenChange={setInviteOpen} />
     </>
   );
 }

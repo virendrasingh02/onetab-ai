@@ -11,7 +11,7 @@ import {
   type ArchitectUnderstandResult,
   type MissingConfigItem,
 } from '@org/types';
-import { Alert, AlertDescription, AlertTitle, Badge, Button, Input, Page, Textarea, toast, Label } from '@org/ui';
+import { Alert, AlertDescription, AlertTitle, Badge, Button, Input, Page, PageHeader, Textarea, toast, Label } from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -348,17 +348,14 @@ export function CreateAgentPage() {
   if (phase === 'describe' || phase === 'understanding') {
     const busy = phase === 'understanding';
     return (
-      <Page width="wide" padding="none" className="mx-auto w-full max-w-4xl space-y-8 py-4 sm:py-10">
-        <section className="space-y-4 text-center" aria-labelledby="create-heading">
-          <Badge variant="primary" className="mx-auto gap-1">
-            <Sparkles className="size-3" aria-hidden /> Create with one prompt · any domain
-          </Badge>
-          <h1 id="create-heading" className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Describe the agents you need.
-            <span className="block text-muted-foreground">AI Agent Studio builds the workflow.</span>
-          </h1>
-          <p className="text-sm text-muted-foreground">{DOMAINS.join(', ')} — any domain, any workflow.</p>
-        </section>
+      <Page width="wide" padding="none" className="mx-auto w-full max-w-4xl space-y-8">
+        <PageHeader
+          title="Create with AI"
+          description={`Describe the agent you need — ${DOMAINS.join(', ')} or any other domain — and Studio plans the workflow for you to review.`}
+          icon={<Sparkles className="size-5" />}
+          accent="violet"
+          className="mb-0"
+        />
 
         <form onSubmit={submit} className="rounded-xl border border-border bg-surface p-3 shadow-sm focus-within:ring-2 focus-within:ring-ring/40">
           <Label htmlFor="agent-prompt" className="sr-only">

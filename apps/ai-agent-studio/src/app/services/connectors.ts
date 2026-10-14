@@ -9,6 +9,7 @@ import {
   type ConnectorGroupInput,
   type ConnectorGroupMember,
   type ConnectorSummary,
+  type CustomConnectorInput,
 } from '@org/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
@@ -427,3 +428,27 @@ export const saveConnectorGroup = (workspaceId: string, input: ConnectorGroupInp
   id ? connectorsApi.groups.update(workspaceId, id, input) : connectorsApi.groups.create(workspaceId, input);
 
 export type { ConnectorDetail, ConnectorSummary, AgentWithApps, ConnectorGroup, ConnectorGroupInput, ConnectorGroupMember };
+
+// ---------------------------------------------------------------------------
+// Custom connectors (built in the Studio)
+// ---------------------------------------------------------------------------
+
+export function createCustomConnector(workspaceId: string, input: CustomConnectorInput) {
+  return connectorsApi.custom.create(workspaceId, input);
+}
+
+export function updateCustomConnector(workspaceId: string, integrationId: string, input: CustomConnectorInput) {
+  return connectorsApi.custom.update(workspaceId, integrationId, input);
+}
+
+export function deleteCustomConnector(workspaceId: string, integrationId: string) {
+  return connectorsApi.custom.remove(workspaceId, integrationId);
+}
+
+/** Runs one action of the (possibly unsaved) definition against the real API. */
+export function testCustomAction(
+  workspaceId: string,
+  body: { connector: CustomConnectorInput; actionId: string; values?: Record<string, unknown>; confirm?: boolean; integrationId?: string },
+) {
+  return connectorsApi.custom.testAction(workspaceId, body);
+}

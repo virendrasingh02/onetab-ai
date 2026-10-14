@@ -37,6 +37,7 @@ export class AgentApprovalListener {
       builtinTool?: string;
       actionLabel?: string;
       input?: Record<string, unknown>;
+      onBehalfOfUserId?: string;
       roomId?: string | null;
       threadRootId?: string | null;
     };
@@ -83,7 +84,8 @@ export class AgentApprovalListener {
         actionId,
         input ?? {},
         true,
-        event.approverId,
+        // The agent used the requester's own connection; the approver consents.
+        payload.onBehalfOfUserId ?? event.approverId,
         event.workspaceId,
         roomId ?? undefined,
       );

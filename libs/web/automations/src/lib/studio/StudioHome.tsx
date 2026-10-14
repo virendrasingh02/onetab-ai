@@ -42,7 +42,7 @@ export const EXAMPLE_REQUESTS = [
  * what is running right now, what runs next — and one box to ask for a new
  * agent in your own words.
  */
-export function StudioHome() {
+export function StudioHome({ planHref }: { planHref?: (prompt: string) => string } = {}) {
   const { workspaceId, slug } = useCurrentWorkspace();
   const home = useStudioHome(workspaceId);
   const runLink = (run: { id: string; entityId: string; entityType?: string }) =>
@@ -54,12 +54,13 @@ export function StudioHome() {
     return <ErrorState title="Couldn't load your agents" onRetry={() => void home.refetch()} />;
   }
   const data = home.data;
+  const attention = data ? data.approvals.length + data.failed.length : 0;
 
   return (
     <div className="space-y-8">
-      <Hero data={data} slug={slug} />
+      <Hero data={data} slug={slug} planHref={planHref} />
 
-      <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,9.5rem),1fr))]">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
         {data ? (
           <>
             <StatCard label="Running now" value={data.stats.running} icon={Loader2} accent="indigo" />
@@ -74,9 +75,12 @@ export function StudioHome() {
       </div>
 
       {data ? (
-        <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(min(100%,24rem),1fr))]">
-          <PageSection title="Needs attention" description={data.approvals.length + data.failed.length === 0 ? 'Nothing is waiting on you.' : undefined}>
-            {data.approvals.length + data.failed.length > 0 ? (
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          <PageSection
+            title="Happening now"
+            description={attention + data.runningNow.length === 0 ? 'Nothing is waiting on you and no agent is running.' : undefined}
+          >
+            {attention + data.runningNow.length > 0 ? (
               <Card className="divide-y divide-border overflow-hidden p-0">
                 {data.approvals.map((a) => (
                   <Row
@@ -98,13 +102,6 @@ export function StudioHome() {
                     meta={formatRelative(r.startedAt)}
                   />
                 ))}
-              </Card>
-            ) : null}
-          </PageSection>
-
-          <PageSection title="Running now" description={data.runningNow.length === 0 ? 'No agent is running at the moment.' : undefined}>
-            {data.runningNow.length ? (
-              <Card className="divide-y divide-border overflow-hidden p-0">
                 {data.runningNow.map((r) => (
                   <Row
                     key={r.id}
@@ -172,7 +169,7 @@ export function StudioHome() {
           </PageSection>
         </div>
       ) : (
-        <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(min(100%,24rem),1fr))]">
+        <div className="grid gap-6 lg:grid-cols-2">
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
@@ -202,14 +199,22 @@ function humanize(id: string): string {
   return id.replace(/__.*$/, '').replace(/[_-]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
 }
 
-function Hero({ data, slug }: { data: StudioHomeData | undefined; slug: string | undefined }) {
+function Hero({
+  data,
+  slug,
+  planHref,
+}: {
+  data: StudioHomeData | undefined;
+  slug: string | undefined;
+  planHref?: (prompt: string) => string;
+}) {
   const navigate = useNavigate();
   const { can } = useWorkspacePermission();
   const [request, setRequest] = useState('');
   const submit = (text: string) => {
     const prompt = text.trim();
     if (!prompt) return;
-    navigate(`${aiWorkspacePath(slug, 'studio', 'new')}?prompt=${encodeURIComponent(prompt)}`);
+    navigate(planHref ? planHref(prompt) : `${aiWorkspacePath(slug, 'studio', 'new')}?prompt=${encodeURIComponent(prompt)}`);
   };
   const active = data?.stats.activeAgents ?? 0;
   return (

@@ -25,6 +25,7 @@ import {
   Label,
   Textarea,
   SegmentedControl,
+  confirm,
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -587,7 +588,7 @@ export function AgentsListPage() {
             const status: AgentStatus = config.status || 'draft';
             const env: AgentEnvironment = config.environment || 'development';
             const tags = config.tags || [];
-            const owner = config.owner || { name: 'Workspace Admin', email: 'admin@onetab.ai' };
+            const owner = config.owner || { name: 'Unassigned', email: '' };
             const isDeleted = Boolean(agent.deletedAt) || status === ('deleted' as any);
             const toolsCount = countTools(agent.tools);
 
@@ -728,24 +729,56 @@ export function AgentsListPage() {
                                 Mark as Testing
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => updateStatusMutation.mutate({ agentId: agent.id, status: 'published' })}
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: `Publish “${agent.name}”?`,
+                                    description: 'Published agents go live and can be called by anyone with access, including via API keys and webhooks.',
+                                    confirmLabel: 'Publish',
+                                    tone: 'warning',
+                                  });
+                                  if (ok) updateStatusMutation.mutate({ agentId: agent.id, status: 'published' });
+                                }}
                               >
                                 Publish Agent
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => updateStatusMutation.mutate({ agentId: agent.id, status: 'paused' })}
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: `Pause “${agent.name}”?`,
+                                    description: 'It will stop responding to chats, schedules and triggers until you resume it.',
+                                    confirmLabel: 'Pause agent',
+                                    tone: 'warning',
+                                  });
+                                  if (ok) updateStatusMutation.mutate({ agentId: agent.id, status: 'paused' });
+                                }}
                               >
                                 Pause Agent
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => updateStatusMutation.mutate({ agentId: agent.id, status: 'archived' })}
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: `Archive “${agent.name}”?`,
+                                    description: 'It will stop running and be hidden from the active list. You can bring it back later.',
+                                    confirmLabel: 'Archive',
+                                    tone: 'warning',
+                                  });
+                                  if (ok) updateStatusMutation.mutate({ agentId: agent.id, status: 'archived' });
+                                }}
                               >
                                 Archive Agent
                               </DropdownMenuItem>
 
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => deleteMutation.mutate(agent.id)}
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: `Move “${agent.name}” to Trash?`,
+                                    description: 'It stops running immediately. You can restore it from Trash until it is deleted permanently.',
+                                    confirmLabel: 'Move to Trash',
+                                    tone: 'warning',
+                                  });
+                                  if (ok) deleteMutation.mutate(agent.id);
+                                }}
                                 className="text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="size-3.5 mr-2" /> Move to Trash
@@ -757,7 +790,16 @@ export function AgentsListPage() {
                                 <RotateCcw className="size-3.5 mr-2 text-success" /> Restore Agent
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => permanentDeleteMutation.mutate(agent.id)}
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: `Permanently delete “${agent.name}”?`,
+                                    description: 'Its configuration, runs and history are erased. This can’t be undone.',
+                                    confirmLabel: 'Delete permanently',
+                                    destructive: true,
+                                    requireText: agent.name,
+                                  });
+                                  if (ok) permanentDeleteMutation.mutate(agent.id);
+                                }}
                                 className="text-destructive focus:text-destructive"
                               >
                                 <Trash2 className="size-3.5 mr-2" /> Delete Permanently

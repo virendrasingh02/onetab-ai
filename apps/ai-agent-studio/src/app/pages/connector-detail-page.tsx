@@ -21,7 +21,7 @@ import {
   confirm,
   toast,
 } from '@org/ui';
-import { ArrowLeft, Bot, CheckCircle2, Copy, Eye, KeyRound, Play, RefreshCw, ShieldAlert, Trash2, Workflow, Wrench, XCircle, Zap } from 'lucide-react';
+import { ArrowLeft, Bot, Pencil, CheckCircle2, Copy, Eye, KeyRound, Play, RefreshCw, ShieldAlert, Trash2, Workflow, Wrench, XCircle, Zap } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
@@ -107,7 +107,12 @@ export function ConnectorDetailPage() {
         description={c.description}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {c.status !== 'unavailable' && (
+            {c.custom && c.customIntegrationId && (
+              <Button size="sm" variant="outline" onClick={() => navigate(`/connectors/${c.slug}/edit`)} leadingIcon={<Pencil />}>
+                Edit connector
+              </Button>
+            )}
+            {c.status !== 'unavailable' && !c.custom && (
               <Button size="sm" variant={c.status === 'connected' ? 'outline' : 'primary'} onClick={() => setConnectOpen(true)}>
                 {c.status === 'connected' ? 'Add a connection' : c.status === 'needs_attention' ? 'Reconnect' : 'Connect'}
               </Button>

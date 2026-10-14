@@ -137,6 +137,15 @@ function TrelloSvg({ size = 20, className = '' }) {
   );
 }
 
+function VercelSvg({ size = 20, className = '' }) {
+  return (
+    <BrandSvg size={size} className={className}>
+      <rect width="24" height="24" rx="4" fill="#000000" />
+      <path d="M12 6.5l6 10.5H6L12 6.5z" fill="#FFFFFF" />
+    </BrandSvg>
+  );
+}
+
 function StripeSvg({ size = 20, className = '' }) {
   return (
     <BrandSvg size={size} className={className}>
@@ -254,6 +263,7 @@ const SVG_ICON_MATCHERS = [
   [(id) => id.includes('jira'), JiraSvg],
   [(id) => id.includes('linear'), LinearSvg],
   [(id) => id.includes('trello'), TrelloSvg],
+  [(id) => id.includes('vercel'), VercelSvg],
   [(id) => id.includes('stripe') || id.includes('pay'), StripeSvg],
   [(id) => id.includes('zendesk') || id.includes('ticket'), ZendeskSvg],
   [(id) => id.includes('postgres') || id.includes('postgresql'), PostgresSvg],

@@ -102,6 +102,24 @@ export function useAgents(
   });
 }
 
+/**
+ * The apps a published agent acts in and which of them the signed-in member
+ * has connected. The agent uses *their* accounts, so this is per person.
+ */
+export function useAgentConnections(
+  workspaceId: string | undefined,
+  agentId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.agents.connections(workspaceId ?? '', agentId ?? ''),
+    queryFn: () => agentsApi.connections(workspaceId as string, agentId as string),
+    enabled: !!workspaceId && !!agentId,
+    staleTime: 30_000,
+    // They connect in the Integration Hub, then come back to this tab.
+    refetchOnWindowFocus: 'always',
+  });
+}
+
 export function useAgentLogs(
   workspaceId: string | undefined,
   agentId: string | undefined,

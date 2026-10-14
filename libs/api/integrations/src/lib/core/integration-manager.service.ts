@@ -7,8 +7,9 @@ import {
   Optional,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
-import type { IntegrationCapabilities } from '@org/types';
+import { isCustomConnectorProvider, type IntegrationCapabilities } from '@org/types';
 import { CustomApiProvider } from '../providers/custom-api.provider.js';
+import { CustomConnectorProvider } from '../providers/custom-connector.provider.js';
 import { GitHubProvider } from '../providers/github.provider.js';
 import { GmailProvider } from '../providers/gmail.provider.js';
 import { GoogleCalendarProvider } from '../providers/google-calendar.provider.js';
@@ -22,7 +23,20 @@ import { SlackProvider } from '../providers/slack.provider.js';
 import { TrelloProvider } from '../providers/trello.provider.js';
 import { ShopifyProvider } from '../providers/shopify.provider.js';
 import { WhatsAppProvider } from '../providers/whatsapp.provider.js';
+import { VercelProvider } from '../providers/vercel.provider.js';
 import { WordPressProvider } from '../providers/wordpress.provider.js';
+import { HubSpotProvider } from '../providers/hubspot.provider.js';
+import { JiraProvider } from '../providers/jira.provider.js';
+import { ClickUpProvider } from '../providers/clickup.provider.js';
+import { AsanaProvider } from '../providers/asana.provider.js';
+import { ZendeskProvider } from '../providers/zendesk.provider.js';
+import { IntercomProvider } from '../providers/intercom.provider.js';
+import { AirtableProvider } from '../providers/airtable.provider.js';
+import { StripeProvider } from '../providers/stripe.provider.js';
+import { RazorpayProvider } from '../providers/razorpay.provider.js';
+import { WooCommerceProvider } from '../providers/woocommerce.provider.js';
+import { TelegramProvider } from '../providers/telegram.provider.js';
+import { SalesforceProvider } from '../providers/salesforce.provider.js';
 import { MicrosoftTeamsProvider } from '../providers/microsoft-teams.provider.js';
 import { AttendanceProvider } from '../providers/attendance.provider.js';
 import { IntegrationEncryptionService } from './integration-encryption.service.js';
@@ -55,6 +69,20 @@ export class IntegrationManagerService implements OnModuleInit {
     @Optional() private readonly shopifyProvider?: ShopifyProvider,
     @Optional() private readonly whatsappProvider?: WhatsAppProvider,
     @Optional() private readonly wordpressProvider?: WordPressProvider,
+    @Optional() private readonly customConnectorProvider?: CustomConnectorProvider,
+    @Optional() private readonly vercelProvider?: VercelProvider,
+    @Optional() private readonly hubspotProvider?: HubSpotProvider,
+    @Optional() private readonly jiraProvider?: JiraProvider,
+    @Optional() private readonly clickupProvider?: ClickUpProvider,
+    @Optional() private readonly asanaProvider?: AsanaProvider,
+    @Optional() private readonly zendeskProvider?: ZendeskProvider,
+    @Optional() private readonly intercomProvider?: IntercomProvider,
+    @Optional() private readonly airtableProvider?: AirtableProvider,
+    @Optional() private readonly stripeProvider?: StripeProvider,
+    @Optional() private readonly razorpayProvider?: RazorpayProvider,
+    @Optional() private readonly woocommerceProvider?: WooCommerceProvider,
+    @Optional() private readonly telegramProvider?: TelegramProvider,
+    @Optional() private readonly salesforceProvider?: SalesforceProvider,
   ) {}
 
   onModuleInit() {
@@ -76,7 +104,7 @@ export class IntegrationManagerService implements OnModuleInit {
     if (this.attendanceProvider) {
       this.registerAdapter(this.attendanceProvider);
     }
-    for (const adapter of [this.shopifyProvider, this.whatsappProvider, this.wordpressProvider]) {
+    for (const adapter of [this.shopifyProvider, this.whatsappProvider, this.wordpressProvider, this.vercelProvider, this.hubspotProvider, this.jiraProvider, this.clickupProvider, this.asanaProvider, this.zendeskProvider, this.intercomProvider, this.airtableProvider, this.stripeProvider, this.razorpayProvider, this.woocommerceProvider, this.telegramProvider, this.salesforceProvider]) {
       if (adapter) this.registerAdapter(adapter);
     }
     this.logger.log(`Initialized IntegrationManager with ${this.adapters.size} providers.`);
@@ -91,7 +119,8 @@ export class IntegrationManagerService implements OnModuleInit {
 
   getAdapter(provider: string): ProviderAdapter {
     const key = provider.toUpperCase();
-    const adapter = this.adapters.get(key);
+    // Every connector a workspace defined itself shares one adapter; its definition rides on the connection.
+    const adapter = this.adapters.get(key) ?? (isCustomConnectorProvider(key) ? this.customConnectorProvider : undefined);
     if (!adapter) {
       throw new BadRequestException(`Unsupported integration provider '${provider}'.`);
     }

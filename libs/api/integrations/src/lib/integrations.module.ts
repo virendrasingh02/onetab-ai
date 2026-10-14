@@ -5,6 +5,7 @@ import { PrismaModule } from '@org/database';
 import { MatrixModule } from '@org/api-matrix';
 import { AppMatrixBridgeService } from './app-matrix-bridge.service.js';
 import { ChannelAppsController } from './channel-apps.controller.js';
+import { CustomConnectorsService } from './connectors/custom-connectors.service.js';
 import { ConnectorRegistryService } from './connectors/connector-registry.service.js';
 import { ConnectorGroupsController } from './connectors/connector-groups.controller.js';
 import { ConnectorGroupsService } from './connectors/connector-groups.service.js';
@@ -22,6 +23,7 @@ import { IntegrationsController } from './integrations.controller.js';
 import { IntegrationsService } from './integrations.service.js';
 import { NotionImporterService } from './notion-importer.service.js';
 import { CustomApiProvider } from './providers/custom-api.provider.js';
+import { CustomConnectorProvider } from './providers/custom-connector.provider.js';
 import { GitHubProvider } from './providers/github.provider.js';
 import { GmailProvider } from './providers/gmail.provider.js';
 import { GoogleCalendarProvider } from './providers/google-calendar.provider.js';
@@ -37,6 +39,19 @@ import { TrelloProvider } from './providers/trello.provider.js';
 import { AttendanceProvider } from './providers/attendance.provider.js';
 import { ShopifyProvider } from './providers/shopify.provider.js';
 import { WhatsAppProvider } from './providers/whatsapp.provider.js';
+import { VercelProvider } from './providers/vercel.provider.js';
+import { HubSpotProvider } from './providers/hubspot.provider.js';
+import { JiraProvider } from './providers/jira.provider.js';
+import { ClickUpProvider } from './providers/clickup.provider.js';
+import { AsanaProvider } from './providers/asana.provider.js';
+import { ZendeskProvider } from './providers/zendesk.provider.js';
+import { IntercomProvider } from './providers/intercom.provider.js';
+import { AirtableProvider } from './providers/airtable.provider.js';
+import { StripeProvider } from './providers/stripe.provider.js';
+import { RazorpayProvider } from './providers/razorpay.provider.js';
+import { WooCommerceProvider } from './providers/woocommerce.provider.js';
+import { TelegramProvider } from './providers/telegram.provider.js';
+import { SalesforceProvider } from './providers/salesforce.provider.js';
 import { WordPressProvider } from './providers/wordpress.provider.js';
 import { SlackImporterService } from './slack-importer.service.js';
 import { WebhooksController } from './webhooks.controller.js';
@@ -73,6 +88,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     IntegrationManagerService,
     IntegrationsService,
     ConnectorRegistryService,
+    CustomConnectorsService,
     ConnectorWebhookService,
     ConnectorGroupsService,
 
@@ -100,11 +116,25 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     MicrosoftTeamsProvider,
     TrelloProvider,
     CustomApiProvider,
+    CustomConnectorProvider,
     OneTabAppProvider,
     AttendanceProvider,
     ShopifyProvider,
     WhatsAppProvider,
     WordPressProvider,
+    VercelProvider,
+    HubSpotProvider,
+    JiraProvider,
+    ClickUpProvider,
+    AsanaProvider,
+    ZendeskProvider,
+    IntercomProvider,
+    AirtableProvider,
+    StripeProvider,
+    RazorpayProvider,
+    WooCommerceProvider,
+    TelegramProvider,
+    SalesforceProvider,
 
     // Importers
     SlackImporterService,
@@ -117,6 +147,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     IntegrationManagerService,
     IntegrationsService,
     ConnectorRegistryService,
+    CustomConnectorsService,
     IntegrationEncryptionService,
     SSRFGuardService,
     OAuthService,

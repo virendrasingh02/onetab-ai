@@ -145,8 +145,8 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
 
   return (
     <div className="space-y-4 py-3">
-      {/* Filter toolbar */}
-      <div className="gap-3 md:flex-row md:items-center flex flex-col justify-between">
+      {/* Category chips: one scrollable row */}
+      <div className="-mx-1 px-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <SectionTabs
           aria-label="Filter by category"
           value={selectedCategory}
@@ -155,24 +155,41 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
             { value: 'all', label: 'All categories' },
             ...categories.map((cat) => ({ value: cat, label: cat })),
           ]}
-          className="md:flex-1"
+          className="w-max flex-nowrap whitespace-nowrap"
         />
+      </div>
+
+      {/* Results + controls: count on the left, filters on the right */}
+      <div className="gap-x-3 gap-y-2 pt-1 border-t border-border/50 flex flex-wrap items-center justify-between">
+        <div className="gap-2 text-xs flex items-center text-muted-foreground">
+          <span>
+            Showing{' '}
+            <span className="font-semibold text-foreground">{sorted.length}</span>{' '}
+            {kind === 'AGENT' ? 'agents' : kind === 'INTEGRATION' ? 'apps' : 'items'}
+          </span>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="xs" onClick={resetFilters}>
+              <RotateCcw aria-hidden />
+              Reset
+            </Button>
+          )}
+        </div>
 
         <div className="gap-2 flex flex-wrap items-center">
           <Toggle
             variant="outline"
-            size="md"
+            size="sm"
             pressed={verifiedOnly}
             onPressedChange={setVerifiedOnly}
           >
             <ShieldCheck className="mr-1.5" aria-hidden />
-            Verified only
+            Verified
           </Toggle>
 
           <AppSelect
             aria-label="Filter by pricing"
             size="sm"
-            className="w-36"
+            className="w-32"
             value={pricingFilter}
             onValueChange={(next) => setPricingFilter(next as PricingFilter)}
             options={PRICING_OPTIONS}
@@ -181,7 +198,7 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
           <AppSelect
             aria-label="Sort listings"
             size="sm"
-            className="w-40"
+            className="w-36"
             value={sortBy}
             onValueChange={(next) => setSortBy(next as SortBy)}
             options={SORT_OPTIONS}
@@ -204,22 +221,6 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
-      </div>
-
-      {/* Results count & reset */}
-      <div className="text-xs flex items-center justify-between text-muted-foreground">
-        <span>
-          Showing{' '}
-          <span className="font-semibold text-foreground">{sorted.length}</span>{' '}
-          {kind === 'AGENT' ? 'agents' : kind === 'INTEGRATION' ? 'apps' : 'items'}
-        </span>
-
-        {hasActiveFilters && (
-          <Button variant="ghost" size="xs" onClick={resetFilters}>
-            <RotateCcw aria-hidden />
-            Reset filters
-          </Button>
-        )}
       </div>
 
       {/* Items Rendering: Grid or Compact List */}

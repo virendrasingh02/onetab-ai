@@ -23,6 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MailPlus, Trash2, UserPlus, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useStudioSession } from '../../session-guard.js';
 
 const QUIET = { disableToast: true } as const;
@@ -73,7 +74,19 @@ export function MembersTab() {
   });
   const invitations = invitesQuery.data ?? [];
 
-  const [inviteOpen, setInviteOpen] = useState(false);
+  // The sidebar's "Invite Team" lands here with ?invite=1 and opens the dialog.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [inviteOpen, setInviteOpenState] = useState(searchParams.get('invite') === '1');
+  const setInviteOpen = (open: boolean) => {
+    setInviteOpenState(open);
+    if (!open && searchParams.has('invite')) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('invite');
+        return next;
+      }, { replace: true });
+    }
+  };
   const [emailsText, setEmailsText] = useState('');
   const [inviteRole, setInviteRole] = useState<string>(WorkspaceRole.MEMBER);
   const emails = useMemo(() => parseEmails(emailsText), [emailsText]);
@@ -266,7 +279,15 @@ export function MembersTab() {
                       Resend
                     </Button>
                   ) : null}
-                  <Button variant="ghost" size="xs" className="text-destructive hover:text-destructive" onClick={() => revoke.mutate(inv.id)}>
+                  <Button variant="ghost" size="xs" className="text-destructive hover:text-destructive" onClick={async () => {
+                    const ok = await confirm({
+                      title: 'Revoke this invitation?',
+                      description: inv.email ? `${inv.email} will no longer be able to join with this link.` : 'This invite link will stop working.',
+                      confirmLabel: 'Revoke',
+                      destructive: true,
+                    });
+                    if (ok) revoke.mutate(inv.id);
+                  }}>
                     Revoke
                   </Button>
                 </span>

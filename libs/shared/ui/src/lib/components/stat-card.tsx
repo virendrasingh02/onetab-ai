@@ -244,8 +244,8 @@ export function StatCard({
     >
       {/* Top Header: Label + Subtitle on left, optional icon on right */}
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <span className="text-sm font-semibold text-foreground tracking-tight truncate block">
+        <div className="min-w-0">
+          <span className="text-sm font-semibold text-foreground tracking-tight block leading-snug">
             {label}
           </span>
           {displaySubtitle ? (

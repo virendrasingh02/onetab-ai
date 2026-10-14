@@ -2,10 +2,24 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppEvent } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import { compileStudioGraph, deriveAgentFromGraph, isStudioGraph, type AgentToolExecution } from '@org/types';
+import {
+  appLabel,
+  compileStudioGraph,
+  deriveAgentFromGraph,
+  isStudioGraph,
+  type AgentConnectionStatus,
+  type AgentToolExecution,
+  type InlineAgentSpec,
+} from '@org/types';
 import { AIEntitiesService } from './ai-entities.service.js';
 import { AIRuntimeService } from './ai-runtime.service.js';
+import { IntegrationToolBridgeService } from './integration-tool-bridge.service.js';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
+
+/** Every app named by an agent on the canvas, sub-agents included. */
+function connectorsOf(agents: readonly InlineAgentSpec[]): string[] {
+  return agents.flatMap((a) => [...(a.connectors ?? []), ...connectorsOf(a.members ?? [])]);
+}
 
 @Injectable()
 export class AgentsService {
@@ -15,7 +29,25 @@ export class AgentsService {
     private readonly runtimeService: AIRuntimeService,
     private readonly mcpRegistry: MCPToolRegistryService,
     private readonly events: EventEmitter2,
+    private readonly integrationTools: IntegrationToolBridgeService,
   ) {}
+
+  /**
+   * The apps this agent acts in and whether `userId` has each connected —
+   * what the app asks a person to connect before they use a published agent.
+   */
+  async getConnections(workspaceId: string, agentId: string, userId: string): Promise<AgentConnectionStatus[]> {
+    const agent = await this.prisma.aIAgent.findFirst({
+      where: { id: agentId, workspaceId, type: 'agent' },
+      select: { id: true, graphJson: true },
+    });
+    if (!agent) throw new NotFoundException('Agent not found.');
+    let providers: string[] = [];
+    if (isStudioGraph(agent.graphJson)) {
+      providers = connectorsOf(compileStudioGraph(JSON.parse(agent.graphJson as string)).agents);
+    }
+    return this.integrationTools.getConnectionStatus(workspaceId, agent.id, userId, providers);
+  }
 
   async getAgents(workspaceId: string) {
     return this.entitiesService.getEntities(workspaceId, 'agent');
@@ -127,9 +159,14 @@ export class AgentsService {
     // A Studio canvas graph runs through the workflow engine; judge it by
     // what the engine will run (the same compile the run endpoint uses).
     if (isStudioGraph(graphJson)) {
-      const { issues } = compileStudioGraph(JSON.parse(graphJson) as Record<string, unknown>);
+      const { issues, agents } = compileStudioGraph(JSON.parse(graphJson) as Record<string, unknown>);
       const errors = issues.filter((i) => i.level === 'error').map((i) => i.message);
-      return { valid: errors.length === 0, errors, warnings: issues.filter((i) => i.level === 'warning').map((i) => i.message) };
+      const warnings = issues.filter((i) => i.level === 'warning').map((i) => i.message);
+      const apps = [...new Set(connectorsOf(agents).map((p) => appLabel(p)))];
+      if (apps.length > 0) {
+        warnings.push(`Once published, each member is asked to connect their own ${apps.join(', ')} before the agent can act in it.`);
+      }
+      return { valid: errors.length === 0, errors, warnings };
     }
 
     const derived = deriveAgentFromGraph(graphJson);

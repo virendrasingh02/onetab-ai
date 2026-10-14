@@ -2,6 +2,7 @@ import { mcpApi } from '@org/api-client';
 import type { MCPTransport } from '@org/types';
 import {
   Badge,
+  confirm,
   Button,
   Card,
   Dialog,
@@ -268,7 +269,15 @@ export function McpPage() {
                   <Button
                     variant="ghost"
                     size="xs"
-                    onClick={() => deleteMutation.mutate(conn.id)}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: 'Remove this MCP connection?',
+                        description: 'Its synced tools disappear, and agents using them will fail until reconnected.',
+                        confirmLabel: 'Remove',
+                        destructive: true,
+                      });
+                      if (ok) deleteMutation.mutate(conn.id);
+                    }}
                     className="text-xs text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="size-3 mr-1" /> Remove

@@ -24,6 +24,7 @@ function makeService() {
     runtimeService,
     mcpRegistry,
     events as any,
+    {} as any,
   );
   return { service, prisma, events };
 }

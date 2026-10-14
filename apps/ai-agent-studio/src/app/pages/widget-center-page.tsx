@@ -22,6 +22,7 @@ import {
   AppSelect,
   LoadingState,
   ResponsiveTabs,
+  confirm,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { widgetsApi } from '@org/api-client';
@@ -348,10 +349,13 @@ export function WidgetCenterPage() {
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        onClick={() => {
-                          if (confirm(`Delete widget "${widget.name}"?`)) {
-                            deleteMutation.mutate(widget.id);
-                          }
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: `Delete “${widget.name}”?`,
+                            description: 'Embedded copies of this widget will stop working. This can’t be undone.',
+                            destructive: true,
+                          });
+                          if (ok) deleteMutation.mutate(widget.id);
                         }}
                         title="Delete widget"
                         className="text-muted-foreground hover:text-destructive"

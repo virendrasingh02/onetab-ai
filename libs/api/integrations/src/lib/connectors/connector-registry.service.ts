@@ -1,10 +1,13 @@
-import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@org/database';
 import {
   buildConnectorManifest,
   connectorStatus,
   humanizeAuditAction,
+  isCustomConnectorProvider,
+  customActionDefinition,
+  customTriggerDefinitions,
   summarizeConnectorUsage,
   type ConnectionTestResult,
   type ConnectorActivityEntry,
@@ -13,7 +16,9 @@ import {
   type ConnectorManifest,
   type ConnectorSummary,
   type ConnectorTriggerDefinition,
+  type CustomConnectorDefinition,
 } from '@org/types';
+import { customDefinitionFromMetadata } from '../providers/custom-connector.provider.js';
 import { IntegrationLoggerService } from '../core/integration-logger.service.js';
 import { IntegrationManagerService } from '../core/integration-manager.service.js';
 import { IntegrationPermissionService } from '../core/integration-permission.service.js';
@@ -32,8 +37,10 @@ const ACTIVITY_LIMIT = 50;
  * appears here — and in every surface reading this — with no other change.
  */
 @Injectable()
-export class ConnectorRegistryService {
+export class ConnectorRegistryService implements OnModuleInit {
   private readonly logger = new Logger(ConnectorRegistryService.name);
+  /** Manifests of workspace-defined connectors, by provider — so the poller and runtime can resolve them without a request. */
+  private readonly customManifests = new Map<string, ConnectorManifest>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -43,7 +50,29 @@ export class ConnectorRegistryService {
     @Optional() private readonly config?: ConfigService,
   ) {}
 
-  /** Manifests only — what every connector can do, independent of who asks. */
+  async onModuleInit() {
+    try {
+      const rows = await this.prisma.externalIntegration.findMany({
+        where: { provider: { startsWith: 'CUSTOM_' } },
+        select: { id: true, provider: true, metadata: true },
+      });
+      this.customEntries(rows);
+    } catch (error) {
+      this.logger.warn(`Couldn’t load custom connectors: ${String(error)}`);
+    }
+  }
+
+  /** Forgets a custom connector's cached manifest after it is deleted. */
+  forgetCustom(provider: string) {
+    this.customManifests.delete(provider.toUpperCase());
+  }
+
+  /** Refreshes a custom connector's cached manifest after it is created or edited. */
+  rememberCustom(row: { id: string; provider: string; metadata: string }) {
+    this.customEntries([row]);
+  }
+
+  /** Manifests only — what every built-in connector can do, independent of who asks. */
   manifests(): ConnectorManifest[] {
     return this.manager
       .listAdapters()
@@ -53,6 +82,8 @@ export class ConnectorRegistryService {
   }
 
   manifest(provider: string): ConnectorManifest {
+    const custom = this.customManifests.get(provider.toUpperCase());
+    if (custom) return custom;
     const adapter = this.findAdapter(provider);
     return this.manifestFor(adapter);
   }
@@ -64,8 +95,13 @@ export class ConnectorRegistryService {
   }
 
   async list(workspaceId: string, userId: string): Promise<ConnectorSummary[]> {
-    const manifests = this.manifests();
     const rows = await this.visibleConnections(workspaceId, userId);
+    const manifests = [
+      ...this.manifests(),
+      ...this.customEntries(rows)
+        .map((e) => e.manifest)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    ];
     const since = new Date(Date.now() - USAGE_WINDOW_DAYS * 86_400_000);
     const ids = rows.map((r) => r.id);
     const logs = ids.length
@@ -94,8 +130,14 @@ export class ConnectorRegistryService {
   }
 
   async detail(workspaceId: string, userId: string, provider: string): Promise<ConnectorDetail> {
-    const manifest = this.manifest(provider);
-    const rows = (await this.visibleConnections(workspaceId, userId)).filter((r) => r.provider === manifest.provider);
+    const visible = await this.visibleConnections(workspaceId, userId);
+    // A custom connector exists only for the connections that carry it, so one from another workspace is simply not found.
+    const custom = isCustomConnectorProvider(provider)
+      ? this.customEntries(visible).find((e) => e.manifest.provider === provider.toUpperCase())
+      : undefined;
+    if (isCustomConnectorProvider(provider) && !custom) throw new NotFoundException(`There’s no '${provider}' connector.`);
+    const manifest = custom?.manifest ?? this.manifest(provider);
+    const rows = visible.filter((r) => r.provider === manifest.provider);
     const connections = rows.map((r) => this.toConnection(r, userId));
     const ids = connections.map((c) => c.id);
     const since = new Date(Date.now() - USAGE_WINDOW_DAYS * 86_400_000);
@@ -151,6 +193,7 @@ export class ConnectorRegistryService {
       connections,
       usage: summarizeConnectorUsage(usageRows, manifest.capabilities, USAGE_WINDOW_DAYS),
       activity,
+      ...(custom ? { customDefinition: custom.definition, customIntegrationId: custom.integrationId } : {}),
     };
   }
 
@@ -211,6 +254,50 @@ export class ConnectorRegistryService {
         reconnect,
       };
     }
+  }
+
+  /**
+   * The custom connectors carried by these connection rows, each with its
+   * manifest (built from the stored definition) — also cached for the runtime.
+   */
+  private customEntries(rows: ReadonlyArray<{ id: string; provider: string; metadata: string }>) {
+    const out: Array<{ manifest: ConnectorManifest; definition: CustomConnectorDefinition; integrationId: string }> = [];
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const provider = row.provider.toUpperCase();
+      if (!isCustomConnectorProvider(provider) || seen.has(provider)) continue;
+      let metadata: Record<string, unknown>;
+      try {
+        metadata = JSON.parse(row.metadata || '{}') as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+      const definition = customDefinitionFromMetadata(metadata);
+      if (!definition) continue;
+      seen.add(provider);
+      const manifest: ConnectorManifest = {
+        ...buildConnectorManifest(
+          {
+            provider,
+            displayName: definition.name,
+            description: definition.description,
+            category: 'Custom Apps',
+            connectorCategory: definition.category,
+            authType: definition.authType,
+            supportsSync: false,
+            supportsWebhooks: false,
+            supportsMessaging: false,
+            supportsCustomEndpoints: true,
+          },
+          definition.actions.map(customActionDefinition),
+          customTriggerDefinitions(definition.triggers ?? []),
+        ),
+        custom: true,
+      };
+      this.customManifests.set(provider, manifest);
+      out.push({ manifest, definition, integrationId: row.id });
+    }
+    return out;
   }
 
   private manifestFor(adapter: ProviderAdapter): ConnectorManifest {

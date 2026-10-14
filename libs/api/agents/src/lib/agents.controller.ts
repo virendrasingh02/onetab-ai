@@ -270,6 +270,16 @@ export class AgentsController {
     return this.agentsService.testMcpTool(body.toolName, body.params, workspaceId, userId);
   }
 
+  /** The apps this agent needs and which of them the caller has connected. */
+  @Get(':agentId/connections')
+  getConnections(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.agentsService.getConnections(workspaceId, agentId, userId);
+  }
+
   /**
    * One agent, for the Agent Studio editor. Declared last so the literal
    * single-segment routes above (`logs`) keep winning over this parameter.

@@ -25,7 +25,7 @@ import { IntegrationPermissionService } from './core/integration-permission.serv
 import { IntegrationSyncService } from './core/integration-sync.service.js';
 import { OAuthService } from './core/oauth.service.js';
 import type { MessageQuery } from './core/provider-adapter.interface.js';
-import { customApiConfigFromMetadata } from './providers/custom-api.provider.js';
+import { customApiConfigFromMetadata, customApiMetadataWithEncryptedSecrets } from './providers/custom-api.provider.js';
 
 @Injectable()
 export class IntegrationsService {
@@ -145,40 +145,8 @@ export class IntegrationsService {
         throw new BadRequestException(`Failed to connect to Custom API: ${testResult.message}`);
       }
 
-      // Encrypt sensitive secrets in config
-      let encryptedApiKey: string | undefined;
-      let encryptedBearer: string | undefined;
-      let encryptedBasicPass: string | undefined;
-
-      if (customConfig.apiKey) {
-        encryptedApiKey = this.encryption.encrypt(customConfig.apiKey);
-      }
-      if (customConfig.bearerToken) {
-        encryptedBearer = this.encryption.encrypt(customConfig.bearerToken);
-      }
-      if (customConfig.basicPassword) {
-        encryptedBasicPass = this.encryption.encrypt(customConfig.basicPassword);
-      }
-      // Header values are often credentials too (`X-Api-Key`, `Authorization`).
-      const encryptedCustomHeaders =
-        customConfig.customHeaders && Object.keys(customConfig.customHeaders).length > 0
-          ? this.encryption.encrypt(JSON.stringify(customConfig.customHeaders))
-          : undefined;
-
-      // Store masked metadata for safe retrieval
-      const safeMetadata: Record<string, unknown> = {
-        ...customConfig,
-        apiKey: this.encryption.maskSecret(customConfig.apiKey),
-        bearerToken: this.encryption.maskSecret(customConfig.bearerToken),
-        basicPassword: this.encryption.maskSecret(customConfig.basicPassword),
-        customHeaders: customConfig.customHeaders
-          ? Object.fromEntries(Object.keys(customConfig.customHeaders).map((h) => [h, '••••']))
-          : undefined,
-        encryptedApiKey,
-        encryptedBearer,
-        encryptedBasicPass,
-        encryptedCustomHeaders,
-      };
+      // Masked metadata for safe retrieval, with every secret kept encrypted beside it.
+      const safeMetadata = customApiMetadataWithEncryptedSecrets(customConfig, this.encryption);
 
       const integrationId =
         scopeType === 'USER'
@@ -590,8 +558,8 @@ export class IntegrationsService {
    */
   async getActions(integrationId: string, userId: string, workspaceId?: string) {
     await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'view');
-    const { adapter } = await this.manager.resolveCredential(integrationId);
-    return adapter.getActions?.() ?? [];
+    const { adapter, credential } = await this.manager.resolveCredential(integrationId);
+    return adapter.getActionsFor?.(credential) ?? adapter.getActions?.() ?? [];
   }
 
   /**
@@ -608,7 +576,7 @@ export class IntegrationsService {
   ): Promise<AppActionResult> {
     await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'view');
     const { adapter, credential } = await this.manager.resolveCredential(integrationId);
-    const definition = adapter.getActions?.().find((action) => action.id === actionId);
+    const definition = (adapter.getActionsFor?.(credential) ?? adapter.getActions?.())?.find((action) => action.id === actionId);
     if (!definition || !adapter.executeAction) {
       throw new NotFoundException(`Provider '${credential.provider}' has no action '${actionId}'.`);
     }
@@ -653,11 +621,11 @@ export class IntegrationsService {
     await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'manage');
     const { adapter, credential } = await this.manager.resolveCredential(integrationId);
 
-    if (!adapter.getActions || !adapter.executeAction) {
+    if (!(adapter.getActionsFor || adapter.getActions) || !adapter.executeAction) {
       throw new BadRequestException(`Provider '${credential.provider}' does not support actions.`);
     }
 
-    const definition = adapter.getActions().find((action) => action.id === actionId);
+    const definition = (adapter.getActionsFor?.(credential) ?? adapter.getActions?.() ?? []).find((action) => action.id === actionId);
     if (!definition) {
       throw new NotFoundException(`Provider '${credential.provider}' has no action '${actionId}'.`);
     }

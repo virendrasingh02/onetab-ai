@@ -946,6 +946,29 @@ export function compileStudioGraph(graph: {
     runEdges.push({ id: `${approvalId}->${node.id}`, source: approvalId, target: node.id });
   }
 
+  // Start and Complete wire themselves: a card nothing feeds is fed by the
+  // trigger, and Complete collects every card nothing follows, so a canvas
+  // runs without the person drawing those two obvious connections.
+  const triggerIds = compiled.filter((n) => n.type === 'TRIGGER').map((n) => n.id);
+  const outputIds = compiled.filter((n) => n.type === 'OUTPUT').map((n) => n.id);
+  const fed = new Set(runEdges.map((e) => e.target));
+  const feeding = new Set(runEdges.map((e) => e.source));
+  const isApproval = (id: string) => id.endsWith('__approval');
+  if (triggerIds.length) {
+    for (const n of compiled) {
+      if (n.type === 'TRIGGER' || n.type === 'UNSUPPORTED' || n.type === 'OUTPUT' || fed.has(n.id) || isApproval(n.id)) continue;
+      for (const t of triggerIds) runEdges.push({ id: `auto:${t}->${n.id}`, source: t, target: n.id });
+      fed.add(n.id);
+      feeding.add(triggerIds[0]);
+    }
+  }
+  if (outputIds.length && !outputIds.some((o) => fed.has(o))) {
+    const lastSteps = compiled.filter(
+      (n) => n.type !== 'TRIGGER' && n.type !== 'OUTPUT' && n.type !== 'UNSUPPORTED' && !feeding.has(n.id) && !isApproval(n.id),
+    );
+    for (const n of lastSteps) runEdges.push({ id: `auto:${n.id}->${outputIds[0]}`, source: n.id, target: outputIds[0] });
+  }
+
   for (const n of nodes) {
     // A node plugged into an agent is configuration, so its flow wires don't run.
     if (attached.has(n.id) && edges.some((e) => !isSlotEdge(e) && (e.source === n.id || e.target === n.id))) {

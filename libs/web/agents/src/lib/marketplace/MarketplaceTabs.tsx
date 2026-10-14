@@ -4,7 +4,6 @@ import {
   Boxes,
   Bot,
   CheckCircle2,
-  Code2,
   Compass,
   UserCheck,
 } from 'lucide-react';
@@ -47,7 +46,6 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
       icon: UserCheck,
       count: workspaceCount,
     },
-    { id: 'developer', label: 'Developer', icon: Code2 },
   ];
 
   return (

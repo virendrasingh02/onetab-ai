@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, ErrorState, Input, toast, LoadingState, AppSelect, Label, Checkbox, SegmentedControl } from '@org/ui';
+import { Badge, Button, confirm, ErrorState, Input, toast, LoadingState, AppSelect, Label, Checkbox, SegmentedControl } from '@org/ui';
 import { cn } from '@org/utils';
 import { aiMemoryApi } from '@org/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -360,7 +360,15 @@ export function MemoryTab({ agent, onUpdate }) {
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={() => deleteMutation.mutate(mem)}
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: 'Prune this memory?',
+                      description: 'The agent will forget this fact. This can’t be undone.',
+                      confirmLabel: 'Prune',
+                      destructive: true,
+                    });
+                    if (ok) deleteMutation.mutate(mem);
+                  }}
                   disabled={deleteMutation.isPending}
                   className="text-muted-foreground hover:text-destructive shrink-0"
                   title="Prune memory fact"

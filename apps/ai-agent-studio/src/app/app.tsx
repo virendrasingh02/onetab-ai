@@ -17,6 +17,7 @@ import { ToolsPage } from './pages/tools-page.js';
 import { ConnectorsPage } from './pages/connectors-page.js';
 import { ConnectorDetailPage } from './pages/connector-detail-page.js';
 import { ConnectorGroupsPage } from './pages/connector-groups-page.js';
+import { CustomConnectorPage } from './pages/custom-connector-page.js';
 import { UserChatPage } from './pages/user-chat-page.jsx';
 import { WorkflowsPage } from './pages/workflows-page.jsx';
 import { WidgetCenterPage } from './pages/widget-center-page.js';
@@ -27,16 +28,17 @@ import { SessionGuard, useStudioSession } from './session-guard.js';
 
 const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/create': { section: 'Build & Orchestrate', page: 'Create with AI' },
+  '/connectors/new': { section: 'Intelligence & Tools', page: 'New Custom Connector' },
   '/agents': { section: 'Build & Orchestrate', page: 'My Agents' },
   '/workflows': { section: 'Build & Orchestrate', page: 'Visual Workflows' },
   '/templates': { section: 'Build & Orchestrate', page: 'Agent Templates' },
   '/connectors': { section: 'Intelligence & Tools', page: 'App Connectors' },
   '/widgets': { section: 'Intelligence & Tools', page: 'Widget Center' },
-  '/widgets/new': { section: 'Build & Orchestrate', page: 'Widget Builder' },
+  '/widgets/new': { section: 'Intelligence & Tools', page: 'Widget Builder' },
   '/knowledge': { section: 'Intelligence & Tools', page: 'Knowledge & RAG' },
   '/tools': { section: 'Intelligence & Tools', page: 'Tools & Integrations' },
   '/mcp': { section: 'Intelligence & Tools', page: 'MCP Registry' },
-  '/executions': { section: 'Operations & Governance', page: 'Executions & Logs' },
+  '/executions': { section: 'Operations & Governance', page: 'Agent Chat Logs' },
   '/approvals': { section: 'Operations & Governance', page: 'Human Approvals' },
   '/analytics': { section: 'Operations & Governance', page: 'Studio Analytics' },
   '/settings': { section: 'Platform & Config', page: 'Settings & Security' },
@@ -156,7 +158,9 @@ function StudioShell() {
                 <Route path="/executions" element={<ExecutionsPage />} />
                 <Route path="/connectors" element={<ConnectorsPage />} />
                 <Route path="/connectors/groups" element={<ConnectorGroupsPage />} />
+                <Route path="/connectors/new" element={<CustomConnectorPage />} />
                 <Route path="/connectors/:connectorId" element={<ConnectorDetailPage />} />
+                <Route path="/connectors/:connectorId/edit" element={<CustomConnectorPage />} />
                 <Route path="/widgets" element={<WidgetCenterPage />} />
                 <Route path="/widgets/new" element={<WidgetBuilderPage />} />
                 <Route path="/widgets/:widgetId" element={<WidgetBuilderPage />} />

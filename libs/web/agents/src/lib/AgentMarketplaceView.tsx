@@ -385,7 +385,6 @@ export function AgentMarketplaceView({
             pendingApprovalsCount={pendingApprovalsCount}
             onOpenApprovals={() => handleTabChange('installed')}
             onOpenStudio={() => handleOpenStudio()}
-            onOpenDeveloper={() => handleTabChange('developer')}
           />
           <MarketplaceTabs
             activeTab={activeTab}
@@ -458,7 +457,6 @@ export function AgentMarketplaceView({
                   }}
                   onViewAllApps={() => handleTabChange('apps')}
                   onViewAllAgents={() => handleTabChange('agents')}
-                  onOpenBuilder={() => handleTabChange('developer')}
                 />
               )}
 

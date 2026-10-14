@@ -48,6 +48,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { AgentConnectionsBanner } from './AgentConnectionsBanner.js';
 import { AgentAvatar } from './AgentMarketplaceView.js';
 import { useAgents } from './use-agents.js';
 
@@ -525,6 +526,9 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
   }
 
   return (
+    <div className="flex h-full min-h-0 flex-col">
+      <AgentConnectionsBanner agentId={agent.id} />
+      <div className="min-h-0 flex-1">
     <ConversationTabsShell
       filesContext={{ type: 'AGENT', id: agent.id }}
       roomId={roomId}
@@ -559,6 +563,8 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
         }}
       />
     </ConversationTabsShell>
+      </div>
+    </div>
   );
 }
 

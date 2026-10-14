@@ -13,6 +13,7 @@
  */
 import type { AppActionDefinition, IntegrationAuthType, IntegrationScopeType } from './integrations.js';
 import type { IsoDateString } from './entities.js';
+import type { CustomConnectorDefinition } from './custom-connector.js';
 
 // ---------------------------------------------------------------------------
 // Categories
@@ -227,6 +228,8 @@ export interface ConnectorManifest {
   triggers: ConnectorTrigger[];
   agentCapabilities: AgentCapabilityTag[];
   counts: { actions: number; queries: number; triggers: number };
+  /** True for a connector this workspace defined itself (editable, deletable). */
+  custom?: boolean;
 }
 
 /** Lower-case, underscore-only — the runtime's function-name rules. */
@@ -408,6 +411,9 @@ export interface ConnectorActivityEntry {
 
 export interface ConnectorDetail extends ConnectorSummary {
   activity: ConnectorActivityEntry[];
+  /** A custom connector's definition (no secrets) and the connection that stores it, for editing. */
+  customDefinition?: CustomConnectorDefinition;
+  customIntegrationId?: string;
 }
 
 export interface ConnectionTestResult {

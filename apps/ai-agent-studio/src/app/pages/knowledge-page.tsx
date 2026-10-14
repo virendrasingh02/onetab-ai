@@ -382,7 +382,15 @@ export function KnowledgePage() {
                                 variant="ghost"
                                 size="icon-xs"
                                 aria-label={`Remove ${doc.name}`}
-                                onClick={() => deleteDocumentMutation.mutate(doc.id)}
+                                onClick={async () => {
+                                  const ok = await confirm({
+                                    title: `Remove “${doc.name}”?`,
+                                    description: 'The document and its indexed chunks are deleted. Agents using this knowledge base will no longer see it.',
+                                    confirmLabel: 'Remove document',
+                                    destructive: true,
+                                  });
+                                  if (ok) deleteDocumentMutation.mutate(doc.id);
+                                }}
                                 disabled={deleteDocumentMutation.isPending}
                                 className="opacity-0 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
                               >

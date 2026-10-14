@@ -769,6 +769,23 @@ export class AIRuntimeService {
    * Raises an approval instead of running a tool, and returns the message the
    * model sees. The run is marked as waiting on it (`finishExecution`).
    */
+  private async missingConnectionsNote(
+    workspaceId: string,
+    entityId: string,
+    requesterId: string | undefined,
+    providers: readonly string[],
+  ): Promise<string> {
+    if (!requesterId) return '';
+    try {
+      const status = await this.integrationTools.getConnectionStatus(workspaceId, entityId, requesterId, providers);
+      const missing = status.filter((s) => !s.connected).map((s) => s.label);
+      if (missing.length === 0) return '';
+      return `\n\nThe person you are helping has not connected: ${missing.join(', ')}. You cannot use those apps for them yet. If their request needs one, say so and ask them to connect it in Integrations; never pretend you did it.`;
+    } catch {
+      return '';
+    }
+  }
+
   private async queueApproval(
     entry: AgentToolExecution,
     entity: any,
@@ -922,17 +939,20 @@ export class AIRuntimeService {
             integrationId: integrationTool.integrationId,
             actionId: integrationTool.actionId,
             input,
+            // Runs on the requester's connection once someone approves it.
+            ...(context.requesterId ? { onBehalfOfUserId: context.requesterId } : {}),
           }, startedAt);
         }
         if (!ctx.actingUserId) {
           throw new Error('This action needs an acting user, but the agent has no creator on record.');
         }
+        // The person asking, so their own connection and permissions apply.
         const result = await this.integrationsService.executeAction(
           integrationTool.integrationId,
           integrationTool.actionId,
           input,
           undefined,
-          ctx.actingUserId,
+          context.requesterId ?? ctx.actingUserId,
           workspaceId,
         );
         entry.status = 'success';
@@ -1085,9 +1105,23 @@ export class AIRuntimeService {
     // the agent's built-in tools away (see `selectAgentTools`).
     const toolSelection = selectAgentTools(
       allowedToolNames,
-      await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId, inline?.connectors ?? []),
+      await this.integrationTools.getToolsForEntity(
+        workspaceId,
+        entity.id,
+        entity.creatorId,
+        inline?.connectors ?? [],
+        context.requesterId,
+      ),
       (name) => this.mcpRegistry.hasTool(name),
       { inline: !!inline },
+    );
+    // Apps the agent needs that the person asking hasn't connected: tell the
+    // model so it asks them to connect instead of guessing or failing mid-task.
+    const connectionNote = await this.missingConnectionsNote(
+      workspaceId,
+      entity.id,
+      context.requesterId,
+      inline?.connectors ?? [],
     );
     const integrationSchemas = toolSelection.integrationTools.filter(
       (t) => !readOnly || t.definition.permissionLevel === 'read',
@@ -1134,7 +1168,7 @@ export class AIRuntimeService {
     const rulesAndAutonomy = buildRulesAndAutonomyPrompt(runtime);
     const plan: TurnPlan = {
       kind: 'agent',
-      systemPrompt: `${entity.systemPrompt}${format}${teamGuidance}${rulesAndAutonomy}\n\nWorkspace ID: ${workspaceId}${memoryContext}${knowledgeContext}`,
+      systemPrompt: `${entity.systemPrompt}${format}${teamGuidance}${rulesAndAutonomy}${connectionNote}\n\nWorkspace ID: ${workspaceId}${memoryContext}${knowledgeContext}`,
       toolSchemas: [
         ...builtinSchemas,
         ...memberSchemas,

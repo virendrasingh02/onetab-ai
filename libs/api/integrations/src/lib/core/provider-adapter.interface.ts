@@ -161,6 +161,15 @@ export interface ProviderAdapter {
   getActions?(): AppActionDefinition[];
 
   /**
+   * Actions that depend on the connection itself — a custom connector's are
+   * defined per connection. When present it wins over `getActions()`.
+   */
+  getActionsFor?(credential: ResolvedCredential): AppActionDefinition[];
+
+  /** Per-connection counterpart of `getTriggers()`. */
+  getTriggersFor?(credential: ResolvedCredential): ConnectorTriggerDefinition[];
+
+  /**
    * Runs one named action. `IntegrationsService.executeAction` looks the
    * definition up via `getActions()` first — the adapter can assume `actionId`
    * is one of its own and `input` has already cleared the definition's

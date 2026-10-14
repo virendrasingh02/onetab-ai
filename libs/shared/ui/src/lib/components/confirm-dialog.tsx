@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { AlertTriangle, HelpCircle, Trash2 } from 'lucide-react';
 import { create } from 'zustand';
 import {
   AlertDialog,
@@ -24,8 +25,14 @@ export interface ConfirmOptions {
   confirmLabel?: string;
   /** Cancel button text. Defaults to `Cancel`. */
   cancelLabel?: string;
-  /** Red confirm button + irreversible framing. Default `false`. */
+  /** Red confirm button + irreversible framing. Default `false`. Implies `tone: 'danger'`. */
   destructive?: boolean;
+  /**
+   * Visual weight. `danger` = red trash icon (irreversible); `warning` = amber
+   * icon for risky-but-recoverable actions (publish, archive, pause);
+   * `default` = neutral question icon. Defaults to `danger` when `destructive`.
+   */
+  tone?: 'default' | 'warning' | 'danger';
   /**
    * When set, the confirm button stays disabled until the user types this exact
    * string. Reserve for high blast-radius actions (delete workspace / channel).
@@ -114,6 +121,15 @@ export function ConfirmRoot() {
     if (!open) settle(false);
   };
 
+  const tone = current?.tone ?? (current?.destructive ? 'danger' : 'default');
+  const ToneIcon = tone === 'danger' ? Trash2 : tone === 'warning' ? AlertTriangle : HelpCircle;
+  const toneClass =
+    tone === 'danger'
+      ? 'bg-destructive/10 text-destructive'
+      : tone === 'warning'
+        ? 'bg-warning/15 text-warning'
+        : 'bg-primary/10 text-primary';
+
   const description =
     current?.description ??
     (current?.destructive
@@ -133,8 +149,18 @@ export function ConfirmRoot() {
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>{current?.title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden
+              className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full ${toneClass}`}
+            >
+              <ToneIcon className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1 gap-1.5 flex flex-col">
+              <AlertDialogTitle>{current?.title}</AlertDialogTitle>
+              <AlertDialogDescription>{description}</AlertDialogDescription>
+            </div>
+          </div>
         </AlertDialogHeader>
 
         {current?.body}
