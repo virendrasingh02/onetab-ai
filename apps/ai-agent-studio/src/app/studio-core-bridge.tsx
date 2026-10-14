@@ -2,10 +2,12 @@ import { useAuthStore } from '@org/auth';
 import { RealtimeProvider } from '@org/realtime';
 import { LoadingState } from '@org/ui';
 import { WorkflowCanvasView } from '@org/web-automations';
-import { AgentCreatePage, AgentDetailPage, AgentLibrary, StudioHome } from '@org/web-automations';
+import { AgentCreatePage, AgentDetailPage, AgentLibrary } from '@org/web-automations';
 import { AIApprovalsSection, AIRunsSection } from '@org/web-ai';
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, Outlet, Route, useParams } from 'react-router-dom';
+
+import { StudioHomePage } from './pages/studio-home-page.js';
 
 import { useStudioSession } from './session-guard.js';
 
@@ -76,7 +78,7 @@ function CanvasRoute() {
 export function studioCoreRoutes() {
   return (
     <Route path={STUDIO_CORE_PATH} element={<StudioCoreRoute />}>
-      <Route index element={<StudioHome />} />
+      <Route index element={<StudioHomePage />} />
       <Route path="agents" element={<AgentLibrary />} />
       <Route path="runs" element={<AIRunsSection />} />
       <Route path="approvals" element={<AIApprovalsSection />} />

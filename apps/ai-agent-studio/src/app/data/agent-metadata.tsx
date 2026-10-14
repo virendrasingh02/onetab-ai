@@ -1,4 +1,5 @@
 import { cn } from '@org/utils';
+import { useState } from 'react';
 import {
   Bot,
   Brain,
@@ -104,6 +105,7 @@ export function AgentAvatar({
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const config = agent?.configuration || {};
   const currentIcon = icon || config.icon || 'Bot';
   const currentAvatar = avatarUrl || agent?.avatarUrl || config.avatar || '';
@@ -126,16 +128,14 @@ export function AgentAvatar({
 
   const IconComp = getAgentIconComponent(currentIcon);
 
-  if (currentAvatar) {
+  if (currentAvatar && failedSrc !== currentAvatar) {
     return (
       <div className={cn('relative overflow-hidden shrink-0 border border-border/60 bg-surface-raised flex items-center justify-center', sizeClasses[size], className)}>
         <img
           src={currentAvatar}
           alt={agent?.name || 'Agent Avatar'}
           className="size-full object-cover"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
+          onError={() => setFailedSrc(currentAvatar)}
         />
       </div>
     );

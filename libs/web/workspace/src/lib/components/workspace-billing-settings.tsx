@@ -39,6 +39,7 @@ import {
   Tag,
   Zap,
 } from 'lucide-react';
+import { clearReturnTo, readReturnTo, rememberReturnTo } from './billing-return.js';
 import { usePlanEntitlements } from '../hooks/use-plan-entitlements.js';
 import { useCurrentWorkspace } from '../use-workspaces.js';
 import {
@@ -85,6 +86,25 @@ export function WorkspaceBillingSettings({
   const [isEnterpriseModalOpen, setIsEnterpriseModalOpen] = useState(false);
   const [isTopupModalOpen, setIsTopupModalOpen] = useState(false);
   const [showFullComparison, setShowFullComparison] = useState(false);
+
+  // Arrived from another app (e.g. Agent Studio hit a limit): remember where to go back to,
+  // and open the credit top-up straight away when that is what was asked for.
+  useEffect(() => {
+    rememberReturnTo(searchParams.get('returnTo'));
+    const wantsTopUp = searchParams.get('topup') === 'open';
+    if (wantsTopUp && !canManageBilling) return; // wait until permissions are known
+    if (searchParams.has('returnTo') || wantsTopUp) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('returnTo');
+      if (wantsTopUp) {
+        next.delete('topup');
+        setIsTopupModalOpen(true);
+      }
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManageBilling]);
+  const returnLink = readReturnTo();
 
   // Query Invoices
   const { data: invoices = [] } = useQuery<InvoiceItemDto[]>({
@@ -218,6 +238,16 @@ export function WorkspaceBillingSettings({
 
   return (
     <div className="space-y-10">
+      {returnLink && (
+        <a
+          href={returnLink.href}
+          onClick={clearReturnTo}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+        >
+          ← {returnLink.label}
+        </a>
+      )}
+
       {/* 1. Header & Active Plan Overview */}
       <div className="sm:flex-row sm:items-center gap-4 p-6 flex flex-col items-start justify-between rounded-2xl border border-border bg-gradient-to-br from-card via-card to-surface-muted/40 shadow-xs">
         <div className="space-y-1.5">

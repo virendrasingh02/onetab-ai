@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { aiApi } from '@org/api-client';
 import type { AIProvider } from '@org/types';
 import {
@@ -15,19 +16,27 @@ import {
   PageHeader,
   AIProviderIcon,
   AIModelBadge,
-  toast,
-  Label,
+  toast,
+
+  Label,
+
+
   ResponsiveTabs,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Coins,
+import {
+
+  Coins,
+
   Cpu,
-  Key,
+  Key,
+
   RefreshCw,
-  Settings,
-  Trash2,
+  Settings,
+
+  Trash2,
+
   Users,
   Zap,
 } from 'lucide-react';
@@ -124,7 +133,12 @@ export function SettingsPage() {
   const { activeWorkspace } = useStudioSession();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'providers' | 'members' | 'api-keys' | 'usage'>('providers');
+  const [searchParams] = useSearchParams();
+  type SettingsTab = 'providers' | 'members' | 'api-keys' | 'usage';
+  const initialTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    initialTab === 'usage' || initialTab === 'members' || initialTab === 'api-keys' ? initialTab : 'providers',
+  );
 
   // Provider configuration modal
   const [selectedProvider, setSelectedProvider] = useState<AIProvider | null>(null);

@@ -15,6 +15,7 @@ import {
   deriveAgentFromGraph,
   isAIEntityType,
   normalizePlanTier,
+  resolveEffectivePlanTier,
   type AIEntityType,
   type AgentScheduleSpec,
   type CoworkerTemplate,
@@ -216,15 +217,9 @@ export class AIEntitiesService {
         select: { planTier: true, status: true, trialStatus: true, trialEnd: true },
       });
 
-      if (sub?.trialStatus === 'ACTIVE' && sub.trialEnd && sub.trialEnd < new Date()) {
-        throw new BadRequestException({
-          code: 'TRIAL_EXPIRED',
-          message:
-            'Your 7-day free trial has expired. Please upgrade your plan to continue creating agents.',
-        });
-      }
-
-      const planTier = normalizePlanTier(sub?.planTier ?? 'free');
+      // An expired, unconverted trial falls back to Free limits rather than
+      // blocking creation outright.
+      const planTier = resolveEffectivePlanTier(sub);
       const planConfig = PLANS_CONFIG[planTier];
       const maxAgents = planConfig.machineLimits.microAgents;
 

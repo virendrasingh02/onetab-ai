@@ -16,7 +16,6 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getSlot, isSlotHost } from './agent-slots.js';
 import { ConnectorNodeConfig } from './connector-node-config.js';
-import { MODEL_OPTIONS } from './custom-nodes.js';
 import { getNodeIcon, getStatusBadge, NodeWiringPanel } from './node-wiring-panel.js';
 import {
   MODULE_BY_SLOT,
@@ -27,7 +26,7 @@ import {
 } from './agent-config/agent-module-model.js';
 import { AgentModulesOverview } from './agent-config/agent-modules-overview.js';
 import { ModuleDrawer, type ModuleActions } from './agent-config/module-drawer.js';
-import { useBuiltinTools, useKnowledgeBases, useMediaQuery } from './agent-config/use-agent-config-data.js';
+import { useBuiltinTools, useKnowledgeBases, useMediaQuery, useModelOptions } from './agent-config/use-agent-config-data.js';
 
 const COMMON_VARIABLES = [
   '{{input.message}}',
@@ -1030,16 +1029,7 @@ export function NodeInspector({
                 <Label className="text-[11px] font-semibold text-foreground">Model</Label>
                 <AIModelBadge modelId={config.model || 'gpt-4o'} size="xs" variant="subtle" />
               </div>
-              <AppSelect
-                value={config.model || 'gpt-4o'}
-                onValueChange={(v) => updateConfig('model', v)}
-                options={[
-                  ...(MODEL_OPTIONS.some((m) => m.value === (config.model || 'gpt-4o'))
-                    ? []
-                    : [{ value: String(config.model), label: String(config.model) }]),
-                  ...MODEL_OPTIONS.map((m) => ({ value: m.value, label: m.label })),
-                ]}
-              />
+              <ModelSelect value={config.model || 'gpt-4o'} onChange={(v) => updateConfig('model', v)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-[11px] font-semibold text-foreground">
@@ -1292,6 +1282,11 @@ export function NodeInspector({
 }
 
 /** Built-in tools from the live registry (was a hard-coded list of ten). */
+function ModelSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const options = useModelOptions(value);
+  return <AppSelect searchable value={value} loading={options.isLoading} onValueChange={onChange} options={options.groups} />;
+}
+
 function BuiltinToolSelect({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
   const tools = useBuiltinTools();
   const options = (tools.data ?? []).map((t) => ({ value: t.name, label: t.name, description: t.description }));

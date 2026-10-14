@@ -641,6 +641,20 @@ export function normalizePlanTier(tier: string | undefined | null): PlanTier {
 }
 
 /**
+ * The tier a workspace is entitled to right now. A trial that ran out without
+ * converting falls back to Free (and its limits) instead of locking the
+ * workspace out — it can keep working within the Free allowance until it
+ * upgrades.
+ */
+export function resolveEffectivePlanTier(
+  sub: { planTier?: string | null; trialStatus?: string | null; trialEnd?: Date | null } | null | undefined,
+  now: Date = new Date(),
+): PlanTier {
+  if (sub?.trialStatus === 'ACTIVE' && sub.trialEnd && sub.trialEnd < now) return 'free';
+  return normalizePlanTier(sub?.planTier);
+}
+
+/**
  * Checks if current usage has reached or exceeded the plan limit.
  */
 export function isLimitReached(used: number, limit: number): boolean {

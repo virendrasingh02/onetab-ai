@@ -1,7 +1,5 @@
-import { billingApi } from '@org/api-client';
 import { useTheme } from '@org/design-system';
 import {
-  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -10,9 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
+  PlanBadge,
   UserAvatar,
 } from '@org/ui';
-import { useQuery } from '@tanstack/react-query';
 import {
   ChevronRight,
   Coins,
@@ -22,6 +20,8 @@ import {
   PanelLeft,
   Sun,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useStudioPlan } from '../plan/use-studio-plan.js';
 import { useStudioSession } from '../session-guard.js';
 
 const WEB_APP_URL =
@@ -71,16 +71,14 @@ export function StudioHeader({
   collapsed = false,
   onToggleCollapse,
   onToggleMobile,
-  breadcrumb = { section: 'Platform', page: 'Studio Overview' },
+  breadcrumb = { section: 'Plan, Run & Approve', page: 'Studio Home' },
 }: StudioHeaderProps) {
   const { user, activeWorkspace } = useStudioSession();
 
-  // Load credits for active workspace
-  const { data: creditAccount } = useQuery({
-    queryKey: ['workspace-credits', activeWorkspace.id],
-    queryFn: () => billingApi.getCredits(activeWorkspace.id),
-    staleTime: 30_000,
-  });
+  // Same plan record the main app's billing page reads.
+  const { plan, planName, credits, lowCredits, canManageBilling, subscription, billingUrl } = useStudioPlan();
+  const isFree = plan === 'free';
+  const pastDue = subscription?.status === 'PAST_DUE' || subscription?.status === 'UNPAID';
 
   const displayName = user.name || 'Nick Bold';
   const displayEmail = user.email || 'admin@onetab.ai';
@@ -121,12 +119,54 @@ export function StudioHeader({
 
       {/* Right: Credits, Main Platform Link, Theme Toggle & User Profile */}
       <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
-        {/* Shared Credits Indicator */}
-        {creditAccount ? (
-          <Badge variant="neutral" className="hidden md:inline-flex gap-1 border border-border/60 text-xs">
-            <Coins className="size-3 text-warning" />
-            {creditAccount.balance.toLocaleString()} credits
-          </Badge>
+        {/* Plan + shared credits */}
+        {plan ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-2 px-2 text-xs"
+                aria-label={`Plan: ${planName}. ${credits !== null ? `${credits.toFixed(2)} dollars of AI credits.` : ''}`}
+              >
+                <PlanBadge plan={plan} size="xs" variant="gradient" />
+                {credits !== null ? (
+                  <span className={`hidden md:inline-flex items-center gap-1 tabular-nums ${lowCredits ? 'text-warning-text font-semibold' : 'text-muted-foreground'}`}>
+                    <Coins className="size-3" aria-hidden />${credits.toFixed(2)}
+                  </span>
+                ) : null}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="font-normal">
+                <p className="text-xs font-semibold text-foreground">{planName} plan</p>
+                {credits !== null ? (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    ${credits.toFixed(2)} shared AI credits{lowCredits ? ' — running low' : ''}
+                  </p>
+                ) : null}
+                {pastDue ? <p className="mt-0.5 text-[11px] text-destructive-text">Last payment failed</p> : null}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className="gap-2 text-xs">
+                <Link to="/settings?tab=usage">Usage & limits</Link>
+              </DropdownMenuItem>
+              {canManageBilling ? (
+                <>
+                  <DropdownMenuItem asChild className="gap-2 text-xs">
+                    <a href={billingUrl()}>{isFree ? 'Upgrade plan' : 'Manage plan & billing'}</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="gap-2 text-xs">
+                    <a href={billingUrl({ topUp: true })}>Top up credits</a>
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem asChild className="gap-2 text-xs">
+                  <a href={billingUrl()}>View plans</a>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
 
         {/* Link back to Main Platform */}

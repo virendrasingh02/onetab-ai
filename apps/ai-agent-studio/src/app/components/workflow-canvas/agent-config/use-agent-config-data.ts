@@ -143,22 +143,42 @@ export function useModelOptions(current: string | undefined) {
     const list = (models.data ?? []).filter((m) => m.enabled !== false && m.type !== 'embedding');
     const byProvider = new Map<string, AIModelMetadata[]>();
     for (const m of list) byProvider.set(m.provider, [...(byProvider.get(m.provider) ?? []), m]);
-    const out = [...byProvider.entries()].map(([provider, ms]) => {
-      const p = providers.data?.find((x) => x.id === provider);
-      const connected = !p || p.status === 'CONNECTED' || !p.requiresApiKey;
-      return {
-        label: `${p?.name ?? provider}${connected ? '' : ' — not connected'}`,
-        options: ms.map((m) => ({
-          value: m.model,
-          label: m.name || m.model,
-          description: [m.contextWindow ? `${Math.round(m.contextWindow / 1000)}k context` : '', connected ? '' : 'Connect the provider to use it']
-            .filter(Boolean)
-            .join(' · '),
-        })),
-      };
-    });
-    if (current && !list.some((m) => m.model === current || m.id === current)) {
-      out.unshift({ label: 'Current', options: [{ value: current, label: current, description: 'Not in this workspace’s model list' }] });
+    // The platform default (Nemotron) leads, then providers alphabetically.
+    const rank = (provider: string, ms: AIModelMetadata[]) => (ms.some((m) => m.default) || provider === 'nvidia' ? 0 : 1);
+    const out = [...byProvider.entries()]
+      .sort(([pa, a], [pb, b]) => rank(pa, a) - rank(pb, b) || pa.localeCompare(pb))
+      .map(([provider, ms]) => {
+        const p = providers.data?.find((x) => x.id === provider);
+        const connected = !p || p.status === 'CONNECTED' || !p.requiresApiKey;
+        return {
+          label: `${p?.name ?? provider}${connected ? '' : ' — not connected'}`,
+          options: [...ms]
+            .sort((a, b) => Number(Boolean(b.default)) - Number(Boolean(a.default)))
+            .map((m) => ({
+              value: m.model,
+              label: (m.name || m.model).replace(/\s*\(NVIDIA\)$/, ''),
+              description: [
+                m.default ? 'Platform default' : '',
+                m.contextWindow ? `${Math.round(m.contextWindow / 1000)}k context` : '',
+                connected ? '' : 'Connect the provider to use it',
+              ]
+                .filter(Boolean)
+                .join(' · '),
+            })),
+        };
+      });
+    // Static fallback when the catalog hasn't loaded or is empty, so the
+    // default model is always selectable.
+    if (out.length === 0) {
+      out.push({
+        label: 'NVIDIA',
+        options: [{ value: 'nvidia/nemotron-3-super-120b-a12b', label: 'Nemotron 3 Super', description: 'Platform default' }],
+      });
+    }
+    const known = (id: string) => list.some((m) => m.model === id || m.id === id || m.id.endsWith(`/${id}`));
+    const alias = current === 'nemotron' ? 'nvidia/nemotron-3-super-120b-a12b' : current;
+    if (alias && !known(alias) && !out.some((g) => g.options.some((o) => o.value === alias))) {
+      out.unshift({ label: 'Current', options: [{ value: alias, label: alias, description: 'Not in this workspace’s model list' }] });
     }
     return out;
   }, [models.data, providers.data, current]);

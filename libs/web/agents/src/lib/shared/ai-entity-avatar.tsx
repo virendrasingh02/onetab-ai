@@ -1,7 +1,7 @@
 import type { AIEntityType, CoworkerStatus } from '@org/types';
 import { cn } from '@org/utils';
 import { Bot, Sparkles } from 'lucide-react';
-import type { FC } from 'react';
+import { useState, type FC } from 'react';
 
 export interface AIEntityAvatarProps {
   name: string;
@@ -31,6 +31,11 @@ export const AIEntityAvatar: FC<AIEntityAvatarProps> = ({
   className,
 }) => {
   const sizeConfig = SIZE_MAP[size];
+  const src = avatarUrl?.trim() || null;
+  // Track which URL failed so a changed avatar gets a fresh attempt, while a
+  // broken/slow one always falls back to the default icon (never an empty box).
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showImage = Boolean(src) && failedSrc !== src;
 
   const statusColor =
     status === 'WORKING'
@@ -53,14 +58,12 @@ export const AIEntityAvatar: FC<AIEntityAvatarProps> = ({
       )}
       title={`${name} (${type === 'coworker' ? 'AI Coworker' : 'AI Agent'})`}
     >
-      {avatarUrl ? (
+      {showImage ? (
         <img
-          src={avatarUrl}
+          src={src as string}
           alt={name}
           className="h-full w-full object-cover rounded-[inherit]"
-          onError={(e) => {
-            (e.currentTarget as HTMLElement).style.display = 'none';
-          }}
+          onError={() => setFailedSrc(src)}
         />
       ) : type === 'coworker' ? (
         <Sparkles className={cn(sizeConfig.icon, 'text-primary')} />

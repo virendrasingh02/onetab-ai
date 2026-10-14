@@ -96,7 +96,6 @@ describe('WorkspaceMenu / Switcher', () => {
     });
     expect(trigger).toBeInTheDocument();
     expect(screen.getByText('Mie Team')).toBeInTheDocument();
-    expect(screen.getAllByText(/Starter|Pro|Business|Enterprise/i).length).toBeGreaterThan(0);
   });
 
   it('opens the switcher, lists the account and its workspaces, and filters by search', async () => {

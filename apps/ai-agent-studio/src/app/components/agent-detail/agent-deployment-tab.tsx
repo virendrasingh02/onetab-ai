@@ -81,7 +81,7 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
   const live = deployment.status === 'ACTIVE';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-background">
       <div className="border-b border-border bg-card/60 px-6 py-4 backdrop-blur-xs">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
@@ -144,7 +144,7 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
         />
       </div>
 
-      <div className="mx-auto w-full max-w-7xl flex-1 space-y-6 p-6">
+      <div className="mx-auto w-full max-w-7xl shrink-0 space-y-6 p-6 pb-16">
         {section === 'overview' && (
           <OverviewPanel api={api} deployment={deployment} toolCount={countTools(agent.tools)} onNavigate={setSection} />
         )}

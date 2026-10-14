@@ -65,10 +65,17 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
-import { ConversationFilesPanel } from './conversation-files-panel.js';
 import { GroupConversation } from './GroupConversation.js';
 import { useMatrix } from './matrix-provider.js';
 import {
@@ -83,6 +90,12 @@ import { useCreateConversation } from './use-create-conversation.js';
 import { useDirectMessageBookmarks } from './use-dm-bookmarks.js';
 import { useDirectRoom } from './use-direct-room.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
+
+const ConversationFilesPanel = lazy(() =>
+  import('./conversation-files-panel.js').then((m) => ({
+    default: m.ConversationFilesPanel,
+  })),
+);
 
 /**
  * A direct message, laid out like a channel.
@@ -346,12 +359,14 @@ function DirectConversation({
           value="files-media"
           className="min-h-0 flex flex-1 flex-col"
         >
-          <ConversationFilesPanel
-            context={{ type: 'DIRECT', id: peerId }}
-            roomId={roomId}
-            workspaceId={workspaceId}
-            currentUserId={currentUser?.id}
-          />
+          <Suspense fallback={<LoadingState />}>
+            <ConversationFilesPanel
+              context={{ type: 'DIRECT', id: peerId }}
+              roomId={roomId}
+              workspaceId={workspaceId}
+              currentUserId={currentUser?.id}
+            />
+          </Suspense>
         </TabsContent>
 
         {/* Bookmarks tab — `ChannelPage`'s counterpart, private to the reader

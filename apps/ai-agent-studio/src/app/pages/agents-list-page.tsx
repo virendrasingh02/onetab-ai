@@ -56,6 +56,10 @@ import {
   THEME_COLORS,
 } from '../data/agent-metadata.js';
 import { useStudioSession } from '../session-guard.js';
+import { useModelOptions } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
+
+/** Platform default (NVIDIA Nemotron 3 Super) — matches AI_DEFAULT_MODEL. */
+const DEFAULT_AGENT_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
 
 type AgentStatus = 'draft' | 'testing' | 'published' | 'paused' | 'archived';
 type AgentEnvironment = 'development' | 'staging' | 'production';
@@ -95,7 +99,8 @@ export function AgentsListPage() {
   const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newPrompt, setNewPrompt] = useState('You are an intelligent autonomous AI employee.');
-  const [newModel, setNewModel] = useState('OpenAI GPT-4o');
+  const [newModel, setNewModel] = useState(DEFAULT_AGENT_MODEL);
+  const modelOptions = useModelOptions(newModel);
   const [newEnvironment, setNewEnvironment] = useState<AgentEnvironment>('development');
   const [newTheme, setNewTheme] = useState('emerald');
   const [newIcon, setNewIcon] = useState('Bot');
@@ -230,7 +235,7 @@ export function AgentsListPage() {
     setCustomCategoryInput('');
     setNewDesc('');
     setNewPrompt('You are an intelligent autonomous AI employee.');
-    setNewModel('OpenAI GPT-4o');
+    setNewModel(DEFAULT_AGENT_MODEL);
     setNewEnvironment('development');
     setNewTheme('emerald');
     setNewIcon('Bot');
@@ -359,7 +364,7 @@ export function AgentsListPage() {
         role: data.role || 'Specialist',
         description: data.description || 'Imported from JSON configuration',
         systemPrompt: data.systemPrompt || 'Execute workflow tasks.',
-        model: data.model || 'OpenAI GPT-4o',
+        model: data.model || DEFAULT_AGENT_MODEL,
         graphJson: data.graphJson || JSON.stringify({ nodes: data.nodes || [], edges: data.edges || [] }),
         configuration: {
           status: 'draft',
@@ -1143,15 +1148,11 @@ export function AgentsListPage() {
                     Reasoning Model
                   </Label>
                   <AppSelect
+                    searchable
                     value={newModel}
+                    loading={modelOptions.isLoading}
                     onValueChange={(v) => setNewModel(v)}
-                    options={[
-                      { value: 'OpenAI GPT-4o', label: 'OpenAI GPT-4o' },
-                      { value: 'OpenAI GPT-4o Mini', label: 'OpenAI GPT-4o Mini' },
-                      { value: 'Anthropic Claude 3.5 Sonnet', label: 'Anthropic Claude 3.5 Sonnet' },
-                      { value: 'Google Gemini 1.5 Pro', label: 'Google Gemini 1.5 Pro' },
-                      { value: 'Ollama Llama 3', label: 'Ollama Llama 3' },
-                    ]}
+                    options={modelOptions.groups}
                   />
                 </div>
 

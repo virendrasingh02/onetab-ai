@@ -142,16 +142,10 @@ export function WidgetStudioPanel({
               </h3>
               <p className="text-xs text-muted-foreground">Saved to the deployment and applied by the embed.</p>
             </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" size="sm" disabled={!dirty || api.update.isPending} onClick={() => { setForm(saved); setOriginsText(savedOrigins); }}>
-                Reset
-              </Button>
-              <Button type="button" size="sm" onClick={save} loading={api.update.isPending} disabled={!dirty || !colorOk} className="font-semibold">
-                Save changes
-              </Button>
-            </div>
+            {dirty ? <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">Unsaved changes</span> : null}
           </div>
 
+          <SectionLabel>Branding</SectionLabel>
           <div className="space-y-2">
             <Label htmlFor="ws-color">Brand colour</Label>
             <div className="flex flex-wrap items-center gap-2">
@@ -211,6 +205,7 @@ export function WidgetStudioPanel({
             </div>
           </div>
 
+          <SectionLabel>Content</SectionLabel>
           <Field label="Title" hint="Defaults to the agent’s name.">
             <Input value={form.title} onChange={(e) => patch({ title: e.target.value })} placeholder={agentName} />
           </Field>
@@ -259,7 +254,8 @@ export function WidgetStudioPanel({
             </div>
           </div>
 
-          <div className="space-y-4 border-t border-border pt-4">
+          <div className="space-y-4">
+            <SectionLabel>Access &amp; sessions</SectionLabel>
             <Field
               label="Allowed origins"
               hint="One per line, e.g. https://www.example.com. A site not listed can’t start a session. Use * to allow any site."
@@ -277,10 +273,22 @@ export function WidgetStudioPanel({
             </Field>
           </div>
         </Card>
+
+        <div className="sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-xl border border-border bg-card/95 px-4 py-2.5 shadow-lg backdrop-blur-sm">
+          <p className="text-xs text-muted-foreground">{dirty ? 'You have unsaved changes.' : 'All changes saved.'}</p>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" size="sm" disabled={!dirty || api.update.isPending} onClick={() => { setForm(saved); setOriginsText(savedOrigins); }}>
+              Reset
+            </Button>
+            <Button type="button" size="sm" onClick={save} loading={api.update.isPending} disabled={!dirty || !colorOk} className="font-semibold">
+              Save changes
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Live preview */}
-      <div className="flex flex-col items-center lg:col-span-7">
+      <div className="flex flex-col items-center lg:sticky lg:top-4 lg:col-span-7 lg:self-start">
         <ToggleGroup
           type="single"
           size="sm"
@@ -299,7 +307,7 @@ export function WidgetStudioPanel({
 
         <div
           className={cn(
-            'flex h-[640px] flex-col overflow-hidden rounded-2xl border-2 border-border shadow-xl transition-all duration-300',
+            'flex h-[min(640px,calc(100vh-16rem))] min-h-[420px] flex-col overflow-hidden rounded-2xl border-2 border-border shadow-xl transition-all duration-300',
             device === 'desktop' ? 'w-[420px]' : 'w-[360px]',
             dark ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-900',
           )}
@@ -433,4 +441,8 @@ function Bubble({ brand, dark, initial, children }: { brand: string; dark: boole
       <div className={cn('max-w-[85%] space-y-2 rounded-2xl rounded-tl-sm border px-3 py-2', dark ? 'border-slate-700 bg-slate-800' : 'border-border bg-slate-50')}>{children}</div>
     </div>
   );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <div className="border-b border-border/60 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{children}</div>;
 }

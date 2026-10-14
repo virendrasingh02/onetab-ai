@@ -56,7 +56,8 @@ import {
   type AgentSlotDef,
   type AgentSlotId,
 } from './agent-slots.js';
-import { CATALOG_NODES, type CatalogNodeItem, type NodeCategory } from './node-library.js';
+import { useModelOptions } from './agent-config/use-agent-config-data.js';
+import { CATALOG_NODES,type CatalogNodeItem, type NodeCategory } from './node-library.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { useConnectorCatalogNodes, useConnectorNode } from './connector-nodes.js';
 import { useNavigate } from 'react-router-dom';
@@ -1152,7 +1153,7 @@ export const MODEL_OPTIONS: AppSelectOption[] = [
   { value: 'deepseek-reasoner', label: 'DeepSeek R1' },
   { value: 'llama3:latest', label: 'Meta Llama 3' },
   { value: 'mistral-large', label: 'Mistral Large' },
-  { value: 'nemotron', label: 'NVIDIA Nemotron 3' },
+  { value: 'nvidia/nemotron-3-super-120b-a12b', label: 'Nemotron 3 Super' },
 ];
 export const modelLabel = (model: unknown) =>
   MODEL_OPTIONS.find((m) => m.value === model)?.label ?? (normalizeModel(String(model)).displayName || String(model).replace(':latest', ''));
@@ -1633,9 +1634,7 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
   const locked = Boolean(nodeData.locked) || !nodeData.onUpdateConfig;
   const update = (patch: Record<string, unknown>) => nodeData.onUpdateConfig?.(patch);
   const model = String(cfg.model ?? 'gpt-4o');
-  const options = MODEL_OPTIONS.some((m) => m.value === model)
-    ? MODEL_OPTIONS
-    : [{ value: model, label: model }, ...MODEL_OPTIONS];
+  const { groups: options, isLoading: modelsLoading } = useModelOptions(model);
   return (
     <div
       className={cn(
@@ -1668,8 +1667,10 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
           <AppSelect
             size="sm"
             aria-label="Model"
+            searchable
             value={model}
             options={options}
+            loading={modelsLoading}
             disabled={locked}
             onValueChange={(next) => update({ model: next })}
             className="h-7 text-[11px]"

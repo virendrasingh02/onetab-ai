@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import {
   CANVAS_AGENT_TRIGGER,
@@ -8,6 +8,7 @@ import {
   type AutomationScheduleItem,
 } from '@org/types';
 import { nextCronRun } from '@org/utils';
+import { PlanGateService } from './plan-gate.service.js';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 import { normalizeWorkflowNodes } from './workflow-graph.js';
 import { workflowSchedule } from './workflow-schedule.listener.js';
@@ -38,7 +39,8 @@ export function triggerTypeFromNodes(nodesJson: string): string | null {
 export class AutomationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly workflowEngine: WorkflowEngineService
+    private readonly workflowEngine: WorkflowEngineService,
+    @Optional() private readonly planGate?: PlanGateService,
   ) {}
 
   async getWorkflows(workspaceId: string) {
@@ -61,6 +63,7 @@ export class AutomationsService {
       isActive?: boolean;
     },
   ) {
+    await this.planGate?.assertCanCreate(workspaceId, 'workflow');
     return this.prisma.automationWorkflow.create({
       data: {
         workspaceId,

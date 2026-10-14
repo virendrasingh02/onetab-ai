@@ -18,6 +18,7 @@ import {
 } from '@org/types';
 import { nextCronRun, startOfZonedDay } from '@org/utils';
 import { AutomationsService } from '../automations.service.js';
+import { PlanGateService } from '../plan-gate.service.js';
 import { readAgentProfile } from '../run-support.js';
 import { WorkflowEngineService } from '../workflow-engine.service.js';
 import { workflowSchedule } from '../workflow-schedule.listener.js';
@@ -83,11 +84,13 @@ export class AgentStudioService {
     private readonly engine: WorkflowEngineService,
     private readonly automations: AutomationsService,
     private readonly planner: AgentPlannerService,
+    private readonly planGate: PlanGateService,
   ) {}
 
   /* ------------------------------------------------------------ create -- */
 
   async create(workspaceId: string, userId: string, input: AgentBlueprint, activate = false) {
+    await this.planGate.assertCanCreate(workspaceId, 'agent');
     const blueprint = await this.checked(workspaceId, userId, input);
     const compiled = compileAgentBlueprint(blueprint);
     const profile: AgentProfile = {
@@ -340,6 +343,7 @@ export class AgentStudioService {
   async duplicate(workspaceId: string, workflowId: string, userId: string) {
     const workflow = await this.find(workspaceId, workflowId);
     const profile = readAgentProfile(workflow.agentProfile);
+    await this.planGate.assertCanCreate(workspaceId, profile ? 'agent' : 'workflow');
     const name = `${workflow.name} (copy)`.slice(0, 120);
     const copy = await this.prisma.automationWorkflow.create({
       data: {

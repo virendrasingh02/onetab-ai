@@ -76,14 +76,13 @@ import {
   useMemo,
   useRef,
   useState,
+  lazy,
+  Suspense,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  ForwardMessageDialog,
-  type ForwardMessageSource,
-} from './forward-message-dialog.js';
+import type { ForwardMessageSource } from './forward-message-dialog.js';
 import { useRegisterActiveConversation } from './active-conversation.js';
 import { deriveAttachmentBursts } from './derive-attachment-bursts.js';
 import { deriveThreads, groupReplies, threadReplyCount } from './derive-threads.js';
@@ -92,6 +91,12 @@ import { useMentionNavigation } from './use-mention-navigation.js';
 import { useMessageScrollTarget } from './use-message-scroll-target.js';
 import { useMatrix } from './matrix-provider.js';
 import { CallSummaryMessageCard } from './call-summary-message-card.js';
+
+const ForwardMessageDialog = lazy(() =>
+  import('./forward-message-dialog.js').then((m) => ({
+    default: m.ForwardMessageDialog,
+  })),
+);
 
 
 /**
@@ -2139,13 +2144,18 @@ export function ChatSurface({
         </div>
       </div>
 
-      <ForwardMessageDialog
-        source={forwardSource}
-        onOpenChange={(open) => {
-          if (!open) setForwardSource(null);
-        }}
-        onCopyLink={(message) => copyMessageLink(message, 'Link copied')}
-      />
+      {/* Fetched the first time someone forwards a message, not with the chat. */}
+      {forwardSource ? (
+        <Suspense fallback={null}>
+          <ForwardMessageDialog
+            source={forwardSource}
+            onOpenChange={(open) => {
+              if (!open) setForwardSource(null);
+            }}
+            onCopyLink={(message) => copyMessageLink(message, 'Link copied')}
+          />
+        </Suspense>
+      ) : null}
     </ChatLayout>
     </ReactorDirectoryProvider>
   );

@@ -11,7 +11,6 @@ import { DeveloperPage } from './pages/developer-page.jsx';
 import { ExecutionsPage } from './pages/executions-page.js';
 import { KnowledgePage } from './pages/knowledge-page.js';
 import { McpPage } from './pages/mcp-page.js';
-import { OverviewPage } from './pages/overview-page.js';
 import { SettingsPage } from './pages/settings-page.js';
 import { TemplatesPage } from './pages/templates-page.js';
 import { ToolsPage } from './pages/tools-page.js';
@@ -26,8 +25,6 @@ import { studioCorePath, studioCoreRoutes } from './studio-core-bridge.js';
 import { SessionGuard, useStudioSession } from './session-guard.js';
 
 const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
-  '/': { section: 'Platform', page: 'Studio Overview' },
-  '/overview': { section: 'Platform', page: 'Studio Overview' },
   '/create': { section: 'Build & Orchestrate', page: 'Create with AI' },
   '/agents': { section: 'Build & Orchestrate', page: 'My Agents' },
   '/workflows': { section: 'Build & Orchestrate', page: 'Visual Workflows' },
@@ -57,7 +54,7 @@ function getBreadcrumb(pathname: string): { section: string; page: string } {
       return value;
     }
   }
-  return { section: 'Platform', page: 'Studio Overview' };
+  return { section: 'Plan, Run & Approve', page: 'Studio Home' };
 }
 
 function StudioShell() {
@@ -149,8 +146,8 @@ function StudioShell() {
           >
             <Suspense fallback={<LoadingState fullPage />}>
               <Routes>
-                <Route path="/" element={<Navigate to="/overview" replace />} />
-                <Route path="/overview" element={<OverviewPage />} />
+                <Route path="/" element={<Navigate to={studioCorePath(activeWorkspace.slug)} replace />} />
+                <Route path="/overview" element={<Navigate to={studioCorePath(activeWorkspace.slug)} replace />} />
                 <Route path="/create" element={<CreateAgentPage />} />
                 <Route path="/agents" element={<AgentsListPage />} />
                 <Route path="/workflows" element={<WorkflowsPage />} />
@@ -169,7 +166,7 @@ function StudioShell() {
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/developer" element={<DeveloperPage />} />
-                <Route path="*" element={<Navigate to="/overview" replace />} />
+                <Route path="*" element={<Navigate to={studioCorePath(activeWorkspace.slug)} replace />} />
               </Routes>
             </Suspense>
           </ScrollArea>

@@ -556,15 +556,6 @@ export function StudioSidebar({
       {/* Scrollable Navigation Body */}
       <ScrollArea className="flex-1 px-2.5 py-3">
         <nav className="space-y-0.5" aria-label="Studio">
-          <StudioNavRow
-            to="/overview"
-            end
-            label="Studio Overview"
-            icon={LayoutDashboard}
-            collapsed={collapsed}
-            onNavigate={onCloseMobile}
-          />
-
           {navGroups.map((group) => {
             const rows = group.items.map((item) => (
               <StudioNavRow

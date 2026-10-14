@@ -41,6 +41,23 @@ function loadRoomState(
   }
 
   try {
+    /*
+     * A room the client has not synced yet reads as an empty timeline, which
+     * the list renders as "No messages yet" and then replaces a moment later
+     * with the real history — a flash of the wrong state on every cold open.
+     * Report it as still loading; `useRoom` re-reads on `room.upserted`.
+     */
+    if (!client.getRoom(roomId)) {
+      return {
+        messages: [],
+        members: [],
+        typingUserIds: [],
+        isLoading: true,
+        isLoadingOlder: false,
+        hasMore: false,
+        error: null,
+      };
+    }
     const timeline = client.getTimeline(roomId);
     return {
       messages: timeline.messages,
@@ -104,6 +121,35 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
     bound.current = { client, roomId };
     setState(loadRoomState(client, roomId));
   }
+
+  /*
+   * The room appeared (first sync, or just joined): swap the loading state for
+   * its real timeline. A room that never shows up — nothing to sync, nothing
+   * to show — stops claiming to load after a grace period so it falls through
+   * to the genuine empty state instead of spinning forever.
+   */
+  const waitingForRoom = state.isLoading && !!client && !!roomId;
+  useEffect(() => {
+    if (!waitingForRoom || !client || !roomId) return;
+    const settle = () =>
+      setState((current) =>
+        current.isLoading ? { ...loadRoomState(client, roomId), isLoading: false } : current,
+      );
+    const stop = client.on((event) => {
+      if (event.type === 'room.upserted' && event.room.id === roomId) {
+        try {
+          if (client.getRoom(roomId)) settle();
+        } catch {
+          // Client not ready yet — wait for the next upsert.
+        }
+      }
+    });
+    const timer = setTimeout(settle, 8000);
+    return () => {
+      stop();
+      clearTimeout(timer);
+    };
+  }, [waitingForRoom, client, roomId]);
 
   // Live updates.
   useEffect(() => {

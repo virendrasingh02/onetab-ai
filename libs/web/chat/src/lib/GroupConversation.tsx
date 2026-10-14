@@ -51,15 +51,20 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
 import { ConversationTabsShell } from './conversation-files-panel.js';
-import { GroupMembersPanel } from './group-members-panel.js';
 import { useMatrix } from './matrix-provider.js';
 import { useRoomSummary } from './use-chat.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
 import { PeoplePicker } from './people-picker.js';
+
+const GroupMembersPanel = lazy(() =>
+  import('./group-members-panel.js').then((m) => ({
+    default: m.GroupMembersPanel,
+  })),
+);
 
 function toSystemEventEntity(user: PublicUser): SystemEventEntity {
   return {
@@ -282,13 +287,15 @@ export function GroupConversation({
 
         {membersPanelOpen ? (
           <div className="w-80 shrink-0 h-full">
-            <GroupMembersPanel
-              roomId={roomId}
-              members={members}
-              workspaceSlug={slug || 'default'}
-              onAddPeople={() => setAddPeopleOpen(true)}
-              onClose={() => setMembersPanelOpen(false)}
-            />
+            <Suspense fallback={null}>
+              <GroupMembersPanel
+                roomId={roomId}
+                members={members}
+                workspaceSlug={slug || 'default'}
+                onAddPeople={() => setAddPeopleOpen(true)}
+                onClose={() => setMembersPanelOpen(false)}
+              />
+            </Suspense>
           </div>
         ) : null}
       </div>

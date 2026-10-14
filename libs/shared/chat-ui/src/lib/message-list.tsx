@@ -48,12 +48,19 @@ const GROUPING_WINDOW_MS = 5 * 60_000;
 /** Height reserved for the floating day chip, and the inline separator's. */
 const DAY_CHIP_HEIGHT = 34;
 
+/** Messages that always render with their own avatar + name header. */
+function startsOwnGroup(message: Message): boolean {
+  return (
+    !!message.structuredEvent || !!message.forwarded || !!message.replyToId
+  );
+}
+
 /**
  * Height of the sticky "N new messages" bar. The floating day chip and the
  * connection pill ride down by this much while the bar is showing so nothing
  * stacks on top of it.
  */
-const NEW_MESSAGES_BAR_HEIGHT = 32;
+const NEW_MESSAGES_BAR_HEIGHT = 48;
 
 type Row =
   | { kind: 'separator'; key: string; timestamp: number }
@@ -158,6 +165,12 @@ export function buildRows(
       !breakGroup &&
       !!previous &&
       previous.senderId === message.senderId &&
+      // Cards (system events, app/agent cards) and quoted/forwarded/reply
+      // messages carry their own framing, so they never fold into a run and
+      // nothing folds under them — otherwise the "Hey" under a system event
+      // renders with no avatar or name.
+      !startsOwnGroup(previous) &&
+      !startsOwnGroup(message) &&
       message.timestamp - previous.timestamp < GROUPING_WINDOW_MS;
 
     rows.push({ kind: 'message', key: message.id, message, grouped });
@@ -1124,31 +1137,42 @@ export function MessageList({
       */}
       {newMessagesCount > 0 ? (
         <div
-          className="top-0 inset-x-0 absolute z-30 gap-2 pl-4 pr-2 text-xs font-medium flex items-center justify-between border-b border-primary/20 bg-primary/10 text-primary-text animate-in fade-in slide-in-from-top-1 duration-200"
-          style={{ height: NEW_MESSAGES_BAR_HEIGHT }}
+          className="top-2 inset-x-3 absolute z-50 pointer-events-none animate-in fade-in slide-in-from-top-1 duration-200"
+          role="status"
         >
-          <button
-            type="button"
-            onClick={scrollToBottom}
-            className="h-full flex-1 text-left"
-          >
-            {newMessagesCount === 1
-              ? '1 new message'
-              : `${newMessagesCount} new messages`}
-          </button>
-          {onMarkRead ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 shrink-0 px-2 text-xs text-primary-text hover:bg-primary/15"
-              onClick={() => {
-                onMarkRead();
-                setNewMessagesCount(0);
-              }}
+          {/* Opaque card (not a translucent strip) so message content and the
+              hover toolbar never bleed through or collide with the actions. */}
+          <div className="h-8 gap-1 pl-3 pr-1 text-xs font-medium pointer-events-auto flex items-center justify-between rounded-lg border border-primary/25 bg-surface text-primary-text shadow-md">
+            <button
+              type="button"
+              onClick={scrollToBottom}
+              className="gap-2 h-full min-w-0 flex-1 flex items-center text-left"
             >
-              Mark as read
-            </Button>
-          ) : null}
+              <span
+                className="size-1.5 shrink-0 rounded-full bg-primary"
+                aria-hidden
+              />
+              <span className="truncate">
+                {newMessagesCount === 1
+                  ? '1 new message'
+                  : `${newMessagesCount} new messages`}
+              </span>
+              <ArrowDown className="size-3 shrink-0 opacity-70" aria-hidden />
+            </button>
+            {onMarkRead ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 shrink-0 px-2 text-xs text-primary-text hover:bg-primary/10"
+                onClick={() => {
+                  onMarkRead();
+                  setNewMessagesCount(0);
+                }}
+              >
+                Mark as read
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

@@ -38,6 +38,8 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { PlanLimitNotice } from '../plan/plan-limit-notice.js';
+import { readPlanLimit, type PlanLimitInfo } from '../plan/plan-limit.js';
 import { ConnectionBadge, FlowLine, IssueList, errorText, integrationsHref } from '../components/agent-architect/architect-ui.js';
 import { PROMPT_SUGGESTIONS, PROMPT_TEMPLATES } from '../data/prompt-templates.js';
 import { useStudioSession } from '../session-guard.js';
@@ -111,6 +113,7 @@ export function CreateAgentPage() {
   const [accepted, setAccepted] = useState<string[]>([]);
   const [deferred, setDeferred] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [planLimit, setPlanLimit] = useState<PlanLimitInfo | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [addition, setAddition] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -151,6 +154,7 @@ export function CreateAgentPage() {
       if (trimmed.length < 3) return;
       const id = ++requestRef.current;
       setError(null);
+      setPlanLimit(null);
       setPhase('understanding');
       rememberPrompt(trimmed);
       setRecent(readRecent());
@@ -297,6 +301,8 @@ export function CreateAgentPage() {
       setCreatedId(agentId);
       setBuildStep('create', { status: 'done', detail: finalSpec.agent.name });
     } catch (err) {
+      const limit = readPlanLimit(err);
+      if (limit) setPlanLimit(limit);
       const message = errorText(err, 'The agent couldn’t be created.');
       setBuildStep('create', {
         status: 'failed',
@@ -491,6 +497,7 @@ export function CreateAgentPage() {
           <h1 className="text-xl font-semibold text-foreground">{phase === 'built' && !failed ? 'Your agent is built' : 'Building your agent'}</h1>
           <p className="text-sm text-muted-foreground">{finalSpec.agent.name}</p>
         </header>
+        {failed && planLimit ? <PlanLimitNotice limit={planLimit} /> : null}
         <ol className="space-y-2 rounded-xl border border-border bg-surface p-4" aria-live="polite">
           {build.map((step) => (
             <li key={step.id} className="flex items-start gap-2.5 text-sm">

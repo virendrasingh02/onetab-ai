@@ -7,6 +7,8 @@ import {
   TooltipProvider,
   toast,
 } from '@org/ui';
+import { activeBillingUrl } from './plan/billing-link.js';
+import { readPlanLimit } from './plan/plan-limit.js';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 
@@ -28,6 +30,27 @@ export function Providers({ children }: { children: ReactNode }) {
               | { errorMessage?: string; disableToast?: boolean }
               | undefined;
             if (meta?.disableToast) return;
+            // Plan/credit refusals get an explanation and a way forward, not "Action failed".
+            const limit = readPlanLimit(error);
+            if (limit) {
+              const href = activeBillingUrl({ topUp: limit.kind === 'credits' });
+              toast.warning(
+                limit.kind === 'credits' ? 'Out of AI credits' : limit.kind === 'trial' ? 'Free trial ended' : 'Plan limit reached',
+                {
+                  description: limit.message,
+                  duration: 10_000,
+                  ...(href
+                    ? {
+                        action: {
+                          label: limit.kind === 'credits' ? 'Top up' : 'Upgrade',
+                          onClick: () => window.location.assign(href),
+                        },
+                      }
+                    : {}),
+                },
+              );
+              return;
+            }
             const message =
               meta?.errorMessage ||
               (error instanceof ApiError ? error.message : (error as Error)?.message) ||

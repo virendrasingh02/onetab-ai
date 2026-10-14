@@ -10,8 +10,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppEvent } from '@org/api-common';
-import { PrismaService } from '@org/database';
+import { Prisma, PrismaService } from '@org/database';
 import {
+  CANVAS_AGENT_TRIGGER,
   PLANS_CONFIG,
   PLAN_HIERARCHY,
   planPeriodCents,
@@ -105,15 +106,28 @@ export class BillingService {
       this.prisma.aIChatSession.count({
         where: { workspaceId },
       }),
+      // Plain workflows only: Studio agents count as agents, canvas-run copies are hidden.
       this.prisma.automationWorkflow.count({
-        where: { workspaceId },
+        where: {
+          workspaceId,
+          triggerType: { not: CANVAS_AGENT_TRIGGER },
+          agentProfile: { equals: Prisma.DbNull },
+        },
       }),
       this.prisma.externalIntegration.count({
         where: { workspaceId, status: 'CONNECTED' },
       }),
-      this.prisma.aIAgent.count({
-        where: { workspaceId, type: 'agent' },
-      }),
+      // Micro agents = entity agents + Studio-planned agents (same rule as PlanGateService).
+      Promise.all([
+        this.prisma.aIAgent.count({ where: { workspaceId, type: 'agent' } }),
+        this.prisma.automationWorkflow.count({
+          where: {
+            workspaceId,
+            triggerType: { not: CANVAS_AGENT_TRIGGER },
+            agentProfile: { not: Prisma.DbNull },
+          },
+        }),
+      ]).then(([a, b]) => a + b),
       this.prisma.workflowExecution.count({
         where: { workflow: { workspaceId }, status: 'RUNNING' },
       }),

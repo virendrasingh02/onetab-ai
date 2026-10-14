@@ -70,7 +70,7 @@ export function normalizeAgent(raw: AIAgent | AIAgentDetail): StudioAgent {
     role: raw.role || 'Assistant Specialist',
     description: raw.description || '',
     status: String(config['status'] || (raw.isActive ? 'published' : 'draft')),
-    model: raw.model || 'gpt-4o',
+    model: raw.model || 'nvidia/nemotron-3-super-120b-a12b',
     provider: raw.provider || 'OpenAI',
     systemPrompt: raw.systemPrompt || '',
     tools: parseTools(record['tools']),
@@ -139,7 +139,7 @@ export const agentService = {
 
   async createAgent(workspaceId: string, data: AgentDraft): Promise<StudioAgent> {
     const name = data.name || 'Untitled Agent';
-    const model = data.model || 'gpt-4o';
+    const model = data.model || 'nvidia/nemotron-3-super-120b-a12b';
     const configuration: Config = {
       status: 'draft',
       theme: data.configuration?.['theme'] || data.theme || 'emerald',
