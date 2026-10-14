@@ -338,6 +338,8 @@ import type {
   EmailProvidersOverview,
   ConnectionTestResult,
   ConnectorDetail,
+  ConnectorGroup,
+  ConnectorGroupInput,
   ConnectorSummary,
   WidgetDefinition,
   WidgetTemplateItem,
@@ -446,7 +448,7 @@ import type {
   UpdateWorkspaceInput,
   OAuthInitQueryInput,
 } from '@org/validation';
-import { http, request, resolveMediaUrl } from './http.js';
+import { getAccessToken, http, request, resolveMediaUrl } from './http.js';
 
 /** `POST /auth/*` responses carry the user alongside the token pair. */
 export interface AuthResponse extends AuthTokens {
@@ -2626,6 +2628,65 @@ export const agentArchitectApi = {
   edit: (workspaceId: string, body: { command: string; graphJson: string }) =>
     request<ArchitectEditResult>(http.post(`/workspaces/${workspaceId}/agent-architect/edit`, body, { timeout: 90_000 })),
 
+  /**
+   * The same edit, streamed: `onStatus` for progress, `onExplanation` with the
+   * reply so far as the model writes it; resolves with the finished change.
+   */
+  editStream: async (
+    workspaceId: string,
+    body: { command: string; graphJson: string },
+    handlers: { onStatus?: (message: string) => void; onExplanation?: (text: string) => void; signal?: AbortSignal } = {},
+  ): Promise<ArchitectEditResult> => {
+    const base = String(http.defaults.baseURL ?? '').replace(/\/$/, '');
+    const token = getAccessToken();
+    const res = await fetch(`${base}/workspaces/${workspaceId}/agent-architect/edit/stream`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(body),
+      signal: handlers.signal,
+    });
+    if (!res.ok || !res.body) {
+      let message = `The Copilot couldn’t be reached (${res.status}).`;
+      try {
+        const err = (await res.json()) as { message?: string };
+        if (err.message) message = err.message;
+      } catch {
+        // keep the status message
+      }
+      throw new Error(message);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let result: ArchitectEditResult | null = null;
+    const handle = (block: string) => {
+      let event = 'message';
+      let data = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) data += line.slice(5).trim();
+      }
+      if (!data) return;
+      const parsed = JSON.parse(data) as Record<string, unknown>;
+      if (event === 'status') handlers.onStatus?.(String(parsed['message'] ?? ''));
+      else if (event === 'explanation') handlers.onExplanation?.(String(parsed['text'] ?? ''));
+      else if (event === 'result') result = parsed as unknown as ArchitectEditResult;
+      else if (event === 'error') throw new Error(String(parsed['message'] ?? 'The change couldn’t be worked out.'));
+    };
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const blocks = buffer.split('\n\n');
+      buffer = blocks.pop() ?? '';
+      blocks.forEach(handle);
+    }
+    if (buffer.trim()) handle(buffer);
+    if (!result) throw new Error('The Copilot stopped before finishing. Nothing was changed.');
+    return result;
+  },
+
   diagnose: (workspaceId: string, agentId: string, graphJson?: string) =>
     request<ArchitectDiagnosisResult>(http.post(`/workspaces/${workspaceId}/agent-architect/${agentId}/diagnose`, { graphJson })),
 
@@ -3641,6 +3702,19 @@ export const connectorsApi = {
   /** Checks a connection against the app itself and records the result. */
   testConnection: (workspaceId: string, integrationId: string) =>
     request<ConnectionTestResult>(http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/test`)),
+
+  /** Connector groups: named sets of apps (and their switched-on actions) an agent can be given at once. */
+  groups: {
+    list: (workspaceId: string) => request<ConnectorGroup[]>(http.get(`/workspaces/${workspaceId}/connector-groups`)),
+    create: (workspaceId: string, input: ConnectorGroupInput) =>
+      request<ConnectorGroup>(http.post(`/workspaces/${workspaceId}/connector-groups`, input)),
+    update: (workspaceId: string, id: string, input: ConnectorGroupInput) =>
+      request<ConnectorGroup>(http.put(`/workspaces/${workspaceId}/connector-groups/${id}`, input)),
+    duplicate: (workspaceId: string, id: string) =>
+      request<ConnectorGroup>(http.post(`/workspaces/${workspaceId}/connector-groups/${id}/duplicate`)),
+    remove: (workspaceId: string, id: string) =>
+      request<{ deleted: true }>(http.delete(`/workspaces/${workspaceId}/connector-groups/${id}`)),
+  },
 };
 
 /** Where a file is filed. `channelId` is the legacy shorthand for a CHANNEL context. */

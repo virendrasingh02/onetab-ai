@@ -1,4 +1,5 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Logger, Param, Post, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, RequireWorkspacePermissions, WorkspaceId, zodBody } from '@org/api-common';
@@ -21,6 +22,8 @@ import { AgentArchitectService } from './agent-architect.service.js';
 @Controller({ path: 'workspaces/:workspaceId/agent-architect', version: '1' })
 @UseGuards(WorkspaceRoleGuard)
 export class AgentArchitectController {
+  private readonly logger = new Logger(AgentArchitectController.name);
+
   constructor(private readonly architect: AgentArchitectService) {}
 
   /** "Create an agent that…" → what it understood, the plan, what's missing, the workflow. */
@@ -37,6 +40,44 @@ export class AgentArchitectController {
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   edit(@WorkspaceId() workspaceId: string, @CurrentUser('id') userId: string, @Body(zodBody(editAgentGraphSchema)) body: EditAgentGraphInput) {
     return this.architect.edit(workspaceId, userId, body);
+  }
+
+  /**
+   * The same edit as a live stream (SSE): progress and the explanation as
+   * Nemotron writes it, then the finished change. Events: `status`,
+   * `explanation`, `result`, `error`.
+   */
+  @Post('edit/stream')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  async editStream(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(editAgentGraphSchema)) body: EditAgentGraphInput,
+    @Res() res: Response,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+    let open = true;
+    res.on('close', () => {
+      open = false;
+    });
+    const send = (event: string, data: unknown) => {
+      if (open) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+    try {
+      const result = await this.architect.edit(workspaceId, userId, body, (e) => send(e.type, e));
+      send('result', result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Streamed edit failed: ${message}`);
+      send('error', { message });
+    } finally {
+      res.end();
+    }
   }
 
   /** Why the last run failed, and what would fix it. */

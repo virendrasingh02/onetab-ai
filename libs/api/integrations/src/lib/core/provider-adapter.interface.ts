@@ -64,6 +64,15 @@ export interface WebhookProcessResult {
   shouldRetry?: boolean;
 }
 
+/** One event an app pushed to the connector webhook, ready to start agents. */
+export interface ConnectorInboundEvent {
+  /** The app's own id for the delivery — used to drop repeats. */
+  eventId: string;
+  /** Which of the adapter's `getTriggers()` (delivery: 'webhook') this is. */
+  triggerId: string;
+  item: Record<string, unknown>;
+}
+
 export interface MessageQuery {
   query?: string;
   maxResults?: number;
@@ -172,6 +181,30 @@ export interface ProviderAdapter {
    * new item — so a trigger needs no per-app webhook subscription.
    */
   getTriggers?(): ConnectorTriggerDefinition[];
+
+  /**
+   * Checks that a push really came from the app, using the secret stored with
+   * the connection. Required for `delivery: 'webhook'` triggers; an adapter
+   * without it never accepts pushed events.
+   */
+  verifyWebhook?(credential: ResolvedCredential, rawBody: string, headers: Record<string, string>): boolean;
+
+  /** Turns a verified push into trigger events (zero or more). */
+  parseWebhookEvents?(
+    credential: ResolvedCredential,
+    payload: unknown,
+    headers: Record<string, string>,
+  ): ConnectorInboundEvent[];
+
+  /** Answers an app's subscription handshake (a GET with a challenge), or null to refuse it. */
+  webhookChallenge?(credential: ResolvedCredential, query: Record<string, string>): string | null;
+
+  /**
+   * Credential fields that are secrets (masked in stored metadata). When
+   * omitted every string field is masked; a connector with plain fields such as
+   * a shop domain lists only its secrets so the rest stays readable.
+   */
+  secretFields?(): string[];
 
   /**
    * Whether this server has what the adapter needs before anyone can connect

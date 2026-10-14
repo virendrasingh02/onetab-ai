@@ -133,6 +133,8 @@ export class ConnectorTriggerPollerService {
     const input = { ...(definition?.defaultInput ?? {}), ...entry.trigger.input };
     const configKey = `${provider}:${triggerId}:${stableJson(input)}`;
     if (!definition) return fail(`${appName} has no “${triggerId}” event any more. Pick another event on the trigger.`, configKey);
+    // Pushed by the app to the connector webhook; there is nothing to poll.
+    if (definition.delivery === 'webhook' || !definition.pollActionId) return 0;
 
     const owner = entry.agent.creatorId;
     if (!owner) return fail('This agent has no owner, so it can’t act in connected apps.', configKey);

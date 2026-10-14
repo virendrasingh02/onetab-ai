@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
-import { AICredentialService, AIInfrastructureService, ModelResolverService, ProviderRegistryService } from '@org/api-ai';
+import { AICredentialService, AIInfrastructureService, ModelResolverService, NEMOTRON_MODEL_ID, ProviderRegistryService } from '@org/api-ai';
 import { PrismaService } from '@org/database';
 import {
   EDITABLE_NODE_TYPES,
@@ -38,6 +38,28 @@ type DiagnosisFinding = ArchitectDiagnosisFinding;
 type DiagnosisResult = ArchitectDiagnosisResult;
 
 const EDIT_TIMEOUT_MS = 45_000;
+/** Nemotron streams its answer; allow it longer than a one-shot call since the person watches it arrive. */
+const EDIT_STREAM_TIMEOUT_MS = 90_000;
+
+/** Progress of a Copilot edit, for the live reply. */
+export type EditStreamEvent =
+  | { type: 'status'; message: string }
+  /** The explanation written so far (grows; replaces the previous text). */
+  | { type: 'explanation'; text: string };
+
+/** The explanation text so far inside a partly streamed `{ "explanation": "…", "ops": […] }` reply. */
+export function partialExplanation(raw: string): string {
+  const m = raw.match(/"explanation"\s*:\s*"((?:[^"\\]|\\.)*)/);
+  if (!m) return '';
+  let body = m[1];
+  // A cut-off escape at the end would not parse
+  if (/(^|[^\\])(\\\\)*\\$/.test(body)) body = body.slice(0, -1);
+  try {
+    return JSON.parse(`"${body}"`) as string;
+  } catch {
+    return body;
+  }
+}
 
 /**
  * Prompt-to-agent for the Studio ("Create with one prompt").
@@ -90,8 +112,9 @@ export class AgentArchitectService {
     };
   }
 
-  async edit(workspaceId: string, userId: string, input: { command: string; graphJson: string }): Promise<EditResult> {
+  async edit(workspaceId: string, userId: string, input: { command: string; graphJson: string }, onEvent?: (event: EditStreamEvent) => void): Promise<EditResult> {
     const graph = this.parseGraph(input.graphJson);
+    onEvent?.({ type: 'status', message: 'Reading your workflow…' });
     const ctx = await this.editContext(workspaceId, userId);
 
     let ops: GraphEditOp[] = [];
@@ -106,7 +129,8 @@ export class AgentArchitectService {
       by = 'rules';
     } else {
       try {
-        const proposed = await this.proposeWithModel(workspaceId, input.command, graph, ctx);
+        onEvent?.({ type: 'status', message: 'Nemotron is working out the change…' });
+        const proposed = await this.proposeWithModel(workspaceId, input.command, graph, ctx, onEvent);
         ops = proposed.ops;
         explanation = proposed.explanation;
         model = proposed.model;
@@ -307,6 +331,7 @@ export class AgentArchitectService {
     command: string,
     graph: StudioCanvasGraph,
     ctx: EditInterpretationContext,
+    onEvent?: (event: EditStreamEvent) => void,
   ): Promise<{ ops: GraphEditOp[]; explanation: string; model: string; dropped: number }> {
     const path = new Set(mainPath(graph).map((n) => n.id));
     const nodeLines = graph.nodes.map((n) => {
@@ -343,20 +368,81 @@ export class AgentArchitectService {
       ...edgeLines,
     ].join('\n');
 
-    const { response, provider, model } = await chatWithFailover(
-      { ai: this.ai, modelResolver: this.modelResolver, credentials: this.credentials, providers: this.providers },
-      workspaceId,
-      {},
-      [
-        { role: 'system', content: system },
-        { role: 'user', content: command },
-      ],
-      { temperature: 0.1, maxTokens: 1_500, timeoutMs: EDIT_TIMEOUT_MS },
-    );
-    const raw = extractJsonObject(response.message?.content ?? '');
+    const messages = [
+      { role: 'system' as const, content: system },
+      { role: 'user' as const, content: command },
+    ];
+    // Nemotron first, streamed so the explanation appears as it's written. If it
+    // can't answer (no key, outage), the workspace's other models still can.
+    let content: string;
+    let label: string;
+    try {
+      content = await this.streamNemotron(workspaceId, messages, onEvent);
+      label = modelLabel('nvidia', NEMOTRON_MODEL_ID);
+    } catch (error) {
+      this.logger.warn(`Nemotron edit failed, falling back: ${error instanceof Error ? error.message : String(error)}`);
+      onEvent?.({ type: 'status', message: 'Nemotron is unavailable — trying another model…' });
+      const { response, provider, model } = await chatWithFailover(
+        { ai: this.ai, modelResolver: this.modelResolver, credentials: this.credentials, providers: this.providers },
+        workspaceId,
+        {},
+        messages,
+        { temperature: 0.1, maxTokens: 1_500, timeoutMs: EDIT_TIMEOUT_MS },
+      );
+      content = response.message?.content ?? '';
+      label = modelLabel(provider, model);
+    }
+    const raw = extractJsonObject(content);
     if (!raw || typeof raw !== 'object') throw new Error('the model didn’t return a change it could read');
     const { ops, dropped } = sanitizeEditOps(raw, graph, ctx);
     const explanation = typeof (raw as { explanation?: unknown }).explanation === 'string' ? String((raw as { explanation: string }).explanation).slice(0, 600) : '';
-    return { ops, explanation, model: modelLabel(provider, model), dropped };
+    return { ops, explanation, model: label, dropped };
+  }
+
+  /** One streamed Nemotron call; reports the explanation as it grows and returns the full reply. */
+  private async streamNemotron(
+    workspaceId: string,
+    messages: Array<{ role: 'system' | 'user'; content: string }>,
+    onEvent?: (event: EditStreamEvent) => void,
+  ): Promise<string> {
+    const cred = await this.credentials.resolveCredential('nvidia', { workspaceId });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), EDIT_STREAM_TIMEOUT_MS);
+    let content = '';
+    let shown = '';
+    let thinking = false;
+    try {
+      for await (const event of this.ai.streamChat({
+        provider: 'nvidia',
+        model: NEMOTRON_MODEL_ID,
+        apiKey: cred.apiKey,
+        baseUrl: cred.baseUrl,
+        messages,
+        temperature: 0.1,
+        maxTokens: 1_500,
+        signal: controller.signal,
+      })) {
+        if (event.type === 'error') throw new Error(event.error?.message ?? 'Nemotron returned an error');
+        if (event.type === 'reasoning_delta' && !thinking) {
+          thinking = true;
+          onEvent?.({ type: 'status', message: 'Nemotron is thinking it through…' });
+        }
+        if (event.type === 'content_delta' && event.content) {
+          content += event.content;
+          const text = partialExplanation(content);
+          if (text && text !== shown) {
+            shown = text;
+            onEvent?.({ type: 'explanation', text });
+          }
+        }
+      }
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error(`Nemotron took longer than ${EDIT_STREAM_TIMEOUT_MS / 1000}s`, { cause: error });
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!content.trim()) throw new Error('Nemotron returned an empty answer');
+    return content;
   }
 }

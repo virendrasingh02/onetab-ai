@@ -214,7 +214,7 @@ export class AIEntitiesService {
     if (dto.type === 'agent') {
       const sub = await this.prisma.workspaceSubscription.findUnique({
         where: { workspaceId },
-        select: { planTier: true, status: true, trialStatus: true, trialEnd: true },
+        select: { planTier: true, status: true, trialStatus: true, trialEnd: true, convertedAt: true },
       });
 
       // An expired, unconverted trial falls back to Free limits rather than

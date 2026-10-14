@@ -49,6 +49,11 @@ export {
   DEFAULT_APP_MENTIONS,
   type ComposerProps,
 } from './lib/composer.js';
+export type {
+  ComposerConnectorItem,
+  ComposerConnectorKind,
+  ComposerConnectorsConfig,
+} from './lib/composer-attach-menu.js';
 export {
   useDraftsStore,
   type ConversationDraft,

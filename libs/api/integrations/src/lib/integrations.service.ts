@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -16,6 +17,7 @@ import type {
   ReplyMessageInput,
   SendMessageInput,
 } from '@org/types';
+import { validateActionInput } from './core/action-input.js';
 import { IntegrationEncryptionService } from './core/integration-encryption.service.js';
 import { IntegrationLoggerService } from './core/integration-logger.service.js';
 import { IntegrationManagerService } from './core/integration-manager.service.js';
@@ -234,9 +236,14 @@ export class IntegrationsService {
       }
 
       const encryptedAccessToken = this.encryption.encrypt(JSON.stringify(config));
+      // The account the app reported (a shop name, a verified WhatsApp name), so the connection is recognisable.
+      const accountName = (testResult.details as { displayName?: unknown } | undefined)?.displayName;
+      // Only the adapter's secrets are masked; a shop address or username stays readable.
+      const secretKeys = adapter.secretFields?.() ?? null;
       const safeMetadata: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(config)) {
-        safeMetadata[key] = typeof value === 'string' ? this.encryption.maskSecret(value) : value;
+        const isSecret = secretKeys ? secretKeys.includes(key) : typeof value === 'string';
+        safeMetadata[key] = isSecret && typeof value === 'string' ? this.encryption.maskSecret(value) : value;
       }
 
       const integrationId =
@@ -253,11 +260,13 @@ export class IntegrationsService {
           scopeType,
           provider: providerKey,
           status: 'CONNECTED',
+          displayName: typeof accountName === 'string' ? accountName : null,
           encryptedAccessToken,
           metadata: JSON.stringify(safeMetadata),
         },
         update: {
           status: 'CONNECTED',
+          ...(typeof accountName === 'string' ? { displayName: accountName } : {}),
           encryptedAccessToken,
           metadata: JSON.stringify(safeMetadata),
           lastErrorAt: null,
@@ -639,6 +648,7 @@ export class IntegrationsService {
     userId: string,
     workspaceId?: string,
     roomId?: string,
+    options: { idempotencyKey?: string } = {},
   ): Promise<AppActionResult> {
     await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'manage');
     const { adapter, credential } = await this.manager.resolveCredential(integrationId);
@@ -658,9 +668,24 @@ export class IntegrationsService {
       );
     }
 
+    const checked = validateActionInput(definition.inputSchema, input);
+    if (!checked.ok) {
+      throw new BadRequestException(`${definition.label}: ${checked.errors.join(' ')}`);
+    }
+    input = checked.input;
+
+    // A write that already ran under this key is never repeated — a retried
+    // step, a resumed run or a redelivered event gets the original outcome.
+    const keyed = definition.permissionLevel !== 'read' && options.idempotencyKey ? options.idempotencyKey : undefined;
+    if (keyed) {
+      const earlier = await this.claimIdempotencyKey(integrationId, actionId, keyed);
+      if (earlier) return earlier;
+    }
+
     const startedAt = Date.now();
     try {
       const result = await adapter.executeAction(credential, actionId, input, { actingUserId: userId, workspaceId });
+      if (keyed) await this.settleIdempotencyKey(integrationId, keyed, result);
       await this.auditLogger.logAudit({
         integrationId,
         workspaceId,
@@ -683,6 +708,7 @@ export class IntegrationsService {
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      if (keyed) await this.settleIdempotencyKey(integrationId, keyed, { success: false, message });
       await this.auditLogger.logAudit({
         integrationId,
         workspaceId,
@@ -708,6 +734,47 @@ export class IntegrationsService {
 
       throw error;
     }
+  }
+
+  /**
+   * Reserves an idempotency key for a write. Returns the earlier outcome when
+   * the same key already succeeded (the action is then not run again), throws
+   * when it is still running, and returns null when this call should run it —
+   * including when an earlier try with the key failed, which did nothing.
+   */
+  private async claimIdempotencyKey(integrationId: string, actionId: string, key: string): Promise<AppActionResult | null> {
+    try {
+      await this.prisma.connectorActionExecution.create({ data: { integrationId, actionId, idempotencyKey: key } });
+      return null;
+    } catch {
+      // The key exists already (unique constraint): decide by its state.
+    }
+    const row = await this.prisma.connectorActionExecution.findUnique({
+      where: { integrationId_idempotencyKey: { integrationId, idempotencyKey: key } },
+    });
+    if (!row) return null;
+    if (row.status === 'SUCCESS') {
+      const stored = (row.result ?? {}) as unknown as AppActionResult;
+      return { ...stored, success: true, message: `${stored.message ?? 'Done'} (already done earlier — not repeated)`.trim() };
+    }
+    const stale = Date.now() - row.createdAt.getTime() > 10 * 60_000;
+    if (row.status === 'RUNNING' && !stale) {
+      throw new ConflictException('This action is already running for this step. It was not started a second time.');
+    }
+    await this.prisma.connectorActionExecution.update({
+      where: { id: row.id },
+      data: { status: 'RUNNING', createdAt: new Date(), finishedAt: null },
+    });
+    return null;
+  }
+
+  private async settleIdempotencyKey(integrationId: string, key: string, result: AppActionResult): Promise<void> {
+    await this.prisma.connectorActionExecution
+      .update({
+        where: { integrationId_idempotencyKey: { integrationId, idempotencyKey: key } },
+        data: { status: result.success ? 'SUCCESS' : 'FAILED', result: result as any, finishedAt: new Date() },
+      })
+      .catch((error) => this.logger.warn(`Could not record the outcome for idempotency key: ${String(error)}`));
   }
 
   /**

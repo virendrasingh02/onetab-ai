@@ -31,6 +31,109 @@ export interface StudioTemplate {
 }
 
 export const STUDIO_TEMPLATES: StudioTemplate[] = [
+  // 0. Shopify order -> Slack -> WhatsApp (one agent, three apps)
+  {
+    id: 'shopify-order-slack-whatsapp',
+    name: 'Shopify Order Alerts: Slack + WhatsApp',
+    description:
+      'When a Shopify order arrives, tells your team on Slack. If the customer agreed to text updates and left a phone number, it asks you to approve, then sends them an approved WhatsApp template.',
+    category: 'automation',
+    icon: 'ShoppingBag',
+    recommendedModel: 'gpt-4o-mini',
+    recommendedProvider: 'openai',
+    tags: ['Shopify', 'Slack', 'WhatsApp', 'Multi-app', 'Approval'],
+    requiredTools: ['shopify.list_orders', 'slack.send_message', 'whatsapp.send_template_message'],
+    nodes: [
+      {
+        id: 'order-1',
+        type: 'APP_CONNECTOR_TRIGGER',
+        position: { x: 50, y: 220 },
+        data: {
+          label: 'New Shopify order',
+          subtitle: 'Checked every 2 minutes',
+          config: { provider: 'SHOPIFY', connectorId: 'shopify', triggerId: 'new_order', input: {} },
+        },
+      },
+      {
+        id: 'slack-1',
+        type: 'APP_CONNECTOR_ACTION',
+        position: { x: 330, y: 220 },
+        data: {
+          label: 'Tell the team on Slack',
+          subtitle: 'Pick a channel',
+          config: {
+            provider: 'SLACK',
+            connectorId: 'slack',
+            actionId: 'send_message',
+            requireApproval: false,
+            input: {
+              channelId: '',
+              text: 'New order {{event.name}}: {{event.totalPrice}} {{event.currency}} from {{event.customer.firstName}} {{event.customer.lastName}}',
+            },
+          },
+        },
+      },
+      {
+        id: 'consent-1',
+        type: 'IF_ELSE',
+        position: { x: 610, y: 220 },
+        data: {
+          label: 'Agreed to text updates?',
+          subtitle: 'SMS consent is subscribed',
+          config: { variable: 'event.customer.smsConsent', operator: 'equals', value: 'subscribed' },
+        },
+      },
+      {
+        id: 'phone-1',
+        type: 'IF_ELSE',
+        position: { x: 890, y: 130 },
+        data: {
+          label: 'Has a phone number?',
+          subtitle: 'order phone is not empty',
+          config: { variable: 'event.phone', operator: 'is_empty', value: '' },
+        },
+      },
+      {
+        id: 'whatsapp-1',
+        type: 'APP_CONNECTOR_ACTION',
+        position: { x: 1170, y: 60 },
+        data: {
+          label: 'Message the customer',
+          subtitle: 'Needs an approved template',
+          config: {
+            provider: 'WHATSAPP',
+            connectorId: 'whatsapp',
+            actionId: 'send_template_message',
+            requireApproval: true,
+            input: {
+              to: '{{event.phone}}',
+              templateName: '',
+              languageCode: 'en_US',
+              bodyParameters: ['{{event.customer.firstName}}', '{{event.name}}'],
+              // The branch above only reaches here when Shopify says the customer subscribed.
+              customerOptedIn: true,
+            },
+          },
+        },
+      },
+      {
+        id: 'end-1',
+        type: 'END',
+        position: { x: 1450, y: 220 },
+        data: { label: 'Done', subtitle: 'Team told, customer messaged when eligible' },
+      },
+    ],
+    edges: [
+      { id: 'e-order-slack', source: 'order-1', target: 'slack-1' },
+      { id: 'e-slack-consent', source: 'slack-1', target: 'consent-1' },
+      { id: 'e-consent-phone', source: 'consent-1', target: 'phone-1', sourceHandle: 'true', label: 'Agreed' },
+      { id: 'e-consent-end', source: 'consent-1', target: 'end-1', sourceHandle: 'false', label: 'No' },
+      { id: 'e-phone-end', source: 'phone-1', target: 'end-1', sourceHandle: 'true', label: 'No phone' },
+      { id: 'e-phone-wa', source: 'phone-1', target: 'whatsapp-1', sourceHandle: 'false', label: 'Has phone' },
+      { id: 'e-wa-end', source: 'whatsapp-1', target: 'end-1' },
+    ],
+  },
+
   // 1. Office Auto Check-in & Check-out
   {
     id: 'office-auto-checkin-checkout',

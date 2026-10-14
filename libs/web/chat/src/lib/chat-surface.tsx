@@ -2002,6 +2002,7 @@ export function ChatSurface({
                       coworkerMentions={threadControl.coworkerMentions}
                       appMentions={threadControl.appMentions}
                       channelMentions={threadControl.channelMentions}
+                      connectors={threadControl.connectors}
                       onAttach={
                         onAttach
                           ? (files) => void onAttach(files, threadRoot.id)
@@ -2133,6 +2134,7 @@ export function ChatSurface({
             coworkerMentions={mainControl.coworkerMentions}
             appMentions={mainControl.appMentions}
             channelMentions={mainControl.channelMentions}
+            connectors={mainControl.connectors}
             onSend={async (body, meta) => {
               const anchorId = await onSend(body);
               mainControl.raiseMentionNotice(meta?.mentions, {

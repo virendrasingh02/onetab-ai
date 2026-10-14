@@ -48,6 +48,10 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  ComposerAttachMenu,
+  type ComposerConnectorsConfig,
+} from './composer-attach-menu.js';
 import { compactBlankLines } from './blank-lines.js';
 import { useDraftsStore } from './drafts-store.js';
 import { useComposerInsertStore } from './composer-insert-store.js';
@@ -384,6 +388,8 @@ export interface ComposerProps {
   /** Extra controls appended to the formatting toolbar's right-hand side —
    *  e.g. the AI chat surfaces' model picker. */
   toolbarSlot?: ReactNode;
+  /** Agents, coworkers and apps listed in the "+" menu, with Connect actions. */
+  connectors?: ComposerConnectorsConfig;
   className?: string;
 }
 
@@ -430,6 +436,7 @@ export function Composer({
   onSendVoice,
   linkPreviewsEnabled = true,
   toolbarSlot,
+  connectors,
   className,
 }: ComposerProps) {
   const [pickerState, setPickerState] = useState<{
@@ -1239,20 +1246,16 @@ export function Composer({
                 buttons below — a surface with nowhere to send an upload (AI
                 chat) shouldn't offer to stage one that then silently vanishes
                 on send. */}
-              {onAttach ? (
+              {onAttach || connectors ? (
                 <>
-                  <Hint label="Attach file or media">
-                    <button
-                      type="button"
-                      aria-label="Attach file or media"
-                      onClick={() =>
-                        document.getElementById(fileInputId)?.click()
-                      }
-                      className="size-8 flex touch-target shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-primary-text transition-colors hover:border-primary/40 hover:bg-primary/20 active:scale-95"
-                    >
-                      <Plus className="size-4" aria-hidden="true" />
-                    </button>
-                  </Hint>
+                  <ComposerAttachMenu
+                    onUpload={
+                      onAttach
+                        ? () => document.getElementById(fileInputId)?.click()
+                        : undefined
+                    }
+                    connectors={connectors}
+                  />
                   <input
                     id={fileInputId}
                     type="file"

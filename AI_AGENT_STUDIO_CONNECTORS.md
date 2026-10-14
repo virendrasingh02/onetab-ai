@@ -170,3 +170,35 @@ Nothing in the UI is special-cased per app.
 - The Studio's Vite server serves `@org/*` from node_modules unwatched. After adding a lib export, `touch apps/ai-agent-studio/vite.config.mts`.
 - Prisma `DateTime` columns are UTC `timestamp without time zone`, and the dev DB session is IST. In raw SQL use `now() at time zone 'utc'`, or the poller sees a future `lastPolledAt` and never polls. This cost one test cycle.
 - Seeded members can't create agents. E2E uses a fixture `ai_agents` row with `provider: nvidia`; the script is in the session scratchpad.
+
+## Multi-connector pass (2026-10-14, uncommitted, green)
+
+The audit found the platform above already real (manifests, encrypted credentials, tools, polled triggers, engine approvals). This pass adds what was missing for one agent to coordinate several apps.
+
+**New connectors** (manual credentials, stored encrypted, SSRF-guarded, adapter declares its own connect form via `credentialFields`):
+- Shopify Admin REST: orders, products, customers; add note; cancel and refund (destructive, confirmed). Shop address is restricted to `*.myshopify.com`. Refund is capped at what is left to refund.
+- WhatsApp Business Cloud: template and text sends, templates list, number status. Every send needs `customerOptedIn`; Meta policy errors (24-hour window, template mismatch, quality limits) are explained in plain words.
+- WordPress REST (application password, HTTPS only): drafts, update, publish (confirmed), moderate and reply to comments, trash (never a hard delete).
+
+**Framework**
+- `connector-http.ts`: one client with timeout, 429 `Retry-After` handling, retries only where safe (never a POST that may have landed), errors that never echo headers.
+- `action-input.ts`: input is checked against the adapter's JSON Schema before any adapter runs (required, types, enums; string forms of numbers, booleans and lists are converted).
+- Idempotency: `ConnectorActionExecution` ledger. The engine passes `runId:stepId:loopIndex` for every non-read connector action, so a retried or resumed step never repeats a refund or a message.
+- Push events: `POST /webhooks/connectors/:integrationId` (public). Signature is verified per connection against the encrypted secret over the raw body, deliveries are recorded once, then `ConnectorEventReceived` starts matching switched-on agents (same hourly cap as the poller). `GET` answers WhatsApp's `hub.challenge`. Triggers can now declare `delivery: 'webhook'`. The connection card shows the webhook address.
+- Human approval: a connector card with `requireApproval` compiles to a `HUMAN_APPROVAL` step in front of it (existing engine approvals), and the approver sees a read-only "What will happen" preview with the resolved input. The inspector defaults it on for confirmed and destructive actions.
+- Engine fills `{{variables}}` inside lists and nested objects of tool input (template parameters).
+
+**Groups**: `ConnectorGroup` (migration `20261014120000`, applied). CRUD at `/workspaces/:id/connector-groups`; creator or admin edits; templates are visible to the workspace and copied (without connections) to reuse. Studio: `/connectors/groups` page, and on an agent's Apps tab "Use a group" and "Save as group". Applying a group links each connection, keeps built-in tools, narrows each app to its actions and writes "ask first" as `runtime.rules.policies[tool] = 'ask_user'`.
+
+**Template**: "Shopify Order Alerts: Slack + WhatsApp" (order → Slack → consent and phone check → approval → WhatsApp template).
+
+### Needs external setup (not testable here)
+- Shopify: a custom app's Admin API token (plus its API secret for push events, and a Shopify webhook pointing at the connection's webhook address).
+- WhatsApp: a Meta app with a permanent system-user token, phone number id, an approved template; for incoming messages the app secret, a verify token and the webhook registered in Meta.
+- WordPress: an application password on an HTTPS site.
+- Verified live: webhook rejects unsigned and forged pushes, accepts a signed one, drops a redelivery (fixture connection, since removed). Provider API calls are covered by mocked-HTTP tests only.
+
+### Still open
+- Studio pages were typechecked, linted and built but not clicked through (no signed-in session available).
+- One connection per app per workspace (connection id is `workspace_PROVIDER`), so two Shopify stores in one workspace need a second workspace.
+- No per-tool admin allow-list; WhatsApp inbound messages are push-only (no polling fallback).

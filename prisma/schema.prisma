@@ -341,6 +341,7 @@ model Workspace {
   channelEmailAddresses     ChannelEmailAddress[]
   huddles                   Huddle[]
   externalIntegrations      ExternalIntegration[]
+  connectorGroups           ConnectorGroup[]
   importJobs                ImportJob[]
   invitations               Invitation[]
   marketplaceInstallations  MarketplaceInstallation[]
@@ -2845,6 +2846,45 @@ model ExternalIntegration {
   @@index([workspaceId, provider])
   @@index([userId, provider])
   @@map("external_integrations")
+}
+
+/// A named set of connected apps an agent can be given in one step: which apps
+/// are in it, and which of each app's actions are switched on. Also reusable as
+/// a template — applying it copies the set onto an agent.
+model ConnectorGroup {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  /// Shown in the template list for the whole workspace; otherwise only to its creator.
+  isTemplate  Boolean   @default(false)
+  createdById String
+  /// [{ provider, integrationId?, enabled, actions: string[] | null, approvals?: Record<actionId, 'always'|'never'> }]
+  members     Json      @default("[]")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("connector_groups")
+}
+
+/// One run of a connector action under an idempotency key, so a retried step,
+/// a resumed run or a repeated delivery never repeats a refund or a message.
+model ConnectorActionExecution {
+  id             String    @id @default(cuid())
+  integrationId  String
+  actionId       String
+  idempotencyKey String
+  /// RUNNING | SUCCESS | FAILED
+  status         String    @default("RUNNING")
+  result         Json?
+  createdAt      DateTime  @default(now())
+  finishedAt     DateTime?
+
+  @@unique([integrationId, idempotencyKey])
+  @@index([createdAt])
+  @@map("connector_action_executions")
 }
 
 model IntegrationWebhookEvent {

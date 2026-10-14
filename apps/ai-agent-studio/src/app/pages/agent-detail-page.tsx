@@ -2839,6 +2839,41 @@ export function AgentDetailPage() {
     [isCanvasLocked, layoutPrefs, handleAutoLayout],
   );
 
+  // Plugging something into (or out of) an agent hangs it in the agent's tree right away,
+  // without touching the rest of the flow. Waits a beat so new cards are measured first.
+  const attachmentSignature = useMemo(
+    () =>
+      edges
+        .filter(isAttachmentEdge)
+        .map((e) => `${e.source}:${e.sourceHandle}>${e.target}`)
+        .sort()
+        .join('|'),
+    [edges],
+  );
+  const lastAttachmentSignature = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = lastAttachmentSignature.current;
+    lastAttachmentSignature.current = attachmentSignature;
+    // First sight of a graph keeps its saved positions
+    if (previous === null || previous === attachmentSignature || isCanvasLocked) return;
+    const timer = setTimeout(() => {
+      const { nodes: current, edges: currentEdges } = graphRef.current;
+      const target = layoutWorkflow(withMeasuredSizes(current, measuredSizeRef.current), currentEdges, {
+        direction: workflowDirection === 'vertical' ? 'TB' : 'LR',
+        spacing: layoutPrefs.spacing,
+        attachmentsOnly: true,
+      });
+      const targetById = new Map(target.map((n) => [n.id, n.position]));
+      setNodes((cur) =>
+        cur.map((n) => {
+          const to = targetById.get(n.id);
+          return to && (Math.abs(to.x - n.position.x) > 1 || Math.abs(to.y - n.position.y) > 1) ? { ...n, position: to } : n;
+        }),
+      );
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [attachmentSignature, isCanvasLocked, workflowDirection, layoutPrefs.spacing]);
+
   const handleChangeDirection = useCallback(
     (newDir: WorkflowDirection) => {
       if (newDir === workflowDirection) return;

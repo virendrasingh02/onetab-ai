@@ -20,6 +20,9 @@ import { NotionProvider } from '../providers/notion.provider.js';
 import { OneTabAppProvider } from '../providers/onetab-app.provider.js';
 import { SlackProvider } from '../providers/slack.provider.js';
 import { TrelloProvider } from '../providers/trello.provider.js';
+import { ShopifyProvider } from '../providers/shopify.provider.js';
+import { WhatsAppProvider } from '../providers/whatsapp.provider.js';
+import { WordPressProvider } from '../providers/wordpress.provider.js';
 import { MicrosoftTeamsProvider } from '../providers/microsoft-teams.provider.js';
 import { AttendanceProvider } from '../providers/attendance.provider.js';
 import { IntegrationEncryptionService } from './integration-encryption.service.js';
@@ -49,6 +52,9 @@ export class IntegrationManagerService implements OnModuleInit {
     private readonly oneTabAppProvider: OneTabAppProvider,
     @Optional() private readonly microsoftTeamsProvider?: MicrosoftTeamsProvider,
     @Optional() private readonly attendanceProvider?: AttendanceProvider,
+    @Optional() private readonly shopifyProvider?: ShopifyProvider,
+    @Optional() private readonly whatsappProvider?: WhatsAppProvider,
+    @Optional() private readonly wordpressProvider?: WordPressProvider,
   ) {}
 
   onModuleInit() {
@@ -69,6 +75,9 @@ export class IntegrationManagerService implements OnModuleInit {
     }
     if (this.attendanceProvider) {
       this.registerAdapter(this.attendanceProvider);
+    }
+    for (const adapter of [this.shopifyProvider, this.whatsappProvider, this.wordpressProvider]) {
+      if (adapter) this.registerAdapter(adapter);
     }
     this.logger.log(`Initialized IntegrationManager with ${this.adapters.size} providers.`);
   }

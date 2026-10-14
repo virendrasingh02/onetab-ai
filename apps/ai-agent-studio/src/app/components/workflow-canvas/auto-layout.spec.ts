@@ -173,6 +173,28 @@ describe('layoutWorkflow', () => {
     expect(Math.abs(centerY(out.get('kb')!) - centerY(agent))).toBeLessThan(1);
   });
 
+  it('attachmentsOnly hangs attachments under their agent and leaves the flow where it is', () => {
+    const nodes = [
+      node('start', 'START', undefined, { x: 10, y: 20 }),
+      node('agent', 'AGENT', { width: 290, height: 400 }, { x: 400, y: 30 }),
+      node('end', 'END', undefined, { x: 900, y: 70 }),
+      node('kb', 'KB_SEARCH', { width: 240, height: 100 }, { x: 5, y: 900 }),
+      node('mail', 'APP_CONNECTOR_ACTION', { width: 260, height: 140 }, { x: 1300, y: 1200 }),
+    ];
+    const edges = [edge('start', 'agent'), edge('agent', 'end'), edge('agent', 'kb', 'embedding'), edge('agent', 'mail', 'tools')];
+    const out = byId(layoutWorkflow(nodes, edges, { attachmentsOnly: true }));
+    for (const id of ['start', 'agent', 'end']) expect(out.get(id)!.position).toEqual(nodes.find((n) => n.id === id)!.position);
+    const agent = out.get('agent')!;
+    const kb = out.get('kb')!;
+    const mail = out.get('mail')!;
+    expect(kb.position.y).toBeGreaterThanOrEqual(agent.position.y + 400);
+    expect(mail.position.y).toBe(kb.position.y);
+    // Knowledge before Tools, the row centred under the agent card
+    expect(kb.position.x).toBeLessThan(mail.position.x);
+    const rowCenter = (kb.position.x + mail.position.x + 260) / 2;
+    expect(Math.abs(rowCenter - (agent.position.x + 145))).toBeLessThan(2);
+  });
+
   describe('tree arrangement', () => {
     const fan = {
       nodes: [node('s', 'START'), node('a'), node('b'), node('a1'), node('a2'), node('b1'), node('m', 'AGENT', { width: 300, height: 160 })],

@@ -82,7 +82,7 @@ export function ConnectDialog({
     }
   };
 
-  const missing = fields?.some((f) => (f.key === 'apiKeyHeader' ? false : !values[f.key]?.trim())) ?? false;
+  const missing = fields?.some((f) => (f.key === 'apiKeyHeader' || f.optional ? false : !values[f.key]?.trim())) ?? false;
 
   return (
     <Dialog open={open} onOpenChange={close}>
@@ -114,6 +114,7 @@ export function ConnectDialog({
                 <div key={f.key} className="space-y-1">
                   <Label htmlFor={`cred-${f.key}`} className="text-xs font-medium text-foreground">
                     {f.label}
+                    {f.optional ? <span className="ml-1 font-normal text-muted-foreground">(optional)</span> : null}
                   </Label>
                   <Input
                     id={`cred-${f.key}`}

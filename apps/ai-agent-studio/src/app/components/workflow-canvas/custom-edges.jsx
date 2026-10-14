@@ -158,6 +158,59 @@ function useEdgeRoute(routing, { sourceX, sourceY, sourcePosition, targetX, targ
   }, [routing, isSmart, obstacleKey, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition]);
 }
 
+/** Where the shared trunk of an agent's attachment wires bends, below the agent card. */
+const TREE_TRUNK_DROP = 36;
+
+/** Both cards' boxes as one string, so only this wire re-renders when either moves or resizes. */
+function selectEndpointKey(state, sourceId, targetId) {
+  const box = (id) => {
+    const node = state.nodeLookup.get(id);
+    if (!node) return '0,0,0,0';
+    const { x, y } = node.internals.positionAbsolute;
+    return `${x},${y},${node.measured?.width ?? node.width ?? 0},${node.measured?.height ?? node.height ?? 0}`;
+  };
+  return `${box(sourceId)}|${box(targetId)}`;
+}
+
+/**
+ * Tree wiring for what is plugged into an agent: the wire drops out of the
+ * agent's bottom edge, bends on a trunk shared by all its siblings and enters
+ * the child's top edge. When the child is not below the agent (a vertical
+ * flow lays attachments to the side) it runs out of the right edge instead.
+ * Returns null until both cards are measured.
+ */
+function useTreeRoute(enabled, sourceId, targetId) {
+  const key = useStore(useCallback((state) => (enabled ? selectEndpointKey(state, sourceId, targetId) : ''), [enabled, sourceId, targetId]));
+  return useMemo(() => {
+    if (!enabled || !key) return null;
+    const [s, t] = key.split('|').map((part) => part.split(',').map(Number));
+    const [sx, sy, sw, sh] = s;
+    const [tx, ty, tw, th] = t;
+    if (!sw || !sh || !tw || !th) return null;
+    const below = ty >= sy + sh;
+    const route = below
+      ? {
+          sourceX: sx + sw / 2,
+          sourceY: sy + sh,
+          sourcePosition: Position.Bottom,
+          targetX: tx + tw / 2,
+          targetY: ty,
+          targetPosition: Position.Top,
+          centerY: sy + sh + Math.min(TREE_TRUNK_DROP, (ty - sy - sh) / 2),
+        }
+      : {
+          sourceX: sx + sw,
+          sourceY: sy + sh / 2,
+          sourcePosition: Position.Right,
+          targetX: tx,
+          targetY: ty + th / 2,
+          targetPosition: Position.Left,
+        };
+    const [path, labelX, labelY] = getSmoothStepPath({ ...route, borderRadius: 14 });
+    return { ...route, path, labelX, labelY };
+  }, [enabled, key]);
+}
+
 /**
  * Universal WorkflowEdge: Curved (bezier), Orthogonal (smooth-step), Smart
  * (orthogonal, steering around cards) or Straight routing, conditional
@@ -185,7 +238,7 @@ export function WorkflowEdge(props) {
   const isEditingLabel = Boolean(data?.isEditingLabel);
 
   const routing = resolveEdgeRouting(data?.routing, data?.edgeStyle ?? props.edgeStyle);
-  const { path: edgePath, labelX, labelY, arrowDirection } = useEdgeRoute(routing, {
+  const flowRoute = useEdgeRoute(routing, {
     sourceX,
     sourceY,
     sourcePosition,
@@ -193,6 +246,12 @@ export function WorkflowEdge(props) {
     targetY,
     targetPosition,
   });
+  const tree = useTreeRoute(Boolean(data?.attachment), props.source, props.target);
+  const { path: edgePath, labelX, labelY, arrowDirection } = tree ?? flowRoute;
+  // Tree wires end on the child's edge: there is no handle dot to reach, so no inset
+  const arrowEnd = tree
+    ? { x: tree.targetX, y: tree.targetY, position: tree.targetPosition, inset: 0 }
+    : { x: targetX, y: targetY, position: targetPosition, inset: HANDLE_DOT_INSET };
 
   const label = data?.label ?? (typeof props.label === 'string' ? props.label : undefined);
   const isBranchTrue =
@@ -236,7 +295,7 @@ export function WorkflowEdge(props) {
         }}
         interactionWidth={28}
       />
-      <EdgeArrowhead x={targetX} y={targetY} position={targetPosition} direction={arrowDirection} color={defaultStroke} />
+      <EdgeArrowhead {...arrowEnd} direction={arrowDirection} color={defaultStroke} />
 
       {/* Invisible wider stroke for effortless hover hit-testing */}
       <path

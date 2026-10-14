@@ -242,6 +242,22 @@ const LEGACY_CONNECTOR_CARDS: Record<string, { provider: string; id: string; inp
   TEAMS_TRIGGER_MESSAGE: { provider: 'MICROSOFT_TEAMS', id: 'new_message' },
 };
 
+function isTruthy(value: unknown): boolean {
+  return value === true || (typeof value === 'string' && value.trim().toLowerCase() === 'true');
+}
+
+/** What an approver reads: the action and its input, with `{{variables}}` filled in at run time. */
+function approvalPreview(title: string, input: Record<string, unknown>): string {
+  const lines = Object.entries(input)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .slice(0, 12)
+    .map(([k, v]) => {
+      const text = typeof v === 'string' ? v : JSON.stringify(v);
+      return `- **${k}:** ${text.length > 500 ? `${text.slice(0, 500)}…` : text}`;
+    });
+  return `**${title}**\n\n${lines.length ? lines.join('\n') : '_No inputs._'}`;
+}
+
 /** `microsoft-teams` / `slack` / `GMAIL` → the provider key. */
 function providerKey(value: string | undefined): string | undefined {
   return value ? value.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_') : undefined;
@@ -902,6 +918,32 @@ export function compileStudioGraph(graph: {
         (sourceType === 'CONDITION' && (e.sourceHandle === 'true' || e.sourceHandle === 'false')) ||
         (sourceType === 'LOOP' && e.sourceHandle === LOOP_EACH_HANDLE));
     runEdges.push({ id: e.id ?? `e${index}`, source: e.source, target: e.target, ...(keepHandle ? { sourceHandle: e.sourceHandle as string } : {}) });
+  }
+
+  // A connector action that asks for approval gets an approval step in front of
+  // it, so the run pauses (and the approver sees exactly what will be sent)
+  // using the engine's one approval mechanism.
+  for (const node of runNodes) {
+    const nodeCfg = configOf(node);
+    const ref = connectorRefOf(typeOf(node), nodeCfg);
+    if (!ref?.provider || !ref.id || !CONNECTOR_ACTION_TYPES.has(typeOf(node)) || !isTruthy(nodeCfg['requireApproval'])) continue;
+    const approvalId = `${node.id}__approval`;
+    const title = labelOf(node) ?? `${ref.provider} ${ref.id}`;
+    compiled.push({
+      id: approvalId,
+      type: 'HUMAN_APPROVAL',
+      label: `Approve: ${title}`,
+      config: {
+        action: `Allow “${title}” in ${ref.provider.replace(/_/g, ' ').toLowerCase()}`,
+        required: true,
+        reviewLabel: 'What will happen',
+        reviewText: approvalPreview(title, ref.input),
+      },
+    });
+    for (const edge of runEdges) {
+      if (edge.target === node.id) edge.target = approvalId;
+    }
+    runEdges.push({ id: `${approvalId}->${node.id}`, source: approvalId, target: node.id });
   }
 
   for (const n of nodes) {

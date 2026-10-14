@@ -48,6 +48,7 @@ export {
   type ChannelMessagePostedEvent,
   type AiRunFinishedEvent,
   type AiApprovalRequestedEvent,
+  type ConnectorEventReceivedEvent,
   type AiAgentMessageEvent,
   type CoworkerTurnSource,
   type CoworkerRunEvent,

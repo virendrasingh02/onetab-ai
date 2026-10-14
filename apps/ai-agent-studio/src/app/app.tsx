@@ -16,6 +16,7 @@ import { TemplatesPage } from './pages/templates-page.js';
 import { ToolsPage } from './pages/tools-page.js';
 import { ConnectorsPage } from './pages/connectors-page.js';
 import { ConnectorDetailPage } from './pages/connector-detail-page.js';
+import { ConnectorGroupsPage } from './pages/connector-groups-page.js';
 import { UserChatPage } from './pages/user-chat-page.jsx';
 import { WorkflowsPage } from './pages/workflows-page.jsx';
 import { WidgetCenterPage } from './pages/widget-center-page.js';
@@ -154,6 +155,7 @@ function StudioShell() {
                 <Route path="/templates" element={<TemplatesPage />} />
                 <Route path="/executions" element={<ExecutionsPage />} />
                 <Route path="/connectors" element={<ConnectorsPage />} />
+                <Route path="/connectors/groups" element={<ConnectorGroupsPage />} />
                 <Route path="/connectors/:connectorId" element={<ConnectorDetailPage />} />
                 <Route path="/widgets" element={<WidgetCenterPage />} />
                 <Route path="/widgets/new" element={<WidgetBuilderPage />} />

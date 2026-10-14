@@ -32,6 +32,15 @@ export interface IntegrationCapabilities {
   supportsMessaging: boolean;
   supportsCustomEndpoints: boolean;
   scopes?: Array<{ scope: string; description: string; required?: boolean }>;
+  /** What a manual-credential connector asks for when connecting (rendered by the Studio). */
+  credentialFields?: Array<{
+    key: string;
+    label: string;
+    secret?: boolean;
+    placeholder?: string;
+    help?: string;
+    optional?: boolean;
+  }>;
 }
 
 /**

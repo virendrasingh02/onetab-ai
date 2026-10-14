@@ -23,7 +23,7 @@ export class PlanGateService {
   async assertCanCreate(workspaceId: string, kind: PlanGatedKind): Promise<void> {
     const sub = await this.prisma.workspaceSubscription.findUnique({
       where: { workspaceId },
-      select: { planTier: true, trialStatus: true, trialEnd: true },
+      select: { planTier: true, status: true, trialStatus: true, trialEnd: true, convertedAt: true },
     });
 
     // An expired, unconverted trial falls back to Free limits rather than

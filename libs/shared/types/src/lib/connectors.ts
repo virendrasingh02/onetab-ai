@@ -28,6 +28,8 @@ export type ConnectorCategory =
   | 'sales'
   | 'marketing'
   | 'finance'
+  | 'commerce'
+  | 'content'
   | 'developer_tools'
   | 'customer_support'
   | 'storage'
@@ -50,6 +52,8 @@ export const CONNECTOR_CATEGORIES: ReadonlyArray<{ id: ConnectorCategory; label:
   { id: 'sales', label: 'Sales' },
   { id: 'marketing', label: 'Marketing' },
   { id: 'finance', label: 'Finance' },
+  { id: 'commerce', label: 'Commerce' },
+  { id: 'content', label: 'Content & CMS' },
   { id: 'developer_tools', label: 'Developer Tools' },
   { id: 'customer_support', label: 'Customer Support' },
   { id: 'storage', label: 'Storage' },
@@ -76,6 +80,8 @@ const CATEGORY_KEYWORDS: ReadonlyArray<[RegExp, ConnectorCategory]> = [
   [/sales/i, 'sales'],
   [/marketing/i, 'marketing'],
   [/financ|payment|billing|invoice/i, 'finance'],
+  [/commerce|shop|store|order/i, 'commerce'],
+  [/cms|content|blog|publish/i, 'content'],
   [/developer|engineering|code|repo/i, 'developer_tools'],
   [/storage|file|drive/i, 'storage'],
   [/database|sql/i, 'database'],
@@ -152,8 +158,14 @@ export interface ConnectorTriggerDefinition {
   id: string;
   label: string;
   description: string;
-  /** The read action whose results are watched for new items. */
-  pollActionId: string;
+  /**
+   * `poll` (default): the platform runs `pollActionId` on a schedule.
+   * `webhook`: the app pushes the event to the connector webhook endpoint
+   * (verified and de-duplicated there), for apps that can't be polled.
+   */
+  delivery?: 'poll' | 'webhook';
+  /** The read action whose results are watched for new items (poll triggers). */
+  pollActionId?: string;
   /** Input passed to the poll action, merged under the trigger node's own. */
   defaultInput?: Record<string, unknown>;
   /** JSON Schema for what the person may narrow the trigger to (a channel, a query). */
@@ -162,6 +174,16 @@ export interface ConnectorTriggerDefinition {
   itemsPath: string;
   /** Field on each item that identifies it (`id`, `ts`). */
   idField: string;
+}
+
+export interface ConnectorCredentialField {
+  key: string;
+  label: string;
+  secret?: boolean;
+  placeholder?: string;
+  help?: string;
+  /** Optional fields may be left empty. */
+  optional?: boolean;
 }
 
 export interface ConnectorCapability {
@@ -194,6 +216,8 @@ export interface ConnectorManifest {
   category: ConnectorCategory;
   authType: IntegrationAuthType;
   scopes: Array<{ scope: string; description: string; required?: boolean }>;
+  /** What a non-OAuth connector asks for when connecting; the Studio renders the form from this. */
+  credentialFields?: ConnectorCredentialField[];
   /** False when the server is missing this connector's OAuth app credentials. */
   serverConfigured: boolean;
   /** Why it can't be connected here, when it can't. */
@@ -272,6 +296,7 @@ export interface ConnectorManifestSource {
   supportsMessaging: boolean;
   supportsCustomEndpoints: boolean;
   scopes?: Array<{ scope: string; description: string; required?: boolean }>;
+  credentialFields?: ConnectorCredentialField[];
 }
 
 /** One provider's manifest, from what its adapter declares. */
@@ -297,7 +322,7 @@ export function buildConnectorManifest(
   const readIds = new Set(capabilities.filter((c) => c.kind === 'query').map((c) => c.id));
   // A trigger has to watch one of the connector's own reads, or it can't run.
   const triggers: ConnectorTrigger[] = triggerDefs
-    .filter((t) => readIds.has(t.pollActionId))
+    .filter((t) => t.delivery === 'webhook' || (!!t.pollActionId && readIds.has(t.pollActionId)))
     .map((t) => ({ ...t, kind: 'trigger', eventType: connectorTriggerEventType(provider, t.id) }));
   return {
     provider,
@@ -307,6 +332,7 @@ export function buildConnectorManifest(
     category,
     authType: caps.authType,
     scopes: caps.scopes ?? [],
+    ...(caps.credentialFields?.length ? { credentialFields: caps.credentialFields } : {}),
     serverConfigured: server.configured,
     ...(server.configured ? {} : { unavailableReason: server.reason ?? `${caps.displayName} isn’t set up on this server yet.` }),
     supports: {
@@ -343,6 +369,8 @@ export interface ConnectorConnection {
   scopes: string[];
   /** The caller's own personal connection (not a workspace-wide one). */
   mine: boolean;
+  /** Where the app should send events, for connectors with push triggers. */
+  webhookUrl?: string | null;
   lastSyncAt: IsoDateString | null;
   lastErrorAt: IsoDateString | null;
   lastErrorMessage: string | null;
@@ -526,4 +554,59 @@ export function diffPolledItems(
   const unique = [...new Set(merged)].slice(0, maxRemembered);
   // Apps list newest first; run the oldest new item first.
   return { fresh: fresh.reverse(), seen: unique };
+}
+
+// ---------------------------------------------------------------------------
+// Connector groups
+// ---------------------------------------------------------------------------
+
+/** One app inside a group: whether it's on, and which of its actions are. */
+export interface ConnectorGroupMember {
+  provider: string;
+  /** The connection to use; empty = whichever connected one the agent's owner has. */
+  integrationId?: string | null;
+  enabled: boolean;
+  /** Switched-on action ids; null = every action of the app. */
+  actions: string[] | null;
+  /** Action ids an agent must ask a person about before running. */
+  askBefore?: string[];
+}
+
+/**
+ * A named set of apps that can be handed to an agent in one step, and reused
+ * (as a template) for other agents.
+ */
+export interface ConnectorGroup {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  /** Shared with the whole workspace; otherwise only its creator sees it. */
+  isTemplate: boolean;
+  createdById: string;
+  /** The caller made it (and may change it). */
+  mine: boolean;
+  members: ConnectorGroupMember[];
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+}
+
+export interface ConnectorGroupInput {
+  name: string;
+  description?: string | null;
+  isTemplate?: boolean;
+  members: ConnectorGroupMember[];
+}
+
+/**
+ * Tool names an agent keeps for one group member: the action ids that are on
+ * (all of them when `actions` is null), as the runtime's function names. Empty
+ * list = "no narrowing needed" is NOT implied here; callers compare lengths.
+ */
+export function groupMemberToolNames(
+  member: Pick<ConnectorGroupMember, 'provider' | 'actions'>,
+  allActionIds: ReadonlyArray<string>,
+): string[] {
+  const ids = member.actions === null ? allActionIds : allActionIds.filter((id) => member.actions?.includes(id));
+  return ids.map((id) => connectorToolName(member.provider, id));
 }

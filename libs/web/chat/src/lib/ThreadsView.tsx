@@ -403,6 +403,7 @@ function ThreadDetail({
           coworkerMentions={composerControl.coworkerMentions}
           appMentions={composerControl.appMentions}
           channelMentions={composerControl.channelMentions}
+          connectors={composerControl.connectors}
           edit={
             editing ? { messageId: editing.id, initialMarkdown: editing.body } : null
           }

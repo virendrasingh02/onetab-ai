@@ -54,6 +54,7 @@ import {
   Shield,
   Send,
   FileText,
+  ShoppingBag,
 } from 'lucide-react';
 
 /**
@@ -405,6 +406,8 @@ function AppConnectorIconBase({
   else if (cat.includes('data') || cat.includes('sql')) FallbackIcon = Database;
   else if (cat.includes('ai') || cat.includes('llm') || cat.includes('model')) FallbackIcon = Bot;
   else if (cat.includes('pay') || cat.includes('fin')) FallbackIcon = CreditCard;
+  else if (cat.includes('commerce') || cat.includes('shop')) FallbackIcon = ShoppingBag;
+  else if (cat.includes('content') || cat.includes('cms')) FallbackIcon = FileText;
   else if (cat.includes('supp') || cat.includes('help')) FallbackIcon = Headphones;
   else if (cat.includes('stor') || cat.includes('cloud')) FallbackIcon = HardDrive;
   else if (cat.includes('web') || cat.includes('auto')) FallbackIcon = Globe;

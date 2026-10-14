@@ -58,4 +58,10 @@ describe('PlanGateService', () => {
       response: { code: 'PLAN_LIMIT_REACHED', limit: 3 },
     });
   });
+
+  it('keeps a paid plan when the old trial flags were never cleared', async () => {
+    const stale = { trialStatus: 'ACTIVE', trialEnd: new Date(Date.now() - 1000) };
+    await expect(build('MAX', { entities: 10 }, { ...stale, status: 'ACTIVE' }).assertCanCreate('ws', 'agent')).resolves.toBeUndefined();
+    await expect(build('MAX', { entities: 10 }, { ...stale, convertedAt: new Date() }).assertCanCreate('ws', 'agent')).resolves.toBeUndefined();
+  });
 });

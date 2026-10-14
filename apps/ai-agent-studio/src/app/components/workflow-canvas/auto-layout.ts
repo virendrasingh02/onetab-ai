@@ -33,6 +33,8 @@ export interface LayoutOptions {
   direction?: LayoutDirection;
   arrange?: LayoutArrange;
   spacing?: LayoutSpacing;
+  /** Only hang what is plugged into agents under them; the rest of the flow stays where it is. */
+  attachmentsOnly?: boolean;
 }
 
 /** Space between layers (columns for LR, rows for TB). */
@@ -582,7 +584,10 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], options: LayoutDire
   // Lay out each flow and stack them
   const positions = new Map<string, Point>();
   let offset = 0;
-  for (const comp of components) {
+  // Tree-only: the flow keeps its positions, attachments are hung under their agents below
+  const flowComponents = opts.attachmentsOnly ? [] : components;
+  if (opts.attachmentsOnly) for (const n of mainFlow) positions.set(n.id, { ...n.position });
+  for (const comp of flowComponents) {
     const set = new Set(comp);
     const result = layoutComponent(
       comp,
@@ -601,9 +606,11 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], options: LayoutDire
   }
 
   // Anchor at the old top-left corner
-  positions.forEach((p, id) =>
-    positions.set(id, { x: Math.round(p.x + oldLeft), y: Math.round(p.y + oldTop) }),
-  );
+  if (!opts.attachmentsOnly) {
+    positions.forEach((p, id) =>
+      positions.set(id, { x: Math.round(p.x + oldLeft), y: Math.round(p.y + oldTop) }),
+    );
+  }
 
   // Attachments: a row centred under their agent card, each with its own row under it
   const placeChildren = (host: string) => {
@@ -639,7 +646,7 @@ export function layoutWorkflow(nodes: Node[], edges: Edge[], options: LayoutDire
 
     // Stage group: re-fit around the steps it contained
     const members = (groupMembers.get(n.id) ?? []).filter((id) => positions.has(id));
-    if (members.length > 0) {
+    if (members.length > 0 && !opts.attachmentsOnly) {
       const boxes = members.map((id) => ({ p: must(positions, id), s: must(sizes, id) }));
       const left = Math.min(...boxes.map((b) => b.p.x)) - GROUP_PADDING.side;
       const top = Math.min(...boxes.map((b) => b.p.y)) - GROUP_PADDING.top;

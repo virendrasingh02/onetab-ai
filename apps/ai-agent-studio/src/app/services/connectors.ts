@@ -1,14 +1,19 @@
 import { agentsApi, connectorsApi, coworkersApi, integrationsApi } from '@org/api-client';
-import type {
-  AIAgentDetail,
-  AppActionResult,
-  ConnectorCapability,
-  ConnectorDetail,
-  ConnectorSummary,
+import {
+  connectorToolName,
+  type AIAgentDetail,
+  type AppActionResult,
+  type ConnectorCapability,
+  type ConnectorDetail,
+  type ConnectorGroup,
+  type ConnectorGroupInput,
+  type ConnectorGroupMember,
+  type ConnectorSummary,
 } from '@org/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { useStudioSession } from '../session-guard.js';
+import { agentService } from './agentService.js';
 
 /**
  * The Studio's connector layer — every call is the real API.
@@ -252,9 +257,11 @@ export const STATUS_META: Record<ConnectorSummary['status'], { label: string; va
 
 /** Credentials a non-OAuth connector asks for when connecting. */
 export function credentialFieldsFor(
-  connector: Pick<ConnectorSummary, 'provider' | 'authType' | 'supports'>,
-): Array<{ key: string; label: string; secret?: boolean; placeholder?: string; help?: string }> | null {
+  connector: Pick<ConnectorSummary, 'provider' | 'authType' | 'supports' | 'credentialFields'>,
+): Array<{ key: string; label: string; secret?: boolean; placeholder?: string; help?: string; optional?: boolean }> | null {
   if (connector.authType === 'OAUTH2' || connector.authType === 'NONE') return null;
+  // A connector describes its own form; the cases below are older connectors that don't yet.
+  if (connector.credentialFields?.length) return connector.credentialFields;
   if (connector.supports.customEndpoints) {
     return [
       { key: 'baseUrl', label: 'Base URL', placeholder: 'https://api.example.com/v1' },
@@ -303,4 +310,120 @@ export function timeAgo(iso: string | null | undefined): string {
   return `${days} d ago`;
 }
 
-export type { ConnectorDetail, ConnectorSummary, AgentWithApps };
+// ---------------------------------------------------------------------------
+// Connector groups
+// ---------------------------------------------------------------------------
+
+export function useConnectorGroups() {
+  const { activeWorkspace } = useStudioSession();
+  const workspaceId = activeWorkspace?.id;
+  return useQuery({
+    queryKey: ['connector-groups', workspaceId],
+    queryFn: () => connectorsApi.groups.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useInvalidateConnectorGroups() {
+  const queryClient = useQueryClient();
+  const { activeWorkspace } = useStudioSession();
+  return useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['connector-groups', activeWorkspace?.id] }),
+    [queryClient, activeWorkspace?.id],
+  );
+}
+
+type RuntimeConfig = { rules?: { policies?: Record<string, string>; [key: string]: unknown }; [key: string]: unknown };
+
+function agentRuntime(agent: AgentWithApps): RuntimeConfig {
+  const config = (agent as unknown as { configuration?: { runtime?: RuntimeConfig } }).configuration;
+  return config?.runtime && typeof config.runtime === 'object' ? config.runtime : {};
+}
+
+export interface GroupApplyResult {
+  applied: string[];
+  skipped: Array<{ provider: string; reason: string }>;
+}
+
+/**
+ * Gives an agent every switched-on app in a group in one go: links each
+ * connection, keeps the agent's built-in tools, narrows each app to the group's
+ * actions, and makes the group's "ask first" actions wait for a person. An app
+ * that isn't connected yet is skipped (and reported), never faked.
+ */
+export async function applyGroupToAgent(
+  workspaceId: string,
+  agent: AgentWithApps,
+  group: Pick<ConnectorGroup, 'members'>,
+  connectors: ConnectorSummary[],
+): Promise<GroupApplyResult> {
+  const result: GroupApplyResult = { applied: [], skipped: [] };
+  const linked = new Set(linkedIntegrationIds(agent));
+  let tools = parseAgentTools(agent);
+  const policies: Record<string, string> = { ...(agentRuntime(agent).rules?.policies ?? {}) };
+
+  for (const member of group.members) {
+    if (!member.enabled) continue;
+    const connector = connectors.find((c) => c.provider === member.provider);
+    if (!connector) {
+      result.skipped.push({ provider: member.provider, reason: 'This app isn’t available any more.' });
+      continue;
+    }
+    const connection = connector.connections.find((c) => c.id === member.integrationId && c.status === 'CONNECTED') ?? usableConnection(connector);
+    if (!connection) {
+      result.skipped.push({ provider: member.provider, reason: `${connector.name} isn’t connected yet.` });
+      continue;
+    }
+    if (!linked.has(connection.id)) {
+      await coworkersApi.linkApp(workspaceId, agent.id, connection.id);
+      linked.add(connection.id);
+    }
+    const allIds = connector.capabilities.map((c) => c.id);
+    const wanted = member.actions === null ? allIds : allIds.filter((id) => member.actions?.includes(id));
+    const ownNames = new Set(connector.capabilities.map((c) => c.toolName));
+    tools = tools.filter((t) => !ownNames.has(t));
+    // Every action on needs no narrowing: the link alone offers them all.
+    if (wanted.length < allIds.length) tools.push(...wanted.map((id) => connectorToolName(connector.provider, id)));
+    for (const id of allIds) {
+      const name = connectorToolName(connector.provider, id);
+      if (member.askBefore?.includes(id)) policies[name] = 'ask_user';
+      else if (policies[name] === 'ask_user') delete policies[name];
+    }
+    result.applied.push(connector.name);
+  }
+
+  if (result.applied.length) {
+    const runtime = agentRuntime(agent);
+    await agentService.updateAgent(workspaceId, agent.id, {
+      tools,
+      configuration: { runtime: { ...runtime, rules: { ...(runtime.rules ?? {}), policies } } },
+    });
+  }
+  return result;
+}
+
+/** The group an agent's current apps already form — the starting point for "Save as group". */
+export function groupMembersFromAgent(agent: AgentWithApps, connectors: ConnectorSummary[]): ConnectorGroupMember[] {
+  const policies = agentRuntime(agent).rules?.policies ?? {};
+  const members: ConnectorGroupMember[] = [];
+  for (const connector of connectors) {
+    const actions = agentConnectorActions(agent, connector);
+    if (!actions.length) continue;
+    const link = (agent.appLinks ?? []).find((l) => l.integration.provider.toUpperCase() === connector.provider);
+    const askBefore = connector.capabilities.filter((c) => policies[c.toolName] === 'ask_user').map((c) => c.id);
+    members.push({
+      provider: connector.provider,
+      integrationId: link?.integration.id ?? null,
+      enabled: true,
+      actions: actions.length === connector.capabilities.length ? null : actions,
+      ...(askBefore.length ? { askBefore } : {}),
+    });
+  }
+  return members;
+}
+
+export const saveConnectorGroup = (workspaceId: string, input: ConnectorGroupInput, id?: string) =>
+  id ? connectorsApi.groups.update(workspaceId, id, input) : connectorsApi.groups.create(workspaceId, input);
+
+export type { ConnectorDetail, ConnectorSummary, AgentWithApps, ConnectorGroup, ConnectorGroupInput, ConnectorGroupMember };

@@ -316,3 +316,32 @@ describe('location trigger + attendance', () => {
     expect(compiled.issues).toContainEqual(expect.objectContaining({ nodeId: 'geo', level: 'error', message: expect.stringContaining('latitude') }));
   });
 });
+
+describe('connector approvals', () => {
+  const flow = (requireApproval: unknown) =>
+    compileStudioGraph({
+      nodes: [
+        node('t', 'TRIGGER_MANUAL'),
+        node('c', 'CONDITION', { field: 'order.total' }),
+        node('s', 'APP_CONNECTOR_ACTION', { provider: 'whatsapp', actionId: 'send_template_message', requireApproval, input: { to: '{{order.phone}}', templateName: 'order_update' } }, 'Message customer'),
+        node('o', 'OUTPUT', { template: 'done' }),
+      ],
+      edges: [edge('t', 'c'), edge('c', 's'), edge('s', 'o')],
+    });
+
+  it('puts an approval step in front of an action that asks for one, showing what will be sent', () => {
+    const result = flow(true);
+    const approval = result.nodes.find((n) => n.id === 's__approval');
+    expect(approval).toMatchObject({ type: 'HUMAN_APPROVAL', config: { required: true, reviewLabel: 'What will happen' } });
+    expect(String(approval?.config['reviewText'])).toContain('**to:** {{order.phone}}');
+    expect(result.edges.filter((e) => e.target === 's').map((e) => e.source)).toEqual(['s__approval']);
+    expect(result.edges.filter((e) => e.target === 's__approval').map((e) => e.source)).toEqual(['c']);
+    // Everything after the action still hangs off the action itself.
+    expect(result.edges.some((e) => e.source === 's' && e.target === 'o')).toBe(true);
+  });
+
+  it('adds nothing when approval is off', () => {
+    expect(flow(undefined).nodes.some((n) => n.type === 'HUMAN_APPROVAL')).toBe(false);
+    expect(flow('false').nodes.some((n) => n.type === 'HUMAN_APPROVAL')).toBe(false);
+  });
+});

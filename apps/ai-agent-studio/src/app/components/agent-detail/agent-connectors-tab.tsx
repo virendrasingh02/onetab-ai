@@ -30,6 +30,7 @@ import {
 import { useStudioSession } from '../../session-guard.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { AddToAgentDialog } from '../connectors/add-to-agent-dialog.js';
+import { AgentGroupsMenu } from '../connectors/agent-groups-menu.js';
 
 const CATEGORY_LABEL = new Map<string, string>(CONNECTOR_CATEGORIES.map((c) => [c.id, c.label]));
 const ENABLED_TAB = '__enabled';
@@ -143,6 +144,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
               {agent.name} acts through each connection with its owner’s permissions. Write actions follow its approval rules.
             </p>
           </div>
+          <AgentGroupsMenu agent={agent} onChanged={onChanged} />
           <Button
             variant="link"
             size="xs"

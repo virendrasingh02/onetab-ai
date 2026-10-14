@@ -523,20 +523,39 @@ export function AgentCopilotPanel({
         }
         default: {
           setBusy('Working out the change…');
-          const res = await agentArchitectApi.edit(workspaceId, { command, graphJson });
-          const connect = res.notes.some((n) => /connect/i.test(n));
-          if (!res.changedAnything) {
-            say({ role: 'assistant', text: res.explanation || 'Nothing on the workflow needs to change for that.', notes: res.notes, connect });
-            return;
+          // The reply is written live: its text grows as Nemotron produces it,
+          // then the finished message (with its proposal) takes its place.
+          const liveId = nextId();
+          let live = false;
+          const showLive = (text: string) => {
+            if (!live) {
+              live = true;
+              setMessages((list) => [...list, { id: liveId, role: 'assistant', text }]);
+            } else {
+              setMessages((list) => list.map((m) => (m.id === liveId ? { ...m, text } : m)));
+            }
+          };
+          const drop = () => live && setMessages((list) => list.filter((m) => m.id !== liveId));
+          let res;
+          try {
+            res = await agentArchitectApi.editStream(workspaceId, { command, graphJson }, { onStatus: (m) => setBusy(m), onExplanation: showLive });
+          } catch (err) {
+            drop();
+            throw err;
           }
-          say({
-            role: 'assistant',
-            text: res.explanation,
-            notes: res.notes,
-            connect,
-            by: res.by === 'ai' ? `Worked out by ${res.model ?? 'AI'}` : undefined,
-            proposal: { graph: res.graph, changes: res.changes, issues: res.issues, flow: res.flow, summary: command.slice(0, 200), state: 'pending' },
-          });
+          const connect = res.notes.some((n) => /connect/i.test(n));
+          const finished: Message = res.changedAnything
+            ? {
+                id: liveId,
+                role: 'assistant',
+                text: res.explanation,
+                notes: res.notes,
+                connect,
+                by: res.by === 'ai' ? `Worked out by ${res.model ?? 'AI'}` : undefined,
+                proposal: { graph: res.graph, changes: res.changes, issues: res.issues, flow: res.flow, summary: command.slice(0, 200), state: 'pending' },
+              }
+            : { id: liveId, role: 'assistant', text: res.explanation || 'Nothing on the workflow needs to change for that.', notes: res.notes, connect };
+          setMessages((list) => (live ? list.map((m) => (m.id === liveId ? finished : m)) : [...list, finished]));
         }
       }
     } catch (err) {

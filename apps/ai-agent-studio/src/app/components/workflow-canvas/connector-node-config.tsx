@@ -1,5 +1,5 @@
-import type { ConnectorSummary } from '@org/types';
-import { AppSelect, Badge, Button, CodeBlock, confirm, toast } from '@org/ui';
+import type { ConnectorCapability, ConnectorSummary } from '@org/types';
+import { AppSelect, Badge, Button, CodeBlock, Label, Switch, confirm, toast } from '@org/ui';
 import type { Node } from '@xyflow/react';
 import { Braces, ExternalLink, Play, ShieldCheck, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -8,6 +8,10 @@ import { errorMessage, runConnectorAction, usableConnection, useConnectors } fro
 import { useStudioSession } from '../../session-guard.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { SchemaFields, coerceSchemaInput, inputToFieldValues, missingRequired, schemaProperties } from '../connectors/schema-fields.js';
+
+/** Actions that send, publish, refund or delete ask a person first unless the card says otherwise. */
+const needsApprovalByDefault = (c: Pick<ConnectorCapability, 'requiresConfirmation' | 'permissionLevel'> | undefined) =>
+  !!c && (c.requiresConfirmation || c.permissionLevel === 'destructive');
 
 /** Legacy provider ids from the first connector release (`microsoft-teams`). */
 const providerOf = (config: Record<string, unknown>) =>
@@ -126,6 +130,7 @@ export function ConnectorNodeConfig({
               provider: p,
               connectorId: next?.slug,
               [kind === 'action' ? 'actionId' : 'triggerId']: first,
+              ...(kind === 'action' ? { requireApproval: needsApprovalByDefault(next?.capabilities[0]) } : {}),
               input: kind === 'trigger' ? { ...(next?.triggers[0]?.defaultInput ?? {}) } : {},
               // An account belongs to one app.
               integrationId: undefined,
@@ -186,6 +191,7 @@ export function ConnectorNodeConfig({
             onValueChange={(id) =>
               setConfig({
                 [kind === 'action' ? 'actionId' : 'triggerId']: id,
+                ...(kind === 'action' ? { requireApproval: needsApprovalByDefault(connector.capabilities.find((c) => c.id === id)) } : {}),
                 input: kind === 'trigger' ? { ...(connector.triggers.find((t) => t.id === id)?.defaultInput ?? {}) } : {},
               })
             }
@@ -203,19 +209,49 @@ export function ConnectorNodeConfig({
         </div>
       )}
 
-      {capability?.requiresConfirmation && (
-        <p className="flex items-start gap-1.5 rounded-lg border border-warning/30 bg-warning/10 p-2.5 text-[11px] text-warning-text">
-          <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {connector?.name} asks before running this. In a live run it runs once the run reaches it — put a Human Approval card before it if
-          someone should check first. Test runs never run it.
-        </p>
+      {kind === 'action' && capability && capability.kind === 'action' && (
+        <div className="space-y-1.5 rounded-lg border border-border bg-surface-raised/60 p-2.5">
+          <Label htmlFor={`approval-${node.id}`} className="flex cursor-pointer items-start justify-between gap-3">
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+                <ShieldCheck className="size-3.5 shrink-0 text-warning" aria-hidden="true" />
+                Ask a person first
+              </span>
+              <span className="text-[11px] font-normal text-muted-foreground">
+                The run pauses here and shows exactly what will happen in {connector?.name}. It continues when someone approves; if
+                they reject it, nothing after this runs. Test runs never run it.
+              </span>
+            </span>
+            <Switch
+              id={`approval-${node.id}`}
+              checked={config['requireApproval'] === true || config['requireApproval'] === 'true'}
+              disabled={readOnly}
+              onCheckedChange={(on) => setConfig({ requireApproval: on })}
+            />
+          </Label>
+          {capability.permissionLevel === 'destructive' && config['requireApproval'] !== true && (
+            <p className="text-[11px] text-warning-text">
+              This action can’t be undone. Without approval it runs as soon as the run reaches it.
+            </p>
+          )}
+        </div>
       )}
 
       {kind === 'trigger' && trigger && (
         <p className="flex items-start gap-1.5 rounded-lg border border-border bg-surface-raised/60 p-2.5 text-[11px] text-muted-foreground">
           <Zap className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden="true" />
-          Once the agent is switched on, {connector?.name} is checked every 2 minutes and each new item starts one run. The item is{' '}
-          <code className="rounded bg-surface px-1">{'{{event}}'}</code> in later steps.
+          {trigger.delivery === 'webhook' ? (
+            <span>
+              Once the agent is switched on, {connector?.name} sends this event the moment it happens — add the connection’s webhook
+              address in {connector?.name}’s settings (it’s shown on the connector page). The item is{' '}
+              <code className="rounded bg-surface px-1">{'{{event}}'}</code> in later steps.
+            </span>
+          ) : (
+            <span>
+              Once the agent is switched on, {connector?.name} is checked every 2 minutes and each new item starts one run. The item is{' '}
+              <code className="rounded bg-surface px-1">{'{{event}}'}</code> in later steps.
+            </span>
+          )}
         </p>
       )}
 

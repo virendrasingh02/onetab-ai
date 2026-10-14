@@ -6,7 +6,10 @@ import { MatrixModule } from '@org/api-matrix';
 import { AppMatrixBridgeService } from './app-matrix-bridge.service.js';
 import { ChannelAppsController } from './channel-apps.controller.js';
 import { ConnectorRegistryService } from './connectors/connector-registry.service.js';
+import { ConnectorGroupsController } from './connectors/connector-groups.controller.js';
+import { ConnectorGroupsService } from './connectors/connector-groups.service.js';
 import { ConnectorsController } from './connectors/connectors.controller.js';
+import { ConnectorWebhookService } from './connectors/connector-webhook.service.js';
 import { IntegrationEncryptionService } from './core/integration-encryption.service.js';
 import { IntegrationLoggerService } from './core/integration-logger.service.js';
 import { IntegrationManagerService } from './core/integration-manager.service.js';
@@ -32,6 +35,9 @@ import { MicrosoftTeamsProvider } from './providers/microsoft-teams.provider.js'
 import { SlackProvider } from './providers/slack.provider.js';
 import { TrelloProvider } from './providers/trello.provider.js';
 import { AttendanceProvider } from './providers/attendance.provider.js';
+import { ShopifyProvider } from './providers/shopify.provider.js';
+import { WhatsAppProvider } from './providers/whatsapp.provider.js';
+import { WordPressProvider } from './providers/wordpress.provider.js';
 import { SlackImporterService } from './slack-importer.service.js';
 import { WebhooksController } from './webhooks.controller.js';
 import { MigrationController } from './migration/migration.controller.js';
@@ -52,6 +58,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     WebhooksController,
     ChannelAppsController,
     ConnectorsController,
+    ConnectorGroupsController,
     MigrationController,
   ],
   providers: [
@@ -66,6 +73,8 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     IntegrationManagerService,
     IntegrationsService,
     ConnectorRegistryService,
+    ConnectorWebhookService,
+    ConnectorGroupsService,
 
     // Migration Engine Services
     SlackCapabilityChecker,
@@ -93,6 +102,9 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     CustomApiProvider,
     OneTabAppProvider,
     AttendanceProvider,
+    ShopifyProvider,
+    WhatsAppProvider,
+    WordPressProvider,
 
     // Importers
     SlackImporterService,

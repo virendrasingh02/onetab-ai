@@ -179,7 +179,7 @@ function appActionApps(actions: readonly CatalogNodeItem[]): CatalogNodeItem[] {
     .sort((a, b) => Number(b.connected) - Number(a.connected) || a.item.label.localeCompare(b.item.label))
     .map(({ item, count, connected }) => ({
       ...item,
-      subtitle: `${count} action${count === 1 ? '' : 's'}${connected ? '' : ' · not connected'}`,
+      subtitle: connected ? `All ${count} action${count === 1 ? '' : 's'} included` : 'Not connected',
     }));
 }
 
@@ -241,7 +241,15 @@ function QuickAddMenu({
       if (view.level === 'root' && appEntries.length > 0 && isGenericAppAction(item)) {
         setView({ level: 'apps' });
       } else if (view.level === 'apps') {
-        setView({ level: 'actions', provider: String(item.defaultConfig?.['provider']), app: item.label });
+        // One node per app: every action is available in the node's settings
+        const first = (appActions ?? []).find((n) => n.defaultConfig?.['provider'] === item.defaultConfig?.['provider']);
+        onSelect({
+          ...item,
+          label: item.label,
+          subtitle: 'Choose an action in settings',
+          defaultConfig: { ...(first?.defaultConfig ?? item.defaultConfig) },
+        });
+        return;
       } else {
         onSelect(item);
         return;

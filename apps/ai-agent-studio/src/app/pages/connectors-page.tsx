@@ -15,7 +15,7 @@ import {
   TooltipTrigger,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Bot, ChevronRight, Plug, Search, Star, Wrench, Zap, Eye } from 'lucide-react';
+import { Bot, ChevronRight, Layers, Plug, Search, Star, Wrench, Zap, Eye } from 'lucide-react';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
@@ -99,9 +99,14 @@ export function ConnectorsPage() {
         description="Connect the apps your agents work in. Every action, read and event a connector offers becomes a tool, a workflow step or a trigger in the Studio."
         icon={<Plug />}
         actions={
-          <Button size="sm" variant="outline" onClick={() => navigate('/workflows')}>
-            Open the canvas
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate('/connectors/groups')} leadingIcon={<Layers />}>
+              Groups
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate('/workflows')}>
+              Open the canvas
+            </Button>
+          </div>
         }
       />
 

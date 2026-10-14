@@ -21,7 +21,7 @@ import {
   confirm,
   toast,
 } from '@org/ui';
-import { ArrowLeft, Bot, CheckCircle2, Eye, KeyRound, Play, RefreshCw, ShieldAlert, Trash2, Workflow, Wrench, XCircle, Zap } from 'lucide-react';
+import { ArrowLeft, Bot, CheckCircle2, Copy, Eye, KeyRound, Play, RefreshCw, ShieldAlert, Trash2, Workflow, Wrench, XCircle, Zap } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
@@ -502,6 +502,25 @@ function ConnectionsList({
                 {conn.lastSyncAt && ` · synced ${timeAgo(conn.lastSyncAt)}`}
               </div>
               {conn.lastErrorMessage && <div className="mt-1 text-[11px] text-destructive-text">{conn.lastErrorMessage}</div>}
+              {conn.webhookUrl && (
+                <div className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="shrink-0">Webhook address</span>
+                  <code className="min-w-0 truncate rounded bg-surface-muted px-1.5 py-0.5 font-mono text-foreground">{conn.webhookUrl}</code>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    aria-label="Copy webhook address"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(conn.webhookUrl as string).then(
+                        () => toast.success('Webhook address copied.'),
+                        () => toast.error('Couldn’t copy. Select the address and copy it by hand.'),
+                      );
+                    }}
+                  >
+                    <Copy className="size-3" aria-hidden="true" />
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               {!healthy && (

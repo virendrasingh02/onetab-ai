@@ -9,6 +9,31 @@ import { PrismaService } from '@org/database';
 import type { AgentToolExecution, AIAgentMessageContent } from '@org/types';
 import { AIRuntimeService } from './ai-runtime.service.js';
 
+const ENTITY_SELECT = {
+  id: true,
+  type: true,
+  workspaceId: true,
+  name: true,
+  role: true,
+  model: true,
+  avatarUrl: true,
+  matrixUserId: true,
+} as const;
+
+interface EntityTarget {
+  id: string;
+  type: string;
+  workspaceId: string;
+  name: string;
+  role: string;
+  model: string;
+  avatarUrl: string | null;
+  matrixUserId: string | null;
+}
+
+const DM_CACHE_TTL_MS = 5 * 60_000;
+const DM_MISS_TTL_MS = 15_000;
+
 /**
  * Unified Matrix Bridge for all AI Entities (AI Agents and AI Coworkers).
  *
@@ -18,6 +43,10 @@ import { AIRuntimeService } from './ai-runtime.service.js';
 @Injectable()
 export class AgentMatrixBridgeService implements OnModuleInit {
   private readonly logger = new Logger(AgentMatrixBridgeService.name);
+  private readonly dmCache = new Map<
+    string,
+    { entityId: string | null; expiresAt: number }
+  >();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -41,18 +70,9 @@ export class AgentMatrixBridgeService implements OnModuleInit {
       typeof event.content['body'] === 'string' ? event.content['body'] : '';
     if (!promptText.trim()) return false;
 
-    let target = await this.prisma.aIAgent.findFirst({
+    let target: EntityTarget | null = await this.prisma.aIAgent.findFirst({
       where: { matrixRoomId: event.room_id },
-      select: {
-        id: true,
-        type: true,
-        workspaceId: true,
-        name: true,
-        role: true,
-        model: true,
-        avatarUrl: true,
-        matrixUserId: true,
-      },
+      select: ENTITY_SELECT,
     });
 
     let cleanPrompt = promptText;
@@ -84,16 +104,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
               { channelCoworkers: { some: { channelId: channel.id, isEnabled: true } } },
             ],
           },
-          select: {
-            id: true,
-            type: true,
-            workspaceId: true,
-            name: true,
-            role: true,
-            model: true,
-            avatarUrl: true,
-            matrixUserId: true,
-          },
+          select: ENTITY_SELECT,
         });
 
         const mentions = event.content['m.mentions'] as
@@ -118,6 +129,11 @@ export class AgentMatrixBridgeService implements OnModuleInit {
             break;
           }
         }
+      } else {
+        // Not a channel: it may be a 1:1 DM with an AI entity. Those rooms are
+        // created per user from the browser, so `AIAgent.matrixRoomId` (one
+        // value per agent) can never identify them — the room's members do.
+        target = await this.resolveDirectMessageEntity(event.room_id, event.sender);
       }
     }
 
@@ -142,6 +158,58 @@ export class AgentMatrixBridgeService implements OnModuleInit {
     });
 
     return true;
+  }
+
+  /**
+   * The AI entity on the other end of a 1:1 DM room, or `null` when the room is
+   * not exactly {sender, one entity}. Group DMs fall through so entities there
+   * only answer when mentioned. Results are cached briefly: this runs for every
+   * message in every non-channel room, and each miss costs a Synapse admin call.
+   */
+  private async resolveDirectMessageEntity(
+    roomId: string,
+    sender: string,
+  ): Promise<EntityTarget | null> {
+    const cached = this.dmCache.get(roomId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.entityId ? this.loadEntity(cached.entityId) : null;
+    }
+
+    let members: string[];
+    try {
+      members = await this.admin.getRoomMembers(roomId);
+    } catch (error) {
+      this.logger.warn(`Could not read members of ${roomId}: ${String(error)}`);
+      return null;
+    }
+
+    const others = members.filter((id) => id !== sender);
+    const entity =
+      members.length === 2 && others.length === 1
+        ? await this.prisma.aIAgent.findFirst({
+            where: { matrixUserId: others[0], isActive: true },
+            select: ENTITY_SELECT,
+          })
+        : null;
+
+    // Short negative TTL: a bot's invite is auto-joined asynchronously, so the
+    // first message can race it and must be re-checked soon.
+    this.dmCache.set(roomId, {
+      entityId: entity?.id ?? null,
+      expiresAt: Date.now() + (entity ? DM_CACHE_TTL_MS : DM_MISS_TTL_MS),
+    });
+    if (this.dmCache.size > 2000) {
+      const oldest = this.dmCache.keys().next().value;
+      if (oldest) this.dmCache.delete(oldest);
+    }
+    return entity;
+  }
+
+  private loadEntity(id: string): Promise<EntityTarget | null> {
+    return this.prisma.aIAgent.findFirst({
+      where: { id, isActive: true },
+      select: ENTITY_SELECT,
+    });
   }
 
   /**

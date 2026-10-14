@@ -2026,13 +2026,24 @@ export class WorkflowEngineService {
         // step before wrote, so "approve the report" shows the report.
         const reviewPath = typeof cfg['reviewPath'] === 'string' ? (cfg['reviewPath'] as string) : '';
         const reviewValue = reviewPath ? readPath(context, reviewPath) : undefined;
+        // Or a fixed description of what is about to happen (a connector action's
+        // input), shown read-only because there is no draft to edit.
+        const reviewText = typeof cfg['reviewText'] === 'string' ? (cfg['reviewText'] as string) : '';
         const review = reviewPath
           ? {
               path: reviewPath,
               label: String(cfg['reviewLabel'] || 'Draft'),
               value: typeof reviewValue === 'string' ? reviewValue : reviewValue === undefined ? '' : JSON.stringify(reviewValue, null, 2),
+              readOnly: undefined as boolean | undefined,
             }
-          : undefined;
+          : reviewText
+            ? {
+                path: '',
+                label: String(cfg['reviewLabel'] || 'What will happen'),
+                value: interpolateVariables(reviewText, context),
+                readOnly: true as boolean | undefined,
+              }
+            : undefined;
         const action = String(cfg['action'] || 'Approve step execution');
         if (requiresApproval && env.mode === 'test') {
           return {
@@ -2259,9 +2270,19 @@ export class WorkflowEngineService {
         throw new Error(`The input for '${node.label || node.id}' is not valid JSON.`);
       }
     }
+    // `{{variables}}` are filled in everywhere in the input, including inside lists
+    // and nested objects (a template's body parameters, a JSON body).
+    const resolve = (value: unknown): unknown =>
+      typeof value === 'string'
+        ? interpolateVariables(value, context)
+        : Array.isArray(value)
+          ? value.map(resolve)
+          : value && typeof value === 'object'
+            ? Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, resolve(v)]))
+            : value;
     const input: Record<string, unknown> = {};
     for (const [key, value] of Object.entries((rawInput as Record<string, unknown>) ?? {})) {
-      input[key] = typeof value === 'string' ? interpolateVariables(value, context) : value;
+      input[key] = resolve(value);
     }
 
     if (this.mcpRegistry.getToolDefinitions().some((t) => t.name === toolName)) {
@@ -2337,6 +2358,12 @@ export class WorkflowEngineService {
             match.requiresConfirmation ? true : undefined,
             creatorId,
             workspaceId,
+            undefined,
+            // One write per run, step and loop pass: a retried or resumed step
+            // never repeats a refund or a message.
+            {
+              idempotencyKey: `${env.runId}:${node.id}:${String((context['loop'] as { index?: unknown } | undefined)?.index ?? '')}`,
+            },
           );
           // An app that answered "no" is a failed step, not a success with a
           // buried error. Its data is spread so later steps can read

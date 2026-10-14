@@ -1,4 +1,5 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@org/database';
 import {
   buildConnectorManifest,
@@ -39,6 +40,7 @@ export class ConnectorRegistryService {
     private readonly manager: IntegrationManagerService,
     private readonly permissions: IntegrationPermissionService,
     private readonly audit: IntegrationLoggerService,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   /** Manifests only — what every connector can do, independent of who asks. */
@@ -299,6 +301,20 @@ export class ConnectorRegistryService {
       lastErrorAt: row.lastErrorAt?.toISOString() ?? null,
       lastErrorMessage: row.lastErrorMessage,
       createdAt: row.createdAt.toISOString(),
+      webhookUrl: this.webhookUrl(row),
     };
+  }
+
+  /** The address an app pushes events to, only for connectors that verify pushes. */
+  private webhookUrl(row: { id: string; provider: string }): string | null {
+    let verifies: boolean;
+    try {
+      verifies = !!this.findAdapter(row.provider).verifyWebhook;
+    } catch {
+      return null;
+    }
+    if (!verifies) return null;
+    const base = (this.config?.get<string>('API_URL') || 'http://localhost:3000/api/v1').replace(/\/+$/, '');
+    return `${base}/webhooks/connectors/${row.id}`;
   }
 }

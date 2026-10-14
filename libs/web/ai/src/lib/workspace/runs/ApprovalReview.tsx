@@ -10,6 +10,8 @@ interface ReviewDescriptor {
   path: string;
   label: string;
   value: string;
+  /** A description of what will run, not a draft: nothing to edit. */
+  readOnly?: boolean;
 }
 
 interface DraftTask {
@@ -54,7 +56,7 @@ export function ApprovalReview({
   const [text, setText] = useState(review?.value ?? '');
   const [kept, setKept] = useState<boolean[]>(() => taskDraft?.map(() => true) ?? []);
   const [comment, setComment] = useState('');
-  const edited = review ? (taskDraft ? kept.some((k) => !k) : text !== review.value) : false;
+  const edited = review && !review.readOnly ? (taskDraft ? kept.some((k) => !k) : text !== review.value) : false;
   const canDecide = approval.canDecide !== false;
 
   const submit = (decision: 'APPROVED' | 'REJECTED') => {
@@ -89,7 +91,7 @@ export function ApprovalReview({
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-muted-foreground">{review.label}</p>
-            {!taskDraft && canDecide ? (
+            {!taskDraft && canDecide && !review.readOnly ? (
               <SegmentedControl
                 aria-label="Review the draft"
                 size="sm"

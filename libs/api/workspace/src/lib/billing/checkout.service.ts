@@ -394,7 +394,7 @@ export class CheckoutService {
             : null,
         trialStart: trialing ? now : existing?.trialStart ?? null,
         trialEnd: trialing ? periodEnd : existing?.trialEnd ?? null,
-        trialStatus: trialing ? 'ACTIVE' : existing?.trialStatus ?? null,
+        trialStatus: trialing ? 'ACTIVE' : existing?.trialStatus === 'ACTIVE' ? 'CONVERTED' : existing?.trialStatus ?? null,
         trialUsed: trialing ? true : existing?.trialUsed ?? false,
         convertedAt: !trialing && existing?.trialStatus === 'ACTIVE' ? now : existing?.convertedAt ?? null,
         seatsTotal: PLANS_CONFIG[plan].limits.max_members === -1 ? 1000 : PLANS_CONFIG[plan].limits.max_members,

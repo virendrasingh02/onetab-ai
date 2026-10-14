@@ -647,10 +647,22 @@ export function normalizePlanTier(tier: string | undefined | null): PlanTier {
  * upgrades.
  */
 export function resolveEffectivePlanTier(
-  sub: { planTier?: string | null; trialStatus?: string | null; trialEnd?: Date | null } | null | undefined,
+  sub:
+    | {
+        planTier?: string | null;
+        status?: string | null;
+        trialStatus?: string | null;
+        trialEnd?: Date | null;
+        convertedAt?: Date | null;
+      }
+    | null
+    | undefined,
   now: Date = new Date(),
 ): PlanTier {
-  if (sub?.trialStatus === 'ACTIVE' && sub.trialEnd && sub.trialEnd < now) return 'free';
+  // A paid (ACTIVE) or converted subscription keeps its tier even when the
+  // old trial flags were never cleared.
+  const paid = sub?.status === 'ACTIVE' || Boolean(sub?.convertedAt);
+  if (!paid && sub?.trialStatus === 'ACTIVE' && sub.trialEnd && sub.trialEnd < now) return 'free';
   return normalizePlanTier(sub?.planTier);
 }
 

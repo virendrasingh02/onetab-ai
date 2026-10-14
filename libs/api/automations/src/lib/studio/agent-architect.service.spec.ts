@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AgentArchitectService } from './agent-architect.service.js';
+import { AgentArchitectService, partialExplanation } from './agent-architect.service.js';
 
 const graph = {
   nodes: [
@@ -79,5 +79,14 @@ describe('AgentArchitectService', () => {
   it('refuses to edit something that is not a canvas graph', async () => {
     const { service } = make();
     await expect(service.edit('ws', 'u', { command: 'Add Slack', graphJson: '{"nodes":[]}' })).rejects.toThrow();
+  });
+});
+
+describe('partialExplanation', () => {
+  it('reads the explanation as it streams in, even mid-escape', () => {
+    expect(partialExplanation('{ "explanation": "Add a Sl')).toBe('Add a Sl');
+    expect(partialExplanation('{ "explanation": "Say \\"hi\\" now", "ops": [')).toBe('Say "hi" now');
+    expect(partialExplanation('{ "explanation": "line one\\')).toBe('line one');
+    expect(partialExplanation('{ "ops": []')).toBe('');
   });
 });

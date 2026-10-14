@@ -151,6 +151,8 @@ export const AppEvent = {
   AiApprovalRequested: 'ai.approval.requested',
   /** An AI agent sent its owner a message (the notify_user tool). */
   AiAgentMessage: 'ai.agent.message',
+  /** A connected app pushed a verified event to the connector webhook (a Shopify order, a WhatsApp message). */
+  ConnectorEventReceived: 'connector.event.received',
   /**
    * An AI Coworker turn started / finished / failed (`AIRuntimeService`),
    * whoever asked — a person in chat, a schedule, a workflow node or another
@@ -587,6 +589,19 @@ export interface AiRunFinishedEvent {
   notify: { onComplete: boolean; onFailure: boolean };
 }
 
+export interface ConnectorEventReceivedEvent {
+  workspaceId: string | null;
+  integrationId: string;
+  provider: string;
+  /** The connector trigger this is (`order_paid`, `message_received`). */
+  triggerId: string;
+  /** The app's own delivery id, already de-duplicated. */
+  eventId: string;
+  item: Record<string, unknown>;
+  /** Set for a personal connection: only that person's agents may react. */
+  ownerUserId: string | null;
+}
+
 export interface AiApprovalRequestedEvent {
   workspaceId: string;
   approvalId: string;
@@ -710,6 +725,7 @@ export interface AppEventPayloads {
   [AppEvent.AiRunFinished]: AiRunFinishedEvent;
   [AppEvent.AiApprovalRequested]: AiApprovalRequestedEvent;
   [AppEvent.AiAgentMessage]: AiAgentMessageEvent;
+  [AppEvent.ConnectorEventReceived]: ConnectorEventReceivedEvent;
   [AppEvent.CoworkerStarted]: CoworkerRunEvent;
   [AppEvent.CoworkerCompleted]: CoworkerCompletedEvent;
   [AppEvent.CoworkerFailed]: CoworkerFailedEvent;
