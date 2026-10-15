@@ -10,11 +10,11 @@ import {
   TabsContent,
   TabsTrigger,
 } from '@org/ui';
-import { AgentEditorView, AIEntityAvatar, AIEntityRunsList } from '@org/web-agents';
+import { AIEntityAvatar, AIEntityRunsList } from '@org/web-agents';
 import { useCanManageAIResource, useCurrentWorkspace } from '@org/web-workspace';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, ArrowLeft, MessageSquare, UserCheck } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CoworkerCreateDialog } from '../CoworkerCreateDialog.js';
 import { CoworkerProfileDetails } from '../CoworkerProfilePanel.js';
@@ -25,12 +25,11 @@ function aiPath(slug: string | undefined, ...rest: string[]) {
 }
 
 /**
- * `/w/:slug/ai/agents/:agentId` — one route for both kinds of AI entity. An
- * agent opens the canvas editor; a coworker opens its profile, where its
- * persona, model, tools and delegate agents are edited. Both share the run
- * history and the approval rules.
+ * `/w/:slug/ai/agents/:agentId` — a coworker opens its profile here, where its
+ * persona, model, tools and delegate agents are edited. Agents (and "new") are
+ * built in the standalone AI Agent Studio, so `agentFallback` renders for them.
  */
-export function AIEntityEditorRoute() {
+export function AIEntityEditorRoute({ agentFallback }: { agentFallback: ReactNode }) {
   const { agentId } = useParams<{ agentId: string }>();
   const { workspaceId, slug } = useCurrentWorkspace();
   const isNew = !agentId || agentId === 'new';
@@ -41,7 +40,7 @@ export function AIEntityEditorRoute() {
     enabled: Boolean(workspaceId && !isNew),
   });
 
-  if (isNew) return <AgentEditorView />;
+  if (isNew) return <>{agentFallback}</>;
   if (entity.isLoading) return <LoadingState fullPage label="Opening…" />;
   if (entity.isError || !entity.data) {
     return (
@@ -61,7 +60,7 @@ export function AIEntityEditorRoute() {
   return entity.data.type === 'coworker' ? (
     <CoworkerEditorView coworkerId={entity.data.id} />
   ) : (
-    <AgentEditorView agentId={entity.data.id} />
+    <>{agentFallback}</>
   );
 }
 

@@ -1,4 +1,4 @@
-# OneTab AI
+# Onetab AI
 
 Workspace and channel collaboration platform. Nx monorepo with a React 19 web
 client, a NestJS 11 API and a shared design system.

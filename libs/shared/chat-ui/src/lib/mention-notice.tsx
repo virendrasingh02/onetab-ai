@@ -10,7 +10,7 @@ import type {
 } from './mention-notice-store.js';
 
 /** The name the notice is "from" — the platform itself, not a person. */
-export const MENTION_NOTICE_SENDER = 'OneTab';
+export const MENTION_NOTICE_SENDER = 'Onetab';
 
 /** Past this many names the sentence summarises the rest as "N others". */
 const MAX_NAMED_TARGETS = 3;

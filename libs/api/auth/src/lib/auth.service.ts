@@ -896,7 +896,7 @@ export class AuthService {
     });
 
     const secret = generateBase32Secret(20);
-    const appName = 'OneTab';
+    const appName = 'Onetab';
     const qrCodeUri = `otpauth://totp/${encodeURIComponent(appName)}:${encodeURIComponent(user.email)}?secret=${secret}&issuer=${encodeURIComponent(appName)}`;
 
     await this.prisma.twoFactorAuth.upsert({

@@ -92,7 +92,7 @@ const TARGETS: Target[] = [
     id: 'desktop',
     label: 'Desktop app',
     icon: Laptop,
-    title: 'OneTab desktop app',
+    title: 'Onetab desktop app',
     description: 'Call the agent from the desktop app’s renderer through its IPC bridge.',
   },
 ];

@@ -32,9 +32,9 @@ describe('variable-resolver', () => {
   });
 
   it('handles fallback defaults with ||', () => {
-    const template = 'Hi {{user.name || "friend"}}, welcome to {{workspace.name || "OneTab"}}!';
-    expect(resolveVariables(template, {})).toBe('Hi friend, welcome to OneTab!');
-    expect(resolveVariables(template, { user: { name: 'Alice' } })).toBe('Hi Alice, welcome to OneTab!');
+    const template = 'Hi {{user.name || "friend"}}, welcome to {{workspace.name || "Onetab"}}!';
+    expect(resolveVariables(template, {})).toBe('Hi friend, welcome to Onetab!');
+    expect(resolveVariables(template, { user: { name: 'Alice' } })).toBe('Hi Alice, welcome to Onetab!');
   });
 
   it('handles #if and #else blocks', () => {

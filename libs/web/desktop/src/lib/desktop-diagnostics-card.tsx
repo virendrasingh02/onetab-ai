@@ -60,7 +60,7 @@ export function DesktopDiagnosticsCard() {
 
   const restart = async () => {
     const ok = await confirm({
-      title: 'Restart OneTab AI?',
+      title: 'Restart Onetab AI?',
       description: 'The app closes and reopens. Any call in progress will end.',
       confirmLabel: 'Restart',
     });
@@ -69,7 +69,7 @@ export function DesktopDiagnosticsCard() {
 
   const quit = async () => {
     const ok = await confirm({
-      title: 'Quit OneTab AI?',
+      title: 'Quit Onetab AI?',
       description: 'You will stop receiving desktop notifications until you open the app again.',
       confirmLabel: 'Quit',
     });
@@ -206,7 +206,7 @@ export function DesktopDiagnosticsCard() {
               <div className="min-w-0 space-y-0.5">
                 <p className="text-xs font-medium">Link handlers</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Whether this computer opens these links in OneTab AI.
+                  Whether this computer opens these links in Onetab AI.
                 </p>
               </div>
               <div className="flex gap-2">

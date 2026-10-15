@@ -16,7 +16,7 @@
 import { safeFetch } from '@org/api-common';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
-const CLIENT_INFO = { name: 'OneTab AI', version: '1.0.0' };
+const CLIENT_INFO = { name: 'Onetab AI', version: '1.0.0' };
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 export interface MCPToolDescriptor {

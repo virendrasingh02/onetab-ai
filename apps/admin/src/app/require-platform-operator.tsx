@@ -37,7 +37,7 @@ const WEB_APP_URL =
 
 /**
  * Gates the whole console behind a signed-in platform-operator session.
- * Matches the exact minimalist design system and styling of the OneTab AI auth layout.
+ * Matches the exact minimalist design system and styling of the Onetab AI auth layout.
  *
  * The session comes from `restoreBrowserSession` (shared with AI Agent
  * Studio): a `#token=` hand-off from the web app, the in-memory token, or the
@@ -183,7 +183,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
               O
             </div>
             <span className="text-sm font-semibold tracking-tight text-foreground">
-              OneTab AI
+              Onetab AI
             </span>
             <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-primary/20 bg-primary/10 text-[10px] text-primary uppercase">
               Admin
@@ -416,7 +416,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
           </p>
 
           <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-[11px] text-muted-foreground">
-            <span>© {new Date().getFullYear()} OneTab AI</span>
+            <span>© {new Date().getFullYear()} Onetab AI</span>
             <a
               href={`${WEB_APP_URL}/privacy`}
               className="transition-colors hover:text-foreground"
@@ -451,7 +451,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
               O
             </div>
             <span className="text-sm font-semibold tracking-tight text-foreground">
-              OneTab AI
+              Onetab AI
             </span>
             <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-destructive/20 bg-destructive/10 text-[10px] text-destructive uppercase">
               Access Denied
@@ -518,7 +518,7 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
         {/* Footer */}
         <footer className="pt-6 pb-2 max-w-md px-2 space-y-2.5 w-full text-center">
           <div className="sm:text-xs gap-3 sm:gap-4 flex flex-wrap items-center justify-center text-[11px] text-muted-foreground">
-            <span>© {new Date().getFullYear()} OneTab AI</span>
+            <span>© {new Date().getFullYear()} Onetab AI</span>
             <a
               href={`${WEB_APP_URL}/privacy`}
               className="transition-colors hover:text-foreground"

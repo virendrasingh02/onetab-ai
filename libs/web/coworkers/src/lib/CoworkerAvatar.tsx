@@ -14,7 +14,7 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react';
-import type { FC } from 'react';
+import { useState, type FC } from 'react';
 
 export interface CoworkerAvatarProps {
   name: string;
@@ -25,33 +25,34 @@ export interface CoworkerAvatarProps {
   className?: string;
 }
 
+/** Fully round at every size, matching DM user avatars and the sidebar `NavEntityTile`. */
 const SIZE_MAP = {
   xs: {
-    container: 'h-6 w-6 text-[10px] rounded-md',
+    container: 'h-6 w-6 text-[10px] rounded-full',
     icon: 'h-3.5 w-3.5',
     dotSize: 'xs' as const,
     dotOffset: '-bottom-0.5 -right-0.5',
   },
   sm: {
-    container: 'h-7 w-7 text-xs rounded-lg',
+    container: 'h-7 w-7 text-xs rounded-full',
     icon: 'h-3.5 w-3.5',
     dotSize: 'xs' as const,
     dotOffset: '-bottom-0.5 -right-0.5',
   },
   md: {
-    container: 'h-10 w-10 text-sm rounded-xl',
+    container: 'h-10 w-10 text-sm rounded-full',
     icon: 'h-5 w-5',
     dotSize: 'sm' as const,
     dotOffset: '-bottom-1 -right-1',
   },
   lg: {
-    container: 'h-12 w-12 text-base rounded-xl',
+    container: 'h-12 w-12 text-base rounded-full',
     icon: 'h-6 w-6',
     dotSize: 'md' as const,
     dotOffset: '-bottom-1 -right-1',
   },
   xl: {
-    container: 'h-16 w-16 text-xl rounded-2xl',
+    container: 'h-16 w-16 text-xl rounded-full',
     icon: 'h-8 w-8',
     dotSize: 'lg' as const,
     dotOffset: '-bottom-1.5 -right-1.5',
@@ -72,12 +73,13 @@ const PRESET_ICONS: Record<string, typeof Bot> = {
   'icon:zap': Zap,
 };
 
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return (name.slice(0, 2) || 'AI').toUpperCase();
+/**
+ * The single letter shown for any AI entity (coworker, agent, app) that has no
+ * uploaded image or icon. One letter keeps every avatar visually consistent.
+ */
+export function getEntityInitial(name?: string | null): string {
+  const first = Array.from((name ?? '').trim())[0];
+  return (first ?? 'A').toUpperCase();
 }
 
 /** Deterministic gradient based on coworker name string */
@@ -106,6 +108,7 @@ export const CoworkerAvatar: FC<CoworkerAvatarProps> = ({
   showStatusDot = true,
   className,
 }) => {
+  const [imageFailed, setImageFailed] = useState(false);
   const sizeConfig = SIZE_MAP[size] ?? SIZE_MAP.md;
   const gradientClass = getGradientByName(name);
 
@@ -122,20 +125,17 @@ export const CoworkerAvatar: FC<CoworkerAvatarProps> = ({
           gradientClass,
         )}
       >
-        {avatarUrl && !isPresetIcon ? (
+        {avatarUrl && !isPresetIcon && !imageFailed ? (
           <img
             src={avatarUrl}
             alt={name}
             className="h-full w-full object-cover"
-            onError={(e) => {
-              // Graceful fallback to initials if image fails
-              e.currentTarget.style.display = 'none';
-            }}
+            onError={() => setImageFailed(true)}
           />
         ) : PresetComponent ? (
           <PresetComponent className={sizeConfig.icon} />
         ) : (
-          <span>{getInitials(name)}</span>
+          <span aria-hidden>{getEntityInitial(name)}</span>
         )}
       </div>
 

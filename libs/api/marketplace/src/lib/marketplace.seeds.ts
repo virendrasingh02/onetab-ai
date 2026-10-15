@@ -2,7 +2,7 @@ import type { PublishListingInput } from './marketplace.types.js';
 
 export const SEED_PUBLISHER = {
   slug: 'onetab-official',
-  name: 'OneTab Ecosystem',
+  name: 'Onetab Ecosystem',
   isVerified: true,
   websiteUrl: 'https://onetab.ai',
   supportEmail: 'integrations@onetab.ai',
@@ -17,7 +17,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     slug: 'github',
     name: 'GitHub',
     tagline: 'Pull request reviews, issue tracking, and CI/CD workflow automation',
-    description: `Connect your GitHub repositories to OneTab AI for seamless developer workflows. Receive real-time pull request notifications, mention issues directly in discussions with automated previews, monitor build statuses, and trigger automated code reviews right inside your channels.
+    description: `Connect your GitHub repositories to Onetab AI for seamless developer workflows. Receive real-time pull request notifications, mention issues directly in discussions with automated previews, monitor build statuses, and trigger automated code reviews right inside your channels.
 
 ### Key Workflows
 - **Pull Request Notifications**: Instant alerts when PRs are opened, approved, merged, or request your review.
@@ -31,7 +31,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'GitHub / OneTab Verified',
+    publisherName: 'GitHub / Onetab Verified',
     manifest: {
       entityType: 'APP',
       badge: 'OFFICIAL',
@@ -58,7 +58,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
           scope: 'read:workspace',
           name: 'Read workspace profile',
           level: 'READ',
-          description: 'Match GitHub usernames to OneTab workspace members',
+          description: 'Match GitHub usernames to Onetab workspace members',
         },
         {
           scope: 'net:fetch',
@@ -105,7 +105,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     slug: 'linear',
     name: 'Linear',
     tagline: 'Streamlined issue tracking, cycle progress, and workspace ticket linking',
-    description: `Connect Linear to bring issue management, project roadmaps, and cycle tracking directly into your conversations. Create Linear issues from chat messages with a single click, automatically link discussions to tickets, and track cycle burn-down without leaving OneTab.`,
+    description: `Connect Linear to bring issue management, project roadmaps, and cycle tracking directly into your conversations. Create Linear issues from chat messages with a single click, automatically link discussions to tickets, and track cycle burn-down without leaving Onetab.`,
     category: 'Project Management',
     version: '1.8.0',
     iconUrl: 'https://cdn.simpleicons.org/linear/5E6AD2',
@@ -180,7 +180,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     slug: 'slack',
     name: 'Slack Connector',
     tagline: 'Real-time bidirectional channel bridging and external team messaging',
-    description: `Bridge specific OneTab channels to Slack workspaces. Enable partner teams, clients, and external contractors using Slack to collaborate transparently with your OneTab AI workspace in real-time with full rich-text, attachments, and thread support.`,
+    description: `Bridge specific Onetab channels to Slack workspaces. Enable partner teams, clients, and external contractors using Slack to collaborate transparently with your Onetab AI workspace in real-time with full rich-text, attachments, and thread support.`,
     category: 'Communication',
     version: '2.1.0',
     iconUrl: 'https://cdn.simpleicons.org/slack/4A154B',
@@ -188,19 +188,19 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab Integrations',
+    publisherName: 'Onetab Integrations',
     manifest: {
       entityType: 'APP',
       badge: 'OFFICIAL',
       capabilities: [
         'Bi-directional cross-platform channel mirroring',
-        'Thread reply mapping between OneTab and Slack',
+        'Thread reply mapping between Onetab and Slack',
         'Avatar and display name preservation',
         'File attachment synchronization',
       ],
       permissions: [
         { scope: 'read:channels', name: 'Read linked channels', level: 'READ', description: 'Monitor messages in bridged channels' },
-        { scope: 'write:messages', name: 'Post bridged messages', level: 'WRITE', description: 'Forward messages from Slack into OneTab' },
+        { scope: 'write:messages', name: 'Post bridged messages', level: 'WRITE', description: 'Forward messages from Slack into Onetab' },
         { scope: 'write:files', name: 'Sync attachments', level: 'WRITE', description: 'Store uploaded images and documents' },
       ],
       commands: [
@@ -305,7 +305,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     slug: 'google-drive',
     name: 'Google Drive & Docs',
     tagline: 'Unified cloud file search, document creation, and sheet previews',
-    description: `Access files from Google Drive without leaving OneTab AI. Search across documents, sheets, and presentations, embed file cards with live thumbnail previews, and grant channel members granular view permissions effortlessly.`,
+    description: `Access files from Google Drive without leaving Onetab AI. Search across documents, sheets, and presentations, embed file cards with live thumbnail previews, and grant channel members granular view permissions effortlessly.`,
     category: 'Productivity',
     version: '1.9.0',
     iconUrl: 'https://cdn.simpleicons.org/googledrive/4285F4',
@@ -386,7 +386,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     slug: 'figma',
     name: 'Figma',
     tagline: 'Live design canvas previews, frame embeds, and comment sync',
-    description: `Bring your product design workflow into OneTab AI. Paste Figma links to render interactive design previews, receive notifications when someone comments on your frames, and share feedback without leaving chat.`,
+    description: `Bring your product design workflow into Onetab AI. Paste Figma links to render interactive design previews, receive notifications when someone comments on your frames, and share feedback without leaving chat.`,
     category: 'Developer Tools',
     version: '1.4.2',
     iconUrl: 'https://cdn.simpleicons.org/figma/F24E1E',
@@ -441,7 +441,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
       capabilities: [
         'Card creation from message context menu',
         'List move notifications and milestone alerts',
-        'Two-way sync with OneTab Kanban boards',
+        'Two-way sync with Onetab Kanban boards',
       ],
       permissions: [
         { scope: 'read:tasks', name: 'Read tasks', level: 'READ', description: 'Read local tasks for sync' },
@@ -515,7 +515,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab Core',
+    publisherName: 'Onetab Core',
     manifest: {
       entityType: 'APP',
       badge: 'INTERNAL',
@@ -557,7 +557,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab Core',
+    publisherName: 'Onetab Core',
     manifest: {
       entityType: 'APP',
       badge: 'INTERNAL',
@@ -608,7 +608,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab AI Labs',
+    publisherName: 'Onetab AI Labs',
     manifest: {
       entityType: 'AGENT',
       badge: 'OFFICIAL',
@@ -691,7 +691,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab AI Labs',
+    publisherName: 'Onetab AI Labs',
     manifest: {
       entityType: 'AGENT',
       badge: 'OFFICIAL',
@@ -733,7 +733,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     slug: 'meeting-synthesizer',
     name: 'Meeting Synthesizer & Note Taker',
     tagline: 'Extracts key decisions, action items, and task follow-ups from huddles and recorded meetings',
-    description: `Never lose track of meeting decisions or action items again. Meeting Synthesizer joins or analyzes audio transcripts from huddles and recorded meetings, formats clear bullet-point takeaways, highlights agreed-upon decisions, and turns commitments into assigned OneTab tasks.`,
+    description: `Never lose track of meeting decisions or action items again. Meeting Synthesizer joins or analyzes audio transcripts from huddles and recorded meetings, formats clear bullet-point takeaways, highlights agreed-upon decisions, and turns commitments into assigned Onetab tasks.`,
     category: 'Productivity',
     version: '1.7.0',
     iconUrl: 'icon:spark',
@@ -741,7 +741,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab AI Labs',
+    publisherName: 'Onetab AI Labs',
     manifest: {
       entityType: 'AGENT',
       badge: 'OFFICIAL',
@@ -749,7 +749,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
         'Live and post-call speech-to-text transcript synthesis',
         'Action item extraction with automatic assignee tagging',
         'Key architectural decision record (ADR) drafting',
-        'Exporting meeting notes to collaborative OneTab docs',
+        'Exporting meeting notes to collaborative Onetab docs',
       ],
       permissions: [
         { scope: 'read:messages', name: 'Read transcript text', level: 'READ', description: 'Process conversation flow' },
@@ -789,7 +789,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab AI Labs',
+    publisherName: 'Onetab AI Labs',
     manifest: {
       entityType: 'AGENT',
       badge: 'OFFICIAL',
@@ -835,7 +835,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab AI Labs',
+    publisherName: 'Onetab AI Labs',
     manifest: {
       entityType: 'AGENT',
       badge: 'OFFICIAL',
@@ -883,7 +883,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab AI Labs',
+    publisherName: 'Onetab AI Labs',
     manifest: {
       entityType: 'AGENT',
       badge: 'OFFICIAL',
@@ -930,7 +930,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab AI Labs',
+    publisherName: 'Onetab AI Labs',
     manifest: {
       entityType: 'AGENT',
       badge: 'OFFICIAL',
@@ -976,7 +976,7 @@ export const SEED_LISTINGS: PublishListingInput[] = [
     pricingModel: 'FREE',
     priceCents: 0,
     publisherSlug: 'onetab-official',
-    publisherName: 'OneTab AI Labs',
+    publisherName: 'Onetab AI Labs',
     manifest: {
       entityType: 'AGENT',
       badge: 'OFFICIAL',

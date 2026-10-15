@@ -288,7 +288,7 @@ export class MatrixAdminService {
           // admin account with sessions. Two API instances would evict each
           // other's token, which `withPrivileged` recovers from.
           device_id: BRIDGE_DEVICE_ID,
-          initial_device_display_name: 'OneTab AI bridge',
+          initial_device_display_name: 'Onetab AI bridge',
         }),
       },
     );
@@ -514,7 +514,7 @@ export class MatrixAdminService {
    * Mirrors a bridged user's display name and avatar into their Matrix profile.
    *
    * Chat reads the sender's name and photo straight from Matrix, so without
-   * this a person who renamed themselves or uploaded a photo in their OneTab
+   * this a person who renamed themselves or uploaded a photo in their Onetab
    * profile still shows a raw handle and an empty avatar in every conversation
    * — while every other surface shows the real thing.
    *
@@ -727,7 +727,7 @@ export class MatrixAdminService {
           type: 'm.login.password',
           identifier: { type: 'm.id.user', user: matrixUserId },
           password,
-          initial_device_display_name: 'OneTab AI Web',
+          initial_device_display_name: 'Onetab AI Web',
         }),
       },
     );

@@ -63,7 +63,7 @@ describe('DeviceAuthService', () => {
   describe('createRequest & getInfo', () => {
     it('creates a valid device authorization request with pairing code', async () => {
       const res = await service.createRequest(
-        { clientName: 'OneTab AI Desktop', platform: 'Windows PC' },
+        { clientName: 'Onetab AI Desktop', platform: 'Windows PC' },
         { ip: '127.0.0.1' },
       );
 

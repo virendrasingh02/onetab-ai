@@ -60,7 +60,7 @@ if (!hasSingleInstanceLock) {
  * live.
  */
 app.setAppUserModelId('ai.onetab.desktop');
-app.setName('OneTab AI');
+app.setName('Onetab AI');
 
 /**
  * GPU acceleration can only be switched off before `ready`, which is why the
@@ -155,7 +155,7 @@ function reportFatal(error: unknown): void {
     // ignore logging failure
   }
 
-  dialog.showErrorBox('OneTab AI could not start', detail);
+  dialog.showErrorBox('Onetab AI could not start', detail);
 }
 
 process.on('uncaughtException', (error) => {
@@ -239,7 +239,7 @@ async function bootstrap(): Promise<void> {
   windowOpening = true;
   try {
     if (!appInitialized) {
-      logger.info('App', `Starting OneTab AI Desktop (Platform: ${process.platform}, Dev: ${isDev})`);
+      logger.info('App', `Starting Onetab AI Desktop (Platform: ${process.platform}, Dev: ${isDev})`);
       resolvedAppUrl = await initializeApp();
     }
     if (!resolvedAppUrl) return;
@@ -259,9 +259,9 @@ async function bootstrap(): Promise<void> {
 /** Native About panel: what the macOS `about` role and Linux show. */
 function configureAboutPanel(): void {
   app.setAboutPanelOptions({
-    applicationName: 'OneTab AI',
+    applicationName: 'Onetab AI',
     applicationVersion: app.getVersion(),
-    copyright: 'Copyright (c) OneTab AI Inc.',
+    copyright: 'Copyright (c) Onetab AI Inc.',
     website: 'https://onetab.ai',
   });
 }

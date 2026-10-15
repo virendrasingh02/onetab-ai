@@ -13,7 +13,7 @@ import { matchPath } from 'react-router-dom';
  * Product name. Mirrors `<title>` in `apps/web/index.html` and the
  * `BrowserWindow` title in `apps/desktop/src/main/window.ts`.
  */
-export const APP_NAME = 'OneTab AI';
+export const APP_NAME = 'Onetab AI';
 
 /**
  * Canonical, server-owned names for the resources a dynamic route points at.
@@ -81,11 +81,11 @@ export function formatChannelName(
  *  - `formatDocumentTitle('', 'Acme Inc')`          → `Acme Inc`
  *
  * Outside any workspace (auth, invite, the workspace picker) there is no
- * workspace name, so it falls back to `<context> — OneTab AI`, or the bare
+ * workspace name, so it falls back to `<context> — Onetab AI`, or the bare
  * product name when the route has no context of its own:
  *
- *  - `formatDocumentTitle('Sign in')` → `Sign in — OneTab AI`
- *  - `formatDocumentTitle('')`        → `OneTab AI`
+ *  - `formatDocumentTitle('Sign in')` → `Sign in — Onetab AI`
+ *  - `formatDocumentTitle('')`        → `Onetab AI`
  */
 export function formatDocumentTitle(
   title: string | null | undefined,

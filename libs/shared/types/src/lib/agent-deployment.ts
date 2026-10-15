@@ -239,7 +239,7 @@ export interface AgentDeploymentAnalyticsSummary {
 }
 
 export const DEFAULT_WIDGET_CONFIG: AgentWidgetConfig = {
-  title: 'OneTab AI Assistant',
+  title: 'Onetab AI Assistant',
   subtitle: 'Universal AI Agent',
   primaryColor: '#2563eb',
   theme: 'system',
@@ -265,7 +265,7 @@ export const DEFAULT_WIDGET_CONFIG: AgentWidgetConfig = {
     surfaceColor: '#1e293b',
     textColor: '#f8fafc',
     borderColor: '#334155',
-    title: 'OneTab AI Assistant',
+    title: 'Onetab AI Assistant',
     subtitle: 'Universal AI Agent',
     launcherIcon: 'Bot',
     launcherSize: 'md',

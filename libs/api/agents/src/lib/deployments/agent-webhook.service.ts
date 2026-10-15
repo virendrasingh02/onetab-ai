@@ -187,7 +187,7 @@ export class AgentDeploymentWebhookService {
     const testEvent = 'agent.run.completed';
     const testPayload = {
       test: true,
-      message: 'OneTab AI Agent Webhook Test Event',
+      message: 'Onetab AI Agent Webhook Test Event',
       timestamp: new Date().toISOString(),
       sampleData: {
         status: 'COMPLETED',

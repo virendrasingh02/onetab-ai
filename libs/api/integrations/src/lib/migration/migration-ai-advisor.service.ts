@@ -44,7 +44,7 @@ export class MigrationAiAdvisorService {
           id: `rec-proj-${channel.id}`,
           title: `Convert #${channel.name} discussions into a dedicated Project`,
           category: 'projects',
-          rationale: `Channel #${channel.name} contains roadmap and deliverable discussions. OneTab Projects provides milestone tracking, Kanban boards, and linked documents directly integrated with this channel.`,
+          rationale: `Channel #${channel.name} contains roadmap and deliverable discussions. Onetab Projects provides milestone tracking, Kanban boards, and linked documents directly integrated with this channel.`,
           channelId: channel.id,
           channelName: channel.name,
           suggestedAction: 'Create Project with linked board and channel',

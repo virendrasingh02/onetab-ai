@@ -36,7 +36,7 @@ const SOURCES: ImportSource[] = [
     name: 'Import Notion workspace',
     format: 'Markdown & HTML export package',
     description:
-      'Convert Notion pages, inline databases and wiki hierarchies into OneTab documents and boards.',
+      'Convert Notion pages, inline databases and wiki hierarchies into Onetab documents and boards.',
     cta: 'Upload Notion export',
     icon: FileText,
     accent: 'cyan',

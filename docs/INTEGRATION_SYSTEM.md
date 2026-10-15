@@ -1,6 +1,6 @@
 # Multi-App API Integration System Documentation
 
-This document provides a comprehensive developer and operational guide for OneTab AI's **Multi-App API Integration System**.
+This document provides a comprehensive developer and operational guide for Onetab AI's **Multi-App API Integration System**.
 
 ---
 
@@ -154,7 +154,7 @@ Add `NotionProvider` to module providers and inject it in `IntegrationManagerSer
 
 ### Development Setup
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
-2. Create a new project: `OneTab AI Development`.
+2. Create a new project: `Onetab AI Development`.
 3. Enable the **Gmail API** in `APIs & Services > Library`.
 4. Configure the **OAuth consent screen**:
    - User Type: `External` (or `Internal` for Google Workspace domain).
@@ -167,7 +167,7 @@ Add `NotionProvider` to module providers and inject it in `IntegrationManagerSer
    - Add test user email addresses under "Test users".
 5. Create **OAuth 2.0 Client ID**:
    - Application type: `Web application`.
-   - Name: `OneTab AI Dev Client`.
+   - Name: `Onetab AI Dev Client`.
    - Authorized JavaScript origins: `http://localhost:4200`, `http://localhost:3000`.
    - Authorized redirect URIs: `http://localhost:3000/api/v1/integrations/gmail/callback`.
 6. Copy Client ID and Client Secret into `.env`:

@@ -67,7 +67,7 @@ export class IntegrationsController {
         <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: #f8fafc;">
           <div style="text-align: center; padding: 2rem; background: #1e293b; border-radius: 1rem; border: 1px solid #334155;">
             <h2 style="color: #22c55e; margin-bottom: 0.5rem;">Connection Successful!</h2>
-            <p style="color: #94a3b8; font-size: 0.875rem;">You have connected ${provider.toUpperCase()} to OneTab AI.</p>
+            <p style="color: #94a3b8; font-size: 0.875rem;">You have connected ${provider.toUpperCase()} to Onetab AI.</p>
             <p style="color: #64748b; font-size: 0.75rem; margin-top: 1rem;">This window will close automatically...</p>
           </div>
           <script>

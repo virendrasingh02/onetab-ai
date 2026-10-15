@@ -230,7 +230,7 @@ export const BILLING_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Payment Failed',
     category: 'BILLING',
     description: 'High-priority alert when a renewal charge is declined.',
-    subject: 'Action Required: Payment failed for {{appName || "OneTab AI"}}',
+    subject: 'Action Required: Payment failed for {{appName || "Onetab AI"}}',
     previewText: 'We were unable to process your payment of {{formatCurrency billing.amount billing.currency}}.',
     htmlBody: `
       ${EmailHeading('Payment Failed ⚠️')}

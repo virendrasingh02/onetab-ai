@@ -376,7 +376,7 @@ export async function handleAuthCallback(
 
   if (!pendingPKCE) {
     // A second copy of a callback that just succeeded (a re-clicked "Open
-    // OneTab AI Desktop", a browser that fired the link twice): the app is
+    // Onetab AI Desktop", a browser that fired the link twice): the app is
     // already signed in, so reporting "expired" would only confuse.
     if (Date.now() - lastLoginSucceededAt < DUPLICATE_CALLBACK_WINDOW_MS) {
       logger.info('Auth', 'Ignoring a duplicate callback for a completed sign-in');

@@ -1,6 +1,6 @@
-# OneTab AI Local Infrastructure Guide
+# Onetab AI Local Infrastructure Guide
 
-This document provides complete instructions for running, configuring, managing, and maintaining the OneTab AI local infrastructure suite.
+This document provides complete instructions for running, configuring, managing, and maintaining the Onetab AI local infrastructure suite.
 
 ---
 

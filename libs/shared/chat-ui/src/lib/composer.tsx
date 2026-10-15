@@ -115,7 +115,7 @@ export const DEFAULT_AI_AGENT_MENTIONS: MentionCandidate[] = [
   {
     id: 'agent-copilot',
     name: 'copilot',
-    subtitle: 'OneTab Copilot — Channel AI Assistant & Q&A',
+    subtitle: 'Onetab Copilot — Channel AI Assistant & Q&A',
     kind: 'agent',
     badge: 'AI AGENT',
   },

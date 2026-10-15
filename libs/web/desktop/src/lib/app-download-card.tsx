@@ -59,7 +59,7 @@ export function AppDownloadCard({ className, config, workspaceId }: AppDownloadC
                 <Laptop className="size-5" />
               </div>
               <div>
-                <CardTitle className="text-base font-bold">OneTab AI Desktop Application</CardTitle>
+                <CardTitle className="text-base font-bold">Onetab AI Desktop Application</CardTitle>
                 <CardDescription className="text-xs mt-0.5">
                   Native multi-platform desktop shell with system notifications, tray, and global shortcuts.
                 </CardDescription>
@@ -140,7 +140,7 @@ export function AppDownloadCard({ className, config, workspaceId }: AppDownloadC
                 <Smartphone className="size-5" />
               </div>
               <div>
-                <CardTitle className="text-base font-bold">OneTab AI Mobile App</CardTitle>
+                <CardTitle className="text-base font-bold">Onetab AI Mobile App</CardTitle>
                 <CardDescription className="text-xs mt-0.5">
                   Stay synchronized on iOS and Android with fast mobile channels, tasks, and notifications.
                 </CardDescription>

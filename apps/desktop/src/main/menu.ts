@@ -34,7 +34,7 @@ export function buildAppMenu(isDev: boolean): Menu {
             { role: 'unhide' },
             { type: 'separator' },
             {
-              label: 'Quit OneTab AI',
+              label: 'Quit Onetab AI',
               accelerator: 'Cmd+Q',
               click: () => {
                 markQuitting();

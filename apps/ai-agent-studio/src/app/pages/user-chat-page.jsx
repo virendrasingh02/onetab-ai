@@ -67,7 +67,7 @@ export function UserChatPage() {
       role: 'assistant',
       content: '',
       citations: [
-        { title: 'OneTab Security Handbook (SAML SSO)', url: 'https://docs.onetab.ai/sso' },
+        { title: 'Onetab Security Handbook (SAML SSO)', url: 'https://docs.onetab.ai/sso' },
       ],
       timestamp: 'Just now',
     };

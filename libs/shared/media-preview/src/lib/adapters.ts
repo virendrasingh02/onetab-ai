@@ -83,6 +83,6 @@ export function generatedFileToMediaItem(
     isDiff: file.codeSnippet?.isDiff,
     // Attributed to the assistant; `GeneratedFile` carries no creation time,
     // so the banner shows just the name rather than a fabricated "now".
-    senderName: 'OneTab AI',
+    senderName: 'Onetab AI',
   };
 }

@@ -157,7 +157,7 @@ async function bootstrap() {
     });
   }
 
-  Logger.log(`OneTab AI API listening on http://${host}:${actualPort}/api/v1 (PID: ${process.pid})`);
+  Logger.log(`Onetab AI API listening on http://${host}:${actualPort}/api/v1 (PID: ${process.pid})`);
   if (!isProduction) {
     Logger.log(`CORS origins: ${origins.join(', ') || '(none configured)'}`);
   }

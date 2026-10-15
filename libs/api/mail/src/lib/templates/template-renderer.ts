@@ -52,9 +52,9 @@ export class TemplateRenderer {
 
     // Inject branding shortcuts into template data if not already provided
     const mergedData: Record<string, unknown> = {
-      appName: branding?.workspaceName || 'OneTab AI',
+      appName: branding?.workspaceName || 'Onetab AI',
       workspace: {
-        name: branding?.workspaceName || 'OneTab AI',
+        name: branding?.workspaceName || 'Onetab AI',
         logo: branding?.workspaceLogo,
         ...(data.workspace && typeof data.workspace === 'object' ? data.workspace : {}),
       },
@@ -140,7 +140,7 @@ export class TemplateRenderer {
     return this.render(template, {
       data,
       branding: {
-        workspaceName: branding?.workspaceName || (data.workspace as any)?.name || 'OneTab AI',
+        workspaceName: branding?.workspaceName || (data.workspace as any)?.name || 'Onetab AI',
         ...branding,
       },
     });

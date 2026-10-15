@@ -846,7 +846,7 @@ export function CreateWorkspacePage() {
 
       {/* Footer */}
       <footer className="py-4 px-6 text-xs border-t border-border/60 bg-background text-center text-subtle">
-        OneTab AI Workspace Onboarding &bull; Crafting collaboration spaces in
+        Onetab AI Workspace Onboarding &bull; Crafting collaboration spaces in
         seconds
       </footer>
     </div>

@@ -94,7 +94,7 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
             </p>
 
             <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
-              <span>By <strong className="text-foreground">{agent.publisher?.name || agent.publisherName || 'OneTab AI'}</strong></span>
+              <span>By <strong className="text-foreground">{agent.publisher?.name || agent.publisherName || 'Onetab AI'}</strong></span>
               <span>•</span>
               <span>{agent.category}</span>
               <span>•</span>
@@ -265,7 +265,7 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
                 <div className="pt-3 border-t border-border/60">
                   <h4 className="text-xs font-semibold text-foreground">LLM Provider</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {agent.security?.externalServices?.join(', ') || 'Internal OneTab Orchestrator'}
+                    {agent.security?.externalServices?.join(', ') || 'Internal Onetab Orchestrator'}
                   </p>
                 </div>
 
@@ -296,7 +296,7 @@ export const AgentDetailPage: React.FC<AgentDetailPageProps> = ({
               <div className="pt-2 flex items-center justify-between">
                 <span className="text-muted-foreground">Publisher</span>
                 <span className="font-semibold text-foreground">
-                  {agent.publisherName || 'OneTab AI'}
+                  {agent.publisherName || 'Onetab AI'}
                 </span>
               </div>
 

@@ -256,7 +256,7 @@ export class OneTabMatrixClient {
         identifier: { type: 'm.id.user', user: credentials.user },
         password: credentials.password,
         initial_device_display_name:
-          credentials.deviceDisplayName ?? 'OneTab AI Web',
+          credentials.deviceDisplayName ?? 'Onetab AI Web',
       });
 
       const session: MatrixSession = {
@@ -324,7 +324,7 @@ export class OneTabMatrixClient {
       const temporary = createClient({ baseUrl: this.options.homeserverUrl });
       const response = await temporary.login('m.login.token', {
         token,
-        initial_device_display_name: 'OneTab AI Web',
+        initial_device_display_name: 'Onetab AI Web',
       });
 
       const session: MatrixSession = {
@@ -2260,7 +2260,7 @@ export class OneTabMatrixClient {
         kind: 'http',
         app_id: registration.appId,
         pushkey: registration.pushKey,
-        app_display_name: 'OneTab AI',
+        app_display_name: 'Onetab AI',
         device_display_name: registration.deviceDisplayName,
         lang: 'en',
         // `format: event_id_only` keeps message content off the push service.
@@ -2277,7 +2277,7 @@ export class OneTabMatrixClient {
         kind: null,
         app_id: appId,
         pushkey: pushKey,
-        app_display_name: 'OneTab AI',
+        app_display_name: 'Onetab AI',
         device_display_name: '',
         lang: 'en',
         data: {},

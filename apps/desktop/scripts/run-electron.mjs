@@ -46,7 +46,7 @@ if (typeof electronBinary !== 'string') {
 /**
  * Dev-only: browsers label the "Open <app>?" protocol prompt with the exe's
  * FileDescription, which is "Electron" for the stock binary. Packaged builds
- * get "OneTab AI" from electron-builder; for dev we rewrite the stock binary's
+ * get "Onetab AI" from electron-builder; for dev we rewrite the stock binary's
  * version strings once, using the rcedit that electron-builder already caches.
  * Best-effort: any failure just leaves the old label.
  */
@@ -64,13 +64,13 @@ function brandDevBinary(binary) {
       rcedit,
       [
         binary,
-        '--set-version-string', 'FileDescription', 'OneTab AI',
-        '--set-version-string', 'ProductName', 'OneTab AI',
-        '--set-version-string', 'InternalName', 'OneTab AI',
+        '--set-version-string', 'FileDescription', 'Onetab AI',
+        '--set-version-string', 'ProductName', 'Onetab AI',
+        '--set-version-string', 'InternalName', 'Onetab AI',
       ],
       { stdio: 'ignore' },
     );
-    if (result.status === 0) writeFileSync(marker, 'OneTab AI');
+    if (result.status === 0) writeFileSync(marker, 'Onetab AI');
   } catch {
     // cosmetic only
   }

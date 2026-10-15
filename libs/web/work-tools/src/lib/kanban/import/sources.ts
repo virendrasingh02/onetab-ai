@@ -70,7 +70,7 @@ export const IMPORT_SOURCES: readonly SourceDefinition[] = [
   },
   {
     id: 'onetab',
-    name: 'OneTab board',
+    name: 'Onetab board',
     accepts: '.json',
     help: 'A board exported from here, for backup or moving between workspaces.',
   },
@@ -658,7 +658,7 @@ function parseGenericCsv(
   };
 }
 
-/* ------------------------------------------------------- OneTab re-import --- */
+/* ------------------------------------------------------- Onetab re-import --- */
 
 function parseOnetab(raw: unknown, options: ParseOptions): NormalizedBoard {
   const payload = raw as { board?: unknown; lists?: unknown; title?: string };
@@ -846,7 +846,7 @@ export function parseImport(
       raw = JSON.parse(text);
     } catch {
       throw new ImportError(
-        `A ${source === 'trello' ? 'Trello' : source === 'github' ? 'GitHub' : 'OneTab'} export must be JSON, and this file is not valid JSON.`,
+        `A ${source === 'trello' ? 'Trello' : source === 'github' ? 'GitHub' : 'Onetab'} export must be JSON, and this file is not valid JSON.`,
       );
     }
 

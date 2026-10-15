@@ -53,7 +53,7 @@ export function StudioSignIn({ onSignedIn }: StudioSignInProps) {
         <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-muted shadow-xs">
           <Sparkles className="size-4" />
         </div>
-        <span className="text-sm font-semibold tracking-tight">OneTab AI</span>
+        <span className="text-sm font-semibold tracking-tight">Onetab AI</span>
         <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Agent Studio
         </span>
@@ -67,7 +67,7 @@ export function StudioSignIn({ onSignedIn }: StudioSignInProps) {
           <p className="mt-1.5 text-sm text-muted-foreground">
             {challengeToken
               ? 'Enter the code from your authenticator app.'
-              : 'Use your OneTab AI account.'}
+              : 'Use your Onetab AI account.'}
           </p>
         </div>
 
@@ -108,7 +108,7 @@ export function StudioSignIn({ onSignedIn }: StudioSignInProps) {
         </Button>
         <p className="text-center text-xs text-muted-foreground">
           <a className="underline underline-offset-2" href={buildLoginUrl()}>
-            Sign in with the main OneTab AI app instead
+            Sign in with the main Onetab AI app instead
           </a>
         </p>
       </form>

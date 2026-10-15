@@ -38,7 +38,7 @@ function sendCommand(command: DesktopCommand): void {
 
 export function buildTrayMenu(): Menu {
   return Menu.buildFromTemplate([
-    { label: 'Open OneTab AI', click: () => showMainWindow() },
+    { label: 'Open Onetab AI', click: () => showMainWindow() },
     { type: 'separator' },
     { label: 'Search…', click: () => sendCommand('open-search') },
     { label: 'Ask AI Assistant', click: () => sendCommand('open-ai-assistant') },
@@ -67,7 +67,7 @@ export function buildTrayMenu(): Menu {
     },
     { type: 'separator' },
     {
-      label: 'Quit OneTab AI',
+      label: 'Quit Onetab AI',
       click: () => {
         markQuitting();
         app.quit();
@@ -85,7 +85,7 @@ export function createTray(iconPath: string): void {
   if (tray) return;
 
   tray = new Tray(loadTrayIcon(iconPath));
-  tray.setToolTip('OneTab AI');
+  tray.setToolTip('Onetab AI');
   tray.setContextMenu(buildTrayMenu());
   // Linux tray implementations mostly ignore clicks and only open the menu,
   // so this is a Windows/macOS affordance.
@@ -97,7 +97,7 @@ export function createTray(iconPath: string): void {
 }
 
 export function setTrayBadge(count: number): void {
-  tray?.setToolTip(count > 0 ? `OneTab AI — ${count} unread` : 'OneTab AI');
+  tray?.setToolTip(count > 0 ? `Onetab AI — ${count} unread` : 'Onetab AI');
 }
 
 let overlayIcon: Electron.NativeImage | null = null;

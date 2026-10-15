@@ -15,7 +15,7 @@ describe('EmailService - Transactional Pipeline', () => {
       MAIL_TRANSPORT: 'log',
       MAIL_FROM: 'noreply@onetab.ai',
       MAIL_REPLY_TO: 'support@onetab.ai',
-      APP_NAME: 'OneTab AI',
+      APP_NAME: 'Onetab AI',
       JWT_ACCESS_SECRET: 'test-secret',
     });
 
@@ -43,7 +43,7 @@ describe('EmailService - Transactional Pipeline', () => {
       data: {
         user: { firstName: 'Alice', email: 'newuser@example.com' },
         dashboardUrl: 'https://app.onetab.ai/dashboard',
-        appName: 'OneTab AI',
+        appName: 'Onetab AI',
       },
     });
 
@@ -177,7 +177,7 @@ describe('EmailService - Transactional Pipeline', () => {
     const sendResult = await emailService.sendOtp({
       identifier: 'auth-user@example.com',
       purpose: 'LOGIN',
-      appName: 'OneTab AI',
+      appName: 'Onetab AI',
     });
 
     expect(sendResult.recordId).toBeDefined();

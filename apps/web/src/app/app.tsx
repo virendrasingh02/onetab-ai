@@ -167,7 +167,7 @@ const AIChatView = lazy(() =>
 /*
  * The AI Agent Studio is its own app (`apps/ai-agent-studio`). Anything under
  * `/w/:slug/ai` hands off to it; only the agent/coworker profile editor stays
- * here, because the sidebar opens it.
+ * here for coworkers, because the sidebar opens it; agents go to the Studio.
  */
 const AIEntityEditorRoute = lazy(() =>
   import('@org/web-coworkers').then((m) => ({ default: m.AIEntityEditorRoute })),
@@ -393,7 +393,7 @@ const workspaceChildRoutes = (
             <Route path="ai-chat" element={<AIChatView />} />
 
             {/* --- AI Agent Studio: a separate app; published agents appear in the sidebar --- */}
-            <Route path="ai/agents/:agentId" element={<AIEntityEditorRoute />} />
+            <Route path="ai/agents/:agentId" element={<AIEntityEditorRoute agentFallback={<StudioRedirect />} />} />
             <Route path="ai/*" element={<StudioRedirect />} />
 
             {/* Conversations with an agent or coworker stay where chat lives. */}

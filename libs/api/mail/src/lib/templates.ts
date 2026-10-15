@@ -26,7 +26,7 @@ function layout(bodyHtml: string): string {
     '<html><body style="margin:0;background:#f5f5f4;padding:24px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;color:#1c1917">',
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">',
     '<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;border-radius:12px;overflow:hidden">',
-    '<tr><td style="padding:28px 32px 8px;font-size:15px;font-weight:600">OneTab AI</td></tr>',
+    '<tr><td style="padding:28px 32px 8px;font-size:15px;font-weight:600">Onetab AI</td></tr>',
     `<tr><td style="padding:8px 32px 32px;font-size:14px;line-height:1.6">${bodyHtml}</td></tr>`,
     '</table></td></tr></table></body></html>',
   ].join('');
@@ -44,9 +44,9 @@ export function passwordResetEmail(vars: {
   resetUrl: string;
   expiresInMinutes: number;
 }): RenderedEmail {
-  const subject = 'Reset your OneTab AI password';
+  const subject = 'Reset your Onetab AI password';
   const text = [
-    'We received a request to reset your OneTab AI password.',
+    'We received a request to reset your Onetab AI password.',
     '',
     `Reset it here (link expires in ${vars.expiresInMinutes} minutes):`,
     vars.resetUrl,
@@ -55,7 +55,7 @@ export function passwordResetEmail(vars: {
   ].join('\n');
   const html = layout(
     [
-      '<p>We received a request to reset your OneTab AI password.</p>',
+      '<p>We received a request to reset your Onetab AI password.</p>',
       button(vars.resetUrl, 'Reset password'),
       `<p style="color:#78716c">This link expires in ${vars.expiresInMinutes} minutes. If you did not request this, you can ignore this email.</p>`,
     ].join(''),
@@ -67,11 +67,11 @@ export function magicLinkEmail(vars: {
   verifyUrl: string;
   expiresInMinutes: number;
 }): RenderedEmail {
-  const subject = 'Sign in to OneTab AI';
+  const subject = 'Sign in to Onetab AI';
   const text = [
     'Sign in to your account',
     '',
-    'Use the link below to securely sign in to OneTab AI:',
+    'Use the link below to securely sign in to Onetab AI:',
     vars.verifyUrl,
     '',
     `This link expires in ${vars.expiresInMinutes} minutes and can only be used once.`,
@@ -81,7 +81,7 @@ export function magicLinkEmail(vars: {
   // Same shape as the password-reset email: one line, one button, muted fine print.
   const html = layout(
     [
-      '<p>Use the button below to securely sign in to OneTab AI — no password needed.</p>',
+      '<p>Use the button below to securely sign in to Onetab AI — no password needed.</p>',
       button(vars.verifyUrl, 'Sign in securely'),
       `<p style="color:#78716c">This link expires in ${vars.expiresInMinutes} minutes and can only be used once. If you did not request this, you can ignore this email.</p>`,
     ].join(''),
@@ -95,7 +95,7 @@ export function workspaceInviteEmail(vars: {
   role: string;
   acceptUrl: string;
 }): RenderedEmail {
-  const subject = `${vars.inviterName} invited you to ${vars.workspaceName} on OneTab AI`;
+  const subject = `${vars.inviterName} invited you to ${vars.workspaceName} on Onetab AI`;
   const text = [
     `${vars.inviterName} invited you to join the "${vars.workspaceName}" workspace as ${vars.role}.`,
     '',

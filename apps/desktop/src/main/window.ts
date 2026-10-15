@@ -191,7 +191,7 @@ export function createMainWindow({
     height: saved.height,
     minWidth: 940,
     minHeight: 600,
-    title: 'OneTab AI',
+    title: 'Onetab AI',
     show: false,
     backgroundColor: '#fbfbfc',
     autoHideMenuBar: process.platform !== 'darwin',

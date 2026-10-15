@@ -305,7 +305,7 @@ const integrationsList: IntegrationCard[] = [
   },
   {
     id: 'onetab_internal',
-    name: 'OneTab Native Bridge',
+    name: 'Onetab Native Bridge',
     category: 'Internal Apps',
     description:
       'Internal workspace events, activity streams, and channel notifications.',

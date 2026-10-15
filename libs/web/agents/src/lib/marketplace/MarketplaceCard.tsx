@@ -57,7 +57,7 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
                 <VerifiedBadge badge={listing.badge} />
               </div>
               <p className="mt-0.5 text-xs truncate text-muted-foreground">
-                {listing.publisher?.name || listing.publisherName || 'OneTab AI'} · {listing.category}
+                {listing.publisher?.name || listing.publisherName || 'Onetab AI'} · {listing.category}
               </p>
             </div>
           </div>

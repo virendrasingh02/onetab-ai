@@ -302,7 +302,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
     var theme = script.getAttribute('data-theme') || 'system';
 
     if (!agentId || !publicKey) {
-      console.warn('[OneTab Agent Widget] Missing data-agent-id or data-public-key.');
+      console.warn('[Onetab Agent Widget] Missing data-agent-id or data-public-key.');
       return;
     }
 
@@ -419,7 +419,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
         }
       })
       .catch(function (err) {
-        console.error('[OneTab Agent Widget] Session initialization failed:', err);
+        console.error('[Onetab Agent Widget] Session initialization failed:', err);
       });
 
     function loadMessages() {
@@ -707,7 +707,7 @@ function generateEmbedHtmlPage(agentId: string, publicKey: string, theme = 'dark
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OneTab AI Agent</title>
+  <title>Onetab AI Agent</title>
   <style>
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: ${theme === 'light' ? '#ffffff' : '#0f172a'}; }
     .embed-container { width: 100%; height: 100%; display: flex; flex-direction: column; }

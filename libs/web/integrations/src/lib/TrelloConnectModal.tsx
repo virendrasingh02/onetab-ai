@@ -36,7 +36,7 @@ export function TrelloConnectModal({ workspaceId, isOpen, onClose }: TrelloConne
   const { connect } = useIntegrationMutations(workspaceId);
 
   const tokenUrl = apiKey.trim()
-    ? `https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&name=OneTab%20AI&key=${encodeURIComponent(apiKey.trim())}`
+    ? `https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&name=Onetab%20AI&key=${encodeURIComponent(apiKey.trim())}`
     : undefined;
 
   const handleConnect = async () => {

@@ -74,7 +74,7 @@ export const SECURITY_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Suspicious Activity Detected',
     category: 'SECURITY',
     description: 'Emergency security notice triggered by anomalies.',
-    subject: 'URGENT: Suspicious activity on your {{appName || "OneTab AI"}} account',
+    subject: 'URGENT: Suspicious activity on your {{appName || "Onetab AI"}} account',
     previewText: 'Potential security incident detected on your account.',
     htmlBody: `
       ${EmailHeading('Suspicious Activity Alert 🚨')}

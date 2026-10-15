@@ -874,7 +874,7 @@ function EntityExtractorContent({
     if (Array.isArray(data?.entities)) return data.entities;
     if (Array.isArray(config.entities)) return config.entities;
     return [
-      { type: 'Organization', value: 'OneTab AI', count: 18 },
+      { type: 'Organization', value: 'Onetab AI', count: 18 },
       { type: 'Location', value: 'San Francisco, CA', count: 4 },
       { type: 'Financial', value: '$240,000 USD', count: 2 },
       { type: 'Date', value: 'October 2026', count: 9 },

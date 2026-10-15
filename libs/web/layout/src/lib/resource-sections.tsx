@@ -11,7 +11,11 @@ import {
   type PromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useCoworkerMutations, useCoworkers, CoworkerAvatar } from '@org/web-coworkers';
+import {
+  useCoworkerMutations,
+  useCoworkers,
+  getEntityInitial,
+} from '@org/web-coworkers';
 import { useAgentMutations, useAgents } from '@org/web-agents';
 import { useWorkflowMutations, useWorkflows } from '@org/web-automations';
 import {
@@ -22,6 +26,7 @@ import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bot,
   Link2,
+  Loader2,
   MessageSquare,
   Pause,
   Pencil,
@@ -150,9 +155,9 @@ function titleCaseProvider(provider: string): string {
 
 const TILE_SIZE = {
   /** Sidebar rows. */
-  md: { box: 'size-6 rounded-md text-[10px]', glyph: 'size-3.5' },
+  md: { box: 'size-6 rounded-full text-[10px]', glyph: 'size-3.5' },
   /** Compact lists (the Inactive dropdown). */
-  sm: { box: 'size-4 rounded-[5px] text-[8px]', glyph: 'size-2.5' },
+  sm: { box: 'size-4 rounded-full text-[8px]', glyph: 'size-2.5' },
 } as const;
 
 const TILE_TONE = {
@@ -160,13 +165,22 @@ const TILE_TONE = {
   neutral: 'border-border/60 bg-surface-raised text-muted-foreground',
 } as const;
 
-function tileInitials(label: string): string {
-  const parts = label.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return (label.trim().slice(0, 2) || 'AI').toUpperCase();
-}
+/** Coworker `icon:*` presets → the named icons `IconRenderer` understands. */
+const COWORKER_PRESET_ICON: Record<string, string> = {
+  'icon:bot': 'Bot',
+  'icon:brain': 'Brain',
+  'icon:code': 'Code2',
+  'icon:spark': 'Sparkles',
+  'icon:shield': 'Shield',
+  'icon:search': 'Search',
+  'icon:chat': 'MessageSquare',
+  'icon:rocket': 'Rocket',
+  'icon:globe': 'Globe',
+  'icon:layers': 'Layers',
+  'icon:zap': 'Zap',
+};
 
-const isImageSource = (value?: string | null): value is string =>
+const isImageSource =(value?: string | null): value is string =>
   !!value && /^(https?:\/\/|data:image)/.test(value);
 
 /**
@@ -185,8 +199,10 @@ export function NavEntityTile({
   tone = 'neutral',
   size = 'md',
   fallbackEmoji,
+  working = false,
   className,
 }: {
+  working?: boolean;
   label: string;
   image?: string | null;
   icon?: string;
@@ -201,14 +217,14 @@ export function NavEntityTile({
   const src = !imageFailed ? (isImageSource(image) ? image : isImageSource(icon) ? icon : null) : null;
   const namedIcon = icon && !isImageSource(icon) ? icon : undefined;
 
-  return (
+  const tile = (
     <span
       className={cn(
         'relative flex shrink-0 items-center justify-center overflow-hidden border font-semibold leading-none shadow-xs',
         box,
         // A logo on a transparent PNG still needs a quiet, light backdrop.
         src && fit === 'contain' ? TILE_TONE.neutral : TILE_TONE[tone],
-        className,
+        !working && className,
       )}
     >
       {src ? (
@@ -230,8 +246,22 @@ export function NavEntityTile({
           className={namedIcon ? undefined : 'text-xs leading-none'}
         />
       ) : (
-        <span aria-hidden>{tileInitials(label)}</span>
+        <span aria-hidden>{getEntityInitial(label)}</span>
       )}
+    </span>
+  );
+
+  if (!working) return tile;
+  return (
+    <span className={cn('relative inline-flex shrink-0', className)}>
+      {tile}
+      <span
+        role="status"
+        aria-label="Working"
+        className="absolute -bottom-0.5 -right-0.5 z-10 flex size-3 items-center justify-center rounded-full bg-background shadow-xs"
+      >
+        <Loader2 className="size-full animate-spin p-px text-primary" />
+      </span>
     </span>
   );
 }
@@ -425,14 +455,13 @@ export function CoworkerNavRow({
       entity={coworker}
       depth={depth}
     >
-      <span className="relative flex size-6 shrink-0 items-center justify-center">
-        <CoworkerAvatar
-          name={coworker.name}
-          avatarUrl={coworker.avatarUrl}
-          status={coworker.status}
-          size="xs"
-        />
-      </span>
+      <NavEntityTile
+        label={coworker.name}
+        image={coworker.avatarUrl}
+        icon={COWORKER_PRESET_ICON[coworker.avatarUrl ?? '']}
+        tone="primary"
+        working={coworker.status === 'WORKING' || coworker.status === 'RUNNING_TASK'}
+      />
       <span className="flex-1 truncate">{coworker.name}</span>
     </ResourceRowShell>
   );
@@ -505,8 +534,7 @@ export function AgentNavRow({
     >
       <NavEntityTile
         label={agent.name}
-        icon={agent.icon ?? 'Bot'}
-        fallbackEmoji="🤖"
+        icon={agent.icon}
         tone="primary"
       />
       <span className="flex-1 truncate">{agent.name}</span>

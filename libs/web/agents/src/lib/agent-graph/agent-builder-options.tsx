@@ -12,7 +12,19 @@ import { mcpToolFunctionName, READ_ONLY_AGENT_TOOLS } from '@org/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import type { OptionSource } from './agent-graph-model.js';
+
+/** Where a builder picker's choices come from — always live data, never a hard-coded list. */
+export type OptionSource =
+  | 'tools'
+  | 'knowledgeBases'
+  | 'channels'
+  | 'projects'
+  | 'providers'
+  | 'models'
+  | 'agents'
+  | 'coworkers'
+  /** MCP server tools as `<connectionId>::<toolName>`, for workflow MCP steps. */
+  | 'mcpServerTools';
 
 export interface BuilderOption {
   value: string;

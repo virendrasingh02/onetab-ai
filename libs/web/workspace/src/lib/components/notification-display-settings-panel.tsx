@@ -109,7 +109,7 @@ export function NotificationDisplaySettingsPanel({
   const handleTestNotification = async () => {
     setTestSending(true);
     await notificationService.notify({
-      title: 'OneTab AI Notification',
+      title: 'Onetab AI Notification',
       body: 'Real-time alert preferences are working smoothly!',
       type: 'success',
     });
@@ -268,7 +268,7 @@ export function NotificationDisplaySettingsPanel({
                 </p>
                 {!isTaskbarFlashSupported && (
                   <p className="mt-1 text-[10.5px] text-warning-text italic">
-                    Note: Taskbar flashing requires the OneTab Windows desktop
+                    Note: Taskbar flashing requires the Onetab Windows desktop
                     app.
                   </p>
                 )}

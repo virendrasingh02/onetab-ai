@@ -164,7 +164,7 @@ function nxBin() {
 
 function printPlan(names, alreadyRunning) {
   const width = Math.max(...names.map((name) => name.length));
-  console.log('\nOneTab AI dev servers\n');
+  console.log('\nOnetab AI dev servers\n');
   for (const name of names) {
     const { url, port } = APPS[name];
     const note = alreadyRunning.has(name)

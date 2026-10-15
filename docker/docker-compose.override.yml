@@ -1,6 +1,6 @@
 version: '3.8'
 
-# Development overrides for OneTab AI local infrastructure
+# Development overrides for Onetab AI local infrastructure
 services:
   postgres:
     environment:

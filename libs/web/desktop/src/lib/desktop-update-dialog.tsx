@@ -89,7 +89,7 @@ export function DesktopUpdateDialog({
               <DialogDescription className="text-xs">
                 {isMandatory
                   ? 'Your current desktop version is no longer supported by the platform.'
-                  : 'A new version of OneTab AI is ready for your system.'}
+                  : 'A new version of Onetab AI is ready for your system.'}
               </DialogDescription>
             </div>
           </div>

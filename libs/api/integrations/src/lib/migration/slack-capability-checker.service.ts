@@ -212,7 +212,7 @@ export class SlackCapabilityChecker {
       canvases: {
         key: 'canvases',
         name: 'Slack Canvases',
-        description: 'Slack native canvases (converted to OneTab Documents where available in export).',
+        description: 'Slack native canvases (converted to Onetab Documents where available in export).',
         status: 'unsupported',
         reason:
           'Slack Canvas API is restricted by Slack. Canvases are supported via Slack JSON Export packages.',
@@ -221,7 +221,7 @@ export class SlackCapabilityChecker {
       lists: {
         key: 'lists',
         name: 'Slack Lists',
-        description: 'Slack Lists (converted into OneTab Tasks/Kanban where available).',
+        description: 'Slack Lists (converted into Onetab Tasks/Kanban where available).',
         status: 'unsupported',
         reason:
           'Slack Lists API is not publicly exposed by Slack. Migrate lists via CSV or Work Tools import.',

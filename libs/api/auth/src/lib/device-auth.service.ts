@@ -91,7 +91,7 @@ export class DeviceAuthService {
     const expiresAt = now + DEVICE_AUTH_TTL_MS;
 
     const deviceInfo = {
-      clientName: input.clientName || 'OneTab AI Desktop',
+      clientName: input.clientName || 'Onetab AI Desktop',
       platform: input.platform || 'Desktop PC',
       os: input.os || 'Windows / macOS / Linux',
       browser: input.browser || 'Desktop Client',

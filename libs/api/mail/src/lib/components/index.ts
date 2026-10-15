@@ -40,7 +40,7 @@ export function EmailLayout(
   bodyHtml: string,
   options: EmailLayoutOptions = {},
 ): string {
-  const appName = options.branding?.workspaceName || options.appName || 'OneTab AI';
+  const appName = options.branding?.workspaceName || options.appName || 'Onetab AI';
   const primaryColor = safeColor(options.branding?.primaryColor, '#0f172a');
   const preheader = options.preheader
     ? `
@@ -104,7 +104,7 @@ export function EmailHeader(options: EmailHeaderOptions | string): string {
       ? { appName: options }
       : options;
 
-  const appName = opts.appName || 'OneTab AI';
+  const appName = opts.appName || 'Onetab AI';
   const logoHtml = opts.logoUrl
     ? `<img src="${escapeHtml(opts.logoUrl)}" alt="${escapeHtml(appName)}" style="height: 32px; max-width: 180px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
     : `<span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.02em;">${escapeHtml(appName)}</span>`;
@@ -264,7 +264,7 @@ export interface EmailFooterOptions {
 }
 
 export function EmailFooter(options: EmailFooterOptions = {}): string {
-  const appName = options.appName || 'OneTab AI';
+  const appName = options.appName || 'Onetab AI';
   const customFooterHtml = options.customFooter
     ? `<div style="margin-bottom: 8px; color: #475569;">${escapeHtml(options.customFooter)}</div>`
     : '';

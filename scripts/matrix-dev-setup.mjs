@@ -139,7 +139,7 @@ async function verifyAdmin() {
 }
 
 async function main() {
-  console.log('\n  OneTab AI — local Matrix setup\n');
+  console.log('\n  Onetab AI — local Matrix setup\n');
 
   await waitForSynapse();
   log(`homeserver is up at ${HOMESERVER}`);

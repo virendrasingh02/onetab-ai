@@ -584,7 +584,7 @@ export function EncryptionSecurityPanel() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-foreground">
-                        {device.displayName || 'OneTab Web Client'}
+                        {device.displayName || 'Onetab Web Client'}
                       </span>
                       {device.isCurrent ? (
                         <Badge variant="primary" className="text-[9px] py-0 h-4">

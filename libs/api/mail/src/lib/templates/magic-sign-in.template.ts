@@ -52,5 +52,5 @@ export function magicSignInEmail(vars: MagicSignInEmailVars): RenderedEmail {
 
 /** Legacy template helper for backward compatibility */
 export function magicLinkEmail(vars: MagicSignInEmailVars): RenderedEmail {
-  return magicSignInEmail({ appName: vars.appName || 'OneTab AI', ...vars });
+  return magicSignInEmail({ appName: vars.appName || 'Onetab AI', ...vars });
 }

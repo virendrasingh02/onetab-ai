@@ -153,7 +153,7 @@ describe('AuthService - Magic Link', () => {
       expect(mockMail.send).toHaveBeenCalledWith(
         expect.objectContaining({
           to: mockUser.email,
-          subject: 'Sign in to OneTab AI',
+          subject: 'Sign in to Onetab AI',
         }),
       );
     });

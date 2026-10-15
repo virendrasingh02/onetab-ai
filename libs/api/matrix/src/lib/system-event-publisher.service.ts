@@ -14,7 +14,7 @@ import { MatrixBotMessagingService } from './matrix-bot-messaging.service.js';
  * Unlike an agent/app bot (keyed by row id), there is exactly one of these —
  * it never represents a person, so it never needs its own identity per row. */
 const SYSTEM_BOT_USER_ID = 'system-events';
-const SYSTEM_BOT_DISPLAY_NAME = 'OneTab AI';
+const SYSTEM_BOT_DISPLAY_NAME = 'Onetab AI';
 
 /** How long a given idempotency key suppresses a repeat post for (brief §30).
  * Long enough to absorb a retried HTTP request or a duplicate event emission

@@ -71,7 +71,7 @@ interface MeetingApp {
 const INBUILT_HUDDLE: MeetingApp = {
   id: 'huddle',
   provider: null,
-  name: 'OneTab Inbuilt Huddle',
+  name: 'Onetab Inbuilt Huddle',
   blurb: 'Natively built-in high performance Matrix video and voice huddles.',
   accent: 'teal',
 };
@@ -91,7 +91,7 @@ const MEETING_APP_CATALOG: MeetingApp[] = [
     aliases: ['ZOOM_MEETINGS'],
     name: 'Zoom Meetings',
     blurb:
-      'Connect Zoom to sync calls, calendar invitations and meeting links into OneTab.',
+      'Connect Zoom to sync calls, calendar invitations and meeting links into Onetab.',
     accent: 'blue',
   },
   {
@@ -100,7 +100,7 @@ const MEETING_APP_CATALOG: MeetingApp[] = [
     aliases: ['GMEET'],
     name: 'Google Meet',
     blurb:
-      'Connect Google Meet to sync calls, calendar invitations and meeting links into OneTab.',
+      'Connect Google Meet to sync calls, calendar invitations and meeting links into Onetab.',
     accent: 'green',
   },
   {
@@ -109,7 +109,7 @@ const MEETING_APP_CATALOG: MeetingApp[] = [
     aliases: ['TEAMS', 'MS_TEAMS'],
     name: 'Microsoft Teams',
     blurb:
-      'Connect Teams to sync calls, calendar invitations and meeting links into OneTab.',
+      'Connect Teams to sync calls, calendar invitations and meeting links into Onetab.',
     accent: 'indigo',
   },
   {
@@ -136,7 +136,7 @@ const MEETING_APP_CATALOG: MeetingApp[] = [
     aliases: ['CISCO_WEBEX'],
     name: 'Cisco Webex',
     blurb:
-      'Connect Webex to sync calls, calendar invitations and meeting links into OneTab.',
+      'Connect Webex to sync calls, calendar invitations and meeting links into Onetab.',
     accent: 'violet',
   },
 ];

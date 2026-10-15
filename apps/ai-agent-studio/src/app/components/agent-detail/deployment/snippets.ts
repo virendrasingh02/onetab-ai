@@ -154,7 +154,7 @@ async function runAgent(prompt, context = {}) {
   return { pending: false, output: run.output };
 }`,
 
-    desktop: `// In the OneTab desktop app's renderer
+    desktop: `// In the Onetab desktop app's renderer
 const run = await window.onetabDesktop.agent.execute({
   agentId: '${agentId}',
   input: 'Check inventory for the M3 Pro 36 GB',

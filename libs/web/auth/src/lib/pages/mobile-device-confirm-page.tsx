@@ -91,7 +91,7 @@ export function MobileDeviceConfirmPage() {
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            Sign in with your OneTab AI account to link this desktop application session.
+            Sign in with your Onetab AI account to link this desktop application session.
           </p>
           <button
             type="button"
@@ -152,7 +152,7 @@ export function MobileDeviceConfirmPage() {
           <div>
             <h1 className="text-xl font-bold text-foreground">Desktop Signed In</h1>
             <p className="text-xs text-muted-foreground mt-1">
-              You&apos;re now signed in to OneTab AI Desktop.
+              You&apos;re now signed in to Onetab AI Desktop.
             </p>
           </div>
           <div className="rounded-lg border border-border bg-surface-raised/60 p-4 text-xs space-y-2 text-left">
@@ -255,7 +255,7 @@ export function MobileDeviceConfirmPage() {
           </div>
           <h1 className="text-xl font-bold text-foreground">Sign in to Desktop</h1>
           <p className="text-xs text-muted-foreground mt-1">
-            You&apos;re authorizing a sign-in session for OneTab AI Desktop.
+            You&apos;re authorizing a sign-in session for Onetab AI Desktop.
           </p>
         </div>
 

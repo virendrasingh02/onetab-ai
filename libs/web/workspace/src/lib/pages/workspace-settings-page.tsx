@@ -2162,7 +2162,7 @@ export function WorkspaceSettingsPage({
                       onClick={async () => {
                         setTestNotifSending(true);
                         await notify({
-                          title: 'OneTab AI Sample Digest',
+                          title: 'Onetab AI Sample Digest',
                           body: 'Sample email digest: 3 new mentions, 1 task completed.',
                         });
                         setTestNotifSending(false);
@@ -2242,7 +2242,7 @@ export function WorkspaceSettingsPage({
                   onClick={async () => {
                     setTestNotifSending(true);
                     await notify({
-                      title: 'OneTab AI Test Alert',
+                      title: 'Onetab AI Test Alert',
                       body: 'Desktop notifications are working seamlessly!',
                     });
                     setTestNotifSending(false);
@@ -2348,7 +2348,7 @@ export function WorkspaceSettingsPage({
             title={<>Apps & Downloads</>}
             description={
               <>
-                Download native OneTab AI applications for desktop and mobile
+                Download native Onetab AI applications for desktop and mobile
                 devices.
               </>
             }
@@ -3697,7 +3697,7 @@ export function WorkspaceSettingsPage({
                     <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
                       {securityOverviewQuery.data?.socialProviders?.google.isConnected
                         ? `Connected with ${securityOverviewQuery.data.socialProviders.google.email || 'Google account'}.`
-                        : 'Sign in to OneTab AI using your Google account.'}
+                        : 'Sign in to Onetab AI using your Google account.'}
                     </p>
                   </div>
                 </div>
@@ -3756,7 +3756,7 @@ export function WorkspaceSettingsPage({
                     <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
                       {securityOverviewQuery.data?.socialProviders?.apple.isConnected
                         ? `Connected with ${securityOverviewQuery.data.socialProviders.apple.email || 'Apple ID'}.`
-                        : 'Sign in to OneTab AI using Sign in with Apple.'}
+                        : 'Sign in to Onetab AI using Sign in with Apple.'}
                     </p>
                   </div>
                 </div>

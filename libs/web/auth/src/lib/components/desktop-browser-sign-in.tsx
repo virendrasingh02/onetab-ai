@@ -46,7 +46,7 @@ export function DesktopBrowserSignIn({ intent = 'sign-in', onUseMobile }: Deskto
   const waiting = signIn.state === 'opening' || signIn.state === 'waiting';
   const failed = signIn.state in FAILURE_TITLE;
 
-  let title = isSignUp ? 'Create your OneTab AI account' : 'Welcome to OneTab AI';
+  let title = isSignUp ? 'Create your Onetab AI account' : 'Welcome to Onetab AI';
   let subtitle = isSignUp
     ? 'Sign up securely in your browser, then come straight back here.'
     : 'Sign in securely using your browser.';
@@ -152,7 +152,7 @@ export function DesktopBrowserSignIn({ intent = 'sign-in', onUseMobile }: Deskto
           </>
         ) : (
           <>
-            New to OneTab AI?{' '}
+            New to Onetab AI?{' '}
             <button
               type="button"
               onClick={() => begin('sign-up')}

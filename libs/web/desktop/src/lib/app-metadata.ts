@@ -3,17 +3,17 @@ import { getDesktopApi, type DesktopAppMetadata } from './desktop-api.js';
 
 export const DEFAULT_APP_METADATA: DesktopAppMetadata = {
   name: 'onetab-ai',
-  productName: 'OneTab AI',
+  productName: 'Onetab AI',
   version: '0.0.1',
   build: '2026.08.1',
-  publisher: 'OneTab AI Inc.',
-  copyright: 'Copyright © OneTab AI Inc. All rights reserved.',
+  publisher: 'Onetab AI Inc.',
+  copyright: 'Copyright © Onetab AI Inc. All rights reserved.',
   website: 'https://onetab.ai',
   supportUrl: 'https://onetab.ai/support',
   privacyUrl: 'https://onetab.ai/privacy',
   termsUrl: 'https://onetab.ai/terms',
   license: 'MIT / Proprietary Enterprise',
-  description: 'OneTab AI — Unified Collaborative Workspace & AI Agents Platform',
+  description: 'Onetab AI — Unified Collaborative Workspace & AI Agents Platform',
 };
 
 let cachedMetadata: DesktopAppMetadata = DEFAULT_APP_METADATA;

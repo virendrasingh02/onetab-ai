@@ -231,7 +231,7 @@ export function LoginPage() {
 
     try {
       const res = await authApi.createDeviceAuth({
-        clientName: 'OneTab AI Desktop',
+        clientName: 'Onetab AI Desktop',
         platform:
           typeof navigator !== 'undefined'
             ? navigator.platform || 'Desktop PC'
@@ -516,7 +516,7 @@ export function LoginPage() {
         >
           <Laptop aria-hidden className="size-4 mt-px shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="font-semibold">Signing in to OneTab AI Desktop</p>
+            <p className="font-semibold">Signing in to Onetab AI Desktop</p>
             <p className="mt-0.5">After you sign in, you’ll be sent back to the app.</p>
           </div>
           <button

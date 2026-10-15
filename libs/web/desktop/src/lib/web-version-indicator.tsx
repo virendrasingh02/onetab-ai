@@ -38,7 +38,7 @@ export function WebVersionIndicator() {
   if (!isNewerAvailable) return null;
 
   return (
-    <Hint label={`OneTab AI v${serverVersion} is now live. Click to refresh.`}>
+    <Hint label={`Onetab AI v${serverVersion} is now live. Click to refresh.`}>
       <Button
         variant="outline"
         size="sm"

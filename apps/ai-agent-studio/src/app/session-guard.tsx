@@ -140,7 +140,7 @@ export function SessionGuard({ children }: { children: ReactNode }) {
       if (!current()) return;
       setPhase({
         kind: 'unreachable',
-        message: err instanceof Error && err.message ? err.message : 'The OneTab API did not respond.',
+        message: err instanceof Error && err.message ? err.message : 'The Onetab API did not respond.',
       });
     }
   }, []);

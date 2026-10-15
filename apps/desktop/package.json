@@ -1,7 +1,7 @@
 {
   "name": "@org/desktop",
   "version": "0.0.1",
-  "description": "OneTab AI desktop shell — hosts the web app in Electron and adds the native capabilities a browser tab cannot provide.",
+  "description": "Onetab AI desktop shell — hosts the web app in Electron and adds the native capabilities a browser tab cannot provide.",
   "private": true,
   "main": "./dist/main.js",
   "nx": {

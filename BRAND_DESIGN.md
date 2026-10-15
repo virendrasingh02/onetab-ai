@@ -1,4 +1,4 @@
-# OneTab AI — Brand Design System
+# Onetab AI — Brand Design System
 
 Derived from the onetab.ai logo. Structure borrows from Slack's model (a dark, confident
 **navigation rail** + a clean white **work surface** + one bright **action colour**), but the

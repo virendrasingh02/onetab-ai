@@ -14,16 +14,16 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Welcome & Account Created',
     category: 'AUTHENTICATION',
     description: 'Sent when a new user registers an account on the platform.',
-    subject: 'Welcome to {{appName || "OneTab AI"}}, {{user.firstName || "there"}}!',
+    subject: 'Welcome to {{appName || "Onetab AI"}}, {{user.firstName || "there"}}!',
     previewText: 'Your account is ready. Get started collaborating with your team.',
     htmlBody: `
-      ${EmailHeading('Welcome to {{appName || "OneTab AI"}}!')}
+      ${EmailHeading('Welcome to {{appName || "Onetab AI"}}!')}
       ${EmailText('Hi {{user.firstName || "there"}},')}
       ${EmailText('Your account has been created successfully. You can now collaborate in workspaces, chat with teammates, build AI agents, and run projects seamlessly.')}
       ${EmailButton('Get Started', '{{appUrl || "http://localhost:4200"}}')}
       ${EmailText('If you have any questions or need help setting up your team, reach out to support at {{supportEmail || "support@onetab.ai"}}.', 'muted')}
     `,
-    textBody: `Welcome to {{appName || "OneTab AI"}}!\n\nHi {{user.firstName || "there"}},\n\nYour account has been created successfully. Get started at: {{appUrl || "http://localhost:4200"}}\n\nNeed help? Contact {{supportEmail || "support@onetab.ai"}}.`,
+    textBody: `Welcome to {{appName || "Onetab AI"}}!\n\nHi {{user.firstName || "there"}},\n\nYour account has been created successfully. Get started at: {{appUrl || "http://localhost:4200"}}\n\nNeed help? Contact {{supportEmail || "support@onetab.ai"}}.`,
     variablesSchema: {
       variables: [
         { name: 'user.firstName', type: 'string', description: 'User first name', sampleValue: 'Alex' },
@@ -45,7 +45,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Verify Email Address',
     category: 'AUTHENTICATION',
     description: 'Sent to confirm email ownership during signup or email update.',
-    subject: 'Confirm your email address for {{appName || "OneTab AI"}}',
+    subject: 'Confirm your email address for {{appName || "Onetab AI"}}',
     previewText: 'Confirm your email address to complete your account setup.',
     htmlBody: `
       ${EmailHeading('Confirm your email address')}
@@ -54,7 +54,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
       ${EmailButton('Verify Email Address', '{{verifyUrl}}')}
       ${EmailText('Or paste this link into your browser:', 'muted')}
       ${EmailText('{{verifyUrl}}', 'muted')}
-      ${EmailSecurityNotice('If you did not sign up for {{appName || "OneTab AI"}}, you can safely ignore this email.')}
+      ${EmailSecurityNotice('If you did not sign up for {{appName || "Onetab AI"}}, you can safely ignore this email.')}
     `,
     textBody: `Confirm your email address\n\nHi {{user.firstName || "there"}},\n\nPlease verify your email by opening this link:\n{{verifyUrl}}\n\nThis link expires in {{expiresInMinutes || "24"}} hours. If you did not sign up, please ignore this email.`,
     variablesSchema: {
@@ -79,7 +79,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'One-Time Password (OTP)',
     category: 'AUTHENTICATION',
     description: 'Dispatches secure one-time passcode for authentication or verification.',
-    subject: 'Your {{appName || "OneTab AI"}} verification code: {{otp.code}}',
+    subject: 'Your {{appName || "Onetab AI"}} verification code: {{otp.code}}',
     previewText: 'Your verification code is {{otp.code}}. Valid for {{otp.expiresIn || "10 minutes"}}.',
     htmlBody: `
       ${EmailHeading('Your Verification Code')}
@@ -145,10 +145,10 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Magic Login Link',
     category: 'AUTHENTICATION',
     description: 'Passwordless sign-in link emailed to the user.',
-    subject: 'Your sign-in link for {{appName || "OneTab AI"}}',
+    subject: 'Your sign-in link for {{appName || "Onetab AI"}}',
     previewText: 'Click to sign in instantly without a password.',
     htmlBody: `
-      ${EmailHeading('Sign in to {{appName || "OneTab AI"}}')}
+      ${EmailHeading('Sign in to {{appName || "Onetab AI"}}')}
       ${EmailText('Hi {{user.firstName || "there"}},')}
       ${EmailText('Click the button below to sign in directly to your account. This single-use link is valid for {{expiresInMinutes || "15"}} minutes.')}
       ${EmailButton('Sign In to Account', '{{magicLinkUrl}}')}
@@ -156,7 +156,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
       ${EmailText('{{magicLinkUrl}}', 'muted')}
       ${EmailSecurityNotice('For security, this link can only be used once. If you did not request this link, you can safely ignore it.')}
     `,
-    textBody: `Sign in to {{appName || "OneTab AI"}}\n\nHi {{user.firstName || "there"}},\n\nUse this link to sign in:\n{{magicLinkUrl}}\n\nValid for {{expiresInMinutes || "15"}} minutes. Single use only.`,
+    textBody: `Sign in to {{appName || "Onetab AI"}}\n\nHi {{user.firstName || "there"}},\n\nUse this link to sign in:\n{{magicLinkUrl}}\n\nValid for {{expiresInMinutes || "15"}} minutes. Single use only.`,
     variablesSchema: {
       variables: [
         { name: 'user.firstName', type: 'string', description: 'User first name', sampleValue: 'Alex' },
@@ -179,7 +179,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Password Reset Request',
     category: 'AUTHENTICATION',
     description: 'Sent when a user requests to reset their forgotten password.',
-    subject: 'Reset your {{appName || "OneTab AI"}} password',
+    subject: 'Reset your {{appName || "Onetab AI"}} password',
     previewText: 'Follow the link to reset your password. Valid for {{expiresInMinutes || "60"}} minutes.',
     htmlBody: `
       ${EmailHeading('Reset your password')}
@@ -244,7 +244,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     htmlBody: `
       ${EmailHeading('Your password has been changed')}
       ${EmailText('Hi {{user.firstName || "there"}},')}
-      ${EmailText('This is a confirmation that the password for your {{appName || "OneTab AI"}} account was changed on {{formatDate timestamp}} at {{time || "just now"}}.')}
+      ${EmailText('This is a confirmation that the password for your {{appName || "Onetab AI"}} account was changed on {{formatDate timestamp}} at {{time || "just now"}}.')}
       ${EmailSecurityNotice('If you changed your password, no further action is needed. If you did NOT change your password, please reset your password immediately.')}
       ${EmailButton('Secure My Account', '{{securityUrl || "http://localhost:4200/settings/security"}}')}
     `,
@@ -271,7 +271,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Login from New Device',
     category: 'AUTHENTICATION',
     description: 'Alert sent when a sign-in is detected from an unrecognized browser or device.',
-    subject: 'New sign-in detected on your {{appName || "OneTab AI"}} account',
+    subject: 'New sign-in detected on your {{appName || "Onetab AI"}} account',
     previewText: 'A login from a new device was detected: {{device.name || "Unknown device"}}.',
     htmlBody: `
       ${EmailHeading('New sign-in detected')}
@@ -490,7 +490,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     htmlBody: `
       ${EmailHeading('Phone number updated')}
       ${EmailText('Hi {{user.firstName || "there"}},')}
-      ${EmailText('The phone number on your {{appName || "OneTab AI"}} account was updated recently.')}
+      ${EmailText('The phone number on your {{appName || "Onetab AI"}} account was updated recently.')}
       ${EmailSecurityNotice('If you did not authorize this change, please review your account security settings immediately.')}
     `,
     textBody: `Phone number updated\n\nHi {{user.firstName || "there"}},\n\nThe phone number on your account was updated. If you did not authorize this, review your account security immediately.`,
@@ -508,7 +508,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Account Recovery Request',
     category: 'AUTHENTICATION',
     description: 'Sent when a user initiates emergency account recovery.',
-    subject: 'Account recovery instructions for {{appName || "OneTab AI"}}',
+    subject: 'Account recovery instructions for {{appName || "Onetab AI"}}',
     previewText: 'Use this emergency recovery link to regain access to your account.',
     htmlBody: `
       ${EmailHeading('Account Recovery Request')}
@@ -536,7 +536,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Account Deletion Requested',
     category: 'AUTHENTICATION',
     description: 'Sent when a user requests permanent account deletion, detailing the grace period.',
-    subject: 'Important: Account deletion requested for {{appName || "OneTab AI"}}',
+    subject: 'Important: Account deletion requested for {{appName || "Onetab AI"}}',
     previewText: 'Your account is scheduled for deletion on {{deletionDate}}.',
     htmlBody: `
       ${EmailHeading('Account deletion requested')}
@@ -564,7 +564,7 @@ export const AUTH_TEMPLATES: EmailTemplateDefinition[] = [
     category: 'AUTHENTICATION',
     description: 'Confirmation email sent when an account and its data have been purged.',
     subject: 'Your account has been deleted',
-    previewText: 'Your account and data have been removed from {{appName || "OneTab AI"}}.',
+    previewText: 'Your account and data have been removed from {{appName || "Onetab AI"}}.',
     htmlBody: `
       ${EmailHeading('Account deletion completed')}
       ${EmailText('Hi {{user.firstName || "there"}},')}

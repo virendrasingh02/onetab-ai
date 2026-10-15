@@ -39,7 +39,7 @@ export function CommunityTemplatesView() {
     <Storefront
       kind="TEMPLATE"
       title="Community Templates"
-      description="Docs, project boards and playbooks shared by other OneTab AI teams"
+      description="Docs, project boards and playbooks shared by other Onetab AI teams"
       icon={<FileStack />}
       listingIcon={() => <FileStack className="w-5 h-5" />}
       renderPreview={(listing) => <TemplateOutline listing={listing} />}

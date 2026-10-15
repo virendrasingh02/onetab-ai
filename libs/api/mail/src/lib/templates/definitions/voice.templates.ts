@@ -21,7 +21,7 @@ export const VOICE_TEMPLATES: EmailTemplateDefinition[] = [
       ${EmailCard([
         { label: 'Date', value: '{{call.date}}' },
         { label: 'Time', value: '{{call.time}} ({{call.timezone || "UTC"}})' },
-        { label: 'Dial-in / Room', value: '{{call.dialIn || "OneTab Voice Room"}}' },
+        { label: 'Dial-in / Room', value: '{{call.dialIn || "Onetab Voice Room"}}' },
       ])}
       ${EmailButton('Join Voice Room', '{{call.url || "http://localhost:4200"}}')}
     `,

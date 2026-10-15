@@ -25,7 +25,7 @@ export function SignedOutScreen({ cameBackSignedOut, onSignIn, onRetry }: Signed
           <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-muted text-foreground shadow-xs">
             <Sparkles className="size-4" />
           </div>
-          <span className="text-sm font-semibold tracking-tight">OneTab AI</span>
+          <span className="text-sm font-semibold tracking-tight">Onetab AI</span>
           <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Agent Studio
           </span>
@@ -50,7 +50,7 @@ export function SignedOutScreen({ cameBackSignedOut, onSignIn, onRetry }: Signed
         <p className="mt-2 text-balance text-sm leading-relaxed text-muted-foreground">
           {cameBackSignedOut
             ? 'You went to sign in, but Agent Studio didn’t receive the session. Try again, and make sure this browser allows cookies for the platform.'
-            : 'Agent Studio uses your OneTab AI account, workspaces, billing credits and model permissions.'}
+            : 'Agent Studio uses your Onetab AI account, workspaces, billing credits and model permissions.'}
         </p>
 
         <div className="mt-8 w-full space-y-3">
@@ -66,7 +66,7 @@ export function SignedOutScreen({ cameBackSignedOut, onSignIn, onRetry }: Signed
       </main>
 
       <footer className="text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} OneTab AI Platform.
+        © {new Date().getFullYear()} Onetab AI Platform.
       </footer>
     </div>
   );

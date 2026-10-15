@@ -258,7 +258,7 @@ export function AgentMessageCard({
       avatarUrl={avatarSrc}
       title={event.model ? `${event.model} · AI Agent` : 'AI Agent'}
       role={event.agentRole || 'AI Agent'}
-      bio={event.agentDescription || 'AI agent on OneTab AI.'}
+      bio={event.agentDescription || 'AI agent on Onetab AI.'}
     >
       {children}
     </UserProfileCard>

@@ -87,7 +87,7 @@ export function useNotificationPermissionBar(): UseNotificationPermissionBarRetu
   const requestPermission = useCallback(async () => {
     if (isDesktop) {
       await notify({
-        title: 'OneTab AI Desktop',
+        title: 'Onetab AI Desktop',
         body: 'Push and desktop notifications are active and ready.',
       });
       try {

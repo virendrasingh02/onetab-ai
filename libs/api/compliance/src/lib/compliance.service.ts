@@ -2010,7 +2010,7 @@ export class ComplianceService implements OnModuleInit {
         key: 'privacy_policy',
         title: 'Privacy Policy',
         url: 'https://onetab.ai/privacy',
-        contentMarkdown: '# Privacy Policy\n\nOneTab AI respects user privacy and secures data.',
+        contentMarkdown: '# Privacy Policy\n\nOnetab AI respects user privacy and secures data.',
       },
     });
     await this.prisma.complianceLegalLink.create({

@@ -415,7 +415,7 @@ export function AddPeopleDialog({
         <div className="px-5 py-3.5 border-t border-border/60 bg-surface-inset/20 space-y-1 rounded-b-2xl">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold text-foreground">
-              Try OneTab Connect
+              Try Onetab Connect
             </span>
             <Badge className="bg-accent-pink-soft text-accent-pink border-accent-pink/30 text-[10px] font-bold py-0 h-4 px-1.5 uppercase tracking-wide">
               PRO
@@ -427,7 +427,7 @@ export function AddPeopleDialog({
               type="button"
               onClick={() =>
                 toast.info(
-                  'OneTab Connect is available on Enterprise and Pro plans.',
+                  'Onetab Connect is available on Enterprise and Pro plans.',
                 )
               }
               className="text-primary hover:underline font-medium cursor-pointer"

@@ -154,7 +154,7 @@ export function McpPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-foreground">
-                  OneTab Platform Built-in MCP Server
+                  Onetab Platform Built-in MCP Server
                 </span>
                 <Badge variant="success" className="text-[9px]">
                   Connected

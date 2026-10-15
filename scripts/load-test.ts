@@ -1,5 +1,5 @@
 /**
- * OneTab AI — 1,000+ User Scale Benchmark & Load Testing Suite
+ * Onetab AI — 1,000+ User Scale Benchmark & Load Testing Suite
  *
  * Runs progressive load tests (100, 250, 500, 1000+ concurrent simulated users)
  * measuring latency (p50, p95, p99), requests/second, error rates, throughput,

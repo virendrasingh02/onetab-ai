@@ -56,7 +56,7 @@ const UPDATE_LABELS: Record<string, string> = {
   available: 'A new version is available',
   downloading: 'Downloading update…',
   ready: 'Update downloaded — restart to install',
-  'not-available': 'OneTab AI is up to date',
+  'not-available': 'Onetab AI is up to date',
   unsupported: 'Updates managed externally / Dev build',
   error: 'Update check failed',
 };
@@ -136,7 +136,7 @@ export function DesktopSettingsCard() {
 
   const handleTestNotification = async () => {
     const sent = await notify({
-      title: 'OneTab AI Desktop Notification',
+      title: 'Onetab AI Desktop Notification',
       body: 'Native desktop notifications and deep link routing are functioning correctly!',
       route: '/settings',
     });
@@ -164,7 +164,7 @@ export function DesktopSettingsCard() {
           <Row
             id="desktop-launch-at-login"
             title="Launch at login"
-            description="Automatically start OneTab AI in the background when you log in to your computer."
+            description="Automatically start Onetab AI in the background when you log in to your computer."
             checked={startup?.openAtLogin ?? false}
             onCheckedChange={(value) => void updateStartup({ openAtLogin: value })}
             disabled={!capabilities.autoLaunch || !startup?.supported}

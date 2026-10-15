@@ -74,7 +74,7 @@ const DEFAULT_FALLBACK_MENTIONS = [
   'scheduler',
   'tracker',
   'Code Reviewer & Security Sentinel',
-  'OneTab Copilot',
+  'Onetab Copilot',
   'copilot',
   'codereview',
   'triage',

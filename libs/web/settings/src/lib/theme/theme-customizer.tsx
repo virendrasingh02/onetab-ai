@@ -709,7 +709,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
                 AI
               </div>
               <div>
-                <h4 className="text-xs font-bold text-foreground">OneTab Color Engine</h4>
+                <h4 className="text-xs font-bold text-foreground">Onetab Color Engine</h4>
                 <p className="text-[11px] text-muted-foreground">Tokens live rendering</p>
               </div>
             </div>

@@ -12,7 +12,7 @@ ranked in §26 as a backlog for implementation passes.
 
 ## Executive summary
 
-OneTab AI is a well-engineered collaboration platform with a genuinely
+Onetab AI is a well-engineered collaboration platform with a genuinely
 production-grade foundation and an AI/automation layer that is, on the
 production path, almost entirely non-functional. The dividing line is sharp and
 maps exactly to the README's own phase markers.
@@ -199,7 +199,7 @@ Ranked by how convincingly they impersonate a working feature.
 | # | Location | What it fakes |
 | --- | --- | --- |
 | M1 | `libs/web/channels/src/lib/use-channel-agents-apps.ts` (+ `types/channel-agents-apps.ts`) | Seeds every channel with invented AI-agent messages, a fake GitHub PR embed (`#248 … CI Tests Passing (14/14)`, `+420 lines · -18 lines`), fake `toolsExecuted` entries (`db.query("SELECT agent_id…")`, `rag.searchChannelMemory(…)`), fake reasoning traces with durations, and fake reaction counts — rendered as real channel content |
-| M2 | `libs/api/ai/src/lib/ai-infrastructure.service.ts:94–133` | `chat` fallback returns `[OneTab AI — OPENAI (gpt-4o)] Generated response for prompt: "…"`; `summarizeThread` returns a **fixed** two-bullet summary regardless of input; `translateText` returns `[Translated to X]: <original>`; `analyzeVision` returns a fixed sentence; `generateImage` returns a hardcoded Unsplash URL; `generateEmbedding` returns `Math.random()` floats |
+| M2 | `libs/api/ai/src/lib/ai-infrastructure.service.ts:94–133` | `chat` fallback returns `[Onetab AI — OPENAI (gpt-4o)] Generated response for prompt: "…"`; `summarizeThread` returns a **fixed** two-bullet summary regardless of input; `translateText` returns `[Translated to X]: <original>`; `analyzeVision` returns a fixed sentence; `generateImage` returns a hardcoded Unsplash URL; `generateEmbedding` returns `Math.random()` floats |
 | M3 | `libs/api/integrations/src/lib/slack-importer.service.ts` | Reads the channel list from the HTTP request body, creates channels, writes an `ImportJob` with `status: 'COMPLETED'` and `processedItems = totalItems` up front. No Slack API call exists |
 | M4 | `libs/api/integrations/src/lib/notion-importer.service.ts` | Same pattern for documents |
 | M5 | `libs/api/automations/src/lib/workflow-engine.service.ts:60–76` | `CONDITION → { conditionPassed: true }`, `API_CALL → { statusCode: 200, response: 'OK' }`, `WEBHOOK → { webhookDispatched: true }` |

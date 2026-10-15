@@ -82,7 +82,7 @@ export const AppDetailPage: React.FC<AppDetailPageProps> = ({
             </p>
 
             <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
-              <span>By <strong className="text-foreground">{app.publisherName || 'OneTab AI'}</strong></span>
+              <span>By <strong className="text-foreground">{app.publisherName || 'Onetab AI'}</strong></span>
               <span>•</span>
               <span>{app.category}</span>
               <span>•</span>
@@ -276,7 +276,7 @@ export const AppDetailPage: React.FC<AppDetailPageProps> = ({
                 <div className="pt-3 border-t border-border/60">
                   <h4 className="text-xs font-semibold text-foreground">Data Retention</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {app.security?.dataStorage || 'Data processed in memory; no long-term persistent storage outside OneTab.'}
+                    {app.security?.dataStorage || 'Data processed in memory; no long-term persistent storage outside Onetab.'}
                   </p>
                 </div>
 
@@ -308,7 +308,7 @@ export const AppDetailPage: React.FC<AppDetailPageProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Initial official release for OneTab AI platform.
+                    Initial official release for Onetab AI platform.
                   </p>
                 </div>
               ) : (
@@ -348,7 +348,7 @@ export const AppDetailPage: React.FC<AppDetailPageProps> = ({
               <div className="pt-2 flex items-center justify-between">
                 <span className="text-muted-foreground">Developer</span>
                 <span className="font-semibold text-foreground">
-                  {app.publisherName || 'OneTab AI'}
+                  {app.publisherName || 'Onetab AI'}
                 </span>
               </div>
 

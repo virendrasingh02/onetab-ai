@@ -136,10 +136,10 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
                 </Badge>
               </div>
               <h2 className="text-xl font-bold text-foreground">
-                Slack → OneTab Enterprise Migration
+                Slack → Onetab Enterprise Migration
               </h2>
               <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">
-                Seamlessly transfer your public & private channels, conversation history, user identities, and attachments from Slack into your OneTab workspace with complete hierarchy preservation.
+                Seamlessly transfer your public & private channels, conversation history, user identities, and attachments from Slack into your Onetab workspace with complete hierarchy preservation.
               </p>
             </div>
           </div>
@@ -365,7 +365,7 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
     <Page>
       <PageHeader
         title="Slack Migration Center"
-        description="Migrate channels, conversation history, user identities, and attachments from Slack into your OneTab workspace."
+        description="Migrate channels, conversation history, user identities, and attachments from Slack into your Onetab workspace."
         icon={<UploadCloud />}
         accent="violet"
       />

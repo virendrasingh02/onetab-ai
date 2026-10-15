@@ -49,7 +49,7 @@ export function useMatrixPresenceResolver(): (
 /**
  * Publishes the user's own platform status (online / away / busy / offline,
  * incl. DND and scheduled status) to Matrix, so other Matrix clients and the
- * Matrix-side roster agree with the dot every OneTab surface draws. The
+ * Matrix-side roster agree with the dot every Onetab surface draws. The
  * platform presence stays authoritative; this is a one-way mirror.
  */
 export function useMirrorPresenceToMatrix(): void {

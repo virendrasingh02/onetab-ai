@@ -11,7 +11,7 @@ import { isMobileDevice, openDesktopApp } from './handoff.js';
 describe('DEFAULT_APP_METADATA', () => {
   it('contains valid publisher and application metadata', () => {
     expect(DEFAULT_APP_METADATA.name).toBe('onetab-ai');
-    expect(DEFAULT_APP_METADATA.productName).toBe('OneTab AI');
+    expect(DEFAULT_APP_METADATA.productName).toBe('Onetab AI');
     expect(DEFAULT_APP_METADATA.publisher).toBeDefined();
     expect(DEFAULT_APP_METADATA.website).toContain('http');
   });

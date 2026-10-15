@@ -1,6 +1,6 @@
 # @org/desktop
 
-Electron shell for the OneTab AI web app.
+Electron shell for the Onetab AI web app.
 
 ```bash
 npm run dev:desktop      # API + Vite + Electron

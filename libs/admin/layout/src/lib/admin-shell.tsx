@@ -600,7 +600,7 @@ export function AdminShell() {
 
             {!collapsed && (
               <span className="font-bold text-sm tracking-tight text-foreground truncate">
-                OneTab AI
+                Onetab AI
               </span>
             )}
           </div>

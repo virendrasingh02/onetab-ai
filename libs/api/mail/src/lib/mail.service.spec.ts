@@ -42,7 +42,7 @@ describe('MailService', () => {
         MAIL_TRANSPORT: 'http',
         MAIL_API_URL: 'https://mail.example.com/send',
         MAIL_API_KEY: 'k_123',
-        MAIL_FROM: 'OneTab <noreply@onetab.ai>',
+        MAIL_FROM: 'Onetab <noreply@onetab.ai>',
       }),
     );
 
@@ -57,7 +57,7 @@ describe('MailService', () => {
     expect(headers.authorization).toBe('Bearer k_123');
     const body = JSON.parse((init as RequestInit).body as string);
     expect(body).toMatchObject({
-      from: 'OneTab <noreply@onetab.ai>',
+      from: 'Onetab <noreply@onetab.ai>',
       to: 'user@example.com',
       subject: 'Hi',
     });
@@ -111,7 +111,7 @@ describe('email templates', () => {
       verifyUrl: 'https://app.test/auth/magic-link/verify?token=secure_tok_123',
       expiresInMinutes: 15,
     });
-    expect(out.subject).toBe('Sign in to OneTab AI');
+    expect(out.subject).toBe('Sign in to Onetab AI');
     expect(out.text).toContain('https://app.test/auth/magic-link/verify?token=secure_tok_123');
     expect(out.text).toContain('expires in 15 minutes');
     expect(out.html).toContain('Sign in securely');

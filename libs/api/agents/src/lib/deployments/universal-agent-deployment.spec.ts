@@ -881,7 +881,7 @@ describe('Universal AI Agent Deployment System', () => {
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
       expect(mockRes.send).toHaveBeenCalled();
       const htmlBody = mockRes.send.mock.calls[0][0];
-      expect(htmlBody).toContain('OneTab AI Agent');
+      expect(htmlBody).toContain('Onetab AI Agent');
       expect(htmlBody).toContain('agent-widget.js');
     });
   });

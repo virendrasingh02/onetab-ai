@@ -261,7 +261,7 @@ export class IntegrationsService {
     }
 
     // Generic direct connect fallback — providers with authType 'NONE' (e.g.
-    // the internal OneTab bridge), which hold no credential to validate.
+    // the internal Onetab bridge), which hold no credential to validate.
     const integrationId = `${params.workspaceId}_${providerKey}`;
     const saved = await this.prisma.externalIntegration.upsert({
       where: { id: integrationId },

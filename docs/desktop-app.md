@@ -34,7 +34,7 @@ nx package @org/desktop  # electron-builder installers into apps/desktop/release
 
 If `bootstrap()` throws — a missing web bundle, no free port in 4200–4209 — the
 app shows a native error dialog and appends the stack to
-`<userData>/startup-error.log` (`%APPDATA%\OneTab AI\` on Windows). A packaged
+`<userData>/startup-error.log` (`%APPDATA%\Onetab AI\` on Windows). A packaged
 build has no console, so without that a startup failure is indistinguishable
 from the app not launching at all.
 
@@ -58,11 +58,11 @@ launcher script rather than left for the next person to rediscover:
   tests for its *presence*, so setting it empty does not help.
 
   This catches the **packaged** app too, and there it has no launcher script to
-  protect it: run `release/win-unpacked/OneTab AI.exe` from one of those
+  protect it: run `release/win-unpacked/Onetab AI.exe` from one of those
   terminals and it exits in under 100 ms with no window and nothing logged,
   because `main.js` throws on `require('electron')` before a single line of ours
   runs. Nothing is wrong with the build — launch it from the Start menu, a
-  shortcut, or `env -u ELECTRON_RUN_AS_NODE ./'OneTab AI.exe'`.
+  shortcut, or `env -u ELECTRON_RUN_AS_NODE ./'Onetab AI.exe'`.
 - **Windows drive-letter case** — Nx invokes tasks with `d:\…` where a shell
   gives `D:\…`, and Vitest keys its module registry by absolute path, so every
   spec fails to collect before a test body runs. Every project's `test` target
@@ -153,7 +153,7 @@ main: handleAuthCallback ◀── onetab://auth/callback?code&state   (or ?erro
 ```
 
 - The browser tab's last screen is `DesktopHandoffPanel`; its button re-sends the
-  *same* callback URL if the "Open OneTab AI?" prompt was dismissed.
+  *same* callback URL if the "Open Onetab AI?" prompt was dismissed.
 - `/auth/callback` deep links are handled in the main process and never
   forwarded to the renderer (replaying them there would bounce back to
   `onetab://`).

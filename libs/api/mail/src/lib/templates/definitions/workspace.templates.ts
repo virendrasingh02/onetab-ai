@@ -14,12 +14,12 @@ export const WORKSPACE_TEMPLATES: EmailTemplateDefinition[] = [
     name: 'Workspace Invitation',
     category: 'WORKSPACE',
     description: 'Sent when an existing workspace member invites a teammate.',
-    subject: '{{inviter.name || "A teammate"}} invited you to {{workspace.name}} on {{appName || "OneTab AI"}}',
+    subject: '{{inviter.name || "A teammate"}} invited you to {{workspace.name}} on {{appName || "Onetab AI"}}',
     previewText: 'Join {{workspace.name}} as {{role.name || "a member"}}.',
     htmlBody: `
       ${EmailHeading('Join {{workspace.name}}')}
       ${EmailText('Hi {{invitee.name || "there"}},')}
-      ${EmailText('<strong>{{inviter.name || "A teammate"}}</strong> has invited you to join the <strong>{{workspace.name}}</strong> workspace on {{appName || "OneTab AI"}}{{#if role.name}} with the role of <strong>{{role.name}}</strong>{{/if}}.')}
+      ${EmailText('<strong>{{inviter.name || "A teammate"}}</strong> has invited you to join the <strong>{{workspace.name}}</strong> workspace on {{appName || "Onetab AI"}}{{#if role.name}} with the role of <strong>{{role.name}}</strong>{{/if}}.')}
       ${EmailCard([
         { label: 'Workspace', value: '{{workspace.name}}' },
         { label: 'Invited by', value: '{{inviter.name || "Teammate"}}' },
@@ -29,7 +29,7 @@ export const WORKSPACE_TEMPLATES: EmailTemplateDefinition[] = [
       ${EmailText('This invitation will expire on {{formatDate invitation.expiresAt}}.', 'muted')}
       ${EmailSecurityNotice('If you were not expecting this invitation, you can safely disregard this email or decline.')}
     `,
-    textBody: `Join {{workspace.name}} on {{appName || "OneTab AI"}}\n\nHi {{invitee.name || "there"}},\n\n{{inviter.name || "A teammate"}} invited you to join {{workspace.name}}{{#if role.name}} as {{role.name}}{{/if}}.\n\nAccept here:\n{{invitation.url}}\n\nExpires: {{formatDate invitation.expiresAt}}`,
+    textBody: `Join {{workspace.name}} on {{appName || "Onetab AI"}}\n\nHi {{invitee.name || "there"}},\n\n{{inviter.name || "A teammate"}} invited you to join {{workspace.name}}{{#if role.name}} as {{role.name}}{{/if}}.\n\nAccept here:\n{{invitation.url}}\n\nExpires: {{formatDate invitation.expiresAt}}`,
     variablesSchema: {
       variables: [
         { name: 'workspace.name', type: 'string', description: 'Workspace name', sampleValue: 'Acme Corp' },

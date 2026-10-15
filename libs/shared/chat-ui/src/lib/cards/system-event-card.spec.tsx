@@ -14,7 +14,7 @@ function createMessage(overrides: Partial<Message> = {}): Message {
     id: '$evt-1',
     roomId: '!room:example.org',
     senderId: '@onetab_system-events:example.org',
-    senderName: 'OneTab AI',
+    senderName: 'Onetab AI',
     kind: 'text',
     body: 'fallback text',
     timestamp: 1_700_000_000_000,

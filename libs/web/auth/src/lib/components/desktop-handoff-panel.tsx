@@ -14,7 +14,7 @@ export interface DesktopHandoffPanelProps {
 /**
  * The browser tab's final screen in a desktop sign-in: it launches the
  * `onetab://` callback once, and keeps a button that re-sends the *same*
- * callback in case the browser's "Open OneTab AI?" prompt was dismissed.
+ * callback in case the browser's "Open Onetab AI?" prompt was dismissed.
  *
  * The previous copies of this screen (one in `LoginPage`, one in
  * `DesktopAuthCallbackPage`) disagreed: one re-sent the callback, the other
@@ -54,8 +54,8 @@ export function DesktopHandoffPanel({ callbackUrl, error, onRetry }: DesktopHand
       title={callbackUrl ? 'You are signed in' : 'Connecting to the desktop app'}
       subtitle={
         callbackUrl
-          ? 'Return to OneTab AI Desktop — it has been signed in. You can close this tab.'
-          : 'Handing your session to OneTab AI Desktop…'
+          ? 'Return to Onetab AI Desktop — it has been signed in. You can close this tab.'
+          : 'Handing your session to Onetab AI Desktop…'
       }
       footer={
         <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
@@ -85,7 +85,7 @@ export function DesktopHandoffPanel({ callbackUrl, error, onRetry }: DesktopHand
                 window.location.href = callbackUrl;
               }}
             >
-              Open OneTab AI Desktop
+              Open Onetab AI Desktop
             </Button>
           </>
         ) : null}

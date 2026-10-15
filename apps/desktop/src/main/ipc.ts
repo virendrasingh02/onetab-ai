@@ -125,17 +125,17 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
     IPC.getAppMetadata,
     guard((): DesktopAppMetadata => ({
       name: 'onetab-ai',
-      productName: 'OneTab AI',
+      productName: 'Onetab AI',
       version: app.getVersion() || '0.0.1',
       build: process.env['BUILD_ID'] || '2026.08.1-prod',
-      publisher: 'OneTab AI Inc.',
-      copyright: 'Copyright © OneTab AI Inc. All rights reserved.',
+      publisher: 'Onetab AI Inc.',
+      copyright: 'Copyright © Onetab AI Inc. All rights reserved.',
       website: 'https://onetab.ai',
       supportUrl: 'https://onetab.ai/support',
       privacyUrl: 'https://onetab.ai/privacy',
       termsUrl: 'https://onetab.ai/terms',
       license: 'MIT / Proprietary Enterprise',
-      description: 'OneTab AI — Unified Collaborative Workspace & AI Agents Platform',
+      description: 'Onetab AI — Unified Collaborative Workspace & AI Agents Platform',
     })),
   );
 

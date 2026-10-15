@@ -203,7 +203,7 @@ export function MigrationWizardDialog({
               </span>
               <div>
                 <DialogTitle className="text-lg font-semibold text-foreground">
-                  Slack to OneTab Migration Wizard
+                  Slack to Onetab Migration Wizard
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground">
                   Safe, enterprise-grade migration pipeline with automated verification & adoption guidance
@@ -273,7 +273,7 @@ export function MigrationWizardDialog({
                         Connect Source Slack Workspace
                       </h3>
                       <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">
-                        Authorize OneTab with read-only API access to your Slack workspace. We will inspect permissions, discover public channels, verify member identities, and prepare a deterministic migration plan.
+                        Authorize Onetab with read-only API access to your Slack workspace. We will inspect permissions, discover public channels, verify member identities, and prepare a deterministic migration plan.
                       </p>
                     </div>
                   </div>
@@ -478,7 +478,7 @@ export function MigrationWizardDialog({
                   Select Migration Scope
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Control exactly which channels, history windows, and attachments will be imported into OneTab.
+                  Control exactly which channels, history windows, and attachments will be imported into Onetab.
                 </p>
               </div>
 
@@ -540,7 +540,7 @@ export function MigrationWizardDialog({
                       Migrate Files & Media Attachments
                     </span>
                     <span className="text-[11px] text-muted-foreground">
-                      Download and mirror files into OneTab Object Storage.
+                      Download and mirror files into Onetab Object Storage.
                     </span>
                   </div>
                   <Switch
@@ -579,7 +579,7 @@ export function MigrationWizardDialog({
                   Source → Destination Mapping Preview
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Inspect how Slack users and channels will translate into your OneTab workspace.
+                  Inspect how Slack users and channels will translate into your Onetab workspace.
                 </p>
               </div>
 
@@ -757,7 +757,7 @@ export function MigrationWizardDialog({
                     Ready to Execute Migration Pipeline
                   </h4>
                   <p className="text-muted-foreground mt-1 leading-relaxed">
-                    Once initiated, OneTab will ingest your selected channels, map users, migrate message timeline threads, and mirror files in background workers. Historical messages will be marked so active team members do not receive redundant notifications.
+                    Once initiated, Onetab will ingest your selected channels, map users, migrate message timeline threads, and mirror files in background workers. Historical messages will be marked so active team members do not receive redundant notifications.
                   </p>
                 </div>
               </div>
@@ -949,7 +949,7 @@ export function MigrationWizardDialog({
                     Workspace Adoption & AI Advisor
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Contextual recommendations to turn your migrated Slack channels into OneTab Projects, Tasks, and AI Coworkers.
+                    Contextual recommendations to turn your migrated Slack channels into Onetab Projects, Tasks, and AI Coworkers.
                   </p>
                 </div>
               </div>

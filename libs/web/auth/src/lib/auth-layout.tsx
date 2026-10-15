@@ -26,7 +26,7 @@ export function AuthLayout({
   children,
   footer,
   className,
-  brandName = 'OneTab AI',
+  brandName = 'Onetab AI',
   brandLogoText = 'O',
 }: AuthLayoutProps) {
   const { locale, setLocale } = useTranslation();

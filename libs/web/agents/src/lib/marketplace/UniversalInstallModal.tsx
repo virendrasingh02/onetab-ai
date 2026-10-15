@@ -171,7 +171,7 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
                 <SummaryRow label="Publisher">
                   {listing.publisherName ||
                     listing.publisher?.name ||
-                    'OneTab Official'}
+                    'Onetab Official'}
                 </SummaryRow>
                 <SummaryRow label="Version">
                   <span className="font-mono">{listing.version || '1.0.0'}</span>
