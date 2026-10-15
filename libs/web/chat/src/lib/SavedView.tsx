@@ -23,7 +23,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useBookmarks, useBookmarkMutations } from './use-bookmarks.js';
-import { useSavedMessagesStore } from './use-saved-messages.js';
+import { useMatrix } from './matrix-provider.js';
+import {
+  useSavedMessagesStore,
+  useSavedMessagesSync,
+} from './use-saved-messages.js';
 
 type BookmarkFilter = 'all' | 'message' | 'task' | 'doc' | 'file';
 
@@ -55,10 +59,16 @@ export function SavedView() {
   } = useBookmarks(workspaceId);
   const { removeBookmark } = useBookmarkMutations(workspaceId);
 
-  // Local legacy saved messages
+  // Saved messages live in Matrix account data (synced into this store).
+  useSavedMessagesSync();
+  const { client } = useMatrix();
   const legacySaved = useSavedMessagesStore((s) => s.saved);
   const removeLegacy = useSavedMessagesStore((s) => s.remove);
-  const clearLegacy = useSavedMessagesStore((s) => s.clear);
+  const clearStore = useSavedMessagesStore((s) => s.clear);
+  const clearLegacy = () => {
+    clearStore();
+    void client?.setSavedMessages([]).catch(() => undefined);
+  };
 
   // Combine bookmarks and legacy items
   const allItems = useMemo(() => {
@@ -118,6 +128,8 @@ export function SavedView() {
   const handleRemove = async (item: (typeof allItems)[0]) => {
     if (item.isLegacy) {
       removeLegacy(item.id);
+      const entry = legacySaved.find((m) => m.id === item.id);
+      if (entry) void client?.setMessageSaved(entry, false).catch(() => undefined);
     } else {
       await removeBookmark(item.id);
     }

@@ -801,6 +801,47 @@ export function PinnedMessageCard({
   );
 }
 
+export interface PinnedBannerProps {
+  /** Pinned messages, newest first. */
+  messages: Message[];
+  onJump?: (messageId: string) => void;
+  onViewAll?: () => void;
+}
+
+/** Slim strip above the timeline showing the newest pin; click to jump to it. */
+export function PinnedBanner({ messages, onJump, onViewAll }: PinnedBannerProps) {
+  const latest = messages[0];
+  if (!latest) return null;
+  const preview =
+    latest.body.replace(/\s+/g, ' ').trim() ||
+    (latest.attachment ? 'Attachment' : 'Message');
+  return (
+    <div className="gap-2 border-b border-border bg-warning/[0.06] px-3 py-1.5 flex shrink-0 items-center text-xs">
+      <Pin className="size-3.5 shrink-0 text-warning-text" aria-hidden />
+      <button
+        type="button"
+        onClick={() => onJump?.(latest.id)}
+        className="gap-1.5 min-w-0 flex flex-1 items-center text-left hover:underline"
+        aria-label={`Jump to pinned message from ${latest.senderName}`}
+      >
+        <span className="shrink-0 font-semibold text-foreground">
+          {latest.senderName}
+        </span>
+        <span className="truncate text-muted-foreground">{preview}</span>
+      </button>
+      {onViewAll ? (
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="shrink-0 font-medium text-muted-foreground hover:text-foreground"
+        >
+          {messages.length > 1 ? `${messages.length} pinned` : 'View pinned'}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export interface PinnedPanelProps {
   messages: Message[];
   onJump?: (messageId: string) => void;

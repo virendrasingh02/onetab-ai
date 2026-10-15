@@ -35,6 +35,8 @@ import {
   readDirectMap,
   readMutedThreadRootIds,
   readPinnedEventIds,
+  readSavedMessages,
+  SAVED_MESSAGES_EVENT,
   threadMuteRuleId,
   resolveDirectMessageRoom,
   resolveGroupDirectMessageRoom,
@@ -83,12 +85,16 @@ import {
   type RoomId,
   type RoomKind,
   type RoomMember,
+  type SavedMessage,
   type Thread,
   type Timeline,
   type VerificationRequestSummary,
   type StructuredChatMessage,
   formatSystemEventFallbackText,
 } from './types.js';
+
+/** Upper bound on saved messages kept in account data. */
+const MAX_SAVED_MESSAGES = 500;
 
 /** Cap on 50-reply pages fetched when a thread is opened (2,500 replies). */
 const MAX_THREAD_PAGES = 50;
@@ -637,6 +643,13 @@ export class OneTabMatrixClient {
       if (type !== PINNED_EVENTS_EVENT && type !== 'm.room.power_levels') return;
       const room = sdk.getRoom(event.getRoomId() ?? '');
       if (room) this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
+    });
+
+    // Saved-for-later lives in global account data, so a save on another
+    // device (or tab) shows up here without a reload.
+    sdk.on(ClientEvent.AccountData, (event) => {
+      if (event.getType() !== SAVED_MESSAGES_EVENT) return;
+      this.emit({ type: 'saved.updated', saved: readSavedMessages(sdk) });
     });
 
     sdk.on(RoomEvent.Receipt, (event, room) => {
@@ -1875,6 +1888,32 @@ export class OneTabMatrixClient {
         '',
       ),
     );
+  }
+
+  /** The reader's saved-for-later messages (account data, newest first). */
+  getSavedMessages(): SavedMessage[] {
+    return this.sdk ? readSavedMessages(this.sdk) : [];
+  }
+
+  /**
+   * Replaces the saved list in one write. Callers merge against
+   * `getSavedMessages()` first, so concurrent devices only lose on a true race.
+   */
+  async setSavedMessages(saved: SavedMessage[]): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() =>
+      sdk.setAccountData(
+        SAVED_MESSAGES_EVENT as never,
+        { messages: saved.slice(0, MAX_SAVED_MESSAGES) } as never,
+      ),
+    );
+  }
+
+  /** Saves or unsaves one message, reading the latest list just before writing. */
+  async setMessageSaved(entry: SavedMessage, saved: boolean): Promise<void> {
+    const current = this.getSavedMessages();
+    const rest = current.filter((item) => item.id !== entry.id);
+    await this.setSavedMessages(saved ? [entry, ...rest] : rest);
   }
 
   /**

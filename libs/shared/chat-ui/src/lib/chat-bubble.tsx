@@ -1072,8 +1072,9 @@ export function ChatBubble({
               'chat-density-comfy gap-4 px-4',
               isGrouped ? 'py-0.5' : 'pt-2.5 pb-0.5',
             ),
-        isPinned && 'border-l-2 border-l-warning',
-        (isHighlighted || isMentioned) && 'border-l-2 border-l-primary',
+        isPinned && 'bg-warning/[0.05]',
+        isMentioned && 'bg-primary/[0.06]',
+        isHighlighted && 'message-flash',
         showSending && 'opacity-70',
         message.sendState === 'failed' && 'bg-destructive/5',
       )}
@@ -1141,13 +1142,6 @@ export function ChatBubble({
 
       {/* Main Content Area */}
       <div className="min-w-0 flex-1">
-        {isPinned && !isGrouped ? (
-          <p className="mb-1 gap-1 font-semibold flex items-center text-[11px] text-warning-text">
-            <Pin className="size-3" aria-hidden />
-            Pinned to this channel
-          </p>
-        ) : null}
-
         {!isGrouped ? (
           <header className="gap-2 flex items-baseline">
             <UserProfileCard
@@ -1182,6 +1176,14 @@ export function ChatBubble({
             {message.isEncrypted ? (
               <Hint label="End-to-end encrypted">
                 <Lock className="size-3 text-muted-foreground" aria-hidden />
+              </Hint>
+            ) : null}
+            {isPinned ? (
+              <Hint label="Pinned">
+                <Pin
+                  className="size-3 fill-current text-warning-text"
+                  aria-label="Pinned"
+                />
               </Hint>
             ) : null}
             {isSaved ? (

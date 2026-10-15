@@ -1,49 +1,26 @@
-import { useCallback, useMemo } from 'react';
+import type { SavedMessage } from '@org/types';
+import { toast } from '@org/ui';
+import { useCallback, useEffect, useMemo } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useMatrix } from './matrix-provider.js';
+
+export type { SavedMessage };
 
 /**
- * A message the reader put aside, as it looked when they put it aside.
- *
- * A snapshot rather than a pointer, and deliberately so. Saved items are a
- * personal shortlist that has to be readable from the sidebar's Saved page,
- * which sits outside any conversation — resolving an event id there would mean
- * opening every room the list touches just to render a preview, and an
- * encrypted room would not give the text up at all. The copy is the reader's
- * own, taken at the moment they saved it, and the entry keeps the ids needed to
- * jump back to the live message.
+ * Saved items are a snapshot (see `SavedMessage`) kept in the reader's Matrix
+ * account data (`mie.saved_messages`), so they follow them across devices. The
+ * zustand store is a read-through cache of that list — persisted locally only
+ * so the Saved page paints instantly and works offline.
  */
-export interface SavedMessage {
-  /** Matrix event id. Unique within a room, and what "unsave" matches on. */
-  id: string;
-  roomId: string;
-  /** Where it was saved from, for the "open channel" link. */
-  channelName: string;
-  channelSlug?: string;
-  /** Sender's Matrix id — the stable seed for the avatar fallback. Optional so
-   *  entries persisted before this field carry on working (they fall back to
-   *  the name and self-correct on the next save). */
-  senderId?: string;
-  senderName: string;
-  senderAvatarUrl?: string;
-  body: string;
-  /** When the message was sent, not when it was saved. */
-  sentAt: number;
-  savedAt: number;
-}
-
 interface SavedMessagesState {
   saved: SavedMessage[];
   add: (message: SavedMessage) => void;
   remove: (id: string) => void;
+  replace: (saved: SavedMessage[]) => void;
   clear: () => void;
 }
 
-/**
- * Saved items used to be a `useState` inside `ChatPanel`, which meant they
- * lasted exactly as long as one visit to one conversation — leaving the channel
- * lost the list, and nothing outside that conversation could ever show it.
- */
 export const useSavedMessagesStore = create<SavedMessagesState>()(
   persist(
     (set) => ({
@@ -61,14 +38,54 @@ export const useSavedMessagesStore = create<SavedMessagesState>()(
           saved: state.saved.filter((entry) => entry.id !== id),
         })),
 
+      replace: (saved) => set({ saved }),
+
       clear: () => set({ saved: [] }),
     }),
     { name: 'onetab_saved_messages_v1' },
   ),
 );
 
+/**
+ * Keeps the store in step with Matrix. Safe to mount from several places.
+ *
+ * Once the client has synced, anything saved on this device before saves moved
+ * to Matrix is merged up (never overwriting what other devices saved), then
+ * every later change — from any device — flows back in live.
+ */
+export function useSavedMessagesSync(): void {
+  const { client, status } = useMatrix();
+  const connected = !!client && status.state === 'connected';
+
+  useEffect(() => {
+    if (!client || !connected) return;
+    const replace = useSavedMessagesStore.getState().replace;
+
+    const remote = client.getSavedMessages();
+    const local = useSavedMessagesStore.getState().saved;
+    const known = new Set(remote.map((entry) => entry.id));
+    const unsynced = local.filter((entry) => !known.has(entry.id));
+    if (unsynced.length > 0) {
+      const merged = [...remote, ...unsynced].sort(
+        (a, b) => b.savedAt - a.savedAt,
+      );
+      replace(merged);
+      void client.setSavedMessages(merged).catch(() => {
+        // Retried the next time the client reconnects.
+      });
+    } else {
+      replace(remote);
+    }
+
+    return client.on((event) => {
+      if (event.type === 'saved.updated') replace(event.saved);
+    });
+  }, [client, connected]);
+}
+
 /** The ids saved in one room, for the conversation's own bookmark toggles. */
 export function useSavedIds(roomId: string | undefined): string[] {
+  useSavedMessagesSync();
   const saved = useSavedMessagesStore((s) => s.saved);
   return useMemo(
     () =>
@@ -80,21 +97,30 @@ export function useSavedIds(roomId: string | undefined): string[] {
 }
 
 /**
- * Saves or unsaves one message.
+ * Saves or unsaves one message: optimistic locally, written to Matrix, and
+ * rolled back with a toast if the homeserver refuses.
  *
  * Takes the whole snapshot rather than an id: the caller is the only place that
- * still has the message in hand, and the store has to keep enough of it to
+ * still has the message in hand, and the entry has to hold enough of it to
  * render outside the room.
  */
 export function useToggleSaved() {
-  const add = useSavedMessagesStore((s) => s.add);
-  const remove = useSavedMessagesStore((s) => s.remove);
+  const { client } = useMatrix();
 
   return useCallback(
     (message: SavedMessage, isSaved: boolean) => {
+      const { add, remove } = useSavedMessagesStore.getState();
       if (isSaved) remove(message.id);
       else add(message);
+      if (!client) return;
+      client.setMessageSaved(message, !isSaved).catch(() => {
+        if (isSaved) add(message);
+        else remove(message.id);
+        toast.error(
+          isSaved ? 'Could not remove the saved message.' : 'Could not save the message.',
+        );
+      });
     },
-    [add, remove],
+    [client],
   );
 }

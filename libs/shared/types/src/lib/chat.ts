@@ -745,10 +745,30 @@ export interface UnreadMention {
  * Everything the client emits. One discriminated union rather than an
  * `EventEmitter` of loose strings, so consumers get exhaustive checking.
  */
+/**
+ * A message the reader saved for later, stored in their Matrix account data
+ * (`mie.saved_messages`) so it follows them across devices. A snapshot, so the
+ * Saved page can render it without opening the room.
+ */
+export interface SavedMessage {
+  /** Matrix event id. */
+  id: EventId;
+  roomId: RoomId;
+  channelName: string;
+  channelSlug?: string;
+  senderId?: string;
+  senderName: string;
+  senderAvatarUrl?: string;
+  body: string;
+  sentAt: number;
+  savedAt: number;
+}
+
 export type MatrixClientEvent =
   | { type: 'connection'; status: ConnectionStatus }
   | { type: 'room.upserted'; room: Room }
   | { type: 'room.removed'; roomId: RoomId }
+  | { type: 'saved.updated'; saved: SavedMessage[] }
   | { type: 'message.received'; message: Message }
   | { type: 'message.updated'; message: Message; oldId?: EventId }
   | { type: 'message.redacted'; roomId: RoomId; eventId: EventId }

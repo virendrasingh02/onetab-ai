@@ -23,7 +23,7 @@ export interface ScrollToMessageOptions {
   highlightMs?: number;
 }
 
-const DEFAULT_HIGHLIGHT_MS = 2200;
+const DEFAULT_HIGHLIGHT_MS = 2600;
 /** Upper bound on backfill rounds when hunting for an off-screen message. */
 const MAX_BACKFILL_ROUNDS = 25;
 

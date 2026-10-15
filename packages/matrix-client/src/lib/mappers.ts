@@ -20,6 +20,7 @@ import {
   type Room,
   type RoomKind,
   type RoomMember,
+  type SavedMessage,
   type SendState,
   type StructuredChatMessage,
   type Thread,
@@ -802,6 +803,23 @@ const MARKED_UNREAD_LEGACY_EVENT = 'com.famedly.marked_unread';
 export const MARKED_UNREAD_FROM_KEY = 'mie.from_event_id';
 /** Room account data listing the thread roots whose replies are muted. */
 export const THREAD_NOTIFICATIONS_EVENT = 'mie.thread_notifications';
+/** Global account data holding the reader's saved-for-later messages. */
+export const SAVED_MESSAGES_EVENT = 'mie.saved_messages';
+
+export function readSavedMessages(client: SdkClient): SavedMessage[] {
+  const content = client.getAccountData(SAVED_MESSAGES_EVENT as never)?.getContent() as
+    | { messages?: unknown }
+    | undefined;
+  const list = content?.messages;
+  if (!Array.isArray(list)) return [];
+  return list.filter(
+    (entry): entry is SavedMessage =>
+      !!entry &&
+      typeof entry === 'object' &&
+      typeof (entry as SavedMessage).id === 'string' &&
+      typeof (entry as SavedMessage).roomId === 'string',
+  );
+}
 
 /**
  * The push rule id silencing one thread's replies. Rule ids travel in URL paths

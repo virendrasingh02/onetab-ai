@@ -1206,3 +1206,17 @@ html:not(.dark) .app-content-panel {
     scroll-behavior: auto !important;
   }
 }
+
+/* Deep-link / jump-to-message highlight: a soft primary wash that fades out. */
+@keyframes message-flash {
+  0%,
+  45% {
+    background-color: color-mix(in oklab, var(--primary) 20%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.message-flash {
+  animation: message-flash 2.6s ease-out both;
+}

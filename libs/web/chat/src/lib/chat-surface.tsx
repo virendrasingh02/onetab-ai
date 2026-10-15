@@ -20,6 +20,7 @@ import {
   MessageList,
   type MessageListHandle,
   MessageRenderer,
+  PinnedBanner,
   PinnedPanel,
   ReactorDirectoryProvider,
   ThreadListPanel,
@@ -2086,6 +2087,11 @@ export function ChatSurface({
         {/* No `overflow` here: the list owns its own scroller, and nesting one
           inside another gave the timeline two scrollbars. */}
         <div className="min-h-0 flex flex-1 flex-col">
+          <PinnedBanner
+            messages={pinnedMessages}
+            onJump={jumpTo}
+            onViewAll={() => setPanel('pinned')}
+          />
           <MessageList
             ref={listRef}
             conversationId={conversationId}
