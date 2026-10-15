@@ -691,9 +691,6 @@ export function ChatBubble({
   const stickerAlt = isSticker && mediaMatch
     ? mediaMatch[1].replace(/^sticker:/i, '').trim()
     : '';
-  const isMentioned = message.body
-    ? /@(here|channel|everyone|\w+)/.test(message.body)
-    : false;
 
   const isCoworker =
     entityKind === 'coworker' ||
@@ -1073,7 +1070,6 @@ export function ChatBubble({
               isGrouped ? 'py-0.5' : 'pt-2.5 pb-0.5',
             ),
         isPinned && 'bg-warning/[0.05]',
-        isMentioned && 'bg-primary/[0.06]',
         isHighlighted && 'message-flash',
         showSending && 'opacity-70',
         message.sendState === 'failed' && 'bg-destructive/5',

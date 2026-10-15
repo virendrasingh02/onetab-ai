@@ -98,22 +98,19 @@ export class AppMatrixBridgeService implements OnModuleInit {
     let effectiveBody = body;
     let channelInfo: { id: string; name: string } | undefined;
 
-    // `/asana …` or `@asana …` — the app is named by its provider.
-    const named = /^\s*[/@]([a-z0-9_]+)\b/i.exec(body);
-    if (!integration && named) {
+    // `/asana …` or `@Asana · balram …` — the app is named by its provider or,
+    // when picked from the composer's @ menu, by its full display name (which
+    // carries the connection label, e.g. "Asana · balram"). The mention may sit
+    // anywhere in the message; the text around it is the request.
+    if (!integration && /[/@]/.test(body)) {
       const channel = await this.prisma.channel.findFirst({
         where: { matrixRoomId: event.room_id },
         select: { id: true, name: true, workspaceId: true },
       });
 
       if (channel) {
-        const command = named[1].toLowerCase();
-        const candidate = await this.prisma.externalIntegration.findFirst({
-          where: {
-            workspaceId: channel.workspaceId,
-            status: 'CONNECTED',
-            provider: { equals: command, mode: 'insensitive' },
-          },
+        const connected = await this.prisma.externalIntegration.findMany({
+          where: { workspaceId: channel.workspaceId, status: 'CONNECTED' },
           select: {
             id: true,
             matrixUserId: true,
@@ -123,27 +120,64 @@ export class AppMatrixBridgeService implements OnModuleInit {
           },
         });
 
-        if (candidate) {
+        const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let match: {
+          candidate: (typeof connected)[number];
+          start: number;
+          end: number;
+          slash: boolean;
+        } | null = null;
+
+        for (const candidate of connected) {
+          // Longest name first so "Asana · balram" wins over plain "Asana".
+          const names = [candidate.displayName, candidate.provider]
+            .filter((n): n is string => !!n?.trim())
+            .sort((a, b) => b.length - a.length);
+          for (const name of names) {
+            const re = new RegExp(
+              `(?:^|\\s)([@/])${escape(name.trim()).replace(/\s+/g, '\\s+')}(?![\\w-])`,
+              'i',
+            );
+            const m = re.exec(body);
+            if (!m) continue;
+            const start = m.index + m[0].indexOf(m[1]);
+            // A slash only addresses an app at the very start (`/asana …`).
+            if (m[1] === '/' && body.slice(0, start).trim()) continue;
+            if (!match || start < match.start) {
+              match = {
+                candidate,
+                start,
+                end: m.index + m[0].length,
+                slash: m[1] === '/',
+              };
+            }
+            break;
+          }
+        }
+
+        if (match) {
           const channelLink = await this.prisma.channelIntegration.findFirst({
             where: {
               channelId: channel.id,
-              integrationId: candidate.id,
+              integrationId: match.candidate.id,
               isEnabled: true,
             },
             select: { id: true },
           });
 
           if (channelLink) {
-            integration = candidate;
+            integration = match.candidate;
             channelInfo = { id: channel.id, name: channel.name };
-            const afterProvider = body.trim().slice(1 + command.length).trim();
+            const request = `${body.slice(0, match.start)} ${body.slice(match.end)}`
+              .replace(/\s+/g, ' ')
+              .trim();
             // `/asana create_task {…}` stays a direct command; anything else
-            // after the provider is a sentence for the app to act on.
-            effectiveBody = !afterProvider
+            // is a sentence for the app to act on.
+            effectiveBody = !request
               ? 'help'
-              : /^[a-z0-9_]+(\s+\{[\s\S]*\})?$/i.test(afterProvider)
-                ? `/${afterProvider}`
-                : afterProvider;
+              : match.slash && /^[a-z0-9_]+(\s+\{[\s\S]*\})?$/i.test(request)
+                ? `/${request}`
+                : request;
             if (!threadRootId) {
               threadRootId = event.event_id;
             }
