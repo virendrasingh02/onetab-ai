@@ -4,12 +4,12 @@ import type {
   SystemEventEntity,
 } from '@org/types';
 import {
-  Badge,
   Hint,
   UserAvatar,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { EntityKindBadge } from '../entity-kind-badge.js';
 import {
   Archive,
   ArchiveRestore,
@@ -158,33 +158,8 @@ export function SystemEventIcon({
  * exact badges `ChatBubble` shows next to a sender. Absent for a plain user or
  * channel — those need no disambiguating badge. */
 export function SystemEventEntityBadge({ kind }: { kind: SystemEventEntity['kind'] }) {
-  const base = 'py-0 h-4 font-bold tracking-wider gap-0.5 text-[9px] uppercase';
-  if (kind === 'coworker') {
-    return (
-      <Badge
-        variant="primary"
-        className={cn(base, 'border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300')}
-      >
-        <span>AI COWORKER</span>
-      </Badge>
-    );
-  }
-  if (kind === 'agent') {
-    return (
-      <Badge variant="primary" className={base}>
-        <span>AI AGENT</span>
-      </Badge>
-    );
-  }
-  if (kind === 'app') {
-    return (
-      <Badge
-        variant="neutral"
-        className={cn(base, 'border-accent-violet/20 bg-accent-violet-soft text-accent-violet')}
-      >
-        <span>APP</span>
-      </Badge>
-    );
+  if (kind === 'coworker' || kind === 'agent' || kind === 'app') {
+    return <EntityKindBadge kind={kind} />;
   }
   return null;
 }
@@ -400,7 +375,7 @@ export function SystemEventTimestamp({ timestamp }: { timestamp: number }) {
     <Hint label={formatFullTimestamp(timestamp)}>
       <time
         dateTime={new Date(timestamp).toISOString()}
-        className="shrink-0 cursor-default text-[11px] font-medium text-muted-foreground"
+        className="shrink-0 cursor-default text-xs font-medium text-muted-foreground"
       >
         {Date.now() - timestamp < 60_000 ? 'Just now' : formatShortTimestamp(timestamp)}
       </time>

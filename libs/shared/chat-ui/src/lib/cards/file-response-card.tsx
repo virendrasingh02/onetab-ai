@@ -62,7 +62,7 @@ export function FileResponseCard({
               </div>
               <div className="min-w-0">
                 <span className="font-bold text-foreground truncate block">{file.name}</span>
-                <span className="text-[10px] text-muted-foreground block">
+                <span className="text-2xs text-muted-foreground block">
                   {file.mimeType} {file.size ? `· ${(file.size / 1024).toFixed(1)} KB` : ''}
                 </span>
               </div>

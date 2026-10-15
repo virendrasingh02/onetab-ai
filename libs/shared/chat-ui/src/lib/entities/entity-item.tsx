@@ -29,25 +29,25 @@ function getPriorityBadge(priority?: string) {
   switch (normalized) {
     case 'URGENT':
       return (
-        <Badge variant="destructive" className="py-0 h-4 text-[9px] font-bold">
+        <Badge variant="destructive" className="py-0 h-4 text-2xs font-bold">
           URGENT
         </Badge>
       );
     case 'HIGH':
       return (
-        <Badge variant="warning" className="py-0 h-4 text-[9px] font-bold">
+        <Badge variant="warning" className="py-0 h-4 text-2xs font-bold">
           HIGH
         </Badge>
       );
     case 'MEDIUM':
       return (
-        <Badge variant="neutral" className="py-0 h-4 text-[9px]">
+        <Badge variant="neutral" className="py-0 h-4 text-2xs">
           MED
         </Badge>
       );
     case 'LOW':
       return (
-        <Badge variant="neutral" className="py-0 h-4 text-[9px] opacity-75">
+        <Badge variant="neutral" className="py-0 h-4 text-2xs opacity-75">
           LOW
         </Badge>
       );
@@ -119,7 +119,7 @@ export function EntityItem({
             {showChannelBadge && entity.channelName && (
               <Badge
                 variant="outline"
-                className="gap-1 py-0 h-4.5 text-[10px] text-muted-foreground font-medium"
+                className="gap-1 py-0 h-4.5 text-2xs text-muted-foreground font-medium"
               >
                 <Hash className="size-2.5" />
                 <span>{entity.channelName}</span>
@@ -129,7 +129,7 @@ export function EntityItem({
             {entity.status && entity.kind !== 'document' && (
               <Badge
                 variant={isDone ? 'success' : 'neutral'}
-                className="py-0 h-4 text-[9px] font-mono uppercase"
+                className="py-0 h-4 text-2xs font-mono uppercase"
               >
                 {entity.status.replace(/_/g, ' ')}
               </Badge>
@@ -144,7 +144,7 @@ export function EntityItem({
           )}
 
           {/* Footer Metadata: Assignee / Author & Timestamp */}
-          <div className="gap-2 pt-0.5 flex flex-wrap items-center text-[10px] text-muted-foreground">
+          <div className="gap-2 pt-0.5 flex flex-wrap items-center text-2xs text-muted-foreground">
             {entity.assigneeName ? (
               <div className="gap-1 flex items-center">
                 <UserAvatar

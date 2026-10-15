@@ -113,7 +113,8 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@org/utils';
-import { Badge, Hint, UserAvatar } from '@org/ui';
+import { Hint, UserAvatar } from '@org/ui';
+import { EntityKindBadge } from './entity-kind-badge.js';
 import {
   useCallback,
   useEffect,
@@ -151,8 +152,8 @@ const EDITOR_THEME = {
     strikethrough: 'line-through text-muted-foreground',
     underline: 'underline underline-offset-2',
     underlineStrikethrough: 'underline line-through underline-offset-2',
-    highlight: 'rounded bg-warning/25 px-0.5 text-foreground',
-    code: 'rounded bg-surface-inset px-1.5 py-0.5 font-mono text-[0.875em] text-info-text',
+    highlight: 'rounded-md bg-warning/25 px-0.5 text-foreground',
+    code: 'rounded-md bg-surface-inset px-1.5 py-0.5 font-mono text-[0.875em] text-info-text',
   },
   // Same as a sent message: every level at the message size, weight only.
   heading: {
@@ -947,20 +948,20 @@ function MenuShell({
         {children}
       </ul>
       {showFooter && (
-        <div className="px-3 py-1.5 flex items-center justify-between border-t border-border/40 bg-muted/20 text-[10px] text-muted-foreground/75 select-none">
+        <div className="px-3 py-1.5 flex items-center justify-between border-t border-border/40 bg-muted/20 text-2xs text-muted-foreground/75 select-none">
           <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-[9px] text-foreground/70">
+            <kbd className="rounded-md border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-2xs text-foreground/70">
               ↑↓
             </kbd>
             <span>navigate</span>
             <span className="opacity-30">·</span>
-            <kbd className="rounded border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-[9px] text-foreground/70">
+            <kbd className="rounded-md border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-2xs text-foreground/70">
               ↵
             </kbd>
             <span>select</span>
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="rounded border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-[9px] text-foreground/70">
+            <kbd className="rounded-md border border-border/60 bg-muted/60 px-1 py-0.5 font-mono text-2xs text-foreground/70">
               esc
             </kbd>
             <span>close</span>
@@ -1196,35 +1197,20 @@ function MentionsPlugin({
                 <span className="gap-1.5 font-semibold flex items-center text-foreground">
                   <span className="truncate">@{option.candidate.name}</span>
                   {option.candidate.isSelf ? (
-                    <span className="px-1 py-0 font-bold tracking-wider rounded shrink-0 bg-muted text-[9px] text-muted-foreground uppercase">
+                    <span className="px-1 py-0 font-bold tracking-wider rounded-md shrink-0 bg-muted text-2xs text-muted-foreground uppercase">
                       You
                     </span>
                   ) : null}
                   {isAgent ? (
-                    <Badge
-                      variant="primary"
-                      className="py-0 h-3.5 font-bold tracking-wider text-[9px] uppercase"
-                    >
-                      AI AGENT
-                    </Badge>
+                    <EntityKindBadge kind="agent" size="sm" />
                   ) : isCoworker ? (
-                    <Badge
-                      variant="neutral"
-                      className="py-0 h-3.5 font-bold tracking-wider border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[9px] uppercase"
-                    >
-                      COWORKER
-                    </Badge>
+                    <EntityKindBadge kind="coworker" size="sm" label="Coworker" />
                   ) : isApp ? (
-                    <Badge
-                      variant="neutral"
-                      className="py-0 h-3.5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
-                    >
-                      APP
-                    </Badge>
+                    <EntityKindBadge kind="app" size="sm" />
                   ) : null}
                 </span>
                 {option.candidate.subtitle ? (
-                  <span className="block truncate text-[10px] text-muted-foreground">
+                  <span className="block truncate text-2xs text-muted-foreground">
                     {option.candidate.subtitle}
                   </span>
                 ) : null}
@@ -1246,35 +1232,35 @@ function MentionsPlugin({
             ) : (
               <>
                 {groups.length > 0 ? (
-                  <li className="px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase select-none">
+                  <li className="px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase select-none">
                     Group mentions
                   </li>
                 ) : null}
                 {groups.map(renderOption)}
 
                 {people.length > 0 ? (
-                  <li className="mt-1 px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase select-none">
+                  <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase select-none">
                     People — {people.length}
                   </li>
                 ) : null}
                 {people.map(renderOption)}
 
                 {agents.length > 0 ? (
-                  <li className="mt-1 px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-primary uppercase select-none">
+                  <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-primary uppercase select-none">
                     AI Agents — {agents.length}
                   </li>
                 ) : null}
                 {agents.map(renderOption)}
 
                 {coworkers.length > 0 ? (
-                  <li className="mt-1 px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-purple-600 dark:text-purple-400 uppercase select-none">
+                  <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-purple-600 dark:text-purple-400 uppercase select-none">
                     AI Coworkers — {coworkers.length}
                   </li>
                 ) : null}
                 {coworkers.map(renderOption)}
 
                 {apps.length > 0 ? (
-                  <li className="mt-1 px-2.5 py-1.5 text-[10px] font-semibold tracking-wider text-accent-violet uppercase select-none">
+                  <li className="mt-1 px-2.5 py-1.5 text-2xs font-semibold tracking-wider text-accent-violet uppercase select-none">
                     Connected Apps — {apps.length}
                   </li>
                 ) : null}
@@ -1401,7 +1387,7 @@ function ChannelMentionsPlugin({
                       #{option.candidate.name}
                     </span>
                     {option.candidate.subtitle ? (
-                      <span className="block truncate text-[10px] text-muted-foreground">
+                      <span className="block truncate text-2xs text-muted-foreground">
                         {option.candidate.subtitle}
                       </span>
                     ) : null}
@@ -1595,7 +1581,7 @@ function SlashCommandsPlugin({
                           </span>
                         ) : null}
                       </span>
-                      <span className="block truncate text-[10px] text-muted-foreground">
+                      <span className="block truncate text-2xs text-muted-foreground">
                         {source ? (
                           <>
                             <span className="font-medium text-foreground/70">
@@ -1616,7 +1602,7 @@ function SlashCommandsPlugin({
                       </span>
                     </span>
                     {selectedIndex === index ? (
-                      <kbd className="rounded border border-border/60 bg-background/70 px-1.5 py-0.5 font-mono text-[10px] shrink-0 text-muted-foreground">
+                      <kbd className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 font-mono text-2xs shrink-0 text-muted-foreground">
                         Enter
                       </kbd>
                     ) : null}

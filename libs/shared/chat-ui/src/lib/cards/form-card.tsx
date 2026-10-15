@@ -130,7 +130,7 @@ export function FormCard({
           </div>
         </div>
         {isSubmitted && (
-          <Badge variant="success" className="text-[10px] py-0 h-4 gap-1 font-semibold">
+          <Badge variant="success" className="text-2xs py-0 h-4 gap-1 font-semibold">
             <CheckCircle2 className="size-3" />
             <span>Submitted</span>
           </Badge>
@@ -140,7 +140,7 @@ export function FormCard({
       {isSubmitted ? (
         <div className="mt-3 space-y-2 text-xs">
           <p className="text-muted-foreground">Responses recorded:</p>
-          <div className="rounded-xl border border-border bg-surface-raised p-3 space-y-1.5 font-mono text-[11px]">
+          <div className="rounded-xl border border-border bg-surface-raised p-3 space-y-1.5 font-mono text-xs">
             {Object.entries(event.submittedValues || formData).map(([k, v]) => (
               <div key={k} className="flex items-center justify-between">
                 <span className="text-muted-foreground font-semibold">{k}:</span>

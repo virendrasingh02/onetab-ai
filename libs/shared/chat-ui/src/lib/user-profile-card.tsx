@@ -170,11 +170,11 @@ export function UserProfileCard({
         >
           <div className="top-2 right-2 gap-1 absolute flex">
             {powerLevel >= 100 ? (
-              <span className="bg-black/40 px-2 py-0.5 font-bold text-white backdrop-blur-xs rounded-full text-[10px]">
+              <span className="bg-black/40 px-2 py-0.5 font-bold text-white backdrop-blur-xs rounded-full text-2xs">
                 👑 Admin
               </span>
             ) : powerLevel >= 50 ? (
-              <span className="bg-black/40 px-2 py-0.5 font-bold text-white backdrop-blur-xs rounded-full text-[10px]">
+              <span className="bg-black/40 px-2 py-0.5 font-bold text-white backdrop-blur-xs rounded-full text-2xs">
                 🛡️ Mod
               </span>
             ) : null}
@@ -231,7 +231,7 @@ export function UserProfileCard({
           {/* Bio & Details */}
           <div className="space-y-2 text-xs">
             <div>
-              <p className="font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
+              <p className="font-bold tracking-wider text-2xs text-muted-foreground uppercase">
                 About Me
               </p>
               <p className="mt-0.5 leading-relaxed line-clamp-2 text-foreground">
@@ -407,7 +407,7 @@ export function UserProfileRightPanel({
             {powerLevel >= 50 ? (
               <Badge
                 variant="primary"
-                className="bg-primary text-[10px] text-primary-foreground"
+                className="bg-primary text-2xs text-primary-foreground"
               >
                 {powerLevel >= 100 ? 'Admin' : 'Moderator'}
               </Badge>
@@ -455,7 +455,7 @@ export function UserProfileRightPanel({
         {/* Bio & Details */}
         <div className="space-y-3 text-xs">
           <div className="p-3 space-y-1.5 rounded-xl border border-border bg-surface-inset/50">
-            <p className="font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
+            <p className="font-bold tracking-wider text-2xs text-muted-foreground uppercase">
               About Me
             </p>
             <p className="leading-relaxed text-foreground">{bio}</p>
@@ -463,7 +463,7 @@ export function UserProfileRightPanel({
 
           <div className="gap-2 grid grid-cols-2">
             <div className="p-2.5 rounded-xl border border-border bg-surface-inset/50">
-              <div className="gap-1.5 font-bold tracking-wider flex items-center text-[10px] text-muted-foreground uppercase">
+              <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
                 <Shield className="size-3 text-primary-text" />
                 <span>Role</span>
               </div>
@@ -473,7 +473,7 @@ export function UserProfileRightPanel({
             </div>
 
             <div className="p-2.5 rounded-xl border border-border bg-surface-inset/50">
-              <div className="gap-1.5 font-bold tracking-wider flex items-center text-[10px] text-muted-foreground uppercase">
+              <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
                 <Zap className="size-3 text-warning-text" />
                 <span>Power</span>
               </div>
@@ -484,7 +484,7 @@ export function UserProfileRightPanel({
 
             {email ? (
               <div className="p-2.5 col-span-2 rounded-xl border border-border bg-surface-inset/50">
-                <div className="gap-1.5 font-bold tracking-wider flex items-center text-[10px] text-muted-foreground uppercase">
+                <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
                   <Mail className="size-3 text-success-text" />
                   <span>Email</span>
                 </div>
@@ -495,7 +495,7 @@ export function UserProfileRightPanel({
             ) : null}
 
             <div className="p-2.5 col-span-2 rounded-xl border border-border bg-surface-inset/50">
-              <div className="gap-1.5 font-bold tracking-wider flex items-center text-[10px] text-muted-foreground uppercase">
+              <div className="gap-1.5 font-bold tracking-wider flex items-center text-2xs text-muted-foreground uppercase">
                 <Calendar className="size-3 text-accent-blue" />
                 <span>Member Joined</span>
               </div>

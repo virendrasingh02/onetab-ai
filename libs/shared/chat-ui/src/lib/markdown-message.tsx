@@ -263,7 +263,7 @@ function renderInline(
       );
     } else if (groups['highlight']) {
       nodes.push(
-        <mark key={key} className="rounded bg-warning/25 px-0.5 text-foreground">
+        <mark key={key} className="rounded-md bg-warning/25 px-0.5 text-foreground">
           {renderInline(token.slice(2, -2), key, options, depth + 1)}
         </mark>,
       );

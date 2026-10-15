@@ -90,7 +90,7 @@ export function InlineMessageEditor({
         }}
       />
       <div className="flex items-center gap-2 border-t border-border/60 bg-muted/40 px-3 py-1.5">
-        <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
           {enterToSend ? 'Enter' : 'Ctrl+Enter'} to save ·{' '}
           <kbd className="font-sans">Esc</kbd> to cancel
         </span>

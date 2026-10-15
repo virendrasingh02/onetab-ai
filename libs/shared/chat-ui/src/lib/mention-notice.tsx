@@ -185,7 +185,7 @@ function TargetIcon({ kind }: { kind: MentionNoticeTarget['kind'] }) {
 /** One mentioned name, styled like the mention pills in a sent message. */
 function TargetChip({ target }: { target: MentionNoticeTarget }) {
   return (
-    <span className="gap-0.5 rounded px-1 font-semibold inline-flex items-center border border-primary/30 bg-primary/10 align-baseline text-[0.9em] text-primary-text">
+    <span className="gap-0.5 rounded-md px-1 font-semibold inline-flex items-center border border-primary/30 bg-primary/10 align-baseline text-[0.9em] text-primary-text">
       <TargetIcon kind={target.kind} />@{target.name}
     </span>
   );
@@ -282,7 +282,7 @@ export function MentionNotice({
         className,
       )}
     >
-      <p className="mb-1 gap-1.5 pl-14 font-medium flex items-center text-[11px] text-muted-foreground">
+      <p className="mb-1 gap-1.5 pl-14 font-medium flex items-center text-xs text-muted-foreground">
         <Eye className="size-3.5 shrink-0" aria-hidden />
         Only visible to you
       </p>

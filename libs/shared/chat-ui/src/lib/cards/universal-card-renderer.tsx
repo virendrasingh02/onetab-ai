@@ -400,7 +400,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
             className={cn(
               'text-xs leading-relaxed',
               props['variant'] === 'muted' ? 'text-muted-foreground' : 'text-foreground',
-              props['size'] === 'xs' && 'text-[11px]',
+              props['size'] === 'xs' && 'text-xs',
               props['size'] === 'sm' && 'text-xs',
               props['size'] === 'md' && 'text-sm',
             )}
@@ -426,7 +426,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
           <Badge
             key={node.id}
             variant={variant}
-            className="text-[10px] py-0 h-4 font-semibold uppercase tracking-wider"
+            className="text-2xs py-0 h-4 font-semibold uppercase tracking-wider"
           >
             {text}
           </Badge>
@@ -451,7 +451,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
         const value = evaluateTemplate(props['value'], localData, context);
         return (
           <div key={node.id} className="p-2.5 rounded-xl border border-border/70 bg-surface-raised text-xs">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+            <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block">
               {label}
             </span>
             <span className="font-semibold text-foreground mt-0.5 block truncate">
@@ -584,7 +584,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
         return (
           <div key={node.id} className="my-2 space-y-1">
             {Boolean(props['label']) && (
-              <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
+              <div className="flex justify-between text-xs font-semibold text-muted-foreground">
                 <span>{evaluateTemplate(props['label'], localData, context)}</span>
                 <span>{pct.toFixed(0)}%</span>
               </div>

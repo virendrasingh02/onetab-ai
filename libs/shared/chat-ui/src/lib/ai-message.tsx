@@ -153,7 +153,7 @@ export function AIErrorRow({
         <Button
           variant="outline"
           size="sm"
-          className="h-6 text-[11px]"
+          className="h-6 text-xs"
           onClick={onRetry}
         >
           Retry

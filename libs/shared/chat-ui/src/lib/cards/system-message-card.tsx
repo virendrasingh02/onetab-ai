@@ -76,7 +76,7 @@ export function SystemMessageCard({
           <div className="flex items-center justify-between gap-2">
             <span className="font-bold text-foreground">{event.title}</span>
             {event.code && (
-              <span className="font-mono text-[10px] text-muted-foreground">{event.code}</span>
+              <span className="font-mono text-2xs text-muted-foreground">{event.code}</span>
             )}
           </div>
           {event.details && (
@@ -97,7 +97,7 @@ export function SystemMessageCard({
                     size="sm"
                     variant={btnVariant}
                     onClick={() => handleAction(act)}
-                    className="h-6 text-[11px] px-2 gap-1"
+                    className="h-6 text-xs px-2 gap-1"
                   >
                     <span>{act.label}</span>
                     <ArrowUpRight className="size-3 opacity-70" />

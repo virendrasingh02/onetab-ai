@@ -147,7 +147,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
                 type="button"
                 onClick={() => setStep('select')}
                 className={cn(
-                  'px-2 py-1 rounded font-semibold transition-colors',
+                  'px-2 py-1 rounded-md font-semibold transition-colors',
                   step === 'select' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
@@ -158,7 +158,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
                 type="button"
                 onClick={() => setStep('configure')}
                 className={cn(
-                  'px-2 py-1 rounded font-semibold transition-colors',
+                  'px-2 py-1 rounded-md font-semibold transition-colors',
                   step === 'configure' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
@@ -226,15 +226,15 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
                         </div>
                         <div>
                           <span className="font-bold text-xs text-foreground block">{c.name}</span>
-                          <span className="text-[10px] text-muted-foreground uppercase font-mono">{c.category} · v{c.version}</span>
+                          <span className="text-2xs text-muted-foreground uppercase font-mono">{c.category} · v{c.version}</span>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-[9px] py-0 h-4 capitalize">
+                      <Badge variant="outline" className="text-2xs py-0 h-4 capitalize">
                         {c.status}
                       </Badge>
                     </div>
                     {c.description && (
-                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                         {c.description}
                       </p>
                     )}
@@ -252,7 +252,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
                   <FileText className="size-3.5 text-primary" />
                   <span>Card Data Fields</span>
                 </span>
-                <span className="text-[10px] text-muted-foreground font-mono">
+                <span className="text-2xs text-muted-foreground font-mono">
                   {selectedCard.name} (v{selectedCard.version})
                 </span>
               </div>
@@ -304,7 +304,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
             {/* Right: Live Interactive Card Preview */}
             <div className="p-4 bg-surface-inset overflow-y-auto flex flex-col justify-center items-center">
               <div className="w-full max-w-md">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+                <span className="text-2xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">
                   Live Card Preview
                 </span>
                 <UniversalCardRenderer

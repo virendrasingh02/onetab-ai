@@ -117,7 +117,7 @@ export function ApprovalCard({
               <h3 className="text-sm font-bold text-foreground tracking-tight">
                 {event.title}
               </h3>
-              <Badge variant={riskBadgeConfig.variant} className="text-[10px] py-0 h-4 font-semibold">
+              <Badge variant={riskBadgeConfig.variant} className="text-2xs py-0 h-4 font-semibold">
                 {riskBadgeConfig.label}
               </Badge>
               <Badge
@@ -128,7 +128,7 @@ export function ApprovalCard({
                       ? 'destructive'
                       : 'warning'
                 }
-                className="text-[10px] py-0 h-4 capitalize font-bold"
+                className="text-2xs py-0 h-4 capitalize font-bold"
               >
                 {localStatus}
               </Badge>
@@ -142,7 +142,7 @@ export function ApprovalCard({
         </div>
 
         {event.expiresAt && isPending && (
-          <div className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground shrink-0">
+          <div className="flex items-center gap-1 text-xs font-mono text-muted-foreground shrink-0">
             <Clock className="size-3" />
             <span>Expires {new Date(event.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
@@ -159,7 +159,7 @@ export function ApprovalCard({
       {/* Proposed Action */}
       {event.proposedAction && (
         <div className="mt-3">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
+          <span className="text-2xs font-bold text-muted-foreground uppercase block mb-1">
             Proposed Command / Action
           </span>
           <CodeBlock
@@ -185,11 +185,11 @@ export function ApprovalCard({
       {/* Side Effects Warnings */}
       {event.sideEffects && event.sideEffects.length > 0 && (
         <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-foreground">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-warning-text block mb-1.5 flex items-center gap-1">
+          <span className="text-2xs font-bold uppercase tracking-wider text-warning-text block mb-1.5 flex items-center gap-1">
             <AlertTriangle className="size-3.5" />
             <span>Potential Side Effects:</span>
           </span>
-          <ul className="space-y-1 pl-4 list-disc text-muted-foreground text-[11px]">
+          <ul className="space-y-1 pl-4 list-disc text-muted-foreground text-xs">
             {event.sideEffects.map((effect, idx) => (
               <li key={idx}>{effect}</li>
             ))}
@@ -236,7 +236,7 @@ export function ApprovalCard({
             </span>
           </span>
           {event.decidedAt && (
-            <time className="text-[11px]">
+            <time className="text-xs">
               {new Date(event.decidedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </time>
           )}

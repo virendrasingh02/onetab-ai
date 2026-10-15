@@ -270,7 +270,7 @@ function StagedAttachmentChip({
         </Hint>
       ) : (
         <div className="h-[72px] w-52 gap-2.5 px-3 flex items-center rounded-xl bg-muted/70">
-          <span className="size-10 text-[10px] font-bold tracking-wide flex shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary-text">
+          <span className="size-10 text-2xs font-bold tracking-wide flex shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary-text">
             {ext || <FileIcon className="size-4" />}
           </span>
           <span className="min-w-0 flex-1">
@@ -280,7 +280,7 @@ function StagedAttachmentChip({
             >
               {file.name}
             </span>
-            <span className="block text-[11px] text-muted-foreground">
+            <span className="block text-xs text-muted-foreground">
               {formatBytes(file.size)}
             </span>
           </span>
@@ -1127,7 +1127,7 @@ export function Composer({
       {contextSlot}
 
       {anon && anonAllowed ? (
-        <div className="gap-1.5 mb-2 px-3 py-1.5 font-medium flex items-center rounded-lg border border-primary/20 bg-primary/10 text-[11px] text-primary-text">
+        <div className="gap-1.5 mb-2 px-3 py-1.5 font-medium flex items-center rounded-lg border border-primary/20 bg-primary/10 text-xs text-primary-text">
           <VenetianMask className="size-3.5" />
           This message will be posted as “Anonymous Participant”.
         </div>
@@ -1461,19 +1461,19 @@ export function Composer({
 
                     {pendingScheduled.length > 0 ? (
                       <div className="space-y-1 pb-2 border-b border-border">
-                        <div className="font-medium mb-1 text-[11px] text-muted-foreground">
+                        <div className="font-medium mb-1 text-xs text-muted-foreground">
                           Pending in this conversation
                         </div>
                         {pendingScheduled.map((item) => (
                           <div
                             key={item.id}
-                            className="gap-2 px-2 py-1.5 rounded text-xs flex items-start justify-between bg-accent/40"
+                            className="gap-2 px-2 py-1.5 rounded-md text-xs flex items-start justify-between bg-accent/40"
                           >
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-foreground">
                                 {item.body}
                               </p>
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="text-2xs text-muted-foreground">
                                 {new Date(item.scheduledFor).toLocaleString(
                                   undefined,
                                   {
@@ -1499,7 +1499,7 @@ export function Composer({
                     ) : null}
 
                     <div className="space-y-1">
-                      <div className="font-medium mb-1 text-[11px] text-muted-foreground">
+                      <div className="font-medium mb-1 text-xs text-muted-foreground">
                         Quick options
                       </div>
                       {schedulePresets.map((preset) => (
@@ -1509,10 +1509,10 @@ export function Composer({
                           onClick={() =>
                             void handleSchedule(preset.time.toISOString())
                           }
-                          className="px-2 py-1.5 rounded text-xs flex w-full items-center justify-between text-left text-foreground transition-colors hover:bg-accent"
+                          className="px-2 py-1.5 rounded-md text-xs flex w-full items-center justify-between text-left text-foreground transition-colors hover:bg-accent"
                         >
                           <span>{preset.label}</span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-2xs text-muted-foreground">
                             {preset.time.toLocaleTimeString([], {
                               hour: 'numeric',
                               minute: '2-digit',
@@ -1523,7 +1523,7 @@ export function Composer({
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-border">
-                      <label className="font-medium block text-[11px] text-muted-foreground">
+                      <label className="font-medium block text-xs text-muted-foreground">
                         Custom date & time
                       </label>
                       <input
@@ -1531,7 +1531,7 @@ export function Composer({
                         value={customDatetime}
                         min={new Date().toISOString().slice(0, 16)}
                         onChange={(e) => setCustomDatetime(e.target.value)}
-                        className="px-2 py-1 text-xs rounded w-full border border-border bg-background text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+                        className="px-2 py-1 text-xs rounded-md w-full border border-border bg-background text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
                       />
                       <button
                         type="button"
@@ -1548,7 +1548,7 @@ export function Composer({
                           }
                           void handleSchedule(targetDate.toISOString());
                         }}
-                        className="py-1.5 px-3 text-xs font-medium rounded w-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
+                        className="py-1.5 px-3 text-xs font-medium rounded-md w-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
                       >
                         Schedule Send
                       </button>
@@ -1584,7 +1584,7 @@ export function Composer({
         </div>
       )}
 
-      {/* <div className="mt-1 px-1 flex items-center justify-between text-[11px] text-muted-foreground">
+      {/* <div className="mt-1 px-1 flex items-center justify-between text-xs text-muted-foreground">
         <span>
           <strong className="font-semibold text-foreground">Enter</strong> to send ·{' '}
           <strong className="font-semibold text-foreground">Shift+Enter</strong> for

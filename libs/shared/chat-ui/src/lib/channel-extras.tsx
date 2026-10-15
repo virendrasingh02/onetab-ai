@@ -145,7 +145,7 @@ export function BookmarksBar({
             className="h-7 gap-1 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
           >
             <Plus className="size-3.5" />
-            <span className="text-[11px]">Add bookmark</span>
+            <span className="text-xs">Add bookmark</span>
           </Button>
         </Hint>
       ) : null}
@@ -297,7 +297,7 @@ export function HuddleBar({
         <h4 className="text-sm font-medium tracking-tight leading-none text-foreground">
           Huddle
         </h4>
-        <span className="text-[11px] leading-none text-muted-foreground">
+        <span className="text-xs leading-none text-muted-foreground">
           {subline}
           {startedAt && !failed && !reconnecting ? (
             <span className="text-subtle">
@@ -497,7 +497,7 @@ function MessagePreview({
           <span className="text-xs font-semibold truncate">
             {message.senderName}
           </span>
-          <span className="shrink-0 text-[10px] text-subtle">
+          <span className="shrink-0 text-2xs text-subtle">
             {formatListTimestamp(message.timestamp)}
           </span>
         </span>
@@ -602,7 +602,7 @@ export function PinnedMessageCard({
             >
               {message.senderName}
             </span>
-            <span className="text-[11px] text-muted-foreground font-normal shrink-0">
+            <span className="text-xs text-muted-foreground font-normal shrink-0">
               {formatPinnedTimestamp(message.timestamp)}
             </span>
           </div>
@@ -1004,7 +1004,7 @@ export function ThreadListPanel({
                 <span className="text-sm font-semibold truncate">
                   {thread.root.senderName}
                 </span>
-                <span className="shrink-0 text-[11px] text-subtle">
+                <span className="shrink-0 text-xs text-subtle">
                   {formatListTimestamp(thread.root.timestamp)}
                 </span>
                 {thread.hasUnread ? (
@@ -1131,7 +1131,7 @@ export function UnreadDivider({ label = 'New' }: { label?: string }) {
       role="separator"
       aria-label={`${label} messages below`}
     >
-      <span className="px-2 py-0.5 font-semibold tracking-wide rounded-full bg-destructive text-[10px] text-destructive-foreground uppercase shrink-0">
+      <span className="px-2 py-0.5 font-semibold tracking-wide rounded-full bg-destructive text-2xs text-destructive-foreground uppercase shrink-0">
         {label}
       </span>
       <span

@@ -123,13 +123,13 @@ export function AttachmentFileHeader({
         trigger={
           <button
             type="button"
-            className="group/file-hdr inline-flex items-center gap-1 py-0.5 px-1 -ml-1 text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors rounded hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="group/file-hdr inline-flex items-center gap-1 py-0.5 px-1 -ml-1 text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors rounded-md hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <span className="truncate max-w-[240px] sm:max-w-xs text-[13px] font-semibold text-foreground/95">
               {attachment.name}
             </span>
             {attachment.size ? (
-              <span className="text-[11px] text-muted-foreground font-normal ml-0.5">
+              <span className="text-xs text-muted-foreground font-normal ml-0.5">
                 {formatBytes(attachment.size)}
               </span>
             ) : null}
@@ -204,7 +204,7 @@ export function PdfPreviewCard({
         <span className="text-xs font-semibold text-foreground/90 tracking-wide">
           Document Preview
         </span>
-        <span className="text-[10px] text-muted-foreground font-medium">PDF</span>
+        <span className="text-2xs text-muted-foreground font-medium">PDF</span>
       </div>
 
       {/* Info & action footer */}
@@ -217,7 +217,7 @@ export function PdfPreviewCard({
           >
             {attachment.name}
           </p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {attachment.size ? formatBytes(attachment.size) : 'PDF Document'}
           </p>
         </div>
@@ -560,7 +560,7 @@ export function VoiceMessage({ attachment }: VoiceMessageProps) {
           type="button"
           onClick={cycleSpeed}
           aria-label={`Playback speed, ${PLAYBACK_SPEEDS[speedIndex]}×. Tap to change.`}
-          className="h-6 min-w-8 px-1 text-[11px] font-semibold shrink-0 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="h-6 min-w-8 px-1 text-xs font-semibold shrink-0 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           {PLAYBACK_SPEEDS[speedIndex]}×
         </button>
@@ -712,7 +712,7 @@ function AttachmentGridTile({
         aria-label={`Open ${attachment.name}`}
       >
         <FileIcon className="size-5" />
-        <span className="max-w-[85%] truncate text-[10px]">{attachment.name}</span>
+        <span className="max-w-[85%] truncate text-2xs">{attachment.name}</span>
       </button>
     );
   }
@@ -778,11 +778,11 @@ function AttachmentGridTile({
               'group-hover:opacity-100 group-focus-visible:opacity-100',
             )}
           >
-            <span className="truncate text-[10px] font-medium leading-tight">
+            <span className="truncate text-2xs font-medium leading-tight">
               {attachment.name}
             </span>
             {attachment.size ? (
-              <span className="text-[9px] leading-tight text-white/80">
+              <span className="text-2xs leading-tight text-white/80">
                 {formatBytes(attachment.size)}
               </span>
             ) : null}
@@ -892,7 +892,7 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="group/grid-hdr inline-flex items-center gap-1 py-0.5 px-1 -ml-1 text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors rounded hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="group/grid-hdr inline-flex items-center gap-1 py-0.5 px-1 -ml-1 text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors rounded-md hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <span>{items.length} files</span>
               <ChevronDown className="size-3 text-muted-foreground transition-transform duration-150 group-data-[state=open]/grid-hdr:rotate-180 shrink-0" />
@@ -912,7 +912,7 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
                     <span className="truncate">{it.attachment.name}</span>
                   </div>
                   {it.attachment.size ? (
-                    <span className="text-[10px] text-muted-foreground shrink-0">
+                    <span className="text-2xs text-muted-foreground shrink-0">
                       {formatBytes(it.attachment.size)}
                     </span>
                   ) : null}
@@ -937,7 +937,7 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
             aria-label={`Download all ${items.length} files`}
             className={cn(
               'inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors',
-              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded py-0.5 px-1',
+              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md py-0.5 px-1',
               'disabled:opacity-50 disabled:cursor-wait',
             )}
           >

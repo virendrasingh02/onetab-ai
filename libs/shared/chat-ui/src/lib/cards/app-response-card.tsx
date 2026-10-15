@@ -14,6 +14,7 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { EntityKindBadge } from '../entity-kind-badge.js';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -114,13 +115,11 @@ export function AppResponseCard({
                 {event.appName || message.senderName}
               </span>
 
-              <Badge
-                variant="neutral"
-                className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20 gap-0.5"
-              >
-                <Blocks className="size-2.5" />
-                <span>{event.category || 'App'}</span>
-              </Badge>
+              <EntityKindBadge
+                kind="app"
+                icon={<Blocks className="size-2.5" />}
+                label={event.category || 'App'}
+              />
 
               {event.badge && (
                 <Badge
@@ -129,14 +128,14 @@ export function AppResponseCard({
                       ? 'primary'
                       : event.badge.variant || 'primary'
                   }
-                  className="text-[10px] py-0 h-4 font-semibold"
+                  className="text-2xs py-0 h-4 font-semibold"
                 >
                   {event.badge.label}
                 </Badge>
               )}
               <time
                 dateTime={new Date(message.timestamp).toISOString()}
-                className="font-medium text-[11px] text-muted-foreground"
+                className="font-medium text-xs text-muted-foreground"
               >
                 {new Date(message.timestamp).toLocaleTimeString(undefined, {
                   hour: '2-digit',
@@ -209,7 +208,7 @@ export function AppResponseCard({
               href={event.url}
               target="_blank"
               rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent"
+              className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-accent"
               title="Open external link"
             >
               <ExternalLink className="size-3.5" />
@@ -235,7 +234,7 @@ export function AppResponseCard({
                 !f.inline && 'sm:col-span-2',
               )}
             >
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+              <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block">
                 {f.label}
               </span>
               <div className="flex items-center gap-2 mt-1">
@@ -243,7 +242,7 @@ export function AppResponseCard({
                   {String(f.value)}
                 </span>
                 {f.badge && (
-                  <Badge variant="outline" className="text-[9px] py-0 h-4 font-mono">
+                  <Badge variant="outline" className="text-2xs py-0 h-4 font-mono">
                     {f.badge}
                   </Badge>
                 )}
@@ -255,7 +254,7 @@ export function AppResponseCard({
 
       {/* 4. FOOTER */}
       {event.footer && (
-        <p className="mt-3 pt-2 text-[11px] text-muted-foreground border-t border-border/50">
+        <p className="mt-3 pt-2 text-xs text-muted-foreground border-t border-border/50">
           {event.footer}
         </p>
       )}

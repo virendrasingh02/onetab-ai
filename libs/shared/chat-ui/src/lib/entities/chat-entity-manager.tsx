@@ -150,7 +150,7 @@ export function ChatEntityManager({
             <TabsList className="h-7 p-0.5">
               <TabsTrigger value="all" className="h-6 px-2.5 text-xs gap-1">
                 <span>All</span>
-                <Badge variant="neutral" className="px-1 py-0 h-3.5 text-[9px]">
+                <Badge variant="neutral" className="px-1 py-0 h-3.5 text-2xs">
                   {counts.all}
                 </Badge>
               </TabsTrigger>
@@ -158,7 +158,7 @@ export function ChatEntityManager({
                 <CheckSquare className="size-3" />
                 <span>Kanban / Tasks</span>
                 {counts.card > 0 && (
-                  <Badge variant="neutral" className="px-1 py-0 h-3.5 text-[9px]">
+                  <Badge variant="neutral" className="px-1 py-0 h-3.5 text-2xs">
                     {counts.card}
                   </Badge>
                 )}
@@ -167,7 +167,7 @@ export function ChatEntityManager({
                 <FileText className="size-3" />
                 <span>Docs</span>
                 {counts.document > 0 && (
-                  <Badge variant="neutral" className="px-1 py-0 h-3.5 text-[9px]">
+                  <Badge variant="neutral" className="px-1 py-0 h-3.5 text-2xs">
                     {counts.document}
                   </Badge>
                 )}
@@ -176,7 +176,7 @@ export function ChatEntityManager({
                 <TabsTrigger value="thread" className="h-6 px-2.5 text-xs gap-1">
                   <MessagesSquare className="size-3" />
                   <span>Threads</span>
-                  <Badge variant="neutral" className="px-1 py-0 h-3.5 text-[9px]">
+                  <Badge variant="neutral" className="px-1 py-0 h-3.5 text-2xs">
                     {counts.thread}
                   </Badge>
                 </TabsTrigger>

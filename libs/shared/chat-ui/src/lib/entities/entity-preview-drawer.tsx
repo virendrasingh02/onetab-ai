@@ -43,17 +43,17 @@ export function EntityPreviewDrawer({
         <DialogHeader className="p-4 sm:p-5 border-b border-border/70 bg-surface/50">
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <Badge variant="primary" className="uppercase font-bold text-[9px] py-0 h-4.5">
+              <Badge variant="primary" className="uppercase font-bold text-2xs py-0 h-4.5">
                 {entity.kind}
               </Badge>
               {entity.channelName && (
-                <Badge variant="outline" className="gap-1 text-[10px] py-0 h-4.5 font-medium">
+                <Badge variant="outline" className="gap-1 text-2xs py-0 h-4.5 font-medium">
                   <Hash className="size-2.5" />
                   <span>{entity.channelName}</span>
                 </Badge>
               )}
               {entity.priority && (
-                <Badge variant="neutral" className="text-[9px] py-0 h-4.5 font-mono">
+                <Badge variant="neutral" className="text-2xs py-0 h-4.5 font-mono">
                   {entity.priority}
                 </Badge>
               )}
@@ -62,7 +62,7 @@ export function EntityPreviewDrawer({
             {entity.status && (
               <Badge
                 variant={isDone ? 'success' : 'neutral'}
-                className="py-0 h-4.5 text-[10px] font-mono uppercase"
+                className="py-0 h-4.5 text-2xs font-mono uppercase"
               >
                 {entity.status.replace(/_/g, ' ')}
               </Badge>
@@ -83,7 +83,7 @@ export function EntityPreviewDrawer({
           <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-surface-raised border border-border/60 text-xs">
             {entity.assigneeName ? (
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                <span className="text-2xs font-bold text-muted-foreground uppercase flex items-center gap-1">
                   <User className="size-3" /> Assignee
                 </span>
                 <div className="flex items-center gap-1.5 font-medium text-foreground">
@@ -99,7 +99,7 @@ export function EntityPreviewDrawer({
               </div>
             ) : entity.authorName ? (
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                <span className="text-2xs font-bold text-muted-foreground uppercase flex items-center gap-1">
                   <User className="size-3" /> Author
                 </span>
                 <div className="flex items-center gap-1.5 font-medium text-foreground">
@@ -117,10 +117,10 @@ export function EntityPreviewDrawer({
 
             {entity.updatedAt ? (
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                <span className="text-2xs font-bold text-muted-foreground uppercase flex items-center gap-1">
                   <Calendar className="size-3" /> Last Updated
                 </span>
-                <span className="text-muted-foreground block font-mono text-[11px]">
+                <span className="text-muted-foreground block font-mono text-xs">
                   {formatRelative(
                     typeof entity.updatedAt === 'number'
                       ? new Date(entity.updatedAt).toISOString()
@@ -133,7 +133,7 @@ export function EntityPreviewDrawer({
 
           {/* Description Section */}
           <div className="space-y-1.5">
-            <span className="text-[11px] font-bold text-foreground block uppercase tracking-wider">
+            <span className="text-xs font-bold text-foreground block uppercase tracking-wider">
               {entity.kind === 'document' ? 'Document Content' : 'Description'}
             </span>
             <div className="p-3.5 rounded-xl border border-border bg-surface text-xs leading-relaxed text-foreground whitespace-pre-wrap">

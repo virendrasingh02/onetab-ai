@@ -138,20 +138,20 @@ export function ForwardedMessageCard({
             {time ? (
               <time
                 dateTime={new Date(forwarded.timestamp).toISOString()}
-                className="shrink-0 text-[11px] text-muted-foreground"
+                className="shrink-0 text-xs text-muted-foreground"
               >
                 {time}
               </time>
             ) : null}
             <Hint label="Forwarded message">
-              <span className="ml-auto gap-1 font-medium shrink-0 inline-flex items-center self-center text-[10px] tracking-wide text-subtle uppercase">
+              <span className="ml-auto gap-1 font-medium shrink-0 inline-flex items-center self-center text-2xs tracking-wide text-subtle uppercase">
                 <Forward className="size-3" aria-hidden />
                 <span className="sr-only sm:not-sr-only">Forwarded</span>
               </span>
             </Hint>
           </div>
 
-          <p className="gap-1 flex items-center text-[11px] text-muted-foreground">
+          <p className="gap-1 flex items-center text-xs text-muted-foreground">
             <span className="shrink-0" aria-hidden>
               {source.icon}
             </span>

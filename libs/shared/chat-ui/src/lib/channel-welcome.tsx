@@ -1,12 +1,12 @@
 import type { RoomMember } from '@org/types';
 import {
-  Badge,
   Button,
   UserAvatar,
   UserAvatarGroup,
   type PresenceInput,
 } from '@org/ui';
 import { cn, formatDate } from '@org/utils';
+import { EntityKindBadge } from './entity-kind-badge.js';
 import {
   ArrowRight,
   Blocks,
@@ -425,21 +425,9 @@ export function ChannelWelcome({
               {displayName}
             </h2>
             {peerKind === 'agent' ? (
-              <Badge
-                variant="primary"
-                className="gap-1 py-0 h-4 font-bold tracking-wider text-[9px] uppercase"
-              >
-                <Bot className="size-2.5" />
-                <span>AI Agent</span>
-              </Badge>
+              <EntityKindBadge kind="agent" icon={<Bot className="size-2.5" />} />
             ) : peerKind === 'app' ? (
-              <Badge
-                variant="neutral"
-                className="gap-1 py-0 h-4 font-bold tracking-wider text-[9px] uppercase"
-              >
-                <Blocks className="size-2.5" />
-                <span>App</span>
-              </Badge>
+              <EntityKindBadge kind="app" icon={<Blocks className="size-2.5" />} />
             ) : null}
           </div>
           {peer?.role ? (

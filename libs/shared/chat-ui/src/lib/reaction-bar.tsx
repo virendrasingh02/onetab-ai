@@ -223,7 +223,7 @@ export function ReactionBar({
                   </span>
                 </span>
                 {onToggle ? (
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     {reaction.reactedByMe ? 'Click to remove' : 'Click to react'}
                   </span>
                 ) : null}

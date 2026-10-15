@@ -2,7 +2,6 @@ import type { Message, RoomKind, RoomMember, WorkspacePolicy } from '@org/types'
 import { SeenBy } from './seen-by.js';
 import {
   ActionDropdownMenu,
-  Badge,
   EmojiPicker,
   EntityContextMenu,
   type EntityAction,
@@ -14,6 +13,7 @@ import {
   type RightPanelProfile,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { EntityKindBadge } from './entity-kind-badge.js';
 import {
   Activity,
   AlertTriangle,
@@ -287,7 +287,7 @@ function GifMessage({
       />
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover/gif:opacity-100">
         <span className="truncate text-xs font-medium text-white">{title || 'GIF'}</span>
-        <span className="text-[10px] text-white/80 uppercase tracking-wider font-semibold">Click to expand</span>
+        <span className="text-2xs text-white/80 uppercase tracking-wider font-semibold">Click to expand</span>
       </div>
     </div>
   );
@@ -438,7 +438,7 @@ export function ThreadRepliesButton({
           ))}
           {participants.length > 3 ? (
             <span
-              className="size-5 relative flex shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground ring-2 ring-surface tabular-nums"
+              className="size-5 relative flex shrink-0 items-center justify-center rounded-full bg-muted text-2xs font-semibold text-muted-foreground ring-2 ring-surface tabular-nums"
               aria-label={`${participants.length - 3} more`}
             >
               +{participants.length - 3}
@@ -753,51 +753,21 @@ export function ChatBubble({
     ? message.senderId.replace(/^(agent|coworker|app)-/, '')
     : undefined;
 
+  const entityBadgeKind = isCoworker
+    ? 'coworker'
+    : isAgent
+      ? 'agent'
+      : isDoc
+        ? 'doc'
+        : isTask
+          ? 'task'
+          : isKanban
+            ? 'kanban'
+            : isApp
+              ? 'app'
+              : null;
   const effectiveBadge =
-    senderBadge ||
-    (isCoworker ? (
-      <Badge
-        variant="primary"
-        className="py-0 h-4 font-bold tracking-wider gap-0.5 text-[9px] uppercase border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300"
-      >
-        <span>AI COWORKER</span>
-      </Badge>
-    ) : isAgent ? (
-      <Badge
-        variant="primary"
-        className="py-0 h-4 font-bold tracking-wider gap-0.5 text-[9px] uppercase"
-      >
-        <span>AI AGENT</span>
-      </Badge>
-    ) : isDoc ? (
-      <Badge
-        variant="neutral"
-        className="py-0 h-4 font-bold tracking-wider gap-0.5 border-info/30 bg-info/15 text-[9px] text-info-text uppercase"
-      >
-        <span>DOC</span>
-      </Badge>
-    ) : isTask ? (
-      <Badge
-        variant="neutral"
-        className="py-0 h-4 font-bold tracking-wider gap-0.5 border-success/30 bg-success/15 text-[9px] text-success uppercase"
-      >
-        <span>TASK</span>
-      </Badge>
-    ) : isKanban ? (
-      <Badge
-        variant="neutral"
-        className="py-0 h-4 font-bold tracking-wider gap-0.5 border-warning/30 bg-warning/15 text-[9px] text-warning-text uppercase"
-      >
-        <span>KANBAN</span>
-      </Badge>
-    ) : isApp ? (
-      <Badge
-        variant="neutral"
-        className="py-0 h-4 font-bold tracking-wider gap-0.5 border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
-      >
-        <span>APP</span>
-      </Badge>
-    ) : null);
+    senderBadge || (entityBadgeKind ? <EntityKindBadge kind={entityBadgeKind} /> : null);
 
   const canEdit =
     isOwn &&
@@ -1098,7 +1068,7 @@ export function ChatBubble({
               dateTime={new Date(message.timestamp).toISOString()}
               className={cn(
                 'hidden cursor-pointer whitespace-nowrap text-muted-foreground tabular-nums group-hover/message:block hover:underline',
-                isCompact ? 'mt-0.5 text-[9px]' : 'mt-1 text-[10px]',
+                isCompact ? 'mt-0.5 text-2xs' : 'mt-1 text-2xs',
               )}
             >
               {new Date(message.timestamp).toLocaleTimeString(undefined, {
@@ -1159,7 +1129,7 @@ export function ChatBubble({
             <Hint label={formatFullTimestamp(message.timestamp)}>
               <time
                 dateTime={new Date(message.timestamp).toISOString()}
-                className="font-medium cursor-pointer text-[11px] text-muted-foreground hover:underline"
+                className="font-medium cursor-pointer text-xs text-muted-foreground hover:underline"
               >
                 {Date.now() - message.timestamp < 60_000
                   ? 'Just now'
@@ -1201,7 +1171,7 @@ export function ChatBubble({
           <button
             type="button"
             onClick={onOpenThread}
-            className="gap-1 mb-0.5 -ml-1 px-1 py-0.5 flex w-fit items-center rounded text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="gap-1 mb-0.5 -ml-1 px-1 py-0.5 flex w-fit items-center rounded-md text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <MessageSquare className="size-3" aria-hidden />
             Replied to a thread
@@ -1242,7 +1212,7 @@ export function ChatBubble({
               />
             ) : null}
             {message.isEdited && !editSlot ? (
-              <span className="ml-1 text-[11px] text-muted-foreground select-none">
+              <span className="ml-1 text-xs text-muted-foreground select-none">
                 (edited)
               </span>
             ) : null}
@@ -1705,7 +1675,7 @@ export function JumpToDatePicker({
           {weekDays.map((day) => (
             <span
               key={day}
-              className="font-medium text-[11px] text-muted-foreground"
+              className="font-medium text-xs text-muted-foreground"
             >
               {day}
             </span>

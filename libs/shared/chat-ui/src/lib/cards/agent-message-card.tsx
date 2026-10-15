@@ -24,6 +24,7 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { EntityKindBadge } from '../entity-kind-badge.js';
 import {
   AlertTriangle,
   ArrowRight,
@@ -287,12 +288,12 @@ export function AgentMessageCard({
                 <span className="text-xs font-bold text-foreground truncate">
                   {event.agentName || message.senderName}
                 </span>
-                <span className="text-[10px] text-muted-foreground font-mono">
+                <span className="text-2xs text-muted-foreground font-mono">
                   {event.model}
                 </span>
                 <Badge
                   variant={statusConfig.variant}
-                  className="text-[9px] py-0 h-4 gap-1"
+                  className="text-2xs py-0 h-4 gap-1"
                 >
                   {statusConfig.icon}
                   <span>{statusConfig.label}</span>
@@ -306,7 +307,7 @@ export function AgentMessageCard({
 
           <div className="flex items-center gap-1 shrink-0">
             {event.durationMs !== undefined && (
-              <span className="text-[10px] font-mono text-muted-foreground">
+              <span className="text-2xs font-mono text-muted-foreground">
                 {formatDuration(event.durationMs)}
               </span>
             )}
@@ -314,7 +315,7 @@ export function AgentMessageCard({
               size="sm"
               variant="outline"
               onClick={() => prefs.setDensity('comfortable')}
-              className="h-6 text-[10px] px-2"
+              className="h-6 text-2xs px-2"
             >
               Open
             </Button>
@@ -375,16 +376,11 @@ export function AgentMessageCard({
                 </span>,
               )}
 
-              <Badge
-                variant="primary"
-                className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider"
-              >
-                <span>AI Agent</span>
-              </Badge>
+              <EntityKindBadge kind="agent" />
 
               <time
                 dateTime={new Date(message.timestamp).toISOString()}
-                className="font-medium text-[11px] text-muted-foreground"
+                className="font-medium text-xs text-muted-foreground"
               >
                 {new Date(message.timestamp).toLocaleTimeString(undefined, {
                   hour: '2-digit',
@@ -469,7 +465,7 @@ export function AgentMessageCard({
 
               <DropdownMenuItem
                 onClick={() => setDebugModalOpen(true)}
-                className="gap-2 font-mono text-[11px]"
+                className="gap-2 font-mono text-xs"
               >
                 <Terminal className="size-3.5 text-primary" />
                 <span>View Event Debug JSON</span>
@@ -509,7 +505,7 @@ export function AgentMessageCard({
           </span>
 
           {/* Step Progression checklist */}
-          <div className="mt-2.5 space-y-1.5 font-mono text-[11px] empty:hidden">
+          <div className="mt-2.5 space-y-1.5 font-mono text-xs empty:hidden">
             {event.tools && event.tools.length > 0 &&
               event.tools.map((t, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -520,7 +516,7 @@ export function AgentMessageCard({
                   ) : t.status === 'failed' ? (
                     <XCircle className="size-3 text-destructive" />
                   ) : (
-                    <span className="size-3 rounded-full border border-border text-center text-[9px] leading-none">
+                    <span className="size-3 rounded-full border border-border text-center text-2xs leading-none">
                       ○
                     </span>
                   )}
@@ -528,7 +524,7 @@ export function AgentMessageCard({
                     {t.name}
                   </span>
                   {t.durationMs !== undefined && (
-                    <span className="text-[10px] text-muted-foreground ml-auto">
+                    <span className="text-2xs text-muted-foreground ml-auto">
                       {formatDuration(t.durationMs)}
                     </span>
                   )}
@@ -594,7 +590,7 @@ export function AgentMessageCard({
                 size="sm"
                 variant="outline"
                 onClick={onRetry}
-                className="h-6 text-[11px] border-destructive/30 text-destructive hover:bg-destructive/10"
+                className="h-6 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
               >
                 Retry
               </Button>
@@ -626,7 +622,7 @@ export function AgentMessageCard({
                 {event.reasoning.durationMs && `(${formatDuration(event.reasoning.durationMs)})`}
               </span>
               {event.reasoning.summary && (
-                <span className="text-[11px] font-normal text-muted-foreground truncate max-w-xs">
+                <span className="text-xs font-normal text-muted-foreground truncate max-w-xs">
                   — {event.reasoning.summary}
                 </span>
               )}
@@ -659,7 +655,7 @@ export function AgentMessageCard({
       {/* 8. KEY FINDINGS / ACTIONS TAKEN (Bullet cards) */}
       {event.keyFindings && event.keyFindings.length > 0 && (
         <div className="mt-3.5 space-y-1.5">
-          <span className="text-[11px] font-bold text-foreground block uppercase tracking-wider">
+          <span className="text-xs font-bold text-foreground block uppercase tracking-wider">
             Key Findings
           </span>
           <div className="grid sm:grid-cols-2 gap-2">
@@ -723,7 +719,7 @@ export function AgentMessageCard({
 
                       <div className="flex items-center gap-2 shrink-0">
                         {tool.durationMs !== undefined && (
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-2xs text-muted-foreground">
                             {formatDuration(tool.durationMs)}
                           </span>
                         )}
@@ -732,7 +728,7 @@ export function AgentMessageCard({
                             size="sm"
                             variant="ghost"
                             onClick={() => toggleToolDetails(toolKey)}
-                            className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                            className="h-5 px-1.5 text-2xs text-muted-foreground hover:text-foreground"
                           >
                             {isDetailOpen ? 'Hide' : 'Inspect'}
                           </Button>
@@ -741,10 +737,10 @@ export function AgentMessageCard({
                     </div>
 
                     {isDetailOpen && (
-                      <div className="mt-2 pt-2 border-t border-border/60 space-y-2 text-[11px]">
+                      <div className="mt-2 pt-2 border-t border-border/60 space-y-2 text-xs">
                         {Boolean(tool.input) && (
                           <div>
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
+                            <span className="text-2xs font-bold text-muted-foreground uppercase block mb-1">
                               Input
                             </span>
                             <CodeBlock
@@ -761,7 +757,7 @@ export function AgentMessageCard({
 
                         {Boolean(tool.output) && (
                           <div>
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
+                            <span className="text-2xs font-bold text-muted-foreground uppercase block mb-1">
                               Output
                             </span>
                             <CodeBlock
@@ -778,7 +774,7 @@ export function AgentMessageCard({
 
                         {tool.error && (
                           <div className="text-destructive font-sans">
-                            <span className="text-[10px] font-bold uppercase block">
+                            <span className="text-2xs font-bold uppercase block">
                               Error
                             </span>
                             <p className="mt-0.5">{tool.error}</p>
@@ -828,11 +824,11 @@ export function AgentMessageCard({
                     >
                       {src.title}
                     </a>
-                    <span className="text-[10px] text-muted-foreground block truncate mt-0.5">
+                    <span className="text-2xs text-muted-foreground block truncate mt-0.5">
                       {src.domain || src.url}
                     </span>
                     {src.description && (
-                      <p className="text-[11px] text-muted-foreground/80 line-clamp-2 mt-1">
+                      <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-1">
                         {src.description}
                       </p>
                     )}
@@ -844,7 +840,7 @@ export function AgentMessageCard({
                         href={src.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent"
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
                       >
                         <ExternalLink className="size-3.5" />
                       </a>
@@ -856,7 +852,7 @@ export function AgentMessageCard({
                           navigator.clipboard?.writeText(src.url);
                           toast.success('Source link copied');
                         }}
-                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent"
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
                       >
                         <Copy className="size-3.5" />
                       </button>
@@ -872,7 +868,7 @@ export function AgentMessageCard({
       {/* 11. GENERATED FILES & CODE OUTPUT */}
       {files.length > 0 && (
         <div className="mt-3.5 space-y-2">
-          <span className="text-[11px] font-bold text-foreground block uppercase tracking-wider">
+          <span className="text-xs font-bold text-foreground block uppercase tracking-wider">
             Generated Outputs &amp; Files
           </span>
           <div className="grid sm:grid-cols-2 gap-2">
@@ -897,7 +893,7 @@ export function AgentMessageCard({
                       <span className="font-semibold text-foreground truncate block">
                         {file.name}
                       </span>
-                      <span className="text-[10px] text-muted-foreground block">
+                      <span className="text-2xs text-muted-foreground block">
                         {file.mimeType} {file.size ? `· ${(file.size / 1024).toFixed(1)} KB` : ''}
                       </span>
                     </div>
@@ -935,7 +931,7 @@ export function AgentMessageCard({
       {/* 12. DYNAMIC SUGGESTED ACTIONS BAR */}
       {event.suggestedActions && event.suggestedActions.length > 0 && (
         <div className="mt-4 pt-3 border-t border-border/60">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-2">
+          <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">
             ⚡ Suggested Follow-up Actions
           </span>
           <div className="flex items-center gap-2 flex-wrap">
@@ -961,14 +957,14 @@ export function AgentMessageCard({
 
       {/* 13. TECHNICAL METADATA (Debug Drawer) */}
       {prefs.showTechnicalMetadata && (
-        <div className="mt-3.5 rounded-xl border border-border/80 bg-surface-inset p-3 text-[11px] font-mono text-muted-foreground">
+        <div className="mt-3.5 rounded-xl border border-border/80 bg-surface-inset p-3 text-xs font-mono text-muted-foreground">
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-bold text-foreground">Technical Audit Metadata</span>
             <Button
               size="sm"
               variant="ghost"
               onClick={() => setDebugModalOpen(true)}
-              className="h-5 px-1 text-[10px]"
+              className="h-5 px-1 text-2xs"
             >
               Full JSON
             </Button>

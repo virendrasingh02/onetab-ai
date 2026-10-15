@@ -68,7 +68,7 @@ export function WorkflowCard({
                       ? 'destructive'
                       : 'primary'
                 }
-                className="text-[10px] py-0 h-4 uppercase font-bold"
+                className="text-2xs py-0 h-4 uppercase font-bold"
               >
                 {event.status}
               </Badge>
@@ -94,7 +94,7 @@ export function WorkflowCard({
 
       {/* Visual Step Progression Flow */}
       <div className="mt-4 space-y-2">
-        <span className="text-[11px] font-bold text-foreground block uppercase tracking-wider">
+        <span className="text-xs font-bold text-foreground block uppercase tracking-wider">
           Multi-Agent Pipeline Steps
         </span>
         <div className="space-y-1.5">
@@ -122,7 +122,7 @@ export function WorkflowCard({
                       ) : step.status === 'failed' ? (
                         <XCircle className="size-4 text-destructive" />
                       ) : (
-                        <span className="size-4 rounded-full border border-border text-center text-[10px] leading-tight block">
+                        <span className="size-4 rounded-full border border-border text-center text-2xs leading-tight block">
                           {idx + 1}
                         </span>
                       )}
@@ -132,7 +132,7 @@ export function WorkflowCard({
                         {step.name}
                       </span>
                       {step.agentName && (
-                        <span className="text-[10px] text-muted-foreground block truncate">
+                        <span className="text-2xs text-muted-foreground block truncate">
                           Agent: {step.agentName}
                         </span>
                       )}
@@ -141,11 +141,11 @@ export function WorkflowCard({
 
                   <div className="flex items-center gap-2 shrink-0">
                     {step.durationMs !== undefined && (
-                      <span className="text-[10px] font-mono text-muted-foreground">
+                      <span className="text-2xs font-mono text-muted-foreground">
                         {formatDuration(step.durationMs)}
                       </span>
                     )}
-                    <span className="text-[10px] uppercase font-mono tracking-wider opacity-80">
+                    <span className="text-2xs uppercase font-mono tracking-wider opacity-80">
                       {step.status}
                     </span>
                   </div>
@@ -177,7 +177,7 @@ export function WorkflowCard({
                 size="sm"
                 variant="outline"
                 onClick={() => onRetryStep(selectedStep.id)}
-                className="h-6 text-[10px] gap-1"
+                className="h-6 text-2xs gap-1"
               >
                 <RotateCcw className="size-3" />
                 <span>Retry Step</span>
@@ -187,7 +187,7 @@ export function WorkflowCard({
 
           {Boolean(selectedStep.input) && (
             <div className="mb-2">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
+              <span className="text-2xs font-bold text-muted-foreground uppercase block mb-1">
                 Input
               </span>
               <CodeBlock
@@ -204,7 +204,7 @@ export function WorkflowCard({
 
           {Boolean(selectedStep.output) && (
             <div className="mb-2">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">
+              <span className="text-2xs font-bold text-muted-foreground uppercase block mb-1">
                 Output
               </span>
               <CodeBlock
@@ -221,7 +221,7 @@ export function WorkflowCard({
 
           {Boolean(selectedStep.error) && (
             <div className="text-destructive font-sans">
-              <span className="text-[10px] font-bold uppercase block">Error</span>
+              <span className="text-2xs font-bold uppercase block">Error</span>
               <p className="mt-0.5">{selectedStep.error}</p>
             </div>
           )}

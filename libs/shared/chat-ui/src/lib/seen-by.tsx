@@ -97,7 +97,7 @@ export function SeenBy({
             type="button"
             aria-label={firstReader ? `Seen by ${firstReader.displayName} at ${timeLabel}` : 'Seen'}
             className={cn(
-              'group/seen inline-flex items-center gap-1 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded',
+              'group/seen inline-flex items-center gap-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded-md',
               className,
             )}
           >
@@ -156,7 +156,7 @@ export function SeenBy({
           aria-label={accessibleLabel}
           onKeyDown={handleKeyDown}
           className={cn(
-            'group/seen inline-flex items-center gap-1.5 py-0.5 px-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/40 rounded-md focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring select-none cursor-pointer',
+            'group/seen inline-flex items-center gap-1.5 py-0.5 px-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/40 rounded-md focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring select-none cursor-pointer',
             className,
           )}
         >
@@ -244,7 +244,7 @@ function ReaderItem({ reader }: { reader: MessageReader }) {
           {reader.displayName}
         </span>
         {timeStr && (
-          <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
+          <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">
             {timeStr}
           </span>
         )}

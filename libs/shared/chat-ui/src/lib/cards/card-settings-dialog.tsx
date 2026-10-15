@@ -58,14 +58,14 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
 
           {/* Display Toggles */}
           <div className="space-y-3 pt-2 border-t border-border">
-            <p className="font-semibold text-muted-foreground text-[11px] uppercase tracking-wider">
+            <p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
               Display Elements
             </p>
 
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-medium text-foreground">Show Execution Steps</Label>
-                <p className="text-[11px] text-muted-foreground">Display running sub-steps and progress</p>
+                <p className="text-xs text-muted-foreground">Display running sub-steps and progress</p>
               </div>
               <Switch
                 checked={prefs.showExecutionSteps}
@@ -76,7 +76,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-medium text-foreground">Show Tool Calls</Label>
-                <p className="text-[11px] text-muted-foreground">Display executed tools and durations</p>
+                <p className="text-xs text-muted-foreground">Display executed tools and durations</p>
               </div>
               <Switch
                 checked={prefs.showTools}
@@ -87,7 +87,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-medium text-foreground">Show Sources</Label>
-                <p className="text-[11px] text-muted-foreground">Display web, doc, and knowledge base citations</p>
+                <p className="text-xs text-muted-foreground">Display web, doc, and knowledge base citations</p>
               </div>
               <Switch
                 checked={prefs.showSources}
@@ -98,7 +98,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-medium text-foreground">Show AI Model Badge</Label>
-                <p className="text-[11px] text-muted-foreground">Display model name (e.g. GPT-5, Gemini 2.5)</p>
+                <p className="text-xs text-muted-foreground">Display model name (e.g. GPT-5, Gemini 2.5)</p>
               </div>
               <Switch
                 checked={prefs.showModel}
@@ -109,7 +109,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-medium text-foreground">Show Execution Duration</Label>
-                <p className="text-[11px] text-muted-foreground">Display latency / duration timer in header</p>
+                <p className="text-xs text-muted-foreground">Display latency / duration timer in header</p>
               </div>
               <Switch
                 checked={prefs.showDuration}
@@ -120,7 +120,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs font-medium text-foreground">Technical / Debug Metadata</Label>
-                <p className="text-[11px] text-muted-foreground">Inspect Event ID, Execution ID, and raw payload</p>
+                <p className="text-xs text-muted-foreground">Inspect Event ID, Execution ID, and raw payload</p>
               </div>
               <Switch
                 checked={prefs.showTechnicalMetadata}
@@ -131,7 +131,7 @@ export function CardSettingsDialog({ open, onOpenChange }: CardSettingsDialogPro
 
           {/* Behavior Toggles */}
           <div className="space-y-3 pt-2 border-t border-border">
-            <p className="font-semibold text-muted-foreground text-[11px] uppercase tracking-wider">
+            <p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
               Collapsing Behavior
             </p>
 

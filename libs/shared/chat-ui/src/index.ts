@@ -415,3 +415,5 @@ export {
 } from './lib/use-link-preview.js';
 
 
+
+export { EntityKindBadge, type EntityBadgeKind } from './lib/entity-kind-badge.js';
