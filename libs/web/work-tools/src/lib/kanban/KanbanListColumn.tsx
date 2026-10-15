@@ -319,11 +319,21 @@ export function KanbanListColumn({
           {visibleCards.length === 0 ? (
             <li
               data-kanban-empty
-              className="px-2 py-6 text-xs text-center text-muted-foreground"
+              className={cn(
+                'px-2 text-xs text-center text-muted-foreground',
+                hiddenCount > 0
+                  ? 'py-6'
+                  : // A quiet drop area. Every empty column of a new board
+                    // used to repeat "Drop a card here" above "Add a card";
+                    // the words now appear only while a card is in the air.
+                    'h-12 flex items-center justify-center rounded-lg border border-dashed border-border/60',
+              )}
             >
               {hiddenCount > 0
                 ? `${hiddenCount} card${hiddenCount === 1 ? '' : 's'} hidden by filters`
-                : 'Drop a card here'}
+                : drag.activeCardId
+                  ? 'Drop a card here'
+                  : null}
             </li>
           ) : null}
 

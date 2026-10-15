@@ -104,6 +104,6 @@ export {
 export { useCanManageChannel } from './lib/use-can-manage-channel.js';
 export { channelComposerLocks } from './lib/channel-composer-locks.js';
 
-export { ChannelPage } from './lib/pages/channel-page.js';
+export { ChannelPage, type ChannelPageProps } from './lib/pages/channel-page.js';
 export { CreateChannelPage } from './lib/pages/create-channel-page.js';
 export { BrowseChannelsPage } from './lib/pages/browse-channels-page.js';

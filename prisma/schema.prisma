@@ -61,7 +61,6 @@ model User {
   taskComments              TaskComment[]
   assignedTasks             Task[]
   uploads                   Upload[]
-  whiteboards               Whiteboard[]
   workDocuments             WorkDocument[]
   workspaceMembers          WorkspaceMember[]
   ownedWorkspaces           Workspace[]                 @relation("WorkspaceOwner")
@@ -362,7 +361,6 @@ model Workspace {
   intakeRequests            IntakeRequest[]
   workItemActivities        WorkItemActivity[]
   uploads                   Upload[]
-  whiteboards               Whiteboard[]
   workDocuments             WorkDocument[]
   members                   WorkspaceMember[]
   notifications             Notification[]
@@ -2105,24 +2103,6 @@ model WorkDocument {
   @@index([workspaceId, deletedAt])
   @@index([searchVector], type: Gin)
   @@map("work_documents")
-}
-
-model Whiteboard {
-  id          String    @id @default(cuid())
-  workspaceId String
-  authorId    String
-  name        String
-  canvasData  String    @default("{\"nodes\":[],\"edges\":[]}")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  /// Soft delete — see Project.deletedAt.
-  deletedAt   DateTime?
-
-  @@index([workspaceId, createdAt])
-  @@index([workspaceId, deletedAt])
-  @@map("whiteboards")
 }
 
 model PromptTemplate {

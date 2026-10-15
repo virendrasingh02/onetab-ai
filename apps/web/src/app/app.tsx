@@ -161,9 +161,6 @@ const MeetingsView = lazy(() =>
 const CallDetailPage = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.CallDetailPage })),
 );
-const WhiteboardCanvas = lazy(() =>
-  import('@org/web-work-tools').then((m) => ({ default: m.WhiteboardCanvas })),
-);
 const AIChatView = lazy(() =>
   import('@org/web-coworkers').then((m) => ({ default: m.AIChatView })),
 );
@@ -344,7 +341,99 @@ function NotFoundPage() {
   );
 }
 
-export function App() {
+export /**
+ * Every page that lives inside the workspace shell. Declared once so the same
+ * table serves the routed outlet and the split pane (`workspaceSplitPages`),
+ * which renders any of these beside the current page.
+ */
+const workspaceChildRoutes = (
+  <>
+            <Route index element={<AIChatView />} />
+            <Route path="home" element={<AIChatView />} />
+            <Route
+              path="overview"
+              element={<Navigate to="dashboard" replace />}
+            />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="c/:channelSlug" element={<ChannelPage />} />
+            <Route path="channels" element={<BrowseChannelsPage />} />
+            <Route path="channels/new" element={<CreateChannelPage />} />
+            <Route path="members" element={<MembersPage />} />
+            {/* The sidebar calls the member list "Directory". */}
+            <Route path="directory" element={<MembersPage />} />
+            <Route path="inbox" element={<InboxView />} />
+            <Route path="schedule" element={<ScheduleView />} />
+            <Route path="tasks" element={<AsanaProjectManager />} />
+            <Route path="tasks/:projectId" element={<AsanaProjectManager />} />
+            <Route path="kanban" element={<AsanaProjectManager />} />
+            <Route path="work" element={<AsanaProjectManager />} />
+            <Route path="projects" element={<AsanaProjectManager />} />
+            <Route
+              path="projects/:projectId"
+              element={<AsanaProjectManager />}
+            />
+            <Route path="cycles" element={<AsanaProjectManager />} />
+            <Route path="intake" element={<AsanaProjectManager />} />
+            <Route path="initiatives" element={<AsanaProjectManager />} />
+            <Route path="notes" element={<DocumentEditor />} />
+            <Route path="notes/:docId" element={<DocumentEditor />} />
+            <Route path="docs" element={<DocumentEditor />} />
+            <Route path="docs/:docId" element={<DocumentEditor />} />
+            <Route path="files" element={<FileManagerView />} />
+            {/* Pulse was removed; old links land on the dashboard. */}
+            <Route path="pulse" element={<Navigate to="../dashboard" replace />} />
+            <Route path="timeline" element={<Navigate to="../dashboard" replace />} />
+            <Route path="activity" element={<Navigate to="../dashboard" replace />} />
+            <Route path="meetings" element={<MeetingsView />} />
+            <Route path="calls" element={<CallDetailPage />} />
+            <Route path="dms" element={<DirectMessagesPage />} />
+            <Route path="dms/:peerId" element={<DirectMessagesPage />} />
+            <Route path="threads" element={<ThreadsView />} />
+            <Route path="saved" element={<SavedView />} />
+            <Route path="ai-chat" element={<AIChatView />} />
+
+            {/* --- AI Agent Studio: a separate app; published agents appear in the sidebar --- */}
+            <Route path="ai/agents/:agentId" element={<AIEntityEditorRoute />} />
+            <Route path="ai/*" element={<StudioRedirect />} />
+
+            {/* Conversations with an agent or coworker stay where chat lives. */}
+            <Route path="agents/chat" element={<AgentChatView />} />
+            <Route path="agents/:agentId/chat" element={<AgentChatView />} />
+            <Route path="coworkers/:id" element={<CoworkerChatView />} />
+
+            {/* Former AI entry points, kept so bookmarks resolve. */}
+            <Route path="agents" element={<LegacyAIRedirect to="agents" />} />
+            <Route path="agents/builder" element={<LegacyAIRedirect to="agent-builder" />} />
+            <Route path="agents/logs" element={<LegacyAIRedirect to="agent-logs" />} />
+            <Route path="coworkers" element={<LegacyAIRedirect to="coworkers" />} />
+
+            {/* Unified Automation Center */}
+            <Route path="automations" element={<AutomationCenterLayout />} />
+            <Route path="automations/builder" element={<WorkflowCanvasView />} />
+            <Route path="automations/builder/:workflowId" element={<WorkflowCanvasView />} />
+            <Route path="automations/logs" element={<Navigate to="../automations?tab=runs-logs" replace />} />
+
+            {/* Apps & integrations: third-party apps and agents to install. */}
+            <Route path="marketplace" element={<MarketplaceRoute />} />
+            <Route path="marketplace/apps/:slug" element={<MarketplaceItemRedirect kind="app" />} />
+            <Route path="marketplace/agents/:slug" element={<MarketplaceItemRedirect kind="agent" />} />
+            <Route path="marketplace/developer" element={<MarketplaceRoute />} />
+            <Route path="integrations" element={<IntegrationHubView />} />
+            <Route path="apps" element={<AppChatView />} />
+            <Route path="apps/chat" element={<AppChatView />} />
+            <Route path="apps/:appId/chat" element={<AppChatView />} />
+            <Route path="*" element={<NotFoundPage />} />
+  </>
+);
+
+/** The page table for the split pane — resolved against the pane's own location. */
+const workspaceSplitPages = (
+  <Routes>
+    <Route path="/w/:workspaceSlug">{workspaceChildRoutes}</Route>
+  </Routes>
+);
+
+function App() {
   // Exchanges the httpOnly refresh cookie for a session before routing decides
   // whether the visitor is anonymous.
   useSessionBootstrap();
@@ -476,83 +565,11 @@ export function App() {
           <Route path="/w/:workspaceSlug/agent-studio" element={<LegacyAIRedirect to="agents" />} />
 
           {/* --- Main Workspace Shell with Navigation & Tools --- */}
-          <Route path="/w/:workspaceSlug" element={<AppShell />}>
-            <Route index element={<AIChatView />} />
-            <Route path="home" element={<AIChatView />} />
-            <Route
-              path="overview"
-              element={<Navigate to="dashboard" replace />}
-            />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="c/:channelSlug" element={<ChannelPage />} />
-            <Route path="channels" element={<BrowseChannelsPage />} />
-            <Route path="channels/new" element={<CreateChannelPage />} />
-            <Route path="members" element={<MembersPage />} />
-            {/* The sidebar calls the member list "Directory". */}
-            <Route path="directory" element={<MembersPage />} />
-            <Route path="inbox" element={<InboxView />} />
-            <Route path="schedule" element={<ScheduleView />} />
-            <Route path="tasks" element={<AsanaProjectManager />} />
-            <Route path="tasks/:projectId" element={<AsanaProjectManager />} />
-            <Route path="kanban" element={<AsanaProjectManager />} />
-            <Route path="work" element={<AsanaProjectManager />} />
-            <Route path="projects" element={<AsanaProjectManager />} />
-            <Route
-              path="projects/:projectId"
-              element={<AsanaProjectManager />}
-            />
-            <Route path="cycles" element={<AsanaProjectManager />} />
-            <Route path="intake" element={<AsanaProjectManager />} />
-            <Route path="initiatives" element={<AsanaProjectManager />} />
-            <Route path="notes" element={<DocumentEditor />} />
-            <Route path="notes/:docId" element={<DocumentEditor />} />
-            <Route path="docs" element={<DocumentEditor />} />
-            <Route path="docs/:docId" element={<DocumentEditor />} />
-            <Route path="files" element={<FileManagerView />} />
-            {/* Pulse was removed; old links land on the dashboard. */}
-            <Route path="pulse" element={<Navigate to="../dashboard" replace />} />
-            <Route path="timeline" element={<Navigate to="../dashboard" replace />} />
-            <Route path="activity" element={<Navigate to="../dashboard" replace />} />
-            <Route path="meetings" element={<MeetingsView />} />
-            <Route path="calls" element={<CallDetailPage />} />
-            <Route path="dms" element={<DirectMessagesPage />} />
-            <Route path="dms/:peerId" element={<DirectMessagesPage />} />
-            <Route path="threads" element={<ThreadsView />} />
-            <Route path="saved" element={<SavedView />} />
-            <Route path="ai-chat" element={<AIChatView />} />
-            <Route path="whiteboards" element={<WhiteboardCanvas />} />
-
-            {/* --- AI Agent Studio: a separate app; published agents appear in the sidebar --- */}
-            <Route path="ai/agents/:agentId" element={<AIEntityEditorRoute />} />
-            <Route path="ai/*" element={<StudioRedirect />} />
-
-            {/* Conversations with an agent or coworker stay where chat lives. */}
-            <Route path="agents/chat" element={<AgentChatView />} />
-            <Route path="agents/:agentId/chat" element={<AgentChatView />} />
-            <Route path="coworkers/:id" element={<CoworkerChatView />} />
-
-            {/* Former AI entry points, kept so bookmarks resolve. */}
-            <Route path="agents" element={<LegacyAIRedirect to="agents" />} />
-            <Route path="agents/builder" element={<LegacyAIRedirect to="agent-builder" />} />
-            <Route path="agents/logs" element={<LegacyAIRedirect to="agent-logs" />} />
-            <Route path="coworkers" element={<LegacyAIRedirect to="coworkers" />} />
-
-            {/* Unified Automation Center */}
-            <Route path="automations" element={<AutomationCenterLayout />} />
-            <Route path="automations/builder" element={<WorkflowCanvasView />} />
-            <Route path="automations/builder/:workflowId" element={<WorkflowCanvasView />} />
-            <Route path="automations/logs" element={<Navigate to="../automations?tab=runs-logs" replace />} />
-
-            {/* Apps & integrations: third-party apps and agents to install. */}
-            <Route path="marketplace" element={<MarketplaceRoute />} />
-            <Route path="marketplace/apps/:slug" element={<MarketplaceItemRedirect kind="app" />} />
-            <Route path="marketplace/agents/:slug" element={<MarketplaceItemRedirect kind="agent" />} />
-            <Route path="marketplace/developer" element={<MarketplaceRoute />} />
-            <Route path="integrations" element={<IntegrationHubView />} />
-            <Route path="apps" element={<AppChatView />} />
-            <Route path="apps/chat" element={<AppChatView />} />
-            <Route path="apps/:appId/chat" element={<AppChatView />} />
-            <Route path="*" element={<NotFoundPage />} />
+          <Route
+            path="/w/:workspaceSlug"
+            element={<AppShell splitPages={workspaceSplitPages} />}
+          >
+            {workspaceChildRoutes}
           </Route>
         </Route>
 

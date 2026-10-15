@@ -33,6 +33,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { generateId } from '@org/utils';
 
 const CHANNELS_BOOTSTRAP_KEY_PREFIX = 'channels_bootstrap:';
 
@@ -730,7 +731,7 @@ export function useChannelBookmarks(
       setBookmarks((prev) => {
         const newEntry: ChannelBookmark = {
           ...bookmark,
-          id: `bm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          id: generateId('bm'),
         };
         const updated = [...prev, newEntry];
         try {

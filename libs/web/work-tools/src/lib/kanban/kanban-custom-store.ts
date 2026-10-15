@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { generateId } from '@org/utils';
 
 export interface CustomStatusItem {
   id: string;
@@ -178,7 +179,7 @@ export const useKanbanCustomStore = create<KanbanCustomState>()(
 
       addLabel: (label) => {
         const newLabel: CustomLabelItem = {
-          id: `lbl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          id: generateId('lbl'),
           ...label,
         };
         set((state) => ({ labels: [...state.labels, newLabel] }));

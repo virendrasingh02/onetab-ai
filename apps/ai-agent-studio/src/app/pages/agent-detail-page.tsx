@@ -34,7 +34,7 @@ import {
   toast,
 } from '@org/ui';
 import { canManageOwnedAIResource, compileStudioGraph, isStudioGraph, diffStudioGraphs, type StudioCanvasGraph, type StudioGraphIssue } from '@org/types';
-import { cn } from '@org/utils';
+import { cn, generateId } from '@org/utils';
 import {
   addEdge,
   applyEdgeChanges,
@@ -3204,7 +3204,7 @@ export function AgentDetailPage() {
 
     const idMap = new Map<string, string>();
     const newNodes: Node[] = clipNodes.map((n) => {
-      const newId = `${n.type?.toLowerCase() || 'node'}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 5)}`;
+      const newId = generateId((n.type?.toLowerCase() || 'node'));
       idMap.set(n.id, newId);
       return {
         ...n,
@@ -3277,7 +3277,7 @@ export function AgentDetailPage() {
     setNodes((prev) => {
       const selected = prev.filter((n) => selectedIds.includes(n.id));
       selected.forEach((n) => {
-        const newId = `${n.type?.toLowerCase() || 'node'}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 5)}`;
+        const newId = generateId((n.type?.toLowerCase() || 'node'));
         newNodes.push({
           ...n,
           id: newId,

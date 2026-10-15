@@ -1,5 +1,6 @@
 import type { Accent } from '@org/design-system';
 import type { Priority } from '../types.js';
+import { generateShortId } from '@org/utils';
 
 /**
  * The intermediate representation an import passes through.
@@ -82,9 +83,5 @@ let sequence = 0;
 /** Collision-safe enough for a parse pass, and readable in devtools. */
 export function createId(prefix: string): string {
   sequence += 1;
-  const random =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-  return `${prefix}_${random}${sequence}`;
+  return `${prefix}_${generateShortId()}${sequence}`;
 }

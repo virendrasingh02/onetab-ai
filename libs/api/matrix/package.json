@@ -41,6 +41,7 @@
     "@org/database": "*",
     "@org/types": "*",
     "@org/validation": "*",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@org/utils": "*"
   }
 }

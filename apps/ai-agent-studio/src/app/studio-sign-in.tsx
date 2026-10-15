@@ -2,6 +2,7 @@ import { authApi, isTwoFactorChallenge, setAccessToken } from '@org/api-client';
 import { Button, Field, Input } from '@org/ui';
 import { Sparkles } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { buildLoginUrl } from './auth-redirect.js';
 
 interface StudioSignInProps {
   /** Called once the API has set the session; the guard then loads the user. */
@@ -105,6 +106,11 @@ export function StudioSignIn({ onSignedIn }: StudioSignInProps) {
         <Button type="submit" className="w-full" disabled={busy || (challengeToken ? !code : !email || !password)}>
           {busy ? 'Signing in…' : challengeToken ? 'Verify' : 'Sign in'}
         </Button>
+        <p className="text-center text-xs text-muted-foreground">
+          <a className="underline underline-offset-2" href={buildLoginUrl()}>
+            Sign in with the main OneTab AI app instead
+          </a>
+        </p>
       </form>
     </div>
   );

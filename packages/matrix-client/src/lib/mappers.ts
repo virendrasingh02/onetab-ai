@@ -633,6 +633,10 @@ export function toRoomKind(room: SdkRoom, client: SdkClient): RoomKind {
   // A DM is recorded in m.direct account data, not on the room itself — and it
   // stays there whatever the headcount, so a group DM is simply a DM with more
   // than two people in it. Only a room not in the map is classified as a channel.
+  //
+  // A space is never a DM, even if it ended up in m.direct: an older group-DM
+  // lookup could match the workspace space and tag it there.
+  if (room.isSpaceRoom?.()) return 'channel';
   const directMap = readDirectMap(client);
   const directRoomIds = new Set<string>(
     Object.values(directMap).flat(),
@@ -768,6 +772,10 @@ export function resolveGroupDirectMessageRoom(
 
   for (const room of rooms) {
     if (!OPEN_MEMBERSHIPS.has(room.getMyMembership() ?? '')) continue;
+    // A workspace's `m.space` holds every member but is not a conversation —
+    // in a small workspace its member set used to equal the picked people, so
+    // "new group" opened inside the Space (titled after the workspace).
+    if (room.isSpaceRoom?.()) continue;
 
     const others = room
       .getMembers()
@@ -869,6 +877,7 @@ export function toRoom(client: SdkClient, room: SdkRoom): Room {
       room.getUnreadNotificationCount(NotificationCountType.Highlight) ?? 0,
     lastActivityAt: room.getLastActiveTimestamp(),
     memberCount: room.getJoinedMemberCount(),
+    invitedCount: room.getInvitedMemberCount(),
     directUserId,
     markedUnread: markedUnread.unread,
     markedUnreadFromId: markedUnread.fromId,

@@ -86,7 +86,6 @@ export type {
   MeetingNote,
   MeetingDecision,
   WorkDocument,
-  Whiteboard,
   PromptTemplate,
   AIMemory,
   AIChatSession,

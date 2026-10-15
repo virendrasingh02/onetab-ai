@@ -867,6 +867,22 @@ describe('resolveGroupDirectMessageRoom', () => {
     ).toBeNull();
   });
 
+  it('never reuses a space room, even when its members match exactly', () => {
+    const space = fakeDmRoom({
+      roomId: '!space:x',
+      name: 'Acme',
+      members: [{ userId: me }, { userId: alice }, { userId: bob }],
+    });
+    (space as unknown as { isSpaceRoom: () => boolean }).isSpaceRoom = () =>
+      true;
+    const client = fakeDmClient({ rooms: [space] });
+    expect(
+      resolveGroupDirectMessageRoom(client, [alice, bob], {
+        includeChannels: true,
+      }),
+    ).toBeNull();
+  });
+
   it('returns null for fewer than two peers', () => {
     expect(resolveGroupDirectMessageRoom(fakeDmClient({}), [alice])).toBeNull();
   });

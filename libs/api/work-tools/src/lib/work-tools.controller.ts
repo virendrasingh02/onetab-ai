@@ -39,7 +39,6 @@ import {
   createTaskCommentSchema,
   createTaskSchema,
   createTeamSchema,
-  createWhiteboardSchema,
   createWorkItemRelationSchema,
   moveTaskSchema,
   projectIdentifierSettingsSchema,
@@ -53,7 +52,6 @@ import {
   updateSavedViewSchema,
   updateTaskSchema,
   updateTeamSchema,
-  updateWhiteboardSchema,
   type ConvertIntakeRequestInput,
   type CreateCalendarEventInput,
   type CreateCycleInput,
@@ -68,7 +66,6 @@ import {
   type CreateTaskCommentInput,
   type CreateTaskInput,
   type CreateTeamInput,
-  type CreateWhiteboardInput,
   type CreateWorkItemRelationInput,
   type MoveTaskInput,
   type ProjectIdentifierSettingsInput,
@@ -82,7 +79,6 @@ import {
   type UpdateSavedViewInput,
   type UpdateTaskInput,
   type UpdateTeamInput,
-  type UpdateWhiteboardInput,
   createCrossObjectLinkSchema,
   type CreateCrossObjectLinkInput,
 } from '@org/validation';
@@ -99,7 +95,7 @@ export class WorkToolsController {
 
   // --- recycle bin --------------------------------------------------------
   //
-  // Projects, tasks, documents, whiteboards and calendar events are soft
+  // Projects, tasks, documents and calendar events are soft
   // deleted — the row and its children stay in the database and are hidden
   // from every read until purged. These routes list and restore them.
 
@@ -133,15 +129,6 @@ export class WorkToolsController {
     @Param('docId') docId: string,
   ) {
     return this.workTools.restoreDocument(workspaceId, docId);
-  }
-
-  @Post('trash/whiteboards/:whiteboardId/restore')
-  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
-  restoreWhiteboard(
-    @WorkspaceId() workspaceId: string,
-    @Param('whiteboardId') whiteboardId: string,
-  ) {
-    return this.workTools.restoreWhiteboard(workspaceId, whiteboardId);
   }
 
   @Post('trash/events/:eventId/restore')
@@ -726,51 +713,6 @@ export class WorkToolsController {
     @Param('docId') docId: string,
   ): Promise<void> {
     return this.workTools.deleteDocument(workspaceId, docId);
-  }
-
-  // --- whiteboards ----------------------------------------------------------
-
-  @Get('whiteboards')
-  getWhiteboards(@WorkspaceId() workspaceId: string) {
-    return this.workTools.getWhiteboards(workspaceId);
-  }
-
-  @Get('whiteboards/:whiteboardId')
-  getWhiteboard(
-    @WorkspaceId() workspaceId: string,
-    @Param('whiteboardId') whiteboardId: string,
-  ) {
-    return this.workTools.getWhiteboard(workspaceId, whiteboardId);
-  }
-
-  @Post('whiteboards')
-  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
-  createWhiteboard(
-    @WorkspaceId() workspaceId: string,
-    @CurrentUser() user: CurrentUserType,
-    @Body(zodBody(createWhiteboardSchema)) body: CreateWhiteboardInput,
-  ) {
-    return this.workTools.createWhiteboard(workspaceId, user.id, body);
-  }
-
-  @Patch('whiteboards/:whiteboardId')
-  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
-  updateWhiteboard(
-    @WorkspaceId() workspaceId: string,
-    @Param('whiteboardId') whiteboardId: string,
-    @Body(zodBody(updateWhiteboardSchema)) body: UpdateWhiteboardInput,
-  ) {
-    return this.workTools.updateWhiteboard(workspaceId, whiteboardId, body);
-  }
-
-  @Delete('whiteboards/:whiteboardId')
-  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  deleteWhiteboard(
-    @WorkspaceId() workspaceId: string,
-    @Param('whiteboardId') whiteboardId: string,
-  ): Promise<void> {
-    return this.workTools.deleteWhiteboard(workspaceId, whiteboardId);
   }
 
   // --- context & cross-object links -----------------------------------------

@@ -2,6 +2,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService, type Prisma } from '@org/database';
 import * as crypto from 'crypto';
+import { generateId } from '@org/utils';
 
 export interface GenerateOtpOptions {
   identifier: string; // email or user id
@@ -117,7 +118,7 @@ export class OtpManager {
     const expiresAt = new Date(now + expiresInMinutes * 60_000);
     const maxAttempts = options.maxAttempts || 5;
 
-    let recordId = `otp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    let recordId = generateId('otp');
 
     // 2. Persist to Prisma if available
     if (this.prisma) {

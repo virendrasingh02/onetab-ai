@@ -245,11 +245,11 @@ export function DashboardPage() {
       {/* Dynamic Header & Greeting */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
         <div>
-          <h1 className="font-bold text-2xl tracking-tight text-foreground flex items-center gap-2.5">
-            <span>
-              {catchUp.data?.greeting ?? `Welcome back, ${user?.displayName || user?.name || 'there'}!`}
-            </span>
-            <span className="size-2 rounded-full bg-emerald-500 inline-block" title="Connected" />
+          {/* The green "Connected" dot that sat here was hard-coded — it never
+              reflected any connection, so it is gone; the shell's sync pill
+              is the real signal. */}
+          <h1 className="font-semibold text-xl tracking-tight text-balance text-foreground">
+            {catchUp.data?.greeting ?? `Welcome back, ${user?.displayName || user?.name || 'there'}!`}
           </h1>
           <p className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
             <span>Workspace:</span>
@@ -269,13 +269,13 @@ export function DashboardPage() {
           items={[
             {
               value: 'home',
-              label: 'Overview & Action',
+              label: 'Overview',
               icon: <Compass className="size-3.5 text-primary" />,
               count: attentionItems.length > 0 ? attentionItems.length : undefined,
             },
             {
               value: 'analytics',
-              label: 'Analytics & Metrics',
+              label: 'Analytics',
               icon: <BarChart3 className="size-3.5" />,
             },
           ]}

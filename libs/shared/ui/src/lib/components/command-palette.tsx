@@ -76,16 +76,6 @@ export function CommandPalette({
       },
     },
     {
-      id: 'whiteboards',
-      category: 'Navigation',
-      label: 'Open Whiteboard Canvas',
-      icon: <Sparkles className="size-4 text-accent-cyan" />,
-      action: () => {
-        onOpenChange(false);
-        navigate('whiteboards');
-      },
-    },
-    {
       id: 'meetings',
       category: 'Navigation',
       label: 'Go to Meetings & Huddles',

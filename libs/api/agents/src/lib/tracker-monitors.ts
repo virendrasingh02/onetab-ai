@@ -1,4 +1,5 @@
 import type { TrackerMonitor, TrackerMonitorType } from '@org/types';
+import { generateId } from '@org/utils';
 
 /**
  * Tracker monitors — pure helpers shared by the `create_monitor` tool, the
@@ -119,7 +120,7 @@ export function buildTrackerMonitor(
       ? [input.destinations.trim()]
       : [];
   return {
-    id: `mon-${now.getTime().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    id: generateId('mon'),
     workspaceId: ids.workspaceId,
     coworkerId: ids.coworkerId,
     name: (input.name ?? '').trim() || `${target} — ${condition}`.slice(0, 120),

@@ -1424,6 +1424,9 @@ function ProjectDialog({
                         : '',
                     )}
                     style={{ backgroundColor: opt.hex }}
+                    aria-label={`${opt.label} accent`}
+                    aria-pressed={draft.color === opt.hex}
+                    title={opt.label}
                   />
                 ))}
               </div>

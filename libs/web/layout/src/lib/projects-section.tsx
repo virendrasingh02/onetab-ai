@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useId, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useSplitViewAction } from './split-view/use-split-view-action.js';
 import {
   FavoriteToggle,
   navActionClass,
@@ -70,6 +71,7 @@ export function ProjectNavRow({
   const navigate = useNavigate();
   const { can } = useWorkspacePermission();
   const projectPath = `/w/${workspaceSlug}/tasks/${project.id}`;
+  const splitAction = useSplitViewAction();
   const isArchived = project.status === ProjectStatus.ARCHIVED;
 
   const handleRename = useCallback(async () => {
@@ -83,7 +85,7 @@ export function ProjectNavRow({
     await mutations.update.mutateAsync({ projectId: project.id, input: { name } });
   }, [project.id, project.name, prompts, mutations]);
 
-  const actions = buildProjectActions({
+  const projectActions = buildProjectActions({
     project,
     can,
     path: projectPath,
@@ -97,6 +99,11 @@ export function ProjectNavRow({
     onDelete: mutations ? () => mutations.remove.mutateAsync(project.id) : undefined,
     favorite: { isFavorite, onToggle: () => onToggleFavorite(project) },
   });
+  const actions = [
+    ...projectActions.slice(0, 1),
+    splitAction(projectPath, project.name),
+    ...projectActions.slice(1),
+  ];
 
   return (
     <EntityContextMenu
@@ -257,7 +264,7 @@ export function ProjectsTreeSection({
     <Section
       title="Projects"
       count={projects.length}
-      emptyLabel={query.isLoading ? 'Loading projects…' : 'No projects yet'}
+      emptyLabel={query.isLoading ? 'Loading projects…' : undefined}
       action={
         <Hint label="New project">
           <Button

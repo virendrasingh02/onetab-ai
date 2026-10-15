@@ -9,6 +9,7 @@ import {
   usesAdminCredentials,
   type MatrixConfig,
 } from './matrix.config.js';
+import { generateId } from '@org/utils';
 
 interface RegisterResponse {
   user_id: string;
@@ -1239,7 +1240,7 @@ export class MatrixAdminService {
       ? await this.actAs(senderMatrixId, { expiresInMs: 60_000 })
       : this.config.asToken;
 
-    const transactionId = `srv.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+    const transactionId = `srv.${generateId()}`;
     const path = this.isAdminMode
       ? `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/send/${encodeURIComponent(eventType)}/${transactionId}`
       : `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/send/${encodeURIComponent(eventType)}/${transactionId}?user_id=${encodeURIComponent(senderMatrixId)}`;
@@ -1269,7 +1270,7 @@ export class MatrixAdminService {
       ? await this.actAs(senderMatrixId, { expiresInMs: 60_000 })
       : this.config.asToken;
 
-    const transactionId = `srv.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+    const transactionId = `srv.${generateId()}`;
     const base = `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/redact/${encodeURIComponent(eventId)}/${transactionId}`;
     const path = this.isAdminMode
       ? base

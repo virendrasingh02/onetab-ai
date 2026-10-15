@@ -38,6 +38,7 @@
     "@org/api-common": "*",
     "@org/types": "*",
     "@org/validation": "*",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "@org/utils": "*"
   }
 }

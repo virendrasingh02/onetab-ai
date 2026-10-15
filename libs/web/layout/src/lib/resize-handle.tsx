@@ -13,6 +13,8 @@ export interface ResizeHandleProps {
   onDoubleClick: () => void;
   onStepWidth: (delta: number) => void;
   onResetWidth: () => void;
+  /** Overrides the default accessible name / tooltip. */
+  label?: string;
   className?: string;
 }
 
@@ -26,6 +28,7 @@ export function ResizeHandle({
   onDoubleClick,
   onStepWidth,
   onResetWidth,
+  label: labelProp,
   className,
 }: ResizeHandleProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -52,7 +55,8 @@ export function ResizeHandle({
     }
   };
 
-  const label = side === 'left' ? 'Resize left sidebar' : 'Resize right panel';
+  const label =
+    labelProp ?? (side === 'left' ? 'Resize left sidebar' : 'Resize right panel');
 
   return (
     <div

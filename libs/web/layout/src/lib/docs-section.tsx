@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useSplitViewAction } from './split-view/use-split-view-action.js';
 import {
   FavoriteToggle,
   navActionClass,
@@ -86,6 +87,7 @@ export function DocNavRow({
 }) {
   const navigate = useNavigate();
   const docPath = `/w/${workspaceSlug}/docs/${doc.id}`;
+  const splitAction = useSplitViewAction();
   const moveTargets = companies.filter((c) => c.id !== doc.companyId);
 
   /* One list behind the "⋯" menu, right-click and the touch sheet. Delete is
@@ -98,6 +100,7 @@ export function DocNavRow({
       icon: FileText,
       run: () => navigate(docPath),
     },
+    splitAction(docPath, doc.title),
     {
       id: 'add-subpage',
       group: 'edit',
@@ -319,7 +322,7 @@ export function DocsTreeSection({
           ? 'Loading docs…'
           : workspace.isError
             ? 'Docs could not be loaded'
-            : 'No docs yet'
+            : undefined
       }
       action={
         <div className="gap-0.5 flex items-center opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-within:opacity-100">

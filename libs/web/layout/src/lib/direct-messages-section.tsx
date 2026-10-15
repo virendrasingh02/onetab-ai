@@ -56,6 +56,7 @@ import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bell,
   BellOff,
+  Columns2,
   Link2,
   Mail,
   MailOpen,
@@ -90,6 +91,7 @@ import {
   partitionGroupDMsByInactivity,
 } from './inactivity-utils.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
+import { useSplitViewStore } from './split-view/split-view-store.js';
 
 /**
  * One person's row.
@@ -125,6 +127,7 @@ function DirectMessageRow({
   const markSeen = useMarkDirectMessageSeen(workspaceId);
   const flagged = useIsFlaggedUnread(workspaceId, `dm:${member.user.id}`);
   const isActive = useMatch(to) !== null;
+  const openSplitView = useSplitViewStore((s) => s.open);
 
   // Opening the conversation is what reads it — including a manual unread flag.
   useEffect(() => {
@@ -138,6 +141,19 @@ function DirectMessageRow({
       label: 'Open conversation',
       icon: MessageSquare,
       run: () => navigate(to),
+    },
+    {
+      id: 'split-view',
+      group: 'open',
+      label: 'Open in split view',
+      icon: Columns2,
+      run: () =>
+        workspaceId &&
+        openSplitView(workspaceId, {
+          kind: 'dm',
+          id: member.user.id,
+          name,
+        }),
     },
     hasUnread || flagged
       ? {
@@ -396,6 +412,8 @@ function GroupDmRow({
   onToggleMuted: () => void;
 }) {
   const navigate = useNavigate();
+  const { workspaceId } = useCurrentWorkspace();
+  const openSplitView = useSplitViewStore((s) => s.open);
   const to = `/w/${workspaceSlug}/dms?room=${group.roomId}`;
   const hasUnread = !isMuted && group.unreadCount > 0;
 
@@ -406,6 +424,19 @@ function GroupDmRow({
       label: 'Open conversation',
       icon: MessageSquare,
       run: () => navigate(to),
+    },
+    {
+      id: 'split-view',
+      group: 'open',
+      label: 'Open in split view',
+      icon: Columns2,
+      run: () =>
+        workspaceId &&
+        openSplitView(workspaceId, {
+          kind: 'group',
+          id: group.roomId,
+          name: group.name,
+        }),
     },
     {
       id: 'favorite',

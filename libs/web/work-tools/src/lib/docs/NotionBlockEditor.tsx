@@ -13,7 +13,7 @@ import {
   ScrollArea,
   Textarea,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, generateId } from '@org/utils';
 import {
   CheckSquare,
   ChevronRight,
@@ -136,7 +136,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
 
   const handleAddBlock = (index: number, type: BlockType = 'paragraph') => {
     const newBlock: NotionBlock = {
-      id: `b_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: generateId('b'),
       type,
       content: '',
       checked: false,

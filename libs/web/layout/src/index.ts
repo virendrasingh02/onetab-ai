@@ -1,4 +1,4 @@
-export { AppShell } from './lib/app-shell.js';
+export { AppShell, type AppShellProps } from './lib/app-shell.js';
 export { DirectMessagesPage } from './lib/direct-messages-page.js';
 export { AppHeader, type AppHeaderProps } from './lib/app-header.js';
 export {
@@ -102,6 +102,9 @@ export {
   useSplitViewChannel,
   useSplitViewStore,
   type SplitViewChannel,
+  type SplitViewDirect,
+  type SplitViewRoute,
+  type SplitViewTarget,
   type SplitViewState,
 } from './lib/split-view/split-view-store.js';
 

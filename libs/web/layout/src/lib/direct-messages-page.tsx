@@ -9,7 +9,7 @@ import { useChannels } from '@org/web-channels';
 import { DirectMessagesView } from '@org/web-chat';
 import { useIntegrations } from '@org/web-integrations';
 import { useCurrentWorkspace } from '@org/web-workspace';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 
 /**
  * The `dms` route's actual page.
@@ -21,7 +21,19 @@ import { useMemo } from 'react';
  * reuse), so `web-chat` importing back from either would be circular.
  * `web-layout` sits above all three, so composing them happens here instead.
  */
-export function DirectMessagesPage() {
+export interface DirectMessagesPageProps {
+  /** Show this peer / group room instead of the one the URL names (split pane). */
+  peerId?: string;
+  roomId?: string;
+  /** Trailing header controls owned by the host. */
+  headerEnd?: ReactNode;
+}
+
+export function DirectMessagesPage({
+  peerId,
+  roomId,
+  headerEnd,
+}: DirectMessagesPageProps = {}) {
   const { workspaceId } = useCurrentWorkspace();
   const agents = useAgents(workspaceId);
   const integrations = useIntegrations(workspaceId);
@@ -79,6 +91,12 @@ export function DirectMessagesPage() {
   }, [agents.data, integrations.data, workspaceId]);
 
   return (
-    <DirectMessagesView extraPeers={extraPeers} channels={channels.data} />
+    <DirectMessagesView
+      extraPeers={extraPeers}
+      channels={channels.data}
+      peerId={peerId}
+      roomId={roomId}
+      headerEnd={headerEnd}
+    />
   );
 }

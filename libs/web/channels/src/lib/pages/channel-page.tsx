@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import {
   WorkspacePermission,
   canManageChannelTabs,
@@ -71,7 +72,7 @@ import {
   Users,
   Workflow,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCurrentUser } from '@org/auth';
@@ -132,6 +133,7 @@ function ChannelHeader({
   onOpenSettings,
   chatActionsRef,
   chatMenuRef,
+  headerEnd,
 }: {
   channel: ChannelSummary;
   members?: ChannelMember[];
@@ -156,6 +158,8 @@ function ChannelHeader({
    * one menu instead of opening two next to each other.
    */
   chatMenuRef?: (element: HTMLDivElement | null) => void;
+  /** Trailing controls owned by whatever hosts the page (the split pane's close / expand). */
+  headerEnd?: ReactNode;
 }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useChannelPreferences(workspaceId);
@@ -163,6 +167,7 @@ function ChannelHeader({
   const join = useJoinChannel(workspaceId);
 
   const [copied, setCopied] = useState(false);
+  const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
 
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
@@ -180,13 +185,22 @@ function ChannelHeader({
     setTimeout(() => setCopied(false), 2000);
   }, [workspaceSlug, channel.slug]);
 
-  const handleSyncChannel = useCallback(() => {
+  // Refetch what this screen shows. It used to toast "synchronized" after a
+  // fixed 800ms without fetching anything; the timeline itself streams live
+  // from Matrix, so the data worth re-pulling is the React Query side.
+  const handleSyncChannel = useCallback(async () => {
     setIsSyncing(true);
-    toast.success('Channel synchronized', {
-      description: 'Latest events and channel timeline are up to date.',
-    });
-    setTimeout(() => setIsSyncing(false), 800);
-  }, []);
+    try {
+      await queryClient.refetchQueries({ type: 'active' });
+      toast.success('Channel synchronized', {
+        description: 'Channel details, members and pins are up to date.',
+      });
+    } catch {
+      toast.error('Could not synchronize this channel');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [queryClient]);
 
   const handleToggleFavorite = useCallback(() => {
     preferences.mutate(
@@ -493,6 +507,19 @@ function ChannelHeader({
               </DropdownMenu>
             ) : null}
           </div>
+
+          {/* What the channel is for, at a glance — before this it only
+              appeared in the welcome block at the very top of history. */}
+          {(channel.topic ?? channel.description) ? (
+            <button
+              type="button"
+              onClick={onOpenDetails}
+              title={channel.topic ?? channel.description ?? undefined}
+              className="md:block min-w-0 max-w-md pl-2.5 hidden truncate border-l border-border text-left text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm"
+            >
+              {channel.topic ?? channel.description}
+            </button>
+          ) : null}
         </div>
 
         {/* Channel actions: Tools, Member Avatar Stack, Join */}
@@ -552,6 +579,7 @@ function ChannelHeader({
               Join channel
             </Button>
           ) : null}
+          {headerEnd}
         </div>
       </div>
     </div>
@@ -565,8 +593,19 @@ function ChannelHeader({
  * full-width tab that hid the conversation while you read them — they are
  * published to the right rail instead, where they sit *beside* the channel.
  */
-export function ChannelPage() {
-  const { channelSlug } = useParams<{ channelSlug: string }>();
+export interface ChannelPageProps {
+  /** Overrides the route's channel — the split pane renders this page for its own. */
+  channelSlug?: string;
+  /** Extra controls at the end of the header row. */
+  headerEnd?: ReactNode;
+}
+
+export function ChannelPage({
+  channelSlug: channelSlugProp,
+  headerEnd,
+}: ChannelPageProps = {}) {
+  const params = useParams<{ channelSlug: string }>();
+  const channelSlug = channelSlugProp ?? params.channelSlug;
   const {
     workspaceId,
     slug: workspaceSlug,
@@ -793,6 +832,7 @@ export function ChannelPage() {
         }}
         chatActionsRef={setChatActionsSlot}
         chatMenuRef={setChatMenuSlot}
+        headerEnd={headerEnd}
       />
 
       {channel.membership?.membershipType === 'TEMPORARY' && currentUser ? (

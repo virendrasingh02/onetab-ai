@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, generateId } from '@org/utils';
 import {
   BellRing,
   Check,
@@ -211,7 +211,7 @@ export function NotificationEnableBar({
       try {
         pushKey = localStorage.getItem('onetab:notifications:push-key') || '';
         if (!pushKey) {
-          pushKey = `device-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          pushKey = generateId('device');
           localStorage.setItem('onetab:notifications:push-key', pushKey);
         }
       } catch {

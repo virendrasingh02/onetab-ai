@@ -40,7 +40,7 @@ import {
   toast,
   type EntityAction,
 } from '@org/ui';
-import { cn, formatRelative } from '@org/utils';
+import { cn, formatRelative, generateId } from '@org/utils';
 import { AgentBuilderOptionsProvider, BuilderOptionSelect } from '@org/web-agents';
 import { useCanManageAIResource, useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -397,7 +397,7 @@ function WorkflowEditor({
   );
 
   const addStep = (item: NodeCatalogItem, from?: Node) => {
-    const id = `${item.type.toLowerCase()}_${Math.random().toString(36).slice(2, 7)}`;
+    const id = generateId(item.type.toLowerCase());
     const base = from ?? nodes[nodes.length - 1];
     const node: Node = {
       id,
@@ -444,7 +444,7 @@ function WorkflowEditor({
         label: 'Duplicate',
         icon: CopyPlus,
         run: () => {
-          const copy = { ...node, id: `${String(node.type).toLowerCase()}_${Math.random().toString(36).slice(2, 7)}`, selected: false, position: { x: node.position.x + 40, y: node.position.y + 60 }, data: { ...node.data } };
+          const copy = { ...node, id: generateId(String(node.type).toLowerCase()), selected: false, position: { x: node.position.x + 40, y: node.position.y + 60 }, data: { ...node.data } };
           setNodes((nds) => [...nds, copy]);
         },
       },

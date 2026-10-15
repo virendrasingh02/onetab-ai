@@ -242,7 +242,6 @@ import type {
   UserAnalytics,
   UserPreferences,
   UpdateModelSettingsInput,
-  Whiteboard,
   WorkDocument,
   WorkItemRelation,
   Workspace,
@@ -403,7 +402,6 @@ import type {
   CreateTaskCommentInput,
   CreateTaskInput,
   CreateTeamInput,
-  CreateWhiteboardInput,
   CreateWorkItemRelationInput,
   CreateWorkspaceInput,
   DesktopAuthorizeInput,
@@ -448,7 +446,6 @@ import type {
   UpdateTaskInput,
   UpdateTeamInput,
   UpdateUserPreferencesInput,
-  UpdateWhiteboardInput,
   UpdateWorkspaceInput,
   OAuthInitQueryInput,
 } from '@org/validation';
@@ -1857,7 +1854,7 @@ export const marketplaceApi = {
 };
 
 /**
- * Projects, tasks, calendar, docs and whiteboards.
+ * Projects, tasks, calendar and docs.
  *
  * Every path is nested under the workspace: the server resolves access from
  * that path parameter, so the workspace is never a caller-supplied filter.
@@ -2456,43 +2453,6 @@ export const workToolsApi = {
       http.delete(`/workspaces/${workspaceId}/work-tools/documents/${docId}`),
     ),
 
-  // --- whiteboards ----------------------------------------------------------
-
-  whiteboards: (workspaceId: string) =>
-    request<Whiteboard[]>(
-      http.get(`/workspaces/${workspaceId}/work-tools/whiteboards`),
-    ),
-
-  whiteboard: (workspaceId: string, whiteboardId: string) =>
-    request<Whiteboard>(
-      http.get(
-        `/workspaces/${workspaceId}/work-tools/whiteboards/${whiteboardId}`,
-      ),
-    ),
-
-  createWhiteboard: (workspaceId: string, input: CreateWhiteboardInput) =>
-    request<Whiteboard>(
-      http.post(`/workspaces/${workspaceId}/work-tools/whiteboards`, input),
-    ),
-
-  updateWhiteboard: (
-    workspaceId: string,
-    whiteboardId: string,
-    input: UpdateWhiteboardInput,
-  ) =>
-    request<Whiteboard>(
-      http.patch(
-        `/workspaces/${workspaceId}/work-tools/whiteboards/${whiteboardId}`,
-        input,
-      ),
-    ),
-
-  deleteWhiteboard: (workspaceId: string, whiteboardId: string) =>
-    request<void>(
-      http.delete(
-        `/workspaces/${workspaceId}/work-tools/whiteboards/${whiteboardId}`,
-      ),
-    ),
 };
 
 /** Unified AI Entities (Agents & Coworkers). */

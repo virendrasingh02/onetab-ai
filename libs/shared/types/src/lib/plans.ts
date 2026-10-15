@@ -48,7 +48,6 @@ export type PlanFeature =
   | 'basic_views'
   | 'advanced_views' // Gantt, Timeline, Calendar, Spreadsheet
   | 'multiple_assignees'
-  | 'whiteboard'
   // Intelligence & AI
   | 'basic_ai'
   | 'advanced_ai'
@@ -165,7 +164,6 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
       'basic_projects',
       'basic_views',
       'basic_collaboration',
-      'whiteboard',
       'basic_ai',
       'transparent_ai_billing',
       'unlimited_testing_staging',
@@ -254,7 +252,6 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
       'basic_views',
       'advanced_views',
       'multiple_assignees',
-      'whiteboard',
       'basic_ai',
       'advanced_ai',
       'custom_prompt_templates',
@@ -354,7 +351,6 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
       'basic_views',
       'advanced_views',
       'multiple_assignees',
-      'whiteboard',
       'basic_ai',
       'advanced_ai',
       'custom_prompt_templates',
@@ -462,7 +458,6 @@ export const PLANS_CONFIG: Readonly<Record<PlanTier, PlanDefinition>> = {
       'basic_views',
       'advanced_views',
       'multiple_assignees',
-      'whiteboard',
       'basic_ai',
       'advanced_ai',
       'custom_prompt_templates',

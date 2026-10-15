@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { BaseEmailProvider } from '../email.provider.js';
 import type { EmailPayload, EmailProviderSendResult } from '../email.types.js';
+import { generateId } from '@org/utils';
 
 export interface CapturedEmail extends EmailPayload {
   sentAt: Date;
@@ -22,7 +23,7 @@ export class LogEmailProvider extends BaseEmailProvider {
   }
 
   async send(payload: EmailPayload): Promise<EmailProviderSendResult> {
-    const id = 'log_' + Math.random().toString(36).slice(2, 10);
+    const id = generateId('log');
     const recipients = Array.isArray(payload.to) ? payload.to.join(', ') : payload.to;
 
     LogEmailProvider.sentEmails.push({

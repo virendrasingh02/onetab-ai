@@ -286,8 +286,22 @@ export function useDocsWorkspace(
     ) => {
       if (!workspaceId) return undefined;
 
-      const parent = parentId ?? companyId ?? companies[0]?.id;
-      if (!parent) return undefined;
+      let parent = parentId ?? companyId ?? companies[0]?.id;
+      if (!parent) {
+        // Documents live in folders. With none yet, "New", templates and
+        // `?newDoc=true` used to silently do nothing — make a default folder.
+        const folder = await mutations.create.mutateAsync({
+          title: 'General',
+          parentId: null,
+          kind: DocumentKind.WIKI,
+          content: encodeDocContent({
+            meta: { icon: '📁', cover: DEFAULT_COVER },
+            blocks: [],
+            comments: [],
+          }),
+        });
+        parent = folder.id;
+      }
 
       const name =
         title ?? (template ? TEMPLATE_TITLES[template] : undefined) ??

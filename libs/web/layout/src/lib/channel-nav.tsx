@@ -1,11 +1,6 @@
 import {
   ActionDropdownMenu,
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   EntityContextMenu,
   Hint,
   type EntityAction,
@@ -59,19 +54,12 @@ import {
 } from '@org/web-workspace';
 import {
   BellOff,
-  Bookmark,
   Clock,
   Flag,
   FolderTree,
-  HardDrive,
   Hash,
   Lock,
-  MoreHorizontal,
-  Pin,
   Plus,
-  SlidersHorizontal,
-  Users,
-  Video,
 } from 'lucide-react';
 import {
   closestCenter,
@@ -111,8 +99,8 @@ import {
   NavRow,
   NavRowActions,
   NavRowMenuButton,
+  NavGroup,
   Section,
-  type NavEntry,
 } from './nav-primitives.js';
 import {
   InactiveItemsDropdown,
@@ -152,16 +140,25 @@ import {
 } from './resource-sections.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
 
-/** Secondary destinations that can be pinned to the primary sidebar or accessed via More. */
-const MORE_DESTINATIONS: readonly NavEntry[] = [
-  /* Saved was an icon in the channel header, so the list only existed while you
-     stood in the channel it belonged to. It is a destination now. */
-  { path: 'saved', label: 'Saved', icon: Bookmark },
-  { path: 'meetings', label: 'Meetings', icon: Video },
-  { path: 'schedule', label: 'Schedule', icon: Clock },
-  { path: 'directory', label: 'Team Directory', icon: Users },
-  { path: 'files', label: 'Files', icon: HardDrive },
-];
+/** Per-viewer convenience only — which primary nav groups are expanded. */
+const NAV_GROUP_OPEN_KEY = 'onetab.sidebar.nav-groups';
+
+function readNavGroupOpen(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(NAV_GROUP_OPEN_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeNavGroupOpen(value: Record<string, boolean>) {
+  try {
+    localStorage.setItem(NAV_GROUP_OPEN_KEY, JSON.stringify(value));
+  } catch {
+    // Storage blocked — the groups simply reset next visit.
+  }
+}
 
 const PROVIDER_ICON: Record<string, string> = {
   GITHUB: 'Code',
@@ -632,8 +629,6 @@ export function ChannelNav({
     favoriteAgentIds,
     favoriteAppIds,
     favoriteWorkflowIds,
-    toggleNavPinned,
-    pinnedNavPaths,
   } = useSidebarFavorites(workspaceId);
 
   const toggleFavorite = useCallback(
@@ -696,6 +691,24 @@ export function ChannelNav({
   );
   const navSurfaceFor = (id: string) =>
     id === 'inbox' ? ('notifications' as const) : ('main' as const);
+
+
+  /*
+   * The primary nav used to render all ~16 destinations as one flat list, which
+   * pushed Channels and DMs below the fold. Only the Workspace group stays flat;
+   * the others fold away. A group nobody has toggled opens on its own while the
+   * current page lives inside it, so the active row is never hidden.
+   */
+  const [navGroupOpen, setNavGroupOpen] = useState<Record<string, boolean>>(
+    readNavGroupOpen,
+  );
+  const toggleNavGroup = useCallback((groupId: string, open: boolean) => {
+    setNavGroupOpen((prev) => {
+      const next = { ...prev, [groupId]: open };
+      writeNavGroupOpen(next);
+      return next;
+    });
+  }, []);
 
   const activeSections = useMemo(() => {
     return [...DEFAULT_SIDEBAR_SECTIONS]
@@ -1407,8 +1420,8 @@ export function ChannelNav({
             aria-label="Workspace navigation"
             className="space-y-0.5 pb-3 border-b border-border/60"
           >
-            <div className="space-y-0.5">
-              {resolvedNav.visibleItems.map((item) => (
+            {(() => {
+              const renderRow = (item: (typeof resolvedNav.visibleItems)[number]) => (
                 <NavRow
                   key={item.id}
                   entry={{
@@ -1421,81 +1434,37 @@ export function ChannelNav({
                   workspaceSlug={workspaceSlug}
                   activity={navActivity[item.id]}
                   surface={navSurfaceFor(item.id)}
-                  isActiveOverride={
-                    item.id === 'channels'
-                      ? location.pathname.includes('/c/')
-                      : undefined
-                  }
                 />
-              ))}
-            </div>
-
-            <div className="pt-1 pr-1 gap-1 flex items-center justify-between">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="More navigation destinations"
-                    className={navActionClass({ depth: 0, extra: 'w-auto' })}
+              );
+              return resolvedNav.groups.map((group) => {
+                if (group.id === 'workspace') {
+                  return (
+                    <div key={group.id} className="space-y-0.5">
+                      {group.items.map(renderRow)}
+                    </div>
+                  );
+                }
+                const containsActive = group.items.some((item) =>
+                  item.href === ''
+                    ? false
+                    : isOnPath(location.pathname, item.fullPath),
+                );
+                const hasActivity = group.items.some(
+                  (item) => (navActivity[item.id]?.unreadCount ?? 0) > 0,
+                );
+                return (
+                  <NavGroup
+                    key={group.id}
+                    label={group.label}
+                    open={navGroupOpen[group.id] ?? containsActive}
+                    onOpenChange={(next) => toggleNavGroup(group.id, next)}
+                    hasActivity={hasActivity}
                   >
-                    <MoreHorizontal className={navIconClass(0)} aria-hidden />
-                    <span className="truncate">More</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-52">
-                  {MORE_DESTINATIONS.map((entry) => {
-                    const isPinned = pinnedNavPaths.includes(entry.path);
-                    const EntryIcon = entry.icon;
-                    return (
-                      <DropdownMenuItem
-                        key={entry.path}
-                        onSelect={() =>
-                          navigate(`/w/${workspaceSlug}/${entry.path}`)
-                        }
-                        className="justify-between"
-                      >
-                        <div className="gap-2 flex items-center">
-                          <EntryIcon
-                            className="size-4 text-muted-foreground"
-                            aria-hidden
-                          />
-                          <span>{entry.label}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleNavPinned(entry.path);
-                          }}
-                          className={cn(
-                            'p-1 transition-colors hover:text-foreground',
-                            isPinned
-                              ? 'text-primary'
-                              : 'text-muted-foreground opacity-40 hover:opacity-100',
-                          )}
-                          title={
-                            isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
-                          }
-                        >
-                          <Pin className="size-3" />
-                        </button>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => setCustomizerOpen(true)}
-                    className="gap-2"
-                  >
-                    <SlidersHorizontal
-                      className="size-4 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <span>Customize sidebar</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                    {group.items.map(renderRow)}
+                  </NavGroup>
+                );
+              });
+            })()}
           </nav>
 
           {/* Dynamic Resource Sections (Channels, DMs, Projects, Docs, AI Agents, Apps, Workflows, Starred) */}

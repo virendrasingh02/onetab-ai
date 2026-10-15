@@ -46,7 +46,6 @@ import type {
   CreateTaskCommentInput,
   CreateTaskInput,
   CreateTeamInput,
-  CreateWhiteboardInput,
   CreateWorkItemRelationInput,
   MoveTaskInput,
   ProjectIdentifierSettingsInput,
@@ -60,7 +59,6 @@ import type {
   UpdateSavedViewInput,
   UpdateTaskInput,
   UpdateTeamInput,
-  UpdateWhiteboardInput,
 } from '@org/validation';
 
 /** Converts an optional ISO string from a DTO into a `Date` for Prisma. */
@@ -1402,7 +1400,7 @@ export class WorkToolsService {
     return update;
   }
 
-  // --- comments, calendar, documents, whiteboards --------------------------
+  // --- comments, calendar, documents --------------------------
 
   async getTaskComments(workspaceId: string, taskId: string) {
     await this.assertTask(workspaceId, taskId);
@@ -1668,62 +1666,6 @@ export class WorkToolsService {
     });
   }
 
-  async getWhiteboards(workspaceId: string) {
-    return this.prisma.whiteboard.findMany({
-      where: { workspaceId, deletedAt: null },
-      include: { author: { select: PUBLIC_USER_SELECT } },
-      orderBy: { updatedAt: 'desc' },
-    });
-  }
-
-  async getWhiteboard(workspaceId: string, whiteboardId: string) {
-    await this.assertWhiteboard(workspaceId, whiteboardId);
-    return this.prisma.whiteboard.findUniqueOrThrow({
-      where: { id: whiteboardId },
-      include: { author: { select: PUBLIC_USER_SELECT } },
-    });
-  }
-
-  async createWhiteboard(
-    workspaceId: string,
-    authorId: string,
-    input: CreateWhiteboardInput,
-  ) {
-    return this.prisma.whiteboard.create({
-      data: {
-        workspaceId,
-        authorId,
-        name: input.name,
-        canvasData: JSON.stringify({ nodes: [], edges: [] }),
-      },
-      include: { author: { select: PUBLIC_USER_SELECT } },
-    });
-  }
-
-  async updateWhiteboard(
-    workspaceId: string,
-    whiteboardId: string,
-    input: UpdateWhiteboardInput,
-  ) {
-    await this.assertWhiteboard(workspaceId, whiteboardId);
-    return this.prisma.whiteboard.update({
-      where: { id: whiteboardId },
-      data: {
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.canvasData !== undefined ? { canvasData: input.canvasData } : {}),
-      },
-      include: { author: { select: PUBLIC_USER_SELECT } },
-    });
-  }
-
-  async deleteWhiteboard(workspaceId: string, whiteboardId: string): Promise<void> {
-    await this.assertWhiteboard(workspaceId, whiteboardId);
-    await this.prisma.whiteboard.update({
-      where: { id: whiteboardId },
-      data: { deletedAt: new Date() },
-    });
-  }
-
   // --- activity logging & helpers -------------------------------------------
 
   private async logActivity(
@@ -1909,14 +1851,6 @@ export class WorkToolsService {
     return doc;
   }
 
-  private async assertWhiteboard(workspaceId: string, whiteboardId: string) {
-    const board = await this.prisma.whiteboard.findFirst({
-      where: { id: whiteboardId, workspaceId, deletedAt: null },
-    });
-    if (!board) throw new NotFoundException('Whiteboard not found');
-    return board;
-  }
-
   // --- soft delete plumbing ----------------------------------------------
   //
   // The `assert*` helpers only ever see live rows; restore is the one path
@@ -1965,17 +1899,6 @@ export class WorkToolsService {
     return this.getDocument(workspaceId, docId);
   }
 
-  async restoreWhiteboard(workspaceId: string, whiteboardId: string) {
-    const { count } = await this.prisma.whiteboard.updateMany({
-      where: { id: whiteboardId, workspaceId, deletedAt: { not: null } },
-      data: { deletedAt: null },
-    });
-    if (count === 0) {
-      throw new NotFoundException('No deleted whiteboard with that id.');
-    }
-    return this.getWhiteboard(workspaceId, whiteboardId);
-  }
-
   async restoreCalendarEvent(workspaceId: string, eventId: string) {
     const { count } = await this.prisma.calendarEvent.updateMany({
       where: { id: eventId, workspaceId, deletedAt: { not: null } },
@@ -1990,7 +1913,7 @@ export class WorkToolsService {
 
   /** The workspace's recycle bin — everything soft-deleted, newest first. */
   async listDeleted(workspaceId: string) {
-    const [projects, tasks, documents, whiteboards, events] = await Promise.all([
+    const [projects, tasks, documents, events] = await Promise.all([
       this.prisma.project.findMany({
         where: { workspaceId, deletedAt: { not: null } },
         select: { id: true, name: true, deletedAt: true },
@@ -2006,17 +1929,12 @@ export class WorkToolsService {
         select: { id: true, title: true, deletedAt: true },
         orderBy: { deletedAt: 'desc' },
       }),
-      this.prisma.whiteboard.findMany({
-        where: { workspaceId, deletedAt: { not: null } },
-        select: { id: true, name: true, deletedAt: true },
-        orderBy: { deletedAt: 'desc' },
-      }),
       this.prisma.calendarEvent.findMany({
         where: { workspaceId, deletedAt: { not: null } },
         select: { id: true, title: true, deletedAt: true },
         orderBy: { deletedAt: 'desc' },
       }),
     ]);
-    return { projects, tasks, documents, whiteboards, events };
+    return { projects, tasks, documents, events };
   }
 }

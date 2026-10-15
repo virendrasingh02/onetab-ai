@@ -38,7 +38,7 @@
     "@org/types": "*",
     "@org/ui": "*",
     "@tanstack/react-virtual": "^3.14.9",
-    "lucide-react": "^1.28.0"
+    "lucide-react": "^1.28.0",
+    "@org/utils": "*"
   }
-
 }

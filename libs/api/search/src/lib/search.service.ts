@@ -24,7 +24,6 @@ const CATEGORIES: SearchCategory[] = [
   'people',
   'agents',
   'coworkers',
-  'canvases',
   'calls',
   'meetings',
   'workflows',
@@ -445,27 +444,6 @@ export class SearchService {
             metadata: { kind: isAgent ? 'agent' : 'workflow', isActive: row.isActive },
           };
         });
-      }
-
-      case 'canvases': {
-        const contains = { contains: query, mode: 'insensitive' as const };
-        const rows = await this.prisma.whiteboard.findMany({
-          where: {
-            workspaceId,
-            deletedAt: null,
-            name: contains,
-          },
-          select: { id: true, name: true, updatedAt: true },
-          orderBy: { updatedAt: 'desc' },
-          take,
-        });
-        return rows.map((row) => ({
-          id: row.id,
-          category,
-          title: row.name,
-          href: `whiteboards?board=${row.id}`,
-          timestamp: row.updatedAt.toISOString(),
-        }));
       }
 
       case 'calls': {

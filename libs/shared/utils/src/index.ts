@@ -78,3 +78,12 @@ export {
 } from './lib/cron.js';
 
 export { docContentToText } from './lib/doc-text.js';
+
+export {
+  generateId,
+  generateShortId,
+  generateSortableId,
+  getUuidVersion,
+  isValidId,
+  isValidUuid,
+} from './lib/id.js';

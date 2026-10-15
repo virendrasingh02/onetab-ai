@@ -12,7 +12,7 @@ import {
   toast,
   Label,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, generateId } from '@org/utils';
 import {
   estimateTokens,
   jsonSchemaError,
@@ -77,7 +77,7 @@ interface PromptTestCase {
 const issuesFor = (issues: ModuleIssue[], ...fields: string[]) => issues.filter((i) => i.field && fields.includes(i.field));
 const errorFor = (issues: ModuleIssue[], field: string) => issues.find((i) => i.field === field && i.level === 'error')?.message ?? null;
 
-const newId = () => Math.random().toString(36).slice(2, 9);
+const newId = () => generateId();
 
 export function PromptModule({ view, agent, nodes, issues, readOnly, setConfig, actions, jumpTo, testSignal }: ModuleEditorProps) {
   const prompt = view.prompt;

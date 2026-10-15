@@ -4,6 +4,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  EntityContextMenu,
   DropdownMenuTrigger,
   Hint,
   SidebarActivityIndicator,
@@ -27,6 +28,7 @@ import {
   type ReactNode,
 } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useSplitViewAction } from './split-view/use-split-view-action.js';
 
 export interface NavEntry {
   path: string;
@@ -173,8 +175,14 @@ export function NavRow({
   const to = entry.path
     ? `/w/${workspaceSlug}/${entry.path}`
     : `/w/${workspaceSlug}`;
+  const splitAction = useSplitViewAction();
 
   return (
+    <EntityContextMenu
+      actions={[splitAction(to, entry.label)]}
+      scope={`nav:${entry.path}`}
+      label={entry.label}
+    >
     <div className="group/nav-row relative flex items-center">
       <NavLink
         to={to}
@@ -224,6 +232,7 @@ export function NavRow({
         </div>
       ) : null}
     </div>
+    </EntityContextMenu>
   );
 }
 
@@ -249,6 +258,7 @@ export function IconOnlyNavRow({
     ? `/w/${workspaceSlug}/${entry.path}`
     : `/w/${workspaceSlug}`;
 
+  const splitAction = useSplitViewAction();
   const count = activity?.unreadCount ?? entry.badge;
   const tooltipText =
     count !== undefined && count !== 0
@@ -256,6 +266,11 @@ export function IconOnlyNavRow({
       : entry.label;
 
   return (
+    <EntityContextMenu
+      actions={[splitAction(to, entry.label)]}
+      scope={`nav:${entry.path}`}
+      label={entry.label}
+    >
     <Hint side="right" label={tooltipText}>
       <NavLink
         to={to}
@@ -281,6 +296,7 @@ export function IconOnlyNavRow({
         />
       </NavLink>
     </Hint>
+    </EntityContextMenu>
   );
 }
 
@@ -292,6 +308,57 @@ export function IconOnlyNavRow({
 export function isOnPath(pathname: string, path: string): boolean {
   const base = path.split('?')[0];
   return pathname === base || pathname.startsWith(`${base}/`);
+}
+
+/**
+ * A collapsible group of primary nav rows ("Work & Projects", "AI &
+ * Automations"…). The header shares the row geometry so it reads as part of
+ * the nav list rather than as a section heading, and a collapsed group still
+ * surfaces unread activity from inside it as a dot.
+ */
+export function NavGroup({
+  label,
+  open,
+  onOpenChange,
+  hasActivity = false,
+  children,
+}: {
+  label: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  hasActivity?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible open={open} onOpenChange={onOpenChange} asChild>
+      <div role="group" aria-label={label}>
+        <CollapsibleTrigger
+          className={navActionClass({
+            extra: 'text-muted-foreground font-semibold text-[13px]',
+          })}
+        >
+          <ChevronDown
+            className={cn(
+              navIconClass(0),
+              'transition-transform duration-150',
+              !open && '-rotate-90',
+            )}
+            aria-hidden
+          />
+          <span className="flex-1 truncate">{label}</span>
+          {!open && hasActivity ? (
+            <span
+              className="size-1.5 mr-1 shrink-0 rounded-full bg-primary"
+              aria-label="Unread activity"
+            />
+          ) : null}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-0.5 ml-4.5 pl-1.5 space-y-0.5 border-l border-border/60">
+          {children}
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
 }
 
 /**
@@ -346,13 +413,15 @@ export function Section({
             <CollapsibleTrigger
               aria-label={`Toggle ${title} section`}
               className={cn(
-                'group/trigger gap-1 flex items-center rounded-md',
+                'group/trigger gap-1 min-w-0 flex items-center rounded-md',
                 'font-semibold tracking-wide text-[11px] text-foreground/75 uppercase',
                 'transition-colors duration-(--duration-fast) hover:text-foreground',
                 'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
               )}
             >
-              <span>{title}</span>
+              {/* One line, always: a long title ("Docs & Knowledge") next to
+                  the section's actions used to wrap onto two centred lines. */}
+              <span className="truncate whitespace-nowrap">{title}</span>
               <ChevronDown
                 className={cn(
                   'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150',
@@ -368,7 +437,7 @@ export function Section({
         </div>
 
         <CollapsibleContent>
-          {isEmpty ? (
+          {isEmpty && emptyLabel ? (
             <p className="px-2.5 py-1 font-medium text-[11px] text-subtle">
               {emptyLabel}
             </p>

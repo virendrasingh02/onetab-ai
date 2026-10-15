@@ -192,7 +192,6 @@ export class BillingService {
       'basic_views',
       'advanced_views',
       'multiple_assignees',
-      'whiteboard',
       'basic_ai',
       'advanced_ai',
       'custom_prompt_templates',

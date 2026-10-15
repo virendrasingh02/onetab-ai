@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Badge } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, generateId } from '@org/utils';
 import type { WidgetDraft, WidgetState } from './widget-draft.js';
 import { WidgetRenderer } from './widget-renderer.js';
 import {
@@ -28,7 +28,7 @@ export function WidgetPreviewContainer({
 
   const handleAction = (actionName: string, payload?: any) => {
     const entry = {
-      id: Math.random().toString(36).substring(7),
+      id: generateId(),
       timestamp: new Date().toLocaleTimeString(),
       action: actionName,
       payload: payload || {},

@@ -389,10 +389,6 @@ export const queryKeys = {
       ['work-tools', workspaceId, 'documents', kind ?? 'all'] as const,
     document: (workspaceId: string, docId: string) =>
       ['work-tools', workspaceId, 'documents', docId] as const,
-    whiteboards: (workspaceId: string) =>
-      ['work-tools', workspaceId, 'whiteboards'] as const,
-    whiteboard: (workspaceId: string, whiteboardId: string) =>
-      ['work-tools', workspaceId, 'whiteboards', whiteboardId] as const,
   },
   realtime: {
     all: () => ['realtime'] as const,

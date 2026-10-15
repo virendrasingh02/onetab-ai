@@ -1,5 +1,5 @@
 import type { CardComponentNode, CardComponentType } from '@org/types';
-import { cn } from '@org/utils';
+import { cn, generateShortId } from '@org/utils';
 import {
   AlertTriangle,
   AlignLeft,
@@ -40,7 +40,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Square,
     description: 'Card section with padding, background, and borders',
     createDefaultNode: () => ({
-      id: `container-${Math.random().toString(36).slice(2, 6)}`,
+      id: `container-${generateShortId()}`,
       type: 'container',
       style: { padding: '12px', borderRadius: '12px', background: 'surface', border: '1px solid border' },
       children: [],
@@ -53,7 +53,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Layout,
     description: 'Horizontal flex container',
     createDefaultNode: () => ({
-      id: `row-${Math.random().toString(36).slice(2, 6)}`,
+      id: `row-${generateShortId()}`,
       type: 'row',
       style: { justifyContent: 'between', alignItems: 'center', gap: '8px' },
       children: [],
@@ -66,7 +66,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Layers,
     description: 'Vertical stack container',
     createDefaultNode: () => ({
-      id: `column-${Math.random().toString(36).slice(2, 6)}`,
+      id: `column-${generateShortId()}`,
       type: 'column',
       style: { gap: '8px' },
       children: [],
@@ -79,7 +79,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Grid,
     description: 'Multi-column responsive grid',
     createDefaultNode: () => ({
-      id: `grid-${Math.random().toString(36).slice(2, 6)}`,
+      id: `grid-${generateShortId()}`,
       type: 'grid',
       props: { columns: 2 },
       style: { gap: '8px' },
@@ -93,7 +93,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Minus,
     description: 'Horizontal separator line',
     createDefaultNode: () => ({
-      id: `divider-${Math.random().toString(36).slice(2, 6)}`,
+      id: `divider-${generateShortId()}`,
       type: 'divider',
     }),
   },
@@ -106,7 +106,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Heading,
     description: 'Title text (H1, H2, H3)',
     createDefaultNode: () => ({
-      id: `heading-${Math.random().toString(36).slice(2, 6)}`,
+      id: `heading-${generateShortId()}`,
       type: 'heading',
       props: { text: 'Heading Title', level: 3 },
     }),
@@ -118,7 +118,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Type,
     description: 'Body text with dynamic binding support',
     createDefaultNode: () => ({
-      id: `text-${Math.random().toString(36).slice(2, 6)}`,
+      id: `text-${generateShortId()}`,
       type: 'text',
       props: { text: 'Paragraph text or {{field}}', size: 'sm' },
     }),
@@ -130,7 +130,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: AlignLeft,
     description: 'Rich Markdown renderer',
     createDefaultNode: () => ({
-      id: `markdown-${Math.random().toString(36).slice(2, 6)}`,
+      id: `markdown-${generateShortId()}`,
       type: 'markdown',
       props: { content: '**Bold text** and `code` snippets' },
     }),
@@ -144,7 +144,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: User,
     description: 'User avatar with fallback initials',
     createDefaultNode: () => ({
-      id: `avatar-${Math.random().toString(36).slice(2, 6)}`,
+      id: `avatar-${generateShortId()}`,
       type: 'avatar',
       props: { name: '{{name}}', size: 'md' },
     }),
@@ -156,7 +156,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Image,
     description: 'Image with aspect ratio and fallback',
     createDefaultNode: () => ({
-      id: `image-${Math.random().toString(36).slice(2, 6)}`,
+      id: `image-${generateShortId()}`,
       type: 'image',
       props: { src: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=60', alt: 'Image' },
     }),
@@ -170,7 +170,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Tag,
     description: 'Status or category pill',
     createDefaultNode: () => ({
-      id: `badge-${Math.random().toString(36).slice(2, 6)}`,
+      id: `badge-${generateShortId()}`,
       type: 'badge',
       props: { text: '{{status}}', variant: 'primary' },
     }),
@@ -182,7 +182,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: MousePointer,
     description: 'Interactive button triggering structured actions',
     createDefaultNode: () => ({
-      id: `btn-${Math.random().toString(36).slice(2, 6)}`,
+      id: `btn-${generateShortId()}`,
       type: 'button',
       props: { label: 'Click Action', variant: 'primary', icon: 'Sparkles' },
     }),
@@ -194,17 +194,17 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Layout,
     description: 'Horizontal row of action buttons',
     createDefaultNode: () => ({
-      id: `btngroup-${Math.random().toString(36).slice(2, 6)}`,
+      id: `btngroup-${generateShortId()}`,
       type: 'button_group',
       style: { justifyContent: 'end', gap: '8px' },
       children: [
         {
-          id: `btn-1-${Math.random().toString(36).slice(2, 6)}`,
+          id: `btn-1-${generateShortId()}`,
           type: 'button',
           props: { label: 'Cancel', variant: 'outline' },
         },
         {
-          id: `btn-2-${Math.random().toString(36).slice(2, 6)}`,
+          id: `btn-2-${generateShortId()}`,
           type: 'button',
           props: { label: 'Confirm', variant: 'primary' },
         },
@@ -220,7 +220,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: CreditCard,
     description: 'Labeled data metric box',
     createDefaultNode: () => ({
-      id: `kv-${Math.random().toString(36).slice(2, 6)}`,
+      id: `kv-${generateShortId()}`,
       type: 'key_value',
       props: { label: 'Metric', value: '{{value}}' },
     }),
@@ -232,7 +232,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: Sliders,
     description: 'Progress bar with percentage label',
     createDefaultNode: () => ({
-      id: `progress-${Math.random().toString(36).slice(2, 6)}`,
+      id: `progress-${generateShortId()}`,
       type: 'progress',
       props: { label: 'Progress', value: '75', max: 100 },
     }),
@@ -246,7 +246,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: FormInput,
     description: 'Single-line text input field',
     createDefaultNode: () => ({
-      id: `input-${Math.random().toString(36).slice(2, 6)}`,
+      id: `input-${generateShortId()}`,
       type: 'input',
       props: { label: 'Field Label', name: 'fieldName', placeholder: 'Enter value…' },
     }),
@@ -258,7 +258,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: CheckSquare,
     description: 'Boolean checkbox toggle',
     createDefaultNode: () => ({
-      id: `chk-${Math.random().toString(36).slice(2, 6)}`,
+      id: `chk-${generateShortId()}`,
       type: 'checkbox',
       props: { label: 'I agree to terms', name: 'agree' },
     }),
@@ -272,7 +272,7 @@ export const COMPONENT_CATALOG: PaletteItem[] = [
     icon: AlertTriangle,
     description: 'Callout notification banner',
     createDefaultNode: () => ({
-      id: `alert-${Math.random().toString(36).slice(2, 6)}`,
+      id: `alert-${generateShortId()}`,
       type: 'alert',
       props: { title: 'Attention Required', description: 'Important message details here.', variant: 'default' },
     }),

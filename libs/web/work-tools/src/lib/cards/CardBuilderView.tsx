@@ -10,7 +10,7 @@ import type {
   CardVisibilityCondition,
 } from '@org/types';
 import { Badge, Button, Input, toast } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, generateShortId } from '@org/utils';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -97,7 +97,7 @@ function duplicateNodeInTree(root: CardComponentNode, targetId: string): CardCom
   for (const child of root.children) {
     if (child.id === targetId) {
       const clone: CardComponentNode = JSON.parse(JSON.stringify(child));
-      clone.id = `${clone.type}-${Math.random().toString(36).slice(2, 6)}`;
+      clone.id = `${clone.type}-${generateShortId()}`;
       newChildren.push(child);
       newChildren.push(clone);
     } else {
@@ -120,7 +120,7 @@ export function CardBuilderView() {
 
     // Default blank starter card
     return {
-      cardId: `custom-card-${Math.random().toString(36).slice(2, 6)}`,
+      cardId: `custom-card-${generateShortId()}`,
       version: 1,
       name: 'Untitled Custom Card',
       description: 'Custom card created with Visual Card Builder.',

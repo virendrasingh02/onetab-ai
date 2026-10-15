@@ -14,6 +14,7 @@ import * as dns from 'node:dns';
 import * as http from 'node:http';
 import * as https from 'node:https';
 import * as net from 'node:net';
+import { generateId } from '@org/utils';
 
 const REQUEST_TIMEOUT_MS = 4000;
 const MAX_BODY_BYTES = 512 * 1024; // 512 KB
@@ -567,7 +568,7 @@ export class LinkPreviewService {
         const status: LinkPreviewStatus = hasInfo ? 'ready' : 'unavailable';
 
         const preview: LinkPreview = {
-          id: `preview_${Math.random().toString(36).slice(2, 11)}`,
+          id: generateId('preview'),
           url: rawUrl,
           normalizedUrl,
           title: metadata.title,
@@ -593,7 +594,7 @@ export class LinkPreviewService {
         const status: LinkPreviewStatus = isBlocked ? 'blocked' : 'error';
 
         const errorPreview: LinkPreview = {
-          id: `preview_${Math.random().toString(36).slice(2, 11)}`,
+          id: generateId('preview'),
           url: rawUrl,
           normalizedUrl,
           domain,

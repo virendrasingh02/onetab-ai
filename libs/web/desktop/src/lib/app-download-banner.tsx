@@ -39,10 +39,8 @@ export function AppDownloadBanner({
     environment,
     shouldShowPrompt,
     primaryOption,
-    desktopOptions,
     snooze,
     dismiss,
-    selectDesktopPlatform,
     trackDownload,
   } = useAppDownload({ config, workspaceId });
 
@@ -75,88 +73,59 @@ export function AppDownloadBanner({
         isMobile ? 'Mobile app download prompt' : 'Desktop app download prompt'
       }
       className={cn(
-        'm-1.5 mt-0 gap-3 px-3 py-2 text-xs relative flex flex-wrap items-center justify-between overflow-hidden rounded-xl shadow-xs',
-        'border border-primary/25 bg-gradient-to-r from-primary/10 via-card to-accent/10 text-foreground transition-all duration-300',
+        'text-xs text-foreground transition-all duration-300',
+        isMobile
+          ? // Phones: a slim in-flow row above the bottom tab bar.
+            'm-1.5 mt-0 gap-3 px-3 py-2 relative flex flex-wrap items-center justify-between overflow-hidden rounded-xl border border-primary/25 bg-gradient-to-r from-primary/10 via-card to-accent/10 shadow-xs'
+          : // Desktop: a compact card at the foot of the sidebar. It used
+            // to be a full-width row under the three panes, permanently
+            // taking vertical space from every page until dismissed.
+            'mx-2 mb-2 gap-2.5 p-3 flex shrink-0 flex-col rounded-xl border border-border bg-card shadow-xs',
         className,
       )}
     >
-      {/* Left: Icon, Headline & Subtitle */}
+      {/* Icon, headline & subtitle */}
       <div className="gap-3 min-w-0 flex flex-1 items-center">
-        <div className="size-8 shadow-inner relative flex shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+        <div className="size-8 relative flex shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary">
           {isMobile ? (
-            <Smartphone className="size-4 animate-pulse" aria-hidden />
+            <Smartphone className="size-4" aria-hidden />
           ) : (
-            <Laptop className="size-4 animate-pulse" aria-hidden />
+            <Laptop className="size-4" aria-hidden />
           )}
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="gap-2 flex flex-wrap items-center">
-            <h4 className="text-xs sm:text-sm font-semibold tracking-tight text-foreground">
-              {isMobile ? 'Get the mobile app' : 'Get the desktop app'}
-            </h4>
-            <span className="md:inline-block hidden text-[11px] text-muted-foreground">
-              {isMobile
-                ? 'Use the faster, more focused mobile experience.'
-                : 'Install the desktop app for a faster, native experience.'}
-            </span>
-          </div>
-          <p className="md:hidden truncate text-[11px] text-muted-foreground">
+          <h4 className="text-sm font-semibold tracking-tight text-foreground">
+            {isMobile ? 'Get the mobile app' : 'Get the desktop app'}
+          </h4>
+          <p className="truncate text-[11px] text-muted-foreground">
             {isMobile
               ? 'Faster, focused mobile experience'
-              : 'Native desktop notifications & speed'}
+              : 'Native notifications and a faster app'}
           </p>
         </div>
+
+        {!isMobile ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="size-7 p-0 -mt-4 -mr-1.5 self-start cursor-pointer text-muted-foreground hover:text-foreground"
+            onClick={() => handleSnooze(24)}
+            title="Close (remind tomorrow)"
+            aria-label="Close app download banner"
+          >
+            <X className="size-4" />
+          </Button>
+        ) : null}
       </div>
 
-      {/* Right: Platform Selector & Action Buttons */}
-      <div className="gap-2 flex shrink-0 items-center">
-        {/* Desktop Platform Selector (when on desktop web) */}
-        {!isMobile && desktopOptions.length > 1 && (
-          <DropdownMenu>
-            {/* <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 px-2 text-xs bg-background/80 hover:bg-accent cursor-pointer"
-                aria-label="Select desktop operating system"
-              >
-                <span className="hidden sm:inline text-muted-foreground">Platform:</span>
-                <span className="font-medium">{primaryOption.storeOrFormat}</span>
-                <ChevronDown className="size-3 opacity-60 ml-0.5" />
-              </Button>
-            </DropdownMenuTrigger> */}
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">
-                Choose Desktop Installer
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {desktopOptions.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.platform}
-                  onClick={() => {
-                    selectDesktopPlatform(opt.os);
-                  }}
-                  className="gap-2 text-xs cursor-pointer"
-                >
-                  <Laptop className="size-3.5 text-primary" />
-                  <div className="flex flex-1 flex-col">
-                    <span className="font-medium">{opt.label}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {opt.storeOrFormat}
-                    </span>
-                  </div>
-                  {opt.platform === primaryOption.platform && (
-                    <span className="font-bold text-[10px] text-primary">
-                      Current
-                    </span>
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+      {/* Actions */}
+      <div
+        className={cn(
+          'gap-2 flex shrink-0 items-center',
+          !isMobile && 'min-w-0',
         )}
-
+      >
         {/* Remind Me / Snooze Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -167,7 +136,9 @@ export function AppDownloadBanner({
               aria-label="Snooze or dismiss app prompt"
             >
               <Clock className="size-3.5 text-muted-foreground" />
-              <span className="sm:inline hidden">Remind Me</span>
+              <span className={isMobile ? 'sm:inline hidden' : 'sr-only'}>
+                Remind Me
+              </span>
               <ChevronDown className="size-3 opacity-60" />
             </Button>
           </DropdownMenuTrigger>
@@ -209,7 +180,10 @@ export function AppDownloadBanner({
           variant="primary"
           size="sm"
           onClick={() => handleDownload(primaryOption)}
-          className="h-8 gap-1.5 px-3 text-xs font-medium cursor-pointer shadow-sm"
+          className={cn(
+            'h-8 gap-1.5 px-3 text-xs font-medium cursor-pointer shadow-sm',
+            !isMobile && 'min-w-0 flex-1',
+          )}
           aria-label={
             isMobile
               ? `Download mobile app for ${primaryOption.storeOrFormat}`
@@ -217,10 +191,11 @@ export function AppDownloadBanner({
           }
         >
           <Download className="size-3.5" />
-          <span>{isMobile ? 'Download App' : 'Download App'}</span>
+          <span>Download</span>
         </Button>
 
-        {/* Close Button */}
+        {/* Close button — desktop has its own in the card header. */}
+        {isMobile ? (
         <Button
           variant="ghost"
           size="sm"
@@ -231,6 +206,7 @@ export function AppDownloadBanner({
         >
           <X className="size-4" />
         </Button>
+        ) : null}
       </div>
     </div>
   );

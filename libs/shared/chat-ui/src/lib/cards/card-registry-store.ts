@@ -1,6 +1,7 @@
 import type { CardDefinition } from '@org/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { generateShortId } from '@org/utils';
 
 // ---------------------------------------------------------------------------
 // 10 PRODUCTION-READY BUILT-IN TEMPLATES & SYSTEM CARDS
@@ -478,7 +479,7 @@ export const useCardRegistryStore = create<CardRegistryState>()(
           const original = state.cards[cardId];
           if (!original) return undefined;
 
-          const newId = `${cardId}-copy-${Math.random().toString(36).slice(2, 6)}`;
+          const newId = `${cardId}-copy-${generateShortId()}`;
           const duplicate: CardDefinition = {
             ...original,
             cardId: newId,

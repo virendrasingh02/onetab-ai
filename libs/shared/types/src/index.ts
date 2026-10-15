@@ -367,7 +367,6 @@ export type {
   TaskComment,
   TaskProjectRef,
   Team,
-  Whiteboard,
   WorkDocument,
   WorkDocumentChild,
   WorkItem,

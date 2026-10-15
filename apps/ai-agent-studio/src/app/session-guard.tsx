@@ -25,6 +25,7 @@ import {
   isLeavingForLogin,
   markEnteredViaMainApp,
   redirectToLogin,
+  redirectToLogout,
   WEB_APP_URL,
 } from './auth-redirect.js';
 import { StudioSignIn } from './studio-sign-in.js';
@@ -120,7 +121,7 @@ export function SessionGuard({ children }: { children: ReactNode }) {
       if (!user) {
         // Back from the main app without a session (or it never answered):
         // Studio's own sign-in keeps it usable.
-        setPhase({ kind: 'signed-out', cameBack: false });
+        setPhase({ kind: 'signed-out', cameBack: true });
         return;
       }
 
@@ -151,7 +152,10 @@ export function SessionGuard({ children }: { children: ReactNode }) {
   // The platform refused to renew the session (revoked, expired, signed out
   // elsewhere): go back to sign-in and return to the same page afterwards.
   useEffect(() => {
-    setSessionExpiredHandler(() => setPhase({ kind: 'signed-out', cameBack: false }));
+    setSessionExpiredHandler(() => {
+      setPhase({ kind: 'redirecting' });
+      redirectToLogin();
+    });
     return () => setSessionExpiredHandler(null);
   }, []);
 
@@ -197,7 +201,8 @@ export function SessionGuard({ children }: { children: ReactNode }) {
     }
     setAccessToken(null);
     saveWorkspaceId(null);
-    setPhase({ kind: 'signed-out', cameBack: false });
+    setPhase({ kind: 'redirecting' });
+    redirectToLogout();
   }, []);
 
   if (phase.kind === 'loading') {
@@ -217,6 +222,13 @@ export function SessionGuard({ children }: { children: ReactNode }) {
         onRetry={() => void initSession()}
       />
     );
+  }
+
+  // Signed out for any reason but "came back from the main app without a session":
+  // go to the main app's sign-in (the one place every method lives).
+  if (phase.kind === 'signed-out' && !phase.cameBack) {
+    redirectToLogin();
+    return <LoadingState fullPage label="Taking you to sign in…" />;
   }
 
   if (phase.kind === 'signed-out') {

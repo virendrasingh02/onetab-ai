@@ -1,5 +1,6 @@
 import { classifyError, type ErrorClass } from './retry-policy.js';
 import { syncMetrics } from './sync-metrics.js';
+import { generateId } from '@org/utils';
 
 /**
  * A user action taken while offline that should be re-attempted once the
@@ -120,7 +121,7 @@ export class OfflineActionQueue {
     );
     list.push({
       ...action,
-      id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: generateId('q'),
       enqueuedAt: new Date().toISOString(),
       attempts: 0,
     });

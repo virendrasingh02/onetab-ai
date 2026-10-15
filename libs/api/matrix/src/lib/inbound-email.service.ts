@@ -15,6 +15,7 @@ import type {
   UpdateChannelEmailSettingsInput,
 } from '@org/validation';
 import { MatrixAdminService } from './matrix-admin.service.js';
+import { generateId } from '@org/utils';
 
 interface NormalisedEmail {
   from: string;
@@ -182,7 +183,7 @@ export class InboundEmailService {
         str(b['Message-Id']) ??
         str(b['message-id']) ??
         header('Message-Id') ??
-        `synthetic-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        generateId('synthetic')
       ).trim(),
       inReplyTo: str(b['In-Reply-To']) ?? header('In-Reply-To'),
       references: str(b['References']) ?? header('References'),

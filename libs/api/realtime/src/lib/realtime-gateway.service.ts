@@ -8,6 +8,7 @@ import { CacheService } from '@org/api-cache';
 import { PrismaService } from '@org/database';
 import type { UserPresence } from '@org/types';
 import { Subject } from 'rxjs';
+import { generateId } from '@org/utils';
 
 export interface SseMessageEvent {
   data: string | object;
@@ -233,7 +234,7 @@ export class RealtimeGatewayService implements OnModuleInit, OnModuleDestroy {
     excludeClientId?: string,
   ): Promise<void> {
     const eventId =
-      event.id ?? `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      event.id ?? generateId('evt');
     const payloadString = JSON.stringify({
       id: eventId,
       type: event.type,
@@ -308,7 +309,7 @@ export class RealtimeGatewayService implements OnModuleInit, OnModuleDestroy {
     if (!clientIds || clientIds.size === 0) return;
 
     const payloadString = JSON.stringify({
-      id: event.id ?? `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: event.id ?? generateId('evt'),
       type: event.type,
       workspaceId: event.workspaceId ?? null,
       timestamp: new Date().toISOString(),

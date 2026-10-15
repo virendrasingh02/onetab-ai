@@ -66,7 +66,6 @@ describe('resolvePageTitle — static routes', () => {
     ['/w/acme/members', 'Team Directory'],
     ['/w/acme/dashboard', 'Dashboard'],
     ['/w/acme/meetings', 'Meetings'],
-    ['/w/acme/whiteboards', 'Whiteboards'],
     ['/w/acme/integrations', 'Integration Hub'],
     ['/w/acme/apps', 'Apps'],
     ['/w/acme/ai', 'AI Agent Studio'],

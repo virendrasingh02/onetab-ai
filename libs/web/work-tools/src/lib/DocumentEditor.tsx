@@ -179,14 +179,15 @@ export function DocumentEditor() {
   const handledNewDoc = useRef(false);
   useEffect(() => {
     if (searchParams.get('newDoc') !== 'true' || handledNewDoc.current) return;
-    if (!workspaceId || companies.length === 0) return;
+    // Wait for the tree, not for a folder: `createDoc` makes one if needed.
+    if (!workspaceId || isLoading) return;
 
     handledNewDoc.current = true;
     void createDoc().then((id) => {
       if (id) openDoc(id);
       setTab('all');
     });
-  }, [companies.length, createDoc, openDoc, searchParams, workspaceId]);
+  }, [isLoading, createDoc, openDoc, searchParams, workspaceId]);
 
   /* ------------------------------------------------------- block saving --- */
 
@@ -415,15 +416,17 @@ export function DocumentEditor() {
       ) : companies.length === 0 ? (
         <EmptyState
           icon={<FileText />}
-          title="No folders yet"
-          description="A folder groups related documents. Create one to start writing."
+          title="No documents yet"
+          description="Start writing straight away — it goes into a General folder you can rename — or set up a folder first."
           action={
-            <Button
-              leadingIcon={<Plus />}
-              onClick={() => void addCompany('My Folder')}
-            >
-              Create folder
-            </Button>
+            <div className="gap-2 flex flex-wrap justify-center">
+              <Button leadingIcon={<Plus />} onClick={handleNewDoc}>
+                New document
+              </Button>
+              <Button variant="outline" onClick={handleNewFolder}>
+                Create folder
+              </Button>
+            </div>
           }
         />
       ) : (

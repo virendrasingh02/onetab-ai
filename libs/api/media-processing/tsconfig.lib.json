@@ -12,13 +12,16 @@
   "exclude": ["out-tsc", "dist", "src/**/*.spec.ts"],
   "references": [
     {
-      "path": "../common/tsconfig.lib.json"
+      "path": "../../shared/utils/tsconfig.lib.json"
     },
     {
       "path": "../../shared/validation/tsconfig.lib.json"
     },
     {
       "path": "../../shared/types/tsconfig.lib.json"
+    },
+    {
+      "path": "../common/tsconfig.lib.json"
     },
     {
       "path": "../cache/tsconfig.lib.json"

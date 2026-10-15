@@ -1,6 +1,7 @@
 import type { ChannelBookmark } from '@org/types';
 import { toast } from '@org/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { generateId } from '@org/utils';
 
 /**
  * Private, per-browser bookmarks for a 1:1 direct message — the DM counterpart
@@ -61,7 +62,7 @@ export function useDirectMessageBookmarks(
       setBookmarks((prev) => {
         const newEntry: ChannelBookmark = {
           ...bookmark,
-          id: `bm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          id: generateId('bm'),
         };
         const updated = [...prev, newEntry];
         try {

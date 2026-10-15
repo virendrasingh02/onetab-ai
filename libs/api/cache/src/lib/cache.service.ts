@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis, { type RedisOptions } from 'ioredis';
+import { generateId } from '@org/utils';
 
 export interface CacheEntry<T = unknown> {
   value: T;
@@ -420,7 +421,7 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
 
   async acquireLock(resource: string, ttlMs = 10_000): Promise<string | null> {
     const fullKey = this.formatKey(`lock:${resource}`);
-    const token = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const token = generateId();
 
     if (this.isConnected && this.redisClient) {
       try {

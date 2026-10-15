@@ -497,28 +497,6 @@ export const updateDocumentSchema = z.object({
   parentId: z.string().nullable().optional(),
 });
 
-// --- whiteboards ------------------------------------------------------------
-
-export const createWhiteboardSchema = z.object({
-  name: z.string().trim().min(1, 'A whiteboard needs a name').max(120),
-});
-
-export const updateWhiteboardSchema = z.object({
-  name: z.string().trim().min(1).max(120).optional(),
-  canvasData: z
-    .string()
-    .max(2_000_000)
-    .refine((value) => {
-      try {
-        JSON.parse(value);
-        return true;
-      } catch {
-        return false;
-      }
-    }, 'Canvas data must be valid JSON')
-    .optional(),
-});
-
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 export type ProjectIdentifierSettingsInput = z.infer<
@@ -568,5 +546,3 @@ export type CreateMeetingActionItemInput = z.infer<
 >;
 export type CreateDocumentInput = z.infer<typeof createDocumentSchema>;
 export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;
-export type CreateWhiteboardInput = z.infer<typeof createWhiteboardSchema>;
-export type UpdateWhiteboardInput = z.infer<typeof updateWhiteboardSchema>;

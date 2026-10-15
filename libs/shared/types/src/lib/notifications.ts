@@ -274,7 +274,6 @@ export type SearchCategory =
   | 'people'
   | 'agents'
   | 'coworkers'
-  | 'canvases'
   | 'calls'
   | 'meetings'
   | 'workflows';

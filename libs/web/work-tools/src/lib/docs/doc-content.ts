@@ -4,6 +4,7 @@ import type {
   DocStatus,
   NotionBlock,
 } from './doc-types.js';
+import { generateShortId } from '@org/utils';
 
 /**
  * What goes in `WorkDocument.content`.
@@ -52,11 +53,7 @@ function isEnvelope(value: unknown): value is StoredEnvelope {
 
 /** A block id that is stable within a document but cheap to mint. */
 export function blockId(): string {
-  const random =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-  return `b_${random}`;
+  return generateShortId('b');
 }
 
 export function decodeDocContent(content: string): DocEnvelope {

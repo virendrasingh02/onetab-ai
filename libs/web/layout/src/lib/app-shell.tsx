@@ -40,8 +40,17 @@ import {
   type RoomActivityEntry,
 } from '@org/web-chat';
 import { useChatNotificationSoundGate } from './notifications/chat-sound-gate.js';
-import { useSplitViewChannel } from './split-view/split-view-store.js';
+import {
+  useSplitViewChannel,
+  useSplitViewStore,
+} from './split-view/split-view-store.js';
 import { ChannelSplitView } from './split-view/channel-split-view.js';
+import { SplitRoutePane } from './split-view/split-route-pane.js';
+import {
+  SPLIT_MIN_WIDTH,
+  splitMaxWidth,
+  useSplitViewWidth,
+} from './split-view/use-split-view-width.js';
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { GlobalInviteMembersDialog } from '@org/web-invitations';
 import {
@@ -54,7 +63,15 @@ import {
 } from '@org/web-workspace';
 import { ScheduledStatusDialog } from '@org/web-profile';
 import { Building2 } from 'lucide-react';
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   Link,
   Navigate,
@@ -95,7 +112,17 @@ function liveRoomForChannel(
   return typeof roomId === 'string' ? live.byRoomId.get(roomId) : undefined;
 }
 
-export function AppShell() {
+export interface AppShellProps {
+  /**
+   * The app's page table as a `<Routes>` with absolute paths. The split pane
+   * renders any workspace page from it, resolved against the pane's own
+   * location — it lives in the app, not here, because the shell can't import
+   * the routes that render inside it.
+   */
+  splitPages?: ReactNode;
+}
+
+export function AppShell({ splitPages }: AppShellProps = {}) {
   const user = useCurrentUser();
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -158,6 +185,9 @@ export function AppShell() {
   const workspacesQuery = useWorkspaces();
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const splitChannel = useSplitViewChannel(workspaceId);
+  const split = useSplitViewWidth();
+  const closeSplit = useSplitViewStore((s) => s.close);
+  const splitPaneRef = useRef<HTMLDivElement>(null);
   const channelsQuery = useChannels(workspaceId);
   const membersQuery = useMembers(workspaceId);
 
@@ -480,7 +510,7 @@ export function AppShell() {
         <div
           className={cn(
             'min-h-0 gap-1.5 p-1.5 pt-0 relative flex flex-1 overflow-hidden',
-            isResizing && 'cursor-col-resize select-none',
+            (isResizing || split.isResizing) && 'cursor-col-resize select-none',
           )}
         >
           {/*
@@ -499,6 +529,11 @@ export function AppShell() {
                 aria-label="Sidebar navigation"
               >
                 <div className="min-h-0 flex flex-1 flex-col">{channelNav}</div>
+                {/* Desktop app prompt lives at the foot of the sidebar so it
+                    never takes a full-width row from the page. */}
+                {!isSidebarCollapsed ? (
+                  <AppDownloadBanner workspaceId={workspaceId} />
+                ) : null}
               </aside>
 
               {!isSidebarCollapsed && (
@@ -544,13 +579,58 @@ export function AppShell() {
               the page ("Open in split view"). Desktop only — a phone has no
               room for two conversations side by side. */}
           {splitChannel && workspaceId && !isMobile ? (
-            <div className="app-content-panel min-w-80 w-[42%] bg-card shadow-2xs flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border text-card-foreground">
-              <ChannelSplitView
-                workspaceId={workspaceId}
-                workspaceSlug={slug}
-                channel={splitChannel}
+            <>
+              <ResizeHandle
+                side="right"
+                isResizing={split.isResizing}
+                currentWidth={
+                  split.width ??
+                  splitPaneRef.current?.offsetWidth ??
+                  SPLIT_MIN_WIDTH
+                }
+                minWidth={SPLIT_MIN_WIDTH}
+                maxWidth={splitMaxWidth()}
+                onPointerDown={split.startResize}
+                onDoubleClick={split.reset}
+                onStepWidth={(delta) =>
+                  split.step(
+                    delta,
+                    splitPaneRef.current?.offsetWidth ?? SPLIT_MIN_WIDTH,
+                  )
+                }
+                onResetWidth={split.reset}
+                label="Resize split view"
               />
-            </div>
+              <div
+                ref={splitPaneRef}
+                className={cn(
+                  'app-content-panel min-w-80 bg-card shadow-2xs flex h-full flex-col overflow-hidden rounded-xl border border-border text-card-foreground',
+                  // Default: an even 50 / 50 with the page; a dragged width is pinned.
+                  split.width === null ? 'flex-1' : 'shrink-0',
+                )}
+                style={
+                  split.width === null
+                    ? undefined
+                    : { width: `${split.width}px` }
+                }
+              >
+                {splitChannel.kind === 'route' ? (
+                  <SplitRoutePane
+                    key={splitChannel.id}
+                    initialPath={splitChannel.id}
+                    title={splitChannel.name}
+                    pages={splitPages}
+                    onClose={() => closeSplit(workspaceId)}
+                  />
+                ) : (
+                  <ChannelSplitView
+                    workspaceId={workspaceId}
+                    workspaceSlug={slug}
+                    channel={splitChannel}
+                  />
+                )}
+              </div>
+            </>
           ) : null}
 
           {/* Column 3 / Box 3: the switchable side rail — assistant, a
@@ -610,8 +690,9 @@ export function AppShell() {
         <SyncStatusIndicator variant="pill" />
         <OfflineConflictToastBridge />
 
-        {/* Device-aware Native App Download Prompt */}
-        <AppDownloadBanner workspaceId={workspaceId} />
+        {/* Phones get the app prompt as a slim row above the tab bar; on
+            desktop it sits in the sidebar (above). */}
+        {isMobile ? <AppDownloadBanner workspaceId={workspaceId} /> : null}
 
         {/*
           Below `md` both panels become Radix sheets instead of hand-rolled

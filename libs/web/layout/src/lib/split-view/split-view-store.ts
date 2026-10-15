@@ -1,11 +1,37 @@
 import { create } from 'zustand';
 
-/** The channel shown in the split pane beside the routed page. */
+/** A channel shown in the split pane beside the routed page. */
 export interface SplitViewChannel {
+  kind?: 'channel';
   id: string;
   slug: string;
   name: string;
 }
+
+/**
+ * A direct message shown in the split pane: `id` is the peer's user id for a
+ * 1:1, or the Matrix room id for a group DM.
+ */
+export interface SplitViewDirect {
+  kind: 'dm' | 'group';
+  id: string;
+  name: string;
+}
+
+/**
+ * Any other page of the workspace (a doc, a project, the inbox…): `id` is its
+ * path, query included.
+ */
+export interface SplitViewRoute {
+  kind: 'route';
+  id: string;
+  name: string;
+}
+
+export type SplitViewTarget =
+  | SplitViewChannel
+  | SplitViewDirect
+  | SplitViewRoute;
 
 export interface SplitViewState {
   /**
@@ -13,8 +39,8 @@ export interface SplitViewState {
    * workspace, so switching workspace hides the pane rather than pointing it
    * at a channel that doesn't exist there — and switching back restores it.
    */
-  byWorkspace: Record<string, SplitViewChannel>;
-  open: (workspaceId: string, channel: SplitViewChannel) => void;
+  byWorkspace: Record<string, SplitViewTarget>;
+  open: (workspaceId: string, target: SplitViewTarget) => void;
   close: (workspaceId: string) => void;
 }
 
@@ -24,9 +50,9 @@ export interface SplitViewState {
  */
 export const useSplitViewStore = create<SplitViewState>()((set) => ({
   byWorkspace: {},
-  open: (workspaceId, channel) =>
+  open: (workspaceId, target) =>
     set((state) => ({
-      byWorkspace: { ...state.byWorkspace, [workspaceId]: channel },
+      byWorkspace: { ...state.byWorkspace, [workspaceId]: target },
     })),
   close: (workspaceId) =>
     set((state) => {
@@ -37,10 +63,10 @@ export const useSplitViewStore = create<SplitViewState>()((set) => ({
     }),
 }));
 
-/** The split-pane channel for `workspaceId`, if one is open. */
+/** The split-pane conversation for `workspaceId`, if one is open. */
 export function useSplitViewChannel(
   workspaceId: string | undefined,
-): SplitViewChannel | undefined {
+): SplitViewTarget | undefined {
   return useSplitViewStore((s) =>
     workspaceId ? s.byWorkspace[workspaceId] : undefined,
   );

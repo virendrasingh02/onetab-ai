@@ -65,6 +65,8 @@ export interface Room {
   highlightCount: number;
   lastActivityAt?: Timestamp;
   memberCount: number;
+  /** People invited who have not joined yet — not part of `memberCount`. */
+  invitedCount?: number;
   /** Set for `direct` rooms only. */
   directUserId?: MatrixUserId;
   /**

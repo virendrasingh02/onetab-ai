@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@org/auth';
 import { AddBookmarkDialog, BookmarkFavicon, Composer } from '@org/chat-ui';
 import { isCallLive } from '@org/matrix-client';
@@ -34,6 +35,7 @@ import {
   toPresenceStatus,
   UserAvatar,
   useRightPanelStore,
+  LocalTime,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMembers } from '@org/web-members';
@@ -73,6 +75,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
@@ -125,27 +128,50 @@ export interface DirectMessagesViewProps {
    * layering reason as `extraPeers`: `web-chat` sits below `web-channels`.
    */
   channels?: ChannelSummary[];
+  /**
+   * Show this conversation instead of the one the URL names — the split pane
+   * hosts a DM (`peerId`) or a group DM (`roomId`) beside the routed page, so
+   * it must not read the page's own params.
+   */
+  peerId?: string;
+  roomId?: string;
+  /** Trailing header controls owned by the host (the split pane's expand / close). */
+  headerEnd?: ReactNode;
 }
 
 export function DirectMessagesView({
   extraPeers,
   channels,
+  peerId: peerIdProp,
+  roomId: roomIdProp,
+  headerEnd,
 }: DirectMessagesViewProps = {}) {
   const [searchParams] = useSearchParams();
   const { peerId: routePeerId } = useParams<{ peerId?: string }>();
   // `/dms/:peerId` is the 1:1 deep link; `?user=` is the old query form,
   // still honoured for links persisted server-side (search, notifications).
-  const peerId = routePeerId ?? searchParams.get('user');
-  const roomId = searchParams.get('room');
+  const embedded = !!(peerIdProp || roomIdProp);
+  const peerId = embedded
+    ? peerIdProp
+    : (routePeerId ?? searchParams.get('user'));
+  const roomId = embedded ? roomIdProp : searchParams.get('room');
 
   // `?room=` is a group DM — it has no single peer to key on, so it is
   // addressed by its Matrix room id.
   if (roomId) {
-    return <GroupConversation roomId={roomId} extraPeers={extraPeers} />;
+    return <GroupConversation
+        roomId={roomId}
+        extraPeers={extraPeers}
+        headerEnd={headerEnd}
+      />;
   }
 
   return peerId ? (
-    <DirectConversation peerId={peerId} extraPeers={extraPeers} />
+    <DirectConversation
+      peerId={peerId}
+      extraPeers={extraPeers}
+      headerEnd={headerEnd}
+    />
   ) : (
     <NewDirectMessage extraPeers={extraPeers} channels={channels} />
   );
@@ -164,9 +190,11 @@ export function DirectMessagesView({
 function DirectConversation({
   peerId,
   extraPeers,
+  headerEnd,
 }: {
   peerId: string;
   extraPeers?: WorkspaceMember[];
+  headerEnd?: ReactNode;
 }) {
   const { workspaceId } = useCurrentWorkspace();
   const members = useMembers(workspaceId);
@@ -258,6 +286,7 @@ function DirectConversation({
         roomId={roomId}
         onAddBookmark={() => setAddBookmarkOpen(true)}
         chatActionsRef={setChatActionsSlot}
+        headerEnd={headerEnd}
       />
 
       <AddBookmarkDialog
@@ -585,6 +614,7 @@ function DirectMessageHeader({
   roomId,
   onAddBookmark,
   chatActionsRef,
+  headerEnd,
 }: {
   member: WorkspaceMember;
   /**
@@ -598,6 +628,7 @@ function DirectMessageHeader({
   /** Opens the "Add bookmark" dialog — mirrors `ChannelHeader`'s menu entry. */
   onAddBookmark?: () => void;
   chatActionsRef: (element: HTMLDivElement | null) => void;
+  headerEnd?: ReactNode;
 }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useDirectMessagePreferences(workspaceId);
@@ -725,15 +756,25 @@ function DirectMessageHeader({
     });
   };
 
+  const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const handleSyncConversation = useCallback(() => {
+  // Refetch what this screen shows. It used to toast "synchronized" after a
+  // fixed 800ms without fetching anything; the timeline itself streams live
+  // from Matrix, so the data worth re-pulling is the React Query side.
+  const handleSyncConversation = useCallback(async () => {
     setIsSyncing(true);
-    toast.success('Conversation synchronized', {
-      description: 'Matrix timeline and peer presence updated.',
-    });
-    setTimeout(() => setIsSyncing(false), 800);
-  }, []);
+    try {
+      await queryClient.refetchQueries({ type: 'active' });
+      toast.success('Conversation synchronized', {
+        description: 'Conversation details and presence are up to date.',
+      });
+    } catch {
+      toast.error('Could not synchronize this conversation');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [queryClient]);
 
   return (
     <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
@@ -971,6 +1012,35 @@ function DirectMessageHeader({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          {/* Who you are talking to, at a glance: their status and the time
+              where they are — the DM counterpart of a channel's topic. */}
+          {!isSelf && (member.user.statusText || member.user.timezone) ? (
+            <div className="md:flex min-w-0 gap-2 pl-2.5 hidden items-center border-l border-border text-xs text-muted-foreground">
+              {member.user.statusText ? (
+                <span
+                  className="max-w-56 truncate"
+                  title={member.user.statusText}
+                >
+                  {member.user.statusText}
+                </span>
+              ) : null}
+              {member.user.statusText && member.user.timezone ? (
+                <span aria-hidden className="text-subtle">
+                  ·
+                </span>
+              ) : null}
+              {member.user.timezone ? (
+                <LocalTime
+                  timezone={member.user.timezone}
+                  icon
+                  withHint
+                  hintName={name}
+                  className="shrink-0"
+                />
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="gap-1 flex items-center">
@@ -1006,6 +1076,7 @@ function DirectMessageHeader({
             ref={chatActionsRef}
             className="gap-0.5 flex items-center empty:hidden"
           />
+          {headerEnd}
         </div>
       </div>
     </div>
@@ -1092,6 +1163,24 @@ function NewDirectMessage({
 
   const selectedChannel =
     channelOptions.find((channel) => channel.id === selectedChannelId) ?? null;
+
+  // Teammates to offer before anything is typed: real people only (no
+  // agents/apps, not yourself), whoever is online first.
+  const presenceMap = useUserPresenceMap();
+  const suggestedPeople = useMemo(() => {
+    const isOnline = (person: RecipientPerson) =>
+      (presenceMap[person.id]?.status ??
+        toPresenceStatus(person.presence)) === 'online';
+    return peopleOptions
+      .filter(
+        (person) =>
+          !person.isSelf &&
+          person.kind === 'person' &&
+          !selectedPeople.includes(person.id),
+      )
+      .sort((a, b) => Number(isOnline(b)) - Number(isOnline(a)))
+      .slice(0, 6);
+  }, [peopleOptions, presenceMap, selectedPeople]);
 
   const selectedMembers = useMemo(
     () => allPeers.filter((member) => selectedPeople.includes(member.user.id)),
@@ -1195,6 +1284,25 @@ function NewDirectMessage({
         });
     }
 
+    // These exact people already share a channel, which is reused rather than
+    // duplicated. Open it as the channel it is — on its own page — instead of
+    // inside the group-DM view, and say so, since the user asked for a group.
+    if (result.kind === 'channel') {
+      const roomName = client?.getRoom(result.roomId)?.name;
+      const sharedChannel = roomName
+        ? (channels ?? []).find((channel) => channel.name === roomName)
+        : undefined;
+      if (sharedChannel) {
+        toast.info(`You already share #${sharedChannel.name} with these people`, {
+          description: 'Opened that channel instead of creating a group.',
+        });
+        return {
+          roomId: result.roomId,
+          href: `/w/${slug}/c/${sharedChannel.slug}`,
+        };
+      }
+    }
+
     return {
       roomId: result.roomId,
       href:
@@ -1214,6 +1322,7 @@ function NewDirectMessage({
     client,
     selectedMembers,
     workspaceId,
+    channels,
   ]);
 
   const handleSend = useCallback(
@@ -1437,16 +1546,52 @@ function NewDirectMessage({
                 to send.
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!canDispatch}
-              onClick={openWithoutMessage}
-              leadingIcon={<MessageSquare className="size-4" />}
-            >
-              {openLabel}
-            </Button>
+            {hasRecipients ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canDispatch}
+                onClick={openWithoutMessage}
+                leadingIcon={<MessageSquare className="size-4" />}
+              >
+                {openLabel}
+              </Button>
+            ) : null}
+            {/* Teammates one click away — each click adds them, so a group can
+                be built from here as well as from the field above. */}
+            {!selectedChannel && suggestedPeople.length > 0 ? (
+              <div className="max-w-lg w-full space-y-2">
+                <p className="font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
+                  {selectedPeople.length > 0 ? 'Add more people' : 'Suggested'}
+                </p>
+                <div className="gap-2 flex flex-wrap justify-center">
+                  {suggestedPeople.map((person) => (
+                    <button
+                      key={person.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedPeople((prev) => [...prev, person.id])
+                      }
+                      className="gap-2 py-1 pl-1 pr-3 flex max-w-48 items-center rounded-full border border-border bg-background text-sm text-foreground transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <UserAvatar
+                        name={person.name}
+                        src={person.avatarUrl}
+                        seed={person.id}
+                        presence={
+                          presenceMap[person.id]?.status ??
+                          toPresenceStatus(person.presence)
+                        }
+                        size="sm"
+                        className="size-6"
+                      />
+                      <span className="truncate">{person.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* Composer — pinned to the bottom, like a real conversation. */}

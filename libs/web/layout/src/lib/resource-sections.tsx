@@ -56,6 +56,7 @@ import {
   useState,
 } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useSplitViewAction } from './split-view/use-split-view-action.js';
 import {
   FavoriteToggle,
   navActionClass,
@@ -380,6 +381,7 @@ export function CoworkerNavRow({
   const navigate = useNavigate();
   const path = `/w/${workspaceSlug}/coworkers/${coworker.id}`;
 
+  const splitAction = useSplitViewAction();
   const actions: EntityAction[] = [
     {
       id: 'open',
@@ -396,6 +398,7 @@ export function CoworkerNavRow({
       run: () => navigate(`/w/${workspaceSlug}/ai/agents/${coworker.id}`),
     },
     favoriteAction(isFavorite, onToggleFavorite),
+    splitAction(path, coworker.name),
     copyLinkAction(path, 'Copy coworker link'),
     {
       id: 'delete',
@@ -455,6 +458,7 @@ export function AgentNavRow({
   const navigate = useNavigate();
   const chatPath = `/w/${workspaceSlug}/agents/${agent.id}/chat`;
 
+  const splitAction = useSplitViewAction();
   const actions: EntityAction[] = [
     {
       id: 'open',
@@ -472,6 +476,7 @@ export function AgentNavRow({
       run: () => navigate(`/w/${workspaceSlug}/ai/agents/${agent.id}`),
     },
     favoriteAction(isFavorite, onToggleFavorite),
+    splitAction(chatPath, agent.name),
     copyLinkAction(chatPath, 'Copy agent link'),
     {
       id: 'delete',
@@ -532,6 +537,7 @@ export function AppNavRow({
   const chatPath = `/w/${workspaceSlug}/apps/${app.id}/chat`;
   const managePath = `/w/${workspaceSlug}/integrations?app=${app.id}`;
 
+  const splitAction = useSplitViewAction();
   const actions: EntityAction[] = [
     {
       id: 'open',
@@ -559,6 +565,7 @@ export function AppNavRow({
       run: onSync,
     },
     favoriteAction(isFavorite, onToggleFavorite),
+    splitAction(chatPath, app.name),
     copyLinkAction(managePath, 'Copy app link'),
     {
       id: 'disconnect',
@@ -616,6 +623,7 @@ export function WorkflowNavRow({
   const path = `/w/${workspaceSlug}/ai/workflows/${workflow.id}`;
   const isActive = workflow.isActive ?? true;
 
+  const splitAction = useSplitViewAction();
   const actions: EntityAction[] = [
     {
       id: 'open',
@@ -644,6 +652,7 @@ export function WorkflowNavRow({
       run: onToggleActive,
     },
     favoriteAction(isFavorite, onToggleFavorite),
+    splitAction(path, workflow.name),
     copyLinkAction(path),
     {
       id: 'delete',
@@ -1023,7 +1032,7 @@ export function CoworkersSection({
       emptyLabel={
         inactiveCoworkerItems.length > 0
           ? 'No recent activity — quieter coworkers are under Inactive.'
-          : 'No coworkers active yet.'
+          : undefined
       }
       action={
         <Hint label="Add coworker">
@@ -1270,7 +1279,7 @@ export function AgentsSection({
       emptyLabel={
         inactiveAgentItems.length > 0
           ? 'No recent activity — quieter agents are under Inactive.'
-          : 'No published agents yet. Publish one from the AI Agent Studio.'
+          : undefined
       }
       action={
         <Hint label="Add agent">
@@ -1522,7 +1531,7 @@ export function AppsSection({
       emptyLabel={
         inactiveAppItems.length > 0
           ? 'No recent activity — unused apps are under Inactive.'
-          : 'No apps connected yet.'
+          : undefined
       }
       action={
         <Hint label="Add app">
@@ -1692,7 +1701,7 @@ export function WorkflowsSection({
       title="Automations"
       count={items.length}
       emptyLabel={
-        workflows.isLoading ? 'Loading automations…' : 'No workflows yet.'
+        workflows.isLoading ? 'Loading automations…' : undefined
       }
       action={
         <Hint label="Add workflow">

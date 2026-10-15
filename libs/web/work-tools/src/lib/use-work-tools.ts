@@ -21,7 +21,6 @@ import type {
   SavedView,
   Task,
   Team,
-  Whiteboard,
   WorkDocument,
   WorkItemRelation,
   WorkspaceSummary,
@@ -45,7 +44,6 @@ import type {
   CreateTaskCommentInput,
   CreateTaskInput,
   CreateTeamInput,
-  CreateWhiteboardInput,
   CreateWorkItemRelationInput,
   MeetingParticipantsInput,
   MeetingRsvpInput,
@@ -62,7 +60,6 @@ import type {
   UpdateSavedViewInput,
   UpdateTaskInput,
   UpdateTeamInput,
-  UpdateWhiteboardInput,
 } from '@org/validation';
 import {
   OFFLINE_ACTION,
@@ -73,12 +70,11 @@ import { toast } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { generateId } from '@org/utils';
 
 /** A per-call id for queue entries that must never collapse into each other (distinct creates), unlike idempotent read-state actions keyed by target id. */
 function offlineActionId(): string {
-  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return generateId();
 }
 
 /**
@@ -678,7 +674,7 @@ export function useProjectUpdateMutations(workspaceId: string | undefined) {
   return { create };
 }
 
-// --- comments, calendar, documents, whiteboards ----------------------------
+// --- comments, calendar, documents ----------------------------
 
 export function useTaskComments(
   workspaceId: string | undefined,
@@ -1031,70 +1027,6 @@ export function useDocumentMutations(workspaceId: string | undefined) {
   return { create, update, remove };
 }
 
-export function useWhiteboards(workspaceId: string | undefined) {
-  return useQuery({
-    queryKey: queryKeys.workTools.whiteboards(workspaceId ?? ''),
-    queryFn: () => workToolsApi.whiteboards(workspaceId as string),
-    enabled: !!workspaceId,
-    staleTime: 30_000,
-  });
-}
-
-export function useWhiteboard(
-  workspaceId: string | undefined,
-  whiteboardId: string | undefined,
-) {
-  return useQuery({
-    queryKey: queryKeys.workTools.whiteboard(
-      workspaceId ?? '',
-      whiteboardId ?? '',
-    ),
-    queryFn: () =>
-      workToolsApi.whiteboard(workspaceId as string, whiteboardId as string),
-    enabled: !!workspaceId && !!whiteboardId,
-    retry: false,
-  });
-}
-
-export function useWhiteboardMutations(workspaceId: string | undefined) {
-  const queryClient = useQueryClient();
-  const invalidate = () =>
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
-    });
-
-  const create = useMutation({
-    mutationFn: (input: CreateWhiteboardInput) =>
-      workToolsApi.createWhiteboard(workspaceId as string, input),
-    onSuccess: invalidate,
-  });
-
-  const update = useMutation({
-    mutationFn: ({
-      whiteboardId,
-      input,
-    }: {
-      whiteboardId: string;
-      input: UpdateWhiteboardInput;
-    }) =>
-      workToolsApi.updateWhiteboard(workspaceId as string, whiteboardId, input),
-    onSuccess: (board) => {
-      queryClient.setQueryData(
-        queryKeys.workTools.whiteboard(workspaceId ?? '', board.id),
-        board,
-      );
-    },
-  });
-
-  const remove = useMutation({
-    mutationFn: (whiteboardId: string) =>
-      workToolsApi.deleteWhiteboard(workspaceId as string, whiteboardId),
-    onSuccess: invalidate,
-  });
-
-  return { create, update, remove };
-}
-
 export function groupTasksByStatus(tasks: Task[] | undefined): Record<string, Task[]> {
   const groups: Record<string, Task[]> = {};
   if (!tasks) return groups;
@@ -1117,7 +1049,6 @@ export type {
   SavedView,
   Task,
   Team,
-  Whiteboard,
   WorkDocument,
   WorkItemRelation,
 };

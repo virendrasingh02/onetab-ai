@@ -51,7 +51,15 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
 import { ConversationTabsShell } from './conversation-files-panel.js';
@@ -135,6 +143,8 @@ function membersTitle(names: string[]): string {
 export interface GroupConversationProps {
   roomId: string;
   extraPeers?: WorkspaceMember[];
+  /** Trailing header controls owned by the host (the split pane's expand / close). */
+  headerEnd?: ReactNode;
 }
 
 /**
@@ -145,6 +155,7 @@ export interface GroupConversationProps {
 export function GroupConversation({
   roomId,
   extraPeers,
+  headerEnd,
 }: GroupConversationProps) {
   const { configStatus, client } = useMatrix();
   const { workspaceId, slug } = useCurrentWorkspace();
@@ -196,6 +207,7 @@ export function GroupConversation({
           roomId={roomId}
           workspacePeople={allWorkspacePeople}
           chatActionsRef={setChatActionsSlot}
+          headerEnd={headerEnd}
           addPeopleOpen={addPeopleOpen}
           onAddPeopleOpenChange={setAddPeopleOpen}
           membersPanelOpen={membersPanelOpen}
@@ -221,6 +233,7 @@ export function GroupConversation({
           roomId={roomId}
           workspacePeople={allWorkspacePeople}
           chatActionsRef={setChatActionsSlot}
+          headerEnd={headerEnd}
           addPeopleOpen={addPeopleOpen}
           onAddPeopleOpenChange={setAddPeopleOpen}
           membersPanelOpen={membersPanelOpen}
@@ -240,10 +253,12 @@ export function GroupConversation({
         title={title}
         members={members}
         roomAvatarUrl={room?.avatarUrl}
+        invitedCount={room?.invitedCount}
         roomId={roomId}
         isChannel={isChannel}
         workspacePeople={allWorkspacePeople}
         chatActionsRef={setChatActionsSlot}
+          headerEnd={headerEnd}
         addPeopleOpen={addPeopleOpen}
         onAddPeopleOpenChange={setAddPeopleOpen}
         membersPanelOpen={membersPanelOpen}
@@ -307,10 +322,12 @@ function GroupHeader({
   title,
   members,
   roomAvatarUrl,
+  invitedCount = 0,
   roomId,
   isChannel = false,
   workspacePeople,
   chatActionsRef,
+  headerEnd,
   addPeopleOpen,
   onAddPeopleOpenChange,
   membersPanelOpen,
@@ -320,10 +337,13 @@ function GroupHeader({
   title: string;
   members: RoomMember[];
   roomAvatarUrl?: string | null;
+  /** Invited, not yet joined — shown beside the member count. */
+  invitedCount?: number;
   roomId: string;
   isChannel?: boolean;
   workspacePeople: WorkspaceMember[];
   chatActionsRef: (element: HTMLDivElement | null) => void;
+  headerEnd?: ReactNode;
   addPeopleOpen: boolean;
   onAddPeopleOpenChange: (open: boolean) => void;
   membersPanelOpen: boolean;
@@ -521,6 +541,9 @@ function GroupHeader({
               <span>
                 {members.length} {members.length === 1 ? 'member' : 'members'}
               </span>
+              {/* A new group counted only the creator ("1 member") until the
+                  others accepted — say who is still pending. */}
+              {invitedCount > 0 ? <span>· {invitedCount} invited</span> : null}
               {isMuted ? ' · muted' : ''}
             </button>
           </div>
@@ -693,6 +716,7 @@ function GroupHeader({
           ref={chatActionsRef}
           className="gap-0.5 flex items-center empty:hidden"
         />
+        {headerEnd}
       </div>
 
       <AddPeopleDialog

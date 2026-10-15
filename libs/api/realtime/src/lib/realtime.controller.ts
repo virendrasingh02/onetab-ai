@@ -38,6 +38,7 @@ import {
   type SseMessageEvent,
 } from './realtime-gateway.service.js';
 import { RealtimeTicketService } from './realtime-ticket.service.js';
+import { generateId } from '@org/utils';
 
 interface StreamQuery {
   /** Single-use ticket from `POST /realtime/ticket` — the preferred path. */
@@ -160,7 +161,7 @@ export class RealtimeController {
       }
     }
 
-    const clientId = `rt-${userId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const clientId = `rt-${userId}-${generateId()}`;
     const eventSubject = new Subject<SseMessageEvent>();
 
     // Register with gateway & presence services

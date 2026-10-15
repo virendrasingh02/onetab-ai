@@ -551,17 +551,6 @@ export interface WorkDocument {
   children: WorkDocumentChild[];
 }
 
-export interface Whiteboard {
-  id: string;
-  workspaceId: string;
-  name: string;
-  /** Opaque JSON string: `{ nodes, edges }` for the canvas. */
-  canvasData: string;
-  createdAt: IsoDateString;
-  updatedAt: IsoDateString;
-  author: PublicUser;
-}
-
 export interface WorkItemCustomField {
   id: string;
   workspaceId: string;

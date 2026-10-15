@@ -400,10 +400,27 @@ export function NewMessageRecipients({
                           </span>
                         ) : null}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        @{row.person.handle}
-                        {row.person.statusText ? ` · ${row.person.statusText}` : ''}
-                      </span>
+                      {(() => {
+                        // `handle` is often just the display name again
+                        // ("@Nina Nakamura"), which reads like a bug — only
+                        // show it when it is a real, distinct handle.
+                        const handle = row.person.handle;
+                        const showHandle =
+                          Boolean(handle) &&
+                          handle !== row.person.name &&
+                          !/\s/.test(handle);
+                        const secondary = [
+                          showHandle ? `@${handle}` : null,
+                          row.person.statusText || null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ');
+                        return secondary ? (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {secondary}
+                          </span>
+                        ) : null;
+                      })()}
                     </span>
                   </>
                 )}

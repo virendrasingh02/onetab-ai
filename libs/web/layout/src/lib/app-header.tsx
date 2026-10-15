@@ -285,6 +285,7 @@ export function AppHeader({
               size="sm"
               style={NO_DRAG}
               className="gap-1 sm:flex hidden cursor-pointer"
+              aria-label="Help & Resources"
               onClick={() => void openExternal('https://github.com/onetab-ai')}
             >
               <HelpCircle className="size-4" />

@@ -1516,7 +1516,6 @@ export class AdminAnalyticsService {
       { feature: 'Work Documents', usageCount: 890, adoptionRate: 48, trend: 'flat' as const },
       { feature: 'AI Agents & Assistant', usageCount: 1240, adoptionRate: 64, trend: 'up' as const },
       { feature: 'Automations & Workflows', usageCount: 420, adoptionRate: 32, trend: 'up' as const },
-      { feature: 'Interactive Whiteboards', usageCount: 280, adoptionRate: 24, trend: 'down' as const },
       { feature: 'Federated Search', usageCount: 650, adoptionRate: 52, trend: 'up' as const },
     ];
 

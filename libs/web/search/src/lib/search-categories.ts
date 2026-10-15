@@ -6,7 +6,6 @@ import {
   FileText,
   FolderKanban,
   Hash,
-  LayoutDashboard,
   Paperclip,
   PhoneCall,
   Sparkles,
@@ -35,7 +34,6 @@ export const SEARCH_CATEGORY_META: Record<
   coworkers: { label: 'AI coworkers', icon: Sparkles },
   agents: { label: 'AI agents', icon: Bot },
   workflows: { label: 'Workflows & agents', icon: Workflow },
-  canvases: { label: 'Canvases', icon: LayoutDashboard },
 };
 
 export const SEARCH_CATEGORIES = Object.keys(SEARCH_CATEGORY_META) as SearchCategory[];

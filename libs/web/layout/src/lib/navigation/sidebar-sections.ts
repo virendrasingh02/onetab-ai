@@ -15,6 +15,7 @@
  */
 
 import type { ChannelSummary } from '@org/types';
+import { generateId } from '@org/utils';
 
 /* -------------------------------------------------------------------------- */
 /* Channel sorting (§1.2)                                                      */
@@ -215,9 +216,7 @@ export interface SidebarSectionDef {
 }
 
 export function createSectionId(): string {
-  return `sec-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+  return generateId('sec');
 }
 
 export const CHANNEL_PRIORITY_LABELS = ['None', 'Low', 'Medium', 'High'] as const;
