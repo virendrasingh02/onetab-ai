@@ -474,6 +474,15 @@ export function AgentsListPage() {
         }
       />
 
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface/60 px-4 py-2.5 text-xs text-muted-foreground">
+        <span>
+          Agents made with <strong className="text-foreground">Create with AI</strong> or a template are plan-first agents. They are listed under Planned Agents, not here.
+        </span>
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => navigate(`/w/${activeWorkspace.slug}/ai/agents`)}>
+          Open Planned Agents
+        </Button>
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
         {/* Status Filter Tabs (Draft, Testing, Published, Paused, Archived, Trash) */}

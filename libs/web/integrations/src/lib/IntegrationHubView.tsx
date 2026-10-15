@@ -26,11 +26,13 @@ import {
   Activity,
   ChevronDown,
   Inbox,
+  KeyRound,
   RefreshCw,
   Share2,
   Webhook,
 } from 'lucide-react';
 import { useState } from 'react';
+import { OAuthAppsDialog, oauthAppFor, useOAuthApps } from './OAuthAppsDialog.js';
 import {
   isPolicyRoleAllowed,
   PolicySubjectRole,
@@ -559,6 +561,8 @@ export function IntegrationHubView() {
   const integrations = useIntegrations(workspaceId);
   const { connect, disconnect, sync } = useIntegrationMutations(workspaceId);
   const providersQuery = useIntegrationProviders(workspaceId);
+  const oauthApps = useOAuthApps(workspaceId || undefined);
+  const [oauthDialog, setOauthDialog] = useState<{ appKey: string | null } | null>(null);
 
   // Settings → Permissions & Policies → "Who can install Marketplace apps".
   // Presentation only — `POST .../integrations/:provider/connect` re-checks
@@ -614,6 +618,12 @@ export function IntegrationHubView() {
     const capabilities = providersQuery.data?.find((p) => p.provider === providerKey);
 
     if (capabilities?.authType === 'OAUTH2') {
+      // No OAuth app yet (neither the platform's nor this workspace's): set one up instead of failing.
+      const app = oauthAppFor(oauthApps.data, providerKey);
+      if (app && !app.configured) {
+        setOauthDialog({ appKey: app.appKey });
+        return;
+      }
       try {
         const result = await connect.mutateAsync({ provider: providerKey });
         if (result.authUrl) {
@@ -766,10 +776,21 @@ export function IntegrationHubView() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <p className="text-xs font-semibold text-muted-foreground" aria-live="polite">
-              {filteredCards.length} {filteredCards.length === 1 ? 'app' : 'apps'}
-              {linkedCount > 0 ? ` · ${linkedCount} connected` : ''}
-            </p>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                leadingIcon={<KeyRound className="size-3.5" />}
+                onClick={() => setOauthDialog({ appKey: null })}
+              >
+                OAuth apps
+              </Button>
+              <p className="text-xs font-semibold text-muted-foreground" aria-live="polite">
+                {filteredCards.length} {filteredCards.length === 1 ? 'app' : 'apps'}
+                {linkedCount > 0 ? ` · ${linkedCount} connected` : ''}
+              </p>
+            </div>
           </div>
 
           <ConnectionList
@@ -950,6 +971,14 @@ export function IntegrationHubView() {
           onClose={() => setActiveAppModal(null)}
         />
       ) : null}
+
+      <OAuthAppsDialog
+        workspaceId={workspaceId || undefined}
+        open={oauthDialog !== null}
+        onOpenChange={(open) => !open && setOauthDialog(null)}
+        initialAppKey={oauthDialog?.appKey}
+        canEdit={isPolicyRoleAllowed(workspace?.role, PolicySubjectRole.ADMINS)}
+      />
 
       {/* Custom API Modal */}
       <CustomApiModal

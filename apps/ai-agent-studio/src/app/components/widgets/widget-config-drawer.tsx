@@ -253,7 +253,7 @@ export function WidgetConfigDrawer({
             </div>
             <div className="space-y-1.5">
               <Label className="text-[11px] text-muted-foreground">Initial / Mock Data (JSON)</Label>
-              <textarea
+              <Textarea
                 value={typeof config.initialData === 'object' ? JSON.stringify(config.initialData, null, 2) : String(config.initialData ?? '')}
                 onChange={(e) => {
                   try {
@@ -265,7 +265,7 @@ export function WidgetConfigDrawer({
                 }}
                 rows={5}
                 placeholder='{"value": "1,280", "change": "+14%"}'
-                className="w-full font-mono text-[11px] p-2 rounded border border-border bg-surface-raised text-foreground focus:outline-none focus:border-primary"
+                className="font-mono text-[11px]"
               />
             </div>
           </div>

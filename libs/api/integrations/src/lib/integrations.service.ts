@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppEvent } from '@org/api-common';
@@ -23,6 +24,7 @@ import { IntegrationLoggerService } from './core/integration-logger.service.js';
 import { IntegrationManagerService } from './core/integration-manager.service.js';
 import { IntegrationPermissionService } from './core/integration-permission.service.js';
 import { IntegrationSyncService } from './core/integration-sync.service.js';
+import { OAuthAppCredentialsService } from './core/oauth-app-credentials.service.js';
 import { OAuthService } from './core/oauth.service.js';
 import type { MessageQuery } from './core/provider-adapter.interface.js';
 import { customApiConfigFromMetadata, customApiMetadataWithEncryptedSecrets } from './providers/custom-api.provider.js';
@@ -41,6 +43,7 @@ export class IntegrationsService {
     private readonly auditLogger: IntegrationLoggerService,
     private readonly botMessaging: MatrixBotMessagingService,
     private readonly events: EventEmitter2,
+    @Optional() private readonly oauthApps?: OAuthAppCredentialsService,
   ) {}
 
   /**
@@ -119,9 +122,11 @@ export class IntegrationsService {
         redirectUrl: params.redirectUri,
       });
 
-      const authUrl = await adapter.getAuthorizationUrl(state, {
-        redirectUri: params.redirectUri,
-      });
+      // The workspace's own OAuth app (if it set one up) builds the consent URL.
+      const authorize = adapter.getAuthorizationUrl.bind(adapter);
+      const authUrl = await this.withWorkspaceOAuth(params.workspaceId, () =>
+        authorize(state, { redirectUri: params.redirectUri }),
+      );
 
       await this.auditLogger.logAudit({
         workspaceId: params.workspaceId,
@@ -278,6 +283,10 @@ export class IntegrationsService {
     return this.formatSafeIntegration(saved);
   }
 
+  private withWorkspaceOAuth<T>(workspaceId: string | undefined, fn: () => Promise<T>): Promise<T> {
+    return this.oauthApps ? this.oauthApps.runFor(workspaceId, fn) : fn();
+  }
+
   /**
    * Handles OAuth callback from external provider.
    */
@@ -290,9 +299,10 @@ export class IntegrationsService {
       throw new BadRequestException(`Provider '${statePayload.provider}' does not support OAuth callback.`);
     }
 
-    const tokenResult = await adapter.handleCallback(code, state, {
-      redirectUri: statePayload.redirectUrl,
-    });
+    const handleCallback = adapter.handleCallback.bind(adapter);
+    const tokenResult = await this.withWorkspaceOAuth(statePayload.workspaceId, () =>
+      handleCallback(code, state, { redirectUri: statePayload.redirectUrl }),
+    );
 
     const encryptedAccessToken = this.encryption.encrypt(tokenResult.accessToken);
     const encryptedRefreshToken = tokenResult.refreshToken
@@ -309,6 +319,8 @@ export class IntegrationsService {
       accountEmail: tokenResult.accountEmail,
       accountName: tokenResult.accountName,
       ...(tokenResult.metadata || {}),
+      // Remembered so refreshes and revokes keep using the OAuth app this was made with.
+      ...(statePayload.workspaceId ? { oauthWorkspaceId: statePayload.workspaceId } : {}),
     };
 
     const saved = await this.prisma.externalIntegration.upsert({

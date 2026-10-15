@@ -90,7 +90,7 @@ export function ToolsConnectorsView({ data }: ToolsConnectorsViewProps) {
                       <TableCell className="tabular-nums">
                         {Math.round(c.avgLatencyMs)}ms
                       </TableCell>
-                      <TableCell className="tabular-nums font-medium text-rose-500">
+                      <TableCell className="tabular-nums font-medium text-destructive-text">
                         {c.timeouts + c.authFailures + c.rateLimits}
                       </TableCell>
                       <TableCell>
@@ -153,7 +153,7 @@ export function ToolsConnectorsView({ data }: ToolsConnectorsViewProps) {
                       <TableCell className="tabular-nums">
                         {Math.round(t.avgDurationMs)}ms
                       </TableCell>
-                      <TableCell className="tabular-nums text-rose-500 font-medium">
+                      <TableCell className="tabular-nums text-destructive-text font-medium">
                         {t.failedInvocations}
                       </TableCell>
                     </TableRow>

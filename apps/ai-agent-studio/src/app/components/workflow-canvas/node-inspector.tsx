@@ -898,9 +898,9 @@ export function NodeInspector({
         {/* 6b. WIDGET NODES CONFIGURATION */}
         {nodeType.startsWith('WIDGET_') && (
           <div className="space-y-3 pt-2 border-t border-border">
-            <div className="rounded-lg bg-indigo-500/10 p-2.5 text-xs text-indigo-400">
+            <div className="rounded-lg bg-primary/10 p-2.5 text-xs text-primary-text">
               <div className="font-semibold flex items-center gap-1.5">
-                <LayoutDashboard className="size-3.5 text-indigo-400" /> Widget Configuration
+                <LayoutDashboard className="size-3.5 text-primary-text" /> Widget Configuration
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
                 Configure rendering, data source binding, user interactions, and event execution for this widget canvas node.

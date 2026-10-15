@@ -632,7 +632,7 @@ export function WorkflowHandle({
             'relative size-3.5 rounded-full border-2 border-muted-foreground/70 bg-surface shadow-xs transition-all duration-150 pointer-events-none',
             'group-hover/handle:scale-125 group-hover/handle:border-primary group-hover/handle:ring-2 group-hover/handle:ring-primary/40',
             'group-[.connecting]/handle:scale-125 group-[.connecting]/handle:border-primary group-[.connecting]/handle:ring-2 group-[.connecting]/handle:ring-primary/60',
-            'group-[.valid]/handle:!bg-emerald-500 group-[.valid]/handle:!border-emerald-500 group-[.valid]/handle:ring-4 group-[.valid]/handle:ring-emerald-500/40 group-[.valid]/handle:scale-130',
+            'group-[.valid]/handle:!bg-success group-[.valid]/handle:!border-success group-[.valid]/handle:ring-4 group-[.valid]/handle:ring-success/40 group-[.valid]/handle:scale-130',
             'group-[.invalid]/handle:!bg-destructive group-[.invalid]/handle:!border-destructive group-[.invalid]/handle:ring-4 group-[.invalid]/handle:ring-destructive/40 group-[.invalid]/handle:scale-130',
           )}
         >
@@ -2409,10 +2409,10 @@ export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
   const color = nodeData.color || 'yellow';
 
   const colorStyles: Record<string, string> = {
-    yellow: 'bg-warning/10 border-warning/30 text-amber-950 dark:text-amber-200',
+    yellow: 'bg-warning/10 border-warning/30 text-warning-text',
     blue: 'bg-accent-blue/10 border-accent-blue/30 text-sky-950 dark:text-sky-200',
     purple: 'bg-accent-violet/10 border-accent-violet/30 text-purple-950 dark:text-purple-200',
-    green: 'bg-success/10 border-success/30 text-emerald-950 dark:text-emerald-200',
+    green: 'bg-success/10 border-success/30 text-success-text',
   };
 
   return (

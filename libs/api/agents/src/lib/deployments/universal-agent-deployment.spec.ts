@@ -10,7 +10,7 @@ import { IS_PUBLIC_KEY } from '@org/api-common';
 
 describe('Universal AI Agent Deployment System', () => {
   const workspaceId = 'ws_apple_procurement';
-  const userId = 'usr_sarah_buyer';
+  const _userId = 'usr_sarah_buyer';
   const macAgentId = 'agent_buy_a_mac_system';
 
   const macAgentRecord = {
@@ -109,7 +109,7 @@ describe('Universal AI Agent Deployment System', () => {
   let webhookService: AgentDeploymentWebhookService;
   let runtimeBridge: AgentRuntimeBridgeService;
   let publicController: AgentPublicController;
-  let deploymentController: AgentDeploymentController;
+  let _deploymentController: AgentDeploymentController;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -384,7 +384,7 @@ describe('Universal AI Agent Deployment System', () => {
       runtimeBridge,
     );
 
-    deploymentController = new AgentDeploymentController(
+    _deploymentController = new AgentDeploymentController(
       deploymentService,
       webhookService,
     );

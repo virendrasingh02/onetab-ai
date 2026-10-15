@@ -112,8 +112,8 @@ export function VersionComparisonView({ agents }: VersionComparisonViewProps) {
         <div className="space-y-6">
           {/* REGRESSION DETECTION BANNER */}
           {comparison.regressions.length > 0 && (
-            <div className="p-4 rounded-xl border border-amber-500/40 bg-amber-500/10 space-y-1">
-              <span className="font-semibold text-xs text-amber-500">
+            <div className="p-4 rounded-xl border border-warning/40 bg-warning/10 space-y-1">
+              <span className="font-semibold text-xs text-warning-text">
                 Regressions Detected in Version {versionB}:
               </span>
               <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-0.5">

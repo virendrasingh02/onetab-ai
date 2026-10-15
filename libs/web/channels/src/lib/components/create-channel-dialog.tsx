@@ -18,15 +18,19 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Input,
-  Switch,
+  RadioCardItem,
+  RadioGroup,
   Textarea,
 } from '@org/ui';
-import { slugify } from '@org/utils';
+import { cn, slugify } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { createChannelSchema, type CreateChannelInput } from '@org/validation';
-import { Hash, Lock } from 'lucide-react';
-import { useEffect } from 'react';
+import { ChevronRight, Hash, Lock } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useCreateChannel } from '../use-channels.js';
@@ -53,7 +57,7 @@ export function CreateChannelDialog({
   onOpenChange,
   onCreated,
 }: CreateChannelDialogProps) {
-  const { slug, workspaceId } = useCurrentWorkspace();
+  const { slug, workspace, workspaceId } = useCurrentWorkspace();
   const createChannel = useCreateChannel(workspaceId);
   const navigate = useNavigate();
 
@@ -74,11 +78,13 @@ export function CreateChannelDialog({
     if (!open) {
       form.reset();
       createChannel.reset();
+      setDetailsOpen(false);
     }
     // `form` and the mutation are stable for the life of the dialog.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const isPrivate = form.watch('visibility') === ChannelVisibility.PRIVATE;
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -149,91 +155,108 @@ export function CreateChannelDialog({
 
               <FormField
                 control={form.control}
-                name="topic"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Topic (optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value ?? ''}
-                        placeholder="What is this channel about?"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        value={field.value ?? ''}
-                        rows={3}
-                        placeholder="What this channel is for, who belongs here, and what to post."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="welcomeMessage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Welcome message (optional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        value={field.value ?? ''}
-                        rows={2}
-                        placeholder="Shown as the first message when someone opens this channel."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="visibility"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="gap-4 p-3 flex items-start justify-between rounded-lg border border-border bg-surface-raised">
-                      <div>
-                        <FormLabel>Make private</FormLabel>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          Only invited members can find and open this channel.
-                          This cannot be undone later.
-                        </p>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value === ChannelVisibility.PRIVATE}
-                          onCheckedChange={(checked) =>
-                            field.onChange(
-                              checked
-                                ? ChannelVisibility.PRIVATE
-                                : ChannelVisibility.PUBLIC,
-                            )
-                          }
-                          aria-label="Make channel private"
-                        />
-                      </FormControl>
-                    </div>
+                    <FormLabel>Visibility</FormLabel>
+                    <RadioGroup
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      aria-label="Channel visibility"
+                      className="gap-2 sm:grid-cols-2 grid-cols-1"
+                    >
+                      <RadioCardItem
+                        value={ChannelVisibility.PUBLIC}
+                        icon={<Hash />}
+                        heading="Public"
+                        description={`Anyone in ${workspace?.name ?? 'the workspace'} can find and join.`}
+                      />
+                      <RadioCardItem
+                        value={ChannelVisibility.PRIVATE}
+                        icon={<Lock />}
+                        heading="Private"
+                        description="Invite only. Cannot be made public later."
+                      />
+                    </RadioGroup>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="gap-1.5 text-xs font-medium flex items-center text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <ChevronRight
+                      className={cn(
+                        'size-3.5 transition-transform',
+                        detailsOpen && 'rotate-90',
+                      )}
+                    />
+                    Add topic, description &amp; welcome message
+                    <span className="font-normal">(optional)</span>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3 space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="topic"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Topic (optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ''}
+                            placeholder="What is this channel about?"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description (optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            value={field.value ?? ''}
+                            rows={3}
+                            placeholder="What this channel is for, who belongs here, and what to post."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="welcomeMessage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Welcome message (optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            value={field.value ?? ''}
+                            rows={2}
+                            placeholder="Shown as the first message when someone opens this channel."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CollapsibleContent>
+              </Collapsible>
             </DialogBody>
           </Form>
 

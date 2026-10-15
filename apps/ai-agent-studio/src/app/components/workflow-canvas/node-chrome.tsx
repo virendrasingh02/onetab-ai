@@ -43,7 +43,7 @@ export function NodeAnalyticsBadge({
   if (!analytics) return null;
   const intensityStyle =
     analytics.relativeIntensity > 0.7
-      ? 'border-rose-500/60 bg-rose-500/15 text-rose-500 ring-2 ring-rose-500/20'
+      ? 'border-destructive/60 bg-destructive/15 text-destructive-text ring-2 ring-destructive/20'
       : analytics.relativeIntensity > 0.35
       ? 'border-warning/60 bg-warning/15 text-warning ring-1 ring-warning/20'
       : 'border-success/60 bg-success/15 text-success';

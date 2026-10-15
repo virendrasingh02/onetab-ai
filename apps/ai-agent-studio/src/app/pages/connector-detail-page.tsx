@@ -25,6 +25,7 @@ import { ArrowLeft, Bot, Pencil, CheckCircle2, Copy, Eye, KeyRound, Play, Refres
 import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
+import { OAuthAppsDialog } from '@org/web-integrations';
 import { ConnectDialog } from '../components/connectors/connect-dialog.js';
 import { SchemaFields, coerceSchemaInput, missingRequired, schemaProperties } from '../components/connectors/schema-fields.js';
 import { AppConnectorIcon } from '../components/common/app-connector-icon.jsx';
@@ -56,6 +57,7 @@ export function ConnectorDetailPage() {
   const [tab, setTab] = useState('overview');
   const [connectOpen, setConnectOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
+  const [oauthOpen, setOauthOpen] = useState(false);
 
   const refresh = useCallback(() => void invalidate(), [invalidate]);
   useOAuthCompletion(refresh);
@@ -129,7 +131,12 @@ export function ConnectorDetailPage() {
       {c.status === 'unavailable' && (
         <div role="status" className="mb-4 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning-text">
           <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          {c.unavailableReason}
+          <span className="min-w-0 flex-1">{c.unavailableReason}</span>
+          {c.authType === 'OAUTH2' && (
+            <Button size="sm" variant="outline" onClick={() => setOauthOpen(true)} leadingIcon={<KeyRound />}>
+              Set up OAuth app
+            </Button>
+          )}
         </div>
       )}
 
@@ -302,6 +309,12 @@ export function ConnectorDetailPage() {
       </Tabs>
 
       <ConnectDialog connector={c} open={connectOpen} onOpenChange={setConnectOpen} onConnected={refresh} />
+      <OAuthAppsDialog
+        workspaceId={activeWorkspace?.id}
+        open={oauthOpen}
+        onOpenChange={setOauthOpen}
+        initialProvider={c.provider}
+      />
       <AddToAgentDialog connector={c} open={agentOpen} onOpenChange={setAgentOpen} />
     </Page>
   );

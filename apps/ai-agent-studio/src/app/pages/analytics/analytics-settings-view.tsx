@@ -157,7 +157,7 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
         {/* Redaction & Security */}
         <div className="space-y-4 border-t border-border pt-4">
           <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-            <ShieldCheck className="size-4 text-emerald-500" />
+            <ShieldCheck className="size-4 text-success-text" />
             Security & Credential Masking
           </div>
 

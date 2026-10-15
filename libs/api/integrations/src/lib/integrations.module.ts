@@ -8,6 +8,8 @@ import { ChannelAppsController } from './channel-apps.controller.js';
 import { CustomConnectorsService } from './connectors/custom-connectors.service.js';
 import { ConnectorRegistryService } from './connectors/connector-registry.service.js';
 import { ConnectorGroupsController } from './connectors/connector-groups.controller.js';
+import { OAuthAppsController } from './connectors/oauth-apps.controller.js';
+import { OAuthAppCredentialsService } from './core/oauth-app-credentials.service.js';
 import { ConnectorGroupsService } from './connectors/connector-groups.service.js';
 import { ConnectorsController } from './connectors/connectors.controller.js';
 import { ConnectorWebhookService } from './connectors/connector-webhook.service.js';
@@ -74,6 +76,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     ChannelAppsController,
     ConnectorsController,
     ConnectorGroupsController,
+    OAuthAppsController,
     MigrationController,
   ],
   providers: [
@@ -91,6 +94,7 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     CustomConnectorsService,
     ConnectorWebhookService,
     ConnectorGroupsService,
+    OAuthAppCredentialsService,
 
     // Migration Engine Services
     SlackCapabilityChecker,

@@ -59,9 +59,9 @@ export function ExecutionDetailDrawer({
                 className={cn(
                   'size-10 rounded-xl flex items-center justify-center font-bold',
                   raw.status === 'SUCCESS' || raw.status === 'succeeded'
-                    ? 'bg-emerald-500/10 text-emerald-500'
+                    ? 'bg-success/10 text-success-text'
                     : raw.status === 'FAILED' || raw.status === 'failed'
-                    ? 'bg-rose-500/10 text-rose-500'
+                    ? 'bg-destructive/10 text-destructive-text'
                     : 'bg-primary/10 text-primary',
                 )}
               >
@@ -188,7 +188,7 @@ export function ExecutionDetailDrawer({
                         isSelected
                           ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
                           : isBottleneck
-                          ? 'border-amber-500/50 bg-amber-500/5'
+                          ? 'border-warning/50 bg-warning/5'
                           : 'border-border bg-surface-raised hover:border-border/80',
                       )}
                     >

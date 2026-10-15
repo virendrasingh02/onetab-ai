@@ -2,6 +2,7 @@ import { BadRequestException, Logger, UnauthorizedException } from '@nestjs/comm
 import type { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import type { TokenResult } from '../core/provider-adapter.interface.js';
+import { oauthEnv } from '../core/oauth-app-context.js';
 
 const logger = new Logger('GoogleOAuth');
 
@@ -27,8 +28,8 @@ export function resolveGoogleClientCredentials(config: ConfigService): {
   clientId: string;
   clientSecret: string;
 } {
-  const clientId = config.get<string>('GOOGLE_CLIENT_ID');
-  const clientSecret = config.get<string>('GOOGLE_CLIENT_SECRET');
+  const clientId = oauthEnv(config, 'GOOGLE_CLIENT_ID');
+  const clientSecret = oauthEnv(config, 'GOOGLE_CLIENT_SECRET');
   if (!clientId || !clientSecret) {
     throw new BadRequestException(
       'Google OAuth is not configured on this server (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET missing). ' +

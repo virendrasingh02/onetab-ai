@@ -115,6 +115,14 @@ const APP_LABELS: Record<string, string> = {
   google_drive: 'Google Drive',
   google_docs: 'Google Docs',
   google_sheets: 'Google Sheets',
+  custom_api: 'Custom External API',
+  shopify: 'Shopify',
+  whatsapp: 'WhatsApp',
+  wordpress: 'WordPress',
+  airtable: 'Airtable',
+  asana: 'Asana',
+  jira: 'Jira',
+  intercom: 'Intercom',
 };
 
 export function appLabel(provider: string): string {

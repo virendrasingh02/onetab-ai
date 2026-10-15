@@ -1485,24 +1485,16 @@ export function ChannelNav({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onSelect={() => setCustomizerOpen(true)}
-                    className="gap-2 text-xs"
+                    className="gap-2"
                   >
-                    <SlidersHorizontal className="size-3.5" />
-                    <span>Customize Sidebar</span>
+                    <SlidersHorizontal
+                      className="size-4 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <span>Customize sidebar</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              <Hint label="Customize navigation">
-                <button
-                  type="button"
-                  onClick={() => setCustomizerOpen(true)}
-                  aria-label="Customize sidebar navigation"
-                  className="size-7 flex items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <SlidersHorizontal className="size-3.5" />
-                </button>
-              </Hint>
             </div>
           </nav>
 

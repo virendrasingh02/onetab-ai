@@ -11,7 +11,7 @@ import {
   type ArchitectUnderstandResult,
   type MissingConfigItem,
 } from '@org/types';
-import { Alert, AlertDescription, AlertTitle, Badge, Button, Input, Page, PromptComposer, toast, Label } from '@org/ui';
+import { Alert, AlertDescription, AlertTitle, Badge, Button, Checkbox, Input, Page, PromptComposer, toast, Label } from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -741,11 +741,10 @@ export function CreateAgentPage() {
                   return (
                     <li key={r.id}>
                       <Label className="flex cursor-pointer items-start gap-2 rounded-md p-1.5 hover:bg-accent/50">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={on}
-                          onChange={() => setAccepted((a) => (on ? a.filter((x) => x !== r.id) : [...a, r.id]))}
-                          className="mt-0.5 size-3.5 accent-[var(--color-primary)]"
+                          onCheckedChange={() => setAccepted((a) => (on ? a.filter((x) => x !== r.id) : [...a, r.id]))}
+                          className="mt-0.5 size-3.5"
                         />
                         <span className="min-w-0">
                           <span className="block text-xs font-medium text-foreground">{r.title}</span>

@@ -581,8 +581,10 @@ export { Slider, type SliderProps } from './lib/components/slider.js';
 export {
   RadioGroup,
   RadioGroupItem,
+  RadioCardItem,
   type RadioGroupProps,
   type RadioGroupItemProps,
+  type RadioCardItemProps,
 } from './lib/components/radio-group.js';
 
 export {

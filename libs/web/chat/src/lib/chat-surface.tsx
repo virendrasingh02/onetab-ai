@@ -32,6 +32,7 @@ import {
   DEFAULT_APP_MENTIONS,
   insertIntoComposer,
   quoteMarkdown,
+  toReplyPreview,
 } from '@org/chat-ui';
 import type {
   ConnectionState,
@@ -78,6 +79,7 @@ import {
   useState,
   lazy,
   Suspense,
+  type ComponentProps,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -113,6 +115,7 @@ export interface ChatSurfaceWelcome {
   kind?: ConversationWelcomeKind;
   createdAt?: Date | string | number;
   createdByName?: string;
+  createdBy?: ComponentProps<typeof ChannelWelcome>['createdBy'];
   description?: string | null;
   /** A configured first message — overrides the generated opening sentence. */
   welcomeMessage?: string | null;
@@ -473,6 +476,9 @@ export function ChatSurface({
   const [alsoSendToChannel, setAlsoSendToChannel] = useState(false);
   useEffect(() => setAlsoSendToChannel(false), [threadRootId]);
   const [editing, setEditing] = useState<Message | null>(null);
+  // Inline reply ("Reply" on a message): the next main-composer send quotes it.
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  useEffect(() => setReplyingTo(null), [conversationId]);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [huddleMuted, setHuddleMuted] = useState(false);
@@ -1359,6 +1365,18 @@ export function ChatSurface({
           onOpenThread={() =>
             openThreadPanel(message.threadRootId ?? message.id)
           }
+          // Thread messages already live in a thread, so "Reply" there keeps
+          // its fallback of opening it; main-timeline messages get a real
+          // inline reply.
+          onReply={inThread ? undefined : () => setReplyingTo(message)}
+          replyTo={(() => {
+            if (!message.replyToId) return undefined;
+            const original = byId.get(message.replyToId);
+            return original ? toReplyPreview(original) : null;
+          })()}
+          onJumpToReply={
+            message.replyToId ? () => jumpTo(message.replyToId as string) : undefined
+          }
           onTogglePin={onTogglePin ? () => onTogglePin(message.id) : undefined}
           onToggleSave={
             onToggleSave ? () => onToggleSave(message.id) : undefined
@@ -1573,6 +1591,8 @@ export function ChatSurface({
       savedIds,
       unreadThreadRoots,
       openThreadPanel,
+      byId,
+      jumpTo,
       onReact,
       onEdit,
       editing,
@@ -2097,6 +2117,7 @@ export function ChatSurface({
                   isPrivate={welcome.isPrivate ?? isEncrypted}
                   createdAt={welcome.createdAt}
                   createdByName={welcome.createdByName}
+                  createdBy={welcome.createdBy}
                   description={
                     welcome.description ??
                     (!welcome.kind || welcome.kind === 'channel'
@@ -2163,8 +2184,19 @@ export function ChatSurface({
             appMentions={mainControl.appMentions}
             channelMentions={mainControl.channelMentions}
             connectors={mainControl.connectors}
+            replyingTo={replyingTo ? toReplyPreview(replyingTo) : null}
+            onCancelReply={() => setReplyingTo(null)}
+            onJumpToReply={
+              replyingTo ? () => jumpTo(replyingTo.id) : undefined
+            }
             onSend={async (body, meta) => {
-              const anchorId = await onSend(body);
+              const replyToId = replyingTo?.id;
+              setReplyingTo(null);
+              const anchorId = await onSend(
+                body,
+                undefined,
+                replyToId ? { replyToId } : undefined,
+              );
               mainControl.raiseMentionNotice(meta?.mentions, {
                 ...noticePlacement,
                 anchorId: typeof anchorId === 'string' ? anchorId : undefined,

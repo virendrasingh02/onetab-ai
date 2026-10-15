@@ -658,7 +658,7 @@ export class AutomationsService {
     })).sort((a, b) => b.count - a.count);
   }
 
-  async getCatalog(workspaceId: string): Promise<AutomationCatalogItem[]> {
+  async getCatalog(_workspaceId: string): Promise<AutomationCatalogItem[]> {
     const triggers: AutomationCatalogItem[] = [
       { id: 'trigger_manual', name: 'On Request', category: 'trigger', description: 'Manual run via button or API call.' },
       { id: 'trigger_cron', name: 'Schedule (Cron)', category: 'trigger', description: 'Time-based recurrence in any timezone.' },

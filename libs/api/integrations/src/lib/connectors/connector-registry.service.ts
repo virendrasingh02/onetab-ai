@@ -22,6 +22,8 @@ import { customDefinitionFromMetadata } from '../providers/custom-connector.prov
 import { IntegrationLoggerService } from '../core/integration-logger.service.js';
 import { IntegrationManagerService } from '../core/integration-manager.service.js';
 import { IntegrationPermissionService } from '../core/integration-permission.service.js';
+import { runWithOAuthOverrides } from '../core/oauth-app-context.js';
+import { OAuthAppCredentialsService } from '../core/oauth-app-credentials.service.js';
 import type { ProviderAdapter } from '../core/provider-adapter.interface.js';
 
 const USAGE_WINDOW_DAYS = 30;
@@ -48,6 +50,7 @@ export class ConnectorRegistryService implements OnModuleInit {
     private readonly permissions: IntegrationPermissionService,
     private readonly audit: IntegrationLoggerService,
     @Optional() private readonly config?: ConfigService,
+    @Optional() private readonly oauthApps?: OAuthAppCredentialsService,
   ) {}
 
   async onModuleInit() {
@@ -73,19 +76,19 @@ export class ConnectorRegistryService implements OnModuleInit {
   }
 
   /** Manifests only — what every built-in connector can do, independent of who asks. */
-  manifests(): ConnectorManifest[] {
+  manifests(overrides?: ReadonlyMap<string, string>): ConnectorManifest[] {
     return this.manager
       .listAdapters()
       .filter((adapter) => this.isListed(adapter))
-      .map((adapter) => this.manifestFor(adapter))
+      .map((adapter) => this.manifestFor(adapter, overrides))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  manifest(provider: string): ConnectorManifest {
+  manifest(provider: string, overrides?: ReadonlyMap<string, string>): ConnectorManifest {
     const custom = this.customManifests.get(provider.toUpperCase());
     if (custom) return custom;
     const adapter = this.findAdapter(provider);
-    return this.manifestFor(adapter);
+    return this.manifestFor(adapter, overrides);
   }
 
   /** A trigger's definition, for the poller. */
@@ -96,8 +99,9 @@ export class ConnectorRegistryService implements OnModuleInit {
 
   async list(workspaceId: string, userId: string): Promise<ConnectorSummary[]> {
     const rows = await this.visibleConnections(workspaceId, userId);
+    const overrides = await this.oauthApps?.load(workspaceId);
     const manifests = [
-      ...this.manifests(),
+      ...this.manifests(overrides),
       ...this.customEntries(rows)
         .map((e) => e.manifest)
         .sort((a, b) => a.name.localeCompare(b.name)),
@@ -131,12 +135,13 @@ export class ConnectorRegistryService implements OnModuleInit {
 
   async detail(workspaceId: string, userId: string, provider: string): Promise<ConnectorDetail> {
     const visible = await this.visibleConnections(workspaceId, userId);
+    const overrides = await this.oauthApps?.load(workspaceId);
     // A custom connector exists only for the connections that carry it, so one from another workspace is simply not found.
     const custom = isCustomConnectorProvider(provider)
       ? this.customEntries(visible).find((e) => e.manifest.provider === provider.toUpperCase())
       : undefined;
     if (isCustomConnectorProvider(provider) && !custom) throw new NotFoundException(`There’s no '${provider}' connector.`);
-    const manifest = custom?.manifest ?? this.manifest(provider);
+    const manifest = custom?.manifest ?? this.manifest(provider, overrides);
     const rows = visible.filter((r) => r.provider === manifest.provider);
     const connections = rows.map((r) => this.toConnection(r, userId));
     const ids = connections.map((c) => c.id);
@@ -300,11 +305,14 @@ export class ConnectorRegistryService implements OnModuleInit {
     return out;
   }
 
-  private manifestFor(adapter: ProviderAdapter): ConnectorManifest {
+  private manifestFor(adapter: ProviderAdapter, overrides?: ReadonlyMap<string, string>): ConnectorManifest {
     const caps = adapter.getCapabilities();
     let configured: boolean;
     try {
-      configured = adapter.isServerConfigured ? adapter.isServerConfigured() : true;
+      // A workspace's own OAuth app counts as configured even when the server has none.
+      configured = adapter.isServerConfigured
+        ? runWithOAuthOverrides(overrides ?? new Map(), () => adapter.isServerConfigured!())
+        : true;
     } catch {
       configured = false;
     }
@@ -312,7 +320,7 @@ export class ConnectorRegistryService implements OnModuleInit {
       configured,
       ...(configured
         ? {}
-        : { reason: `${caps.displayName} isn’t set up on this server yet — an admin needs to add its OAuth app credentials.` }),
+        : { reason: `${caps.displayName} isn’t set up on this server yet — an admin needs to add its OAuth app credentials (Settings → Integrations → OAuth apps).` }),
     });
   }
 

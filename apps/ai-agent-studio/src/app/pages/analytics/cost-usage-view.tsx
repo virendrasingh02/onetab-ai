@@ -49,7 +49,7 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Spend in Range</span>
-            <Coins className="size-4 text-emerald-500" />
+            <Coins className="size-4 text-success-text" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             ${currentMonthSpend.toFixed(2)}
@@ -62,7 +62,7 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Projected Month-End Spend</span>
-            <TrendingUp className="size-4 text-amber-500" />
+            <TrendingUp className="size-4 text-warning-text" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             ${projectedMonthSpend.toFixed(2)}
@@ -85,10 +85,10 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
             <div
               className={`h-full rounded-full ${
                 budgetUtilization > 90
-                  ? 'bg-rose-500'
+                  ? 'bg-destructive'
                   : budgetUtilization > 75
-                  ? 'bg-amber-500'
-                  : 'bg-emerald-500'
+                  ? 'bg-warning'
+                  : 'bg-success'
               }`}
               style={{ width: `${Math.min(100, budgetUtilization)}%` }}
             />
@@ -117,14 +117,14 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => `$${val}`} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                  border: '1px solid #334155',
+                  backgroundColor: 'var(--card)', color: 'var(--card-foreground)',
+                  border: '1px solid var(--border)',
                   borderRadius: '8px',
                   fontSize: '12px',
                 }}
                 formatter={(val: any) => [`$${Number(val).toFixed(3)}`, 'Spend']}
               />
-              <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="amount" fill='var(--primary)' radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -135,7 +135,7 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
         {/* Cost Optimization Recommendations */}
         <Card className="p-5 shadow-2xs space-y-4">
           <div className="flex items-center gap-2">
-            <Lightbulb className="size-4 text-amber-500" />
+            <Lightbulb className="size-4 text-warning-text" />
             <h3 className="text-sm font-semibold text-foreground">
               AI Cost Optimization Opportunities
             </h3>
@@ -154,7 +154,7 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground">{rec.title}</span>
-                    <Badge variant="outline" className="text-[10px] text-emerald-500">
+                    <Badge variant="outline" className="text-[10px] text-success-text">
                       Save ~{rec.estimatedSavingsPct}%
                     </Badge>
                   </div>
@@ -170,7 +170,7 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
         {/* Spend by Model */}
         <Card className="p-5 shadow-2xs space-y-4">
           <div className="flex items-center gap-2">
-            <Coins className="size-4 text-violet-500" />
+            <Coins className="size-4 text-accent-violet" />
             <h3 className="text-sm font-semibold text-foreground">
               Expenditure Breakdown by Model
             </h3>

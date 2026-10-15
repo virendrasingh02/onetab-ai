@@ -23,6 +23,7 @@ import {
   revokeGoogleToken,
   type GoogleOAuthConfig,
 } from './google-oauth.util.js';
+import { oauthEnv } from '../core/oauth-app-context.js';
 
 const OAUTH_OPTS: GoogleOAuthConfig = {
   redirectUriEnvKey: 'GOOGLE_CALENDAR_REDIRECT_URI',
@@ -203,7 +204,7 @@ export class GoogleCalendarProvider implements ProviderAdapter {
   }
 
   isServerConfigured(): boolean {
-    return Boolean(this.config.get<string>('GOOGLE_CLIENT_ID') && this.config.get<string>('GOOGLE_CLIENT_SECRET'));
+    return Boolean(oauthEnv(this.config, 'GOOGLE_CLIENT_ID') && oauthEnv(this.config, 'GOOGLE_CLIENT_SECRET'));
   }
 
   getTriggers(): ConnectorTriggerDefinition[] {

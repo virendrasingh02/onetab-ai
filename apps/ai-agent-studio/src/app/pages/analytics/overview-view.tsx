@@ -29,7 +29,7 @@ import {
   Cell,
 } from 'recharts';
 
-const PIE_COLORS = ['#6366f1', '#a855f7', '#06b6d4', '#10b981', '#f59e0b', '#ec4899'];
+const PIE_COLORS = ['var(--primary)', 'var(--accent-violet)', 'var(--accent-cyan)', 'var(--success)', 'var(--warning)', 'var(--accent-pink)'];
 
 interface OverviewViewProps {
   data: DeepAIAnalyticsOverview;
@@ -169,7 +169,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
       <div
         className={cn(
           'flex items-center gap-1 text-[11px] font-medium',
-          isGood ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400',
+          isGood ? 'text-success-text' : 'text-destructive-text',
         )}
       >
         <Icon className="size-3" />
@@ -209,11 +209,11 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
         {/* Success Rate */}
         <Card
           onClick={() => onNavigateToTab('errors')}
-          className="p-4 sm:p-5 flex flex-col justify-between hover:border-emerald-500/50 transition-all cursor-pointer group shadow-2xs"
+          className="p-4 sm:p-5 flex flex-col justify-between hover:border-success/50 transition-all cursor-pointer group shadow-2xs"
         >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Success Rate</span>
-            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="size-8 rounded-lg bg-success/10 text-success-text flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
               <CheckCircle2 className="size-4" />
             </div>
           </div>
@@ -231,11 +231,11 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
         {/* Total AI Tokens */}
         <Card
           onClick={() => onNavigateToTab('models')}
-          className="p-4 sm:p-5 flex flex-col justify-between hover:border-amber-500/50 transition-all cursor-pointer group shadow-2xs"
+          className="p-4 sm:p-5 flex flex-col justify-between hover:border-warning/50 transition-all cursor-pointer group shadow-2xs"
         >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Token Consumption</span>
-            <div className="size-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="size-8 rounded-lg bg-warning/10 text-warning-text flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
               <Zap className="size-4" />
             </div>
           </div>
@@ -252,11 +252,11 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
         {/* Estimated Cost */}
         <Card
           onClick={() => onNavigateToTab('cost')}
-          className="p-4 sm:p-5 flex flex-col justify-between hover:border-violet-500/50 transition-all cursor-pointer group shadow-2xs"
+          className="p-4 sm:p-5 flex flex-col justify-between hover:border-accent-violet/50 transition-all cursor-pointer group shadow-2xs"
         >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Estimated AI Cost</span>
-            <div className="size-8 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="size-8 rounded-lg bg-accent-violet/10 text-accent-violet flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
               <Coins className="size-4" />
             </div>
           </div>
@@ -286,11 +286,11 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             </div>
             <div className="flex items-center gap-3 text-xs">
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="size-2.5 rounded-full bg-emerald-500" />
+                <span className="size-2.5 rounded-full bg-success" />
                 Successful
               </span>
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="size-2.5 rounded-full bg-rose-500" />
+                <span className="size-2.5 rounded-full bg-destructive" />
                 Failed
               </span>
             </div>
@@ -304,12 +304,12 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
               >
                 <defs>
                   <linearGradient id="execSuccessGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor='var(--success)' stopOpacity={0.4} />
+                    <stop offset="95%" stopColor='var(--success)' stopOpacity={0.0} />
                   </linearGradient>
                   <linearGradient id="execFailedGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor='var(--destructive)' stopOpacity={0.4} />
+                    <stop offset="95%" stopColor='var(--destructive)' stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
@@ -321,8 +321,8 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    border: '1px solid #334155',
+                    backgroundColor: 'var(--card)', color: 'var(--card-foreground)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     fontSize: '12px',
                   }}
@@ -331,7 +331,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
                   type="monotone"
                   dataKey="successful"
                   name="Successful"
-                  stroke="#10b981"
+                  stroke='var(--success)'
                   fillOpacity={1}
                   fill="url(#execSuccessGrad)"
                 />
@@ -339,7 +339,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
                   type="monotone"
                   dataKey="failed"
                   name="Failed"
-                  stroke="#f43f5e"
+                  stroke='var(--destructive)'
                   fillOpacity={1}
                   fill="url(#execFailedGrad)"
                 />
@@ -381,8 +381,8 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    border: '1px solid #334155',
+                    backgroundColor: 'var(--card)', color: 'var(--card-foreground)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     fontSize: '12px',
                   }}
@@ -452,7 +452,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                 p95
               </div>
-              <div className="mt-1 text-base font-bold text-amber-500">
+              <div className="mt-1 text-base font-bold text-warning-text">
                 {Math.round(performance.latencyPercentiles.p95)}ms
               </div>
             </div>
@@ -460,7 +460,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
                 p99
               </div>
-              <div className="mt-1 text-base font-bold text-rose-500">
+              <div className="mt-1 text-base font-bold text-destructive-text">
                 {Math.round(performance.latencyPercentiles.p99)}ms
               </div>
             </div>
@@ -498,7 +498,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
         <Card className="p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-amber-500" />
+              <AlertTriangle className="size-4 text-warning-text" />
               <h3 className="text-sm font-semibold text-foreground">
                 System Reliability & Faults
               </h3>
@@ -547,7 +547,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             </div>
             <div className="flex justify-between items-center text-muted-foreground">
               <span>Self-Healing Recovery Rate</span>
-              <span className="font-semibold text-emerald-500">
+              <span className="font-semibold text-success-text">
                 {reliability.recoveryRate.toFixed(1)}%
               </span>
             </div>

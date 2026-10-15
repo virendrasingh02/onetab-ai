@@ -192,8 +192,8 @@ export function AgentDetailDrawer({
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                          border: '1px solid #334155',
+                          backgroundColor: 'var(--card)', color: 'var(--card-foreground)',
+                          border: '1px solid var(--border)',
                           borderRadius: '8px',
                           fontSize: '11px',
                         }}
@@ -202,8 +202,8 @@ export function AgentDetailDrawer({
                         type="monotone"
                         dataKey="runs"
                         name="Executions"
-                        stroke="#6366f1"
-                        fill="#6366f1"
+                        stroke='var(--primary)'
+                        fill='var(--primary)'
                         fillOpacity={0.2}
                       />
                     </AreaChart>
@@ -330,7 +330,7 @@ export function AgentDetailDrawer({
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold">
                     p99
                   </div>
-                  <div className="mt-1 text-lg font-bold text-rose-500">
+                  <div className="mt-1 text-lg font-bold text-destructive-text">
                     {Math.round(agent.latencyPercentiles.p99)}ms
                   </div>
                 </div>
@@ -479,7 +479,7 @@ export function AgentDetailDrawer({
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
                   <div className="text-[10px] text-muted-foreground font-semibold">Failed Runs</div>
-                  <div className="mt-1 text-lg font-bold text-rose-500">
+                  <div className="mt-1 text-lg font-bold text-destructive-text">
                     {agent.failureCount}
                   </div>
                 </div>

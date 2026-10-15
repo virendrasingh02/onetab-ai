@@ -545,6 +545,12 @@ export function Composer({
     consumeInsert(insertRequest.nonce);
   }, [insertRequest, consumeInsert, edit]);
 
+  // Picking "Reply" on a message drops the caret straight into the box.
+  const replyingToId = replyingTo?.id ?? null;
+  useEffect(() => {
+    if (replyingToId) lexicalRef.current?.focus();
+  }, [replyingToId]);
+
   /*
    * Opening (or switching) an edit swaps the box to the message's own
    * content instead of the conversation's draft; closing it (saved or

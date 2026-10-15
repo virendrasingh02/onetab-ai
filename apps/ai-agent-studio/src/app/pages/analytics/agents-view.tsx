@@ -91,12 +91,12 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Most Reliable</span>
-            <CheckCircle2 className="size-4 text-emerald-500" />
+            <CheckCircle2 className="size-4 text-success-text" />
           </div>
           <div className="mt-2 font-bold text-base text-foreground truncate">
             {mostReliable?.name || 'None'}
           </div>
-          <div className="text-xs text-emerald-500 mt-0.5 font-medium">
+          <div className="text-xs text-success-text mt-0.5 font-medium">
             {(mostReliable?.successRate ?? 100).toFixed(1)}% success
           </div>
         </Card>
@@ -104,7 +104,7 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Highest Spend</span>
-            <Coins className="size-4 text-amber-500" />
+            <Coins className="size-4 text-warning-text" />
           </div>
           <div className="mt-2 font-bold text-base text-foreground truncate">
             {mostExpensive?.name || 'None'}
@@ -117,7 +117,7 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Highest Latency</span>
-            <Clock className="size-4 text-rose-500" />
+            <Clock className="size-4 text-destructive-text" />
           </div>
           <div className="mt-2 font-bold text-base text-foreground truncate">
             {slowest?.name || 'None'}

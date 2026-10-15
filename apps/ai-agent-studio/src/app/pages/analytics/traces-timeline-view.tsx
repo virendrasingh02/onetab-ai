@@ -152,7 +152,7 @@ export function TracesTimelineView({
                         isSelected
                           ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
                           : isBottleneck
-                          ? 'border-amber-500/50 bg-amber-500/5'
+                          ? 'border-warning/50 bg-warning/5'
                           : 'border-border bg-surface hover:bg-surface-raised',
                       )}
                     >
@@ -162,9 +162,9 @@ export function TracesTimelineView({
                             className={cn(
                               'size-2 rounded-full shrink-0',
                               span.operationType === 'MODEL_REQUEST'
-                                ? 'bg-violet-500'
+                                ? 'bg-accent-violet'
                                 : span.operationType === 'TOOL_INVOCATION'
-                                ? 'bg-amber-500'
+                                ? 'bg-warning'
                                 : 'bg-primary',
                             )}
                           />
@@ -192,7 +192,7 @@ export function TracesTimelineView({
                         <div
                           className={cn(
                             'absolute top-0 bottom-0 rounded-full transition-all',
-                            isBottleneck ? 'bg-amber-500' : 'bg-primary',
+                            isBottleneck ? 'bg-warning' : 'bg-primary',
                           )}
                           style={{
                             left: `${leftPct}%`,

@@ -22,6 +22,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { UserProfileCard } from './user-profile-card.js';
 
 /** Which sort of conversation the welcome block introduces. */
 export type ConversationWelcomeKind = 'channel' | 'direct' | 'group' | 'self';
@@ -74,6 +75,16 @@ export interface ChannelWelcomeProps {
   /** When the channel was created. Omitted for conversations with no start. */
   createdAt?: Date | string | number;
   createdByName?: string;
+  /**
+   * The creator's identity. When given, their name opens the profile card
+   * (hover preview, click for the right rail) instead of being plain text.
+   */
+  createdBy?: {
+    userId: string;
+    avatarUrl?: string | null;
+    email?: string;
+    title?: string | null;
+  };
   /** The channel's description or topic, shown when one is set. */
   description?: string | null;
   /**
@@ -119,6 +130,7 @@ export function ChannelWelcome({
   isPrivate = false,
   createdAt,
   createdByName,
+  createdBy,
   description,
   welcomeMessage,
   members = [],
@@ -267,9 +279,26 @@ export function ChannelWelcome({
       <>
         {createdByName ? (
           <>
-            <span className="font-semibold text-foreground">
-              {createdByName}
-            </span>{' '}
+            {createdBy ? (
+              <UserProfileCard
+                userId={createdBy.userId}
+                name={createdByName}
+                avatarUrl={createdBy.avatarUrl ?? undefined}
+                email={createdBy.email}
+                title={createdBy.title ?? undefined}
+              >
+                <button
+                  type="button"
+                  className="rounded-sm font-semibold text-foreground underline-offset-2 transition-colors hover:text-primary-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-text"
+                >
+                  {createdByName}
+                </button>
+              </UserProfileCard>
+            ) : (
+              <span className="font-semibold text-foreground">
+                {createdByName}
+              </span>
+            )}{' '}
             created this channel
           </>
         ) : (

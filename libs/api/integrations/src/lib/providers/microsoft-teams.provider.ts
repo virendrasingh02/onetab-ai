@@ -20,6 +20,7 @@ import type {
   TokenResult,
   WebhookProcessResult,
 } from '../core/provider-adapter.interface.js';
+import { oauthEnv } from '../core/oauth-app-context.js';
 
 export const TEAMS_SCOPES = [
   'User.Read',
@@ -110,11 +111,11 @@ export class MicrosoftTeamsProvider implements ProviderAdapter {
 
   private clientCreds() {
     const clientId =
-      this.config.get<string>('MICROSOFT_TEAMS_CLIENT_ID') ||
-      this.config.get<string>('AZURE_CLIENT_ID');
+      oauthEnv(this.config, 'MICROSOFT_TEAMS_CLIENT_ID') ||
+      oauthEnv(this.config, 'AZURE_CLIENT_ID');
     const clientSecret =
-      this.config.get<string>('MICROSOFT_TEAMS_CLIENT_SECRET') ||
-      this.config.get<string>('AZURE_CLIENT_SECRET');
+      oauthEnv(this.config, 'MICROSOFT_TEAMS_CLIENT_SECRET') ||
+      oauthEnv(this.config, 'AZURE_CLIENT_SECRET');
 
     return {
       clientId: clientId ?? '',

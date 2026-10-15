@@ -36,3 +36,5 @@ export {
   type AppModelItem,
 } from './lib/AppChatView.js';
 export { AppProfileRightPanel } from './lib/AppProfileRightPanel.js';
+
+export { OAuthAppsDialog, useOAuthApps, oauthAppFor } from './lib/OAuthAppsDialog.js';

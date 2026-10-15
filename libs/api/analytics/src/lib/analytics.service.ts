@@ -771,7 +771,7 @@ export class AnalyticsService {
     const modelCounts = new Map<string, { tokens: number; calls: number }>();
     let toolInvocationCount = 0;
     for (const r of currentExecutions) {
-      const model = r.model || 'gpt-4o';
+      const model = r.model || 'unrecorded';
       const entry = modelCounts.get(model) ?? { tokens: 0, calls: 0 };
       entry.tokens += r.tokensUsed || 0;
       entry.calls += 1;
@@ -1647,7 +1647,7 @@ export class AnalyticsService {
     >();
 
     for (const r of executions) {
-      const model = r.model || 'gpt-4o';
+      const model = r.model || 'unrecorded';
       const entry = modelMap.get(model) ?? {
         requests: 0,
         successes: 0,

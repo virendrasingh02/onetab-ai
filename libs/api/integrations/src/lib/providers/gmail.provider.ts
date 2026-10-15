@@ -25,6 +25,7 @@ import type {
   TokenResult,
   WebhookProcessResult,
 } from '../core/provider-adapter.interface.js';
+import { oauthEnv } from '../core/oauth-app-context.js';
 
 const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
@@ -78,7 +79,7 @@ export class GmailProvider implements ProviderAdapter {
     state: string,
     options?: { redirectUri?: string; scopes?: string[]; loginHint?: string },
   ): Promise<string> {
-    const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
+    const clientId = oauthEnv(this.config, 'GOOGLE_CLIENT_ID');
     if (!clientId) {
       throw new BadRequestException('GOOGLE_CLIENT_ID is not configured.');
     }
@@ -113,8 +114,8 @@ export class GmailProvider implements ProviderAdapter {
     _state: string,
     options?: { redirectUri?: string },
   ): Promise<TokenResult> {
-    const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
-    const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET');
+    const clientId = oauthEnv(this.config, 'GOOGLE_CLIENT_ID');
+    const clientSecret = oauthEnv(this.config, 'GOOGLE_CLIENT_SECRET');
     const redirectUri =
       options?.redirectUri ||
       this.config.get<string>('GOOGLE_REDIRECT_URI') ||
@@ -181,8 +182,8 @@ export class GmailProvider implements ProviderAdapter {
   }
 
   async refreshToken(refreshToken: string): Promise<TokenResult> {
-    const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
-    const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET');
+    const clientId = oauthEnv(this.config, 'GOOGLE_CLIENT_ID');
+    const clientSecret = oauthEnv(this.config, 'GOOGLE_CLIENT_SECRET');
 
     if (!clientId || !clientSecret) {
       throw new BadRequestException('Google OAuth client credentials are not configured.');
@@ -484,7 +485,7 @@ export class GmailProvider implements ProviderAdapter {
    * conversation can use to list and gate them.
    */
   isServerConfigured(): boolean {
-    return Boolean(this.config.get<string>('GOOGLE_CLIENT_ID') && this.config.get<string>('GOOGLE_CLIENT_SECRET'));
+    return Boolean(oauthEnv(this.config, 'GOOGLE_CLIENT_ID') && oauthEnv(this.config, 'GOOGLE_CLIENT_SECRET'));
   }
 
   getTriggers(): ConnectorTriggerDefinition[] {

@@ -18,7 +18,12 @@ import {
   Settings2,
   Sparkles,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+
+const IS_MAC =
+  typeof navigator !== 'undefined' &&
+  /mac|iphone|ipad/i.test(navigator.platform);
+const UPLOAD_SHORTCUT_LABEL = IS_MAC ? '⌘U' : 'Ctrl+U';
 
 export type ComposerConnectorKind = 'agent' | 'coworker' | 'app';
 
@@ -69,6 +74,24 @@ export function ComposerAttachMenu({
   const [pending, setPending] = useState<string | null>(null);
   const items = connectors?.items ?? [];
 
+  // Ctrl/⌘+U opens the file picker, matching the shortcut shown in the menu.
+  useEffect(() => {
+    if (!onUpload) return;
+    const handler = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.shiftKey &&
+        !event.altKey &&
+        event.key.toLowerCase() === 'u'
+      ) {
+        event.preventDefault();
+        onUpload();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onUpload]);
+
   const connect = async (item: ComposerConnectorItem) => {
     if (!connectors || pending) return;
     setPending(item.id);
@@ -99,9 +122,20 @@ export function ComposerAttachMenu({
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
         {onUpload ? (
-          <DropdownMenuItem onSelect={onUpload} className="gap-2.5">
-            <Paperclip className="size-4 text-muted-foreground" aria-hidden />
-            <span>Upload files</span>
+          <DropdownMenuItem
+            onSelect={onUpload}
+            className="gap-2.5 justify-between"
+          >
+            <span className="gap-2.5 min-w-0 flex items-center">
+              <Paperclip
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <span className="truncate">Add files or photos</span>
+            </span>
+            <kbd className="text-xs shrink-0 font-sans text-muted-foreground">
+              {UPLOAD_SHORTCUT_LABEL}
+            </kbd>
           </DropdownMenuItem>
         ) : null}
 
@@ -130,7 +164,7 @@ export function ComposerAttachMenu({
                               void connect(item);
                             }
                           }}
-                          className="justify-between gap-2.5"
+                          className="gap-2.5 justify-between"
                         >
                           <span className="gap-2.5 min-w-0 flex items-center">
                             <Icon
@@ -179,10 +213,7 @@ export function ComposerAttachMenu({
               onSelect={connectors.onManage}
               className="gap-2.5"
             >
-              <Settings2
-                className="size-4 text-muted-foreground"
-                aria-hidden
-              />
+              <Settings2 className="size-4 text-muted-foreground" aria-hidden />
               <span>Manage connectors</span>
             </DropdownMenuItem>
           </>

@@ -19,6 +19,12 @@ import {
   Label,
   Textarea,
   SegmentedControl,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -306,21 +312,21 @@ export function WorkflowsPage() {
       ) : (
         /* List View */
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-border bg-surface-raised text-[11px] font-semibold text-muted-foreground uppercase">
-              <tr>
-                <th className="px-4 py-3">Workflow Name</th>
-                <th className="px-4 py-3">Model</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Executions</th>
-                <th className="px-4 py-3">Last Updated</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+          <Table className="text-xs">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-4 py-3">Workflow Name</TableHead>
+                <TableHead className="px-4 py-3">Model</TableHead>
+                <TableHead className="px-4 py-3">Status</TableHead>
+                <TableHead className="px-4 py-3">Executions</TableHead>
+                <TableHead className="px-4 py-3">Last Updated</TableHead>
+                <TableHead className="px-4 py-3 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filteredWorkflows.map((workflow) => (
-                <tr key={workflow.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">
+                <TableRow key={workflow.id} className="hover:bg-surface-raised transition-colors">
+                  <TableCell className="px-4 py-3 font-medium text-foreground">
                     <div className="flex items-center gap-2">
                       <GitBranch className="size-4 text-primary shrink-0" />
                       <div>
@@ -328,30 +334,30 @@ export function WorkflowsPage() {
                         <div className="text-[11px] text-muted-foreground line-clamp-1">{workflow.description}</div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
                     <AIModelBadge modelId={workflow.model || 'gpt-4o'} variant="subtle" size="xs" />
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
                     <Badge variant={workflow.status === 'published' ? 'success' : 'outline'} className="text-[10px]">
                       {workflow.status || 'draft'}
                     </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-muted-foreground">
                     {workflow.stats?.totalRuns || 0} runs ({workflow.stats?.successRate || 100}%)
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-muted-foreground">
                     {new Date(workflow.updatedAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3 text-right">
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right">
                     <Button size="xs" onClick={() => navigate(`/agents/${workflow.id}`)}>
                       Open Canvas
                     </Button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

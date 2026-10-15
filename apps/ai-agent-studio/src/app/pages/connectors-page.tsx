@@ -15,10 +15,12 @@ import {
   TooltipTrigger,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Bot, ChevronRight, Layers, Plug, Plus, Search, Star, Wrench, Zap, Eye } from 'lucide-react';
+import { Bot, ChevronRight, KeyRound, Layers, Plug, Plus, Search, Star, Wrench, Zap, Eye } from 'lucide-react';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
+import { useStudioSession } from '../session-guard.js';
+import { OAuthAppsDialog } from '@org/web-integrations';
 import { ConnectDialog } from '../components/connectors/connect-dialog.js';
 import { AppConnectorIcon } from '../components/common/app-connector-icon.jsx';
 import {
@@ -44,6 +46,7 @@ const CATEGORY_LABEL = new Map<string, string>(CONNECTOR_CATEGORIES.map((c) => [
  */
 export function ConnectorsPage() {
   const navigate = useNavigate();
+  const { activeWorkspace } = useStudioSession();
   const connectors = useConnectors();
   const invalidate = useInvalidateConnectors();
   const { starred, toggle } = useStarredConnectors();
@@ -52,6 +55,7 @@ export function ConnectorsPage() {
   const [status, setStatus] = useState<StatusFilter>('all');
   const [connecting, setConnecting] = useState<ConnectorSummary | null>(null);
   const [addingToAgent, setAddingToAgent] = useState<ConnectorSummary | null>(null);
+  const [oauthOpen, setOauthOpen] = useState(false);
 
   const refresh = useCallback(() => void invalidate(), [invalidate]);
   useOAuthCompletion(refresh);
@@ -100,6 +104,9 @@ export function ConnectorsPage() {
         icon={<Plug />}
         actions={
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setOauthOpen(true)} leadingIcon={<KeyRound />}>
+              OAuth apps
+            </Button>
             <Button size="sm" variant="outline" onClick={() => navigate('/connectors/groups')} leadingIcon={<Layers />}>
               Groups
             </Button>
@@ -228,6 +235,7 @@ export function ConnectorsPage() {
         onOpenChange={(o) => !o && setConnecting(null)}
         onConnected={refresh}
       />
+      <OAuthAppsDialog workspaceId={activeWorkspace?.id} open={oauthOpen} onOpenChange={setOauthOpen} />
       <AddToAgentDialog connector={addingToAgent} open={!!addingToAgent} onOpenChange={(o) => !o && setAddingToAgent(null)} />
     </Page>
   );

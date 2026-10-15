@@ -21,6 +21,12 @@ import {
   SegmentedControl,
   ToggleGroup,
   ToggleGroupItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@org/ui';
 import { StudioHome } from '@org/web-automations';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -488,30 +494,30 @@ function StudioInsights() {
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-                  <table className="w-full text-left text-xs">
-                    <thead className="border-b border-border bg-surface-raised text-[11px] font-semibold uppercase text-muted-foreground">
-                      <tr>
-                        <th className="px-4 py-3">Agent</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Model</th>
-                        <th className="px-4 py-3">Tools</th>
-                        <th className="px-4 py-3">Runs</th>
-                        <th className="px-4 py-3">Success</th>
-                        <th className="px-4 py-3">Tokens</th>
-                        <th className="px-4 py-3 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
+                  <Table className="text-xs">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="px-4 py-3">Agent</TableHead>
+                        <TableHead className="px-4 py-3">Status</TableHead>
+                        <TableHead className="px-4 py-3">Model</TableHead>
+                        <TableHead className="px-4 py-3">Tools</TableHead>
+                        <TableHead className="px-4 py-3">Runs</TableHead>
+                        <TableHead className="px-4 py-3">Success</TableHead>
+                        <TableHead className="px-4 py-3">Tokens</TableHead>
+                        <TableHead className="px-4 py-3 text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {filteredAgents.map((agent) => {
                         const status = statusOf(agent);
                         const usage = lastRunByAgent.get(agent.id);
                         return (
-                          <tr
+                          <TableRow
                             key={agent.id}
                             onClick={() => navigate(`/agents/${agent.id}`)}
                             className="cursor-pointer transition-colors hover:bg-surface-raised/50"
                           >
-                            <td className="px-4 py-3">
+                            <TableCell className="px-4 py-3">
                               <div className="flex items-center gap-1.5 font-semibold text-foreground">
                                 <span>{agent.name}</span>
                                 {pinnedAgentIds.includes(agent.id) && <Pin className="size-3 fill-warning text-warning" />}
@@ -519,20 +525,20 @@ function StudioInsights() {
                               <div className="max-w-xs truncate text-[11px] text-muted-foreground">
                                 {agent.description || agent.role || 'Workflow agent'}
                               </div>
-                            </td>
-                            <td className="px-4 py-3">
+                            </TableCell>
+                            <TableCell className="px-4 py-3">
                               <Badge variant={status === 'published' ? 'success' : 'outline'} className="text-[10px]">
                                 {status === 'published' ? 'Published' : status === 'archived' ? 'Archived' : 'Draft'}
                               </Badge>
-                            </td>
-                            <td className="px-4 py-3">
+                            </TableCell>
+                            <TableCell className="px-4 py-3">
                               <AIModelBadge modelId={agent.model || 'llama3'} variant="subtle" size="xs" />
-                            </td>
-                            <td className="px-4 py-3 text-muted-foreground">{countTools(agent.tools)}</td>
-                            <td className="px-4 py-3 text-muted-foreground">{usage?.runs ?? 0}</td>
-                            <td className="px-4 py-3 text-muted-foreground">{usage ? `${Math.round((usage.ok / usage.runs) * 100)}%` : '—'}</td>
-                            <td className="px-4 py-3 font-mono text-muted-foreground">{usage ? formatTokens(usage.tokens) : '—'}</td>
-                            <td className="px-4 py-3 text-right">
+                            </TableCell>
+                            <TableCell className="px-4 py-3 text-muted-foreground">{countTools(agent.tools)}</TableCell>
+                            <TableCell className="px-4 py-3 text-muted-foreground">{usage?.runs ?? 0}</TableCell>
+                            <TableCell className="px-4 py-3 text-muted-foreground">{usage ? `${Math.round((usage.ok / usage.runs) * 100)}%` : '—'}</TableCell>
+                            <TableCell className="px-4 py-3 font-mono text-muted-foreground">{usage ? formatTokens(usage.tokens) : '—'}</TableCell>
+                            <TableCell className="px-4 py-3 text-right">
                               <Button
                                 variant="ghost"
                                 size="xs"
@@ -544,12 +550,12 @@ function StudioInsights() {
                               >
                                 Open Canvas →
                               </Button>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </div>

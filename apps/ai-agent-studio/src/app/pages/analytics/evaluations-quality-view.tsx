@@ -39,7 +39,7 @@ export function EvaluationsQualityView({ evaluations }: EvaluationsQualityViewPr
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Average Agent Rating</span>
-            <Star className="size-4 text-amber-500 fill-amber-500" />
+            <Star className="size-4 text-warning-text fill-warning" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {averageRating > 0 ? `${averageRating.toFixed(1)} / 5.0` : 'No ratings'}
@@ -52,9 +52,9 @@ export function EvaluationsQualityView({ evaluations }: EvaluationsQualityViewPr
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>User Satisfaction</span>
-            <Sparkles className="size-4 text-emerald-500" />
+            <Sparkles className="size-4 text-success-text" />
           </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-500">
+          <div className="mt-2 text-2xl font-bold text-success-text">
             {satisfactionScore.toFixed(1)}%
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
@@ -98,8 +98,8 @@ export function EvaluationsQualityView({ evaluations }: EvaluationsQualityViewPr
           </h3>
 
           <div className="grid grid-cols-2 gap-4 text-center">
-            <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-              <div className="flex items-center justify-center gap-1.5 text-emerald-500 font-semibold text-xs">
+            <div className="p-4 rounded-lg bg-success/10 border border-success/20">
+              <div className="flex items-center justify-center gap-1.5 text-success-text font-semibold text-xs">
                 <ThumbsUp className="size-4" />
                 Positive
               </div>
@@ -108,8 +108,8 @@ export function EvaluationsQualityView({ evaluations }: EvaluationsQualityViewPr
               </div>
             </div>
 
-            <div className="p-4 rounded-lg bg-rose-500/10 border border-rose-500/20">
-              <div className="flex items-center justify-center gap-1.5 text-rose-500 font-semibold text-xs">
+            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+              <div className="flex items-center justify-center gap-1.5 text-destructive-text font-semibold text-xs">
                 <ThumbsDown className="size-4" />
                 Negative
               </div>
@@ -147,7 +147,7 @@ export function EvaluationsQualityView({ evaluations }: EvaluationsQualityViewPr
                       <TableCell className="font-medium text-foreground">
                         {issue.category}
                       </TableCell>
-                      <TableCell className="tabular-nums font-bold text-right text-rose-500">
+                      <TableCell className="tabular-nums font-bold text-right text-destructive-text">
                         {issue.count}
                       </TableCell>
                     </TableRow>

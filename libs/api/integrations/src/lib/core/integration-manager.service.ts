@@ -40,6 +40,7 @@ import { SalesforceProvider } from '../providers/salesforce.provider.js';
 import { MicrosoftTeamsProvider } from '../providers/microsoft-teams.provider.js';
 import { AttendanceProvider } from '../providers/attendance.provider.js';
 import { IntegrationEncryptionService } from './integration-encryption.service.js';
+import { OAuthAppCredentialsService } from './oauth-app-credentials.service.js';
 import type { ProviderAdapter, ResolvedCredential } from './provider-adapter.interface.js';
 import { WebhookService } from './webhook.service.js';
 
@@ -83,6 +84,7 @@ export class IntegrationManagerService implements OnModuleInit {
     @Optional() private readonly woocommerceProvider?: WooCommerceProvider,
     @Optional() private readonly telegramProvider?: TelegramProvider,
     @Optional() private readonly salesforceProvider?: SalesforceProvider,
+    @Optional() private readonly oauthApps?: OAuthAppCredentialsService,
   ) {}
 
   onModuleInit() {
@@ -138,6 +140,15 @@ export class IntegrationManagerService implements OnModuleInit {
     );
   }
 
+  private oauthWorkspaceOf(metadata: string | null): string | null {
+    try {
+      const id = (JSON.parse(metadata || '{}') as Record<string, unknown>)['oauthWorkspaceId'];
+      return typeof id === 'string' ? id : null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Resolves and decrypts credentials for an integration, auto-refreshing expired tokens.
    */
@@ -153,7 +164,13 @@ export class IntegrationManagerService implements OnModuleInit {
       throw new NotFoundException(`Integration '${integrationId}' not found.`);
     }
 
-    const adapter = this.getAdapter(integration.provider);
+    // The OAuth app a connection was made with — a user-scoped connection has no
+    // workspaceId of its own, so the callback records it in metadata.
+    const oauthWorkspaceId = integration.workspaceId ?? this.oauthWorkspaceOf(integration.metadata);
+    const overrides = (await this.oauthApps?.load(oauthWorkspaceId)) ?? new Map<string, string>();
+    const adapter = this.oauthApps
+      ? this.oauthApps.bind(this.getAdapter(integration.provider), overrides)
+      : this.getAdapter(integration.provider);
 
     let accessToken = '';
     if (integration.encryptedAccessToken) {

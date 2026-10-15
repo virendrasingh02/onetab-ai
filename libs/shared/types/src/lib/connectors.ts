@@ -616,3 +616,42 @@ export function groupMemberToolNames(
   const ids = member.actions === null ? allActionIds : allActionIds.filter((id) => member.actions?.includes(id));
   return ids.map((id) => connectorToolName(member.provider, id));
 }
+
+// ---------------------------------------------------------------------------
+// OAuth app credentials (a workspace's own client id / secret per provider)
+// ---------------------------------------------------------------------------
+
+/** Where a provider family's OAuth client currently comes from. */
+export type OAuthAppSource = 'workspace' | 'server' | 'none';
+
+/** One provider family's OAuth app — never carries the secret itself. */
+export interface OAuthAppStatus {
+  /** Family key, e.g. GOOGLE (one app serves Gmail, Calendar, Drive, Docs and Sheets). */
+  appKey: string;
+  label: string;
+  /** Provider ids that use this app. */
+  providers: string[];
+  providerNames: string[];
+  /** `workspace` = this workspace's own app, `server` = the platform's env credentials, `none` = nothing yet. */
+  source: OAuthAppSource;
+  /** Whether people can connect these apps right now. */
+  configured: boolean;
+  clientId: string | null;
+  secretSet: boolean;
+  enabled: boolean;
+  /** Whether the server also has credentials to fall back to. */
+  serverFallback: boolean;
+  /** Every redirect URL the provider's console must allow. */
+  callbackUrls: Array<{ provider: string; url: string }>;
+  setupUrl: string;
+  setupHint: string;
+  clientIdPlaceholder: string;
+  updatedAt: string | null;
+}
+
+export interface OAuthAppInput {
+  clientId: string;
+  /** Omit to keep the stored secret when only the client id or switch changes. */
+  clientSecret?: string;
+  enabled?: boolean;
+}

@@ -15,6 +15,7 @@ import {
 } from '@org/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   agentConnectorActions,
   attachConnectorToAgent,
@@ -44,6 +45,7 @@ export function AddToAgentDialog({
   const { activeWorkspace } = useStudioSession();
   const workspaceId = activeWorkspace?.id;
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [agentId, setAgentId] = useState(presetAgentId ?? '');
   const [picked, setPicked] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -119,6 +121,21 @@ export function AddToAgentDialog({
                   searchable
                   placeholder={agents.isLoading ? 'Loading agents…' : agentOptions.length ? 'Choose an agent' : 'No agents yet'}
                 />
+                {!agents.isLoading && agentOptions.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    This list only has canvas agents. Agents made with Create with AI take their apps from the plan instead.{' '}
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate(`/create?prompt=${encodeURIComponent(`An agent that uses ${connector.name}: `)}`);
+                      }}
+                    >
+                      Plan an agent that uses {connector.name}
+                    </button>
+                  </p>
+                )}
               </div>
               <fieldset className="space-y-1.5">
                 <legend className="mb-1 text-xs font-medium text-foreground">Actions</legend>

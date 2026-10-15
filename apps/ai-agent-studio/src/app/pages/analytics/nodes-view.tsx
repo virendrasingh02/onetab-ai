@@ -63,7 +63,7 @@ export function NodesView({ nodes }: NodesViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Slowest Node Type</span>
-            <Clock className="size-4 text-amber-500" />
+            <Clock className="size-4 text-warning-text" />
           </div>
           <div className="mt-2 text-base font-bold text-foreground font-mono">
             {slowest?.nodeType || 'N/A'}
@@ -76,7 +76,7 @@ export function NodesView({ nodes }: NodesViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Highest Cost Node</span>
-            <Coins className="size-4 text-violet-500" />
+            <Coins className="size-4 text-accent-violet" />
           </div>
           <div className="mt-2 text-base font-bold text-foreground font-mono">
             {mostExpensive?.nodeType || 'N/A'}
@@ -89,12 +89,12 @@ export function NodesView({ nodes }: NodesViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Highest Failure Node</span>
-            <Layers className="size-4 text-rose-500" />
+            <Layers className="size-4 text-destructive-text" />
           </div>
           <div className="mt-2 text-base font-bold text-foreground font-mono">
             {highestFailures?.nodeType || 'N/A'}
           </div>
-          <div className="text-xs text-rose-500 mt-0.5 font-medium">
+          <div className="text-xs text-destructive-text mt-0.5 font-medium">
             {highestFailures?.errorRate.toFixed(1) || 0}% error rate
           </div>
         </Card>

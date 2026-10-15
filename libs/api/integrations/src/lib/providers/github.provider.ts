@@ -16,6 +16,7 @@ import type {
   TokenResult,
   WebhookProcessResult,
 } from '../core/provider-adapter.interface.js';
+import { oauthEnv } from '../core/oauth-app-context.js';
 
 const GITHUB_SCOPES = ['repo', 'read:user', 'notifications'];
 const API_BASE = 'https://api.github.com';
@@ -57,8 +58,8 @@ export class GitHubProvider implements ProviderAdapter {
   }
 
   private clientCreds() {
-    const clientId = this.config.get<string>('GITHUB_CLIENT_ID');
-    const clientSecret = this.config.get<string>('GITHUB_CLIENT_SECRET');
+    const clientId = oauthEnv(this.config, 'GITHUB_CLIENT_ID');
+    const clientSecret = oauthEnv(this.config, 'GITHUB_CLIENT_SECRET');
     if (!clientId || !clientSecret) {
       throw new BadRequestException(
         'GitHub OAuth is not configured on this server (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET missing). ' +
@@ -217,7 +218,7 @@ export class GitHubProvider implements ProviderAdapter {
   }
 
   isServerConfigured(): boolean {
-    return Boolean(this.config.get<string>('GITHUB_CLIENT_ID') && this.config.get<string>('GITHUB_CLIENT_SECRET'));
+    return Boolean(oauthEnv(this.config, 'GITHUB_CLIENT_ID') && oauthEnv(this.config, 'GITHUB_CLIENT_SECRET'));
   }
 
   getTriggers(): ConnectorTriggerDefinition[] {

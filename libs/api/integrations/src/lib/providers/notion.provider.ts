@@ -15,6 +15,7 @@ import type {
   TokenResult,
   WebhookProcessResult,
 } from '../core/provider-adapter.interface.js';
+import { oauthEnv } from '../core/oauth-app-context.js';
 
 const API_BASE = 'https://api.notion.com/v1';
 const NOTION_VERSION = '2022-06-28';
@@ -80,8 +81,8 @@ export class NotionProvider implements ProviderAdapter {
   }
 
   private clientCreds() {
-    const clientId = this.config.get<string>('NOTION_CLIENT_ID');
-    const clientSecret = this.config.get<string>('NOTION_CLIENT_SECRET');
+    const clientId = oauthEnv(this.config, 'NOTION_CLIENT_ID');
+    const clientSecret = oauthEnv(this.config, 'NOTION_CLIENT_SECRET');
     if (!clientId || !clientSecret) {
       throw new BadRequestException(
         'Notion OAuth is not configured on this server (NOTION_CLIENT_ID / NOTION_CLIENT_SECRET missing). ' +
@@ -207,7 +208,7 @@ export class NotionProvider implements ProviderAdapter {
   }
 
   isServerConfigured(): boolean {
-    return Boolean(this.config.get<string>('NOTION_CLIENT_ID') && this.config.get<string>('NOTION_CLIENT_SECRET'));
+    return Boolean(oauthEnv(this.config, 'NOTION_CLIENT_ID') && oauthEnv(this.config, 'NOTION_CLIENT_SECRET'));
   }
 
   getTriggers(): ConnectorTriggerDefinition[] {

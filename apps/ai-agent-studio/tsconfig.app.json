@@ -42,13 +42,16 @@
       "path": "../../libs/web/ai/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/web/automations/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/shared/realtime/tsconfig.lib.json"
     },
     {
       "path": "../../libs/web/auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/automations/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/integrations/tsconfig.lib.json"
     },
     {
       "path": "../../libs/shared/design-system/tsconfig.lib.json"

@@ -9,6 +9,7 @@ import type {
 import { memo, type ReactNode } from 'react';
 import type { RightPanelProfile } from '@org/ui';
 import { ChatBubble } from '../chat-bubble.js';
+import type { ReplyPreview } from '../reply-quote.js';
 import { AgentMessageCard } from './agent-message-card.js';
 import { AppResponseCard } from './app-response-card.js';
 import { ApprovalCard } from './approval-card.js';
@@ -47,6 +48,9 @@ export interface MessageRendererProps {
   lastReplyAt?: number;
   onReact?: (key: string) => void;
   onReply?: () => void;
+  /** The quoted original of an inline reply — see `ChatBubble`. */
+  replyTo?: ReplyPreview | null;
+  onJumpToReply?: () => void;
   onEdit?: () => void;
   /** Inline edit box that replaces the body — see `ChatBubble`. */
   editSlot?: ReactNode;

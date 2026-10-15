@@ -342,6 +342,7 @@ model Workspace {
   huddles                   Huddle[]
   externalIntegrations      ExternalIntegration[]
   connectorGroups           ConnectorGroup[]
+  oauthApps                 WorkspaceOAuthApp[]
   importJobs                ImportJob[]
   invitations               Invitation[]
   marketplaceInstallations  MarketplaceInstallation[]
@@ -2867,6 +2868,28 @@ model ConnectorGroup {
 
   @@index([workspaceId])
   @@map("connector_groups")
+}
+
+/// A workspace's own OAuth app (client id + secret) for a provider family, so
+/// "Connect" works without server env vars and each workspace can brand its
+/// own consent screen. Resolved ahead of the server's env credentials.
+model WorkspaceOAuthApp {
+  id                    String    @id @default(cuid())
+  workspaceId           String
+  /// Provider family, e.g. GOOGLE (shared by Gmail/Calendar/Drive/Docs/Sheets), GITHUB.
+  appKey                String
+  clientId              String
+  /// AES-256-GCM via IntegrationEncryptionService; never returned to a client.
+  encryptedClientSecret String
+  /// Switch off to fall back to the server's credentials without losing the secret.
+  enabled               Boolean   @default(true)
+  createdById           String
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, appKey])
+  @@map("workspace_oauth_apps")
 }
 
 /// One run of a connector action under an idempotency key, so a retried step,

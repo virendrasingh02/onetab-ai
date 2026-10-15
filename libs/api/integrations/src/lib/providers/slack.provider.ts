@@ -15,6 +15,7 @@ import type {
   TokenResult,
   WebhookProcessResult,
 } from '../core/provider-adapter.interface.js';
+import { oauthEnv } from '../core/oauth-app-context.js';
 
 export const USER_SCOPES = [
   'channels:read',
@@ -103,8 +104,8 @@ export class SlackProvider implements ProviderAdapter {
   }
 
   private clientCreds() {
-    const clientId = this.config.get<string>('SLACK_CLIENT_ID');
-    const clientSecret = this.config.get<string>('SLACK_CLIENT_SECRET');
+    const clientId = oauthEnv(this.config, 'SLACK_CLIENT_ID');
+    const clientSecret = oauthEnv(this.config, 'SLACK_CLIENT_SECRET');
     if (!clientId || !clientSecret) {
       throw new BadRequestException(
         'Slack OAuth is not configured on this server (SLACK_CLIENT_ID / SLACK_CLIENT_SECRET missing). ' +
@@ -259,7 +260,7 @@ export class SlackProvider implements ProviderAdapter {
   }
 
   isServerConfigured(): boolean {
-    return Boolean(this.config.get<string>('SLACK_CLIENT_ID') && this.config.get<string>('SLACK_CLIENT_SECRET'));
+    return Boolean(oauthEnv(this.config, 'SLACK_CLIENT_ID') && oauthEnv(this.config, 'SLACK_CLIENT_SECRET'));
   }
 
   getTriggers(): ConnectorTriggerDefinition[] {

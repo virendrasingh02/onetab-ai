@@ -341,6 +341,8 @@ import type {
   ConnectorDetail,
   ConnectorGroup,
   ConnectorGroupInput,
+  OAuthAppInput,
+  OAuthAppStatus,
   CustomConnectorInput,
   ConnectorSummary,
   WidgetDefinition,
@@ -3738,6 +3740,18 @@ export const connectorsApi = {
     remove: (workspaceId: string, id: string) =>
       request<{ deleted: true }>(http.delete(`/workspaces/${workspaceId}/connector-groups/${id}`)),
   },
+};
+
+/**
+ * A workspace's own OAuth apps (client id + secret) for connectors. Shared by
+ * the main app and the AI Agent Studio; secrets are write-only.
+ */
+export const oauthAppsApi = {
+  list: (workspaceId: string) => request<OAuthAppStatus[]>(http.get(`/workspaces/${workspaceId}/oauth-apps`)),
+  save: (workspaceId: string, appKey: string, input: OAuthAppInput) =>
+    request<OAuthAppStatus>(http.put(`/workspaces/${workspaceId}/oauth-apps/${encodeURIComponent(appKey)}`, input)),
+  remove: (workspaceId: string, appKey: string) =>
+    request<OAuthAppStatus>(http.delete(`/workspaces/${workspaceId}/oauth-apps/${encodeURIComponent(appKey)}`)),
 };
 
 /** Where a file is filed. `channelId` is the legacy shorthand for a CHANNEL context. */

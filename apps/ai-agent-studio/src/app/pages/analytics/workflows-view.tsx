@@ -85,7 +85,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Overall Workflow Volume</span>
-            <Activity className="size-4 text-emerald-500" />
+            <Activity className="size-4 text-success-text" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {normalizedWorkflows.reduce((acc, w) => acc + (w.totalExecutions ?? 0), 0).toLocaleString()}
@@ -98,7 +98,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Average Success Rate</span>
-            <CheckCircle2 className="size-4 text-emerald-500" />
+            <CheckCircle2 className="size-4 text-success-text" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {normalizedWorkflows.length > 0
@@ -158,7 +158,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
                   >
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <div className="size-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
+                        <div className="size-7 rounded-lg bg-success/10 text-success-text flex items-center justify-center font-bold">
                           <GitBranch className="size-3.5" />
                         </div>
                         <div>
@@ -205,11 +205,11 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
                     </TableCell>
                     <TableCell>
                       {wf.mostCommonFailurePoints?.[0] ? (
-                        <span className="text-xs text-rose-500 font-mono">
+                        <span className="text-xs text-destructive-text font-mono">
                           {wf.mostCommonFailurePoints[0].nodeType}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-emerald-500">None</span>
+                        <span className="text-[10px] text-success-text">None</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -267,7 +267,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
             {/* Slowest Nodes */}
             <div className="p-3 rounded-lg border border-border bg-surface-raised space-y-2">
               <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Clock className="size-3.5 text-amber-500" />
+                <Clock className="size-3.5 text-warning-text" />
                 Slowest Graph Nodes
               </span>
               <div className="space-y-1.5">
@@ -280,7 +280,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
                       className="flex items-center justify-between text-xs p-1.5 rounded bg-surface border border-border"
                     >
                       <span className="font-mono text-foreground">{n.nodeId}</span>
-                      <span className="font-medium text-amber-500">
+                      <span className="font-medium text-warning-text">
                         {Math.round(n.avgDurationMs)}ms
                       </span>
                     </div>
@@ -292,7 +292,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
             {/* Most Expensive Nodes */}
             <div className="p-3 rounded-lg border border-border bg-surface-raised space-y-2">
               <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Coins className="size-3.5 text-violet-500" />
+                <Coins className="size-3.5 text-accent-violet" />
                 Highest Token / Cost Nodes
               </span>
               <div className="space-y-1.5">

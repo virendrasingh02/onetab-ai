@@ -856,7 +856,7 @@ export class WidgetStudioService {
       }
     }
 
-    let output: unknown = null;
+    let output: unknown;
     let errorMessage: string | undefined;
 
     try {

@@ -25,7 +25,7 @@ interface ModelsTokensViewProps {
   models: ModelAnalyticsRecord[];
 }
 
-const PIE_COLORS = ['#6366f1', '#a855f7', '#06b6d4', '#10b981', '#f59e0b', '#ec4899'];
+const PIE_COLORS = ['var(--primary)', 'var(--accent-violet)', 'var(--accent-cyan)', 'var(--success)', 'var(--warning)', 'var(--accent-pink)'];
 
 export function ModelsTokensView({ models }: ModelsTokensViewProps) {
   const modelList = models || [];
@@ -44,7 +44,7 @@ export function ModelsTokensView({ models }: ModelsTokensViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Total Token Volume</span>
-            <Zap className="size-4 text-amber-500" />
+            <Zap className="size-4 text-warning-text" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {totalTokens.toLocaleString()}
@@ -57,7 +57,7 @@ export function ModelsTokensView({ models }: ModelsTokensViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Total Model Cost</span>
-            <Coins className="size-4 text-violet-500" />
+            <Coins className="size-4 text-accent-violet" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             ${totalCost.toFixed(3)}
@@ -110,8 +110,8 @@ export function ModelsTokensView({ models }: ModelsTokensViewProps) {
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    border: '1px solid #334155',
+                    backgroundColor: 'var(--card)', color: 'var(--card-foreground)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     fontSize: '11px',
                   }}

@@ -19,6 +19,12 @@ import {
   Textarea,
   toast,
   UserIdentity,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MailPlus, Trash2, UserPlus, Users } from 'lucide-react';
@@ -182,24 +188,24 @@ export function MembersTab() {
         <EmptyState icon={<Users />} title="No members yet" />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border bg-surface">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-border bg-surface-raised text-[11px] font-semibold uppercase text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-4 py-3">Member</th>
-                <th scope="col" className="px-4 py-3">Role</th>
-                <th scope="col" className="px-4 py-3">Status</th>
-                <th scope="col" className="px-4 py-3">Joined</th>
-                <th scope="col" className="px-4 py-3 text-right"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+          <Table className="text-xs">
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col" className="px-4 py-3">Member</TableHead>
+                <TableHead scope="col" className="px-4 py-3">Role</TableHead>
+                <TableHead scope="col" className="px-4 py-3">Status</TableHead>
+                <TableHead scope="col" className="px-4 py-3">Joined</TableHead>
+                <TableHead scope="col" className="px-4 py-3 text-right"><span className="sr-only">Actions</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {members.map((m) => {
                 const isOwner = m.role === WorkspaceRole.OWNER;
                 const isMe = m.user.id === user.id;
                 const editable = canManage && !isOwner && !isMe;
                 return (
-                  <tr key={m.id} className="transition-colors hover:bg-surface-raised">
-                    <td className="px-4 py-3">
+                  <TableRow key={m.id} className="transition-colors hover:bg-surface-raised">
+                    <TableCell className="px-4 py-3">
                       <UserIdentity
                         name={m.user.name}
                         displayName={m.user.displayName}
@@ -210,8 +216,8 @@ export function MembersTab() {
                         indicator={false}
                         badge={isMe ? <span className="text-[11px] text-muted-foreground">(you)</span> : undefined}
                       />
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
                       {editable ? (
                         <AppSelect
                           size="sm"
@@ -229,14 +235,14 @@ export function MembersTab() {
                           <div className="mt-0.5 text-[10px] text-muted-foreground">{ROLE_BLURB[m.role]}</div>
                         </div>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
                       <Badge variant={m.status === 'ACTIVE' ? 'success' : 'outline'} className="text-[10px] capitalize">
                         {m.status.toLowerCase()}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{m.joinedAt ? new Date(m.joinedAt).toLocaleDateString() : '—'}</td>
-                    <td className="px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-muted-foreground">{m.joinedAt ? new Date(m.joinedAt).toLocaleDateString() : '—'}</TableCell>
+                    <TableCell className="px-4 py-3 text-right">
                       {editable ? (
                         <Button
                           variant="ghost"
@@ -248,12 +254,12 @@ export function MembersTab() {
                           <Trash2 className="size-3.5" />
                         </Button>
                       ) : null}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

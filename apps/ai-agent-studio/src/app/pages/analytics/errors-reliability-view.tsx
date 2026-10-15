@@ -48,7 +48,7 @@ export function ErrorsReliabilityView({ errors }: ErrorsReliabilityViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Total Logged Faults</span>
-            <AlertCircle className="size-4 text-rose-500" />
+            <AlertCircle className="size-4 text-destructive-text" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {totalOccurrences}
@@ -61,7 +61,7 @@ export function ErrorsReliabilityView({ errors }: ErrorsReliabilityViewProps) {
         <Card className="p-4 bg-surface-raised/40">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>Rate-Limit Incidents</span>
-            <Clock className="size-4 text-amber-500" />
+            <Clock className="size-4 text-warning-text" />
           </div>
           <div className="mt-2 text-2xl font-bold text-foreground">
             {errorList
@@ -114,7 +114,7 @@ export function ErrorsReliabilityView({ errors }: ErrorsReliabilityViewProps) {
             <TableBody>
               {errorList.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-xs text-emerald-500">
+                  <TableCell colSpan={6} className="text-center py-8 text-xs text-success-text">
                     Zero errors logged in this timeframe. All systems operating cleanly.
                   </TableCell>
                 </TableRow>
@@ -136,7 +136,7 @@ export function ErrorsReliabilityView({ errors }: ErrorsReliabilityViewProps) {
                     <TableCell className="font-mono text-foreground font-medium max-w-sm truncate">
                       {item.title}
                     </TableCell>
-                    <TableCell className="font-bold tabular-nums text-rose-500">
+                    <TableCell className="font-bold tabular-nums text-destructive-text">
                       {item.occurrenceCount}
                     </TableCell>
                     <TableCell className="tabular-nums">
@@ -158,9 +158,9 @@ export function ErrorsReliabilityView({ errors }: ErrorsReliabilityViewProps) {
 
       {/* SELECTED ERROR DIAGNOSTIC REMEDIATION */}
       {selectedError && (
-        <Card className="p-5 shadow-2xs border-rose-500/40 space-y-3">
+        <Card className="p-5 shadow-2xs border-destructive/40 space-y-3">
           <div className="flex items-center gap-2">
-            <Wrench className="size-4 text-rose-500" />
+            <Wrench className="size-4 text-destructive-text" />
             <h4 className="font-bold text-sm text-foreground">
               Diagnostic & Remediation Playbook: {selectedError.category}
             </h4>

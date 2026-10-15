@@ -151,7 +151,7 @@ export function ReportsExportsView({ dateRange }: { dateRange: string }) {
                   loading={isDownloadingCsv}
                   className="flex-1 text-xs h-8 gap-1.5"
                 >
-                  <FileSpreadsheet className="size-3.5 text-emerald-500" />
+                  <FileSpreadsheet className="size-3.5 text-success-text" />
                   CSV
                 </Button>
                 <Button

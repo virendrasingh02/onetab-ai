@@ -43,6 +43,7 @@ export {
   huddleApi,
   integrationsApi,
   connectorsApi,
+  oauthAppsApi,
   invitationApi,
   marketplaceApi,
   matrixApi,

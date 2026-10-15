@@ -45,3 +45,4 @@ export { MigrationAiAdvisorService } from './lib/migration/migration-ai-advisor.
 export { MigrationWorkerService } from './lib/migration/migration-worker.service.js';
 export { MigrationEngineService } from './lib/migration/migration-engine.service.js';
 export type { MigrationProvider } from './lib/migration/migration-provider.interface.js';
+export { OAuthAppCredentialsService } from './lib/core/oauth-app-credentials.service.js';

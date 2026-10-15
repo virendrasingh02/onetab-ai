@@ -262,7 +262,7 @@ export class AgentPlannerService {
         const provider = String(integration.provider).toUpperCase();
         // The platform's own internal connector is not an outside app; its data is
         // already reachable through the built-in tools.
-        if (seen.has(provider) || ['CUSTOM_API', 'ONETAB_APP', 'ONETAB_INTERNAL'].includes(provider)) continue;
+        if (seen.has(provider) || ['ONETAB_APP', 'ONETAB_INTERNAL'].includes(provider)) continue;
         seen.add(provider);
         let actions: CatalogAppAction[] = [];
         try {

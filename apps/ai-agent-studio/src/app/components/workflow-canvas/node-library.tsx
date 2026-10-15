@@ -39,6 +39,7 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
+import { Input } from '@org/ui';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { useConnectorCatalogNodes } from './connector-nodes.js';
 
@@ -737,16 +738,13 @@ export function NodeLibrary({
       {/* Header */}
       <div className="border-b border-border p-3 space-y-2">
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search nodes & tools…"
-            className="w-full rounded-lg border border-border bg-surface-raised pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </div>
+        <Input
+          inputSize="sm"
+          leadingIcon={<Search className="size-3.5" />}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search nodes & tools…"
+        />
 
         {/* Categories Bar */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-[11px]">

@@ -15,6 +15,7 @@ import type {
   TokenResult,
   WebhookProcessResult,
 } from '../core/provider-adapter.interface.js';
+import { oauthEnv } from '../core/oauth-app-context.js';
 
 const LINEAR_SCOPES = ['read', 'write'];
 const GRAPHQL_URL = 'https://api.linear.app/graphql';
@@ -66,8 +67,8 @@ export class LinearProvider implements ProviderAdapter {
   }
 
   private clientCreds() {
-    const clientId = this.config.get<string>('LINEAR_CLIENT_ID');
-    const clientSecret = this.config.get<string>('LINEAR_CLIENT_SECRET');
+    const clientId = oauthEnv(this.config, 'LINEAR_CLIENT_ID');
+    const clientSecret = oauthEnv(this.config, 'LINEAR_CLIENT_SECRET');
     if (!clientId || !clientSecret) {
       throw new BadRequestException(
         'Linear OAuth is not configured on this server (LINEAR_CLIENT_ID / LINEAR_CLIENT_SECRET missing). ' +
@@ -203,7 +204,7 @@ export class LinearProvider implements ProviderAdapter {
   }
 
   isServerConfigured(): boolean {
-    return Boolean(this.config.get<string>('LINEAR_CLIENT_ID') && this.config.get<string>('LINEAR_CLIENT_SECRET'));
+    return Boolean(oauthEnv(this.config, 'LINEAR_CLIENT_ID') && oauthEnv(this.config, 'LINEAR_CLIENT_SECRET'));
   }
 
   getTriggers(): ConnectorTriggerDefinition[] {

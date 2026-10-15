@@ -30,9 +30,6 @@ import {
   PopoverContent,
   PopoverTrigger,
   SegmentedControl,
-  Tabs,
-  TabsList,
-  TabsTrigger,
   Textarea,
   toast,
 } from '@org/ui';
@@ -396,10 +393,14 @@ const AGENT_TABS = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
 type AgentTab = (typeof AGENT_TABS)[number]['id'];
-/** Shown inline in the header; the rest sit under "More". */
-const PRIMARY_TAB_IDS: readonly AgentTab[] = ['build', 'executions', 'versions', 'deploy', 'marketplace', 'settings'];
-const PRIMARY_AGENT_TABS = AGENT_TABS.filter((tab) => PRIMARY_TAB_IDS.includes(tab.id));
-const OVERFLOW_AGENT_TABS = AGENT_TABS.filter((tab) => !PRIMARY_TAB_IDS.includes(tab.id));
+/** Five short header items; multi-section groups open a menu. */
+const AGENT_TAB_GROUPS: readonly { label: string; icon: typeof Plug; tabs: readonly AgentTab[] }[] = [
+  { label: 'Canvas', icon: GitBranch, tabs: ['build'] },
+  { label: 'Setup', icon: Plug, tabs: ['connectors', 'memory', 'variables'] },
+  { label: 'Runs', icon: Activity, tabs: ['executions', 'evaluations'] },
+  { label: 'Release', icon: Rocket, tabs: ['versions', 'deploy', 'marketplace'] },
+  { label: 'Settings', icon: Settings, tabs: ['settings'] },
+];
 const isAgentTab = (value: string | null): value is AgentTab =>
   AGENT_TABS.some((t) => t.id === value);
 
@@ -904,7 +905,7 @@ function WorkflowCanvasInner({
       onDrop={handleDrop}
     >
       {/* Floating Canvas Quick Toolbar (Docked at Bottom Center) */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-2xl border border-border bg-surface/95 backdrop-blur-md p-1.5 shadow-2xl select-none">
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-2xl border border-border bg-surface p-1.5 shadow-lg select-none">
         {onToggleCopilot && (
           <>
             <button
@@ -1268,7 +1269,7 @@ function WorkflowCanvasInner({
         <div
           role="region"
           aria-label="Workflow Analytics Overlay Controls"
-          className="absolute top-4 left-4 z-30 flex items-center gap-2 rounded-xl border border-primary/40 bg-surface/95 p-2 shadow-lg backdrop-blur-md text-xs select-none"
+          className="absolute top-4 left-4 z-30 flex items-center gap-2 rounded-xl border border-primary/40 bg-surface p-2 shadow-lg text-xs select-none"
         >
           <div className="flex items-center gap-1.5 font-semibold text-foreground px-1">
             <BarChart3 className="size-4 text-primary" />
@@ -1329,7 +1330,7 @@ function WorkflowCanvasInner({
               Elevated
             </span>
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-rose-500" />
+              <span className="size-2 rounded-full bg-destructive" />
               Hotspot
             </span>
           </div>
@@ -1504,22 +1505,22 @@ function WorkflowCanvasInner({
         <MiniMap
           nodeColor={(n) => {
             const t = n.type || '';
-            if (t.includes('START') || t.includes('TRIGGER')) return '#10b981';
-            if (t.includes('AGENT')) return '#6366f1';
-            if (t.includes('FIRECRAWL')) return '#f59e0b';
-            if (t.includes('TOOL') || t.includes('MCP')) return '#6366f1';
-            if (t.includes('TRANSFORM') || t.includes('CODE')) return '#0ea5e9';
-            if (t.includes('IF') || t.includes('CONDITION')) return '#8b5cf6';
-            if (t.includes('USER') || t.includes('APPROVAL')) return '#f43f5e';
-            if (t.includes('NOTE')) return '#fbbf24';
-            if (t.includes('GROUP')) return '#64748b';
-            if (t.includes('APP_CONNECTOR')) return '#0ea5e9';
-            if (t.includes('END') || t.includes('OUTPUT')) return '#10b981';
+            if (t.includes('START') || t.includes('TRIGGER')) return 'var(--success)';
+            if (t.includes('AGENT')) return 'var(--primary)';
+            if (t.includes('FIRECRAWL')) return 'var(--warning)';
+            if (t.includes('TOOL') || t.includes('MCP')) return 'var(--primary)';
+            if (t.includes('TRANSFORM') || t.includes('CODE')) return 'var(--accent-cyan)';
+            if (t.includes('IF') || t.includes('CONDITION')) return 'var(--accent-violet)';
+            if (t.includes('USER') || t.includes('APPROVAL')) return 'var(--destructive)';
+            if (t.includes('NOTE')) return 'var(--accent-amber)';
+            if (t.includes('GROUP')) return 'var(--muted-foreground)';
+            if (t.includes('APP_CONNECTOR')) return 'var(--accent-cyan)';
+            if (t.includes('END') || t.includes('OUTPUT')) return 'var(--success)';
             // Prompt / LLM / knowledge cards plugged into an agent, and anything else: quiet grey
-            return '#94a3b8';
+            return 'var(--border-strong)';
           }}
           nodeStrokeWidth={3}
-          className="!bg-card/85 !border-border !rounded-xl !shadow-sm"
+          className="!bg-surface !border-border !rounded-xl !shadow-sm"
           maskColor="rgba(0, 0, 0, 0.4)"
         />
         <RemeasureHandlesOnDirection direction={direction} />
@@ -1594,7 +1595,6 @@ export function AgentDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const activeTab: AgentTab = isAgentTab(tabParam) ? tabParam : 'build';
-  const activeOverflowTab = OVERFLOW_AGENT_TABS.find((tab) => tab.id === activeTab);
   const setActiveTab = useCallback(
     (tab: AgentTab) => {
       setSearchParams(
@@ -1793,6 +1793,8 @@ export function AgentDetailPage() {
   const [diffModalTarget, setDiffModalTarget] = useState<AgentVersion | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<AgentSettingsDraft | null>(null);
   const [isPublishPopoverOpen, setIsPublishPopoverOpen] = useState(false);
+  /** Which header tab menu is open — only one at a time. */
+  const [openTabMenu, setOpenTabMenu] = useState<string | null>(null);
 
   // Command palette, template export & presentation mode
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -3539,7 +3541,7 @@ export function AgentDetailPage() {
     <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
       {/* Presentation Mode Float Bar */}
       {isPresentationMode && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border border-border bg-surface/95 px-3.5 py-1.5 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-1.5 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
           <Eye className="size-4 text-primary" />
           <span className="text-xs font-semibold text-foreground">Presentation Mode</span>
           <div className="h-3 w-px bg-border mx-1" />
@@ -3556,15 +3558,15 @@ export function AgentDetailPage() {
 
       {/* Top Navbar */}
       {!isPresentationMode && (
-        <header className="flex h-13 shrink-0 items-center justify-between border-b border-border bg-background px-3.5 gap-2 z-30 select-none">
+        <header className="relative flex h-13 shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3.5 z-30 select-none">
         {/* Left: Back, Identity, Status */}
-        <div className="flex items-center gap-2 shrink-0 min-w-0">
+        <div className="flex h-13 items-center gap-2 shrink-0 min-w-0">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleBack}
             aria-label="Back to agents"
-            className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-raised shrink-0"
+            className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent shrink-0"
             title="Back to agents"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -3705,76 +3707,60 @@ export function AgentDetailPage() {
           </div>
         </div>
 
-        {/* Center: Tabs — take the leftover width so the actions on the right never get pushed off-screen */}
-        <div className="flex min-w-0 flex-1 justify-center">
-          <Tabs
-            value={activeTab}
-            onValueChange={(tab) => setActiveTab(tab as AgentTab)}
-            className="max-w-full min-w-0 flex-row items-center gap-0.5"
-          >
-            <TabsList variant="segmented" size="sm" aria-label="Agent sections" className="max-w-full">
-              {PRIMARY_AGENT_TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <TabsTrigger
-                    key={tab.id}
-                    value={tab.id}
-                    aria-label={tab.label}
-                    title={tab.label}
-                    icon={<Icon className="h-3.5 w-3.5 shrink-0" />}
-                  >
-                    {/* Narrower screens: only the active tab keeps its label */}
-                    <span className={cn(!isActive && 'hidden lg:inline')}>{tab.label}</span>
-                  </TabsTrigger>
-                );
-              })}
-              {/* Less-used sections; the trigger takes the active one's name */}
-              <DropdownMenu>
+        <nav aria-label="Agent sections" className="flex min-w-0 flex-1 items-center justify-center gap-1 xl:pointer-events-none xl:absolute xl:inset-x-0 xl:top-0 xl:h-13 xl:flex-none [&>*]:xl:pointer-events-auto">
+          {AGENT_TAB_GROUPS.map((group) => {
+            const GroupIcon = group.icon;
+            const isActive = group.tabs.includes(activeTab);
+            const triggerClass = cn(
+              'relative flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[13px] font-semibold transition-colors',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              isActive ? 'bg-accent text-foreground' : 'text-foreground/70 hover:bg-accent/60 hover:text-foreground',
+            );
+            const inner = (
+              <>
+                <GroupIcon className={cn('h-3.5 w-3.5 shrink-0', isActive && 'text-primary')} />
+                <span>{group.label}</span>
+              </>
+            );
+            if (group.tabs.length === 1) {
+              return (
+                <button key={group.label} type="button" onClick={() => setActiveTab(group.tabs[0])} aria-current={isActive ? 'page' : undefined} className={triggerClass}>
+                  {inner}
+                </button>
+              );
+            }
+            return (
+              <DropdownMenu key={group.label} modal={false} open={openTabMenu === group.label} onOpenChange={(open) => setOpenTabMenu(open ? group.label : null)}>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant={activeOverflowTab ? 'secondary' : 'ghost'}
-                    size="sm"
-                    aria-current={activeOverflowTab ? 'page' : undefined}
-                    className="shrink-0 gap-1 font-medium"
-                  >
-                    {activeOverflowTab ? (
-                      <>
-                        <activeOverflowTab.icon className="h-3.5 w-3.5 shrink-0" />
-                        <span>{activeOverflowTab.label}</span>
-                      </>
-                    ) : (
-                      <span>More</span>
-                    )}
-                    <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
-                  </Button>
+                  <button type="button" aria-current={isActive ? 'page' : undefined} className={triggerClass}>
+                    {inner}
+                    <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="w-44">
-                  {OVERFLOW_AGENT_TABS.map((tab) => (
-                    <DropdownMenuItem
-                      key={tab.id}
-                      onSelect={() => setActiveTab(tab.id)}
-                      className={cn('gap-2 text-xs', activeTab === tab.id && 'font-semibold text-foreground')}
-                    >
-                      <tab.icon className="h-3.5 w-3.5" />
-                      {tab.label}
-                      {activeTab === tab.id && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
-                    </DropdownMenuItem>
-                  ))}
+                <DropdownMenuContent align="start" sideOffset={6} className="w-48">
+                  {group.tabs.map((id) => {
+                    const tab = AGENT_TABS.find((t) => t.id === id)!;
+                    return (
+                      <DropdownMenuItem key={id} onSelect={() => setActiveTab(id)} className={cn('gap-2 text-xs', activeTab === id && 'font-semibold text-foreground')}>
+                        <tab.icon className="h-3.5 w-3.5" />
+                        {tab.label}
+                        {activeTab === id && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
                 </DropdownMenuContent>
               </DropdownMenu>
-            </TabsList>
-          </Tabs>
-        </div>
+            );
+          })}
+        </nav>
 
-                {/* Right: Actions */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Right: Actions */}
+        <div className="flex h-13 items-center gap-1.5 shrink-0">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsTestDrawerOpen(true)}
-            className="h-8 gap-1.5 text-xs font-medium rounded-lg border-success/30 bg-success/10 text-success hover:bg-success/20"
+            className="h-8 gap-1.5 text-xs font-medium rounded-md border-success/30 bg-success/10 text-success hover:bg-success/20"
             title="Test run this agent workflow"
           >
             <Play className="h-3.5 w-3.5 fill-success" />
@@ -3790,7 +3776,7 @@ export function AgentDetailPage() {
             aria-keyshortcuts="Control+S"
             aria-label={isDirty ? 'Save changes' : 'All changes saved'}
             className={cn(
-              "h-8 gap-1.5 text-xs rounded-lg transition-all",
+              "h-8 gap-1.5 text-xs rounded-md transition-all",
               !isDirty && !saveMutation.isPending && "w-8 px-0",
               isDirty
                 ? "border-warning/40 text-warning bg-warning/10 hover:bg-warning/20 font-medium"
@@ -3814,8 +3800,8 @@ export function AgentDetailPage() {
             <PopoverTrigger asChild>
               <Button
                 type="button"
-                size="md"
-                className={cn('gap-1.5 font-semibold', isPublishPopoverOpen && 'ring-2 ring-primary/40')}
+                size="sm"
+                className={cn('h-8 gap-1.5 rounded-md font-semibold', isPublishPopoverOpen && 'ring-2 ring-primary/40')}
               >
                 <span>Publish</span>
                 <ChevronDown className={cn("size-3.5 transition-transform duration-200", isPublishPopoverOpen && "rotate-180")} />
@@ -3824,7 +3810,7 @@ export function AgentDetailPage() {
             <PopoverContent
               align="end"
               sideOffset={8}
-              className="w-80 rounded-2xl border border-border bg-card/95 p-3.5 shadow-2xl backdrop-blur-md text-foreground"
+              className="w-80 rounded-2xl border border-border bg-surface p-3.5 shadow-lg text-foreground"
             >
               {/* Status & Timeline Section */}
               <div className="relative pl-6 py-1">
@@ -3835,7 +3821,7 @@ export function AgentDetailPage() {
                 <div className="relative flex items-center gap-2 mb-3">
                   <div
                     className={cn(
-                      "absolute -left-6 size-3.5 rounded-full border-2 bg-card flex items-center justify-center",
+                      "absolute -left-6 size-3.5 rounded-full border-2 bg-surface flex items-center justify-center",
                       isPublished ? "border-success bg-success/20" : "border-muted-foreground/60"
                     )}
                   >
@@ -3863,14 +3849,14 @@ export function AgentDetailPage() {
                     className="w-full rounded-xl font-semibold"
                   >
                     <span>{isPublished ? 'Publish update' : 'Publish'}</span>
-                    <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white shadow-2xs">
+                    <span className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-mono font-bold text-primary-foreground">
                       {targetPublishVersion}
                     </span>
                     <div className="flex items-center gap-1 ml-1">
-                      <kbd className="rounded bg-white/20 px-1.5 py-0.5 text-[9px] font-medium font-sans text-white/95 leading-none">
+                      <kbd className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-medium font-sans text-primary-foreground leading-none">
                         Ctrl Shift
                       </kbd>
-                      <kbd className="rounded bg-white/20 px-1.5 py-0.5 text-[9px] font-medium font-sans text-white/95 leading-none">
+                      <kbd className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-medium font-sans text-primary-foreground leading-none">
                         P
                       </kbd>
                     </div>
@@ -3881,7 +3867,7 @@ export function AgentDetailPage() {
                 <div className="relative flex items-center gap-2 mt-3">
                   <div
                     className={cn(
-                      "absolute -left-6 size-3.5 rounded-full border-2 bg-card flex items-center justify-center",
+                      "absolute -left-6 size-3.5 rounded-full border-2 bg-surface flex items-center justify-center",
                       isDirty ? "border-warning bg-warning/20" : "border-success/80 bg-success/20"
                     )}
                   >
@@ -3968,7 +3954,7 @@ export function AgentDetailPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-raised shrink-0"
+                className="h-8 w-8 p-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent shrink-0"
                 title="More actions"
                 aria-label="More actions"
               >
@@ -4164,7 +4150,7 @@ export function AgentDetailPage() {
 
             {/* Workflow health, floating in the canvas corner; the inspectors take this spot while open */}
             {!selectedNode && !selectedEdge && (
-              <div className="absolute top-3 right-3 z-20 rounded-xl bg-surface/95 shadow-lg backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-200">
+              <div className="absolute top-3 right-3 z-20 rounded-xl bg-surface shadow-lg animate-in fade-in slide-in-from-top-1 duration-200">
                 <WorkflowHealthBadge issues={allWorkflowIssues} onClick={handleValidateGraph} className="h-8.5 rounded-xl" />
               </div>
             )}
@@ -4262,7 +4248,7 @@ export function AgentDetailPage() {
                 {executions.map((exec) => (
                   <div
                     key={exec.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-3.5 hover:border-primary/40 transition-colors"
+                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-3.5 hover:border-primary/40 transition-colors"
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
@@ -4358,7 +4344,7 @@ export function AgentDetailPage() {
                 {versions.map((ver) => (
                   <div
                     key={ver.version}
-                    className="flex items-center justify-between rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40"
+                    className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition-all hover:border-primary/40"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -4431,7 +4417,7 @@ export function AgentDetailPage() {
             </div>
 
             {/* 1. Identity & Persona (Module 5.1) */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
               <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
                 <Bot className="size-4 text-primary" />
                 Agent Identity & Behavior
@@ -4461,7 +4447,7 @@ export function AgentDetailPage() {
             </div>
 
             {/* Visual Branding & Appearance */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
               <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
                 <Palette className="size-4 text-success" />
                 Icon, Custom Avatar & Theme
@@ -4618,7 +4604,7 @@ export function AgentDetailPage() {
             </div>
 
             {/* Categorization, Tags & Ownership */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
               <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
                 <Tag className="size-4 text-accent-blue" />
                 Category, Tags & Ownership
@@ -4795,7 +4781,7 @@ export function AgentDetailPage() {
             />
 
             {/* 5. API Trigger Snippet (Module 14.2 & 21.1) */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+            <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
               <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
                 <Code2 className="h-4 w-4 text-primary" />
                 REST API Execution Endpoint

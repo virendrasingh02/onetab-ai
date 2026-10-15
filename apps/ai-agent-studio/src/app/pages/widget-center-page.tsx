@@ -23,6 +23,12 @@ import {
   LoadingState,
   ResponsiveTabs,
   confirm,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { widgetsApi } from '@org/api-client';
@@ -483,31 +489,31 @@ export function WidgetCenterPage() {
           </div>
 
           <div className="rounded-lg border border-border bg-surface overflow-hidden">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface-raised border-b border-border text-muted-foreground font-semibold">
-                <tr>
-                  <th className="p-3">Widget</th>
-                  <th className="p-3">Action</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Latency</th>
-                  <th className="p-3">Timestamp</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50 font-mono">
+            <Table className="text-xs">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="p-3">Widget</TableHead>
+                  <TableHead className="p-3">Action</TableHead>
+                  <TableHead className="p-3">Status</TableHead>
+                  <TableHead className="p-3">Latency</TableHead>
+                  <TableHead className="p-3">Timestamp</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="font-mono">
                 {executions.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-6 text-center text-muted-foreground font-sans">
+                  <TableRow>
+                    <TableCell colSpan={5} className="p-6 text-center text-muted-foreground font-sans">
                       No widget actions executed in this workspace yet.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   executions.map((ex: any) => (
-                    <tr key={ex.id} className="hover:bg-muted/30">
-                      <td className="p-3 font-sans font-medium text-foreground">
+                    <TableRow key={ex.id} className="hover:bg-muted/30">
+                      <TableCell className="p-3 font-sans font-medium text-foreground">
                         {ex.widget?.name || ex.widgetId}
-                      </td>
-                      <td className="p-3 text-indigo-400">{ex.action}</td>
-                      <td className="p-3">
+                      </TableCell>
+                      <TableCell className="p-3 text-indigo-400">{ex.action}</TableCell>
+                      <TableCell className="p-3">
                         <span
                           className={cn(
                             'px-1.5 py-0.5 rounded text-[10px] font-semibold',
@@ -516,14 +522,14 @@ export function WidgetCenterPage() {
                         >
                           {ex.status}
                         </span>
-                      </td>
-                      <td className="p-3 text-muted-foreground">{ex.latencyMs ? `${ex.latencyMs}ms` : '—'}</td>
-                      <td className="p-3 text-muted-foreground">{new Date(ex.createdAt).toLocaleString()}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="p-3 text-muted-foreground">{ex.latencyMs ? `${ex.latencyMs}ms` : '—'}</TableCell>
+                      <TableCell className="p-3 text-muted-foreground">{new Date(ex.createdAt).toLocaleString()}</TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}

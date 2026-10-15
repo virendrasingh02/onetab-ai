@@ -1119,6 +1119,14 @@ export function ChannelPage() {
             welcome={{
               createdAt: channel.createdAt,
               createdByName: creatorName,
+              createdBy: creator
+                ? {
+                    userId: creator.user.id,
+                    avatarUrl: creator.user.avatarUrl,
+                    email: (creator.user as { email?: string }).email,
+                    title: creator.user.title,
+                  }
+                : undefined,
               description: channel.description ?? channel.topic,
               welcomeMessage: channel.welcomeMessage,
               isPrivate: channel.visibility === 'PRIVATE',
