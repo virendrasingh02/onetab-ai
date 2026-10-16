@@ -1,5 +1,5 @@
 import type { Message, Room, RoomKind } from '@org/matrix-client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 
 export interface ThreadParticipant {
@@ -19,6 +19,8 @@ export interface CrossRoomThread {
   directUserId?: string;
   /** The message the thread hangs off, when it is in the loaded timeline. */
   root: Message | null;
+  /** True once the server confirmed the root is deleted or unreadable. */
+  rootUnavailable: boolean;
   title: string;
   authorName: string;
   replyCount: number;
@@ -41,6 +43,13 @@ export function useAllThreads() {
   const { client, enabled } = useMatrix();
   const [threads, setThreads] = useState<CrossRoomThread[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  /*
+   * Roots that were not in the room's loaded timeline (an older message the
+   * SDK only knows as a thread id), fetched from the server once each.
+   * `null` means the server has no readable copy — don't ask again.
+   */
+  const fetchedRoots = useRef(new Map<string, Message | null>());
+  const inFlight = useRef(new Set<string>());
 
   const collect = useCallback(() => {
     if (!client) return;
@@ -61,7 +70,29 @@ export function useAllThreads() {
       );
 
       for (const thread of client.getThreads(room.id)) {
-        const root = byId.get(thread.rootId) ?? null;
+        const loadedRoot = byId.get(thread.rootId);
+        if (loadedRoot) fetchedRoots.current.delete(thread.rootId);
+        const root = loadedRoot ?? fetchedRoots.current.get(thread.rootId) ?? null;
+
+        if (
+          !root &&
+          !fetchedRoots.current.has(thread.rootId) &&
+          !inFlight.current.has(thread.rootId)
+        ) {
+          const rootId = thread.rootId;
+          inFlight.current.add(rootId);
+          void client
+            .fetchMessage(room.id, rootId)
+            .catch(() => null)
+            .then((message) => {
+              inFlight.current.delete(rootId);
+              fetchedRoots.current.set(
+                rootId,
+                message && !message.isRedacted ? message : null,
+              );
+              collect();
+            });
+        }
 
         collected.push({
           id: thread.rootId,
@@ -70,6 +101,8 @@ export function useAllThreads() {
           roomKind: room.kind,
           directUserId: room.directUserId,
           root,
+          rootUnavailable:
+            !root && fetchedRoots.current.get(thread.rootId) === null,
           title: root?.body || 'Thread',
           authorName: root?.senderName ?? 'Someone',
           replyCount: thread.replyCount,
@@ -107,6 +140,19 @@ export function useAllThreads() {
      * looking at a stale count.
      */
     return client.on((event) => {
+      // Keep a fetched root current when it is edited, reacted to or deleted.
+      if (
+        event.type === 'message.updated' &&
+        fetchedRoots.current.has(event.message.id)
+      ) {
+        fetchedRoots.current.set(event.message.id, event.message);
+      } else if (
+        event.type === 'message.redacted' &&
+        fetchedRoots.current.has(event.eventId)
+      ) {
+        fetchedRoots.current.set(event.eventId, null);
+      }
+
       if (
         event.type === 'message.received' ||
         event.type === 'message.updated' ||

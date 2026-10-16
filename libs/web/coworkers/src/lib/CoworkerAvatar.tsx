@@ -59,7 +59,8 @@ const SIZE_MAP = {
   },
 };
 
-const PRESET_ICONS: Record<string, typeof Bot> = {
+/** Coworker `icon:*` avatar presets — the single source for every surface that draws one. */
+export const COWORKER_PRESET_ICONS: Record<string, typeof Bot> = {
   'icon:bot': Bot,
   'icon:brain': Brain,
   'icon:code': Code2,
@@ -72,6 +73,11 @@ const PRESET_ICONS: Record<string, typeof Bot> = {
   'icon:layers': Layers,
   'icon:zap': Zap,
 };
+
+/** The preset glyph for a coworker `avatarUrl`, or `undefined` when it's a photo/empty. */
+export function getCoworkerPresetIcon(avatarUrl?: string | null): typeof Bot | undefined {
+  return avatarUrl ? COWORKER_PRESET_ICONS[avatarUrl] : undefined;
+}
 
 /**
  * The single letter shown for any AI entity (coworker, agent, app) that has no
@@ -112,8 +118,9 @@ export const CoworkerAvatar: FC<CoworkerAvatarProps> = ({
   const sizeConfig = SIZE_MAP[size] ?? SIZE_MAP.md;
   const gradientClass = getGradientByName(name);
 
-  const isPresetIcon = avatarUrl?.startsWith('icon:') && PRESET_ICONS[avatarUrl];
-  const PresetComponent = isPresetIcon ? PRESET_ICONS[avatarUrl as string] : null;
+  const PresetComponent = getCoworkerPresetIcon(avatarUrl);
+  // An unknown `icon:*` preset is never a loadable image — fall to the initial.
+  const isPresetIcon = !!avatarUrl?.startsWith('icon:');
 
   return (
     <div className={cn('relative inline-flex shrink-0 items-center justify-center', className)}>

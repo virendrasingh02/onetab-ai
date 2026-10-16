@@ -14,6 +14,7 @@ import { cn } from '@org/utils';
 import {
   useCoworkerMutations,
   useCoworkers,
+  getCoworkerPresetIcon,
   getEntityInitial,
 } from '@org/web-coworkers';
 import { useAgentMutations, useAgents } from '@org/web-agents';
@@ -59,6 +60,7 @@ import {
   useId,
   useMemo,
   useState,
+  type ComponentType,
 } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useSplitViewAction } from './split-view/use-split-view-action.js';
@@ -165,21 +167,6 @@ const TILE_TONE = {
   neutral: 'border-border/60 bg-surface-raised text-muted-foreground',
 } as const;
 
-/** Coworker `icon:*` presets → the named icons `IconRenderer` understands. */
-const COWORKER_PRESET_ICON: Record<string, string> = {
-  'icon:bot': 'Bot',
-  'icon:brain': 'Brain',
-  'icon:code': 'Code2',
-  'icon:spark': 'Sparkles',
-  'icon:shield': 'Shield',
-  'icon:search': 'Search',
-  'icon:chat': 'MessageSquare',
-  'icon:rocket': 'Rocket',
-  'icon:globe': 'Globe',
-  'icon:layers': 'Layers',
-  'icon:zap': 'Zap',
-};
-
 const isImageSource =(value?: string | null): value is string =>
   !!value && /^(https?:\/\/|data:image)/.test(value);
 
@@ -195,6 +182,7 @@ export function NavEntityTile({
   label,
   image,
   icon,
+  glyph: Glyph,
   fit = 'cover',
   tone = 'neutral',
   size = 'md',
@@ -206,6 +194,8 @@ export function NavEntityTile({
   label: string;
   image?: string | null;
   icon?: string;
+  /** A ready glyph component (e.g. a coworker preset) — wins over `icon`. */
+  glyph?: ComponentType<{ className?: string }>;
   fit?: 'cover' | 'contain';
   tone?: keyof typeof TILE_TONE;
   size?: keyof typeof TILE_SIZE;
@@ -238,6 +228,8 @@ export function NavEntityTile({
           )}
           onError={() => setImageFailed(true)}
         />
+      ) : Glyph ? (
+        <Glyph className={glyph} />
       ) : namedIcon || fallbackEmoji ? (
         <IconRenderer
           icon={namedIcon}
@@ -458,7 +450,7 @@ export function CoworkerNavRow({
       <NavEntityTile
         label={coworker.name}
         image={coworker.avatarUrl}
-        icon={COWORKER_PRESET_ICON[coworker.avatarUrl ?? '']}
+        glyph={getCoworkerPresetIcon(coworker.avatarUrl)}
         tone="primary"
         working={coworker.status === 'WORKING' || coworker.status === 'RUNNING_TASK'}
       />
@@ -968,6 +960,7 @@ export function CoworkersSection({
           <NavEntityTile
             label={cw.name}
             image={cw.avatarUrl}
+            glyph={getCoworkerPresetIcon(cw.avatarUrl)}
             size="sm"
             tone="primary"
           />

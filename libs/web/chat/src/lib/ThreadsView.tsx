@@ -538,11 +538,41 @@ function ThreadRow({
   );
 
   if (!thread.root) {
-    // Rare: the root hasn't synced into this room's loaded timeline yet.
+    // The root is being fetched from the server, or it was deleted — the
+    // replies are still real, so the thread stays openable either way.
     return (
-      <li className="px-4 py-3 text-sm text-subtle">
-        {thread.authorName} started a thread — {thread.replyCount}{' '}
-        {thread.replyCount === 1 ? 'reply' : 'replies'}.
+      <li>
+        <button
+          type="button"
+          onClick={() => onToggle(thread.id)}
+          className="px-4 py-3 gap-2 text-sm flex w-full items-center text-left text-subtle hover:bg-muted/40"
+        >
+          <MessagesSquare className="size-4 shrink-0" aria-hidden />
+          <span className="flex-1 truncate">
+            {thread.rootUnavailable
+              ? 'Original message was deleted'
+              : 'Loading message…'}
+          </span>
+          <span className="text-xs shrink-0">
+            {thread.replyCount} {thread.replyCount === 1 ? 'reply' : 'replies'}
+          </span>
+        </button>
+        {open ? (
+          <ThreadDetail
+            thread={thread}
+            channelLink={channelLink}
+            channelId={channelId}
+            isPrivate={isPrivate}
+            members={members}
+            mentionNames={mentionNames}
+            actions={actions}
+            myUserId={myUserId}
+            editing={editing}
+            setEditing={setEditing}
+            attachmentSlot={attachmentSlot}
+            density={density}
+          />
+        ) : null}
       </li>
     );
   }
