@@ -799,7 +799,7 @@ export function IconPickerPopover({
                 <Button
                   type="submit"
                   size="sm"
-                  className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary-hover"
+                  className="h-8 text-xs"
                 >
                   Submit
                 </Button>

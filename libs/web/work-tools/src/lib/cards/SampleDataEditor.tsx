@@ -37,7 +37,7 @@ export function SampleDataEditor({ sampleData, onChange }: SampleDataEditorProps
           <span className="text-xs font-bold text-foreground block">Sample Mock Data</span>
           <span className="text-[10px] text-muted-foreground">Test bindings and preview rendering with realistic mock data</span>
         </div>
-        <Button size="sm" onClick={handleApply} className="text-xs h-7 gap-1 bg-primary text-primary-foreground">
+        <Button size="sm" onClick={handleApply} className="text-xs h-7 gap-1">
           <Check className="size-3" />
           Update Preview
         </Button>

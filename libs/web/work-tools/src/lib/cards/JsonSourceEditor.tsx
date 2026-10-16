@@ -49,7 +49,7 @@ export function JsonSourceEditor({ card, onChange }: JsonSourceEditorProps) {
             <Copy className="size-3" />
             Copy
           </Button>
-          <Button size="sm" onClick={handleApply} className="text-xs h-7 gap-1 bg-primary text-primary-foreground">
+          <Button size="sm" onClick={handleApply} className="text-xs h-7 gap-1">
             <Check className="size-3" />
             Apply Changes
           </Button>

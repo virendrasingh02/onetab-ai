@@ -436,7 +436,7 @@ export function AgentsListPage() {
             <Button
               size="sm"
               onClick={() => navigate('/create')}
-              className="gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+              className="gap-1.5 text-xs font-semibold shadow-sm"
             >
               <Wand2 className="size-3.5" /> Create with one prompt
             </Button>

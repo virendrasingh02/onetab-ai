@@ -53,8 +53,8 @@
   isolation: isolate;
   overflow: hidden;
   background-image: none;
-  background-color: var(--color-primary);
-  color: var(--color-primary-foreground);
+  background-color: var(--color-foreground);
+  color: var(--color-background);
   animation: copilot-glow 2.8s ease-in-out infinite;
 }
 .copilot-shine::after {
@@ -71,8 +71,8 @@
 .copilot-shine[data-open='true'] {
   animation: none;
   box-shadow:
-    0 0 0 2px color-mix(in oklab, var(--color-primary) 55%, transparent),
-    0 0 18px color-mix(in oklab, var(--color-primary) 60%, transparent);
+    0 0 0 2px color-mix(in oklab, var(--color-foreground) 22%, transparent),
+    0 0 18px color-mix(in oklab, var(--color-foreground) 25%, transparent);
 }
 .copilot-shine[data-open='true']::after {
   animation: none;
@@ -90,10 +90,10 @@
 @keyframes copilot-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 0%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-foreground) 0%, transparent);
   }
   50% {
-    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-primary) 55%, transparent);
+    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-foreground) 22%, transparent);
   }
 }
 @media (prefers-reduced-motion: reduce) {

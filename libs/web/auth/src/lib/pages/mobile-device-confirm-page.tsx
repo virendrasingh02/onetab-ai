@@ -95,7 +95,7 @@ export function MobileDeviceConfirmPage() {
           </p>
           <button
             type="button"
-            className="w-full h-10 rounded-btn bg-primary text-primary-foreground hover:bg-primary-hover font-medium text-xs sm:text-sm transition-colors"
+            className="w-full h-10 rounded-btn bg-foreground text-background hover:bg-foreground/85 font-medium text-xs sm:text-sm transition-colors"
             onClick={() => {
               navigate('/login', { state: { from: location } });
             }}
@@ -172,7 +172,7 @@ export function MobileDeviceConfirmPage() {
           </p>
           <button
             type="button"
-            className="w-full h-10 rounded-btn bg-primary text-primary-foreground hover:bg-primary-hover font-medium text-xs sm:text-sm transition-colors"
+            className="w-full h-10 rounded-btn bg-foreground text-background hover:bg-foreground/85 font-medium text-xs sm:text-sm transition-colors"
             onClick={() => navigate('/')}
           >
             Done
@@ -311,7 +311,7 @@ export function MobileDeviceConfirmPage() {
         <div className="flex flex-col gap-2 pt-2">
           <button
             type="button"
-            className="w-full h-10 rounded-btn bg-primary text-primary-foreground hover:bg-primary-hover font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full h-10 rounded-btn bg-foreground text-background hover:bg-foreground/85 font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             onClick={handleApprove}
             disabled={approving || rejecting}
           >

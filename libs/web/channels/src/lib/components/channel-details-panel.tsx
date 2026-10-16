@@ -1063,7 +1063,7 @@ function ChannelCoworkersTab({
               </Link>
               <Button
                 size="sm"
-                variant={link.isEnabled ? 'outline' : 'secondary'}
+                variant={link.isEnabled ? 'outline' : 'subtle'}
                 onClick={() => handleToggle(link.coworkerId, link.isEnabled)}
                 className="h-6 text-[10px] px-2 shrink-0"
               >

@@ -2008,7 +2008,7 @@ export function ToolbarContent({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={applyLink}
-              className="size-6 flex items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
+              className="size-6 flex items-center justify-center rounded-lg bg-foreground text-background transition-colors hover:bg-foreground/85"
               aria-label="Apply link"
             >
               <Check className="size-3.5" />

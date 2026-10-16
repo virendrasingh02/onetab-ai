@@ -581,7 +581,6 @@ export function ImportBoardDialog({
             size="sm"
             disabled={!preview || cardCount === 0}
             onClick={submit}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover"
           >
             {cardCount > 0
               ? `Import ${cardCount} card${cardCount === 1 ? '' : 's'}`

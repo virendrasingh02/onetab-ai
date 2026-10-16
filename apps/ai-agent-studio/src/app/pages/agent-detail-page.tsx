@@ -936,10 +936,10 @@ function WorkflowCanvasInner({
           title="Add Node to Workflow (Ctrl+K)"
           className={cn(
             'size-8.5 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center shrink-0',
-            'bg-primary text-primary-foreground shadow-md shadow-primary/30',
-            'hover:bg-primary-hover hover:scale-110 hover:shadow-lg hover:shadow-primary/50 active:scale-95',
-            'ring-2 ring-primary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-            isCatalogOpen && 'ring-4 ring-primary/60 scale-105 shadow-primary/50',
+            'bg-foreground text-background shadow-md shadow-foreground/15',
+            'hover:bg-foreground/85 hover:scale-110 hover:shadow-lg hover:shadow-foreground/15 active:scale-95',
+            'ring-2 ring-foreground/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/55',
+            isCatalogOpen && 'ring-4 ring-foreground/20 scale-105 shadow-foreground/15',
           )}
         >
           <Plus className="size-5 stroke-[2.5]" />

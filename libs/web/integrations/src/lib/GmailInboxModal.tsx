@@ -180,7 +180,7 @@ export function GmailInboxModal({
                 setIsComposing(true);
                 setSelectedMessage(null);
               }}
-              className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground"
+              className="h-8 text-xs gap-1.5"
             >
               <Send className="size-3.5" />
               Compose Email
@@ -314,7 +314,7 @@ export function GmailInboxModal({
                     size="sm"
                     onClick={handleSend}
                     disabled={sendMessage.isPending}
-                    className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground"
+                    className="h-8 text-xs gap-1.5"
                   >
                     <Send className="size-3.5" />
                     {sendMessage.isPending ? 'Sending...' : 'Send Message'}
@@ -409,7 +409,7 @@ export function GmailInboxModal({
                         size="sm"
                         onClick={handleReply}
                         disabled={replyMessage.isPending}
-                        className="h-7 text-xs gap-1.5 bg-primary text-primary-foreground"
+                        className="h-7 text-xs gap-1.5"
                       >
                         <Send className="size-3" />
                         {replyMessage.isPending ? 'Sending...' : 'Send Reply'}

@@ -305,7 +305,7 @@ export function CustomApiModal({
               size="sm"
               onClick={handleSave}
               disabled={connect.isPending || !baseUrl}
-              className="h-8 text-xs bg-primary text-primary-foreground font-semibold"
+              className="h-8 text-xs font-semibold"
             >
               {connect.isPending ? 'Saving...' : 'Save & Connect'}
             </Button>

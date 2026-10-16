@@ -185,7 +185,7 @@ function ManifestConsole() {
             type="button"
             disabled={!parsed.manifest || validate.isPending}
             onClick={() => validate.mutate(parsed.manifest as PluginManifest)}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-foreground text-background transition hover:bg-foreground/85 disabled:opacity-50"
           >
             {validate.isPending ? 'Validating…' : 'Validate manifest'}
           </button>

@@ -372,7 +372,7 @@ export function CardBuilderView() {
             <span>Save Draft</span>
           </Button>
 
-          <Button size="sm" onClick={handlePublish} className="h-8 text-xs gap-1.5 bg-primary text-primary-foreground">
+          <Button size="sm" onClick={handlePublish} className="h-8 text-xs gap-1.5">
             <CheckCircle2 className="size-3.5" />
             <span>Publish v{card.version + 1}</span>
           </Button>

@@ -1548,7 +1548,7 @@ export function Composer({
                           }
                           void handleSchedule(targetDate.toISOString());
                         }}
-                        className="py-1.5 px-3 text-xs font-medium rounded-md w-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90"
+                        className="py-1.5 px-3 text-xs font-medium rounded-md w-full bg-foreground text-background transition-colors hover:bg-foreground/85"
                       >
                         Schedule Send
                       </button>

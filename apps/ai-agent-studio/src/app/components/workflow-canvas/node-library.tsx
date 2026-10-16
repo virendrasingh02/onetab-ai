@@ -823,7 +823,7 @@ export function NodeLibrary({
                           onAddNode(item);
                         }}
                         title={`Add ${item.label} to canvas`}
-                        className="opacity-0 group-hover:opacity-100 flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs"
+                        className="opacity-0 group-hover:opacity-100 flex size-6 items-center justify-center rounded-md bg-foreground text-background hover:bg-foreground/85 transition-all shadow-xs"
                       >
                         <Plus className="size-3.5" />
                       </button>

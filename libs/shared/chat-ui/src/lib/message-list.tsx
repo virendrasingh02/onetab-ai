@@ -1114,7 +1114,10 @@ export function MessageList({
 
   if (!isLoading && messages.length === 0) {
     return introSlot ? (
-      <ScrollArea className={cn('min-h-0 flex-1', className)}>
+      <ScrollArea
+        className={cn('h-full min-h-0 flex-1', className)}
+        contentClassName="flex flex-col justify-end"
+      >
         {introSlot}
       </ScrollArea>
     ) : (
@@ -1131,11 +1134,21 @@ export function MessageList({
     <div className="relative min-h-0 flex flex-1 flex-col overflow-hidden">
       <ScrollArea
         className={cn(
-          'min-h-0 flex-1',
+          // `h-full`, not just `flex-1`: SimpleBar's wrapper inherits the
+          // root's *specified* height, so without it the viewport shrinks to
+          // its content and a short conversation can't sit at the bottom.
+          'h-full min-h-0 flex-1',
           density === 'compact' ? 'chat-density-compact' : 'chat-density-comfy',
           className,
         )}
         viewportRef={scrollRef}
+        /*
+         * A full-height column whose top spacer soaks up the slack, so a short
+         * conversation — welcome block and all — sits on the composer like
+         * Slack's instead of hanging from the header. Once the history
+         * overflows, the spacer collapses to nothing.
+         */
+        contentClassName="flex flex-col"
         viewportProps={{
           onScroll,
           role: 'log',
@@ -1148,6 +1161,10 @@ export function MessageList({
           does not appear and shove the timeline down the instant a backfill
           starts.
         */}
+        {isLoading && rows.length === 0 ? null : (
+          <div aria-hidden className="flex-1" />
+        )}
+
         {hasMore || isLoadingOlder ? (
           <div className="h-11 shrink-0 flex items-center justify-center">
             {isLoadingOlder ? (
@@ -1175,6 +1192,7 @@ export function MessageList({
 
         <div
           ref={virtualContainerRef}
+          className="shrink-0"
           style={{ height: totalSize, position: 'relative' }}
         >
           {virtualizer.getVirtualItems().map((virtualRow) => {

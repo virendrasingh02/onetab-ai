@@ -197,7 +197,7 @@ export function WidgetCenterPage() {
           <div className="flex items-center gap-2">
             <Button
               onClick={() => navigate('/widgets/new')}
-              className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-xs"
+              className="text-xs h-9 font-medium shadow-xs"
             >
               <Plus className="mr-1.5 size-4" /> Create Widget
             </Button>
@@ -448,7 +448,7 @@ export function WidgetCenterPage() {
                   <Button
                     size="xs"
                     onClick={() => navigate(`/widgets/new?template=${tpl.id}`)}
-                    className="text-xs h-7 bg-primary text-primary-foreground font-medium"
+                    className="text-xs h-7 font-medium"
                   >
                     Use Template <ChevronRight className="ml-1 size-3" />
                   </Button>

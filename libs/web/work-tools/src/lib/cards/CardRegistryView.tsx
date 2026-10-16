@@ -174,7 +174,7 @@ export function CardRegistryView() {
             <Button
               size="sm"
               onClick={handleCreateNew}
-              className="text-xs h-8 gap-1.5 bg-primary text-primary-foreground shadow-xs"
+              className="text-xs h-8 gap-1.5 shadow-xs"
             >
               <Plus className="size-3.5" />
               <span>Create Card</span>
@@ -377,7 +377,7 @@ export function CardRegistryView() {
                   setPreviewCard(null);
                   handleEditCard(id);
                 }}
-                className="text-xs gap-1.5 bg-primary text-primary-foreground"
+                className="text-xs gap-1.5"
               >
                 <Edit className="size-3.5" />
                 <span>Open in Builder</span>
@@ -415,7 +415,7 @@ export function CardRegistryView() {
               <Button size="sm" variant="outline" onClick={() => setImportOpen(false)} className="text-xs">
                 Cancel
               </Button>
-              <Button size="sm" onClick={handleImportSubmit} className="text-xs bg-primary text-primary-foreground">
+              <Button size="sm" onClick={handleImportSubmit} className="text-xs">
                 Import Card
               </Button>
             </DialogFooter>

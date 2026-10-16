@@ -23,8 +23,9 @@ const buttonVariants = cva(
           'shadow-xs bg-foreground text-background hover:bg-foreground/85 active:scale-[0.98]',
         default:
           'shadow-xs bg-foreground text-background hover:bg-foreground/85 active:scale-[0.98]',
+        // White, bordered — the companion to `primary` (see the channel drawer).
         secondary:
-          'bg-surface-raised text-foreground hover:bg-selected active:scale-[0.98]',
+          'shadow-xs border border-border bg-surface text-foreground hover:bg-accent hover:border-border-strong active:scale-[0.98]',
         outline:
           'shadow-xs border border-border bg-surface text-foreground hover:bg-accent hover:border-border-strong',
         ghost: 'text-muted-foreground hover:bg-accent hover:text-foreground',

@@ -347,7 +347,7 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
               type="button"
               size="sm"
               onClick={handleSend}
-              className="text-xs gap-1.5 bg-primary text-primary-foreground shadow-xs"
+              className="text-xs gap-1.5 shadow-xs"
             >
               <Send className="size-3.5" />
               <span>Send Card</span>

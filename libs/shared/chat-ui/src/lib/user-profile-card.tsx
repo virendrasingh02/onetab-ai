@@ -349,7 +349,7 @@ export function UserProfileRightPanel({
           <Button
             size="sm"
             onClick={() => onSendDirectMessage?.(userId)}
-            className="text-xs font-bold px-3 py-2 gap-1.5 flex-1 min-w-[100px] rounded-xl bg-primary text-primary-foreground shadow-md hover:bg-primary-hover"
+            className="text-xs font-bold px-3 py-2 gap-1.5 flex-1 min-w-[100px] rounded-xl bg-foreground text-background shadow-md hover:bg-foreground/85"
           >
             <MessageSquare className="size-3.5" />
             <span>Message</span>
