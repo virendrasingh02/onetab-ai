@@ -13,6 +13,7 @@ import {
   type RightPanelProfile,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { countEmojiOnly } from './emoji-only.js';
 import { EntityKindBadge } from './entity-kind-badge.js';
 import {
   Activity,
@@ -688,6 +689,9 @@ export function ChatBubble({
       mediaMatch[2].includes('twemoji') ||
       mediaMatch[1].toLowerCase().includes('sticker')
     : false;
+  // A message that is a single emoji renders jumbo (Slack-style); two or
+  // more emoji, or emoji mixed with text, stay at normal message size.
+  const jumboEmojiCount = message.body ? countEmojiOnly(message.body) : 0;
   const stickerAlt = isSticker && mediaMatch
     ? mediaMatch[1].replace(/^sticker:/i, '').trim()
     : '';
@@ -1203,6 +1207,13 @@ export function ChatBubble({
               )
             ) : editSlot ? (
               editSlot
+            ) : message.body && jumboEmojiCount === 1 ? (
+              <p
+                className="py-0.5 text-[2.75rem] leading-[1.15] select-text"
+                aria-label={message.body.trim()}
+              >
+                {message.body.trim()}
+              </p>
             ) : message.body ? (
               <MarkdownMessage
                 text={message.body}

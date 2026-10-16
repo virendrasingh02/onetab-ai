@@ -235,9 +235,14 @@ export function ChannelDetailsPanel({
         }
         className="min-h-0 flex flex-1 flex-col"
       >
-        <div className="px-3 shrink-0 border-b border-border">
+        {/* Same strip as the channel page's PageTabBar: compact underline tabs flush on the bottom rule. */}
+        <div className="px-3 h-9 flex shrink-0 items-end border-b border-border">
           <ResponsiveTabsList
-            variant="pill"
+            variant="underline"
+            size="sm"
+            gap={4}
+            aria-label="Channel details sections"
+            className="min-w-0 gap-1 pb-0 -mb-px w-full border-b-0"
             items={[
               { value: 'about', label: 'About' },
               {

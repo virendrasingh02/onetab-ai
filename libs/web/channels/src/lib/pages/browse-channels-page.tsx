@@ -105,13 +105,14 @@ export function BrowseChannelsPage() {
                 return (
                   <li
                     key={channel.id}
-                    className="gap-3 px-4 py-3 flex items-center"
+                    className="group relative gap-3 px-4 py-3 flex items-center transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted/50 focus-within:bg-muted/50"
                   >
                     <Icon className="size-4 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
+                      {/* Stretched link: the ::after overlay makes the whole row clickable. */}
                       <Link
                         to={`/w/${slug}/c/${channel.slug}`}
-                        className="text-sm font-medium truncate hover:underline"
+                        className="block text-sm font-medium truncate outline-none after:absolute after:inset-0 after:rounded-[inherit] group-hover:underline focus-visible:after:ring-2 focus-visible:after:ring-ring"
                       >
                         {channel.name}
                       </Link>
@@ -130,10 +131,13 @@ export function BrowseChannelsPage() {
                           : 'Joined'}
                       </Badge>
                     ) : (
-                      <JoinChannelControl
-                        workspaceId={workspaceId}
-                        channelId={channel.id}
-                      />
+                      // Sits above the stretched link so Join stays its own click target.
+                      <div className="relative z-10">
+                        <JoinChannelControl
+                          workspaceId={workspaceId}
+                          channelId={channel.id}
+                        />
+                      </div>
                     )}
                   </li>
                 );
