@@ -23,6 +23,9 @@ import {
 import React, { useEffect, useRef, useState } from 'react';
 import { GradientEditor } from './gradient-editor.js';
 
+/** Mirrors `--success` in design-system theme.css, so a reset lands on the real default. */
+const successDefault = (dark: boolean) => (dark ? '#37b06f' : '#037152');
+
 export interface ThemeCustomizerProps {
   onSaved?: () => void;
   className?: string;
@@ -46,10 +49,10 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
     return {
       mode: resolvedTheme === 'dark' ? 'dark' : 'light',
       type: 'custom',
-      brandColor: resolvedTheme === 'dark' ? '#60c686' : '#037152',
+      brandColor: '#60c686',
       neutralColor: resolvedTheme === 'dark' ? '#0a0a0a' : '#fcfbf8',
       colors: {
-        primary: resolvedTheme === 'dark' ? '#60c686' : '#037152',
+        primary: '#60c686',
         secondary: resolvedTheme === 'dark' ? '#071812' : '#f5f5f5',
         accent: resolvedTheme === 'dark' ? '#262626' : '#f1f0ec',
         background: resolvedTheme === 'dark' ? '#0a0a0a' : '#fcfbf8',
@@ -59,7 +62,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
         border: resolvedTheme === 'dark' ? '#2e2e2e' : '#eeece6',
         input: resolvedTheme === 'dark' ? '#262626' : '#f4f4f5',
         ring: resolvedTheme === 'dark' ? '#60c686' : '#037152',
-        success: '#10b981',
+        success: successDefault(resolvedTheme === 'dark'),
         warning: '#f59e0b',
         destructive: '#ef4444',
         info: '#3b82f6',
@@ -193,10 +196,10 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
     const isDark = themeState.mode === 'dark';
     setThemeState((prev) => ({
       ...prev,
-      brandColor: isDark ? '#60c686' : '#037152',
+      brandColor: '#60c686',
       neutralColor: isDark ? '#0a0a0a' : '#fcfbf8',
       colors: {
-        primary: isDark ? '#60c686' : '#037152',
+        primary: '#60c686',
         secondary: isDark ? '#071812' : '#f5f5f5',
         accent: isDark ? '#262626' : '#f1f0ec',
         background: isDark ? '#0a0a0a' : '#fcfbf8',
@@ -206,7 +209,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
         border: isDark ? '#2e2e2e' : '#eeece6',
         input: isDark ? '#262626' : '#f4f4f5',
         ring: isDark ? '#60c686' : '#037152',
-        success: '#10b981',
+        success: successDefault(isDark),
         warning: '#f59e0b',
         destructive: '#ef4444',
         info: '#3b82f6',
@@ -573,8 +576,8 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
               <ColorFieldItem
                 label="Success"
                 token="--color-success"
-                value={themeState.colors?.success || '#10b981'}
-                fallback="#10b981"
+                value={themeState.colors?.success || successDefault(themeState.mode === 'dark')}
+                fallback={successDefault(themeState.mode === 'dark')}
                 onChange={(val) => updateColor('success', val)}
                 onReset={(fb) => resetSingleColor('success', fb)}
               />

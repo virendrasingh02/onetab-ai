@@ -561,7 +561,7 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
                             className={cn(
                               'h-2 w-2 rounded-full shrink-0',
                               // Logs are written SUCCESS / FAILED.
-                              log.status === 'FAILED' ? 'bg-rose-500' : 'bg-emerald-500',
+                              log.status === 'FAILED' ? 'bg-rose-500' : 'bg-success',
                             )}
                           />
                           <span className="font-medium truncate max-w-[130px]">

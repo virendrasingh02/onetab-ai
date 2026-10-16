@@ -104,9 +104,9 @@ export {
 } from './lib/DirectMessagesView.js';
 export {
   useDirectMessagePreferences,
-  useDirectMessagePreferencesStore,
   type DirectMessagePreferences,
 } from './lib/use-dm-preferences.js';
+export { useDirectMessageMuteSync } from './lib/use-dm-mute-sync.js';
 export { useDirectMessageBookmarks } from './lib/use-dm-bookmarks.js';
 export { ThreadsView } from './lib/ThreadsView.js';
 export { formatRoomMemberSummary } from './lib/thread-roster.js';

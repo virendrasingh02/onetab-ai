@@ -778,6 +778,10 @@ export type MatrixClientEvent =
   | { type: 'room.upserted'; room: Room }
   | { type: 'room.removed'; roomId: RoomId }
   | { type: 'saved.updated'; saved: SavedMessage[] }
+  /** This user's push rules changed (e.g. a room muted on another device). */
+  | { type: 'pushrules.updated' }
+  /** This user's `m.direct` map changed — a DM was created or re-tagged. */
+  | { type: 'direct.updated' }
   | { type: 'message.received'; message: Message }
   | { type: 'message.updated'; message: Message; oldId?: EventId }
   | { type: 'message.redacted'; roomId: RoomId; eventId: EventId }

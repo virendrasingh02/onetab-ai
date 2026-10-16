@@ -389,14 +389,14 @@ export function WorkspaceBillingSettings({
         )}
 
         {subscription?.appliedPromotionCode && (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-center gap-3 text-emerald-800 dark:text-emerald-200">
-            <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
+          <div className="rounded-xl border border-success/30 bg-success/10 p-4 flex items-center gap-3 text-success-text">
+            <div className="p-2 rounded-lg bg-success/20 text-success-text shrink-0">
               <Tag className="size-4" />
             </div>
             <div className="space-y-0.5">
               <p className="text-xs font-bold">Coupon applied: {subscription.appliedPromotionCode}</p>
               {subscription.discountPercent ? (
-                <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80">
+                <p className="text-[11px] text-success-text/80">
                   {subscription.discountPercent}% off your first payment.
                 </p>
               ) : null}
@@ -604,7 +604,7 @@ export function WorkspaceBillingSettings({
               Annual Billing
               <Badge
                 variant="primary"
-                className="px-1.5 py-0 font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]"
+                className="px-1.5 py-0 font-bold bg-success/15 text-success-text border-success/20 text-[10px]"
               >
                 SAVE 20%
               </Badge>
@@ -738,7 +738,7 @@ export function WorkspaceBillingSettings({
                         variant="primary"
                         className={`font-bold text-[10px] ${
                           inv.status === 'PAID'
-                            ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/20'
+                            ? 'bg-success/15 text-success-text border-success/20'
                             : 'bg-amber-500/15 text-amber-600 border-amber-500/20'
                         }`}
                       >

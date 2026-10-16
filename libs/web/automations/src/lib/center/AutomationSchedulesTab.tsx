@@ -197,7 +197,7 @@ export function AutomationSchedulesTab() {
                             </>
                           ) : (
                             <>
-                              <Play className="h-3.5 w-3.5 mr-1 text-emerald-500" />
+                              <Play className="h-3.5 w-3.5 mr-1 text-success-text" />
                               Resume
                             </>
                           )}

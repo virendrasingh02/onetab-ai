@@ -183,13 +183,13 @@ export function MigrationCenterView({ embedded = false }: MigrationCenterViewPro
           <div>
             <span className="text-muted-foreground block text-[11px]">Destination</span>
             <span className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
-              <span className="size-2 rounded-full bg-emerald-500" />
+              <span className="size-2 rounded-full bg-success" />
               Current Workspace
             </span>
           </div>
           <div>
             <span className="text-muted-foreground block text-[11px]">Connection Health</span>
-            <span className="font-semibold text-emerald-500 flex items-center gap-1 mt-0.5">
+            <span className="font-semibold text-success-text flex items-center gap-1 mt-0.5">
               {slackIntegration ? 'Active & Authorized' : 'Awaiting Connection'}
             </span>
           </div>

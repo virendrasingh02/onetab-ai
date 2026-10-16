@@ -59,6 +59,7 @@ export function useLiveRoomActivity(): LiveRoomActivity {
   const { client, status } = useMatrix();
   const [activity, setActivity] = useState<RoomIndex>(EMPTY);
   const frame = useRef<number | null>(null);
+  const fallback = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingByRoom = useRef<Map<string, string[]>>(new Map());
 
   // Sticky per client: a later reconnect doesn't make the data "unknown" again.
@@ -75,7 +76,10 @@ export function useLiveRoomActivity(): LiveRoomActivity {
     }
 
     const recompute = () => {
+      if (frame.current != null) cancelAnimationFrame(frame.current);
+      if (fallback.current != null) clearTimeout(fallback.current);
       frame.current = null;
+      fallback.current = null;
       try {
         const byChannelName = new Map<string, RoomActivityEntry>();
         const byDirectUserId = new Map<string, RoomActivityEntry>();
@@ -137,8 +141,12 @@ export function useLiveRoomActivity(): LiveRoomActivity {
     };
 
     const schedule = () => {
-      if (frame.current != null) return;
+      if (frame.current != null || fallback.current != null) return;
+      // rAF batches a burst of events into one pass, but browsers pause it in
+      // background tabs and minimised windows — the timer keeps the sidebar
+      // dots, tab title and badges current there too.
       frame.current = requestAnimationFrame(recompute);
+      fallback.current = setTimeout(recompute, 250);
     };
 
     recompute();
@@ -165,6 +173,10 @@ export function useLiveRoomActivity(): LiveRoomActivity {
 
     return () => {
       unsubscribe();
+      if (fallback.current != null) {
+        clearTimeout(fallback.current);
+        fallback.current = null;
+      }
       if (frame.current != null) {
         cancelAnimationFrame(frame.current);
         frame.current = null;

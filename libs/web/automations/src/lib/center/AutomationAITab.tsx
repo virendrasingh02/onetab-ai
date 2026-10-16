@@ -76,9 +76,9 @@ export function AutomationAITab() {
 
       {/* Safety & Guardrails Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4 border-l-4 border-l-emerald-500">
+        <Card className="p-4 border-l-4 border-l-success">
           <div className="flex items-center gap-2 mb-1.5">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <ShieldCheck className="h-4 w-4 text-success-text" />
             <h4 className="font-semibold text-sm text-foreground">Human-in-the-Loop</h4>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">

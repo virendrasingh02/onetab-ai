@@ -309,7 +309,7 @@ export function DashboardPage() {
             ) : attentionItems.length === 0 ? (
               <Card className="bg-surface/50 border-dashed">
                 <CardContent className="py-6 flex flex-col items-center text-center">
-                  <div className="size-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-2">
+                  <div className="size-10 rounded-full bg-success/10 text-success-text flex items-center justify-center mb-2">
                     <CheckCircle2 className="size-5" />
                   </div>
                   <p className="text-xs font-semibold text-foreground">
@@ -439,7 +439,7 @@ export function DashboardPage() {
                     <span className="text-[10px] uppercase font-semibold tracking-wider">
                       Direct Messages
                     </span>
-                    <MessageSquare className="size-3.5 group-hover:text-emerald-500 transition-colors" />
+                    <MessageSquare className="size-3.5 group-hover:text-success-text transition-colors" />
                   </div>
                   <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary">
                     Direct Conversations
@@ -720,7 +720,7 @@ export function DashboardPage() {
                         <div className="gap-3 min-w-0 flex items-start">
                           <div className="mt-0.5 shrink-0">
                             {step.done ? (
-                              <CheckCircle2 className="size-4 text-emerald-500" aria-hidden />
+                              <CheckCircle2 className="size-4 text-success-text" aria-hidden />
                             ) : (
                               <div className="size-4 rounded-full border-2 border-muted-foreground/40" />
                             )}

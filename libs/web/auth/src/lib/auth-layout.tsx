@@ -33,8 +33,8 @@ export function AuthLayout({
 
   return (
     <div className="dark min-h-screen flex flex-col justify-between items-center bg-background text-foreground px-4 py-8 sm:py-10 selection:bg-primary/25">
-      {/* Top Header Bar with Brand Emblem & Language Switcher */}
-      <header className="pt-2 sm:pt-4 w-full max-w-4xl px-4 flex items-center justify-between">
+      {/* Top Header Bar with centered Brand Emblem */}
+      <header className="pt-2 sm:pt-4 w-full max-w-4xl px-4 flex items-center justify-center">
         <Link
           to="/"
           className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -47,16 +47,7 @@ export function AuthLayout({
             {brandName}
           </span>
         </Link>
-
-        <div className="flex items-center">
-          <LanguageSelect
-            value={locale}
-            onChange={(code) => setLocale(code)}
-            compact
-          />
-        </div>
       </header>
-
 
       {/* Main Content Area */}
       <main className="w-full max-w-[380px] my-auto py-8 flex flex-col items-center">
@@ -105,6 +96,14 @@ export function AuthLayout({
           <a href="#support" className="hover:text-foreground transition-colors">
             Support
           </a>
+        </div>
+
+        <div className="flex justify-center pt-1">
+          <LanguageSelect
+            value={locale}
+            onChange={(code) => setLocale(code)}
+            compact
+          />
         </div>
       </footer>
     </div>

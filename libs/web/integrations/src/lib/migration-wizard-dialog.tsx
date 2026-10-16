@@ -317,7 +317,7 @@ export function MigrationWizardDialog({
                     </h4>
                     <span className="text-xs text-muted-foreground">
                       {capabilities.canMigrate ? (
-                        <span className="text-emerald-500 font-medium flex items-center gap-1">
+                        <span className="text-success-text font-medium flex items-center gap-1">
                           <CheckCircle2 className="size-3.5" /> Ready for migration
                         </span>
                       ) : (
@@ -431,7 +431,7 @@ export function MigrationWizardDialog({
                         }`}
                       >
                         {chk.status === 'passed' ? (
-                          <CheckCircle2 className="size-4 text-emerald-500 shrink-0 mt-0.5" />
+                          <CheckCircle2 className="size-4 text-success-text shrink-0 mt-0.5" />
                         ) : chk.status === 'warning' ? (
                           <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
                         ) : (
@@ -735,7 +735,7 @@ export function MigrationWizardDialog({
 
                   {preview.channels.filter((c) => c.conflictType !== 'none').length === 0 && (
                     <div className="p-8 text-center rounded-xl border border-dashed border-border/80">
-                      <CheckCircle2 className="size-8 mx-auto text-emerald-500 mb-2" />
+                      <CheckCircle2 className="size-8 mx-auto text-success-text mb-2" />
                       <h4 className="text-sm font-semibold text-foreground">No Conflicts Detected</h4>
                       <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                         All Slack channels and user identities map cleanly to distinct entities in this workspace.
@@ -898,9 +898,9 @@ export function MigrationWizardDialog({
           {/* STEP 8: Validation & Final Report */}
           {step === 8 && (
             <div className="space-y-6">
-              <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+              <div className="p-5 rounded-2xl bg-success/10 border border-success/20 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="size-8 text-emerald-500" />
+                  <CheckCircle2 className="size-8 text-success-text" />
                   <div>
                     <h3 className="text-base font-semibold text-foreground">
                       Import Complete & Verified
@@ -996,7 +996,7 @@ export function MigrationWizardDialog({
 
                 {(!finalReport?.aiAdoptionInsights || finalReport.aiAdoptionInsights.length === 0) && (
                   <Card className="p-6 text-center">
-                    <CheckCircle2 className="size-8 mx-auto text-emerald-500 mb-2" />
+                    <CheckCircle2 className="size-8 mx-auto text-success-text mb-2" />
                     <h4 className="text-sm font-semibold text-foreground">Workspace Fully Optimized</h4>
                     <p className="text-xs text-muted-foreground mt-1">
                       Your channels, DMs, and files are ready. Explore Projects, Tasks, and Meetings in the sidebar.

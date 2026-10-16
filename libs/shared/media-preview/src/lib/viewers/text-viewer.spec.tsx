@@ -47,7 +47,7 @@ describe('TextViewer', () => {
     const content = ['+++ b/file', '+added line', '-removed line', ' context'].join('\n');
     render(<TextViewer item={item({ inlineText: content, isDiff: true, language: 'diff' })} />);
 
-    expect(screen.getByText(/added line/).closest('div')).toHaveClass('bg-emerald-500/10');
+    expect(screen.getByText(/added line/).closest('div')).toHaveClass('bg-success/10');
     expect(screen.getByText(/removed line/).closest('div')).toHaveClass('bg-red-500/10');
   });
 });

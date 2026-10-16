@@ -51,6 +51,10 @@ import {
   useGroupDirectMessages,
   type GroupDirectMessageSummary,
 } from '@org/web-chat';
+import {
+  mergeDirectMessageActivity,
+  type LiveDirectMessageCounts,
+} from './merge-dm-activity.js';
 import { useMembers } from '@org/web-members';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -538,11 +542,14 @@ function GroupDmRow({
 export function DirectMessagesSection({
   workspaceSlug,
   lastMessageAt,
+  liveCounts,
   activityReady = false,
 }: {
   workspaceSlug: string;
   /** Epoch ms of the last message in each 1:1 DM, by peer user id. */
   lastMessageAt?: Record<string, number>;
+  /** Live Matrix unread / mention counts per 1:1 DM, by peer user id. */
+  liveCounts?: LiveDirectMessageCounts;
   /** Whether DM activity has loaded; nothing is folded away until it has. */
   activityReady?: boolean;
 }) {
@@ -561,9 +568,19 @@ export function DirectMessagesSection({
    * rows by DM peer — the same data that drives the channel dots.
    */
   const notificationFeed = useNotificationFeed(workspaceId);
-  const dmActivity = useDirectMessageActivity(
+  const feedDmActivity = useDirectMessageActivity(
     workspaceId,
     notificationFeed.data,
+  );
+  /*
+   * The feed only knows what reached the notification pipeline, on its poll
+   * cadence; the Matrix room knows the moment a message lands and clears the
+   * moment it's read. Merge the live counts over the feed's, exactly as the
+   * channel rows do, keeping the feed as the backstop for unsynced rooms.
+   */
+  const dmActivity = useMemo(
+    () => mergeDirectMessageActivity(feedDmActivity, liveCounts),
+    [feedDmActivity, liveCounts],
   );
 
   const resourceOrders = useSidebarStore((s) => s.resourceOrders);

@@ -168,7 +168,7 @@ export function WidgetBuilderPage() {
               v{definition.version ?? 1}
             </Badge>
             {definition.visibility !== 'PRIVATE' && (
-              <Badge variant="secondary" className="text-[10px] text-emerald-500">
+              <Badge variant="secondary" className="text-[10px] text-success-text">
                 Workspace Shared
               </Badge>
             )}

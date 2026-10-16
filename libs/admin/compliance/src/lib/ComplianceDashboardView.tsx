@@ -171,7 +171,7 @@ export function ComplianceDashboardView() {
               <div>
                 <div className="flex items-center justify-between text-xs mb-1.5">
                   <span className="font-medium flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                    <span className="w-2 h-2 rounded-full bg-success inline-block" />
                     Mac App Store (macOS MAS)
                   </span>
                   <span className="font-mono font-medium">
@@ -180,7 +180,7 @@ export function ComplianceDashboardView() {
                 </div>
                 <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
                   <div
-                    className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                    className="bg-success h-full rounded-full transition-all duration-500"
                     style={{ width: `${data.storeReadiness.macAppStore}%` }}
                   />
                 </div>
@@ -414,7 +414,7 @@ export function ComplianceDashboardView() {
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <Button variant="outline" className="h-auto py-3 flex-col gap-1.5" asChild>
           <Link to="/compliance/checklist">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            <CheckCircle2 className="w-5 h-5 text-success-text" />
             <span className="text-xs font-medium">Pre-Submission</span>
           </Link>
         </Button>

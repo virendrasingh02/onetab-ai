@@ -220,8 +220,8 @@ export function CheckoutModal({
               Coupon code
             </label>
             {appliedCode ? (
-              <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs">
-                <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+              <div className="flex items-center justify-between rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-xs">
+                <span className="flex items-center gap-1.5 font-medium text-success-text">
                   <Check className="size-3.5" aria-hidden />
                   <span className="font-mono">{appliedCode}</span> applied
                 </span>
@@ -305,7 +305,7 @@ export function CheckoutModal({
                   <span>{money(quote.subtotalCents, quote.currency)}</span>
                 </div>
                 {quote.discountCents > 0 && (
-                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                  <div className="flex justify-between text-success-text font-medium">
                     <span>Discount ({quote.promotionCode})</span>
                     <span>-{money(quote.discountCents, quote.currency)}</span>
                   </div>

@@ -235,12 +235,30 @@ export function useWorkspaceMemberPreferencesSync(
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
+      /*
+       * Send only the keys this store changed. The blob is shared with other
+       * writers (DM favorites/mutes/bookmarks, Studio favorites) that update
+       * it directly; pushing the whole snapshot hydrated earlier would
+       * silently roll their newer values back.
+       */
+      const appliedBefore = lastAppliedRef.current;
+      const previous = appliedBefore
+        ? (JSON.parse(appliedBefore) as Record<string, unknown>)
+        : {};
+      const next = stored ?? {};
+      const patch: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(next)) {
+        if (JSON.stringify(value) !== JSON.stringify(previous[key])) {
+          patch[key] = value;
+        }
+      }
       lastAppliedRef.current = serialized;
+      if (Object.keys(patch).length === 0) return;
       workspaceApi
-        .saveMemberPreferences(workspaceId as string, stored ?? {})
+        .saveMemberPreferences(workspaceId as string, patch)
         .catch(() => {
-          // Retry on the next change; the local store is unaffected.
-          lastAppliedRef.current = '';
+          // Retry these keys on the next change; the local store is unaffected.
+          lastAppliedRef.current = appliedBefore;
         });
     }, SYNC_DEBOUNCE_MS);
 

@@ -168,7 +168,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
             Annual Billing
             <Badge
               variant="primary"
-              className="px-2 py-0 text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+              className="px-2 py-0 text-[10px] font-bold bg-success/15 text-success-text border-success/20"
             >
               SAVE 20%
             </Badge>

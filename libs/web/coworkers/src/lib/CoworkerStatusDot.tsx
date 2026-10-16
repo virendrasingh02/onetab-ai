@@ -21,8 +21,8 @@ const STATUS_CONFIG: Record<
 > = {
   AVAILABLE: {
     label: 'Available',
-    dotClass: 'bg-emerald-500 ring-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.4)]',
-    textClass: 'text-emerald-700 dark:text-emerald-400',
+    dotClass: 'bg-success ring-success/20 shadow-[0_0_8px_color-mix(in_oklab,var(--color-success)_40%,transparent)]',
+    textClass: 'text-success-text',
     description: 'Ready to take requests in channels, projects, or direct messages.',
   },
   WORKING: {

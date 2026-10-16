@@ -104,7 +104,7 @@ export function AutomationAnalyticsTab() {
 
       {/* ROI & High-level Value Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 bg-gradient-to-br from-emerald-500/5 to-transparent border-emerald-500/20">
+        <Card className="p-4 bg-gradient-to-br from-success/5 to-transparent border-success/20">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
             Time Saved (Estimated)
           </span>
@@ -112,7 +112,7 @@ export function AutomationAnalyticsTab() {
             <span className="text-2xl font-bold text-foreground">
               {estimatedHours.toFixed(1)} hrs
             </span>
-            <span className="text-xs text-emerald-600 font-medium flex items-center">
+            <span className="text-xs text-success-text font-medium flex items-center">
               <TrendingUp className="h-3 w-3 mr-0.5" /> +12%
             </span>
           </div>
@@ -144,7 +144,7 @@ export function AutomationAnalyticsTab() {
             <span className="text-2xl font-bold text-foreground">
               {data.successRate.toFixed(1)}%
             </span>
-            <span className={`text-xs font-medium ${data.successRate >= 95 ? 'text-emerald-600' : 'text-amber-600'}`}>
+            <span className={`text-xs font-medium ${data.successRate >= 95 ? 'text-success-text' : 'text-amber-600'}`}>
               {data.successRate >= 95 ? 'Healthy' : 'Needs attention'}
             </span>
           </div>
@@ -215,7 +215,7 @@ export function AutomationAnalyticsTab() {
                 {/* Tooltip on hover */}
                 <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col bg-popover text-popover-foreground border shadow-md rounded p-1.5 text-[11px] z-10 whitespace-nowrap pointer-events-none">
                   <span className="font-semibold">{day.date}</span>
-                  <span className="text-emerald-500 font-mono">Success: {day.success}</span>
+                  <span className="text-success-text font-mono">Success: {day.success}</span>
                   <span className="text-rose-500 font-mono">Failed: {day.failed}</span>
                 </div>
               </div>
@@ -262,7 +262,7 @@ export function AutomationAnalyticsTab() {
           </h4>
 
           {data.failingWorkflows.length === 0 ? (
-            <div className="p-4 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-2">
+            <div className="p-4 rounded bg-success/10 text-success-text text-xs flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
               All workflows are currently executing cleanly without recurrent errors!
             </div>

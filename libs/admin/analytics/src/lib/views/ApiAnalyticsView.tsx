@@ -64,7 +64,7 @@ export function ApiAnalyticsView() {
           className={cn(
             'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase',
             row.status === 'ACTIVE'
-              ? 'border-emerald-500/25 bg-emerald-500/15 text-emerald-400 dark:text-emerald-400'
+              ? 'border-success/25 bg-success/15 text-success-text'
               : row.status === 'DEPRECATED'
               ? 'border-amber-500/25 bg-amber-500/15 text-amber-400 dark:text-amber-400'
               : 'border-border/80 bg-muted/60 text-muted-foreground',
@@ -100,7 +100,7 @@ export function ApiAnalyticsView() {
               ? 'text-rose-400 font-semibold'
               : row.errorRate > 0
               ? 'text-amber-400'
-              : 'text-emerald-400',
+              : 'text-success-text',
           )}
         >
           {row.errorRate}%

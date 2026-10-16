@@ -35,6 +35,7 @@ import {
 } from '@org/notifications';
 import {
   NotificationSoundBridge,
+  useDirectMessageMuteSync,
   useLiveRoomActivity,
   type LiveRoomActivity,
   type RoomActivityEntry,
@@ -228,6 +229,8 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
    * later. The feed stays the backstop for anything the client has not synced.
    */
   const liveRoomActivity = useLiveRoomActivity();
+  // Muting a DM also silences its push notifications on every device.
+  useDirectMessageMuteSync(workspaceId);
   const channelActivity = useMemo(() => {
     const merged: Record<string, ActivityIndicator> = { ...feedChannelActivity };
     for (const channel of channelsQuery.data ?? []) {
@@ -281,6 +284,22 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
       if (entry.lastActivityAt) latest[peerId] = entry.lastActivityAt;
     }
     return latest;
+  }, [liveRoomActivity]);
+
+  /*
+   * Live unread / mention counts per 1:1 DM, by peer user id — straight from
+   * the Matrix client, like the channel counts above. The DM rows merge these
+   * over their feed-derived dots so a new message lights the row instantly.
+   */
+  const directMessageLiveCounts = useMemo(() => {
+    const counts: Record<string, { unreadCount: number; mentionCount: number }> = {};
+    for (const [peerId, entry] of liveRoomActivity.byDirectPeerId) {
+      counts[peerId] = {
+        unreadCount: entry.unreadCount,
+        mentionCount: entry.mentionCount,
+      };
+    }
+    return counts;
   }, [liveRoomActivity]);
 
   /*
@@ -457,6 +476,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
       channelActivity={channelActivity}
       channelLastActivity={channelLastActivity}
       directMessageLastActivity={directMessageLastActivity}
+      directMessageLiveCounts={directMessageLiveCounts}
       activityReady={liveRoomActivity.ready}
       onCreateChannel={() => setCreateChannelOpen(true)}
       onBrowseChannels={() => navigate(`/w/${slug}/channels`)}

@@ -3652,7 +3652,7 @@ export function WorkspaceSettingsPage({
                         className={cn(
                           'font-medium text-[10px]',
                           securityOverviewQuery.data?.password.hasPassword
-                            ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
+                            ? 'text-success-text bg-success/10 border-success/20'
                             : 'border-border bg-muted/40 text-muted-foreground',
                         )}
                       >
@@ -3701,7 +3701,7 @@ export function WorkspaceSettingsPage({
                         className={cn(
                           'font-medium text-[10px]',
                           securityOverviewQuery.data?.socialProviders?.google.isConnected
-                            ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
+                            ? 'text-success-text bg-success/10 border-success/20'
                             : 'border-border bg-muted/40 text-muted-foreground',
                         )}
                       >
@@ -3760,7 +3760,7 @@ export function WorkspaceSettingsPage({
                         className={cn(
                           'font-medium text-[10px]',
                           securityOverviewQuery.data?.socialProviders?.apple.isConnected
-                            ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
+                            ? 'text-success-text bg-success/10 border-success/20'
                             : 'border-border bg-muted/40 text-muted-foreground',
                         )}
                       >
@@ -3825,7 +3825,7 @@ export function WorkspaceSettingsPage({
                         className={cn(
                           'font-medium text-[10px]',
                           securityOverviewQuery.data?.twoFactor.isEnabled
-                            ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
+                            ? 'text-success-text bg-success/10 border-success/20'
                             : 'border-border bg-muted/40 text-muted-foreground',
                         )}
                       >
@@ -4313,7 +4313,7 @@ export function WorkspaceSettingsPage({
 
           {totpBackupCodes ? (
             <DialogBody className="space-y-4">
-              <div className="p-3 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 text-xs rounded-lg border">
+              <div className="p-3 border-success/20 bg-success/10 text-success-text text-xs rounded-lg border">
                 Two-factor authentication is now active! Please save these
                 emergency recovery codes in a safe place.
               </div>

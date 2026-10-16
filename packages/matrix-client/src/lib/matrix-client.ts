@@ -648,7 +648,24 @@ export class OneTabMatrixClient {
 
     // Saved-for-later lives in global account data, so a save on another
     // device (or tab) shows up here without a reload.
+    // Push rules are global account data too — a mute made on another device
+    // or workspace arrives here.
     sdk.on(ClientEvent.AccountData, (event) => {
+      // A new DM is created first and tagged in m.direct afterwards, so its
+      // room reads as a channel until this lands; re-announce every room whose
+      // kind may have changed, then the map itself.
+      if (event.getType() === 'm.direct') {
+        for (const room of sdk.getRooms()) {
+          this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
+        }
+        this.emit({ type: 'direct.updated' });
+        return;
+      }
+      if (event.getType() === 'm.push_rules') {
+        this.settlePendingMutes(sdk);
+        this.emit({ type: 'pushrules.updated' });
+        return;
+      }
       if (event.getType() !== SAVED_MESSAGES_EVENT) return;
       this.emit({ type: 'saved.updated', saved: readSavedMessages(sdk) });
     });
@@ -1818,6 +1835,84 @@ export class OneTabMatrixClient {
   /** Whether automatic read receipts are currently held for a room. */
   isReadHeld(roomId: RoomId): boolean {
     return this.readHolds.has(roomId);
+  }
+
+  /**
+   * This user's `m.direct` map: peer Matrix user id → the DM room ids recorded
+   * for them. Unlike `Room.directUserId`, it knows a DM the peer has only been
+   * invited to and not joined yet.
+   */
+  getDirectRoomIds(): Record<string, RoomId[]> {
+    return readDirectMap(this.require());
+  }
+
+  /**
+   * Room mutes written by this client that the synced push rules may not
+   * reflect yet — the SDK only refreshes `pushRules` from the next sync's
+   * account data. Entries drop once the synced rules agree.
+   */
+  private readonly pendingMutes = new Map<RoomId, boolean>();
+
+  private syncedRoomMuted(sdk: SdkClient, roomId: RoomId): boolean {
+    return !!sdk.pushRules?.global?.override?.some(
+      (rule) => rule.rule_id === roomId && rule.enabled !== false,
+    );
+  }
+
+  /**
+   * Whether this user has silenced the whole room with a push rule — the rule
+   * {@link setRoomMuted} writes. Push rules are per account, so the answer is
+   * the same in every workspace and on every device.
+   */
+  isRoomMuted(roomId: RoomId): boolean {
+    const sdk = this.require();
+    return this.pendingMutes.get(roomId) ?? this.syncedRoomMuted(sdk, roomId);
+  }
+
+  /**
+   * Silences (or restores) every notification from one room — phone/desktop
+   * push and the room's notification counts — via a user override push rule
+   * keyed on the room id, the same rule Element writes for "Mute". User
+   * override rules outrank the server-default ones, so mentions are silenced
+   * too: muting a conversation means it stays quiet. Applied optimistically;
+   * listeners hear `pushrules.updated` immediately and again on failure.
+   */
+  async setRoomMuted(roomId: RoomId, muted: boolean): Promise<void> {
+    const sdk = this.require();
+    if (this.isRoomMuted(roomId) === muted) return;
+    const previous = this.pendingMutes.get(roomId);
+    this.pendingMutes.set(roomId, muted);
+    this.emit({ type: 'pushrules.updated' });
+    try {
+      if (muted) {
+        await sdk.addPushRule('global', PushRuleKind.Override, roomId, {
+          actions: [],
+          conditions: [
+            { kind: ConditionKind.EventMatch, key: 'room_id', pattern: roomId },
+          ],
+        });
+      } else {
+        await sdk.deletePushRule('global', PushRuleKind.Override, roomId);
+      }
+    } catch (error) {
+      // Unmuting a room whose rule is already gone is the outcome we wanted.
+      if (!muted && (error as { httpStatus?: number })?.httpStatus === 404) {
+        return;
+      }
+      if (previous === undefined) this.pendingMutes.delete(roomId);
+      else this.pendingMutes.set(roomId, previous);
+      this.emit({ type: 'pushrules.updated' });
+      throw error;
+    }
+  }
+
+  /** Drops optimistic mutes the freshly synced push rules now agree with. */
+  private settlePendingMutes(sdk: SdkClient): void {
+    for (const [roomId, muted] of this.pendingMutes) {
+      if (this.syncedRoomMuted(sdk, roomId) === muted) {
+        this.pendingMutes.delete(roomId);
+      }
+    }
   }
 
   /**

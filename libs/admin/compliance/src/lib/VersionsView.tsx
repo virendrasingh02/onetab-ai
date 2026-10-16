@@ -335,7 +335,7 @@ export function VersionsView() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
                 <div className="flex items-center gap-3">
                   {readyForRelease ? (
-                    <ShieldCheck className="h-7 w-7 text-emerald-600 shrink-0" />
+                    <ShieldCheck className="h-7 w-7 text-success-text shrink-0" />
                   ) : (
                     <ShieldAlert className="h-7 w-7 text-destructive shrink-0" />
                   )}

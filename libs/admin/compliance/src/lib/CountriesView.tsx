@@ -245,7 +245,7 @@ export function CountriesView() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <div>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                  <ShieldCheck className="h-5 w-5 text-success-text" />
                   {activeCountry ? (
                     <>
                       {activeCountry.name} ({activeCountry.code})
@@ -360,7 +360,7 @@ export function CountriesView() {
                               </div>
                               <div className="flex items-center gap-2 mt-1">
                                 {isCountryScope ? (
-                                  <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-700 dark:text-emerald-300">
+                                  <Badge variant="outline" className="text-[10px] border-success text-success-text">
                                     Country Override ({selectedCountryCode})
                                   </Badge>
                                 ) : (

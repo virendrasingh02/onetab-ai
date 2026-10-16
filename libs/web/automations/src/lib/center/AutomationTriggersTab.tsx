@@ -315,7 +315,7 @@ export function AutomationTriggersTab() {
                     className="h-6 text-xs gap-1"
                     onClick={handleCopyCurl}
                   >
-                    {copiedCurl ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                    {copiedCurl ? <Check className="h-3 w-3 text-success-text" /> : <Copy className="h-3 w-3" />}
                     {copiedCurl ? 'Copied' : 'Copy Curl'}
                   </Button>
                 </div>

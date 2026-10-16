@@ -74,8 +74,8 @@ export function AutomationErrorsTab() {
       </div>
 
       {errorGroups.length === 0 ? (
-        <Card className="p-8 text-center bg-emerald-500/5 border-emerald-500/20">
-          <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3">
+        <Card className="p-8 text-center bg-success/5 border-success/20">
+          <div className="mx-auto w-12 h-12 rounded-full bg-success/10 text-success-text flex items-center justify-center mb-3">
             <CheckCircle2 className="h-6 w-6" />
           </div>
           <h4 className="font-semibold text-base text-foreground mb-1">

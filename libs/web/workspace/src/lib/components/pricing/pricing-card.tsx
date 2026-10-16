@@ -218,7 +218,7 @@ export function PricingCard({
                   {isExcluded ? (
                     <Minus className="size-3.5 mt-0.5 shrink-0 text-muted-foreground/60" />
                   ) : (
-                    <Check className="size-3.5 mt-0.5 shrink-0 text-emerald-500" />
+                    <Check className="size-3.5 mt-0.5 shrink-0 text-success-text" />
                   )}
                   <span
                     className={`leading-snug ${

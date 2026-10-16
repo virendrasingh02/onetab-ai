@@ -80,7 +80,7 @@ const STATUS_VARIANTS: Record<
     label: 'Pass',
     variant: 'success',
     icon: CheckCircle2,
-    color: 'text-emerald-600',
+    color: 'text-success-text',
   },
   FAILED: {
     label: 'Fail',
@@ -438,7 +438,7 @@ export function ChecklistView() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-emerald-600" />
+                    <Shield className="h-4 w-4 text-success-text" />
                     Verification Items ({items.length})
                   </CardTitle>
                   <CardDescription>

@@ -320,13 +320,13 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
         <div
           className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
             testResult.success
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+              ? 'border-success/30 bg-success/10 text-success-text'
               : 'border-destructive/30 bg-destructive/10 text-destructive'
           }`}
         >
           <div className="flex items-center gap-2">
             {testResult.success ? (
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <CheckCircle2 className="size-4 shrink-0 text-success-text" />
             ) : (
               <AlertCircle className="size-4 shrink-0 text-destructive" />
             )}

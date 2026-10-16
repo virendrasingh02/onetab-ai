@@ -44,7 +44,7 @@ export const AIEntityAvatar: FC<AIEntityAvatarProps> = ({
         ? 'bg-destructive'
         : status === 'IDLE'
           ? 'bg-muted-foreground'
-          : 'bg-emerald-500';
+          : 'bg-success';
 
   return (
     <div

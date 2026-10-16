@@ -385,8 +385,8 @@ const ACTIVE_LANES = [
     sub: 'Int Node • Watching',
     count: '420',
     pct: 9,
-    color: 'bg-emerald-500',
-    dot: 'bg-emerald-500',
+    color: 'bg-success',
+    dot: 'bg-success',
   },
 ];
 
@@ -1287,7 +1287,7 @@ export function OverviewDashboardView() {
                             className={cn(
                               'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium',
                               isDone
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                ? 'bg-success/10 text-success-text border border-success/20'
                                 : isInProcess
                                 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
                                 : 'bg-muted text-muted-foreground border border-border',

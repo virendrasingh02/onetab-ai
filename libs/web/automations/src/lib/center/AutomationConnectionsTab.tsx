@@ -181,12 +181,12 @@ export function AutomationConnectionsTab() {
                     variant={isConnected ? 'success' : 'outline'}
                     className={`text-[11px] gap-1 ${
                       isConnected
-                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                        ? 'bg-success/15 text-success-text border-success/30'
                         : 'text-muted-foreground'
                     }`}
                   >
                     {isConnected ? (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      <CheckCircle2 className="h-3 w-3 text-success-text" />
                     ) : (
                       <XCircle className="h-3 w-3 text-muted-foreground" />
                     )}

@@ -93,7 +93,7 @@ function getCategoryBadge(category: EmailTemplateCategory | string) {
   else if (cat === 'TEAM') colorCls = 'bg-indigo-500/15 text-indigo-400 border-indigo-500/25';
   else if (cat === 'PROJECTS') colorCls = 'bg-sky-500/15 text-sky-400 border-sky-500/25';
   else if (cat === 'TASKS') colorCls = 'bg-amber-500/15 text-amber-400 border-amber-500/25';
-  else if (cat === 'DOCS') colorCls = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25';
+  else if (cat === 'DOCS') colorCls = 'bg-accent-green-soft text-accent-green border-accent-green/25';
   else if (cat === 'MESSAGING') colorCls = 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25';
   else if (cat === 'MEETINGS') colorCls = 'bg-purple-500/15 text-purple-400 border-purple-500/25';
   else if (cat === 'AI_AGENTS') colorCls = 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/25';
@@ -115,7 +115,7 @@ function getStatusBadge(status: EmailDeliveryStatus) {
   switch (status) {
     case 'DELIVERED':
       return (
-        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/15 text-emerald-400 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+        <span className="inline-flex items-center gap-1 rounded-full border border-success/25 bg-success/15 text-success-text px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
           <CheckCircle2 className="size-3" />
           DELIVERED
         </span>
@@ -553,7 +553,7 @@ export function EmailDeliveriesView() {
                             <span
                               className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase ${
                                 tpl.status === 'ACTIVE'
-                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+                                  ? 'bg-success/15 text-success-text border border-success/25'
                                   : 'bg-muted text-muted-foreground border border-border'
                               }`}
                             >
@@ -675,7 +675,7 @@ export function EmailDeliveriesView() {
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Delivery Queue
                   </span>
-                  <ShieldCheck className="size-4 text-emerald-400" />
+                  <ShieldCheck className="size-4 text-success-text" />
                 </div>
                 <div className="text-sm font-semibold text-foreground">
                   {providersData
@@ -711,7 +711,7 @@ export function EmailDeliveriesView() {
                         <div className="flex items-center gap-2">
                           <div
                             className={`size-2.5 rounded-full ${
-                              p.ready ? 'bg-emerald-400' : 'bg-muted-foreground'
+                              p.ready ? 'bg-success' : 'bg-muted-foreground'
                             }`}
                           />
                           <span className="font-semibold text-sm capitalize">{p.provider}</span>
@@ -722,7 +722,7 @@ export function EmailDeliveriesView() {
                         <span
                           className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full border ${
                             p.ready
-                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
+                              ? 'bg-success/15 text-success-text border-success/25'
                               : 'bg-muted text-muted-foreground border-border'
                           }`}
                         >
@@ -1230,7 +1230,7 @@ export function EmailDeliveriesView() {
               <div
                 className={`p-3 rounded-lg border text-xs ${
                   testStatusMessage.startsWith('Success')
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    ? 'bg-success/10 border-success/30 text-success-text'
                     : 'bg-destructive/10 border-destructive/30 text-destructive'
                 }`}
               >
@@ -1420,7 +1420,7 @@ export function EmailDeliveriesView() {
                     </div>
                   )}
                   {selectedEmail.deliveredAt && (
-                    <div className="flex justify-between text-emerald-400">
+                    <div className="flex justify-between text-success-text">
                       <span>Delivered:</span>
                       <span className="font-mono font-medium">
                         {formatDateTime(selectedEmail.deliveredAt)}

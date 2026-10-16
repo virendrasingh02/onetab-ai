@@ -1,18 +1,43 @@
 import type { ChannelBookmark } from '@org/types';
 import { toast } from '@org/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { generateId } from '@org/utils';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  DM_BOOKMARKS_KEY,
+  useMemberPreferenceBlob,
+} from './use-dm-preferences.js';
+
+type BookmarksByPeer = Record<string, ChannelBookmark[]>;
+
+const NO_BOOKMARKS: ChannelBookmark[] = [];
+
+const isBookmark = (value: unknown): value is ChannelBookmark =>
+  !!value &&
+  typeof value === 'object' &&
+  typeof (value as ChannelBookmark).id === 'string' &&
+  typeof (value as ChannelBookmark).label === 'string' &&
+  typeof (value as ChannelBookmark).href === 'string';
+
+const toByPeer = (value: unknown): BookmarksByPeer => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const out: BookmarksByPeer = {};
+  for (const [peer, list] of Object.entries(value as Record<string, unknown>)) {
+    if (Array.isArray(list)) out[peer] = list.filter(isBookmark);
+  }
+  return out;
+};
+
+/** Pre-server localStorage key prefix: `onetab_dm_bm_<workspace>_<peer>`. */
+const legacyPrefix = (workspaceId: string) => `onetab_dm_bm_${workspaceId}_`;
 
 /**
- * Private, per-browser bookmarks for a 1:1 direct message — the DM counterpart
- * of `useChannelBookmarks`.
+ * Private bookmarks for a 1:1 direct message — the DM counterpart of
+ * `useChannelBookmarks`.
  *
- * A DM has no server-side record to hang these off (the same reason
- * `useDirectMessagePreferences` is a local store), so they live in
- * `localStorage`, keyed by workspace + peer. The peer id is stable and is
- * available before the Matrix room resolves, so it — not the room id — is the
- * key; the note-to-self conversation keys on the reader's own id and is just as
- * durable as any other.
+ * Stored in the member's server-side workspace preferences (keyed by peer id,
+ * which is stable and known before the Matrix room resolves), so they follow
+ * the member to every device. The note-to-self conversation keys on the
+ * reader's own id.
  *
  * Group DMs deliberately do not get this: it is a 1:1 affordance, matching the
  * rest of `DirectConversation`'s chrome.
@@ -21,79 +46,71 @@ export function useDirectMessageBookmarks(
   workspaceId: string | undefined,
   peerId: string | undefined,
 ) {
-  const storageKey = useMemo(
-    () => `onetab_dm_bm_${workspaceId || 'default'}_${peerId || 'default'}`,
-    [workspaceId, peerId],
-  );
+  const { query, save, current } = useMemberPreferenceBlob(workspaceId);
 
-  const [bookmarks, setBookmarks] = useState<ChannelBookmark[]>(() => {
-    if (typeof window === 'undefined' || !peerId) return [];
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {
-      // ignore
-    }
-    return [];
-  });
-
+  // One-time import of bookmarks this browser kept before they were synced.
+  const imported = useRef<string | null>(null);
   useEffect(() => {
-    if (typeof window === 'undefined' || !peerId) return;
+    if (!workspaceId || !query.data || imported.current === workspaceId) return;
+    imported.current = workspaceId;
+    if (DM_BOOKMARKS_KEY in query.data) return;
     try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setBookmarks(parsed);
-          return;
+      const prefix = legacyPrefix(workspaceId);
+      const legacy: BookmarksByPeer = {};
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (!key?.startsWith(prefix)) continue;
+        keys.push(key);
+        const list = JSON.parse(localStorage.getItem(key) ?? '[]');
+        if (Array.isArray(list) && list.some(isBookmark)) {
+          legacy[key.slice(prefix.length)] = list.filter(isBookmark);
         }
       }
+      if (Object.keys(legacy).length) save({ [DM_BOOKMARKS_KEY]: legacy });
+      for (const key of keys) localStorage.removeItem(key);
     } catch {
-      // ignore
+      // Unreadable legacy state — nothing worth importing.
     }
-    setBookmarks([]);
-  }, [storageKey, peerId]);
+  }, [workspaceId, query.data, save]);
+
+  const bookmarks = useMemo(
+    () =>
+      peerId
+        ? (toByPeer(query.data?.[DM_BOOKMARKS_KEY])[peerId] ?? NO_BOOKMARKS)
+        : NO_BOOKMARKS,
+    [query.data, peerId],
+  );
+
+  const write = useCallback(
+    (update: (list: ChannelBookmark[]) => ChannelBookmark[]) => {
+      if (!workspaceId || !peerId) return;
+      const byPeer = toByPeer(current()[DM_BOOKMARKS_KEY]);
+      const next = update(byPeer[peerId] ?? []);
+      if (next.length) byPeer[peerId] = next;
+      else delete byPeer[peerId];
+      save({ [DM_BOOKMARKS_KEY]: byPeer });
+    },
+    [workspaceId, peerId, current, save],
+  );
 
   const addBookmark = useCallback(
     (bookmark: Omit<ChannelBookmark, 'id'>) => {
-      setBookmarks((prev) => {
-        const newEntry: ChannelBookmark = {
-          ...bookmark,
-          id: generateId('bm'),
-        };
-        const updated = [...prev, newEntry];
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(updated));
-        } catch {
-          // ignore
-        }
-        toast.success(`Bookmark "${bookmark.label}" saved`);
-        return updated;
-      });
+      write((list) => [...list, { ...bookmark, id: generateId('bm') }]);
+      toast.success(`Bookmark "${bookmark.label}" saved`);
     },
-    [storageKey],
+    [write],
   );
 
   const removeBookmark = useCallback(
     (id: string) => {
-      setBookmarks((prev) => {
-        const target = prev.find((b) => b.id === id);
-        const updated = prev.filter((b) => b.id !== id);
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(updated));
-        } catch {
-          // ignore
-        }
-        toast.info(
-          target ? `Bookmark "${target.label}" removed` : 'Bookmark removed',
-        );
-        return updated;
-      });
+      const target = bookmarks.find((b) => b.id === id);
+      write((list) => list.filter((b) => b.id !== id));
+      toast.info(
+        target ? `Bookmark "${target.label}" removed` : 'Bookmark removed',
+      );
     },
-    [storageKey],
+    [write, bookmarks],
   );
 
   return {

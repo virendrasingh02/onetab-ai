@@ -577,6 +577,11 @@ export interface ChannelNavProps {
   channelLastActivity?: Record<string, string>;
   /** Epoch ms of the last message in each DM, by peer user id. */
   directMessageLastActivity?: Record<string, number>;
+  /** Live Matrix unread / mention counts per DM, by peer user id. */
+  directMessageLiveCounts?: Record<
+    string,
+    { unreadCount: number; mentionCount: number }
+  >;
   /**
    * Whether live room activity has loaded. Until then no conversation is
    * folded into "Inactive", so rows don't jump around on start-up.
@@ -597,6 +602,7 @@ export function ChannelNav({
   channelActivity,
   channelLastActivity,
   directMessageLastActivity,
+  directMessageLiveCounts,
   activityReady = false,
   onCreateChannel,
   onBrowseChannels,
@@ -1641,6 +1647,7 @@ export function ChannelNav({
                       key="dms"
                       workspaceSlug={workspaceSlug}
                       lastMessageAt={directMessageLastActivity}
+                      liveCounts={directMessageLiveCounts}
                       activityReady={activityReady}
                     />
                   );

@@ -308,7 +308,7 @@ export function AdminPlansView() {
                       </TableCell>
                       <TableCell className="py-3.5 px-5">
                         {feat.included ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/15 text-emerald-400 px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-success/25 bg-success/15 text-success-text px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
                             <Check className="size-3" />
                             Yes
                           </span>

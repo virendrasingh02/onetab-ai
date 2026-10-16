@@ -60,7 +60,7 @@ export function CodeBlockDiff({
         {/* Change Stats */}
         <div className="flex items-center gap-2">
           <span className="font-sans text-muted-foreground">Changes:</span>
-          <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+          <span className="px-1.5 py-0.5 rounded bg-success/10 text-success-text font-semibold">
             +{addedCount}
           </span>
           <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold">
@@ -109,7 +109,7 @@ export function CodeBlockDiff({
                 className="size-6 text-muted-foreground hover:text-foreground"
                 aria-label="Copy modified code"
               >
-                {copied ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                {copied ? <Check className="size-3 text-success-text" /> : <Copy className="size-3" />}
               </Button>
             </TooltipTrigger>
             <TooltipContent>{copied ? 'Copied updated code!' : 'Copy updated code'}</TooltipContent>
@@ -147,7 +147,7 @@ export function CodeBlockDiff({
                     key={`diff-${idx}`}
                     className={cn(
                       'transition-colors',
-                      isAdded && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium',
+                      isAdded && 'bg-success/10 text-success-text font-medium',
                       isRemoved && 'bg-rose-500/10 text-rose-700 dark:text-rose-300 font-medium',
                       !isAdded && !isRemoved && 'text-foreground/90',
                     )}
@@ -235,7 +235,7 @@ export function CodeBlockDiff({
                       key={`mod-${i}`}
                       className={cn(
                         'flex items-center px-2 py-0.5 text-xs',
-                        l.type === 'added' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium',
+                        l.type === 'added' && 'bg-success/10 text-success-text font-medium',
                       )}
                     >
                       <span className="w-8 text-right pr-2 text-muted-foreground/40 text-[11px] select-none">

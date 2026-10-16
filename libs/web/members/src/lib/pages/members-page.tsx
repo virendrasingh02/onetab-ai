@@ -245,7 +245,7 @@ export function MembersPage() {
                           >
                             <div className="size-10 bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400 relative flex shrink-0 items-center justify-center rounded-xl border">
                               <Bot className="size-5" />
-                              <span className="-bottom-0.5 -right-0.5 size-2.5 bg-emerald-500 absolute rounded-full shadow-[0_0_6px_rgba(16,185,129,0.5)] ring-2 ring-background" />
+                              <span className="-bottom-0.5 -right-0.5 size-2.5 bg-success absolute rounded-full shadow-[0_0_6px_color-mix(in_oklab,var(--color-success)_50%,transparent)] ring-2 ring-background" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="gap-2 flex items-center">
@@ -273,8 +273,8 @@ export function MembersPage() {
                           </button>
 
                           <div className="gap-2 flex shrink-0 items-center">
-                            <div className="gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 font-medium flex items-center">
-                              <span className="size-2 bg-emerald-500 ring-emerald-500/20 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] ring-2" />
+                            <div className="gap-1.5 text-xs text-success-text font-medium flex items-center">
+                              <span className="size-2 bg-success ring-success/20 rounded-full shadow-[0_0_8px_color-mix(in_oklab,var(--color-success)_40%,transparent)] ring-2" />
                               <span className="sm:inline hidden">
                                 Available
                               </span>
@@ -571,8 +571,8 @@ export function MembersPage() {
                     <Clock className="size-3.5" />
                     Status
                   </span>
-                  <div className="gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold flex items-center">
-                    <span className="size-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                  <div className="gap-1.5 text-success-text font-semibold flex items-center">
+                    <span className="size-2 bg-success rounded-full shadow-[0_0_8px_color-mix(in_oklab,var(--color-success)_50%,transparent)]" />
                     <span>Available</span>
                   </div>
                 </div>

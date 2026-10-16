@@ -49,7 +49,7 @@ const money = (cents: number, currency = 'USD') =>
   new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100);
 
 const STATUS_STYLE: Record<string, string> = {
-  ACTIVE: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/25',
+  ACTIVE: 'bg-success/15 text-success-text border-success/25',
   TRIALING: 'bg-sky-500/15 text-sky-500 border-sky-500/25',
   PAST_DUE: 'bg-amber-500/15 text-amber-500 border-amber-500/25',
   UNPAID: 'bg-destructive/15 text-destructive border-destructive/25',
@@ -57,7 +57,7 @@ const STATUS_STYLE: Record<string, string> = {
   EXPIRED: 'bg-muted text-muted-foreground border-border',
   INACTIVE: 'bg-muted text-muted-foreground border-border',
   SCHEDULED: 'bg-sky-500/15 text-sky-500 border-sky-500/25',
-  PAID: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/25',
+  PAID: 'bg-success/15 text-success-text border-success/25',
 };
 
 function StatusPill({ value }: { value: string }) {

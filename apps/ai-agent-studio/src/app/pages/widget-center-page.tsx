@@ -174,7 +174,7 @@ export function WidgetCenterPage() {
       case 'DATA_VISUALIZATION':
         return <BarChart3 className="size-4 text-indigo-400" />;
       case 'INTERACTIVE_INPUT':
-        return <FormInput className="size-4 text-emerald-400" />;
+        return <FormInput className="size-4 text-success-text" />;
       case 'AI_POWERED':
         return <Sparkles className="size-4 text-purple-400" />;
       case 'APP_CONNECTOR':
@@ -517,7 +517,7 @@ export function WidgetCenterPage() {
                         <span
                           className={cn(
                             'px-1.5 py-0.5 rounded text-[10px] font-semibold',
-                            ex.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
+                            ex.status === 'SUCCESS' ? 'bg-success/10 text-success-text' : 'bg-rose-500/10 text-rose-500'
                           )}
                         >
                           {ex.status}
@@ -615,7 +615,7 @@ export function WidgetCenterPage() {
                 <span className="font-medium text-foreground">SSRF Protection Engine</span>
                 <p className="text-[11px]">Blocks requests targeting private IPs, AWS metadata, and loopbacks</p>
               </div>
-              <Badge variant="secondary" className="text-emerald-500 font-mono">Enforced</Badge>
+              <Badge variant="secondary" className="text-success-text font-mono">Enforced</Badge>
             </div>
             <div className="flex justify-between items-center py-2">
               <div>

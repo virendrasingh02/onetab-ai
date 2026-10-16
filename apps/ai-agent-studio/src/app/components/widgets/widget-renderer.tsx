@@ -337,7 +337,7 @@ function MetricCardContent({
       </div>
 
       <div className="flex items-center justify-between text-xs pt-2 border-t border-border/40">
-        <div className={cn('flex items-center gap-1 font-medium', isPositive ? 'text-emerald-500' : 'text-rose-500')}>
+        <div className={cn('flex items-center gap-1 font-medium', isPositive ? 'text-success-text' : 'text-rose-500')}>
           {isPositive ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
           <span>{change}</span>
           <span className="text-muted-foreground font-normal ml-1">vs last period</span>
@@ -534,7 +534,7 @@ function TableViewContent({
                     {col === 'status' ? (
                       <span className={cn(
                         'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
-                        String(row[col]).toLowerCase() === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'
+                        String(row[col]).toLowerCase() === 'success' ? 'bg-success/10 text-success-text' : 'bg-amber-500/10 text-amber-500'
                       )}>
                         {row[col]}
                       </span>
@@ -564,7 +564,7 @@ function ProgressSummaryContent({
     if (Array.isArray(data?.items)) return data.items;
     if (Array.isArray(config.items)) return config.items;
     return [
-      { label: 'Agent Tasks Completed', current: 84, total: 100, color: 'bg-emerald-500' },
+      { label: 'Agent Tasks Completed', current: 84, total: 100, color: 'bg-success' },
       { label: 'Token Budget Spent', current: 62, total: 100, color: 'bg-indigo-500' },
       { label: 'Approvals Resolved', current: 95, total: 100, color: 'bg-blue-500' },
     ];
@@ -751,7 +751,7 @@ function ApprovalFormContent({
     return (
       <div className="flex flex-col items-center justify-center py-6 text-center space-y-2">
         {status === 'approved' ? (
-          <CheckCircle2 className="size-8 text-emerald-500" />
+          <CheckCircle2 className="size-8 text-success-text" />
         ) : (
           <XCircle className="size-8 text-rose-500" />
         )}
@@ -789,7 +789,7 @@ function ApprovalFormContent({
         <Button
           size="sm"
           onClick={() => handleDecision('approved')}
-          className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+          className="text-xs h-8 bg-success hover:bg-success/90 text-success-foreground"
         >
           Approve Action
         </Button>
@@ -830,7 +830,7 @@ function AiSummaryContent({
           <span className="flex items-center gap-1.5 font-medium text-primary">
             <Sparkles className="size-3.5" /> AI Synthesis
           </span>
-          <Badge variant="secondary" className="text-[10px] text-emerald-500 font-mono">
+          <Badge variant="secondary" className="text-[10px] text-success-text font-mono">
             {confidence} Confidence
           </Badge>
         </div>
@@ -921,19 +921,19 @@ function SentimentContent({
     <div className="space-y-3 py-1">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Tone Analysis</span>
-        <Badge variant="secondary" className="text-emerald-500 font-medium text-xs">
+        <Badge variant="secondary" className="text-success-text font-medium text-xs">
           {sentiment.verdict} ({sentiment.score}%)
         </Badge>
       </div>
 
       <div className="h-3 w-full flex rounded-full overflow-hidden bg-muted">
-        <div style={{ width: `${sentiment.breakdown.positive}%` }} className="bg-emerald-500" title="Positive" />
+        <div style={{ width: `${sentiment.breakdown.positive}%` }} className="bg-success" title="Positive" />
         <div style={{ width: `${sentiment.breakdown.neutral}%` }} className="bg-amber-500" title="Neutral" />
         <div style={{ width: `${sentiment.breakdown.negative}%` }} className="bg-rose-500" title="Negative" />
       </div>
 
       <div className="flex justify-between text-[11px] text-muted-foreground pt-1">
-        <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-emerald-500 inline-block" /> Positive {sentiment.breakdown.positive}%</span>
+        <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-success inline-block" /> Positive {sentiment.breakdown.positive}%</span>
         <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-amber-500 inline-block" /> Neutral {sentiment.breakdown.neutral}%</span>
         <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-rose-500 inline-block" /> Negative {sentiment.breakdown.negative}%</span>
       </div>
@@ -973,8 +973,8 @@ function ActionCardContent({
           <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
             {connectorName}
           </Badge>
-          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500 font-medium">
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Connected
+          <span className="inline-flex items-center gap-1 text-[10px] text-success-text font-medium">
+            <span className="size-1.5 rounded-full bg-success animate-pulse" /> Connected
           </span>
         </div>
         <h4 className="text-xs font-semibold text-foreground">{actionTitle}</h4>

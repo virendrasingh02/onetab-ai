@@ -41,7 +41,7 @@ export function CodeBlockExecution({
               <span>Executing...</span>
             </span>
           ) : status === 'success' ? (
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 text-success-text">
               <CheckCircle2 className="size-3" />
               <span>Done</span>
             </span>

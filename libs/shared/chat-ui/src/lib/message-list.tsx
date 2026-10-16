@@ -13,7 +13,12 @@ import {
   type AvatarGroupUser,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import {
+  type Virtualizer,
+  elementScroll,
+  observeElementOffset,
+  useVirtualizer,
+} from '@tanstack/react-virtual';
 import { ArrowDown, ChevronDown, MessageSquare } from 'lucide-react';
 import {
   useCallback,
@@ -358,6 +363,38 @@ export function MessageList({
   );
   /** Latest `rows` for the rAF loops, which run outside the render pass. */
   const rowsRef = useRef(rows);
+  /** Last render's virtualizer — its measurements still describe the DOM. */
+  const virtualizerRef = useRef<Virtualizer<HTMLDivElement, Element> | null>(
+    null,
+  );
+  /**
+   * The row at the viewport top *right before* this render's rows land, read
+   * against the previous measurements and the still-unchanged DOM. A backfill
+   * holds this row steady — not one captured when the fetch was asked for,
+   * which is stale by however far the reader kept scrolling while it loaded
+   * (that staleness is what snapped the view back as history arrived).
+   */
+  const preCommitAnchor = useRef<Anchor | null>(null);
+  if (rows !== rowsRef.current) {
+    preCommitAnchor.current = null;
+    const element = scrollRef.current;
+    const listElement = virtualContainerRef.current;
+    const previous = virtualizerRef.current;
+    if (element && listElement && previous) {
+      const listOffset =
+        listElement.getBoundingClientRect().top -
+        element.getBoundingClientRect().top +
+        element.scrollTop;
+      const listTop = Math.max(0, element.scrollTop - listOffset);
+      const item = previous.getVirtualItemForOffset(listTop);
+      if (item) {
+        preCommitAnchor.current = {
+          key: String(item.key),
+          offset: item.start - listTop,
+        };
+      }
+    }
+  }
   rowsRef.current = rows;
 
   /**
@@ -427,9 +464,39 @@ export function MessageList({
     [onFollowingChange],
   );
 
+  /**
+   * Distance from the top of the scrollable content to the top of the
+   * virtualiser's container — the "load earlier" slot and, once history is
+   * exhausted, the welcome block sit above it. Virtualiser offsets are measured
+   * from its container; `scrollTop` is measured from the content. This is what
+   * converts between the two.
+   *
+   * The virtualiser itself is told offsets in its container's space too (see
+   * `observeElementOffset` / `scrollToFn` below). Fed raw `scrollTop`, it
+   * rendered the rows for a window that many px further down — invisible
+   * behind overscan for the 44px slot, but with the welcome block above the
+   * list the top of the viewport painted blank.
+   */
+  const getListOffset = useCallback(() => {
+    const listElement = virtualContainerRef.current;
+    const element = scrollRef.current;
+    if (!listElement || !element) return 0;
+    return (
+      listElement.getBoundingClientRect().top -
+      element.getBoundingClientRect().top +
+      element.scrollTop
+    );
+  }, []);
+
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
+    observeElementOffset: (instance, callback) =>
+      observeElementOffset(instance, (offset, isScrolling) =>
+        callback(offset - getListOffset(), isScrolling),
+      ),
+    scrollToFn: (offset, options, instance) =>
+      elementScroll(offset + getListOffset(), options, instance),
     /*
      * Closer first guesses mean smaller corrections while the rows measure.
      * Real heights are cached per row key and reused on every later visit.
@@ -459,6 +526,7 @@ export function MessageList({
      */
     useFlushSync: false,
   });
+  virtualizerRef.current = virtualizer;
 
   const totalSize = virtualizer.getTotalSize();
 
@@ -467,24 +535,6 @@ export function MessageList({
     if (!element) return true;
     // 80px of slack: "near the bottom" should still count as following along.
     return element.scrollHeight - element.scrollTop - element.clientHeight < 80;
-  }, []);
-
-  /**
-   * Distance from the top of the scrollable content to the top of the
-   * virtualiser's container — the "load earlier" slot and, once history is
-   * exhausted, the welcome block sit above it. Virtualiser offsets are measured
-   * from its container; `scrollTop` is measured from the content. This is what
-   * converts between the two.
-   */
-  const getListOffset = useCallback(() => {
-    const listElement = virtualContainerRef.current;
-    const element = scrollRef.current;
-    if (!listElement || !element) return 0;
-    return (
-      listElement.getBoundingClientRect().top -
-      element.getBoundingClientRect().top +
-      element.scrollTop
-    );
   }, []);
 
   /** The row at the top edge of the viewport, and how far into it we are. */
@@ -559,6 +609,12 @@ export function MessageList({
             ? stableFrames + 1
             : 0;
         element.scrollTop = target;
+        // Tell the virtualizer where we put the bar. Its own size-change
+        // corrections (ResizeObserver, later this frame) are relative to the
+        // offset it last saw — left stale, they would undo this write and the
+        // rows would visibly hop for a frame.
+        virtualizer.scrollOffset = element.scrollTop - getListOffset();
+        virtualizer.scrollAdjustments = 0;
         anchor.lastHeight = height;
       }
     }
@@ -579,11 +635,21 @@ export function MessageList({
     }
   }, [virtualizer, releaseAdjusting, getListOffset]);
 
-  const startSettle = useCallback(() => {
-    if (!pendingAnchor.current) return;
-    if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
-    settleRaf.current = requestAnimationFrame(runSettle);
-  }, [runSettle]);
+  /**
+   * The reader grabbed the scroll (wheel, touch, keys) while a backfill was
+   * still settling: hand it back at once. Re-pinning every frame from here on
+   * would fight their scroll and read as the timeline jerking under them; the
+   * virtualizer's own size-change corrections keep the rows steady after this.
+   */
+  const yieldSettleToReader = useCallback(() => {
+    if (!pendingAnchor.current || placing.current) return;
+    pendingAnchor.current = null;
+    if (settleRaf.current != null) {
+      cancelAnimationFrame(settleRaf.current);
+      settleRaf.current = null;
+    }
+    adjusting.current = false;
+  }, []);
 
   /** Glue the viewport to the newest message for a few frames as it renders. */
   const pinBottom = useCallback(
@@ -838,9 +904,9 @@ export function MessageList({
         virtualizer.getVirtualItems()[0]?.index ?? Number.MAX_SAFE_INTEGER;
       const nearTop = element.scrollTop < 400 || firstVisibleIndex <= 2;
       if (nearTop && hasMore && !loadingOlder.current && !isLoadingOlder) {
+        // No anchor is taken here: the reader keeps scrolling while the page
+        // loads. The prepend effect anchors to where they are when it lands.
         loadingOlder.current = true;
-        const anchor = captureAnchor();
-        if (anchor.key) pendingAnchor.current = { ...anchor, frames: 16 };
         onLoadOlder?.();
       }
 
@@ -1015,14 +1081,15 @@ export function MessageList({
       );
 
     if (prepended) {
-      if (!pendingAnchor.current) {
-        pendingAnchor.current = {
-          key: prevFirstMessage,
-          offset: 0,
-          frames: 16,
-        };
-      }
-      startSettle();
+      const fresh = preCommitAnchor.current;
+      const anchor =
+        fresh && rows.some((row) => row.key === fresh.key)
+          ? fresh
+          : { key: prevFirstMessage, offset: 0 };
+      pendingAnchor.current = { ...anchor, frames: 16 };
+      if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
+      // Correct now, before this commit paints — not a frame later.
+      runSettle();
       return;
     }
 
@@ -1037,7 +1104,7 @@ export function MessageList({
         announceToScreenReader(`New message from ${latest.senderName}`);
       }
     }
-  }, [messages.length, rows, conversationId, startSettle, pinBottom]);
+  }, [messages.length, rows, conversationId, runSettle, pinBottom]);
 
   // Clear the backfill guard when the load resolves; drop a stashed anchor if
   // the page came back empty (nothing was prepended to hold onto).
@@ -1151,6 +1218,9 @@ export function MessageList({
         contentClassName="flex flex-col"
         viewportProps={{
           onScroll,
+          onWheel: yieldSettleToReader,
+          onTouchStart: yieldSettleToReader,
+          onKeyDown: yieldSettleToReader,
           role: 'log',
           'aria-label': 'Messages',
           'aria-live': 'polite',

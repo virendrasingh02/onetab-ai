@@ -127,7 +127,7 @@ export function AutomationSettingsTab() {
       {/* AI & Human-in-the-Loop Governance */}
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2 pb-2 border-b">
-          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+          <ShieldCheck className="h-4 w-4 text-success-text" />
           <h4 className="font-semibold text-sm text-foreground">AI Governance & Approval Guardrails</h4>
         </div>
 

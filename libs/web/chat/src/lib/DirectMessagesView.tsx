@@ -221,9 +221,9 @@ function DirectConversation({
     null,
   );
 
-  // Private, per-browser bookmarks — the same affordance a channel has, keyed
-  // on the peer so they survive the room resolving and follow the person, not
-  // the Matrix room. Only 1:1 conversations get this; a group DM
+  // Private bookmarks, synced to the member's server-side preferences — the
+  // same affordance a channel has, keyed on the peer so they survive the room
+  // resolving and follow the person, not the Matrix room. Only 1:1 conversations get this; a group DM
   // (`GroupConversation`) has no tab strip.
   const { bookmarks, addBookmark, removeBookmark } = useDirectMessageBookmarks(
     workspaceId,

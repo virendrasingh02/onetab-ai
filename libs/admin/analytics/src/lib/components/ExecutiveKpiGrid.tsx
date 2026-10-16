@@ -41,7 +41,7 @@ export function formatKpiValue(
 
 const BADGE_STYLES = {
   positive:
-    'border-emerald-500/25 bg-emerald-500/15 text-emerald-400 dark:text-emerald-400',
+    'border-success/25 bg-success/15 text-success-text',
   negative:
     'border-rose-500/25 bg-rose-500/15 text-rose-400 dark:text-rose-400',
   neutral: 'border-border/80 bg-muted/60 text-muted-foreground',

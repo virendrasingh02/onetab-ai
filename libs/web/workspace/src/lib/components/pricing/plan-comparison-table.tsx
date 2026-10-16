@@ -210,7 +210,7 @@ export function PlanComparisonTable({
                                     {item.valueText}
                                   </span>
                                 ) : item.included ? (
-                                  <Check className="size-4 mx-auto text-emerald-500 shrink-0" />
+                                  <Check className="size-4 mx-auto text-success-text shrink-0" />
                                 ) : (
                                   <Minus className="size-4 mx-auto text-muted-foreground/50 shrink-0" />
                                 )

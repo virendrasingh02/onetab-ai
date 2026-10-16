@@ -239,7 +239,7 @@ export function CodeBlockActions({
                   className={cn(
                     'size-6 transition-colors',
                     copied
-                      ? 'text-emerald-500 hover:text-emerald-600'
+                      ? 'text-success-text hover:text-success-text/80'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                   aria-label={copied ? 'Copied code' : 'Copy code to clipboard'}

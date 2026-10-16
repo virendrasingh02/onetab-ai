@@ -206,7 +206,7 @@ interface ResourceStatusItem {
 }
 
 const RESOURCE_ITEMS: ResourceStatusItem[] = [
-  { id: 'res-1', name: 'API Gateway', status: 'online', badge: 'Prod', color: 'bg-emerald-500', to: '/analytics/apis' },
+  { id: 'res-1', name: 'API Gateway', status: 'online', badge: 'Prod', color: 'bg-success', to: '/analytics/apis' },
   { id: 'res-2', name: 'ML Pipeline', status: 'active', badge: 'Active', color: 'bg-purple-500', to: '/performance' },
   { id: 'res-3', name: 'PostgreSQL Cluster', status: 'online', badge: 'US-East', color: 'bg-blue-500', to: '/health' },
   { id: 'res-4', name: 'Object Storage', status: 'online', badge: 'S3', color: 'bg-amber-500', to: '/analytics/storage' },
@@ -619,7 +619,7 @@ export function AdminShell() {
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
                 <DropdownMenuItem className="gap-2 font-medium">
-                  <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="size-2 rounded-full bg-success shrink-0" />
                   <span>Production Console</span>
                   <Check className="size-3.5 ml-auto text-primary" />
                 </DropdownMenuItem>
@@ -688,11 +688,11 @@ export function AdminShell() {
                 }
                 title={collapsed ? 'Live Activity Stream' : undefined}
               >
-                <Radio className="size-4 shrink-0 text-emerald-500" />
+                <Radio className="size-4 shrink-0 text-success-text" />
                 {!collapsed && (
                   <>
                     <span className="flex-1 truncate">Live Activity</span>
-                    <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="size-2 rounded-full bg-success animate-pulse" />
                   </>
                 )}
               </NavLink>
@@ -731,7 +731,7 @@ export function AdminShell() {
                         <>
                           <span className="flex-1 text-left truncate">{group.title}</span>
                           {group.badge && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 mr-1 tabular-nums">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success/15 text-success-text border border-success/25 mr-1 tabular-nums">
                               {group.badge}
                             </span>
                           )}
@@ -1015,7 +1015,7 @@ export function AdminShell() {
 
             {/* Live Indicator */}
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border/80 bg-background/50 text-[11px] font-medium text-foreground">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="size-1.5 rounded-full bg-success animate-pulse" />
               <span className="hidden sm:inline">Live</span>
             </div>
 

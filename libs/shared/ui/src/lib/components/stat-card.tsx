@@ -37,7 +37,7 @@ const DEFAULT_CURVES: Record<string, number[]> = {
 
 const COLOR_CLASSES: Record<string, string> = {
   rose: 'stroke-rose-500',
-  emerald: 'stroke-emerald-400',
+  emerald: 'stroke-success',
   amber: 'stroke-amber-400',
   cyan: 'stroke-cyan-400',
   blue: 'stroke-blue-400',
@@ -46,7 +46,7 @@ const COLOR_CLASSES: Record<string, string> = {
 
 const BADGE_STYLES = {
   positive:
-    'border-emerald-500/25 bg-emerald-500/15 text-emerald-400 dark:text-emerald-400',
+    'border-success/25 bg-success/15 text-success-text',
   negative:
     'border-rose-500/25 bg-rose-500/15 text-rose-400 dark:text-rose-400',
   warning:

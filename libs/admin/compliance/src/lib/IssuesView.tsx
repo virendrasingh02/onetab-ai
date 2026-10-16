@@ -421,9 +421,9 @@ export function IssuesView() {
 
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <CheckCircle2 className="h-5 w-5 text-success-text shrink-0" />
             <div>
-              <div className="text-2xl font-bold font-mono text-emerald-600">
+              <div className="text-2xl font-bold font-mono text-success-text">
                 {stats.resolved}
               </div>
               <div className="text-xs text-muted-foreground">Resolved / Closed</div>
@@ -543,7 +543,7 @@ export function IssuesView() {
                           </div>
                         )}
                         {issue.resolution && (
-                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          <div className="text-[10px] text-success-text mt-0.5">
                             <strong>Resolved:</strong> {issue.resolution}
                           </div>
                         )}

@@ -45,7 +45,7 @@ export function OfflineSyncBanner() {
 
   if (showRestored) {
     return (
-      <div className="flex h-7 shrink-0 items-center justify-center gap-2 bg-emerald-600/90 px-3 text-xs font-medium text-white transition-all">
+      <div className="flex h-7 shrink-0 items-center justify-center gap-2 bg-success/90 px-3 text-xs font-medium text-success-foreground transition-all">
         <Wifi className="size-3.5" />
         <span>Connection restored. Syncing latest workspace state…</span>
       </div>

@@ -8,7 +8,7 @@ export function AutomationApprovalsTab() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            <ShieldCheck className="h-5 w-5 text-success-text" />
             Human-in-the-Loop Approvals
           </h3>
           <p className="text-sm text-muted-foreground">
