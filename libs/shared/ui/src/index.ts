@@ -310,6 +310,18 @@ export {
 } from './lib/components/date-picker.js';
 
 export {
+  DateTimePicker,
+  DateTimePickerPanel,
+  TimePicker,
+  buildTimeOptions,
+  parseDateTimeValue,
+  toDateTimeValue,
+  type DateTimePickerProps,
+  type DateTimePickerPanelProps,
+  type TimePickerProps,
+} from './lib/components/date-time-picker.js';
+
+export {
   ConnectionCard,
   ConnectionList,
   ConnectionStatusBadge,

@@ -27,6 +27,8 @@ function makeService() {
     channel: {
       findFirst: vi.fn().mockResolvedValue({ id: 'chan-1' }),
       findUniqueOrThrow: vi.fn().mockResolvedValue({ ...CHANNEL_ROW }),
+      // No other channel holds the slug a rename asks for.
+      findUnique: vi.fn().mockResolvedValue(null),
       update: vi.fn().mockResolvedValue({ ...CHANNEL_ROW }),
     },
     channelMember: {

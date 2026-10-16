@@ -39,6 +39,7 @@ import {
   TableHeader,
   TableRow,
   Textarea,
+  DatePicker,
 } from '@org/ui';
 import { useMutation } from '@tanstack/react-query';
 import {
@@ -203,11 +204,9 @@ export function VersionsView() {
 
                     <div className="space-y-1.5">
                       <Label className="text-xs">Planned Release Date</Label>
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={newReleaseDate}
-                        onChange={(e) => setNewReleaseDate(e.target.value)}
-                        className="text-xs"
+                        onChange={(v) => setNewReleaseDate(v ?? '')}
                       />
                     </div>
                   </div>

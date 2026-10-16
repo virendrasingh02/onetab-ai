@@ -1672,7 +1672,7 @@ function ChannelSettingsDropdown({
             <Settings className="size-4 text-muted-foreground shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="font-semibold text-foreground">
-                Edit channel details
+                Rename &amp; edit details
               </span>
               <span className="text-[10px] text-muted-foreground truncate">
                 Name, topic and description

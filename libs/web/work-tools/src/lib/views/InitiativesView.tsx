@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Input,
   Textarea,
+  DatePicker,
 } from '@org/ui';
 import {
   ProjectHealth,
@@ -233,10 +234,9 @@ export function InitiativesView({
             </div>
             <div>
               <label className="text-xs font-semibold mb-1 block">Target Date</label>
-              <Input
-                type="date"
+              <DatePicker
                 value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
+                onChange={(v) => setTargetDate(v ?? '')}
               />
             </div>
             <div>

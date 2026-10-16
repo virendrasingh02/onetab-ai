@@ -17,7 +17,7 @@ import {
   toast,
   UserAvatar,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, slugify } from '@org/utils';
 import { useQuery } from '@tanstack/react-query';
 import type { WorkspaceRole } from '@org/types';
 import {
@@ -38,6 +38,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   useAnonymousMessagingMutations,
   useChannelAnonymousSettings,
@@ -448,13 +449,18 @@ export interface EditChannelDetailsDialogProps {
   channel: ChannelSummary;
 }
 
-/** Edits the one-line topic and the longer description together. */
+/** Edits the channel's name, topic, description and welcome message together. */
 export function EditChannelDetailsDialog({
   open,
   onOpenChange,
   workspaceId,
   channel,
 }: EditChannelDetailsDialogProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // #general keeps its name — the API refuses to rename it.
+  const canRename = channel.slug !== 'general';
+  const [name, setName] = useState(channel.name);
   const [topic, setTopic] = useState(channel.topic ?? '');
   const [description, setDescription] = useState(channel.description ?? '');
   const [welcomeMessage, setWelcomeMessage] = useState(
@@ -466,30 +472,65 @@ export function EditChannelDetailsDialog({
   // not the stale copy this dialog started with.
   useEffect(() => {
     if (open) {
+      setName(channel.name);
       setTopic(channel.topic ?? '');
       setDescription(channel.description ?? '');
       setWelcomeMessage(channel.welcomeMessage ?? '');
     }
-  }, [open, channel.topic, channel.description, channel.welcomeMessage]);
+  }, [
+    open,
+    channel.name,
+    channel.topic,
+    channel.description,
+    channel.welcomeMessage,
+  ]);
+
+  const nextName = slugify(name);
+  const renamed = canRename && nextName !== channel.name;
+  const nameError =
+    renamed && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(nextName)
+      ? 'Use lowercase letters, numbers and single hyphens.'
+      : renamed && (nextName.length < 2 || nextName.length > 48)
+        ? 'Channel names are 2–48 characters.'
+        : null;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (nameError) return;
 
     update.mutate(
       {
         channelId: channel.id,
         input: {
+          ...(renamed ? { name: nextName } : {}),
           topic: topic.trim() || null,
           description: description.trim() || null,
           welcomeMessage: welcomeMessage.trim() || null,
         },
       },
       {
-        onSuccess: () => {
-          toast.success('Channel details updated');
+        onSuccess: (updated) => {
+          toast.success(
+            renamed ? `Renamed to #${updated.name}` : 'Channel details updated',
+          );
           onOpenChange(false);
+          // The slug follows the name, so a page open on the old URL would
+          // lose its channel — move it to the new one.
+          const oldSegment = `/c/${channel.slug}`;
+          if (renamed && location.pathname.includes(oldSegment)) {
+            navigate(
+              location.pathname.replace(oldSegment, `/c/${updated.slug}`) +
+                location.search,
+              { replace: true },
+            );
+          }
         },
-        onError: () => toast.error('Could not update this channel'),
+        onError: (error) =>
+          toast.error(
+            error instanceof Error && error.message
+              ? error.message
+              : 'Could not update this channel',
+          ),
       },
     );
   };
@@ -515,6 +556,47 @@ export function EditChannelDetailsDialog({
           <DialogBody className="space-y-4">
             <div className="space-y-1.5">
               <label
+                htmlFor="channel-name"
+                className="text-xs font-medium text-foreground"
+              >
+                Name
+              </label>
+              <Input
+                id="channel-name"
+                value={name}
+                onChange={(event) =>
+                  // Keep a trailing hyphen while typing; `slugify` tidies the
+                  // edges on save.
+                  setName(
+                    event.target.value
+                      .toLowerCase()
+                      .replace(/[^a-z0-9-]+/g, '-')
+                      .replace(/-{2,}/g, '-')
+                      .replace(/^-+/, ''),
+                  )
+                }
+                prefix={<Hash className="size-3.5" />}
+                maxLength={48}
+                disabled={!canRename}
+                aria-invalid={nameError ? true : undefined}
+                aria-describedby="channel-name-hint"
+              />
+              <p
+                id="channel-name-hint"
+                className={cn(
+                  'text-[11px]',
+                  nameError ? 'text-destructive' : 'text-muted-foreground',
+                )}
+              >
+                {!canRename
+                  ? '#general can’t be renamed.'
+                  : (nameError ??
+                    'Renaming changes the channel’s link. Lowercase, numbers and hyphens.')}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
                 htmlFor="channel-topic"
                 className="text-xs font-medium text-foreground"
               >
@@ -526,7 +608,6 @@ export function EditChannelDetailsDialog({
                 onChange={(event) => setTopic(event.target.value)}
                 placeholder="A short line shown next to the channel name"
                 maxLength={120}
-                autoFocus
               />
             </div>
 
@@ -579,7 +660,7 @@ export function EditChannelDetailsDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={update.isPending}>
+            <Button type="submit" disabled={update.isPending || !!nameError}>
               Save details
             </Button>
           </DialogFooter>

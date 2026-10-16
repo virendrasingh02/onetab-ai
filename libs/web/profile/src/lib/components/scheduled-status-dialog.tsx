@@ -15,6 +15,9 @@ import {
   ScrollArea,
   Switch,
   AppSelect,
+  DatePicker,
+  DateTimePicker,
+  TimePicker,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import type { CreateScheduledStatusInput } from '@org/validation';
@@ -353,20 +356,18 @@ export function ScheduledStatusDialog({
                 <div className="grid grid-cols-2 gap-2">
                   <label className="text-[11px] text-muted-foreground">
                     Start
-                    <Input
-                      type="datetime-local"
+                    <DateTimePicker
                       value={draft.startLocal}
-                      onChange={(e) => set('startLocal', e.target.value)}
-                      className="mt-0.5 h-8 text-xs"
+                      onChange={(v) => set('startLocal', v ?? '')}
+                      className="mt-0.5"
                     />
                   </label>
                   <label className="text-[11px] text-muted-foreground">
                     End
-                    <Input
-                      type="datetime-local"
+                    <DateTimePicker
                       value={draft.endLocal}
-                      onChange={(e) => set('endLocal', e.target.value)}
-                      className="mt-0.5 h-8 text-xs"
+                      onChange={(v) => set('endLocal', v ?? '')}
+                      className="mt-0.5"
                     />
                   </label>
                 </div>
@@ -375,20 +376,18 @@ export function ScheduledStatusDialog({
                   <div className="grid grid-cols-2 gap-2">
                     <label className="text-[11px] text-muted-foreground">
                       From
-                      <Input
-                        type="time"
+                      <TimePicker
                         value={draft.startTime}
-                        onChange={(e) => set('startTime', e.target.value)}
-                        className="mt-0.5 h-8 text-xs"
+                        onChange={(v) => set('startTime', v)}
+                        className="mt-0.5"
                       />
                     </label>
                     <label className="text-[11px] text-muted-foreground">
                       To
-                      <Input
-                        type="time"
+                      <TimePicker
                         value={draft.endTime}
-                        onChange={(e) => set('endTime', e.target.value)}
-                        className="mt-0.5 h-8 text-xs"
+                        onChange={(v) => set('endTime', v)}
+                        className="mt-0.5"
                       />
                     </label>
                   </div>
@@ -426,20 +425,18 @@ export function ScheduledStatusDialog({
                   <div className="grid grid-cols-2 gap-2">
                     <label className="text-[11px] text-muted-foreground">
                       Only from (optional)
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={draft.boundFrom}
-                        onChange={(e) => set('boundFrom', e.target.value)}
-                        className="mt-0.5 h-8 text-xs"
+                        onChange={(v) => set('boundFrom', v ?? '')}
+                        className="mt-0.5"
                       />
                     </label>
                     <label className="text-[11px] text-muted-foreground">
                       Until (optional)
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={draft.boundUntil}
-                        onChange={(e) => set('boundUntil', e.target.value)}
-                        className="mt-0.5 h-8 text-xs"
+                        onChange={(v) => set('boundUntil', v ?? '')}
+                        className="mt-0.5"
                       />
                     </label>
                   </div>

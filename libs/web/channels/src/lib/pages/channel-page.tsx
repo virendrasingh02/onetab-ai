@@ -370,7 +370,7 @@ function ChannelHeader({
 
                   <DropdownMenuItem onClick={onEditDetails} className="gap-2.5">
                     <Pencil className="size-4" />
-                    <span>Edit channel details</span>
+                    <span>Rename &amp; edit details</span>
                   </DropdownMenuItem>
 
                   {onAddBookmark ? (

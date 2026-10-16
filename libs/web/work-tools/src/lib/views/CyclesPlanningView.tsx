@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
   UserAvatar,
+  DatePicker,
 } from '@org/ui';
 import {
   CycleStatus,
@@ -353,19 +354,11 @@ export function CyclesPlanningView({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs font-semibold mb-1 block">Start Date</label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
+                <DatePicker value={startDate} onChange={(d) => setStartDate(d ?? '')} />
               </div>
               <div>
                 <label className="text-xs font-semibold mb-1 block">End Date</label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
+                <DatePicker value={endDate} onChange={(d) => setEndDate(d ?? '')} />
               </div>
             </div>
           </DialogBody>

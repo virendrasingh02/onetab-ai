@@ -29,6 +29,7 @@ import {
   Textarea,
   toast,
   type UserSelectorMember,
+  DateTimePicker,
 } from '@org/ui';
 import { createMeetingSchema, type CreateMeetingInput } from '@org/validation';
 import { useEffect } from 'react';
@@ -228,11 +229,10 @@ export function MeetingScheduleDialog({
                     <FormItem>
                       <FormLabel>Starts</FormLabel>
                       <FormControl>
-                        <Input
-                          type="datetime-local"
+                        <DateTimePicker
                           value={toLocalInput(field.value ?? '')}
-                          onChange={(e) =>
-                            field.onChange(fromLocalInput(e.target.value))
+                          onChange={(v) =>
+                            field.onChange(fromLocalInput(v ?? ''))
                           }
                         />
                       </FormControl>
@@ -247,11 +247,10 @@ export function MeetingScheduleDialog({
                     <FormItem>
                       <FormLabel>Ends</FormLabel>
                       <FormControl>
-                        <Input
-                          type="datetime-local"
+                        <DateTimePicker
                           value={toLocalInput(field.value ?? '')}
-                          onChange={(e) =>
-                            field.onChange(fromLocalInput(e.target.value))
+                          onChange={(v) =>
+                            field.onChange(fromLocalInput(v ?? ''))
                           }
                         />
                       </FormControl>

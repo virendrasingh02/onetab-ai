@@ -1,5 +1,5 @@
 import type { FederatedSearchResultItem } from '@org/types';
-import { Button, Input, Switch, AIModelIcon, AppSelect } from '@org/ui';
+import { Button, Input, Switch, AIModelIcon, AppSelect, DatePicker } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowLeft, Search } from 'lucide-react';
@@ -165,34 +165,28 @@ export function GlobalSearchView() {
           <FilterGroup title="Date">
             <label className="block text-muted-foreground">
               After
-              <Input
-                type="date"
+              <DatePicker
                 value={filters.dateFrom?.slice(0, 10) ?? ''}
-                onChange={(e) =>
+                onChange={(v) =>
                   setFilters((f) => ({
                     ...f,
-                    dateFrom: e.target.value
-                      ? new Date(`${e.target.value}T00:00:00`).toISOString()
-                      : null,
+                    dateFrom: v ? new Date(`${v}T00:00:00`).toISOString() : null,
                   }))
                 }
-                className="mt-0.5 h-8 text-xs"
+                className="mt-0.5"
               />
             </label>
             <label className="mt-1.5 block text-muted-foreground">
               Before
-              <Input
-                type="date"
+              <DatePicker
                 value={filters.dateTo?.slice(0, 10) ?? ''}
-                onChange={(e) =>
+                onChange={(v) =>
                   setFilters((f) => ({
                     ...f,
-                    dateTo: e.target.value
-                      ? new Date(`${e.target.value}T23:59:59`).toISOString()
-                      : null,
+                    dateTo: v ? new Date(`${v}T23:59:59`).toISOString() : null,
                   }))
                 }
-                className="mt-0.5 h-8 text-xs"
+                className="mt-0.5"
               />
             </label>
           </FilterGroup>

@@ -19,6 +19,7 @@ import {
   PageTabBar,
   Tabs,
   TabsTrigger,
+  DateTimePicker,
 } from '@org/ui';
 import { cn, formatDateTime, formatRelative } from '@org/utils';
 import {
@@ -460,12 +461,10 @@ export function ScheduleView() {
                     <label className="text-xs font-medium text-muted-foreground">
                       New scheduled date & time
                     </label>
-                    <input
-                      type="datetime-local"
+                    <DateTimePicker
+                      disablePast
                       value={newScheduleDatetime}
-                      min={new Date().toISOString().slice(0, 16)}
-                      onChange={(e) => setNewScheduleDatetime(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs w-full rounded-md border border-border bg-background text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+                      onChange={(v) => setNewScheduleDatetime(v ?? '')}
                     />
                   </div>
                 </DialogBody>

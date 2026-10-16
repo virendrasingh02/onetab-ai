@@ -45,6 +45,7 @@ import {
   TabsTrigger,
   ResponsiveTabsList,
   Textarea,
+  DateTimePicker,
 } from '@org/ui';
 import {
   AlertOctagon,
@@ -1019,11 +1020,10 @@ export function VersionsManagementView() {
                     <Label className="text-xs font-medium">
                       Release Date {createStatus === 'SCHEDULED' ? '(scheduled)' : ''}
                     </Label>
-                    <Input
-                      type="datetime-local"
+                    <DateTimePicker
+                      clearable
                       value={createReleaseDate}
-                      onChange={(e) => setCreateReleaseDate(e.target.value)}
-                      className="text-xs tabular-nums"
+                      onChange={(v) => setCreateReleaseDate(v ?? '')}
                     />
                   </div>
                 </div>
@@ -1370,12 +1370,10 @@ export function VersionsManagementView() {
           <DialogBody className="space-y-3 text-xs">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Target Launch Date & Time</Label>
-              <Input
-                type="datetime-local"
+              <DateTimePicker
+                disablePast
                 value={scheduleDate}
-                onChange={(e) => setScheduleDate(e.target.value)}
-                className="text-xs"
-                required
+                onChange={(v) => setScheduleDate(v ?? '')}
               />
             </div>
 

@@ -5,7 +5,7 @@ import {
   type AgentEventName,
   type AgentTriggerKind,
 } from '@org/types';
-import { AppSelect, Field, Input, SegmentedControl } from '@org/ui';
+import { AppSelect, Field, Input, SegmentedControl, TimePicker } from '@org/ui';
 import { getSystemTimezone, isValidCron, listTimezones, nextCronRun } from '@org/utils';
 import { CalendarClock, Hand, Zap } from 'lucide-react';
 import { useMemo } from 'react';
@@ -153,7 +153,7 @@ export function SchedulePanel({
             ) : null}
             {form.cadence !== 'hourly' && form.cadence !== 'custom' ? (
               <Field label="At">
-                <Input type="time" value={form.time} onChange={(e) => e.target.value && setForm({ time: e.target.value })} />
+                <TimePicker value={form.time} onChange={(time) => time && setForm({ time })} />
               </Field>
             ) : null}
           </div>

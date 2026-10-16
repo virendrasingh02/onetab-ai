@@ -41,6 +41,7 @@ import {
   TabsList,
   TabsTrigger,
   toast,
+  DateTimePicker,
 } from '@org/ui';
 import { formatDateTime } from '@org/utils';
 import { Download, Pencil, Plus, Receipt } from 'lucide-react';
@@ -274,11 +275,11 @@ function CouponDialog({
             </div>
             <div className={field}>
               <label className={label} htmlFor="c-from">Starts</label>
-              <Input id="c-from" type="datetime-local" value={form.validFrom} onChange={(e) => set('validFrom', e.target.value)} />
+              <DateTimePicker id="c-from" clearable value={form.validFrom} onChange={(v) => set('validFrom', v ?? '')} />
             </div>
             <div className={field}>
               <label className={label} htmlFor="c-until">Expires</label>
-              <Input id="c-until" type="datetime-local" value={form.validUntil} onChange={(e) => set('validUntil', e.target.value)} />
+              <DateTimePicker id="c-until" clearable value={form.validUntil} onChange={(v) => set('validUntil', v ?? '')} />
             </div>
             <div className={field}>
               <label className={label} htmlFor="c-max">Total redemptions (blank = unlimited)</label>

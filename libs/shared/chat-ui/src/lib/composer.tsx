@@ -10,16 +10,14 @@ import {
 } from '@org/types';
 
 import {
-  AppSelect,
   Button,
-  Calendar,
+  DateTimePickerPanel,
   Hint,
   Popover,
   PopoverContent,
   PopoverTrigger,
   UnifiedEmojiPickerPopover,
   toast,
-  type AppSelectOption,
   type UnifiedPickerTab,
 } from '@org/ui';
 import {
@@ -81,45 +79,12 @@ import { VoiceRecorderBar } from './voice-recorder-bar.js';
 
 const SCHEDULE_SLOT_MINUTES = 15;
 
-/** `HH:mm` (24h) — the stable value behind each time-slot option. */
-function toTimeValue(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(
-    date.getMinutes(),
-  ).padStart(2, '0')}`;
-}
-
-function combineDayAndTime(day: Date, time: string): Date {
-  const [h, m] = time.split(':').map(Number);
-  const out = new Date(day);
-  out.setHours(h, m, 0, 0);
-  return out;
-}
-
 /** An hour from now, rounded up to the next slot boundary. */
 function defaultScheduleSlot(): Date {
   const d = new Date(Date.now() + 60 * 60 * 1000);
   const rem = d.getMinutes() % SCHEDULE_SLOT_MINUTES;
   d.setMinutes(d.getMinutes() + (rem ? SCHEDULE_SLOT_MINUTES - rem : 0), 0, 0);
   return d;
-}
-
-/** Every slot of `day`; slots already in the past are disabled. */
-function buildTimeSlotOptions(day: Date): AppSelectOption[] {
-  const now = Date.now();
-  const options: AppSelectOption[] = [];
-  for (let mins = 0; mins < 24 * 60; mins += SCHEDULE_SLOT_MINUTES) {
-    const slot = new Date(day);
-    slot.setHours(Math.floor(mins / 60), mins % 60, 0, 0);
-    options.push({
-      value: toTimeValue(slot),
-      label: slot.toLocaleTimeString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-      }),
-      disabled: slot.getTime() <= now,
-    });
-  }
-  return options;
 }
 
 export {
@@ -803,49 +768,17 @@ export function Composer({
   const [scheduleView, setScheduleView] = useState<'presets' | 'custom'>(
     'presets',
   );
-  const [customDay, setCustomDay] = useState<Date>(() => new Date());
-  const [customTime, setCustomTime] = useState('');
+  const [customTarget, setCustomTarget] = useState<Date>(defaultScheduleSlot);
 
   const handleScheduleOpenChange = useCallback((open: boolean) => {
     setScheduleOpen(open);
     if (open) {
-      const initial = defaultScheduleSlot();
       setScheduleView('presets');
-      setCustomDay(initial);
-      setCustomTime(toTimeValue(initial));
+      setCustomTarget(defaultScheduleSlot());
     }
   }, []);
 
-  const customTimeOptions = useMemo(
-    () => buildTimeSlotOptions(customDay),
-    // `scheduleView` re-evaluates "now" each time the custom view opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [customDay, scheduleView],
-  );
-
-  const customTarget = useMemo(
-    () => (customTime ? combineDayAndTime(customDay, customTime) : null),
-    [customDay, customTime],
-  );
-  const customTargetValid =
-    customTarget !== null && customTarget.getTime() > Date.now();
-
-  const handleCustomDaySelect = useCallback(
-    (day: Date | undefined) => {
-      if (!day) return;
-      setCustomDay(day);
-      // Keep the chosen time if it is still in the future on the new day,
-      // otherwise snap to the first slot that is.
-      const options = buildTimeSlotOptions(day);
-      const stillValid = options.some(
-        (o) => o.value === customTime && !o.disabled,
-      );
-      if (!stillValid) {
-        setCustomTime(options.find((o) => !o.disabled)?.value ?? '');
-      }
-    },
-    [customTime],
-  );
+  const customTargetValid = customTarget.getTime() > Date.now();
 
   const schedulePresets = useMemo(() => {
     const now = new Date();
@@ -1574,33 +1507,15 @@ export function Composer({
 
                     {scheduleView === 'custom' ? (
                       <div className="space-y-3">
-                        <Calendar
-                          selected={customDay}
-                          onSelect={handleCustomDaySelect}
-                          minDate={(() => {
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            return today;
-                          })()}
-                          className="p-0 w-full"
+                        <DateTimePickerPanel
+                          value={customTarget}
+                          onChange={setCustomTarget}
+                          disablePast
+                          step={SCHEDULE_SLOT_MINUTES}
                         />
-                        <div className="space-y-1.5">
-                          <span className="font-medium block text-xs text-muted-foreground">
-                            Time
-                          </span>
-                          <AppSelect
-                            size="sm"
-                            aria-label="Send time"
-                            placeholder="Pick a time"
-                            value={customTime}
-                            onValueChange={setCustomTime}
-                            options={customTimeOptions}
-                            className="w-full"
-                          />
-                        </div>
                         <div className="space-y-2 pt-2 border-t border-border">
                           <p className="text-xs text-muted-foreground">
-                            {customTargetValid && customTarget ? (
+                            {customTargetValid ? (
                               <>
                                 Sends{' '}
                                 <span className="font-medium text-foreground">
@@ -1623,7 +1538,7 @@ export function Composer({
                             className="w-full"
                             disabled={!customTargetValid}
                             onClick={() => {
-                              if (!customTarget || !customTargetValid) {
+                              if (!customTargetValid) {
                                 toast.error(
                                   'Please select a future date and time',
                                 );

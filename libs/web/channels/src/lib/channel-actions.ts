@@ -281,13 +281,13 @@ export function buildChannelActions(
       ],
     },
 
-    // One entry: managers land in the editable dialog (name, description,
-    // topic); everyone else gets the read-only about panel.
+    // One entry: managers land in the editable dialog (name, topic,
+    // description); everyone else gets the read-only about panel.
     (!!onOpenDetails || (canManage && (!!onEditDetails || !!onRename))) && {
       id: 'details',
       group: 'manage',
       label: canManage && (onEditDetails || onRename)
-        ? 'Channel details…'
+        ? 'Rename & edit details…'
         : 'Channel details',
       icon: Info,
       run:

@@ -323,6 +323,29 @@ export class ChannelService {
   ): Promise<Channel> {
     await this.assertCanManage(workspaceId, channelId, userId);
 
+    // A rename moves the slug too, so it must stay unique in the workspace —
+    // and #general keeps its name, since other rules key off that slug.
+    if (input.name !== undefined) {
+      const current = await this.prisma.channel.findUniqueOrThrow({
+        where: { id: channelId },
+        select: { slug: true },
+      });
+      if (current.slug === 'general' && input.name !== 'general') {
+        throw new ConflictException('The #general channel cannot be renamed.');
+      }
+      const clash = await this.prisma.channel.findUnique({
+        where: { workspaceId_slug: { workspaceId, slug: input.name } },
+        select: { id: true },
+      });
+      if (clash && clash.id !== channelId) {
+        throw new ConflictException({
+          code: ApiErrorCode.CONFLICT,
+          message: `A channel named #${input.name} already exists.`,
+          errors: { name: [`A channel named #${input.name} already exists.`] },
+        });
+      }
+    }
+
     const postingChanged =
       input.mode !== undefined ||
       input.allowReactions !== undefined ||

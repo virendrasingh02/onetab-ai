@@ -12,6 +12,7 @@ import {
   Spinner,
   Textarea,
   toast,
+  DateTimePicker,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -252,10 +253,10 @@ export function GoogleCalendarModal({
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Starts" required>
-                  <Input type="datetime-local" value={form.start} onChange={(e) => setForm((f) => ({ ...f, start: e.target.value }))} />
+                  <DateTimePicker value={form.start} onChange={(v) => setForm((f) => ({ ...f, start: v ?? '' }))} />
                 </Field>
                 <Field label="Ends" required>
-                  <Input type="datetime-local" value={form.end} onChange={(e) => setForm((f) => ({ ...f, end: e.target.value }))} />
+                  <DateTimePicker value={form.end} onChange={(v) => setForm((f) => ({ ...f, end: v ?? '' }))} />
                 </Field>
               </div>
               <Field label="Location" optional>
