@@ -328,7 +328,7 @@ export function CanvasCommandPalette({
                     onClick={() => handleSelectIndex(globalIndex)}
                     className={cn(
                       'flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-xs transition-colors text-left cursor-pointer',
-                      isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-surface-raised text-foreground',
+                      isSelected ? 'bg-foreground text-background' : 'hover:bg-surface-raised text-foreground',
                     )}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -366,7 +366,7 @@ export function CanvasCommandPalette({
                     onClick={() => handleSelectIndex(globalIndex)}
                     className={cn(
                       'flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-xs transition-colors text-left cursor-pointer',
-                      isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-surface-raised text-foreground',
+                      isSelected ? 'bg-foreground text-background' : 'hover:bg-surface-raised text-foreground',
                     )}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -383,7 +383,7 @@ export function CanvasCommandPalette({
                       </div>
                     </div>
                     {c.shortcut && (
-                      <kbd className={cn('rounded border px-1.5 py-0.5 text-[10px] font-mono shrink-0', isSelected ? 'border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground' : 'border-border/60 bg-surface-raised text-muted-foreground')}>
+                      <kbd className={cn('rounded border px-1.5 py-0.5 text-[10px] font-mono shrink-0', isSelected ? 'border-background/30 bg-background/10 text-background' : 'border-border/60 bg-surface-raised text-muted-foreground')}>
                         {c.shortcut}
                       </kbd>
                     )}
@@ -410,7 +410,7 @@ export function CanvasCommandPalette({
                     onClick={() => handleSelectIndex(globalIndex)}
                     className={cn(
                       'flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-xs transition-colors text-left cursor-pointer',
-                      isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-surface-raised text-foreground',
+                      isSelected ? 'bg-foreground text-background' : 'hover:bg-surface-raised text-foreground',
                     )}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">

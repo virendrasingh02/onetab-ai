@@ -380,7 +380,7 @@ function QuickAddMenu({
           placeholder={
             view.level === 'apps' ? 'Search apps…' : view.level === 'actions' ? `Search ${view.app} actions…` : 'Search nodes…'
           }
-          className="w-full rounded-md border border-border bg-surface pl-8 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary transition-colors"
+          className="w-full rounded-md border border-border bg-surface pl-8 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-hidden focus:ring-1 focus:ring-primary transition-colors"
         />
         {search ? (
           <button
@@ -442,7 +442,7 @@ function QuickAddMenu({
             className={cn(
               'shrink-0 rounded px-2 py-0.5 font-medium transition-colors cursor-pointer',
               activeCategory === cat.id
-                ? 'bg-primary text-primary-foreground'
+                ? 'bg-foreground text-background'
                 : 'bg-surface-raised text-muted-foreground hover:text-foreground hover:bg-surface-raised/80',
             )}
           >
@@ -481,7 +481,7 @@ function QuickAddMenu({
                 className={cn(
                   'group/item flex w-full items-center gap-2.5 rounded-lg border p-1.5 text-left transition-colors cursor-pointer',
                   isSelected
-                    ? 'border-primary/50 bg-primary/10 text-foreground'
+                    ? 'border-foreground/30 bg-selected text-foreground'
                     : 'border-transparent hover:border-primary/30 hover:bg-surface-raised/70',
                 )}
               >
@@ -495,8 +495,8 @@ function QuickAddMenu({
                     className={cn(
                       'flex size-7 shrink-0 items-center justify-center rounded-md transition-colors',
                       isSelected
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-surface-raised text-muted-foreground group-hover/item:bg-primary group-hover/item:text-primary-foreground',
+                        ? 'bg-foreground text-background'
+                        : 'bg-surface-raised text-muted-foreground group-hover/item:bg-foreground group-hover/item:text-background',
                     )}
                   >
                     <Icon className="size-4" />
@@ -535,7 +535,7 @@ function QuickAddMenu({
             onClose();
             navigate('/connectors');
           }}
-          className="mt-2 flex w-full items-center justify-between rounded-lg border border-dashed border-border px-2.5 py-2 text-[11px] font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground cursor-pointer"
+          className="mt-2 flex w-full items-center justify-between rounded-lg border border-dashed border-border px-2.5 py-2 text-[11px] font-medium text-muted-foreground hover:border-border-strong hover:text-foreground cursor-pointer"
         >
           <span className="flex items-center gap-1.5">
             <Plus className="size-3.5" /> Connect another app
@@ -630,7 +630,7 @@ export function WorkflowHandle({
           className={cn(
             // Larger hollow dot moved out of the box; accent fill & scale on hover
             'relative size-3.5 rounded-full border-2 border-muted-foreground/70 bg-surface shadow-xs transition-all duration-150 pointer-events-none',
-            'group-hover/handle:scale-125 group-hover/handle:border-primary group-hover/handle:ring-2 group-hover/handle:ring-primary/40',
+            'group-hover/handle:scale-125 group-hover/handle:border-foreground group-hover/handle:ring-2 group-hover/handle:ring-primary/40',
             'group-[.connecting]/handle:scale-125 group-[.connecting]/handle:border-primary group-[.connecting]/handle:ring-2 group-[.connecting]/handle:ring-primary/60',
             'group-[.valid]/handle:!bg-success group-[.valid]/handle:!border-success group-[.valid]/handle:ring-4 group-[.valid]/handle:ring-success/40 group-[.valid]/handle:scale-130',
             'group-[.invalid]/handle:!bg-destructive group-[.invalid]/handle:!border-destructive group-[.invalid]/handle:ring-4 group-[.invalid]/handle:ring-destructive/40 group-[.invalid]/handle:scale-130',
@@ -710,7 +710,7 @@ export function SourceHandleWithQuickAdd({
             setIsOpen((prev) => !prev);
           }}
           className={cn(
-            'flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-all duration-150',
+            'flex size-5 items-center justify-center rounded-full bg-foreground text-background shadow-md transition-all duration-150',
             'opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer',
             isOpen && 'opacity-100 ring-2 ring-primary/40 scale-110',
           )}
@@ -1210,7 +1210,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
     <div
       className={cn(
         'group relative w-[290px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
         statusBorderClasses[nodeData.status || 'idle'],
         isCoordinator && !selected && 'border-primary/40',
       )}
@@ -1314,7 +1314,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                 e.stopPropagation();
                 open('prompt');
               }}
-              className="nodrag block w-full rounded-lg border border-border px-2.5 py-1.5 text-left text-[11px] leading-snug transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 motion-reduce:transition-none"
+              className="nodrag block w-full rounded-lg border border-border px-2.5 py-1.5 text-left text-[11px] leading-snug transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 motion-reduce:transition-none"
               aria-label="Open Prompt settings"
             >
               {promptPreview ? (
@@ -1349,7 +1349,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                     e.stopPropagation();
                     open('tools', { section: 'builtin' });
                   }}
-                  className="nodrag flex size-6 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  className="nodrag flex size-6 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground hover:border-border-strong hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   aria-label="Add or change tools"
                   title="Add or change tools"
                 >
@@ -1484,7 +1484,7 @@ function OutlineAction({ icon, label, onClick, disabled }: { icon: React.ReactNo
         e.stopPropagation();
         onClick();
       }}
-      className="nodrag flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-[11px] font-medium text-foreground shadow-2xs transition-colors hover:border-primary/40 hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 motion-reduce:transition-none"
+      className="nodrag flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-[11px] font-medium text-foreground shadow-2xs transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 motion-reduce:transition-none"
     >
       {icon}
       {label}
@@ -1591,7 +1591,7 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative w-[270px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
@@ -1647,7 +1647,7 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative w-[250px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
@@ -1747,7 +1747,7 @@ export const AgentNode = memo((props: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[240px] max-w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
@@ -1898,7 +1898,7 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
     <div
       className={cn(
         'group relative min-w-[240px] max-w-[300px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
         statusBorderClasses[status],
       )}
     >
@@ -2361,7 +2361,7 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[220px] max-w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
@@ -2420,7 +2420,7 @@ export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
       className={cn(
         'group relative min-w-[190px] h-full w-full rounded-2xl border p-3 shadow-xs transition-all backdrop-blur-xs',
         colorStyles[color] || colorStyles.yellow,
-        selected ? 'ring-2 ring-primary shadow-md' : 'hover:border-primary/40',
+        selected ? 'ring-2 ring-foreground/60 shadow-md' : 'hover:border-border-strong',
       )}
     >
       <NodeResizer
@@ -2451,7 +2451,7 @@ export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[340px] min-h-[220px] h-full w-full rounded-2xl border-2 border-dashed border-border/80 bg-surface/30 p-4 transition-all',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/40',
+        selected ? 'border-foreground/60 ring-2 ring-foreground/10' : 'hover:border-border-strong',
       )}
     >
       <NodeResizer
@@ -2492,7 +2492,7 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[240px] max-w-[280px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-primary border-primary shadow-md' : 'hover:border-primary/50',
+        selected ? 'ring-2 ring-foreground/60 border-foreground/60 shadow-md' : 'hover:border-border-strong',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >

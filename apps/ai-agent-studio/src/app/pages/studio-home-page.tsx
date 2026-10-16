@@ -134,7 +134,7 @@ function GettingStarted({ steps }: { steps: JourneyStep[] }) {
           <li
             key={step.id}
             className={`flex flex-col justify-between gap-2 rounded-xl border p-3 ${
-              step.id === nextId ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-surface-raised/40'
+              step.id === nextId ? 'border-foreground/30 bg-selected' : 'border-border/60 bg-surface-raised/40'
             }`}
           >
             <div className="flex items-start gap-2">
@@ -419,7 +419,7 @@ function StudioInsights() {
                       <div
                         key={agent.id}
                         onClick={() => navigate(`/agents/${agent.id}`)}
-                        className="group relative flex cursor-pointer flex-col justify-between rounded-xl border border-border bg-surface p-4 transition-all hover:border-primary/50 hover:bg-surface-raised/40 hover:shadow-md"
+                        className="group relative flex cursor-pointer flex-col justify-between rounded-xl border border-border bg-surface p-4 transition-all hover:border-border-strong hover:bg-surface-raised/40 hover:shadow-md"
                       >
                         <div>
                           <div className="flex items-start justify-between gap-2">
@@ -604,7 +604,7 @@ function StudioInsights() {
               <div
                 key={tpl.id}
                 onClick={() => navigate(`/templates?use=${tpl.id}`)}
-                className="group flex cursor-pointer flex-col rounded-xl border border-border bg-surface p-3.5 transition-all hover:border-primary/50 hover:bg-surface-raised/40 hover:shadow-xs"
+                className="group flex cursor-pointer flex-col rounded-xl border border-border bg-surface p-3.5 transition-all hover:border-border-strong hover:bg-surface-raised/40 hover:shadow-xs"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground transition-colors group-hover:text-primary">{tpl.name}</span>

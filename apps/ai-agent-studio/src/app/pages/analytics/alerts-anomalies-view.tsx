@@ -98,7 +98,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
 
       {/* CREATE ALERT FORM */}
       {showCreateForm && (
-        <Card className="p-5 shadow-2xs border-primary/40 space-y-4">
+        <Card className="p-5 shadow-2xs border-border-strong space-y-4">
           <div className="text-xs font-semibold text-foreground">
             Configure New Telemetry Alert Guard
           </div>

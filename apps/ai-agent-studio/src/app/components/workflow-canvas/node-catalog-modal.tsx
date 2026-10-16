@@ -246,7 +246,7 @@ export function NodeCatalogModal({
                   className={cn(
                     'text-[9px] rounded-full px-1.5 py-0.2',
                     isSelected
-                      ? 'bg-primary-foreground/20 text-primary-foreground'
+                      ? 'bg-background/20 text-background'
                       : 'bg-border/60 text-muted-foreground',
                   )}
                 >
@@ -294,8 +294,8 @@ export function NodeCatalogModal({
                   className={cn(
                     'group relative flex flex-col justify-between rounded-xl border p-3 transition-all cursor-pointer select-none text-left',
                     isFocused
-                      ? 'border-primary bg-primary/10 shadow-md ring-1 ring-primary/30 -translate-y-0.5'
-                      : 'border-border/80 bg-surface hover:border-primary/50 hover:bg-surface-raised/60 hover:shadow-xs hover:-translate-y-0.5',
+                      ? 'border-foreground/30 bg-selected shadow-md ring-1 ring-foreground/10 -translate-y-0.5'
+                      : 'border-border/80 bg-surface hover:border-border-strong hover:bg-surface-raised/60 hover:shadow-xs hover:-translate-y-0.5',
                   )}
                 >
                   <div className="space-y-1.5">
@@ -305,8 +305,8 @@ export function NodeCatalogModal({
                           className={cn(
                             'flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors',
                             isFocused
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-surface-raised text-primary group-hover:bg-primary group-hover:text-primary-foreground',
+                              ? 'bg-foreground text-background'
+                              : 'bg-surface-raised text-primary group-hover:bg-foreground group-hover:text-background',
                           )}
                         >
                           {item.defaultConfig?.connectorId ? (

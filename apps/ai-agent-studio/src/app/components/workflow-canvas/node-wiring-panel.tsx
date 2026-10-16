@@ -351,8 +351,8 @@ export function NodeWiringPanel({
                   className={cn(
                     'inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors',
                     attached
-                      ? 'border-primary/40 bg-primary/10 text-primary'
-                      : 'border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                      ? 'border-foreground/30 bg-selected text-foreground'
+                      : 'border-dashed border-border text-muted-foreground hover:border-border-strong hover:text-foreground',
                     readOnly && 'pointer-events-none opacity-60',
                   )}
                 >

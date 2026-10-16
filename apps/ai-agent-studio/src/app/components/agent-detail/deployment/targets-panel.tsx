@@ -164,7 +164,7 @@ export function TargetsPanel({
                 <span className="truncate">{item.label}</span>
               </span>
               {item.badge ? (
-                <Badge variant="outline" className={cn('px-1.5 py-0 text-[9px] uppercase', selected && 'border-primary-foreground/30 text-primary-foreground')}>
+                <Badge variant="outline" className={cn('px-1.5 py-0 text-[9px] uppercase', selected && 'border-background/30 text-background')}>
                   {item.badge}
                 </Badge>
               ) : null}

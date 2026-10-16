@@ -264,11 +264,11 @@ export function WidgetComponentPalette({
             <div
               key={preset.id}
               onClick={() => onSelectPreset(preset)}
-              className="p-3 rounded-lg border border-border/70 bg-surface hover:bg-surface-raised hover:border-primary/50 transition-all cursor-pointer group shadow-xs space-y-1"
+              className="p-3 rounded-lg border border-border/70 bg-surface hover:bg-surface-raised hover:border-border-strong transition-all cursor-pointer group shadow-xs space-y-1"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="rounded p-1 bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <div className="rounded p-1 bg-primary/10 text-primary group-hover:bg-foreground group-hover:text-background transition-colors">
                     <Icon className="size-3.5" />
                   </div>
                   <span className="text-xs font-semibold text-foreground">{preset.name}</span>

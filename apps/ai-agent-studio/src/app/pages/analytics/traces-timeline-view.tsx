@@ -150,7 +150,7 @@ export function TracesTimelineView({
                       className={cn(
                         'p-2.5 rounded-lg border text-xs cursor-pointer transition-all space-y-2',
                         isSelected
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
+                          ? 'border-foreground/30 bg-selected ring-1 ring-foreground/10'
                           : isBottleneck
                           ? 'border-warning/50 bg-warning/5'
                           : 'border-border bg-surface hover:bg-surface-raised',

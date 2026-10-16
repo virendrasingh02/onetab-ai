@@ -264,7 +264,7 @@ export function AgentDetailDrawer({
                     <div
                       key={exec.id}
                       onClick={() => onOpenExecution?.(exec.id)}
-                      className="p-3 rounded-lg border border-border bg-surface-raised hover:border-primary/40 transition-colors flex items-center justify-between text-xs cursor-pointer"
+                      className="p-3 rounded-lg border border-border bg-surface-raised hover:border-border-strong transition-colors flex items-center justify-between text-xs cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
                         <Badge

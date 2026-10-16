@@ -187,7 +187,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
         {/* Total Runs */}
         <Card
           onClick={() => onNavigateToTab('executions')}
-          className="p-4 sm:p-5 flex flex-col justify-between hover:border-primary/50 transition-all cursor-pointer group shadow-2xs"
+          className="p-4 sm:p-5 flex flex-col justify-between hover:border-border-strong transition-all cursor-pointer group shadow-2xs"
         >
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-xs font-medium">Total Workflow Runs</span>

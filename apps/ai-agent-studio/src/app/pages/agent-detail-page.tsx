@@ -1270,7 +1270,7 @@ function WorkflowCanvasInner({
         <div
           role="region"
           aria-label="Workflow Analytics Overlay Controls"
-          className="absolute top-4 left-4 z-30 flex items-center gap-2 rounded-xl border border-primary/40 bg-surface p-2 shadow-lg text-xs select-none"
+          className="absolute top-4 left-4 z-30 flex items-center gap-2 rounded-xl border border-border-strong bg-surface p-2 shadow-lg text-xs select-none"
         >
           <div className="flex items-center gap-1.5 font-semibold text-foreground px-1">
             <BarChart3 className="size-4 text-primary" />
@@ -4239,7 +4239,7 @@ export function AgentDetailPage() {
                 {executions.map((exec) => (
                   <div
                     key={exec.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-3.5 hover:border-primary/40 transition-colors"
+                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-3.5 hover:border-border-strong transition-colors"
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
@@ -4335,7 +4335,7 @@ export function AgentDetailPage() {
                 {versions.map((ver) => (
                   <div
                     key={ver.version}
-                    className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition-all hover:border-primary/40"
+                    className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition-all hover:border-border-strong"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">

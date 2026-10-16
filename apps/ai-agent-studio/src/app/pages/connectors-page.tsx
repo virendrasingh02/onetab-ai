@@ -175,7 +175,7 @@ export function ConnectorsPage() {
                 className={cn(
                   'whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   category === c.id
-                    ? 'border-primary bg-primary text-primary-foreground'
+                    ? 'border-foreground bg-foreground text-background'
                     : 'border-border bg-surface text-muted-foreground hover:bg-surface-raised hover:text-foreground',
                 )}
               >
@@ -369,7 +369,7 @@ function BuildConnectorTile({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface p-5 text-center transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface p-5 text-center transition-colors hover:border-border-strong hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-surface-raised text-muted-foreground group-hover:text-primary">
         <Plus className="size-5" aria-hidden="true" />

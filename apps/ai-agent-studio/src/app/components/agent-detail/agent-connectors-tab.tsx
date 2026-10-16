@@ -282,7 +282,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
                       className={cn(
                         'flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg border border-border text-muted-foreground transition-colors',
                         c.status === 'connected' || unavailable ? 'w-8' : 'px-2.5 text-xs font-medium',
-                        !unavailable && 'group-hover:border-primary/50 group-hover:text-foreground',
+                        !unavailable && 'group-hover:border-border-strong group-hover:text-foreground',
                       )}
                     >
                       {c.status === 'connected' || unavailable ? <Plus className="size-4" /> : 'Connect'}

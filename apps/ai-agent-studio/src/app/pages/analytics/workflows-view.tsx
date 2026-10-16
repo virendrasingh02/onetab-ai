@@ -239,7 +239,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
 
       {/* SELECTED WORKFLOW DETAIL PANEL */}
       {selectedWf && (
-        <Card className="p-5 shadow-2xs border-primary/40 space-y-4">
+        <Card className="p-5 shadow-2xs border-border-strong space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers className="size-5 text-primary" />

@@ -150,11 +150,11 @@ export function SubAgentsModule({ view, agent, nodes, edges, issues, readOnly, s
                 onClick={() => setConfig(view.agentId, { delegation: mode.value })}
                 className={cn(
                   'w-full rounded-lg border px-3 py-2 text-left transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
-                  selected ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-raised',
+                  selected ? 'border-foreground/30 bg-selected' : 'border-border hover:bg-surface-raised',
                 )}
               >
                 <span className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                  <span className={cn('size-3 rounded-full border-2', selected ? 'border-primary bg-primary' : 'border-muted-foreground/40')} aria-hidden />
+                  <span className={cn('size-3 rounded-full border-2', selected ? 'border-foreground bg-foreground' : 'border-muted-foreground/40')} aria-hidden />
                   {mode.label}
                 </span>
                 <span className="mt-0.5 block pl-5 text-[11px] leading-relaxed text-muted-foreground">{PATTERNS[mode.value]}</span>

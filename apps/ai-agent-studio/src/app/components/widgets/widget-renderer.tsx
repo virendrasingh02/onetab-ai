@@ -1029,7 +1029,7 @@ function TaskListContent({
         >
           <div className={cn(
             'size-4 rounded border flex items-center justify-center transition-colors',
-            task.done ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'
+            task.done ? 'bg-foreground border-foreground text-background' : 'border-muted-foreground'
           )}>
             {task.done && <Check className="size-3" />}
           </div>

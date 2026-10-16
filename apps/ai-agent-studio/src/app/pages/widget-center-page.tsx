@@ -285,7 +285,7 @@ export function WidgetCenterPage() {
               {widgets.map((widget: WidgetDefinition) => (
                 <Card
                   key={widget.id}
-                  className="flex flex-col justify-between border-border bg-surface hover:border-primary/40 hover:shadow-sm transition-all"
+                  className="flex flex-col justify-between border-border bg-surface hover:border-border-strong hover:shadow-sm transition-all"
                 >
                   <CardHeader className="p-4 pb-2">
                     <div className="flex items-start justify-between gap-2">
@@ -402,7 +402,7 @@ export function WidgetCenterPage() {
             {templates.map((tpl: WidgetTemplateItem) => (
               <Card
                 key={tpl.id}
-                className="flex flex-col justify-between border-border bg-surface hover:border-primary/40 transition-all"
+                className="flex flex-col justify-between border-border bg-surface hover:border-border-strong transition-all"
               >
                 <CardHeader className="p-4 pb-2">
                   <div className="flex items-center justify-between">

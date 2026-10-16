@@ -1100,7 +1100,7 @@ export function AgentCopilotPanel({
       <div className="px-4 pb-3">
         <form
           onSubmit={submit}
-          className="flex items-end gap-1 rounded-2xl border border-border bg-background px-2 py-1.5 transition-colors focus-within:border-primary/50"
+          className="flex items-end gap-1 rounded-2xl border border-border bg-background px-2 py-1.5 transition-colors focus-within:border-ring"
         >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

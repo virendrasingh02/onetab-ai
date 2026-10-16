@@ -176,8 +176,8 @@ export function TemplatesPage() {
               key={template.id}
               id={`template-${template.id}`}
               className={cn(
-                'group flex flex-col justify-between p-5 transition-all hover:border-primary/50 hover:shadow-md',
-                isPreselected && 'border-primary ring-2 ring-primary/30',
+                'group flex flex-col justify-between p-5 transition-all hover:border-border-strong hover:shadow-md',
+                isPreselected && 'border-foreground/40 ring-2 ring-foreground/10',
               )}
             >
               <div>

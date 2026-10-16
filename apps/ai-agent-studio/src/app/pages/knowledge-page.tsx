@@ -268,15 +268,15 @@ export function KnowledgePage() {
                     }}
                     className={`group relative cursor-pointer rounded-xl border p-3.5 transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                       selected
-                        ? 'border-primary bg-primary/5 shadow-xs'
-                        : 'border-border bg-surface hover:border-primary/40 hover:bg-surface-raised/40'
+                        ? 'border-foreground/30 bg-selected shadow-xs'
+                        : 'border-border bg-surface hover:border-border-strong hover:bg-surface-raised/40'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5">
                         <div
                           className={`flex size-8 items-center justify-center rounded-lg ${
-                            selected ? 'bg-primary text-primary-foreground' : 'bg-surface-raised text-primary'
+                            selected ? 'bg-foreground text-background' : 'bg-surface-raised text-primary'
                           }`}
                         >
                           <BookOpen className="size-4" />

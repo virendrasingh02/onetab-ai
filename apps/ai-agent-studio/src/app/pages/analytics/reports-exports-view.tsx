@@ -129,7 +129,7 @@ export function ReportsExportsView({ dateRange }: { dateRange: string }) {
           return (
             <Card
               key={rep.type}
-              className="p-5 flex flex-col justify-between hover:border-primary/40 transition-colors shadow-2xs space-y-4"
+              className="p-5 flex flex-col justify-between hover:border-border-strong transition-colors shadow-2xs space-y-4"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">

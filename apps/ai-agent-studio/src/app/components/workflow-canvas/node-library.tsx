@@ -787,7 +787,7 @@ export function NodeLibrary({
                 key={item.key ?? item.type}
                 draggable
                 onDragStart={(e) => onDragStart(e, item)}
-                className="group relative flex cursor-grab flex-col rounded-xl border border-border bg-surface p-2.5 transition-all hover:border-primary/50 hover:bg-surface-raised/40 hover:shadow-xs active:cursor-grabbing"
+                className="group relative flex cursor-grab flex-col rounded-xl border border-border bg-surface p-2.5 transition-all hover:border-border-strong hover:bg-surface-raised/40 hover:shadow-xs active:cursor-grabbing"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">

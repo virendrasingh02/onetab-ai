@@ -112,7 +112,7 @@ export function ToolsPage() {
       <div className="grid gap-3 sm:grid-cols-2">
         <Link
           to="/connectors"
-          className="group flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-primary/50"
+          className="group flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border-strong"
         >
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <AppWindow className="size-4" />
@@ -125,7 +125,7 @@ export function ToolsPage() {
         </Link>
         <Link
           to="/mcp"
-          className="group flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-primary/50"
+          className="group flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border-strong"
         >
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Plug className="size-4" />
@@ -272,8 +272,8 @@ export function ToolsPage() {
                       runMutation.reset();
                       document.getElementById('tool-sandbox')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }}
-                    className={`space-y-2 rounded-xl border bg-surface p-4 text-left shadow-2xs transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
-                      selected?.name === t.name ? 'border-primary' : 'border-border'
+                    className={`space-y-2 rounded-xl border bg-surface p-4 text-left shadow-2xs transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                      selected?.name === t.name ? 'border-foreground/40' : 'border-border'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">

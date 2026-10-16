@@ -627,7 +627,7 @@ export function AgentsListPage() {
             return (
               <div
                 key={agent.id}
-                className="group relative flex flex-col justify-between rounded-xl border border-border bg-surface p-4 transition-all hover:border-primary/50 hover:shadow-md"
+                className="group relative flex flex-col justify-between rounded-xl border border-border bg-surface p-4 transition-all hover:border-border-strong hover:shadow-md"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
@@ -639,7 +639,7 @@ export function AgentsListPage() {
                           <div
                             onClick={() => !isDeleted && navigate(`/agents/${agent.id}`)}
                             className={`text-xs font-bold text-foreground transition-colors line-clamp-1 ${
-                              !isDeleted ? 'cursor-pointer hover:text-primary' : ''
+                              !isDeleted ? 'cursor-pointer hover:text-foreground' : ''
                             }`}
                           >
                             {agent.name}

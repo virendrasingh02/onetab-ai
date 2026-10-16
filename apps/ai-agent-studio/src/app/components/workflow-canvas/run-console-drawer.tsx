@@ -457,7 +457,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
                       aria-pressed={selectedStep?.id === step.id}
                       className={cn(
                         'flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        selectedStep?.id === step.id ? 'border-primary bg-primary/10' : 'border-border bg-surface-raised/40 hover:bg-surface-raised',
+                        selectedStep?.id === step.id ? 'border-foreground/30 bg-selected' : 'border-border bg-surface-raised/40 hover:bg-surface-raised',
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-2">
@@ -490,7 +490,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
                         aria-pressed={selectedTask?.id === task.id}
                         className={cn(
                           'flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          selectedTask?.id === task.id ? 'border-primary bg-primary/10' : 'border-border bg-surface-raised/40 hover:bg-surface-raised',
+                          selectedTask?.id === task.id ? 'border-foreground/30 bg-selected' : 'border-border bg-surface-raised/40 hover:bg-surface-raised',
                         )}
                       >
                         <span className="flex min-w-0 items-center gap-2">

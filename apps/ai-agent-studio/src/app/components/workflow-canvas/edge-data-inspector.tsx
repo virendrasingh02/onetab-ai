@@ -293,7 +293,7 @@ function RoutingOption({
       className={cn(
         'flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 text-[10px] font-medium transition-colors',
         checked
-          ? 'border-primary bg-primary/10 text-primary'
+          ? 'border-foreground/30 bg-selected text-foreground'
           : 'border-border bg-surface text-muted-foreground hover:text-foreground',
       )}
     >
