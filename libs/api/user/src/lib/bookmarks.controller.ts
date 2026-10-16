@@ -11,10 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, WorkspaceId } from '@org/api-common';
+import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
 import {
   createBookmarkSchema,
+  importBookmarksSchema,
   type CreateBookmarkInput,
+  type ImportBookmarksInput,
 } from '@org/validation';
 import { BookmarksService } from './bookmarks.service.js';
 
@@ -28,18 +30,33 @@ export class BookmarksController {
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
     @Query('targetType') targetType?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.bookmarks.list(workspaceId, userId, targetType);
+    return this.bookmarks.list(
+      workspaceId,
+      userId,
+      targetType,
+      limit ? Number(limit) : undefined,
+    );
   }
 
   @Post()
   create(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: CreateBookmarkInput,
+    @Body(zodBody(createBookmarkSchema)) body: CreateBookmarkInput,
   ) {
-    const parsed = createBookmarkSchema.parse(body);
-    return this.bookmarks.create(workspaceId, userId, parsed);
+    return this.bookmarks.create(workspaceId, userId, body);
+  }
+
+  @Post('import')
+  @HttpCode(HttpStatus.OK)
+  import(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(importBookmarksSchema)) body: ImportBookmarksInput,
+  ) {
+    return this.bookmarks.import(workspaceId, userId, body);
   }
 
   @Delete(':bookmarkId')

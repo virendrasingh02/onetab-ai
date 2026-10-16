@@ -52,6 +52,7 @@ import {
   type UploadTarget,
 } from '@org/web-upload';
 import { useWorkspaceRoomFiles } from '@org/web-chat';
+import { useSaveForLater } from '@org/web-chat/bookmarks';
 import {
   Check,
   ChevronDown,
@@ -126,6 +127,7 @@ export function FileManagerView() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [destination, setDestination] = useState<string>(DEST_WORKSPACE);
   const [detailsId, setDetailsId] = useState<string | null>(null);
+  const saveForLater = useSaveForLater();
 
   /* `?file=<id>` is the file's shareable link ("Copy link"): open its details. */
   const [searchParams, setSearchParams] = useSearchParams();
@@ -513,6 +515,15 @@ export function FileManagerView() {
                   if (!path) throw new Error('This file has no shareable link');
                   return copyToClipboard(entityUrl(path));
                 }}
+                isSaved={(item) => saveForLater.isSaved('file', item.id)}
+                onToggleSaved={(item) =>
+                  saveForLater.toggleSaved({
+                    type: 'file',
+                    id: item.id,
+                    title: item.filename,
+                    href: `files?file=${item.id}`,
+                  })
+                }
                 scrollParentRef={scrollRef}
                 empty={
                   <div className="p-8 rounded-card border border-border bg-surface/60 text-center">

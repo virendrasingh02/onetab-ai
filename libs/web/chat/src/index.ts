@@ -113,13 +113,16 @@ export { formatRoomMemberSummary } from './lib/thread-roster.js';
 export { SavedView } from './lib/SavedView.js';
 export {
   useSavedIds,
-  useSavedMessagesStore,
+  useSavedMessages,
   useToggleSaved,
   type SavedMessage,
 } from './lib/use-saved-messages.js';
 export {
   useBookmarks,
   useBookmarkMutations,
+  useBookmarkToggle,
+  useSaveForLater,
+  type SaveForLaterTarget,
 } from './lib/use-bookmarks.js';
 export { EncryptionSecurityPanel } from './lib/encryption-security-panel.js';
 export {

@@ -15,6 +15,7 @@ import {
   Textarea,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { useSaveForLater } from '@org/web-chat/bookmarks';
 import {
   ArrowDownUp,
   CornerUpRight,
@@ -72,6 +73,7 @@ export function KanbanListColumn({
   currentUserId,
   onConvertCardToDoc,
 }: KanbanListColumnProps) {
+  const { saveAction } = useSaveForLater();
   const sectionRef = useRef<HTMLElement>(null);
   /** The `<ul>` — the drag engine measures the tiles inside it. */
   const cardsRef = useRef<HTMLUListElement>(null);
@@ -341,6 +343,7 @@ export function KanbanListColumn({
             <KanbanCardTile
               key={card.id}
               card={card}
+              saveAction={saveAction}
               members={members}
               lists={lists}
               listId={list.id}

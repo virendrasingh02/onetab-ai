@@ -1,92 +1,112 @@
+import { bookmarksApi } from '@org/api-client';
 import type { SavedMessage } from '@org/types';
-import { toast } from '@org/ui';
+import { useCurrentWorkspace } from '@org/web-workspace';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { useMatrix } from './matrix-provider.js';
+import {
+  MESSAGE_BOOKMARK_TYPE,
+  bookmarkToSavedMessage,
+  savedMessageToBookmark,
+} from './saved-message-mapping.js';
+import { useBookmarks, useBookmarkToggle } from './use-bookmarks.js';
+
+export {
+  MESSAGE_BOOKMARK_TYPE,
+  bookmarkToSavedMessage,
+  savedMessageToBookmark,
+};
 
 export type { SavedMessage };
 
-/**
- * Saved items are a snapshot (see `SavedMessage`) kept in the reader's Matrix
- * account data (`mie.saved_messages`), so they follow them across devices. The
- * zustand store is a read-through cache of that list — persisted locally only
- * so the Saved page paints instantly and works offline.
- */
-interface SavedMessagesState {
-  saved: SavedMessage[];
-  add: (message: SavedMessage) => void;
-  remove: (id: string) => void;
-  replace: (saved: SavedMessage[]) => void;
-  clear: () => void;
+/* --- one-off import of pre-server saves -------------------------------- */
+
+/** The zustand cache older clients persisted the Matrix list into. */
+const LEGACY_CACHE_KEY = 'onetab_saved_messages_v1';
+const IMPORT_CHUNK = 500;
+
+function readLegacyCache(): SavedMessage[] {
+  try {
+    const raw = localStorage.getItem(LEGACY_CACHE_KEY);
+    if (!raw) return [];
+    const saved = (JSON.parse(raw) as { state?: { saved?: unknown } })?.state?.saved;
+    return Array.isArray(saved)
+      ? saved.filter(
+          (entry): entry is SavedMessage =>
+            !!entry &&
+            typeof (entry as SavedMessage).id === 'string' &&
+            typeof (entry as SavedMessage).roomId === 'string',
+        )
+      : [];
+  } catch {
+    return [];
+  }
 }
 
-export const useSavedMessagesStore = create<SavedMessagesState>()(
-  persist(
-    (set) => ({
-      saved: [],
+function dropLegacyCache(): void {
+  try {
+    localStorage.removeItem(LEGACY_CACHE_KEY);
+  } catch {
+    // Storage blocked — nothing was cached there either.
+  }
+}
 
-      add: (message) =>
-        set((state) =>
-          state.saved.some((entry) => entry.id === message.id)
-            ? state
-            : { saved: [message, ...state.saved] },
-        ),
-
-      remove: (id) =>
-        set((state) => ({
-          saved: state.saved.filter((entry) => entry.id !== id),
-        })),
-
-      replace: (saved) => set({ saved }),
-
-      clear: () => set({ saved: [] }),
-    }),
-    { name: 'onetab_saved_messages_v1' },
-  ),
-);
+/** Shared across every mount: the import runs once per page load at most. */
+let legacyImport: Promise<void> | null = null;
 
 /**
- * Keeps the store in step with Matrix. Safe to mount from several places.
- *
- * Once the client has synced, anything saved on this device before saves moved
- * to Matrix is merged up (never overwriting what other devices saved), then
- * every later change — from any device — flows back in live.
+ * Moves saves made before they lived on the server — the Matrix account-data
+ * list and this device's cache of it — into `/bookmarks`, then clears both so
+ * they can't resurrect anything removed later. The server never overwrites an
+ * existing bookmark and files channel messages under their own workspace.
+ * Failures leave the legacy data in place for the next attempt.
  */
-export function useSavedMessagesSync(): void {
+export function useLegacySavedMessagesImport(): void {
   const { client, status } = useMatrix();
+  const { workspaceId } = useCurrentWorkspace();
+  const queryClient = useQueryClient();
   const connected = !!client && status.state === 'connected';
 
   useEffect(() => {
-    if (!client || !connected) return;
-    const replace = useSavedMessagesStore.getState().replace;
+    if (!client || !connected || !workspaceId || legacyImport) return;
 
     const remote = client.getSavedMessages();
-    const local = useSavedMessagesStore.getState().saved;
-    const known = new Set(remote.map((entry) => entry.id));
-    const unsynced = local.filter((entry) => !known.has(entry.id));
-    if (unsynced.length > 0) {
-      const merged = [...remote, ...unsynced].sort(
-        (a, b) => b.savedAt - a.savedAt,
-      );
-      replace(merged);
-      void client.setSavedMessages(merged).catch(() => {
-        // Retried the next time the client reconnects.
-      });
-    } else {
-      replace(remote);
-    }
+    const byId = new Map<string, SavedMessage>();
+    for (const entry of [...readLegacyCache(), ...remote]) byId.set(entry.id, entry);
+    if (byId.size === 0) return;
 
-    return client.on((event) => {
-      if (event.type === 'saved.updated') replace(event.saved);
+    const items = [...byId.values()].map(savedMessageToBookmark);
+    legacyImport = (async () => {
+      for (let i = 0; i < items.length; i += IMPORT_CHUNK) {
+        await bookmarksApi.import(workspaceId, items.slice(i, i + IMPORT_CHUNK));
+      }
+      dropLegacyCache();
+      if (remote.length > 0) await client.setSavedMessages([]);
+      await queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+    })().catch(() => {
+      // Kept for the next connect / page load.
+      legacyImport = null;
     });
-  }, [client, connected]);
+  }, [client, connected, workspaceId, queryClient]);
+}
+
+/* --- hooks --------------------------------------------------------------- */
+
+/** Every saved message in the current workspace, newest first. */
+export function useSavedMessages(): {
+  saved: SavedMessage[];
+  isLoading: boolean;
+} {
+  useLegacySavedMessagesImport();
+  const { workspaceId } = useCurrentWorkspace();
+  const { data = [], isLoading } = useBookmarks(workspaceId, MESSAGE_BOOKMARK_TYPE);
+  const saved = useMemo(() => data.map(bookmarkToSavedMessage), [data]);
+  return { saved, isLoading };
 }
 
 /** The ids saved in one room, for the conversation's own bookmark toggles. */
 export function useSavedIds(roomId: string | undefined): string[] {
-  useSavedMessagesSync();
-  const saved = useSavedMessagesStore((s) => s.saved);
+  const { saved } = useSavedMessages();
   return useMemo(
     () =>
       roomId
@@ -97,30 +117,21 @@ export function useSavedIds(roomId: string | undefined): string[] {
 }
 
 /**
- * Saves or unsaves one message: optimistic locally, written to Matrix, and
- * rolled back with a toast if the homeserver refuses.
+ * Saves or unsaves one message: optimistic, written to the bookmarks API, and
+ * rolled back with a toast if the server refuses.
  *
  * Takes the whole snapshot rather than an id: the caller is the only place that
  * still has the message in hand, and the entry has to hold enough of it to
  * render outside the room.
  */
 export function useToggleSaved() {
-  const { client } = useMatrix();
+  const { workspaceId } = useCurrentWorkspace();
+  const { toggle } = useBookmarkToggle(workspaceId);
 
   return useCallback(
     (message: SavedMessage, isSaved: boolean) => {
-      const { add, remove } = useSavedMessagesStore.getState();
-      if (isSaved) remove(message.id);
-      else add(message);
-      if (!client) return;
-      client.setMessageSaved(message, !isSaved).catch(() => {
-        if (isSaved) add(message);
-        else remove(message.id);
-        toast.error(
-          isSaved ? 'Could not remove the saved message.' : 'Could not save the message.',
-        );
-      });
+      void toggle(savedMessageToBookmark(message), isSaved);
     },
-    [client],
+    [toggle],
   );
 }

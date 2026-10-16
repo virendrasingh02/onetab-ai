@@ -1,11 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { BookmarkDto, CreateBookmarkInput } from '@org/types';
 import {
   Badge,
   Button,
   Card,
   EmptyState,
   Hint,
+  Input,
   buildObjectActions,
   EntityContextMenu,
   ObjectActionMenu,
@@ -13,6 +15,7 @@ import {
   PageTabBar,
   Tabs,
   TabsTrigger,
+  toast,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -23,16 +26,24 @@ import {
   FileText,
   MessageSquare,
   Paperclip,
-  Trash2,
+  Search,
 } from 'lucide-react';
-import { useBookmarks, useBookmarkMutations } from './use-bookmarks.js';
-import { useMatrix } from './matrix-provider.js';
+import { useBookmarks, useBookmarkToggle } from './use-bookmarks.js';
 import {
-  useSavedMessagesStore,
-  useSavedMessagesSync,
+  MESSAGE_BOOKMARK_TYPE,
+  bookmarkToSavedMessage,
+  useLegacySavedMessagesImport,
 } from './use-saved-messages.js';
 
 type BookmarkFilter = 'all' | 'message' | 'task' | 'doc' | 'file';
+
+const FILTERS: { key: BookmarkFilter; label: string }[] = [
+  { key: 'all', label: 'All Items' },
+  { key: 'message', label: 'Messages' },
+  { key: 'task', label: 'Tasks' },
+  { key: 'doc', label: 'Documents' },
+  { key: 'file', label: 'Files' },
+];
 
 function getTypeIcon(type: string) {
   switch (type.toLowerCase()) {
@@ -49,119 +60,132 @@ function getTypeIcon(type: string) {
   }
 }
 
+interface SavedItem {
+  bookmark: BookmarkDto;
+  type: string;
+  title: string;
+  snippet: string | null;
+  /** Where the object lives — the conversation for a message. */
+  context?: string;
+  href?: string;
+}
+
+/** Workspace-relative `href` from metadata, else the type's canonical link. */
+function itemHref(bookmark: BookmarkDto, slug: string | undefined): string | undefined {
+  if (!slug) return undefined;
+  const stored = bookmark.metadata?.['href'];
+  if (typeof stored === 'string' && stored) {
+    return stored.startsWith('/') ? stored : `/w/${slug}/${stored}`;
+  }
+  const id = encodeURIComponent(bookmark.targetId);
+  switch (bookmark.targetType) {
+    case 'task':
+      return `/w/${slug}/tasks?taskId=${id}`;
+    case 'doc':
+      return `/w/${slug}/docs/${id}`;
+    case 'file':
+      return `/w/${slug}/files?file=${id}`;
+    case MESSAGE_BOOKMARK_TYPE: {
+      const channelSlug = bookmark.metadata?.['channelSlug'];
+      return typeof channelSlug === 'string' && channelSlug
+        ? `/w/${slug}/c/${channelSlug}?msg=${id}`
+        : undefined;
+    }
+    default:
+      return undefined;
+  }
+}
+
+function toSavedItem(bookmark: BookmarkDto, slug: string | undefined): SavedItem {
+  const href = itemHref(bookmark, slug);
+  if (bookmark.targetType === MESSAGE_BOOKMARK_TYPE) {
+    const message = bookmarkToSavedMessage(bookmark);
+    return {
+      bookmark,
+      type: MESSAGE_BOOKMARK_TYPE,
+      title: message.senderName || bookmark.title,
+      snippet: message.body || null,
+      context: message.channelName
+        ? message.channelSlug
+          ? `#${message.channelName}`
+          : message.channelName
+        : undefined,
+      href,
+    };
+  }
+  return {
+    bookmark,
+    type: bookmark.targetType,
+    title: bookmark.title,
+    snippet: bookmark.snippet ?? null,
+    href,
+  };
+}
+
+function toInput(bookmark: BookmarkDto): CreateBookmarkInput {
+  return {
+    targetType: bookmark.targetType,
+    targetId: bookmark.targetId,
+    title: bookmark.title,
+    snippet: bookmark.snippet ?? null,
+    tags: bookmark.tags,
+    metadata: bookmark.metadata,
+  };
+}
+
 export function SavedView() {
   const navigate = useNavigate();
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
-
   const [activeFilter, setActiveFilter] = useState<BookmarkFilter>('all');
+  const [query, setQuery] = useState('');
 
-  // Server bookmarks
-  const { data: bookmarks = [], isLoading: isBookmarksLoading } =
-    useBookmarks(workspaceId);
-  const { removeBookmark } = useBookmarkMutations(workspaceId);
+  // Saves from before bookmarks lived on the server are uploaded once.
+  useLegacySavedMessagesImport();
 
-  // Saved messages live in Matrix account data (synced into this store).
-  useSavedMessagesSync();
-  const { client } = useMatrix();
-  const legacySaved = useSavedMessagesStore((s) => s.saved);
-  const removeLegacy = useSavedMessagesStore((s) => s.remove);
-  const clearStore = useSavedMessagesStore((s) => s.clear);
-  const clearLegacy = () => {
-    clearStore();
-    void client?.setSavedMessages([]).catch(() => undefined);
+  const {
+    data: bookmarks = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useBookmarks(workspaceId);
+  const { toggle } = useBookmarkToggle(workspaceId);
+
+  const allItems = useMemo(
+    () => bookmarks.map((b) => toSavedItem(b, workspaceSlug)),
+    [bookmarks, workspaceSlug],
+  );
+
+  const searchedItems = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return allItems;
+    return allItems.filter((item) =>
+      [item.title, item.snippet, item.context, ...item.bookmark.tags]
+        .filter(Boolean)
+        .some((text) => (text as string).toLowerCase().includes(needle)),
+    );
+  }, [allItems, query]);
+
+  const counts = useMemo(() => {
+    const byType: Record<string, number> = { all: searchedItems.length };
+    for (const item of searchedItems) byType[item.type] = (byType[item.type] ?? 0) + 1;
+    return byType;
+  }, [searchedItems]);
+
+  const filteredItems = useMemo(
+    () =>
+      activeFilter === 'all'
+        ? searchedItems
+        : searchedItems.filter((item) => item.type === activeFilter),
+    [searchedItems, activeFilter],
+  );
+
+  const handleRemove = (item: SavedItem) => {
+    const input = toInput(item.bookmark);
+    void toggle(input, true);
+    toast.success('Removed from saved', {
+      action: { label: 'Undo', onClick: () => void toggle(input, false) },
+    });
   };
-
-  // Combine bookmarks and legacy items
-  const allItems = useMemo(() => {
-    const serverItems = bookmarks.map((b) => ({
-      id: b.id,
-      isLegacy: false,
-      targetType: b.targetType,
-      targetId: b.targetId,
-      title: b.title,
-      snippet: b.snippet,
-      tags: b.tags,
-      timestamp: b.createdAt,
-      href:
-        b.targetType === 'task'
-          ? `/w/${workspaceSlug}/tasks/${b.targetId}`
-          : b.targetType === 'doc'
-            ? `/w/${workspaceSlug}/docs/${b.targetId}`
-            : b.targetType === 'message'
-              ? `/w/${workspaceSlug}/threads/${b.targetId}`
-              : undefined,
-    }));
-
-    // Add legacy messages that are not already in server bookmarks
-    const serverMessageIds = new Set(
-      bookmarks
-        .filter((b) => b.targetType === 'message')
-        .map((b) => b.targetId),
-    );
-
-    const legacyItems = legacySaved
-      .filter((m) => !serverMessageIds.has(m.id))
-      .map((m) => ({
-        id: m.id,
-        isLegacy: true,
-        targetType: 'message',
-        targetId: m.id,
-        title: `Message from ${m.senderName} in #${m.channelName}`,
-        snippet: m.body,
-        tags: [m.channelName],
-        timestamp: new Date(m.savedAt).toISOString(),
-        href: m.channelSlug
-          ? `/w/${workspaceSlug}/channel/${m.channelSlug}`
-          : `/w/${workspaceSlug}/dms/${m.roomId}`,
-      }));
-
-    return [...serverItems, ...legacyItems].sort(
-      (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-    );
-  }, [bookmarks, legacySaved, workspaceSlug]);
-
-  const filteredItems = useMemo(() => {
-    if (activeFilter === 'all') return allItems;
-    return allItems.filter(
-      (item) => item.targetType.toLowerCase() === activeFilter.toLowerCase(),
-    );
-  }, [allItems, activeFilter]);
-
-  const handleRemove = async (item: (typeof allItems)[0]) => {
-    if (item.isLegacy) {
-      removeLegacy(item.id);
-      const entry = legacySaved.find((m) => m.id === item.id);
-      if (entry)
-        void client?.setMessageSaved(entry, false).catch(() => undefined);
-    } else {
-      await removeBookmark(item.id);
-    }
-  };
-
-  const filterTabs: { key: BookmarkFilter; label: string; count?: number }[] = [
-    { key: 'all', label: 'All Items', count: allItems.length },
-    {
-      key: 'message',
-      label: 'Messages',
-      count: allItems.filter((i) => i.targetType === 'message').length,
-    },
-    {
-      key: 'task',
-      label: 'Tasks',
-      count: allItems.filter((i) => i.targetType === 'task').length,
-    },
-    {
-      key: 'doc',
-      label: 'Documents',
-      count: allItems.filter((i) => i.targetType === 'doc').length,
-    },
-    {
-      key: 'file',
-      label: 'Files',
-      count: allItems.filter((i) => i.targetType === 'file').length,
-    },
-  ];
 
   return (
     <div className="min-h-0 flex flex-1 flex-col bg-background text-foreground">
@@ -174,24 +198,23 @@ export function SavedView() {
               aria-hidden
             />
             <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
-              Saved Bookmarks
+              Saved Items
             </h2>
             <Badge variant="outline" className="px-1.5 py-0 h-5 text-[11px]">
               {allItems.length}
             </Badge>
           </div>
 
-          {legacySaved.length > 0 && (
-            <div className="gap-2 flex items-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearLegacy}
-                className="h-7 text-xs gap-1.5"
-              >
-                <Trash2 className="size-3.5 text-muted-foreground" />
-                <span>Clear Local Cache</span>
-              </Button>
+          {allItems.length > 0 && (
+            <div className="w-full sm:w-64">
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search saved items"
+                aria-label="Search saved items"
+                prefix={<Search className="size-3.5" />}
+                className="h-8 text-xs"
+              />
             </div>
           )}
         </div>
@@ -203,11 +226,11 @@ export function SavedView() {
         onValueChange={(value) => setActiveFilter(value as BookmarkFilter)}
       >
         <PageTabBar>
-          {filterTabs.map((tab) => (
+          {FILTERS.map((tab) => (
             <TabsTrigger
               key={tab.key}
               value={tab.key}
-              count={tab.count && tab.count > 0 ? tab.count : undefined}
+              count={counts[tab.key] ? counts[tab.key] : undefined}
             >
               {tab.label}
             </TabsTrigger>
@@ -218,44 +241,59 @@ export function SavedView() {
       {/* Content Area */}
       <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto">
-          {isBookmarksLoading && allItems.length === 0 ? (
+          {isLoading ? (
             <div className="h-48 flex items-center justify-center">
               <Spinner className="size-6 text-primary" />
             </div>
+          ) : isError ? (
+            <EmptyState
+              icon={<Bookmark className="size-8 text-muted-foreground" />}
+              title="Couldn't load saved items"
+              description="Check your connection and try again."
+              action={
+                <Button size="sm" variant="outline" onClick={() => void refetch()}>
+                  Retry
+                </Button>
+              }
+            />
           ) : filteredItems.length === 0 ? (
             <EmptyState
               icon={<Bookmark className="size-8 text-muted-foreground" />}
               title={
-                activeFilter === 'all'
-                  ? 'Nothing saved yet'
-                  : `No saved ${activeFilter}s`
+                query.trim()
+                  ? 'No matches'
+                  : activeFilter === 'all'
+                    ? 'Nothing saved yet'
+                    : `No saved ${FILTERS.find((f) => f.key === activeFilter)?.label.toLowerCase()}`
               }
-              description="Save messages, tasks, documents, or files for later to quickly access them here across the entire workspace."
+              description={
+                query.trim()
+                  ? 'Try a different search.'
+                  : 'Save messages, tasks, documents, or files to come back to them here. Only you can see your saved items.'
+              }
             />
           ) : (
             <ul className="space-y-2.5">
               {filteredItems.map((item) => {
-                const ItemIcon = getTypeIcon(item.targetType);
+                const ItemIcon = getTypeIcon(item.type);
+                const target = {
+                  type: item.type,
+                  id: item.bookmark.targetId,
+                  title: item.title,
+                  href: item.href,
+                };
                 return (
-                  <li key={`${item.targetType}-${item.id}`}>
+                  <li key={`${item.type}-${item.bookmark.targetId}`}>
                     <EntityContextMenu
                       actions={() =>
-                        buildObjectActions(
-                          {
-                            type: item.targetType,
-                            id: item.targetId,
-                            title: item.title,
-                            href: item.href,
-                          },
-                          {
-                            isBookmarked: true,
-                            onBookmarkToggle: () => handleRemove(item),
-                            onOpen: (href) => navigate(href),
-                          },
-                        )
+                        buildObjectActions(target, {
+                          isBookmarked: true,
+                          onBookmarkToggle: () => handleRemove(item),
+                          onOpen: (href) => navigate(href),
+                        })
                       }
-                      scope={`${item.targetType}:${item.targetId}`}
-                      entityType={item.targetType}
+                      scope={`${item.type}:${item.bookmark.targetId}`}
+                      entityType={item.type}
                       entity={item}
                       label={item.title}
                     >
@@ -267,29 +305,32 @@ export function SavedView() {
 
                           <div className="min-w-0 flex-1">
                             <div className="gap-2 flex flex-wrap items-center">
-                              <span
-                                onClick={() => {
-                                  if (item.href) navigate(item.href);
-                                }}
-                                className={`text-xs sm:text-sm font-semibold text-foreground ${
-                                  item.href
-                                    ? 'cursor-pointer hover:text-primary hover:underline'
-                                    : ''
-                                }`}
-                              >
-                                {item.title}
-                              </span>
+                              {item.href ? (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(item.href as string)}
+                                  className="text-xs sm:text-sm font-semibold text-left text-foreground hover:text-primary hover:underline"
+                                >
+                                  {item.title}
+                                </button>
+                              ) : (
+                                <span className="text-xs sm:text-sm font-semibold text-foreground">
+                                  {item.title}
+                                </span>
+                              )}
+                              {item.context && (
+                                <span className="text-xs text-muted-foreground">
+                                  in {item.context}
+                                </span>
+                              )}
                               <Badge
                                 variant="outline"
                                 className="px-1 py-0 h-4.5 text-[10px] uppercase"
                               >
-                                {item.targetType}
+                                {item.type}
                               </Badge>
                               <span className="font-mono text-[11px] text-muted-foreground">
-                                · saved{' '}
-                                {formatRelative(
-                                  new Date(item.timestamp).toISOString(),
-                                )}
+                                · saved {formatRelative(item.bookmark.createdAt)}
                               </span>
                             </div>
 
@@ -299,9 +340,9 @@ export function SavedView() {
                               </p>
                             )}
 
-                            {item.tags && item.tags.length > 0 && (
+                            {item.bookmark.tags.length > 0 && (
                               <div className="mt-2 gap-1 flex flex-wrap">
-                                {item.tags.map((tag) => (
+                                {item.bookmark.tags.map((tag) => (
                                   <span
                                     key={tag}
                                     className="rounded px-1.5 py-0.5 bg-muted text-[10px] text-muted-foreground"
@@ -316,18 +357,13 @@ export function SavedView() {
 
                         <div className="gap-1 flex shrink-0 items-center">
                           <ObjectActionMenu
-                            target={{
-                              type: item.targetType,
-                              id: item.targetId,
-                              title: item.title,
-                              href: item.href,
-                            }}
+                            target={target}
                             isBookmarked={true}
                             onBookmarkToggle={() => handleRemove(item)}
                             onOpen={(href) => navigate(href)}
                           />
 
-                          <Hint label="Remove bookmark">
+                          <Hint label="Remove from saved">
                             <Button
                               variant="ghost"
                               size="icon-xs"

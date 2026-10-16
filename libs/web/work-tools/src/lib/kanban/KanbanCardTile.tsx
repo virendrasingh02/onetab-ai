@@ -7,6 +7,7 @@ import {
   type EntityAction,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import type { SaveForLaterTarget } from '@org/web-chat/bookmarks';
 import {
   CalendarClock,
   CalendarPlus,
@@ -34,6 +35,8 @@ import type { DragHandlers } from './use-board-drag.js';
 
 export interface KanbanCardTileProps {
   card: KanbanCard;
+  /** The "Save for later" menu entry (the column owns the bookmarks query). */
+  saveAction?: (target: SaveForLaterTarget, group?: string) => EntityAction;
   members: BoardMember[];
   lists: Array<Pick<KanbanList, 'id' | 'title'>>;
   listId: TaskStatus | string;
@@ -127,6 +130,7 @@ export function KanbanCardTile({
   onUpdate,
   currentUserId,
   onConvertToDoc,
+  saveAction,
 }: KanbanCardTileProps) {
   const customStore = useKanbanCustomStore();
   const cardCustomProps = customStore.getCardProperties(card.id);
@@ -264,6 +268,20 @@ export function KanbanCardTile({
       shortcut: 'D',
       run: onCopy,
     },
+    ...(saveAction
+      ? [
+          saveAction(
+            {
+              type: 'task',
+              id: card.id,
+              title: card.ticketId ? `${card.ticketId} ${card.title}` : card.title,
+              snippet: card.description,
+              href: `${window.location.pathname}?card=${card.id}`,
+            },
+            'more',
+          ),
+        ]
+      : []),
     {
       id: 'copy-link',
       group: 'more',

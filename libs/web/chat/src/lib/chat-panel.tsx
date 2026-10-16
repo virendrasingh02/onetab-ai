@@ -476,14 +476,16 @@ export function ChatPanel({
           senderId: message.senderId,
           senderName: message.senderName,
           senderAvatarUrl: message.senderAvatarUrl,
-          body: message.body,
+          body: message.body || message.attachment?.name || '',
           sentAt: message.timestamp,
           savedAt: Date.now(),
+          channelSlug: /^\/w\/[^/]+\/c\/([^/?#]+)/.exec(location.pathname)?.[1],
+          href: messageDeepLink(location.pathname, message),
         },
         savedIds.includes(eventId),
       );
     },
-    [room.messages, roomId, title, savedIds, setSaved],
+    [room.messages, roomId, title, savedIds, setSaved, location.pathname],
   );
 
   const handleAssignToMe = useCallback(

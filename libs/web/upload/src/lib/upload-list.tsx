@@ -10,6 +10,7 @@ import {
 import { cn, formatBytes, formatDateTime, formatRelative } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
+  Bookmark,
   Bot,
   Blocks,
   Download,
@@ -244,6 +245,10 @@ export interface UploadListProps {
   onCopyLink?: (item: UploadListItem) => unknown;
   /** Move / attach a manageable file elsewhere (a project, channel…). */
   onMove?: (item: UploadListItem, index: number) => unknown;
+  /** Whether the reader has this file in their Saved items. */
+  isSaved?: (item: UploadListItem) => boolean;
+  /** Save / unsave a manageable file for later (the Saved page). */
+  onToggleSaved?: (item: UploadListItem) => unknown;
   /**
    * The scroll container to virtualize against. Set for large lists (the Files
    * hub); leave unset to render every row (bounded per-surface lists).
@@ -352,6 +357,8 @@ function Row({
   onRename,
   onCopyLink,
   onMove,
+  isSaved,
+  onToggleSaved,
 }: UploadListProps & { item: UploadListItem; index: number }) {
   return (
     <UploadRow
@@ -369,6 +376,8 @@ function Row({
       onRename={onRename}
       onCopyLink={onCopyLink}
       onMove={onMove}
+      saved={isSaved?.(item) ?? false}
+      onToggleSaved={onToggleSaved}
     />
   );
 }
@@ -388,6 +397,8 @@ function UploadRow({
   onRename,
   onCopyLink,
   onMove,
+  saved,
+  onToggleSaved,
 }: {
   item: UploadListItem;
   index: number;
@@ -403,6 +414,8 @@ function UploadRow({
   onRename?: (item: UploadListItem) => unknown;
   onCopyLink?: (item: UploadListItem) => unknown;
   onMove?: (item: UploadListItem, index: number) => unknown;
+  saved: boolean;
+  onToggleSaved?: (item: UploadListItem) => unknown;
 }) {
   const uploaderName = item.uploader.displayName ?? item.uploader.name;
   const manageable = item.manageable !== false;
@@ -464,6 +477,14 @@ function UploadRow({
       shortcut: 'L',
       hidden: !onCopyLink,
       run: () => onCopyLink?.(item),
+    },
+    {
+      id: 'save',
+      group: 'manage',
+      label: saved ? 'Remove from saved' : 'Save for later',
+      icon: Bookmark,
+      hidden: !manageable || !onToggleSaved,
+      run: () => onToggleSaved?.(item),
     },
     {
       id: 'delete',

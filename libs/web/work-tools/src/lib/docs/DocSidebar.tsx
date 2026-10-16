@@ -23,6 +23,7 @@ import {
   type EntityAction,
   type PromptDialog,
 } from '@org/ui';
+import { useSaveForLater } from '@org/web-chat/bookmarks';
 import { cn } from '@org/utils';
 import {
   Building,
@@ -494,6 +495,7 @@ function DocTreeNodeItem({
   const isExpanded = !!expandedDocIds[doc.id];
   const isActive = doc.id === activeDocId;
   const moveTargets = companies.filter((c) => c.id !== doc.companyId);
+  const { saveAction } = useSaveForLater();
 
   /* The row's "⋯" menu, right-click and touch sheet all render this list. */
   const actions: EntityAction[] = [
@@ -541,6 +543,13 @@ function DocTreeNodeItem({
       shortcut: 'F',
       run: () => onToggleFavorite(doc.id),
     },
+    saveAction({
+      type: 'doc',
+      id: doc.id,
+      title: doc.title,
+      snippet: doc.snippet,
+      href: `docs/${doc.id}`,
+    }),
     {
       id: 'move',
       group: 'organize',

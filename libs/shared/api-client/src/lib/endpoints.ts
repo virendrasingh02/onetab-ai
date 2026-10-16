@@ -5375,7 +5375,7 @@ export const bookmarksApi = {
   list: (workspaceId: string, targetType?: string) =>
     request<BookmarkDto[]>(
       http.get(`/workspaces/${workspaceId}/bookmarks`, {
-        params: targetType ? { targetType } : undefined,
+        params: { ...(targetType ? { targetType } : {}), limit: 500 },
       }),
     ),
 
@@ -5387,10 +5387,17 @@ export const bookmarksApi = {
   delete: (workspaceId: string, bookmarkId: string) =>
     request<void>(http.delete(`/workspaces/${workspaceId}/bookmarks/${bookmarkId}`)),
 
+  /** One-off upload of saves made before bookmarks lived on the server. */
+  import: (workspaceId: string, items: CreateBookmarkInput[]) =>
+    request<{ imported: number }>(
+      http.post(`/workspaces/${workspaceId}/bookmarks/import`, { items }),
+    ),
+
   deleteByTarget: (workspaceId: string, targetType: string, targetId: string) =>
     request<void>(
       http.delete(
-        `/workspaces/${workspaceId}/bookmarks/by-target/${targetType}/${targetId}`,
+        // Matrix event ids carry `$`, `:` and base64 — encode both segments.
+        `/workspaces/${workspaceId}/bookmarks/by-target/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}`,
       ),
     ),
 };

@@ -11,6 +11,11 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./bookmarks": {
+      "types": "./src/bookmarks.ts",
+      "import": "./src/bookmarks.ts",
+      "default": "./src/bookmarks.ts"
+    },
     "./package.json": "./package.json"
   },
   "nx": {

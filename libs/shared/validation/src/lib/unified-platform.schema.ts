@@ -24,6 +24,13 @@ export const createBookmarkSchema = z.object({
 
 export type CreateBookmarkInput = z.infer<typeof createBookmarkSchema>;
 
+/** A one-off bulk upload of saves made before bookmarks lived on the server. */
+export const importBookmarksSchema = z.object({
+  items: z.array(createBookmarkSchema).max(500),
+});
+
+export type ImportBookmarksInput = z.infer<typeof importBookmarksSchema>;
+
 export const updateBookmarkSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   snippet: z.string().max(4000).optional().nullable(),

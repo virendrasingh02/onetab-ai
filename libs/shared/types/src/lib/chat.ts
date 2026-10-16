@@ -755,9 +755,10 @@ export interface UnreadMention {
  * `EventEmitter` of loose strings, so consumers get exhaustive checking.
  */
 /**
- * A message the reader saved for later, stored in their Matrix account data
- * (`mie.saved_messages`) so it follows them across devices. A snapshot, so the
- * Saved page can render it without opening the room.
+ * A message the reader saved for later — a snapshot, so the Saved page can
+ * render it without opening the room. Stored server-side as a `message`
+ * bookmark (these fields ride in its metadata); older clients kept the list in
+ * Matrix account data (`mie.saved_messages`), which is imported once.
  */
 export interface SavedMessage {
   /** Matrix event id. */
@@ -771,6 +772,8 @@ export interface SavedMessage {
   body: string;
   sentAt: number;
   savedAt: number;
+  /** Workspace-relative path that reopens it, e.g. `c/general?msg=…`. */
+  href?: string;
 }
 
 export type MatrixClientEvent =
