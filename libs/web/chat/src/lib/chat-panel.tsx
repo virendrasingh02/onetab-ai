@@ -18,7 +18,6 @@ import type {
 } from '@org/matrix-client';
 import type { ComposerContext } from '@org/types';
 
-import { useReadReceipts } from '@org/common';
 import {
   isPolicyRoleAllowed,
   PolicySubjectRole,
@@ -53,6 +52,7 @@ import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
 import { useMatrix } from './matrix-provider.js';
 import { useUnreadMentions } from './use-unread-mentions.js';
 import { usePinnedOutsideTimeline } from './use-pinned-messages.js';
+import { useReadReceiptsEnabled } from './use-read-receipts-enabled.js';
 import {
   usePresence,
   useRoom,
@@ -179,7 +179,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
 
   const { client, status, configStatus, error, retry } = useMatrix();
-  const readReceiptsEnabled = useReadReceipts();
+  const readReceiptsEnabled = useReadReceiptsEnabled();
 
   // Workspace policy gates for message actions — one fetch behind every
   // conversation surface (channels, DMs, group DMs, apps, agents,
@@ -354,9 +354,13 @@ export function ChatPanel({
 
   const handleThreadRead = useCallback(
     (threadRootId: string) => {
-      if (client && roomId) void client.markThreadRead(roomId, threadRootId);
+      if (client && roomId) {
+        void client.markThreadRead(roomId, threadRootId, {
+          private: !readReceiptsEnabled,
+        });
+      }
     },
-    [client, roomId],
+    [client, roomId, readReceiptsEnabled],
   );
 
   // A thread the reader turned reply notifications off for stops nagging.
@@ -888,6 +892,7 @@ export function ChatPanel({
       onMentionReached={handleMentionReached}
       onFollowingChange={setFollowing}
       roomKind={roomKind}
+      showReadReceipts={readReceiptsEnabled}
       onVisibleMessageRead={handleVisibleMessageRead}
       onThreadRead={handleThreadRead}
       onMarkRead={handleMarkRead}

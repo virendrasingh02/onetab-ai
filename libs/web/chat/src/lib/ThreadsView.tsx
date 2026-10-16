@@ -60,6 +60,7 @@ import { useMatrix } from './matrix-provider.js';
 import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
 import { useRoomActions, useRoomSummary } from './use-chat.js';
 import { useThreadConversation } from './use-thread-conversation.js';
+import { useReadReceiptsEnabled } from './use-read-receipts-enabled.js';
 import { formatRoomMemberSummary } from './thread-roster.js';
 
 export { formatRoomMemberSummary };
@@ -253,6 +254,20 @@ function ThreadDetail({
     [messages, thread.id],
   );
 
+  // Same rule as the channel timeline: only the latest of my replies that
+  // someone has seen carries the "Seen" receipt.
+  const readReceiptsEnabled = useReadReceiptsEnabled();
+  const receiptReplyId = useMemo(() => {
+    if (!readReceiptsEnabled) return undefined;
+    let id: string | undefined;
+    for (const reply of replies) {
+      if (reply.senderId === myUserId && reply.readers && reply.readers.length > 0) {
+        id = reply.id;
+      }
+    }
+    return id;
+  }, [replies, myUserId, readReceiptsEnabled]);
+
   const isChannel = thread.roomKind === 'channel';
   const roomLabel = isChannel
     ? isPrivate
@@ -331,7 +346,9 @@ function ThreadDetail({
               <li>
                 <MessageRenderer
                   message={reply}
+                  roomKind={thread.roomKind}
                   isOwn={reply.senderId === myUserId}
+                  showReadReceipt={reply.id === receiptReplyId}
                   density={density}
                   mentionNames={effectiveMentionNames}
                   threadParticipants={[]}

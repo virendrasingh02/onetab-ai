@@ -53,6 +53,7 @@ import {
   THREAD_NOTIFICATIONS_EVENT,
   toThread,
 } from './mappers.js';
+import { recordReceipt } from './seen-times.js';
 import { KeyBackupManager } from './services/crypto/key-backup.js';
 import { MatrixSearchService } from './services/search/search-service.js';
 import {
@@ -656,12 +657,18 @@ export class OneTabMatrixClient {
       const receipts: ReadReceipt[] = [];
       const content = event.getContent() as Record<
         string,
-        Record<string, Record<string, { ts?: number }>>
+        Record<string, Record<string, { ts?: number; thread_id?: string }>>
       >;
 
       for (const [eventId, byType] of Object.entries(content)) {
         for (const [userId, data] of Object.entries(byType['m.read'] ?? {})) {
-          receipts.push({ userId, eventId, timestamp: data?.ts ?? Date.now() });
+          const timestamp = data?.ts ?? Date.now();
+          receipts.push({ userId, eventId, timestamp });
+          // Remember when this receipt first covered each message, so "Seen"
+          // shows the real time rather than the reader's latest receipt.
+          const threadId =
+            data?.thread_id && data.thread_id !== 'main' ? data.thread_id : '';
+          recordReceipt(room, userId, eventId, timestamp, threadId);
         }
       }
 
@@ -1966,7 +1973,15 @@ export class OneTabMatrixClient {
     if (!sdk) return [];
     try {
       const room = sdk.getRoom(roomId);
-      return toReaders(sdk, room, eventId);
+      // A thread root is itself a main-timeline message; only replies are
+      // read on the thread's own receipt.
+      const threadRootId = room?.findEventById(eventId)?.threadRootId;
+      return toReaders(
+        sdk,
+        room,
+        eventId,
+        threadRootId && threadRootId !== eventId ? threadRootId : undefined,
+      );
     } catch {
       return [];
     }
@@ -1977,13 +1992,23 @@ export class OneTabMatrixClient {
    *
    * A thread carries its own read marker, separate from the room's — the SDK
    * routes the receipt to the thread from the event's own relation, so this is
-   * the same call as `markRead` pointed at a threaded event.
+   * the same call as `markRead` pointed at a threaded event. `private` keeps
+   * the receipt to this user, as for `markRead`.
    */
-  async markThreadRead(roomId: RoomId, threadRootId: EventId): Promise<void> {
+  async markThreadRead(
+    roomId: RoomId,
+    threadRootId: EventId,
+    options: { private?: boolean } = {},
+  ): Promise<void> {
     const sdk = this.require();
     const thread = sdk.getRoom(roomId)?.getThread(threadRootId);
     const latest = thread?.replyToEvent ?? thread?.rootEvent;
-    if (latest) await sdk.sendReadReceipt(latest);
+    if (latest) {
+      await sdk.sendReadReceipt(
+        latest,
+        options.private ? ReceiptType.ReadPrivate : ReceiptType.Read,
+      );
+    }
   }
 
   async setPresence(

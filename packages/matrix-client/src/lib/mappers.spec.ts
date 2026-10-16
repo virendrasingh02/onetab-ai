@@ -932,6 +932,29 @@ describe('toReaders', () => {
 
     expect(toReaders(client, room, '$evt-1').map((r) => r.userId)).toEqual([alice]);
   });
+
+  it("takes a thread reply's seen time from the thread's own receipt", () => {
+    const client = fakeClient();
+    const room = {
+      roomId: '!room:example.org',
+      getMembers: () => [member(alice, 'Alice'), member(bob, 'Bob')],
+      hasUserReadEvent: () => true,
+      getReadReceiptForUserId: () => ({ data: { ts: 1000 } }),
+      getThread: (rootId: string) =>
+        rootId === '$root'
+          ? {
+              getReadReceiptForUserId: (id: string) =>
+                id === alice ? { data: { ts: 5000 } } : undefined,
+            }
+          : undefined,
+    } as unknown as SdkRoom;
+
+    const readers = toReaders(client, room, '$reply', '$root');
+    expect(readers.map((r) => [r.userId, r.seenAt])).toEqual([
+      [alice, 5000],
+      [bob, 1000], // no thread receipt yet — falls back to the room's
+    ]);
+  });
 });
 
 

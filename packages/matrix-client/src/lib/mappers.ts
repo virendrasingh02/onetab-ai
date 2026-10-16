@@ -1,4 +1,5 @@
 import type { MatrixClient as SdkClient } from 'matrix-js-sdk';
+import { noteReceiptPosition, recordedSeenAt } from './seen-times.js';
 import type { MatrixEvent } from 'matrix-js-sdk';
 import { Direction, NotificationCountType } from 'matrix-js-sdk';
 import type {
@@ -186,6 +187,7 @@ export function toReaders(
   client: SdkClient,
   room: SdkRoom | null,
   eventId: string,
+  threadRootId?: string,
 ): MessageReader[] {
   if (!room) return [];
 
@@ -197,11 +199,28 @@ export function toReaders(
 
   // A receipt sits on the reader's *latest* read event, so a message counts as
   // seen by everyone whose read marker is at or past it — not only by users whose
-  // receipt happens to sit exactly on this event.
+  // receipt happens to sit exactly on this event. A thread reply is read on
+  // the thread's own receipt, so its "seen at" comes from there when it exists.
+  const thread = threadRootId ? room.getThread?.(threadRootId) : undefined;
   for (const member of room.getMembers()) {
     if (member.userId === myUserId || member.membership !== 'join') continue;
     if (!room.hasUserReadEvent(member.userId, eventId)) continue;
-    const receipt = room.getReadReceiptForUserId?.(member.userId);
+    const threadReceipt = thread?.getReadReceiptForUserId?.(member.userId);
+    const receipt = threadReceipt ?? room.getReadReceiptForUserId?.(member.userId);
+    const receiptTs = receipt?.data?.ts ?? 0;
+    if (receipt?.eventId && receiptTs) {
+      noteReceiptPosition(
+        room,
+        member.userId,
+        receipt.eventId,
+        receiptTs,
+        threadReceipt && threadRootId ? threadRootId : '',
+      );
+    }
+    // Exact when the receipt sits on this very message or this client saw the
+    // receipt move past it; otherwise the receipt time is only an upper bound.
+    const recorded = recordedSeenAt(room, member.userId, eventId);
+    const exact = recorded !== undefined || receipt?.eventId === eventId;
     readers.push({
       userId: member.userId,
       displayName: member.name ?? member.userId,
@@ -210,7 +229,8 @@ export function toReaders(
           width: 64,
           height: 64,
         }) ?? undefined,
-      seenAt: receipt?.data?.ts ?? 0,
+      seenAt: recorded ?? receiptTs,
+      seenAtExact: exact && (recorded ?? receiptTs) > 0,
     });
   }
 
@@ -547,7 +567,12 @@ export function toMessage(
     structuredEvent: extractStructuredEvent(event, content),
     isMention,
     linkPreviews: content.link_previews ?? content.linkPreviews ?? undefined,
-    readers: toReaders(client, room, id),
+    readers: toReaders(
+      client,
+      room,
+      id,
+      relation?.rel_type === 'm.thread' ? relation.event_id : undefined,
+    ),
     forwarded: forwarded ? toForwarded(client, forwarded) : undefined,
   };
 }

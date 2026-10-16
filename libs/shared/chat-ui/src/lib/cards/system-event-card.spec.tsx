@@ -75,7 +75,8 @@ describe('SystemEventCard', () => {
         })}
       />,
     );
-    expect(screen.getByText('APP')).toBeInTheDocument();
+    // Badge text is "App" / "AI Agent", upper-cased by CSS.
+    expect(screen.getByText(/^app$/i)).toBeInTheDocument();
 
     rerender(
       <TooltipProvider>
@@ -88,14 +89,14 @@ describe('SystemEventCard', () => {
         />
       </TooltipProvider>,
     );
-    expect(screen.getByText('AI AGENT')).toBeInTheDocument();
+    expect(screen.getByText(/^ai agent$/i)).toBeInTheDocument();
   });
 
   it('never shows a type badge for a plain member', () => {
     renderWithProviders(<SystemEventCard message={createMessage()} event={createEvent()} />);
-    expect(screen.queryByText('APP')).not.toBeInTheDocument();
-    expect(screen.queryByText('AI AGENT')).not.toBeInTheDocument();
-    expect(screen.queryByText('AI COWORKER')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^app$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^ai agent$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^ai coworker$/i)).not.toBeInTheDocument();
   });
 
   it('renders a deleted entity gracefully instead of crashing or dead-linking (brief §20)', async () => {

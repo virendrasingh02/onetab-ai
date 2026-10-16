@@ -3,51 +3,84 @@
  * Connects normalized model / provider identities to official @lobehub/icons.
  */
 
-import {
-  OpenAI,
-  Claude,
-  Gemini,
-  Gemma,
-  DeepSeek,
-  Nvidia,
-  Mistral,
-  Qwen,
-  Meta,
-  Ollama,
-  Groq,
-  Cohere,
-  OpenRouter,
-  Together,
-  Perplexity,
-  Firecrawl,
-  MCP,
-  LangChain,
-  LangGraph,
-  ElevenLabs,
-  Sora,
-  Dalle,
-  Flux,
-  Midjourney,
-  Grok,
-  XAI,
-  HuggingFace,
-  Fireworks,
-  Replicate,
-  Minimax,
-  Moonshot,
-  Zhipu,
-  ByteDance,
-  Baidu,
-  AlibabaCloud,
-  Aws,
-  Azure,
-  VertexAI,
-  Bedrock,
-  Google,
-  Anthropic,
-  Fal,
-} from '@lobehub/icons';
-import type { ComponentType } from 'react';
+/*
+ * Each brand's plain SVG Mono/Color components are imported directly. The
+ * package barrel (and each brand's own index) also pulls in Avatar/Combine
+ * variants that need `@lobehub/ui` + `antd`, which this app doesn't ship.
+ */
+import OpenAIMono from '@lobehub/icons/es/OpenAI/components/Mono.js';
+import ClaudeMono from '@lobehub/icons/es/Claude/components/Mono.js';
+import ClaudeColor from '@lobehub/icons/es/Claude/components/Color.js';
+import GeminiMono from '@lobehub/icons/es/Gemini/components/Mono.js';
+import GeminiColor from '@lobehub/icons/es/Gemini/components/Color.js';
+import GemmaMono from '@lobehub/icons/es/Gemma/components/Mono.js';
+import GemmaColor from '@lobehub/icons/es/Gemma/components/Color.js';
+import DeepSeekMono from '@lobehub/icons/es/DeepSeek/components/Mono.js';
+import DeepSeekColor from '@lobehub/icons/es/DeepSeek/components/Color.js';
+import NvidiaMono from '@lobehub/icons/es/Nvidia/components/Mono.js';
+import NvidiaColor from '@lobehub/icons/es/Nvidia/components/Color.js';
+import MistralMono from '@lobehub/icons/es/Mistral/components/Mono.js';
+import MistralColor from '@lobehub/icons/es/Mistral/components/Color.js';
+import QwenMono from '@lobehub/icons/es/Qwen/components/Mono.js';
+import QwenColor from '@lobehub/icons/es/Qwen/components/Color.js';
+import MetaMono from '@lobehub/icons/es/Meta/components/Mono.js';
+import MetaColor from '@lobehub/icons/es/Meta/components/Color.js';
+import OllamaMono from '@lobehub/icons/es/Ollama/components/Mono.js';
+import GroqMono from '@lobehub/icons/es/Groq/components/Mono.js';
+import CohereMono from '@lobehub/icons/es/Cohere/components/Mono.js';
+import CohereColor from '@lobehub/icons/es/Cohere/components/Color.js';
+import OpenRouterMono from '@lobehub/icons/es/OpenRouter/components/Mono.js';
+import OpenRouterColor from '@lobehub/icons/es/OpenRouter/components/Color.js';
+import TogetherMono from '@lobehub/icons/es/Together/components/Mono.js';
+import TogetherColor from '@lobehub/icons/es/Together/components/Color.js';
+import PerplexityMono from '@lobehub/icons/es/Perplexity/components/Mono.js';
+import PerplexityColor from '@lobehub/icons/es/Perplexity/components/Color.js';
+import FirecrawlMono from '@lobehub/icons/es/Firecrawl/components/Mono.js';
+import FirecrawlColor from '@lobehub/icons/es/Firecrawl/components/Color.js';
+import MCPMono from '@lobehub/icons/es/MCP/components/Mono.js';
+import LangChainMono from '@lobehub/icons/es/LangChain/components/Mono.js';
+import LangChainColor from '@lobehub/icons/es/LangChain/components/Color.js';
+import LangGraphMono from '@lobehub/icons/es/LangGraph/components/Mono.js';
+import LangGraphColor from '@lobehub/icons/es/LangGraph/components/Color.js';
+import ElevenLabsMono from '@lobehub/icons/es/ElevenLabs/components/Mono.js';
+import SoraMono from '@lobehub/icons/es/Sora/components/Mono.js';
+import SoraColor from '@lobehub/icons/es/Sora/components/Color.js';
+import DalleMono from '@lobehub/icons/es/Dalle/components/Mono.js';
+import DalleColor from '@lobehub/icons/es/Dalle/components/Color.js';
+import FluxMono from '@lobehub/icons/es/Flux/components/Mono.js';
+import MidjourneyMono from '@lobehub/icons/es/Midjourney/components/Mono.js';
+import GrokMono from '@lobehub/icons/es/Grok/components/Mono.js';
+import XAIMono from '@lobehub/icons/es/XAI/components/Mono.js';
+import HuggingFaceMono from '@lobehub/icons/es/HuggingFace/components/Mono.js';
+import HuggingFaceColor from '@lobehub/icons/es/HuggingFace/components/Color.js';
+import FireworksMono from '@lobehub/icons/es/Fireworks/components/Mono.js';
+import FireworksColor from '@lobehub/icons/es/Fireworks/components/Color.js';
+import ReplicateMono from '@lobehub/icons/es/Replicate/components/Mono.js';
+import MinimaxMono from '@lobehub/icons/es/Minimax/components/Mono.js';
+import MinimaxColor from '@lobehub/icons/es/Minimax/components/Color.js';
+import MoonshotMono from '@lobehub/icons/es/Moonshot/components/Mono.js';
+import ZhipuMono from '@lobehub/icons/es/Zhipu/components/Mono.js';
+import ZhipuColor from '@lobehub/icons/es/Zhipu/components/Color.js';
+import ByteDanceMono from '@lobehub/icons/es/ByteDance/components/Mono.js';
+import ByteDanceColor from '@lobehub/icons/es/ByteDance/components/Color.js';
+import BaiduMono from '@lobehub/icons/es/Baidu/components/Mono.js';
+import BaiduColor from '@lobehub/icons/es/Baidu/components/Color.js';
+import AlibabaCloudMono from '@lobehub/icons/es/AlibabaCloud/components/Mono.js';
+import AlibabaCloudColor from '@lobehub/icons/es/AlibabaCloud/components/Color.js';
+import AwsMono from '@lobehub/icons/es/Aws/components/Mono.js';
+import AwsColor from '@lobehub/icons/es/Aws/components/Color.js';
+import AzureMono from '@lobehub/icons/es/Azure/components/Mono.js';
+import AzureColor from '@lobehub/icons/es/Azure/components/Color.js';
+import VertexAIMono from '@lobehub/icons/es/VertexAI/components/Mono.js';
+import VertexAIColor from '@lobehub/icons/es/VertexAI/components/Color.js';
+import BedrockMono from '@lobehub/icons/es/Bedrock/components/Mono.js';
+import BedrockColor from '@lobehub/icons/es/Bedrock/components/Color.js';
+import GoogleMono from '@lobehub/icons/es/Google/components/Mono.js';
+import GoogleColor from '@lobehub/icons/es/Google/components/Color.js';
+import AnthropicMono from '@lobehub/icons/es/Anthropic/components/Mono.js';
+import FalMono from '@lobehub/icons/es/Fal/components/Mono.js';
+import FalColor from '@lobehub/icons/es/Fal/components/Color.js';
+import { createElement, type ComponentType } from 'react';
 import { Bot, Sparkles, Cpu } from 'lucide-react';
 import { normalizeModel, normalizeProvider, type ModelInput } from './model-normalizer.js';
 
@@ -63,6 +96,58 @@ export type AIIconVariant = 'color' | 'mono';
 
 /** A LobeHub brand icon: mono by default, with an optional `.Color` variant. */
 type BrandIcon = AIIconComponent & { Color?: AIIconComponent };
+
+// The Mono/Color files are typed with LobeHub's own props; ours are a subset.
+function brand(mono: unknown, color?: unknown): BrandIcon {
+  const Mono = mono as AIIconComponent;
+  const icon = ((props: AIIconProps) => createElement(Mono, props)) as BrandIcon;
+  icon.displayName = Mono.displayName;
+  if (color) icon.Color = color as AIIconComponent;
+  return icon;
+}
+
+const OpenAI = brand(OpenAIMono);
+const Claude = brand(ClaudeMono, ClaudeColor);
+const Gemini = brand(GeminiMono, GeminiColor);
+const Gemma = brand(GemmaMono, GemmaColor);
+const DeepSeek = brand(DeepSeekMono, DeepSeekColor);
+const Nvidia = brand(NvidiaMono, NvidiaColor);
+const Mistral = brand(MistralMono, MistralColor);
+const Qwen = brand(QwenMono, QwenColor);
+const Meta = brand(MetaMono, MetaColor);
+const Ollama = brand(OllamaMono);
+const Groq = brand(GroqMono);
+const Cohere = brand(CohereMono, CohereColor);
+const OpenRouter = brand(OpenRouterMono, OpenRouterColor);
+const Together = brand(TogetherMono, TogetherColor);
+const Perplexity = brand(PerplexityMono, PerplexityColor);
+const Firecrawl = brand(FirecrawlMono, FirecrawlColor);
+const MCP = brand(MCPMono);
+const LangChain = brand(LangChainMono, LangChainColor);
+const LangGraph = brand(LangGraphMono, LangGraphColor);
+const ElevenLabs = brand(ElevenLabsMono);
+const Sora = brand(SoraMono, SoraColor);
+const Dalle = brand(DalleMono, DalleColor);
+const Flux = brand(FluxMono);
+const Midjourney = brand(MidjourneyMono);
+const Grok = brand(GrokMono);
+const XAI = brand(XAIMono);
+const HuggingFace = brand(HuggingFaceMono, HuggingFaceColor);
+const Fireworks = brand(FireworksMono, FireworksColor);
+const Replicate = brand(ReplicateMono);
+const Minimax = brand(MinimaxMono, MinimaxColor);
+const Moonshot = brand(MoonshotMono);
+const Zhipu = brand(ZhipuMono, ZhipuColor);
+const ByteDance = brand(ByteDanceMono, ByteDanceColor);
+const Baidu = brand(BaiduMono, BaiduColor);
+const AlibabaCloud = brand(AlibabaCloudMono, AlibabaCloudColor);
+const Aws = brand(AwsMono, AwsColor);
+const Azure = brand(AzureMono, AzureColor);
+const VertexAI = brand(VertexAIMono, VertexAIColor);
+const Bedrock = brand(BedrockMono, BedrockColor);
+const Google = brand(GoogleMono, GoogleColor);
+const Anthropic = brand(AnthropicMono);
+const Fal = brand(FalMono, FalColor);
 
 /**
  * Model-specific icon registry

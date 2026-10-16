@@ -249,7 +249,16 @@ export interface MessageReader {
   userId: MatrixUserId;
   displayName: string;
   avatarUrl?: string;
+  /**
+   * When they saw it — or, when `seenAtExact` is false, when their read
+   * receipt last moved (they saw this message at or before then).
+   */
   seenAt: Timestamp;
+  /**
+   * False when `seenAt` is only an upper bound; unset or true means it is the
+   * actual time this message was seen.
+   */
+  seenAtExact?: boolean;
 }
 
 // --- structured chat events (AI Agents, Apps, Approvals, Forms, Workflows) ---

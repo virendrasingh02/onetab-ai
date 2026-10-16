@@ -55,6 +55,16 @@ describe('SeenBy', () => {
     expect(button).toHaveTextContent(/Seen/);
   });
 
+  it('shows no time when only an upper bound on the seen time is known', () => {
+    renderWithProviders(
+      <SeenBy readers={[{ ...sampleReaders[0], seenAtExact: false }]} roomKind="direct" />,
+    );
+
+    const button = screen.getByRole('button');
+    expect(button).toHaveTextContent(/^Seen$/);
+    expect(button).toHaveAttribute('aria-label', 'Seen by Alice');
+  });
+
   it('formats reader time correctly', () => {
     const time = formatReaderTime(sampleReaders[0].seenAt);
     expect(typeof time).toBe('string');

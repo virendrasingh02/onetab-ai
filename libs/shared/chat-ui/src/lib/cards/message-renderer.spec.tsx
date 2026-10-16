@@ -3,6 +3,7 @@ import { TooltipProvider } from '@org/ui';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { useAICardPreferencesStore } from './card-preferences-store.js';
 import { MessageRenderer } from './message-renderer.js';
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -57,12 +58,22 @@ describe('MessageRenderer', () => {
       },
     });
 
-    renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
+    const { unmount } = renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
 
     expect(screen.getByText('Research Agent')).toBeInTheDocument();
-    expect(screen.getByText('GPT-5')).toBeInTheDocument();
     expect(screen.getByText('Analyzed 12 sources on quantum computing')).toBeInTheDocument();
     expect(screen.getByText('Create Task')).toBeInTheDocument();
+    unmount();
+
+    // The compact AI-card layout (its own preference) names the model inline.
+    const previousDensity = useAICardPreferencesStore.getState().density;
+    useAICardPreferencesStore.setState({ density: 'compact' });
+    try {
+      renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
+      expect(screen.getByText('GPT-5')).toBeInTheDocument();
+    } finally {
+      useAICardPreferencesStore.setState({ density: previousDensity });
+    }
   });
 
   it('renders AI Agent Card in running state', () => {
@@ -82,7 +93,7 @@ describe('MessageRenderer', () => {
 
     renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
 
-    expect(screen.getByText(/Executing Autonomous Plan/i)).toBeInTheDocument();
+    expect(screen.getByText(/Thinking · using tools/i)).toBeInTheDocument();
     expect(screen.getByText('Collect Sources')).toBeInTheDocument();
   });
 
@@ -237,7 +248,8 @@ describe('MessageRenderer', () => {
     renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
 
     expect(screen.getByText('Outlook Calendar')).toBeInTheDocument();
-    expect(screen.getByText('APP')).toBeInTheDocument();
+    // Badge text is "App", upper-cased by CSS.
+    expect(screen.getByText(/^app$/i)).toBeInTheDocument();
     expect(screen.getByText(/was added to #agent45 by/)).toBeInTheDocument();
     expect(screen.getByText('VR')).toBeInTheDocument();
   });

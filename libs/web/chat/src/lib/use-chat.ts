@@ -1,4 +1,3 @@
-import { useReadReceipts } from '@org/common';
 import type {
   Message,
   Presence,
@@ -9,6 +8,7 @@ import type {
 } from '@org/matrix-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
+import { useReadReceiptsEnabled } from './use-read-receipts-enabled.js';
 
 interface ChatState {
   messages: Message[];
@@ -290,7 +290,8 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
                 freshReaders.some(
                   (reader, index) =>
                     reader.userId !== previous[index]?.userId ||
-                    reader.seenAt !== previous[index]?.seenAt,
+                    reader.seenAt !== previous[index]?.seenAt ||
+                    reader.seenAtExact !== previous[index]?.seenAtExact,
                 )
               ) {
                 changed = true;
@@ -308,10 +309,12 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
     });
   }, [client, roomId]);
 
-  const readReceiptsEnabled = useReadReceipts();
+  const readReceiptsEnabled = useReadReceiptsEnabled();
 
   useEffect(() => {
-    if (!client || !roomId || !readReceiptsEnabled || !trackRead) return;
+    // Receipts off still moves the read marker — privately — so the room's
+    // unread count settles; other members just aren't told.
+    if (!client || !roomId || !trackRead) return;
     // The room's own receipt goes on its newest main-timeline message: thread
     // replies sit at the end of `messages` too, but they are not in the room
     // timeline, so a receipt on one never moved the room's unread state.
@@ -320,7 +323,7 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
       if (!state.messages[i].threadRootId) latest = state.messages[i];
     }
     if (latest && latest.sendState !== 'sending') {
-      void client.markRead(roomId, latest.id);
+      void client.markRead(roomId, latest.id, { private: !readReceiptsEnabled });
     }
   }, [client, roomId, readReceiptsEnabled, trackRead, state.messages]);
 

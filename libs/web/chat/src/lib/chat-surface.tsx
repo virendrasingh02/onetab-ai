@@ -284,6 +284,11 @@ export interface ChatSurfaceProps {
   onFollowingChange?: (following: boolean) => void;
   /** Kind of the current room (channel, direct, group) to style read receipts accordingly. */
   roomKind?: RoomKind;
+  /**
+   * Show "Seen" under the reader's own messages — off when read receipts are
+   * off for them (their setting is reciprocal) or for the workspace.
+   */
+  showReadReceipts?: boolean;
   /** Called when a message scrolls into view and has been read. */
   onVisibleMessageRead?: (messageId: string) => void;
 
@@ -425,6 +430,7 @@ export function ChatSurface({
   onMentionReached,
   onFollowingChange,
   roomKind,
+  showReadReceipts = true,
   onVisibleMessageRead,
   onAddBookmark,
   onSend,
@@ -587,13 +593,14 @@ export function ChatSurface({
   // the "Seen" receipt (per timeline — main list or each thread).
   const receiptMessageIds = useMemo(() => {
     const lastByScope = new Map<string, string>();
+    if (!showReadReceipts) return new Set<string>();
     for (const message of messages) {
       if (message.senderId === myUserId && message.readers && message.readers.length > 0) {
         lastByScope.set(message.threadRootId ?? '', message.id);
       }
     }
     return new Set(lastByScope.values());
-  }, [messages, myUserId]);
+  }, [messages, myUserId, showReadReceipts]);
 
   const memberById = useMemo(
     () => new Map(members.map((member) => [member.userId, member])),

@@ -41,6 +41,16 @@ export function formatReaderTime(ts: number): string {
 }
 
 /**
+ * The reader's seen time, or '' when only an upper bound is known — Matrix
+ * keeps just each reader's latest receipt, so an older message they read
+ * earlier has no exact time, and showing the later receipt time would be wrong.
+ */
+export function readerSeenTime(reader: MessageReader | undefined): string {
+  if (!reader || reader.seenAtExact === false) return '';
+  return formatReaderTime(reader.seenAt);
+}
+
+/**
  * Slack-style Seen By / Read Receipt component.
  *
  * Supports:
@@ -87,7 +97,7 @@ export function SeenBy({
   // 1. Direct Message representation
   if (isDirect) {
     const firstReader = readers[0];
-    const timeLabel = firstReader ? formatReaderTime(firstReader.seenAt) : '';
+    const timeLabel = readerSeenTime(firstReader);
     const labelText = timeLabel ? `Seen ${timeLabel}` : 'Seen';
 
     return (
@@ -95,7 +105,11 @@ export function SeenBy({
         <PopoverTrigger asChild>
           <button
             type="button"
-            aria-label={firstReader ? `Seen by ${firstReader.displayName} at ${timeLabel}` : 'Seen'}
+            aria-label={
+              firstReader
+                ? `Seen by ${firstReader.displayName}${timeLabel ? ` at ${timeLabel}` : ''}`
+                : 'Seen'
+            }
             className={cn(
               'group/seen inline-flex items-center gap-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded-md',
               className,
@@ -227,7 +241,7 @@ export function SeenByPopoverContent({ readers }: { readers: MessageReader[] }) 
 
 function ReaderItem({ reader }: { reader: MessageReader }) {
   const livePresence = useResolvedPresence(reader.userId);
-  const timeStr = formatReaderTime(reader.seenAt);
+  const timeStr = readerSeenTime(reader);
 
   return (
     <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-accent/50 transition-colors">

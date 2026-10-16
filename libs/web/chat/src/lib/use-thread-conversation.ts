@@ -1,6 +1,7 @@
 import type { Message } from '@org/matrix-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
+import { useReadReceiptsEnabled } from './use-read-receipts-enabled.js';
 
 export interface ThreadConversation {
   /** The thread's events, oldest first — the root followed by every reply. */
@@ -36,6 +37,7 @@ export function useThreadConversation(
 ): ThreadConversation {
   const enabled = options.enabled ?? true;
   const { client } = useMatrix();
+  const readReceiptsEnabled = useReadReceiptsEnabled();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -71,7 +73,9 @@ export function useThreadConversation(
             event.message.id === rootId)) ||
         (event.type === 'message.updated' && event.message.roomId === roomId) ||
         (event.type === 'message.redacted' && event.roomId === roomId) ||
-        (event.type === 'thread.updated' && event.thread.rootId === rootId)
+        (event.type === 'thread.updated' && event.thread.rootId === rootId) ||
+        // Keeps "Seen" under the reader's own replies live.
+        (event.type === 'receipt' && event.roomId === roomId)
       ) {
         void load();
       }
@@ -98,8 +102,8 @@ export function useThreadConversation(
 
   const markRead = useCallback(() => {
     if (!client || !roomId || !rootId) return;
-    void client.markThreadRead(roomId, rootId);
-  }, [client, roomId, rootId]);
+    void client.markThreadRead(roomId, rootId, { private: !readReceiptsEnabled });
+  }, [client, roomId, rootId, readReceiptsEnabled]);
 
   return { messages, isLoading, isSending, send, markRead, reload: load };
 }

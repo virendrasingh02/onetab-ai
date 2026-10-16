@@ -525,7 +525,7 @@ export function ChatBubble({
   linkPreviewsEnabled = true,
   workspacePolicy,
   roomKind,
-  showReadReceipt = true,
+  showReadReceipt = false,
   onMarkUnread,
   onRemind,
   onToggleReplyNotifications,
