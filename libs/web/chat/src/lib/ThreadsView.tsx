@@ -27,7 +27,7 @@ import {
   LoadingState,
   Tabs,
   TabsTrigger,
-  ResponsiveTabsList,
+  PageTabBar,
   toast,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
@@ -40,8 +40,21 @@ import {
 } from '@org/types';
 import { useCurrentWorkspace, useWorkspacePolicies } from '@org/web-workspace';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Hash, Lock, MessagesSquare, User, Users } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  ArrowUpRight,
+  Hash,
+  Lock,
+  MessagesSquare,
+  User,
+  Users,
+} from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Link } from 'react-router-dom';
 import { useMatrix } from './matrix-provider.js';
 import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
@@ -82,7 +95,10 @@ function useChannelLink(
  * panel up and `messageId` highlighted — the same `?thread=&msg=` form the
  * conversation itself hands out. (A `#id` on this page opened nothing.)
  */
-function copyThreadMessageLink(conversationLink: string, messageId: string): void {
+function copyThreadMessageLink(
+  conversationLink: string,
+  messageId: string,
+): void {
   const url = new URL(conversationLink, window.location.origin);
   url.searchParams.set('msg', messageId);
   void navigator.clipboard
@@ -238,12 +254,11 @@ function ThreadDetail({
   );
 
   const isChannel = thread.roomKind === 'channel';
-  const roomLabel =
-    isChannel
-      ? isPrivate
-        ? thread.roomName
-        : `#${thread.roomName}`
-      : thread.roomName;
+  const roomLabel = isChannel
+    ? isPrivate
+      ? thread.roomName
+      : `#${thread.roomName}`
+    : thread.roomName;
 
   const { chat } = useChatPreferences();
 
@@ -291,7 +306,7 @@ function ThreadDetail({
 
   return (
     <div className="border-t border-border bg-muted/20 last:rounded-b-[inherit]">
-      <div className="flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium text-muted-foreground">
+      <div className="gap-2 px-4 py-1.5 font-medium flex items-center text-[11px] text-muted-foreground">
         <span className="h-px flex-1 bg-border" aria-hidden />
         <span>
           {isLoading
@@ -344,7 +359,9 @@ function ThreadDetail({
                       : undefined
                   }
                   canModerateMessages={canModerateMessages}
-                  editWindowMinutes={policiesQuery.data?.messageEditWindowMinutes}
+                  editWindowMinutes={
+                    policiesQuery.data?.messageEditWindowMinutes
+                  }
                   onRetry={
                     reply.sendState === 'failed'
                       ? () => void actions.retry(reply.id)
@@ -353,7 +370,9 @@ function ThreadDetail({
                   onCopyText={() =>
                     void navigator.clipboard?.writeText(reply.body)
                   }
-                  onCopyLink={() => copyThreadMessageLink(channelLink, reply.id)}
+                  onCopyLink={() =>
+                    copyThreadMessageLink(channelLink, reply.id)
+                  }
                   attachmentSlot={attachmentSlot(reply)}
                 />
               </li>
@@ -370,7 +389,7 @@ function ThreadDetail({
         </ul>
       )}
 
-      <div className="border-t border-border bg-card px-2 py-2">
+      <div className="px-2 py-2 border-t border-border bg-card">
         <Composer
           onSend={async (body, meta) => {
             if (editing) {
@@ -386,13 +405,17 @@ function ThreadDetail({
               });
             }
           }}
-          onTyping={chat?.sendTypingNotice !== false ? actions.setTyping : undefined}
+          onTyping={
+            chat?.sendTypingNotice !== false ? actions.setTyping : undefined
+          }
           enterToSend={chat?.enterToSend ?? true}
           onAttach={(files) => void actions.attach(files, thread.id)}
           conversationId={`thread:${thread.id}`}
           members={members}
           currentUserId={myUserId}
-          placeholder={editing ? 'Edit your message…' : `Reply in ${roomLabel}…`}
+          placeholder={
+            editing ? 'Edit your message…' : `Reply in ${roomLabel}…`
+          }
           showFormatting={false}
           surfaceKind="thread"
           viewerCanManage={composerControl.viewerCanManage}
@@ -405,12 +428,14 @@ function ThreadDetail({
           channelMentions={composerControl.channelMentions}
           connectors={composerControl.connectors}
           edit={
-            editing ? { messageId: editing.id, initialMarkdown: editing.body } : null
+            editing
+              ? { messageId: editing.id, initialMarkdown: editing.body }
+              : null
           }
           contextSlot={
             editing ? (
-              <div className="mb-2 flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
-                <span className="flex-1 truncate font-medium">
+              <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">
+                <span className="font-medium flex-1 truncate">
                   Editing message
                 </span>
                 <Button
@@ -424,7 +449,7 @@ function ThreadDetail({
             ) : null
           }
         />
-        <div className="flex justify-end px-1 pt-1">
+        <div className="px-1 pt-1 flex justify-end">
           <Button
             asChild
             variant="ghost"
@@ -595,8 +620,8 @@ function RoomThreadSection({
 }) {
   const isChannel = group.roomKind === 'channel';
   const channel = isChannel
-    ? channelByName?.get(group.roomName.toLowerCase()) ??
-      channelBySlug?.get(group.roomName.toLowerCase())
+    ? (channelByName?.get(group.roomName.toLowerCase()) ??
+      channelBySlug?.get(group.roomName.toLowerCase()))
     : undefined;
   const isPrivate = channel ? channel.visibility === 'PRIVATE' : false;
 
@@ -646,45 +671,51 @@ function RoomThreadSection({
 
   return (
     <section>
-      <div className="mb-3 flex items-start justify-between gap-3 px-1">
+      <div className="mb-3 gap-3 px-1 flex items-start justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="gap-2 flex flex-wrap items-center">
             <Link
               to={roomLink}
-              className="group inline-flex min-w-0 items-center gap-2 transition-colors"
+              className="group min-w-0 gap-2 inline-flex items-center transition-colors"
             >
               <Icon
-                className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors"
+                className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
                 aria-hidden
               />
-              <h3 className="truncate text-[15px] font-semibold text-foreground group-hover:underline">
+              <h3 className="font-semibold truncate text-[15px] text-foreground group-hover:underline">
                 {group.roomName}
               </h3>
             </Link>
-            <Badge variant="neutral" className="h-[18px] px-1.5 py-0 text-[11px]">
+            <Badge
+              variant="neutral"
+              className="px-1.5 py-0 h-[18px] text-[11px]"
+            >
               {group.threads.length}
             </Badge>
             {group.unreadCount > 0 ? (
-              <Badge variant="primary" className="h-[18px] px-1.5 py-0 text-[11px]">
+              <Badge
+                variant="primary"
+                className="px-1.5 py-0 h-[18px] text-[11px]"
+              >
                 {group.unreadCount} unread
               </Badge>
             ) : null}
           </div>
           {memberSubtitle ? (
-            <p className="mt-0.5 pl-6 truncate text-xs text-muted-foreground">
+            <p className="mt-0.5 pl-6 text-xs truncate text-muted-foreground">
               {memberSubtitle}
             </p>
           ) : null}
         </div>
         {group.lastActivity ? (
-          <span className="shrink-0 font-mono text-[11px] text-subtle pt-0.5">
+          <span className="pt-0.5 shrink-0 font-mono text-[11px] text-subtle">
             {formatRelative(new Date(group.lastActivity).toISOString())}
           </span>
         ) : null}
       </div>
 
       <Card className="gap-0 p-0">
-        <ul className="divide-y divide-border rounded-[inherit] pt-3">
+        <ul className="pt-3 divide-y divide-border rounded-[inherit]">
           {group.threads.map((thread) => (
             <ThreadRow
               key={thread.id}
@@ -859,47 +890,37 @@ export function ThreadsView() {
   const firstChannel = channelsQuery.data?.[0]?.slug ?? 'general';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
-      <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
-        <div className="flex min-h-12 flex-wrap items-center justify-between gap-2.5 px-3 py-1.5 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2">
+    <div className="min-h-0 flex flex-1 flex-col bg-background text-foreground">
+      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 bg-background/95">
+        <div className="min-h-11 gap-2.5 px-3 pt-2 pb-1 sm:px-6 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-2 flex items-center">
             <MessagesSquare
-              className="size-4 shrink-0 text-primary"
+              className="size-4 shrink-0 text-muted-foreground"
               aria-hidden
             />
-            <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+            <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
               Threads
             </h2>
             <Badge variant="outline" className="h-5 px-1.5 py-0 text-[11px]">
               {threads.length}
             </Badge>
           </div>
-
-          <Tabs value={tab} onValueChange={setTab} className="h-7 min-w-0">
-            <ResponsiveTabsList className="h-7 p-0.5 min-w-0">
-              <TabsTrigger value="all" className="h-6 px-2.5 text-xs">
-                All
-              </TabsTrigger>
-              <TabsTrigger
-                value="unread"
-                className="h-6 gap-1 px-2.5 text-xs"
-              >
-                <span>Unread</span>
-                {unread.length > 0 ? (
-                  <Badge
-                    variant="neutral"
-                    className="h-3.5 px-1 py-0 text-[10px]"
-                  >
-                    {unread.length}
-                  </Badge>
-                ) : null}
-              </TabsTrigger>
-            </ResponsiveTabsList>
-          </Tabs>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
+      <Tabs value={tab} onValueChange={setTab}>
+        <PageTabBar>
+          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger
+            value="unread"
+            count={unread.length > 0 ? unread.length : undefined}
+          >
+            Unread
+          </TabsTrigger>
+        </PageTabBar>
+      </Tabs>
+
+      <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
         <ThreadList
           items={activeThreads}
           isLoading={isLoading}

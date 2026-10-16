@@ -211,7 +211,10 @@ function AgentConversation({ agentId }: { agentId: string }) {
   }
 
   return (
-    <div className="min-h-0 flex flex-1 flex-col overflow-hidden bg-background text-foreground">
+    // The header has no rule of its own — the tab bar below closes the block.
+    // Loading / error / not-configured states render no tab bar, so the
+    // header draws the rule itself then.
+    <div className="min-h-0 flex flex-1 flex-col overflow-hidden bg-background text-foreground [&:not(:has([data-page-tab-bar]))>:first-child]:border-b [&:not(:has([data-page-tab-bar]))>:first-child]:border-border">
       <AgentMessageHeader agent={agent} />
 
       <AgentConversationPanel agent={agent} />
@@ -295,8 +298,8 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
   }, []);
 
   return (
-    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-      <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 bg-background/95">
+      <div className="gap-2.5 px-3 sm:px-6 pt-2 pb-1 min-h-11 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-2 flex items-center">
             <button

@@ -504,8 +504,9 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
         />
 
         {/* Notification setup prompt — directly below the header, above the
-            three boxes. `m-1.5 mb-0` lines it up with the content gutter. */}
-        <NotificationEnableBar workspaceId={workspaceId} className="m-1.5 mb-0" />
+            three boxes. `m-1.5` lines it up with the content gutter and leaves
+            the same 6px gap above the panes (whose row has `pt-0`). */}
+        <NotificationEnableBar workspaceId={workspaceId} className="m-1.5" />
 
         <div
           className={cn(

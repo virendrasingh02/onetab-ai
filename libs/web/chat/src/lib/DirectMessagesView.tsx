@@ -29,7 +29,7 @@ import {
   ScrollArea,
   Tabs,
   TabsContent,
-  TabsList,
+  PageTabBar,
   TabsTrigger,
   toast,
   toPresenceStatus,
@@ -159,11 +159,13 @@ export function DirectMessagesView({
   // `?room=` is a group DM — it has no single peer to key on, so it is
   // addressed by its Matrix room id.
   if (roomId) {
-    return <GroupConversation
+    return (
+      <GroupConversation
         roomId={roomId}
         extraPeers={extraPeers}
         headerEnd={headerEnd}
-      />;
+      />
+    );
   }
 
   return peerId ? (
@@ -250,7 +252,9 @@ function DirectConversation({
   const member = allMembers.find((entry) => entry.user.id === peerId);
 
   if (!resolvedMembers && members.isLoading) {
-    return <ChatConversationSkeleton avatarShape="circle" avatarSize="sm" hasTabs />;
+    return (
+      <ChatConversationSkeleton avatarShape="circle" avatarSize="sm" hasTabs />
+    );
   }
 
   if (members.isError && !resolvedMembers) {
@@ -305,46 +309,40 @@ function DirectConversation({
         onValueChange={setActiveTab}
         className="min-h-0 gap-0 flex flex-1 flex-col"
       >
-        <div className="px-3 sm:px-6 py-1 gap-2 flex items-center justify-between border-b border-border bg-background">
-          <TabsList className="scrollbar-none overflow-x-auto">
-            <TabsTrigger
-              value="chat"
-              icon={<MessageSquare className="size-4" />}
-            >
-              Messages
-            </TabsTrigger>
-            <TabsTrigger
-              value="files-media"
-              icon={<FolderOpen className="size-4" />}
-            >
-              Files &amp; Media
-            </TabsTrigger>
-            <TabsTrigger
-              value="bookmarks"
-              icon={<Bookmark className="size-4" />}
-              count={bookmarks.length > 0 ? bookmarks.length : undefined}
-            >
-              Bookmarks
-            </TabsTrigger>
-            <TabsTrigger
-              value="pins"
-              icon={<Pin className="size-4" />}
-            >
-              Pins
-            </TabsTrigger>
-          </TabsList>
-
-          {activeTab === 'bookmarks' && (
-            <Button
-              size="sm"
-              onClick={() => setAddBookmarkOpen(true)}
-              className="gap-1.5 text-xs h-7 shrink-0"
-            >
-              <Plus className="size-3.5" />
-              <span>Add Bookmark</span>
-            </Button>
-          )}
-        </div>
+        <PageTabBar
+          end={
+            activeTab === 'bookmarks' ? (
+              <Button
+                size="sm"
+                onClick={() => setAddBookmarkOpen(true)}
+                className="gap-1.5 text-xs h-7 shrink-0"
+              >
+                <Plus className="size-3.5" />
+                <span>Add Bookmark</span>
+              </Button>
+            ) : null
+          }
+        >
+          <TabsTrigger value="chat" icon={<MessageSquare className="size-4" />}>
+            Messages
+          </TabsTrigger>
+          <TabsTrigger
+            value="files-media"
+            icon={<FolderOpen className="size-4" />}
+          >
+            Files &amp; Media
+          </TabsTrigger>
+          <TabsTrigger
+            value="bookmarks"
+            icon={<Bookmark className="size-4" />}
+            count={bookmarks.length > 0 ? bookmarks.length : undefined}
+          >
+            Bookmarks
+          </TabsTrigger>
+          <TabsTrigger value="pins" icon={<Pin className="size-4" />}>
+            Pins
+          </TabsTrigger>
+        </PageTabBar>
 
         <TabsContent
           value="chat"
@@ -692,7 +690,14 @@ function DirectMessageHeader({
     } else {
       void handleStartVoiceCall();
     }
-  }, [searchParams, roomId, canCall, setSearchParams, handleStartVideoCall, handleStartVoiceCall]);
+  }, [
+    searchParams,
+    roomId,
+    canCall,
+    setSearchParams,
+    handleStartVideoCall,
+    handleStartVoiceCall,
+  ]);
 
   // Live presence, exactly as the sidebar's DM row reads it — the avatar's
   // status dot was bound to `member.user.presence`, a snapshot from the members
@@ -777,8 +782,8 @@ function DirectMessageHeader({
   }, [queryClient]);
 
   return (
-    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-      <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 bg-background/95">
+      <div className="gap-2.5 px-3 sm:px-6 pt-2 pb-1 min-h-11 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-2 flex items-center">
             <button
@@ -1016,7 +1021,7 @@ function DirectMessageHeader({
           {/* Who you are talking to, at a glance: their status and the time
               where they are — the DM counterpart of a channel's topic. */}
           {!isSelf && (member.user.statusText || member.user.timezone) ? (
-            <div className="md:flex min-w-0 gap-2 pl-2.5 hidden items-center border-l border-border text-xs text-muted-foreground">
+            <div className="md:flex min-w-0 gap-2 pl-2.5 text-xs hidden items-center border-l border-border text-muted-foreground">
               {member.user.statusText ? (
                 <span
                   className="max-w-56 truncate"
@@ -1111,7 +1116,9 @@ function NewDirectMessage({
   const navigate = useNavigate();
 
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
-  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
+    null,
+  );
   const [groupName, setGroupName] = useState('');
   const [isStarting, setIsStarting] = useState(false);
 
@@ -1169,8 +1176,8 @@ function NewDirectMessage({
   const presenceMap = useUserPresenceMap();
   const suggestedPeople = useMemo(() => {
     const isOnline = (person: RecipientPerson) =>
-      (presenceMap[person.id]?.status ??
-        toPresenceStatus(person.presence)) === 'online';
+      (presenceMap[person.id]?.status ?? toPresenceStatus(person.presence)) ===
+      'online';
     return peopleOptions
       .filter(
         (person) =>
@@ -1234,7 +1241,9 @@ function NewDirectMessage({
   } | null> => {
     if (selectedChannel) {
       if (!channelRoom.roomId) {
-        toast.error('That channel is still connecting — try again in a moment.');
+        toast.error(
+          'That channel is still connecting — try again in a moment.',
+        );
         return null;
       }
       return {
@@ -1249,7 +1258,9 @@ function NewDirectMessage({
     });
 
     if (result.kind === 'group' && currentUser && client) {
-      const others = selectedMembers.filter((m) => m.user.id !== currentUser.id);
+      const others = selectedMembers.filter(
+        (m) => m.user.id !== currentUser.id,
+      );
       const names = others.map((m) => m.user.displayName ?? m.user.name);
       const formattedNames =
         names.length <= 3
@@ -1293,9 +1304,12 @@ function NewDirectMessage({
         ? (channels ?? []).find((channel) => channel.name === roomName)
         : undefined;
       if (sharedChannel) {
-        toast.info(`You already share #${sharedChannel.name} with these people`, {
-          description: 'Opened that channel instead of creating a group.',
-        });
+        toast.info(
+          `You already share #${sharedChannel.name} with these people`,
+          {
+            description: 'Opened that channel instead of creating a group.',
+          },
+        );
         return {
           roomId: result.roomId,
           href: `/w/${slug}/c/${sharedChannel.slug}`,
@@ -1431,14 +1445,14 @@ function NewDirectMessage({
     <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header (Inbox & Threads style) */}
       <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-11 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
             <div className="min-w-0 gap-1.5 flex items-center">
               <SquarePen
                 className="size-4 shrink-0 text-muted-foreground"
                 aria-hidden
               />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
+              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
                 New message
               </h2>
               {recipientCount > 0 ? (
@@ -1471,18 +1485,18 @@ function NewDirectMessage({
       {/* Content — a full-height compose view, laid out like an open
           conversation: recipients strip, a body that fills, composer pinned. */}
       {members.isLoading ? (
-        <div className="flex flex-1 items-center justify-center p-6">
+        <div className="p-6 flex flex-1 items-center justify-center">
           <LoadingState label="Loading directory…" />
         </div>
       ) : members.isError ? (
-        <div className="flex flex-1 items-center justify-center p-6">
+        <div className="p-6 flex flex-1 items-center justify-center">
           <ErrorState
             title="Could not load directory"
             description="The member list for this workspace is unavailable."
           />
         </div>
       ) : configStatus === 'disabled' ? (
-        <div className="flex flex-1 items-center justify-center p-6">
+        <div className="p-6 flex flex-1 items-center justify-center">
           <EmptyState
             size="lg"
             icon={<MessageSquareOff />}
@@ -1493,7 +1507,7 @@ function NewDirectMessage({
       ) : (
         <div className="min-h-0 flex flex-1 flex-col">
           {/* Recipients strip */}
-          <div className="shrink-0 px-4 sm:px-6 py-3 sm:py-4 space-y-3 border-b border-border bg-background">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 space-y-3 shrink-0 border-b border-border bg-background">
             <NewMessageRecipients
               people={peopleOptions}
               channels={channelOptions}
@@ -1524,7 +1538,7 @@ function NewDirectMessage({
           </div>
 
           {/* Body — fills the space between the recipients and the composer. */}
-          <div className="min-h-0 gap-4 p-6 text-center flex flex-1 flex-col items-center justify-center overflow-y-auto">
+          <div className="min-h-0 gap-4 p-6 flex flex-1 flex-col items-center justify-center overflow-y-auto text-center">
             <div className="size-12 flex items-center justify-center rounded-2xl bg-muted text-muted-foreground">
               {selectedChannel ? (
                 <Hash className="size-6" />
@@ -1538,9 +1552,9 @@ function NewDirectMessage({
               <h3 className="text-sm font-semibold text-foreground">
                 {headline}
               </h3>
-              <p className="max-w-md mx-auto text-xs text-muted-foreground">
+              <p className="max-w-md text-xs mx-auto text-muted-foreground">
                 {outcome} Type below and press{' '}
-                <kbd className="px-1 py-0.5 font-sans text-[10px] rounded border border-border bg-background">
+                <kbd className="px-1 py-0.5 rounded border border-border bg-background font-sans text-[10px]">
                   Enter
                 </kbd>{' '}
                 to send.
@@ -1561,7 +1575,7 @@ function NewDirectMessage({
             {/* Teammates one click away — each click adds them, so a group can
                 be built from here as well as from the field above. */}
             {!selectedChannel && suggestedPeople.length > 0 ? (
-              <div className="max-w-lg w-full space-y-2">
+              <div className="max-w-lg space-y-2 w-full">
                 <p className="font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
                   {selectedPeople.length > 0 ? 'Add more people' : 'Suggested'}
                 </p>
@@ -1573,7 +1587,7 @@ function NewDirectMessage({
                       onClick={() =>
                         setSelectedPeople((prev) => [...prev, person.id])
                       }
-                      className="gap-2 py-1 pl-1 pr-3 flex max-w-48 items-center rounded-full border border-border bg-background text-sm text-foreground transition-colors hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      className="gap-2 py-1 pl-1 pr-3 max-w-48 text-sm flex items-center rounded-full border border-border bg-background text-foreground transition-colors hover:bg-accent/70 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                     >
                       <UserAvatar
                         name={person.name}

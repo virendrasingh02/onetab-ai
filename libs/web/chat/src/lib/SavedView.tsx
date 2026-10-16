@@ -10,6 +10,9 @@ import {
   EntityContextMenu,
   ObjectActionMenu,
   Spinner,
+  PageTabBar,
+  Tabs,
+  TabsTrigger,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -53,10 +56,8 @@ export function SavedView() {
   const [activeFilter, setActiveFilter] = useState<BookmarkFilter>('all');
 
   // Server bookmarks
-  const {
-    data: bookmarks = [],
-    isLoading: isBookmarksLoading,
-  } = useBookmarks(workspaceId);
+  const { data: bookmarks = [], isLoading: isBookmarksLoading } =
+    useBookmarks(workspaceId);
   const { removeBookmark } = useBookmarkMutations(workspaceId);
 
   // Saved messages live in Matrix account data (synced into this store).
@@ -93,7 +94,9 @@ export function SavedView() {
 
     // Add legacy messages that are not already in server bookmarks
     const serverMessageIds = new Set(
-      bookmarks.filter((b) => b.targetType === 'message').map((b) => b.targetId),
+      bookmarks
+        .filter((b) => b.targetType === 'message')
+        .map((b) => b.targetId),
     );
 
     const legacyItems = legacySaved
@@ -129,7 +132,8 @@ export function SavedView() {
     if (item.isLegacy) {
       removeLegacy(item.id);
       const entry = legacySaved.find((m) => m.id === item.id);
-      if (entry) void client?.setMessageSaved(entry, false).catch(() => undefined);
+      if (entry)
+        void client?.setMessageSaved(entry, false).catch(() => undefined);
     } else {
       await removeBookmark(item.id);
     }
@@ -162,14 +166,17 @@ export function SavedView() {
   return (
     <div className="min-h-0 flex flex-1 flex-col bg-background text-foreground">
       {/* Header */}
-      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-        <div className="gap-2.5 px-3 sm:px-6 py-2 min-h-12 flex flex-wrap items-center justify-between">
+      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 bg-background/95">
+        <div className="gap-2.5 px-3 sm:px-6 pt-2 pb-1 min-h-11 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
-            <Bookmark className="size-4 shrink-0 text-primary" aria-hidden />
-            <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
+            <Bookmark
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
               Saved Bookmarks
             </h2>
-            <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-5">
+            <Badge variant="outline" className="px-1.5 py-0 h-5 text-[11px]">
               {allItems.length}
             </Badge>
           </div>
@@ -188,45 +195,31 @@ export function SavedView() {
             </div>
           )}
         </div>
-
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 px-3 sm:px-6 pb-2 overflow-x-auto">
-          {filterTabs.map((tab) => {
-            const isActive = activeFilter === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveFilter(tab.key)}
-                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <span>{tab.label}</span>
-                {tab.count !== undefined && tab.count > 0 && (
-                  <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                      isActive
-                        ? 'bg-primary-foreground/20 text-primary-foreground'
-                        : 'bg-background text-muted-foreground'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
       </div>
+
+      {/* Filters — the same tab strip every sidebar page uses. */}
+      <Tabs
+        value={activeFilter}
+        onValueChange={(value) => setActiveFilter(value as BookmarkFilter)}
+      >
+        <PageTabBar>
+          {filterTabs.map((tab) => (
+            <TabsTrigger
+              key={tab.key}
+              value={tab.key}
+              count={tab.count && tab.count > 0 ? tab.count : undefined}
+            >
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </PageTabBar>
+      </Tabs>
 
       {/* Content Area */}
       <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto">
           {isBookmarksLoading && allItems.length === 0 ? (
-            <div className="flex h-48 items-center justify-center">
+            <div className="h-48 flex items-center justify-center">
               <Spinner className="size-6 text-primary" />
             </div>
           ) : filteredItems.length === 0 ? (
@@ -266,87 +259,87 @@ export function SavedView() {
                       entity={item}
                       label={item.title}
                     >
-                    <Card className="p-4 gap-4 group flex items-start justify-between bg-card transition-colors hover:border-border-strong">
-                      <div className="gap-3 min-w-0 flex flex-1 items-start">
-                        <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                          <ItemIcon className="size-4" />
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="gap-2 flex flex-wrap items-center">
-                            <span
-                              onClick={() => {
-                                if (item.href) navigate(item.href);
-                              }}
-                              className={`text-xs sm:text-sm font-semibold text-foreground ${
-                                item.href
-                                  ? 'cursor-pointer hover:text-primary hover:underline'
-                                  : ''
-                              }`}
-                            >
-                              {item.title}
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className="uppercase text-[10px] px-1 py-0 h-4.5"
-                            >
-                              {item.targetType}
-                            </Badge>
-                            <span className="font-mono text-[11px] text-muted-foreground">
-                              · saved{' '}
-                              {formatRelative(
-                                new Date(item.timestamp).toISOString(),
-                              )}
-                            </span>
+                      <Card className="p-4 gap-4 group flex items-start justify-between bg-card transition-colors hover:border-border-strong">
+                        <div className="gap-3 min-w-0 flex flex-1 items-start">
+                          <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <ItemIcon className="size-4" />
                           </div>
 
-                          {item.snippet && (
-                            <p className="mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 whitespace-pre-wrap text-muted-foreground">
-                              {item.snippet}
-                            </p>
-                          )}
-
-                          {item.tags && item.tags.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {item.tags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                                >
-                                  #{tag}
-                                </span>
-                              ))}
+                          <div className="min-w-0 flex-1">
+                            <div className="gap-2 flex flex-wrap items-center">
+                              <span
+                                onClick={() => {
+                                  if (item.href) navigate(item.href);
+                                }}
+                                className={`text-xs sm:text-sm font-semibold text-foreground ${
+                                  item.href
+                                    ? 'cursor-pointer hover:text-primary hover:underline'
+                                    : ''
+                                }`}
+                              >
+                                {item.title}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="px-1 py-0 h-4.5 text-[10px] uppercase"
+                              >
+                                {item.targetType}
+                              </Badge>
+                              <span className="font-mono text-[11px] text-muted-foreground">
+                                · saved{' '}
+                                {formatRelative(
+                                  new Date(item.timestamp).toISOString(),
+                                )}
+                              </span>
                             </div>
-                          )}
+
+                            {item.snippet && (
+                              <p className="mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 whitespace-pre-wrap text-muted-foreground">
+                                {item.snippet}
+                              </p>
+                            )}
+
+                            {item.tags && item.tags.length > 0 && (
+                              <div className="mt-2 gap-1 flex flex-wrap">
+                                {item.tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="rounded px-1.5 py-0.5 bg-muted text-[10px] text-muted-foreground"
+                                  >
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        <ObjectActionMenu
-                          target={{
-                            type: item.targetType,
-                            id: item.targetId,
-                            title: item.title,
-                            href: item.href,
-                          }}
-                          isBookmarked={true}
-                          onBookmarkToggle={() => handleRemove(item)}
-                          onOpen={(href) => navigate(href)}
-                        />
+                        <div className="gap-1 flex shrink-0 items-center">
+                          <ObjectActionMenu
+                            target={{
+                              type: item.targetType,
+                              id: item.targetId,
+                              title: item.title,
+                              href: item.href,
+                            }}
+                            isBookmarked={true}
+                            onBookmarkToggle={() => handleRemove(item)}
+                            onOpen={(href) => navigate(href)}
+                          />
 
-                        <Hint label="Remove bookmark">
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label={`Remove ${item.title} from saved`}
-                            onClick={() => handleRemove(item)}
-                            className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
-                          >
-                            <BookmarkX className="size-3.5" />
-                          </Button>
-                        </Hint>
-                      </div>
-                    </Card>
+                          <Hint label="Remove bookmark">
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              aria-label={`Remove ${item.title} from saved`}
+                              onClick={() => handleRemove(item)}
+                              className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
+                            >
+                              <BookmarkX className="size-3.5" />
+                            </Button>
+                          </Hint>
+                        </div>
+                      </Card>
                     </EntityContextMenu>
                   </li>
                 );

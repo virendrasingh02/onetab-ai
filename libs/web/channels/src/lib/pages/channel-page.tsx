@@ -24,8 +24,8 @@ import {
   SkeletonList,
   Tabs,
   TabsContent,
+  PageTabBar,
   TabsTrigger,
-  ResponsiveTabsList,
   toast,
   UserAvatar,
   useRightPanelStore,
@@ -55,7 +55,6 @@ import {
   Info,
   LayoutTemplate,
   Lock,
-  Mail,
   Megaphone,
   MessageSquare,
   MoreHorizontal,
@@ -72,7 +71,13 @@ import {
   Users,
   Workflow,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCurrentUser } from '@org/auth';
@@ -131,6 +136,9 @@ function ChannelHeader({
   onOpenMembers,
   onOpenPins,
   onOpenSettings,
+  onEditDetails,
+  onOpenPosting,
+  onOpenAnonModeration,
   chatActionsRef,
   chatMenuRef,
   headerEnd,
@@ -144,6 +152,12 @@ function ChannelHeader({
   onOpenSettings: () => void;
   /** Reveals the channel's members tab in the right rail. */
   onOpenMembers: () => void;
+  /** Opens the edit-name/topic/description dialog. */
+  onEditDetails: () => void;
+  /** Opens posting permissions; omitted when the viewer cannot manage the channel. */
+  onOpenPosting?: () => void;
+  /** Opens anonymous-message moderation; omitted when the viewer cannot moderate. */
+  onOpenAnonModeration?: () => void;
   /** Switches the page to its Pins tab. */
   onOpenPins: () => void;
   /**
@@ -219,8 +233,8 @@ function ChannelHeader({
   }, [channel.id, isFavorite, preferences]);
 
   return (
-    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-      <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 bg-background/95">
+      <div className="gap-2.5 px-3 sm:px-6 pt-2 pb-1 min-h-11 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-1.5 flex items-center">
             <button
@@ -354,17 +368,9 @@ function ChannelHeader({
 
                   <DropdownMenuSeparator />
 
-                  <DropdownMenuItem className="justify-between">
-                    <div className="gap-2.5 flex items-center">
-                      <Mail className="size-4" />
-                      <span>Mark as unread</span>
-                    </div>
-                    <DropdownMenuShortcut>U</DropdownMenuShortcut>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem className="gap-2.5">
+                  <DropdownMenuItem onClick={onEditDetails} className="gap-2.5">
                     <Pencil className="size-4" />
-                    <span>Rename</span>
+                    <span>Edit channel details</span>
                   </DropdownMenuItem>
 
                   {onAddBookmark ? (
@@ -406,32 +412,10 @@ function ChannelHeader({
                     </div>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem className="gap-2.5">
-                    <Bell className="size-4" />
-                    <span>Notification settings</span>
-                  </DropdownMenuItem>
-
                   <DropdownMenuItem
-                    onClick={() =>
-                      preferences.mutate({
-                        channelId: channel.id,
-                        input: { isMuted: !isMuted },
-                      })
-                    }
-                    description="Follow this Channel in the future to show it in your sidebar again."
+                    onClick={onOpenSettings}
+                    className="gap-2.5"
                   >
-                    <BellOff className="size-4" />
-                    <span>{isMuted ? 'Follow Channel' : 'Unfollow'}</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem className="gap-2.5">
-                    <Mail className="size-4" />
-                    <span>Email to Channel</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem className="gap-2.5">
                     <Bell className="size-4" />
                     <span>Notification settings</span>
                   </DropdownMenuItem>
@@ -458,6 +442,26 @@ function ChannelHeader({
                     <Settings className="size-4" />
                     <span>Settings & permissions</span>
                   </DropdownMenuItem>
+
+                  {onOpenPosting ? (
+                    <DropdownMenuItem
+                      onClick={onOpenPosting}
+                      className="gap-2.5"
+                    >
+                      <Megaphone className="size-4" />
+                      <span>Posting permissions</span>
+                    </DropdownMenuItem>
+                  ) : null}
+
+                  {onOpenAnonModeration ? (
+                    <DropdownMenuItem
+                      onClick={onOpenAnonModeration}
+                      className="gap-2.5"
+                    >
+                      <ShieldAlert className="size-4" />
+                      <span>Anonymous moderation</span>
+                    </DropdownMenuItem>
+                  ) : null}
 
                   <DropdownMenuSeparator />
 
@@ -515,7 +519,7 @@ function ChannelHeader({
               type="button"
               onClick={onOpenDetails}
               title={channel.topic ?? channel.description ?? undefined}
-              className="md:block min-w-0 max-w-md pl-2.5 hidden truncate border-l border-border text-left text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm"
+              className="md:block min-w-0 max-w-md pl-2.5 text-xs hidden truncate rounded-sm border-l border-border text-left text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
             >
               {channel.topic ?? channel.description}
             </button>
@@ -767,7 +771,9 @@ export function ChannelPage({
   // Only the very first channel of the session — nothing to keep on screen —
   // gets the skeleton loader; every later switch renders through in place.
   if (!channel && channelQuery.isLoading) {
-    return <ChatConversationSkeleton avatarShape="rounded" avatarSize="xs" hasTabs />;
+    return (
+      <ChatConversationSkeleton avatarShape="rounded" avatarSize="xs" hasTabs />
+    );
   }
   if (channelQuery.isError || !channel) {
     return (
@@ -830,6 +836,15 @@ export function ChannelPage({
           setDetailsTab('settings');
           setDetailsPanelOpen(true);
         }}
+        onEditDetails={() => setDetailsOpen(true)}
+        onOpenPosting={
+          canManageChannel ? () => setPostingOpen(true) : undefined
+        }
+        onOpenAnonModeration={
+          anonSettings.data?.canModerate
+            ? () => setAnonModerationOpen(true)
+            : undefined
+        }
         chatActionsRef={setChatActionsSlot}
         chatMenuRef={setChatMenuSlot}
         headerEnd={headerEnd}
@@ -952,184 +967,157 @@ export function ChannelPage({
         onValueChange={setActiveTab}
         className="min-h-0 gap-0 flex flex-1 flex-col"
       >
-        <div className="px-3 sm:px-6 py-1 gap-2 flex items-center justify-between border-b border-border bg-background">
-          <div className="flex items-center gap-1 min-w-0">
-            <ResponsiveTabsList className="min-w-0">
-              <TabsTrigger
-                value="chat"
-                icon={<MessageSquare className="size-4" />}
-              >
-                Messages
-              </TabsTrigger>
-              {visibleTabs.map((tab) => {
-                const meta = CHANNEL_TAB_META[tab.id];
-                const TabIcon = meta.icon;
-                return (
-                  <TabsTrigger
-                    key={tab.id}
-                    value={tab.id}
-                    icon={<TabIcon className="size-4" />}
-                    count={tabCounts[tab.id]}
+        <PageTabBar
+          afterTabs={
+            <>
+              {/* Everything that adds to the channel — agents, apps, workflows,
+                templates, bookmarks, people — behind one “+” beside the tabs.
+                Channel-management entries live in the header's “⋯” menu. */}
+              <DropdownMenu>
+                <Hint label="Add to channel">
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="size-7 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
+                      aria-label="Add to channel"
+                    >
+                      <Plus className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </Hint>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-60 p-1.5 space-y-0.5"
+                >
+                  <DropdownMenuItem
+                    onClick={() => setAddAgentOpen(true)}
+                    className="gap-2.5 text-xs font-medium cursor-pointer"
                   >
-                    {meta.label}
-                  </TabsTrigger>
-                );
-              })}
-            </ResponsiveTabsList>
+                    <Bot className="size-4 shrink-0 text-primary" />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-foreground">Add AI Agent</span>
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        Add assistant / reviewer bot
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
 
-          {/* 3-dots Workflow, Templates, and AI Agents dropdown menu placed immediately after the tabs */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="size-7 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
-                aria-label="Channel actions, workflows, templates, and AI agents"
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              className="w-60 p-1.5 space-y-0.5"
-            >
-              <DropdownMenuItem
-                onClick={() => setAddAgentOpen(true)}
-                className="gap-2.5 text-xs font-medium cursor-pointer"
-              >
-                <Bot className="size-4 shrink-0 text-primary" />
-                <div className="min-w-0 flex-1">
-                  <span className="text-foreground">Add AI Agent</span>
-                  <p className="truncate text-[10px] text-muted-foreground">
-                    Add assistant / reviewer bot
-                  </p>
-                </div>
-              </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setAddAppOpen(true)}
+                    className="gap-2.5 text-xs font-medium cursor-pointer"
+                  >
+                    <Blocks className="size-4 shrink-0 text-accent-violet" />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-foreground">Connect App</span>
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        GitHub, Linear, Sentry &amp; Jira
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => setAddAppOpen(true)}
-                className="gap-2.5 text-xs font-medium cursor-pointer"
-              >
-                <Blocks className="size-4 shrink-0 text-accent-violet" />
-                <div className="min-w-0 flex-1">
-                  <span className="text-foreground">Connect App</span>
-                  <p className="truncate text-[10px] text-muted-foreground">
-                    GitHub, Linear, Sentry &amp; Jira
-                  </p>
-                </div>
-              </DropdownMenuItem>
+                  <DropdownMenuSeparator />
 
-              <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setWorkflowsOpen(true)}
+                    className="gap-2.5 text-xs font-medium cursor-pointer"
+                  >
+                    <Workflow className="size-4 shrink-0 text-accent-violet" />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-foreground">Workflows</span>
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        Triggers, standups &amp; alerts
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => setWorkflowsOpen(true)}
-                className="gap-2.5 text-xs font-medium cursor-pointer"
-              >
-                <Workflow className="size-4 shrink-0 text-accent-violet" />
-                <div className="min-w-0 flex-1">
-                  <span className="text-foreground">Workflows</span>
-                  <p className="truncate text-[10px] text-muted-foreground">
-                    Triggers, standups &amp; alerts
-                  </p>
-                </div>
-              </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setTemplatesOpen(true)}
+                    className="gap-2.5 text-xs font-medium cursor-pointer"
+                  >
+                    <LayoutTemplate className="size-4 shrink-0 text-accent-amber" />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-foreground">Channel Templates</span>
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        Sprint, incident &amp; launch packs
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => setTemplatesOpen(true)}
-                className="gap-2.5 text-xs font-medium cursor-pointer"
-              >
-                <LayoutTemplate className="size-4 shrink-0 text-accent-amber" />
-                <div className="min-w-0 flex-1">
-                  <span className="text-foreground">Channel Templates</span>
-                  <p className="truncate text-[10px] text-muted-foreground">
-                    Sprint, incident &amp; launch packs
-                  </p>
-                </div>
-              </DropdownMenuItem>
+                  <DropdownMenuSeparator />
 
-              <DropdownMenuSeparator />
+                  {canManageTabs ? (
+                    <DropdownMenuItem
+                      onClick={() => setTabsDialogOpen(true)}
+                      className="gap-2.5 text-xs cursor-pointer"
+                    >
+                      <PanelsTopLeft className="size-4 shrink-0 text-muted-foreground" />
+                      <span>Customize Tabs</span>
+                    </DropdownMenuItem>
+                  ) : null}
 
-              {canManageTabs ? (
-                <DropdownMenuItem
-                  onClick={() => setTabsDialogOpen(true)}
-                  className="gap-2.5 text-xs cursor-pointer"
+                  <DropdownMenuItem
+                    onClick={() => setAddBookmarkOpen(true)}
+                    className="gap-2.5 text-xs cursor-pointer"
+                  >
+                    <Bookmark className="size-4 shrink-0 text-muted-foreground" />
+                    <span>Add Bookmark / Link</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => setAddPeopleOpen(true)}
+                    className="gap-2.5 text-xs cursor-pointer"
+                  >
+                    <Users className="size-4 shrink-0 text-muted-foreground" />
+                    <span>Add People to Channel</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          }
+          end={
+            <>
+              {activeTab === 'files-media' && (
+                <Button
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={handleUploadFile}
                 >
-                  <PanelsTopLeft className="size-4 shrink-0 text-muted-foreground" />
-                  <span>Customize Tabs</span>
-                </DropdownMenuItem>
-              ) : null}
-
-              <DropdownMenuItem
-                onClick={() => setAddBookmarkOpen(true)}
-                className="gap-2.5 text-xs cursor-pointer"
-              >
-                <Bookmark className="size-4 shrink-0 text-muted-foreground" />
-                <span>Add Bookmark / Link</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                onClick={() => setAddPeopleOpen(true)}
-                className="gap-2.5 text-xs cursor-pointer"
-              >
-                <Users className="size-4 shrink-0 text-muted-foreground" />
-                <span>Add People to Channel</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                onClick={() => setDetailsOpen(true)}
-                className="gap-2.5 text-xs cursor-pointer"
-              >
-                <Pencil className="size-4 shrink-0 text-muted-foreground" />
-                <span>Edit Channel Details</span>
-              </DropdownMenuItem>
-
-              {canManageChannel ? (
-                <DropdownMenuItem
-                  onClick={() => setPostingOpen(true)}
-                  className="gap-2.5 text-xs cursor-pointer"
+                  <Upload className="size-3.5" />
+                  <span>Upload File</span>
+                </Button>
+              )}
+              {activeTab === 'bookmarks' && (
+                <Button
+                  size="sm"
+                  onClick={() => setAddBookmarkOpen(true)}
+                  className="gap-1.5 text-xs h-7"
                 >
-                  <Megaphone className="size-4 shrink-0 text-muted-foreground" />
-                  <span>Posting Permissions</span>
-                </DropdownMenuItem>
-              ) : null}
-
-              {anonSettings.data?.canModerate ? (
-                <DropdownMenuItem
-                  onClick={() => setAnonModerationOpen(true)}
-                  className="gap-2.5 text-xs cursor-pointer"
-                >
-                  <ShieldAlert className="size-4 shrink-0 text-muted-foreground" />
-                  <span>Anonymous Moderation</span>
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Inline Right Actions for active tab */}
-        <div className="flex items-center gap-2 shrink-0">
-          {activeTab === 'files-media' && (
-            <Button
-              size="sm"
-              className="h-7 text-xs gap-1.5"
-              onClick={handleUploadFile}
-            >
-              <Upload className="size-3.5" />
-              <span>Upload File</span>
-            </Button>
-          )}
-          {activeTab === 'bookmarks' && (
-            <Button
-              size="sm"
-              onClick={() => setAddBookmarkOpen(true)}
-              className="gap-1.5 text-xs h-7"
-            >
-              <Plus className="size-3.5" />
-              <span>Add Bookmark</span>
-            </Button>
-          )}
-        </div>
-      </div>
+                  <Plus className="size-3.5" />
+                  <span>Add Bookmark</span>
+                </Button>
+              )}
+            </>
+          }
+        >
+          <TabsTrigger value="chat" icon={<MessageSquare className="size-4" />}>
+            Messages
+          </TabsTrigger>
+          {visibleTabs.map((tab) => {
+            const meta = CHANNEL_TAB_META[tab.id];
+            const TabIcon = meta.icon;
+            return (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                icon={<TabIcon className="size-4" />}
+                count={tabCounts[tab.id]}
+              >
+                {meta.label}
+              </TabsTrigger>
+            );
+          })}
+        </PageTabBar>
 
         <TabsContent
           value="chat"
@@ -1191,14 +1179,14 @@ export function ChannelPage({
           >
             {/* Top Toolbar: Filter pills */}
             <div className="gap-2 pb-2.5 flex flex-wrap items-center justify-between border-b border-border/40">
-              <div className="p-0.5 gap-1 inline-flex items-center rounded-lg bg-muted/60 border border-border/40">
+              <div className="p-0.5 gap-1 inline-flex items-center rounded-lg border border-border/40 bg-muted/60">
                 <button
                   type="button"
                   onClick={() => setFilesFilter('all')}
                   className={cn(
-                    'h-6 px-2.5 rounded-md text-xs font-medium transition-colors cursor-pointer',
+                    'h-6 px-2.5 text-xs font-medium cursor-pointer rounded-md transition-colors',
                     filesFilter === 'all'
-                      ? 'bg-background text-foreground font-semibold shadow-xs'
+                      ? 'font-semibold bg-background text-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
@@ -1208,9 +1196,9 @@ export function ChannelPage({
                   type="button"
                   onClick={() => setFilesFilter('files')}
                   className={cn(
-                    'h-6 px-2.5 rounded-md text-xs font-medium transition-colors inline-flex items-center gap-1.5 cursor-pointer',
+                    'h-6 px-2.5 text-xs font-medium gap-1.5 inline-flex cursor-pointer items-center rounded-md transition-colors',
                     filesFilter === 'files'
-                      ? 'bg-background text-foreground font-semibold shadow-xs'
+                      ? 'font-semibold bg-background text-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
@@ -1221,9 +1209,9 @@ export function ChannelPage({
                   type="button"
                   onClick={() => setFilesFilter('media')}
                   className={cn(
-                    'h-6 px-2.5 rounded-md text-xs font-medium transition-colors inline-flex items-center gap-1.5 cursor-pointer',
+                    'h-6 px-2.5 text-xs font-medium gap-1.5 inline-flex cursor-pointer items-center rounded-md transition-colors',
                     filesFilter === 'media'
-                      ? 'bg-background text-foreground font-semibold shadow-xs'
+                      ? 'font-semibold bg-background text-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
@@ -1239,10 +1227,7 @@ export function ChannelPage({
                 title="No files or media yet"
                 description="Share documents, design assets, and screenshots in this channel."
                 action={
-                  <Button
-                    size="sm"
-                    onClick={handleUploadFile}
-                  >
+                  <Button size="sm" onClick={handleUploadFile}>
                     Upload file
                   </Button>
                 }

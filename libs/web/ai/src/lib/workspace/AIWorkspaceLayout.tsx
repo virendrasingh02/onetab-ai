@@ -8,13 +8,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Page,
-  ResponsiveTabsList,
   Tabs,
   TabsTrigger,
+  PageBar,
+  PageTabBar,
 } from '@org/ui';
-import { useCreationPolicies, useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
+import {
+  useCreationPolicies,
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
 import { useQuery } from '@tanstack/react-query';
-import { Bot, ChevronDown, LayoutTemplate, Plus, Sparkles, UserCheck, Workflow } from 'lucide-react';
+import {
+  Bot,
+  ChevronDown,
+  LayoutTemplate,
+  Plus,
+  Sparkles,
+  UserCheck,
+  Workflow,
+} from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   AI_WORKSPACE_SECTIONS,
@@ -30,9 +43,9 @@ import { useAIRunUpdates } from './runs/use-run-updates.js';
  * agent's plan and runs, a workflow's canvas) are sibling routes outside this
  * frame so they get the whole viewport.
  *
- * The header is the same compact, sticky, channel-style bar as Inbox, Files,
- * Meetings and the other top-level views — a 48px title row with actions,
- * then an edge-to-edge tab strip — rather than a page-hero `PageHeader`.
+ * The header is the shared `PageBar` + `PageTabBar` every sidebar destination
+ * uses — a compact title row with actions, then an edge-to-edge tab strip —
+ * rather than a page-hero `PageHeader`.
  */
 export function AIWorkspaceLayout() {
   const { slug, workspaceId } = useCurrentWorkspace();
@@ -52,50 +65,37 @@ export function AIWorkspaceLayout() {
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
-      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
-          <div className="min-w-0 gap-1.5 flex items-center">
-            <Sparkles
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-            <h1 className="text-sm font-semibold tracking-tight truncate text-foreground">
-              AI Agent Studio
-            </h1>
-          </div>
+      <PageBar
+        icon={<Sparkles />}
+        title="AI Agent Studio"
+        hasTabs
+        actions={<NewAIResourceMenu slug={slug} workspaceId={workspaceId} />}
+      />
 
-          <div className="gap-2 flex items-center">
-            <NewAIResourceMenu slug={slug} workspaceId={workspaceId} />
-          </div>
-        </div>
-
-        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
-          <Tabs
-            value={section}
-            onValueChange={(next) =>
-              navigate(aiWorkspacePath(slug, next === 'overview' ? '' : (next as AIWorkspaceSection)))
-            }
-          >
-            <ResponsiveTabsList
-              variant="underline"
-              size="sm"
-              className="border-b-0 min-w-0 w-full"
-              aria-label="AI Agent Studio sections"
+      <Tabs
+        value={section}
+        onValueChange={(next) =>
+          navigate(
+            aiWorkspacePath(
+              slug,
+              next === 'overview' ? '' : (next as AIWorkspaceSection),
+            ),
+          )
+        }
+      >
+        <PageTabBar>
+          {AI_WORKSPACE_SECTIONS.map(({ id, label, icon: Icon }) => (
+            <TabsTrigger
+              key={id}
+              value={id}
+              icon={<Icon className="size-4" aria-hidden />}
+              count={id === 'approvals' && mine > 0 ? mine : undefined}
             >
-              {AI_WORKSPACE_SECTIONS.map(({ id, label, icon: Icon }) => (
-                <TabsTrigger
-                  key={id}
-                  value={id}
-                  icon={<Icon className="size-3.5" aria-hidden />}
-                  count={id === 'approvals' && mine > 0 ? mine : undefined}
-                >
-                  {label}
-                </TabsTrigger>
-              ))}
-            </ResponsiveTabsList>
-          </Tabs>
-        </div>
-      </div>
+              {label}
+            </TabsTrigger>
+          ))}
+        </PageTabBar>
+      </Tabs>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <Page padding="none" className="p-3 sm:p-6">
@@ -120,7 +120,8 @@ export function NewAIResourceMenu({
 }) {
   const navigate = useNavigate();
   const { can } = useWorkspacePermission();
-  const { canCreateAgents, canCreateCoworkers } = useCreationPolicies(workspaceId);
+  const { canCreateAgents, canCreateCoworkers } =
+    useCreationPolicies(workspaceId);
   if (!can('create')) return null;
 
   return (
@@ -136,22 +137,34 @@ export function NewAIResourceMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuItem onSelect={() => navigate(aiWorkspacePath(slug, 'studio', 'new'))}>
+        <DropdownMenuItem
+          onSelect={() => navigate(aiWorkspacePath(slug, 'studio', 'new'))}
+        >
           <Sparkles className="size-4" aria-hidden />
           <div className="flex flex-col">
             <span>Describe an agent</span>
-            <span className="text-xs text-muted-foreground">Say what you want done — the Studio plans it</span>
+            <span className="text-xs text-muted-foreground">
+              Say what you want done — the Studio plans it
+            </span>
           </div>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => navigate(`${aiWorkspacePath(slug, 'agents')}?view=templates`)}>
+        <DropdownMenuItem
+          onSelect={() =>
+            navigate(`${aiWorkspacePath(slug, 'agents')}?view=templates`)
+          }
+        >
           <LayoutTemplate className="size-4" aria-hidden />
           <div className="flex flex-col">
             <span>Start from a template</span>
-            <span className="text-xs text-muted-foreground">Daily report, to-do plan, project health…</span>
+            <span className="text-xs text-muted-foreground">
+              Daily report, to-do plan, project health…
+            </span>
           </div>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground">Build it yourself</DropdownMenuLabel>
+        <DropdownMenuLabel className="font-medium text-[11px] text-muted-foreground">
+          Build it yourself
+        </DropdownMenuLabel>
         <DropdownMenuItem
           disabled={!canCreateAgents}
           onSelect={() => navigate(aiWorkspacePath(slug, 'agents', 'new'))}
@@ -168,7 +181,9 @@ export function NewAIResourceMenu({
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={!canCreateCoworkers}
-          onSelect={() => navigate(`${aiWorkspacePath(slug, 'agents')}?create=coworker`)}
+          onSelect={() =>
+            navigate(`${aiWorkspacePath(slug, 'agents')}?create=coworker`)
+          }
         >
           <UserCheck className="size-4" aria-hidden />
           <div className="flex flex-col">
@@ -180,7 +195,9 @@ export function NewAIResourceMenu({
             </span>
           </div>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => navigate(aiWorkspacePath(slug, 'workflows', 'new'))}>
+        <DropdownMenuItem
+          onSelect={() => navigate(aiWorkspacePath(slug, 'workflows', 'new'))}
+        >
           <Workflow className="size-4" aria-hidden />
           <div className="flex flex-col">
             <span>Workflow on the canvas</span>

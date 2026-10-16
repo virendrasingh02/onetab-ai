@@ -5,16 +5,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  PageBar,
+  PageTabBar,
+  Tabs,
+  TabsTrigger,
 } from '@org/ui';
-import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
 import {
-  CalendarClock,
-  Layers,
-  Plug,
-  Plus,
-  Workflow,
-  Zap,
-} from 'lucide-react';
+  useCurrentWorkspace,
+  useWorkspacePermission,
+} from '@org/web-workspace';
+import { CalendarClock, Layers, Plug, Plus, Workflow, Zap } from 'lucide-react';
 
 import { AutomationAITab } from './AutomationAITab.js';
 import { AutomationActionsTab } from './AutomationActionsTab.js';
@@ -30,10 +30,7 @@ import { AutomationSettingsTab } from './AutomationSettingsTab.js';
 import { AutomationTemplatesTab } from './AutomationTemplatesTab.js';
 import { AutomationTriggersTab } from './AutomationTriggersTab.js';
 import { AutomationWorkflowsTab } from './AutomationWorkflowsTab.js';
-import {
-  AUTOMATION_CENTER_TABS,
-  type AutomationCenterTab,
-} from './types.js';
+import { AUTOMATION_CENTER_TABS, type AutomationCenterTab } from './types.js';
 
 export function AutomationCenterLayout() {
   const navigate = useNavigate();
@@ -43,7 +40,11 @@ export function AutomationCenterLayout() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Active tab can come from route or query param ?tab= with aliases
-  const rawTab = (routeTab || searchParams.get('tab') || 'overview').toLowerCase();
+  const rawTab = (
+    routeTab ||
+    searchParams.get('tab') ||
+    'overview'
+  ).toLowerCase();
   const currentTab: AutomationCenterTab = (() => {
     if (rawTab === 'my-automations') return 'workflows';
     if (rawTab === 'app-connections') return 'connections';
@@ -107,37 +108,24 @@ export function AutomationCenterLayout() {
   };
 
   return (
-    <div className="flex flex-col min-h-full p-6 space-y-6 max-w-7xl mx-auto w-full">
-      {/* Top Header Section */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Zap className="h-6 w-6" />
-            </span>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                Automation Center
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Build, execute, orchestrate, and observe event-driven, AI-powered, and scheduled workflows.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Global Action Menu */}
-        {can('create') && (
-          <div className="flex items-center gap-2">
+    <div className="min-h-0 flex flex-1 flex-col">
+      <PageBar
+        icon={<Zap />}
+        title="Automation Center"
+        hasTabs
+        actions={
+          can('create') ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="gap-2 shadow-sm">
-                  <Plus className="h-4 w-4" />
+                <Button size="sm" className="h-7 text-xs gap-1">
+                  <Plus className="size-3.5" />
                   New Automation
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => navigate(`/w/${slug}/automations/builder/new`)}>
+                <DropdownMenuItem
+                  onClick={() => navigate(`/w/${slug}/automations/builder/new`)}
+                >
                   <Workflow className="h-4 w-4 mr-2 text-primary" />
                   <span>Start from Blank Canvas</span>
                 </DropdownMenuItem>
@@ -145,50 +133,55 @@ export function AutomationCenterLayout() {
                   <Layers className="h-4 w-4 mr-2 text-indigo-500" />
                   <span>Use Ready-Made Template</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate(`/w/${slug}/automations/builder/new?trigger=CRON`)}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    navigate(`/w/${slug}/automations/builder/new?trigger=CRON`)
+                  }
+                >
                   <CalendarClock className="h-4 w-4 mr-2 text-emerald-500" />
                   <span>Schedule Cron Job</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate(`/w/${slug}/automations/builder/new?trigger=WEBHOOK`)}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    navigate(
+                      `/w/${slug}/automations/builder/new?trigger=WEBHOOK`,
+                    )
+                  }
+                >
                   <Plug className="h-4 w-4 mr-2 text-amber-500" />
                   <span>Inbound Webhook Automation</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        )}
-      </div>
+          ) : null
+        }
+      />
 
-      {/* Unified 15-Tab Navigation Strip */}
-      <div className="border-b border-border/80 overflow-x-auto no-scrollbar">
-        <nav className="flex space-x-1 min-w-max pb-1" aria-label="Automation Center Navigation">
+      <Tabs
+        value={currentTab}
+        onValueChange={(value) => handleSelectTab(value as typeof currentTab)}
+      >
+        <PageTabBar>
           {AUTOMATION_CENTER_TABS.map((tab) => {
-            const isActive = currentTab === tab.id;
             const Icon = tab.icon;
-
             return (
-              <button
+              <TabsTrigger
                 key={tab.id}
-                type="button"
-                onClick={() => handleSelectTab(tab.id)}
-                className={`flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-t-md transition-all border-b-2 ${
-                  isActive
-                    ? 'border-primary text-primary bg-primary/5 font-semibold'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                }`}
+                value={tab.id}
                 title={tab.description}
+                icon={<Icon className="size-4" />}
               >
-                <Icon className={`h-4 w-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span>{tab.label}</span>
-              </button>
+                {tab.label}
+              </TabsTrigger>
             );
           })}
-        </nav>
-      </div>
+        </PageTabBar>
+      </Tabs>
 
-      {/* Render Selected View */}
-      <div className="pt-2">
-        {renderActiveTabContent()}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="p-3 sm:p-6 max-w-7xl mx-auto w-full">
+          {renderActiveTabContent()}
+        </div>
       </div>
     </div>
   );

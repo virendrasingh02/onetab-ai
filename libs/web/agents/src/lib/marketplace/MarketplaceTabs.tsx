@@ -1,12 +1,6 @@
 import React from 'react';
-import { ResponsiveTabsList, Tabs, TabsTrigger } from '@org/ui';
-import {
-  Boxes,
-  Bot,
-  CheckCircle2,
-  Compass,
-  UserCheck,
-} from 'lucide-react';
+import { PageTabBar, Tabs, TabsTrigger } from '@org/ui';
+import { Boxes, Bot, CheckCircle2, Compass, UserCheck } from 'lucide-react';
 
 export type MarketplaceActiveTab =
   'discover' | 'apps' | 'agents' | 'installed' | 'workspace' | 'developer';
@@ -49,29 +43,22 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({
   ];
 
   return (
-    <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
-      <Tabs
-        value={activeTab}
-        onValueChange={(next) => onTabChange(next as MarketplaceActiveTab)}
-      >
-        <ResponsiveTabsList
-          variant="underline"
-          size="sm"
-          className="min-w-0 w-full border-b-0"
-          aria-label="Marketplace sections"
-        >
-          {tabs.map(({ id, label, icon: Icon, count }) => (
-            <TabsTrigger
-              key={id}
-              value={id}
-              icon={<Icon className="size-3.5" aria-hidden />}
-              count={count && count > 0 ? count : undefined}
-            >
-              {label}
-            </TabsTrigger>
-          ))}
-        </ResponsiveTabsList>
-      </Tabs>
-    </div>
+    <Tabs
+      value={activeTab}
+      onValueChange={(next) => onTabChange(next as MarketplaceActiveTab)}
+    >
+      <PageTabBar>
+        {tabs.map(({ id, label, icon: Icon, count }) => (
+          <TabsTrigger
+            key={id}
+            value={id}
+            icon={<Icon className="size-4" aria-hidden />}
+            count={count && count > 0 ? count : undefined}
+          >
+            {label}
+          </TabsTrigger>
+        ))}
+      </PageTabBar>
+    </Tabs>
   );
 };

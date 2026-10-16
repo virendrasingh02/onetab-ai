@@ -30,6 +30,9 @@ import {
   Textarea,
   toast,
   usePromptDialog,
+  PageTabBar,
+  Tabs,
+  TabsTrigger,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
@@ -347,7 +350,14 @@ export function AsanaProjectManager() {
     const showProjects = searchParams.get('view') === 'projects';
     // `?view=settings` is the sidebar's "Project settings" deep link.
     const showSettings = searchParams.get('view') === 'settings';
-    if (!openNewProject && !openImport && !showProjects && !showSettings && !cardParam) return;
+    if (
+      !openNewProject &&
+      !openImport &&
+      !showProjects &&
+      !showSettings &&
+      !cardParam
+    )
+      return;
 
     if (openNewProject) setIsNewProjectOpen(true);
     if (openImport) setIsImportOpen(true);
@@ -765,8 +775,11 @@ export function AsanaProjectManager() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
-      {/* Top Header */}
-      <header className="px-6 py-1.5 min-h-12 gap-4 relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60">
+      {/* Top Header — same look as the shared PageBar; kept hand-built for the project picker and filter menus. */}
+      <header
+        data-slot="page-bar"
+        className="top-0 backdrop-blur-md px-3 sm:px-6 pt-2 pb-1 min-h-11 gap-2.5 sticky z-20 flex shrink-0 flex-wrap items-center justify-between bg-background/95"
+      >
         <div className="gap-2.5 flex flex-wrap items-center">
           {activeProject ? (
             <ProjectIconPicker
@@ -870,7 +883,7 @@ export function AsanaProjectManager() {
           <button
             type="button"
             onClick={() => setIsCommandMenuOpen(true)}
-            className="gap-1.5 px-2.5 h-8 text-xs font-medium flex cursor-pointer items-center rounded-md border border-border/60 bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="gap-1.5 px-2.5 h-7 text-xs font-medium flex cursor-pointer items-center rounded-md border border-border/60 bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             title="Open Command Palette (⌘K)"
           >
             <Command className="size-3.5 text-muted-foreground" />
@@ -886,7 +899,7 @@ export function AsanaProjectManager() {
           <button
             type="button"
             onClick={() => setIsShortcutsOpen(true)}
-            className="size-8 flex cursor-pointer items-center justify-center rounded-md border border-border/60 bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="size-7 flex cursor-pointer items-center justify-center rounded-md border border-border/60 bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             title="Keyboard Shortcuts (?)"
           >
             <Keyboard className="size-3.5" />
@@ -900,7 +913,7 @@ export function AsanaProjectManager() {
               onChange={(e) =>
                 setFilter((prev) => ({ ...prev, query: e.target.value }))
               }
-              className="pl-8 text-xs h-8 bg-muted/40"
+              className="pl-8 text-xs h-7 bg-muted/40"
             />
           </div>
 
@@ -911,7 +924,7 @@ export function AsanaProjectManager() {
               }
               size="sm"
               onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-              className="gap-1.5 text-xs h-8 font-medium cursor-pointer"
+              className="gap-1.5 text-xs h-7 font-medium cursor-pointer"
             >
               <Filter className="size-3.5 text-muted-foreground" />
               <span>Filter</span>
@@ -938,7 +951,7 @@ export function AsanaProjectManager() {
               type="button"
               onClick={() => setIsViewDisplayOpen(!isViewDisplayOpen)}
               className={cn(
-                'gap-1.5 px-3 h-8 text-xs font-medium flex cursor-pointer items-center rounded-md border border-border/60 transition-colors hover:bg-accent',
+                'gap-1.5 px-3 h-7 text-xs font-medium flex cursor-pointer items-center rounded-md border border-border/60 transition-colors hover:bg-accent',
                 isViewDisplayOpen &&
                   'font-semibold border-primary/50 bg-accent text-foreground',
               )}
@@ -960,7 +973,7 @@ export function AsanaProjectManager() {
             size="sm"
             onClick={handleQuickAddTask}
             disabled={!activeProject || board.isMutating}
-            className="gap-1.5 font-semibold text-xs h-8"
+            className="gap-1.5 font-semibold text-xs h-7"
           >
             <Plus className="w-4 h-4" />
             Add Task
@@ -968,48 +981,40 @@ export function AsanaProjectManager() {
         </div>
       </header>
 
-      {/* Modern View Navigation Bar */}
-      <nav className="px-6 py-1.5 gap-1 flex scrollbar-none items-center overflow-x-auto border-b border-border/50 bg-muted/30">
-        {[
-          { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-          { id: 'board', label: 'Board', icon: Kanban },
-          { id: 'list', label: 'List', icon: List },
-          { id: 'spreadsheet', label: 'Table', icon: Table },
-          { id: 'timeline', label: 'Timeline', icon: Timeline },
-          { id: 'gantt', label: 'Gantt', icon: GanttChartSquare },
-          { id: 'cycles', label: 'Cycles', icon: RotateCw },
-          { id: 'modules', label: 'Modules & Epics', icon: FolderGit2 },
-          { id: 'initiatives', label: 'Initiatives', icon: Target },
-          { id: 'intake', label: 'Intake', icon: Inbox },
-          { id: 'updates', label: 'Updates', icon: HeartPulse },
-          { id: 'files', label: 'Files', icon: FolderOpen },
-          { id: 'settings', label: 'Settings', icon: Settings },
-        ].map((v) => {
-          const Icon = v.icon;
-          const isActive = viewMode === v.id;
-          return (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => setViewMode(v.id as ProjectViewMode)}
-              className={cn(
-                'gap-1.5 px-3 py-1 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-semibold border border-border/70 bg-card text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-              )}
-            >
-              <Icon
-                className={cn(
-                  'size-3.5',
-                  isActive ? 'text-primary' : 'opacity-70',
-                )}
-              />
-              <span>{v.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      {/* View navigation — the shared tab strip */}
+      <Tabs
+        value={viewMode}
+        onValueChange={(value) => setViewMode(value as ProjectViewMode)}
+      >
+        <PageTabBar>
+          {[
+            { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+            { id: 'board', label: 'Board', icon: Kanban },
+            { id: 'list', label: 'List', icon: List },
+            { id: 'spreadsheet', label: 'Table', icon: Table },
+            { id: 'timeline', label: 'Timeline', icon: Timeline },
+            { id: 'gantt', label: 'Gantt', icon: GanttChartSquare },
+            { id: 'cycles', label: 'Cycles', icon: RotateCw },
+            { id: 'modules', label: 'Modules & Epics', icon: FolderGit2 },
+            { id: 'initiatives', label: 'Initiatives', icon: Target },
+            { id: 'intake', label: 'Intake', icon: Inbox },
+            { id: 'updates', label: 'Updates', icon: HeartPulse },
+            { id: 'files', label: 'Files', icon: FolderOpen },
+            { id: 'settings', label: 'Settings', icon: Settings },
+          ].map((v) => {
+            const Icon = v.icon;
+            return (
+              <TabsTrigger
+                key={v.id}
+                value={v.id}
+                icon={<Icon className="size-4" />}
+              >
+                {v.label}
+              </TabsTrigger>
+            );
+          })}
+        </PageTabBar>
+      </Tabs>
 
       {/* Main View Container */}
       <main className="scrollbar-subtle flex-1 overflow-y-auto bg-background/50">

@@ -20,6 +20,7 @@ import {
   toast,
   toConnectionState,
   type ConnectionState,
+  PageBar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -32,7 +33,11 @@ import {
   Webhook,
 } from 'lucide-react';
 import { useState } from 'react';
-import { OAuthAppsDialog, oauthAppFor, useOAuthApps } from './OAuthAppsDialog.js';
+import {
+  OAuthAppsDialog,
+  oauthAppFor,
+  useOAuthApps,
+} from './OAuthAppsDialog.js';
 import {
   isPolicyRoleAllowed,
   PolicySubjectRole,
@@ -196,14 +201,20 @@ function IntegrationAppIcon({ id }: { id: string; name: string }) {
     case 'gmail':
       return (
         <svg className="size-5 shrink-0" viewBox="0 0 24 24">
-          <path fill="#EA4335" d="M1.5 6.5 12 14 22.5 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-1V8.7l-8 5.8-8-5.8V19H2a1.5 1.5 0 0 1-1.5-1.5v-11Z" />
-          <path fill="#EA4335" d="M1.5 6.5A1.5 1.5 0 0 1 3 5h1l8 5.8L20 5h1a1.5 1.5 0 0 1 1.5 1.5L12 14 1.5 6.5Z" />
+          <path
+            fill="#EA4335"
+            d="M1.5 6.5 12 14 22.5 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-1V8.7l-8 5.8-8-5.8V19H2a1.5 1.5 0 0 1-1.5-1.5v-11Z"
+          />
+          <path
+            fill="#EA4335"
+            d="M1.5 6.5A1.5 1.5 0 0 1 3 5h1l8 5.8L20 5h1a1.5 1.5 0 0 1 1.5 1.5L12 14 1.5 6.5Z"
+          />
         </svg>
       );
 
     case 'github':
       return (
-        <div className="size-5 shrink-0 flex items-center justify-center rounded-full bg-[#181717]">
+        <div className="size-5 flex shrink-0 items-center justify-center rounded-full bg-[#181717]">
           <svg className="size-3.5 fill-white" viewBox="0 0 24 24">
             <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.18-1.18 3.18-1.18.63 1.59.23 2.76.11 3.05.74.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.39-5.25 5.67.41.36.78 1.06.78 2.14 0 1.55-.01 2.79-.01 3.17 0 .3.2.66.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
           </svg>
@@ -212,24 +223,28 @@ function IntegrationAppIcon({ id }: { id: string; name: string }) {
 
     case 'linear':
       return (
-        <div className="size-5 shrink-0 flex items-center justify-center rounded-full bg-[#5E6AD2]">
-          <span className="font-black text-white text-[11px] leading-none">L</span>
+        <div className="size-5 flex shrink-0 items-center justify-center rounded-full bg-[#5E6AD2]">
+          <span className="font-black text-white text-[11px] leading-none">
+            L
+          </span>
         </div>
       );
 
     case 'notion':
       return (
-        <div className="size-5 shrink-0 flex items-center justify-center rounded-md border border-border bg-white">
-          <span className="font-black text-black text-[11px] leading-none">N</span>
+        <div className="size-5 bg-white flex shrink-0 items-center justify-center rounded-md border border-border">
+          <span className="font-black text-black text-[11px] leading-none">
+            N
+          </span>
         </div>
       );
 
     case 'trello':
       return (
-        <div className="size-5 shrink-0 p-[3px] rounded-md bg-[#0052CC]">
-          <div className="size-full grid grid-cols-2 gap-[2px]">
-            <span className="rounded-[1px] bg-white" />
-            <span className="rounded-[1px] bg-white/50" />
+        <div className="size-5 shrink-0 rounded-md bg-[#0052CC] p-[3px]">
+          <div className="grid size-full grid-cols-2 gap-[2px]">
+            <span className="bg-white rounded-[1px]" />
+            <span className="bg-white/50 rounded-[1px]" />
           </div>
         </div>
       );
@@ -338,21 +353,24 @@ const integrationsList: IntegrationCard[] = [
     id: 'linear',
     name: 'Linear',
     category: 'Productivity & Project Management',
-    description: 'Real issues, teams, and cycles — including each team\'s own identifier prefix.',
+    description:
+      "Real issues, teams, and cycles — including each team's own identifier prefix.",
     supported: true,
   },
   {
     id: 'notion',
     name: 'Notion',
     category: 'Productivity & Project Management',
-    description: 'Search real pages and databases shared with this integration.',
+    description:
+      'Search real pages and databases shared with this integration.',
     supported: true,
   },
   {
     id: 'trello',
     name: 'Trello',
     category: 'Productivity & Project Management',
-    description: 'Real boards, lists, and cards using your personal Trello API key + token.',
+    description:
+      'Real boards, lists, and cards using your personal Trello API key + token.',
     supported: true,
   },
   {
@@ -367,8 +385,7 @@ const integrationsList: IntegrationCard[] = [
     id: 'outlook',
     name: 'Microsoft Outlook',
     category: 'Productivity & Project Management',
-    description:
-      'Sync Outlook mail, availability, and meeting join links.',
+    description: 'Sync Outlook mail, availability, and meeting join links.',
     supported: false,
   },
   {
@@ -562,7 +579,9 @@ export function IntegrationHubView() {
   const { connect, disconnect, sync } = useIntegrationMutations(workspaceId);
   const providersQuery = useIntegrationProviders(workspaceId);
   const oauthApps = useOAuthApps(workspaceId || undefined);
-  const [oauthDialog, setOauthDialog] = useState<{ appKey: string | null } | null>(null);
+  const [oauthDialog, setOauthDialog] = useState<{
+    appKey: string | null;
+  } | null>(null);
 
   // Settings → Permissions & Policies → "Who can install Marketplace apps".
   // Presentation only — `POST .../integrations/:provider/connect` re-checks
@@ -580,7 +599,9 @@ export function IntegrationHubView() {
   );
   const [isCustomApiModalOpen, setIsCustomApiModalOpen] = useState(false);
   const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
-  const [activeAppModal, setActiveAppModal] = useState<ActiveAppModal | null>(null);
+  const [activeAppModal, setActiveAppModal] = useState<ActiveAppModal | null>(
+    null,
+  );
   const [logsCard, setLogsCard] = useState<IntegrationCard | null>(null);
 
   /*
@@ -615,7 +636,9 @@ export function IntegrationHubView() {
     }
 
     const providerKey = card.id.toUpperCase();
-    const capabilities = providersQuery.data?.find((p) => p.provider === providerKey);
+    const capabilities = providersQuery.data?.find(
+      (p) => p.provider === providerKey,
+    );
 
     if (capabilities?.authType === 'OAUTH2') {
       // No OAuth app yet (neither the platform's nor this workspace's): set one up instead of failing.
@@ -639,7 +662,9 @@ export function IntegrationHubView() {
         }
       } catch (err: unknown) {
         toast.error(
-          err instanceof Error ? err.message : `Failed to start ${card.name} connection.`,
+          err instanceof Error
+            ? err.message
+            : `Failed to start ${card.name} connection.`,
         );
       }
       return;
@@ -649,12 +674,19 @@ export function IntegrationHubView() {
       { provider: providerKey },
       {
         onError: (err: unknown) =>
-          toast.error(err instanceof Error ? err.message : `Failed to connect ${card.name}.`),
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : `Failed to connect ${card.name}.`,
+          ),
       },
     );
   };
 
-  const confirmDisconnect = (card: IntegrationCard, integration: ExternalIntegration) => {
+  const confirmDisconnect = (
+    card: IntegrationCard,
+    integration: ExternalIntegration,
+  ) => {
     void confirm({
       title: `Disconnect ${card.name}?`,
       description:
@@ -665,7 +697,11 @@ export function IntegrationHubView() {
       if (!ok) return;
       disconnect.mutate(integration.id, {
         onError: (err: unknown) =>
-          toast.error(err instanceof Error ? err.message : `Failed to disconnect ${card.name}.`),
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : `Failed to disconnect ${card.name}.`,
+          ),
       });
     });
   };
@@ -682,17 +718,41 @@ export function IntegrationHubView() {
     return toConnectionState(integration?.status);
   };
 
-  const openAppModal = (card: IntegrationCard, integration: ExternalIntegration) => {
+  const openAppModal = (
+    card: IntegrationCard,
+    integration: ExternalIntegration,
+  ) => {
     const email = integration.displayName ?? undefined;
-    if (card.id === 'gmail') setActiveAppModal({ kind: 'gmail', integrationId: integration.id, email });
+    if (card.id === 'gmail')
+      setActiveAppModal({
+        kind: 'gmail',
+        integrationId: integration.id,
+        email,
+      });
     else if (card.id === 'google_calendar')
-      setActiveAppModal({ kind: 'google_calendar', integrationId: integration.id, email });
+      setActiveAppModal({
+        kind: 'google_calendar',
+        integrationId: integration.id,
+        email,
+      });
     else if (card.id === 'google_drive')
-      setActiveAppModal({ kind: 'google_drive', integrationId: integration.id, email });
+      setActiveAppModal({
+        kind: 'google_drive',
+        integrationId: integration.id,
+        email,
+      });
     else if (card.id === 'google_docs')
-      setActiveAppModal({ kind: 'google_docs', integrationId: integration.id, email });
+      setActiveAppModal({
+        kind: 'google_docs',
+        integrationId: integration.id,
+        email,
+      });
     else if (card.id === 'google_sheets')
-      setActiveAppModal({ kind: 'google_sheets', integrationId: integration.id, email });
+      setActiveAppModal({
+        kind: 'google_sheets',
+        integrationId: integration.id,
+        email,
+      });
   };
 
   const linkedCount = integrationMap.size;
@@ -712,32 +772,19 @@ export function IntegrationHubView() {
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
-      {/* Channel-style Header */}
-      <div className="border-b border-border bg-background">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
-          <div className="min-w-0 gap-2 flex items-center">
-            <div className="min-w-0 gap-1.5 flex items-center">
-              <Share2
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-                Apps
-              </h2>
-            </div>
-          </div>
-
-          <div className="gap-2 flex items-center">
-            <SearchInput
-              value={searchQuery}
-              onValueChange={setSearchQuery}
-              placeholder="Search apps..."
-              className="h-7 text-xs"
-              wrapperClassName="w-36 sm:w-56"
-            />
-          </div>
-        </div>
-      </div>
+      <PageBar
+        icon={<Share2 />}
+        title="Apps"
+        actions={
+          <SearchInput
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            placeholder="Search apps..."
+            className="h-7 text-xs"
+            wrapperClassName="w-36 sm:w-56"
+          />
+        }
+      />
 
       <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
@@ -749,7 +796,9 @@ export function IntegrationHubView() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  trailingIcon={<ChevronDown className="size-3.5 text-muted-foreground" />}
+                  trailingIcon={
+                    <ChevronDown className="size-3.5 text-muted-foreground" />
+                  }
                 >
                   {selectedFilter === 'All' ? 'All app types' : selectedFilter}
                 </Button>
@@ -757,18 +806,27 @@ export function IntegrationHubView() {
               <DropdownMenuContent align="start" className="w-72">
                 <DropdownMenuRadioGroup
                   value={selectedFilter}
-                  onValueChange={(value) => setSelectedFilter(value as 'All' | AppCategory)}
+                  onValueChange={(value) =>
+                    setSelectedFilter(value as 'All' | AppCategory)
+                  }
                 >
                   <DropdownMenuRadioItem value="All" indicator="check">
                     All app types
                   </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="Internal Apps" indicator="check">
+                  <DropdownMenuRadioItem
+                    value="Internal Apps"
+                    indicator="check"
+                  >
                     Internal Apps
                   </DropdownMenuRadioItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Categories</DropdownMenuLabel>
                   {APP_CATEGORIES.map((category) => (
-                    <DropdownMenuRadioItem key={category} value={category} indicator="check">
+                    <DropdownMenuRadioItem
+                      key={category}
+                      value={category}
+                      indicator="check"
+                    >
                       {category}
                     </DropdownMenuRadioItem>
                   ))}
@@ -776,7 +834,7 @@ export function IntegrationHubView() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="flex items-center gap-3">
+            <div className="gap-3 flex items-center">
               <Button
                 type="button"
                 variant="outline"
@@ -786,8 +844,12 @@ export function IntegrationHubView() {
               >
                 OAuth apps
               </Button>
-              <p className="text-xs font-semibold text-muted-foreground" aria-live="polite">
-                {filteredCards.length} {filteredCards.length === 1 ? 'app' : 'apps'}
+              <p
+                className="text-xs font-semibold text-muted-foreground"
+                aria-live="polite"
+              >
+                {filteredCards.length}{' '}
+                {filteredCards.length === 1 ? 'app' : 'apps'}
                 {linkedCount > 0 ? ` · ${linkedCount} connected` : ''}
               </p>
             </div>
@@ -823,7 +885,8 @@ export function IntegrationHubView() {
               const integration = integrationMap.get(card.id.toUpperCase());
               const state = cardState(card, integration);
               const isConnected = state === 'connected';
-              const hasSettings = card.id === 'custom_api' || card.id === 'trello';
+              const hasSettings =
+                card.id === 'custom_api' || card.id === 'trello';
 
               return (
                 <ConnectionCard
@@ -842,12 +905,15 @@ export function IntegrationHubView() {
                   busy={
                     (connect.isPending &&
                       connect.variables?.provider === card.id.toUpperCase()) ||
-                    (disconnect.isPending && disconnect.variables === integration?.id)
+                    (disconnect.isPending &&
+                      disconnect.variables === integration?.id)
                   }
                   onConnect={() => void startConnect(card)}
                   onReconnect={() => void startConnect(card)}
                   onDisconnect={
-                    integration ? () => confirmDisconnect(card, integration) : undefined
+                    integration
+                      ? () => confirmDisconnect(card, integration)
+                      : undefined
                   }
                   onSettings={
                     hasSettings

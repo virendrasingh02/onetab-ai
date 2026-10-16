@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
   AIModelBadge,
   toast,
+  PageBar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { AI_MODELS } from '@org/web-ai';
@@ -146,91 +147,95 @@ export function AIChatView() {
         </div>
       ) : (
         <>
-          <header className="gap-3 px-4 py-2.5 mb-2 flex w-full shrink-0 items-center justify-between border-b border-border bg-background/95">
-            <div className="gap-2.5 min-w-0 flex items-center">
-              <div className="gap-0.5 min-w-0 flex items-center">
-                <span className="size-7 flex shrink-0 items-center justify-center">
-                  <Home className="size-3.5" aria-hidden />
-                </span>
-                <span className="font-semibold text-sm truncate">Home</span>
-              </div>
-              <span className="h-3.5 w-px bg-border shrink-0" aria-hidden />
+          <PageBar
+            icon={<Home />}
+            title="Home"
+            className="mb-2 w-full"
+            meta={
               <AIModelBadge
-                modelId={activeOption?.model || (chat.model === 'auto' ? 'nemotron' : chat.model)}
+                modelId={
+                  activeOption?.model ||
+                  (chat.model === 'auto' ? 'nemotron' : chat.model)
+                }
                 provider={activeOption?.provider}
                 variant="subtle"
                 size="sm"
               />
-            </div>
-
-            <div className="gap-1 flex items-center">
-              {/* 3. 3-dot dropdown menu */}
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="AI Options"
-                    className="text-muted-foreground hover:text-foreground"
+            }
+            actions={
+              <div className="gap-1 flex items-center">
+                {/* 3. 3-dot dropdown menu */}
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="AI Options"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    side="bottom"
+                    className="w-60"
                   >
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="bottom" className="w-60">
-                  <DropdownMenuItem
-                    onClick={handleCopy}
-                    className="justify-between"
-                  >
-                    <div className="gap-2.5 flex items-center">
-                      {copied ? (
-                        <Check className="size-4 text-success-text" />
-                      ) : (
-                        <Copy className="size-4" />
-                      )}
-                      <span>Copy transcript</span>
-                    </div>
-                  </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleCopy}
+                      className="justify-between"
+                    >
+                      <div className="gap-2.5 flex items-center">
+                        {copied ? (
+                          <Check className="size-4 text-success-text" />
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                        <span>Copy transcript</span>
+                      </div>
+                    </DropdownMenuItem>
 
-                  <DropdownMenuItem
-                    onClick={chat.reset}
-                    className="justify-between"
-                  >
-                    <div className="gap-2.5 flex items-center">
-                      <RotateCcw className="size-4" />
-                      <span>Sync &amp; Clear context</span>
-                    </div>
-                  </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={chat.reset}
+                      className="justify-between"
+                    >
+                      <div className="gap-2.5 flex items-center">
+                        <RotateCcw className="size-4" />
+                        <span>Sync &amp; Clear context</span>
+                      </div>
+                    </DropdownMenuItem>
 
-                  <DropdownMenuItem
-                    onClick={() => {
-                      toast.info(
-                        `Active Model: ${chat.modelLabel} · Context: Workspace Index`,
-                      );
-                    }}
-                    className="gap-2.5"
-                  >
-                    <Info className="size-4" />
-                    <span>Model details</span>
-                  </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        toast.info(
+                          `Active Model: ${chat.modelLabel} · Context: Workspace Index`,
+                        );
+                      }}
+                      className="gap-2.5"
+                    >
+                      <Info className="size-4" />
+                      <span>Model details</span>
+                    </DropdownMenuItem>
 
-                  <DropdownMenuSeparator />
+                    <DropdownMenuSeparator />
 
-                  <DropdownMenuItem
-                    onClick={handleToggleFavorite}
-                    className="gap-2.5"
-                  >
-                    <Star
-                      className={cn(
-                        'size-4',
-                        isFavorite && 'fill-current text-accent-amber',
-                      )}
-                    />
-                    <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </header>
+                    <DropdownMenuItem
+                      onClick={handleToggleFavorite}
+                      className="gap-2.5"
+                    >
+                      <Star
+                        className={cn(
+                          'size-4',
+                          isFavorite && 'fill-current text-accent-amber',
+                        )}
+                      />
+                      <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            }
+          />
 
           {/* Native scroll container without SimpleBar */}
           {/* Full-width scroller so the scrollbar sits at the far right edge;
@@ -240,14 +245,17 @@ export function AIChatView() {
               role="log"
               aria-live="polite"
               aria-label="Conversation"
-              className="max-w-3xl mx-auto space-y-6 px-4 pb-4"
+              className="max-w-3xl space-y-6 px-4 pb-4 mx-auto"
             >
               {chat.messages.map((message) => (
                 <AIMessage
                   key={message.id}
                   message={message}
                   assistantLabel={`${chat.modelLabel} Copilot`}
-                  modelId={activeOption?.model || (chat.model === 'auto' ? 'nemotron' : chat.model)}
+                  modelId={
+                    activeOption?.model ||
+                    (chat.model === 'auto' ? 'nemotron' : chat.model)
+                  }
                   provider={activeOption?.provider}
                   user={{
                     id: user?.id,

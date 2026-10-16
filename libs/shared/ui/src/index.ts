@@ -911,6 +911,11 @@ export {
   type ResponsiveTabsListProps,
   type TabItem,
 } from './lib/components/responsive-tabs.js';
+export {
+  PageTabBar,
+  type PageTabBarProps,
+} from './lib/components/page-tab-bar.js';
+export { PageBar, type PageBarProps } from './lib/components/page-bar.js';
 
 export {
   ResponsiveToolbar,

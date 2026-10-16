@@ -15,7 +15,10 @@ import {
   toast,
   usePromptDialog,
   UserAvatar,
-  ResponsiveTabs,
+  PageBar,
+  PageTabBar,
+  Tabs,
+  TabsTrigger,
 } from '@org/ui';
 import { cn, formatDateTime, formatRelative } from '@org/utils';
 import {
@@ -109,64 +112,55 @@ export function ScheduleView() {
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
-      {/* Channel-style Header */}
-      <div className="border-b border-border bg-background">
-        <div className="gap-2.5 px-3 sm:px-6 py-2 min-h-12 flex flex-wrap items-center justify-between">
-          <div className="min-w-0 gap-3 sm:gap-6 flex flex-wrap items-center">
-            <div className="min-w-0 gap-1.5 flex items-center">
-              <CalendarClock
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-                Schedule
-              </h2>
-            </div>
-
-            {/* View Switcher: Scheduled Messages vs Calendar Events */}
-            <ResponsiveTabs
-              value={activeTab}
-              onValueChange={(val) => setActiveTab(val as 'messages' | 'events')}
-              variant="segmented"
+      <PageBar
+        icon={<CalendarClock />}
+        title="Schedule"
+        hasTabs
+        actions={
+          activeTab === 'events' ? (
+            <Button
+              asChild
               size="sm"
-              items={[
-                {
-                  value: 'messages',
-                  label: 'Scheduled Messages',
-                  count: pendingCount > 0 ? pendingCount : undefined,
-                },
-                {
-                  value: 'events',
-                  label: 'Calendar Events',
-                  count: (events.data?.length ?? 0) > 0 ? events.data?.length : undefined,
-                },
-              ]}
-            />
-          </div>
+              className="h-7 text-xs gap-1"
+              leadingIcon={<Plus className="size-3.5" />}
+            >
+              <Link to={`/w/${slug}/meetings`}>New event</Link>
+            </Button>
+          ) : (
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1"
+            >
+              <Link to={`/w/${slug}/threads`}>Go to Chat</Link>
+            </Button>
+          )
+        }
+      />
 
-          <div className="gap-2 flex items-center">
-            {activeTab === 'events' ? (
-              <Button
-                asChild
-                size="sm"
-                className="h-7 text-xs gap-1"
-                leadingIcon={<Plus className="size-3.5" />}
-              >
-                <Link to={`/w/${slug}/meetings`}>New event</Link>
-              </Button>
-            ) : (
-              <Button
-                asChild
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs gap-1"
-              >
-                <Link to={`/w/${slug}/threads`}>Go to Chat</Link>
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Scheduled messages vs calendar events */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as 'messages' | 'events')}
+      >
+        <PageTabBar>
+          <TabsTrigger
+            value="messages"
+            count={pendingCount > 0 ? pendingCount : undefined}
+          >
+            Scheduled Messages
+          </TabsTrigger>
+          <TabsTrigger
+            value="events"
+            count={
+              (events.data?.length ?? 0) > 0 ? events.data?.length : undefined
+            }
+          >
+            Calendar Events
+          </TabsTrigger>
+        </PageTabBar>
+      </Tabs>
 
       <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto">
@@ -187,8 +181,8 @@ export function ScheduleView() {
                 />
               ) : (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-border">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div className="pb-2 flex items-center justify-between border-b border-border">
+                    <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                       All Scheduled Messages ({scheduledMessages.length})
                     </h3>
                   </div>
@@ -197,9 +191,9 @@ export function ScheduleView() {
                     {scheduledMessages.map((msg) => (
                       <li
                         key={msg.id}
-                        className="py-4 first:pt-0 last:pb-0 gap-4 flex flex-col sm:flex-row sm:items-start justify-between"
+                        className="py-4 first:pt-0 last:pb-0 gap-4 sm:flex-row sm:items-start flex flex-col justify-between"
                       >
-                        <div className="gap-3 min-w-0 flex items-start flex-1">
+                        <div className="gap-3 min-w-0 flex flex-1 items-start">
                           <span
                             className={cn(
                               'p-2 mt-0.5 shrink-0 rounded-lg',
@@ -221,29 +215,39 @@ export function ScheduleView() {
                                   : 'Conversation'}
                               </h3>
                               {msg.status === 'PENDING' ? (
-                                <Badge variant="primary" className="text-[10px]">
+                                <Badge
+                                  variant="primary"
+                                  className="text-[10px]"
+                                >
                                   Scheduled
                                 </Badge>
                               ) : msg.status === 'SENT' ? (
-                                <Badge variant="success" className="text-[10px]">
+                                <Badge
+                                  variant="success"
+                                  className="text-[10px]"
+                                >
                                   Sent
                                 </Badge>
                               ) : (
-                                <Badge variant="destructive" className="text-[10px]">
+                                <Badge
+                                  variant="destructive"
+                                  className="text-[10px]"
+                                >
                                   Failed
                                 </Badge>
                               )}
                             </div>
 
-                            <p className="mt-1.5 text-xs text-foreground bg-accent/40 rounded-md p-2.5 whitespace-pre-wrap line-clamp-3">
+                            <p className="mt-1.5 text-xs p-2.5 line-clamp-3 rounded-md bg-accent/40 whitespace-pre-wrap text-foreground">
                               {msg.body}
                             </p>
 
                             <div className="mt-2 gap-3 flex flex-wrap items-center text-[11px] text-muted-foreground">
-                              <span className="gap-1 flex items-center font-medium">
+                              <span className="gap-1 font-medium flex items-center">
                                 <Clock className="size-3" aria-hidden />
                                 <span>
-                                  Scheduled for: {formatDateTime(msg.scheduledFor)}
+                                  Scheduled for:{' '}
+                                  {formatDateTime(msg.scheduledFor)}
                                 </span>
                                 <span className="text-muted-foreground/70">
                                   ({formatRelative(msg.scheduledFor)})
@@ -251,7 +255,10 @@ export function ScheduleView() {
                               </span>
                               {msg.sentAt ? (
                                 <span className="gap-1 flex items-center text-success">
-                                  <CheckCircle2 className="size-3" aria-hidden />
+                                  <CheckCircle2
+                                    className="size-3"
+                                    aria-hidden
+                                  />
                                   Delivered {formatDateTime(msg.sentAt)}
                                 </span>
                               ) : null}
@@ -264,7 +271,7 @@ export function ScheduleView() {
                           </div>
                         </div>
 
-                        <div className="gap-1.5 flex shrink-0 items-center self-end sm:self-center">
+                        <div className="gap-1.5 sm:self-center flex shrink-0 items-center self-end">
                           {msg.status === 'PENDING' ? (
                             <>
                               <Button
@@ -276,7 +283,8 @@ export function ScheduleView() {
                                   const d = new Date(msg.scheduledFor);
                                   setNewScheduleDatetime(
                                     new Date(
-                                      d.getTime() - d.getTimezoneOffset() * 60000,
+                                      d.getTime() -
+                                        d.getTimezoneOffset() * 60000,
                                     )
                                       .toISOString()
                                       .slice(0, 16),
@@ -291,15 +299,19 @@ export function ScheduleView() {
                                 size="icon-sm"
                                 aria-label="Cancel scheduled message"
                                 onClick={async () => {
-                                  const confirmed = await prompts.confirmAction({
-                                    title: 'Cancel scheduled message?',
-                                    description:
-                                      'It will not be sent, and is removed from this list.',
-                                    confirmLabel: 'Cancel message',
-                                    destructive: true,
-                                  });
+                                  const confirmed = await prompts.confirmAction(
+                                    {
+                                      title: 'Cancel scheduled message?',
+                                      description:
+                                        'It will not be sent, and is removed from this list.',
+                                      confirmLabel: 'Cancel message',
+                                      destructive: true,
+                                    },
+                                  );
                                   if (confirmed) {
-                                    scheduledMessageMutations.cancel.mutate(msg.id);
+                                    scheduledMessageMutations.cancel.mutate(
+                                      msg.id,
+                                    );
                                   }
                                 }}
                               >
@@ -430,7 +442,7 @@ export function ScheduleView() {
             >
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
+                  <DialogTitle className="gap-2 flex items-center">
                     <CalendarClock className="size-4 text-primary" />
                     <span>Reschedule message</span>
                   </DialogTitle>
@@ -440,7 +452,7 @@ export function ScheduleView() {
                 </DialogHeader>
 
                 <DialogBody className="space-y-3">
-                  <div className="p-2.5 rounded bg-muted/60 text-xs text-foreground line-clamp-3">
+                  <div className="p-2.5 rounded text-xs line-clamp-3 bg-muted/60 text-foreground">
                     {reschedulingMessage.body}
                   </div>
 
@@ -453,7 +465,7 @@ export function ScheduleView() {
                       value={newScheduleDatetime}
                       min={new Date().toISOString().slice(0, 16)}
                       onChange={(e) => setNewScheduleDatetime(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="px-2.5 py-1.5 text-xs w-full rounded-md border border-border bg-background text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
                     />
                   </div>
                 </DialogBody>
@@ -472,7 +484,10 @@ export function ScheduleView() {
                     onClick={() => {
                       if (!newScheduleDatetime || !reschedulingMessage) return;
                       const date = new Date(newScheduleDatetime);
-                      if (isNaN(date.getTime()) || date.getTime() <= Date.now()) {
+                      if (
+                        isNaN(date.getTime()) ||
+                        date.getTime() <= Date.now()
+                      ) {
                         toast.error('Please pick a future date and time');
                         return;
                       }

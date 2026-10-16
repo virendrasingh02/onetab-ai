@@ -12,8 +12,9 @@ import {
   SkeletonList,
   Tabs,
   TabsTrigger,
-  ResponsiveTabsList,
   usePromptDialog,
+  PageBar,
+  PageTabBar,
 } from '@org/ui';
 import { useCurrentUser } from '@org/auth';
 import { FiledFilesSection } from '@org/web-upload';
@@ -271,27 +272,32 @@ export function DocumentEditor() {
   }
 
   return (
-    <Page width="full">
-      {/* Header section matching reference image design */}
-      <div className="mb-6 pb-0 border-b border-border/60">
-        <div className="mb-4 gap-4 flex flex-wrap items-center justify-between">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl text-foreground">
-            Docs
-          </h1>
-
-          <div className="gap-2 flex items-center">
-            {isSaving ? (
-              <Badge variant="neutral" className="gap-1 px-3 py-1">
-                <Loader2 className="size-3.5 animate-spin" />
-                Saving…
-              </Badge>
-            ) : savedAt !== null ? (
-              <Badge variant="primary" className="gap-1 px-3 py-1">
-                <CheckCircle className="size-3.5" />
-                Saved
-              </Badge>
-            ) : null}
-
+    <div className="min-h-0 flex flex-1 flex-col">
+      <PageBar
+        icon={<FileText />}
+        title="Docs"
+        hasTabs
+        meta={
+          isSaving ? (
+            <Badge
+              variant="neutral"
+              className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
+            >
+              <Loader2 className="size-3 animate-spin" />
+              Saving…
+            </Badge>
+          ) : savedAt !== null ? (
+            <Badge
+              variant="primary"
+              className="gap-1 px-1.5 py-0 h-4.5 text-[11px]"
+            >
+              <CheckCircle className="size-3" />
+              Saved
+            </Badge>
+          ) : null
+        }
+        actions={
+          <>
             {currentDoc && (
               <DocToolsDrawer
                 doc={currentDoc}
@@ -305,7 +311,12 @@ export function DocumentEditor() {
               />
             )}
 
-            <Button onClick={handleNewDoc} size="lg" leadingIcon={<Plus />}>
+            <Button
+              onClick={handleNewDoc}
+              size="sm"
+              className="h-7 text-xs gap-1"
+              leadingIcon={<Plus className="size-3.5" />}
+            >
               New
             </Button>
 
@@ -314,7 +325,7 @@ export function DocumentEditor() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="size-9 text-muted-foreground hover:text-foreground"
+                  className="size-7 text-muted-foreground hover:text-foreground"
                   aria-label="More options"
                 >
                   <MoreHorizontal className="size-4" />
@@ -352,220 +363,232 @@ export function DocumentEditor() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {/* Underline tab strip */}
-        <Tabs value={tab} onValueChange={(next) => setTab(next as DocTab)}>
-          <ResponsiveTabsList variant="underline" size="sm" className="border-b-0 min-w-0 w-full">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
-            <TabsTrigger value="mine">Managed by you</TabsTrigger>
-          </ResponsiveTabsList>
-        </Tabs>
-      </div>
+      <Tabs value={tab} onValueChange={(next) => setTab(next as DocTab)}>
+        <PageTabBar>
+          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="mine">Managed by you</TabsTrigger>
+        </PageTabBar>
+      </Tabs>
 
-      {tab === 'templates' ? (
-        <div className="space-y-4">
-          <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Document Templates ({DOC_TEMPLATES.length})
-          </h2>
-          <ul className="gap-4 md:grid-cols-2 grid grid-cols-1">
-            {DOC_TEMPLATES.map((tmpl) => (
-              <li key={tmpl.id}>
-                <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
-                  <div>
-                    <div className="mb-3 gap-2 flex items-center justify-between">
-                      <Badge variant="neutral">{tmpl.category}</Badge>
-                      <Badge variant="primary">Template</Badge>
-                    </div>
-                    <div className="mb-2 gap-2 flex items-center">
-                      <span className="text-lg">{tmpl.icon}</span>
-                      <h2 className="text-sm font-semibold text-foreground">
-                        {tmpl.title}
-                      </h2>
-                    </div>
-                    <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-                      {tmpl.description}
-                    </p>
-                  </div>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => handleUseTemplate(tmpl.id)}
-                    leadingIcon={<Zap className="size-3.5 text-accent-amber" />}
-                  >
-                    Use template
-                  </Button>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : isError ? (
-        <EmptyState
-          icon={<TriangleAlert />}
-          title="Could not load documents"
-          description="The document tree could not be read from the server. Check your connection and try again."
-        />
-      ) : isLoading ? (
-        <Panel className="flex-1">
-          <SkeletonList rows={8} />
-        </Panel>
-      ) : companies.length === 0 ? (
-        <EmptyState
-          icon={<FileText />}
-          title="No documents yet"
-          description="Start writing straight away — it goes into a General folder you can rename — or set up a folder first."
-          action={
-            <div className="gap-2 flex flex-wrap justify-center">
-              <Button leadingIcon={<Plus />} onClick={handleNewDoc}>
-                New document
-              </Button>
-              <Button variant="outline" onClick={handleNewFolder}>
-                Create folder
-              </Button>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <Page width="full">
+          {tab === 'templates' ? (
+            <div className="space-y-4">
+              <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                Document Templates ({DOC_TEMPLATES.length})
+              </h2>
+              <ul className="gap-4 md:grid-cols-2 grid grid-cols-1">
+                {DOC_TEMPLATES.map((tmpl) => (
+                  <li key={tmpl.id}>
+                    <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
+                      <div>
+                        <div className="mb-3 gap-2 flex items-center justify-between">
+                          <Badge variant="neutral">{tmpl.category}</Badge>
+                          <Badge variant="primary">Template</Badge>
+                        </div>
+                        <div className="mb-2 gap-2 flex items-center">
+                          <span className="text-lg">{tmpl.icon}</span>
+                          <h2 className="text-sm font-semibold text-foreground">
+                            {tmpl.title}
+                          </h2>
+                        </div>
+                        <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                          {tmpl.description}
+                        </p>
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => handleUseTemplate(tmpl.id)}
+                        leadingIcon={
+                          <Zap className="size-3.5 text-accent-amber" />
+                        }
+                      >
+                        Use template
+                      </Button>
+                    </Card>
+                  </li>
+                ))}
+              </ul>
             </div>
-          }
-        />
-      ) : (
-        <div className="gap-6 md:flex-row flex w-full flex-1 flex-col items-start">
-          {/* Left Notion Docs Tree Sidebar */}
-          <DocSidebar
-            companies={companies}
-            docs={docs}
-            activeDocId={currentDoc?.id ?? ''}
-            onSelectDoc={openDoc}
-            onAddCompany={() => {
-              void prompts
-                .promptText({
-                  title: 'New folder',
-                  description: 'A folder groups related documents together.',
-                  label: 'Name',
-                  placeholder: 'Engineering Docs',
-                  confirmLabel: 'Create folder',
-                })
-                .then((name) => {
-                  if (name) void addCompany(name);
-                });
-            }}
-            onRenameCompany={(companyId, currentName) => {
-              void prompts
-                .promptText({
-                  title: 'Rename folder',
-                  label: 'Name',
-                  defaultValue: currentName,
-                  confirmLabel: 'Rename',
-                })
-                .then((name) => {
-                  if (name) renameCompany(companyId, name);
-                });
-            }}
-            onDeleteCompany={(companyId) => {
-              if (companies.length <= 1) return;
-              void prompts
-                .confirmAction({
-                  title: 'Delete this folder?',
-                  description:
-                    'Every document inside it is deleted too. This cannot be undone.',
-                  confirmLabel: 'Delete folder',
-                  destructive: true,
-                })
-                .then((confirmed) => {
-                  if (confirmed) void deleteCompany(companyId);
-                });
-            }}
-            onCreateDoc={(companyId, title, category, template, parentId) => {
-              void createDoc(
-                companyId,
-                title,
-                category,
-                template,
-                parentId,
-              ).then((id) => {
-                if (id) openDoc(id);
-              });
-            }}
-            onMoveDocToCompany={moveDocToCompany}
-            onDuplicateDoc={(docId) => {
-              void duplicateDoc(docId).then((id) => {
-                if (id) openDoc(id);
-              });
-            }}
-            onToggleFavorite={toggleFavorite}
-            onDeleteDoc={deleteDoc}
-            onUpdateTitle={updateDocTitle}
-          />
-
-          {/* Main Workspace Area */}
-          <Panel className="min-h-160 flex w-full flex-1 flex-col">
-            {currentDoc ? (
-              <>
-                <DocHeader
-                  doc={currentDoc}
-                  onUpdateTitle={(title) =>
-                    updateDocTitle(currentDoc.id, title)
-                  }
-                  onUpdateIcon={(icon, color) =>
-                    updateDocIcon(currentDoc.id, icon, color)
-                  }
-                  onUpdateCover={(cover) =>
-                    updateDocCover(currentDoc.id, cover)
-                  }
-                  onUpdateStatus={(status) =>
-                    updateDocStatus(currentDoc.id, status)
-                  }
-                  onUpdateCategory={(category) =>
-                    updateDocCategory(currentDoc.id, category)
-                  }
-                  onToggleFavorite={() => toggleFavorite(currentDoc.id)}
-                />
-
-                <div className="p-4 md:p-6 flex-1 rounded-xl border border-border bg-surface shadow-xs">
-                  <NotionBlockEditor
-                    key={currentDoc.id}
-                    blocks={blocks}
-                    onUpdateBlocks={handleBlocksChange}
-                  />
-                </div>
-
-                <div className="mt-4 rounded-xl border border-border bg-surface p-4 md:p-6 shadow-xs">
-                  <FiledFilesSection
-                    workspaceId={workspaceId}
-                    workspaceSlug={workspaceSlug}
-                    currentUserId={currentUser?.id}
-                    target={{ type: 'DOCUMENT', id: currentDoc.id }}
-                    uploadLabel="Attach files to this document"
-                    emptyDescription="Attach a file to keep it with this document."
-                    onNavigateSource={(href) => navigate(href)}
-                  />
-                </div>
-              </>
-            ) : (
-              <EmptyState
-                icon={<FileText />}
-                title="No document open"
-                description="Pick a page from the sidebar, or create a new one."
-                action={
-                  <Button
-                    leadingIcon={<Plus />}
-                    onClick={() => {
-                      void createDoc().then((id) => {
-                        if (id) openDoc(id);
-                      });
-                    }}
-                  >
+          ) : isError ? (
+            <EmptyState
+              icon={<TriangleAlert />}
+              title="Could not load documents"
+              description="The document tree could not be read from the server. Check your connection and try again."
+            />
+          ) : isLoading ? (
+            <Panel className="flex-1">
+              <SkeletonList rows={8} />
+            </Panel>
+          ) : companies.length === 0 ? (
+            <EmptyState
+              icon={<FileText />}
+              title="No documents yet"
+              description="Start writing straight away — it goes into a General folder you can rename — or set up a folder first."
+              action={
+                <div className="gap-2 flex flex-wrap justify-center">
+                  <Button leadingIcon={<Plus />} onClick={handleNewDoc}>
                     New document
                   </Button>
-                }
+                  <Button variant="outline" onClick={handleNewFolder}>
+                    Create folder
+                  </Button>
+                </div>
+              }
+            />
+          ) : (
+            <div className="gap-6 md:flex-row flex w-full flex-1 flex-col items-start">
+              {/* Left Notion Docs Tree Sidebar */}
+              <DocSidebar
+                companies={companies}
+                docs={docs}
+                activeDocId={currentDoc?.id ?? ''}
+                onSelectDoc={openDoc}
+                onAddCompany={() => {
+                  void prompts
+                    .promptText({
+                      title: 'New folder',
+                      description:
+                        'A folder groups related documents together.',
+                      label: 'Name',
+                      placeholder: 'Engineering Docs',
+                      confirmLabel: 'Create folder',
+                    })
+                    .then((name) => {
+                      if (name) void addCompany(name);
+                    });
+                }}
+                onRenameCompany={(companyId, currentName) => {
+                  void prompts
+                    .promptText({
+                      title: 'Rename folder',
+                      label: 'Name',
+                      defaultValue: currentName,
+                      confirmLabel: 'Rename',
+                    })
+                    .then((name) => {
+                      if (name) renameCompany(companyId, name);
+                    });
+                }}
+                onDeleteCompany={(companyId) => {
+                  if (companies.length <= 1) return;
+                  void prompts
+                    .confirmAction({
+                      title: 'Delete this folder?',
+                      description:
+                        'Every document inside it is deleted too. This cannot be undone.',
+                      confirmLabel: 'Delete folder',
+                      destructive: true,
+                    })
+                    .then((confirmed) => {
+                      if (confirmed) void deleteCompany(companyId);
+                    });
+                }}
+                onCreateDoc={(
+                  companyId,
+                  title,
+                  category,
+                  template,
+                  parentId,
+                ) => {
+                  void createDoc(
+                    companyId,
+                    title,
+                    category,
+                    template,
+                    parentId,
+                  ).then((id) => {
+                    if (id) openDoc(id);
+                  });
+                }}
+                onMoveDocToCompany={moveDocToCompany}
+                onDuplicateDoc={(docId) => {
+                  void duplicateDoc(docId).then((id) => {
+                    if (id) openDoc(id);
+                  });
+                }}
+                onToggleFavorite={toggleFavorite}
+                onDeleteDoc={deleteDoc}
+                onUpdateTitle={updateDocTitle}
               />
-            )}
-          </Panel>
-        </div>
-      )}
 
-      {prompts.dialog}
-    </Page>
+              {/* Main Workspace Area */}
+              <Panel className="min-h-160 flex w-full flex-1 flex-col">
+                {currentDoc ? (
+                  <>
+                    <DocHeader
+                      doc={currentDoc}
+                      onUpdateTitle={(title) =>
+                        updateDocTitle(currentDoc.id, title)
+                      }
+                      onUpdateIcon={(icon, color) =>
+                        updateDocIcon(currentDoc.id, icon, color)
+                      }
+                      onUpdateCover={(cover) =>
+                        updateDocCover(currentDoc.id, cover)
+                      }
+                      onUpdateStatus={(status) =>
+                        updateDocStatus(currentDoc.id, status)
+                      }
+                      onUpdateCategory={(category) =>
+                        updateDocCategory(currentDoc.id, category)
+                      }
+                      onToggleFavorite={() => toggleFavorite(currentDoc.id)}
+                    />
+
+                    <div className="p-4 md:p-6 flex-1 rounded-xl border border-border bg-surface shadow-xs">
+                      <NotionBlockEditor
+                        key={currentDoc.id}
+                        blocks={blocks}
+                        onUpdateBlocks={handleBlocksChange}
+                      />
+                    </div>
+
+                    <div className="mt-4 p-4 md:p-6 rounded-xl border border-border bg-surface shadow-xs">
+                      <FiledFilesSection
+                        workspaceId={workspaceId}
+                        workspaceSlug={workspaceSlug}
+                        currentUserId={currentUser?.id}
+                        target={{ type: 'DOCUMENT', id: currentDoc.id }}
+                        uploadLabel="Attach files to this document"
+                        emptyDescription="Attach a file to keep it with this document."
+                        onNavigateSource={(href) => navigate(href)}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <EmptyState
+                    icon={<FileText />}
+                    title="No document open"
+                    description="Pick a page from the sidebar, or create a new one."
+                    action={
+                      <Button
+                        leadingIcon={<Plus />}
+                        onClick={() => {
+                          void createDoc().then((id) => {
+                            if (id) openDoc(id);
+                          });
+                        }}
+                      >
+                        New document
+                      </Button>
+                    }
+                  />
+                )}
+              </Panel>
+            </div>
+          )}
+
+          {prompts.dialog}
+        </Page>
+      </div>
+    </div>
   );
 }

@@ -376,9 +376,9 @@ export function AgentMarketplaceView({
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
-      {/* Same compact sticky bar as Home, Inbox and the AI Agent Studio. */}
+      {/* The shared PageBar + PageTabBar every sidebar destination uses. */}
       {showDirectory && (
-        <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
+        <>
           <MarketplaceHeader
             searchQuery={searchQuery}
             onSearchChange={handleSearchChange}
@@ -392,7 +392,7 @@ export function AgentMarketplaceView({
             installedCount={installations.length}
             workspaceCount={catalog.items.length}
           />
-        </div>
+        </>
       )}
 
       {/* Full-width scroll area: the scrollbar sits on the page edge. */}

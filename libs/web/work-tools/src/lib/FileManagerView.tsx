@@ -1,6 +1,10 @@
 import { resolveMediaUrl } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
-import { getMediaType, useMediaPreview, type MediaItem } from '@org/media-preview';
+import {
+  getMediaType,
+  useMediaPreview,
+  type MediaItem,
+} from '@org/media-preview';
 import type { Upload, UploadContextType } from '@org/types';
 import {
   copyToClipboard,
@@ -23,10 +27,13 @@ import {
   EmptyState,
   Field,
   SearchInput,
-  SegmentedControl,
   SkeletonList,
   usePromptDialog,
   type SegmentedOption,
+  PageBar,
+  PageTabBar,
+  Tabs,
+  TabsTrigger,
 } from '@org/ui';
 import {
   AssetDetailsDialog,
@@ -277,51 +284,46 @@ export function FileManagerView() {
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
-      {/* Channel-style Header */}
-      <div className="border-b border-border bg-background">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
-          <div className="min-w-0 gap-2 flex items-center">
-            <div className="min-w-0 gap-1.5 flex items-center">
-              <FolderOpen
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-                All Files
-              </h2>
-              <Badge variant="neutral" className="px-1.5 py-0 h-4.5 text-[11px]">
-                {allRows.length} files
-              </Badge>
-            </div>
+      <PageBar
+        icon={<FolderOpen />}
+        title="All Files"
+        hasTabs
+        meta={
+          <Badge variant="neutral" className="px-1.5 py-0 h-4.5 text-[11px]">
+            {allRows.length} files
+          </Badge>
+        }
+        actions={
+          <SearchInput
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            placeholder="Search files…"
+            className="h-7 text-xs"
+            wrapperClassName="w-36 sm:w-48"
+          />
+        }
+      />
 
-          </div>
-
-          <div className="gap-2 flex items-center">
-            <SearchInput
-              value={searchQuery}
-              onValueChange={setSearchQuery}
-              placeholder="Search files…"
-              className="h-7 text-xs"
-              wrapperClassName="w-36 sm:w-48"
-            />
-          </div>
-        </div>
-      </div>
+      {/* Who uploaded it — the same tab strip every sidebar page uses. */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as OwnerTab)}
+      >
+        <PageTabBar>
+          {OWNER_TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </PageTabBar>
+      </Tabs>
 
       <div
         ref={scrollRef}
         className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto"
       >
         <div className="max-w-5xl space-y-4 mx-auto">
-          <div className="sm:flex-row sm:items-center gap-3 pt-1 flex flex-col justify-between">
-            <SegmentedControl
-              aria-label="Filter files by who uploaded them"
-              value={activeTab}
-              onChange={setActiveTab}
-              options={OWNER_TABS}
-              className="no-scrollbar max-w-full self-start overflow-x-auto"
-            />
-
+          <div className="gap-3 pt-1 flex items-center justify-end">
             <div className="gap-2 sm:self-auto flex items-center self-end">
               {/* Source Dropdown */}
               <DropdownMenu>
@@ -427,11 +429,11 @@ export function FileManagerView() {
           </div>
 
           {isLoading && allRows.length === 0 ? (
-            <div className="shadow-2xs overflow-hidden rounded-card border border-border bg-surface/60 p-4">
+            <div className="shadow-2xs p-4 overflow-hidden rounded-card border border-border bg-surface/60">
               <SkeletonList rows={6} withAvatar />
             </div>
           ) : uploads.isError && allRows.length === 0 ? (
-            <div className="rounded-card border border-border bg-surface/60 p-8 text-center">
+            <div className="p-8 rounded-card border border-border bg-surface/60 text-center">
               <EmptyState
                 size="sm"
                 icon={<TriangleAlert />}
@@ -457,7 +459,9 @@ export function FileManagerView() {
                 downloadingId={
                   download.isPending ? (download.variables?.id ?? null) : null
                 }
-                deletingId={remove.isPending ? (remove.variables ?? null) : null}
+                deletingId={
+                  remove.isPending ? (remove.variables ?? null) : null
+                }
                 onPreview={(_item, index) =>
                   openPreview(
                     visibleRows.map((r) => r.media),
@@ -492,7 +496,10 @@ export function FileManagerView() {
                     confirmLabel: 'Rename',
                   });
                   if (!filename || filename === item.filename) return;
-                  await update.mutateAsync({ uploadId: item.id, patch: { filename } });
+                  await update.mutateAsync({
+                    uploadId: item.id,
+                    patch: { filename },
+                  });
                   toast.success('File renamed');
                 }}
                 // The details panel is where a file's destination is edited.
@@ -508,7 +515,7 @@ export function FileManagerView() {
                 }}
                 scrollParentRef={scrollRef}
                 empty={
-                  <div className="rounded-card border border-border bg-surface/60 p-8 text-center">
+                  <div className="p-8 rounded-card border border-border bg-surface/60 text-center">
                     <EmptyState
                       size="sm"
                       icon={<HardDrive />}

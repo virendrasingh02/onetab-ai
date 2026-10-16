@@ -11,7 +11,6 @@ import {
   Tabs,
   TabsContent,
   TabsTrigger,
-  ResponsiveTabsList,
   toast,
   UserAvatarGroup,
   ActionDropdownMenu,
@@ -19,6 +18,8 @@ import {
   EntityContextMenu,
   entityUrl,
   type EntityAction,
+  PageBar,
+  PageTabBar,
 } from '@org/ui';
 import { cn, formatDateTime } from '@org/utils';
 import {
@@ -306,87 +307,92 @@ function MeetingCard({
       entity={meeting}
       label={meeting.title}
     >
-    <Panel className="flex flex-col justify-between">
-      <div>
-        <div className="gap-2 flex items-start justify-between">
-          <button type="button" onClick={onOpen} className="min-w-0 text-left">
-            <h3 className="text-sm font-semibold truncate text-foreground hover:underline">
-              {meeting.title}
-            </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {formatDateTime(meeting.startAt)} · {durationLabel(meeting)}
+      <Panel className="flex flex-col justify-between">
+        <div>
+          <div className="gap-2 flex items-start justify-between">
+            <button
+              type="button"
+              onClick={onOpen}
+              className="min-w-0 text-left"
+            >
+              <h3 className="text-sm font-semibold truncate text-foreground hover:underline">
+                {meeting.title}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatDateTime(meeting.startAt)} · {durationLabel(meeting)}
+              </p>
+            </button>
+
+            <ActionDropdownMenu
+              actions={actions}
+              scope={`meeting:${meeting.id}`}
+              entityType="meeting"
+              entity={meeting}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Actions for ${meeting.title}`}
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              }
+            />
+          </div>
+
+          {meeting.description ? (
+            <p className="mt-2 text-xs line-clamp-2 text-muted-foreground">
+              {meeting.description}
             </p>
-          </button>
-
-          <ActionDropdownMenu
-            actions={actions}
-            scope={`meeting:${meeting.id}`}
-            entityType="meeting"
-            entity={meeting}
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Actions for ${meeting.title}`}
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
-            }
-          />
-        </div>
-
-        {meeting.description ? (
-          <p className="mt-2 text-xs line-clamp-2 text-muted-foreground">
-            {meeting.description}
-          </p>
-        ) : null}
-
-        <div className="mt-3 gap-2 flex flex-wrap items-center">
-          <Badge
-            variant={status.variant}
-            className={cn(live && 'animate-pulse')}
-          >
-            {status.label}
-          </Badge>
-          {meeting.project ? (
-            <Badge variant="outline">{meeting.project.name}</Badge>
           ) : null}
-          {meeting._count.notes > 0 ? (
-            <Badge variant="neutral" className="gap-1 text-[10px]">
-              <FileText className="size-3" />
-              {meeting._count.notes} note{meeting._count.notes === 1 ? '' : 's'}
+
+          <div className="mt-3 gap-2 flex flex-wrap items-center">
+            <Badge
+              variant={status.variant}
+              className={cn(live && 'animate-pulse')}
+            >
+              {status.label}
             </Badge>
-          ) : null}
-          {attendees.length > 0 ? (
-            <UserAvatarGroup users={attendees} size="xs" max={5} />
-          ) : null}
-          {meeting._count.actionItems > 0 ? (
-            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <span className="size-1 rounded-full bg-primary" />
-              {meeting._count.actionItems} action item
-              {meeting._count.actionItems === 1 ? '' : 's'}
-            </span>
-          ) : null}
+            {meeting.project ? (
+              <Badge variant="outline">{meeting.project.name}</Badge>
+            ) : null}
+            {meeting._count.notes > 0 ? (
+              <Badge variant="neutral" className="gap-1 text-[10px]">
+                <FileText className="size-3" />
+                {meeting._count.notes} note
+                {meeting._count.notes === 1 ? '' : 's'}
+              </Badge>
+            ) : null}
+            {attendees.length > 0 ? (
+              <UserAvatarGroup users={attendees} size="xs" max={5} />
+            ) : null}
+            {meeting._count.actionItems > 0 ? (
+              <span className="gap-1 flex items-center text-[11px] text-muted-foreground">
+                <span className="size-1 rounded-full bg-primary" />
+                {meeting._count.actionItems} action item
+                {meeting._count.actionItems === 1 ? '' : 's'}
+              </span>
+            ) : null}
+          </div>
         </div>
-      </div>
 
-      {joinUrl ? (
-        <Button
-          asChild
-          className="mt-4 w-full"
-          variant={live ? 'primary' : 'outline'}
-        >
-          <a href={joinUrl} target="_blank" rel="noreferrer">
-            <ExternalLink className="size-4" aria-hidden />
-            {live ? 'Join now' : 'Open meeting link'}
-          </a>
-        </Button>
-      ) : (
-        <Button variant="outline" className="mt-4 w-full" onClick={onOpen}>
-          Open details
-        </Button>
-      )}
-    </Panel>
+        {joinUrl ? (
+          <Button
+            asChild
+            className="mt-4 w-full"
+            variant={live ? 'primary' : 'outline'}
+          >
+            <a href={joinUrl} target="_blank" rel="noreferrer">
+              <ExternalLink className="size-4" aria-hidden />
+              {live ? 'Join now' : 'Open meeting link'}
+            </a>
+          </Button>
+        ) : (
+          <Button variant="outline" className="mt-4 w-full" onClick={onOpen}>
+            Open details
+          </Button>
+        )}
+      </Panel>
     </EntityContextMenu>
   );
 }
@@ -518,7 +524,9 @@ export function MeetingsView() {
             projectId: meeting.projectId,
             participantIds: meeting.participants.map((p) => p.user.id),
           });
-          toast.success('Meeting duplicated', { description: 'Pick a new time for the copy.' });
+          toast.success('Meeting duplicated', {
+            description: 'Pick a new time for the copy.',
+          });
           openEdit(copy);
         },
       },
@@ -529,7 +537,9 @@ export function MeetingsView() {
         icon: Link2,
         shortcut: 'L',
         run: () =>
-          copyToClipboard(entityUrl(`${window.location.pathname}?meeting=${meeting.id}`)),
+          copyToClipboard(
+            entityUrl(`${window.location.pathname}?meeting=${meeting.id}`),
+          ),
       },
       {
         id: 'copy-join',
@@ -548,7 +558,8 @@ export function MeetingsView() {
         hidden: meeting.status === 'CANCELLED' || meeting.status === 'ENDED',
         confirm: {
           title: `Cancel “${meeting.title}”?`,
-          description: 'Participants will see it as cancelled. It stays in the list for reference.',
+          description:
+            'Participants will see it as cancelled. It stays in the list for reference.',
           confirmLabel: 'Cancel meeting',
           cancelLabel: 'Keep meeting',
           destructive: true,
@@ -564,7 +575,8 @@ export function MeetingsView() {
         destructive: true,
         confirm: {
           title: `Delete “${meeting.title}”?`,
-          description: 'The meeting, its notes and action items are removed for everyone. This cannot be undone.',
+          description:
+            'The meeting, its notes and action items are removed for everyone. This cannot be undone.',
           confirmLabel: 'Delete meeting',
           destructive: true,
         },
@@ -621,70 +633,57 @@ export function MeetingsView() {
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
-      <div className="border-b border-border bg-background">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
-          <div className="min-w-0 gap-2 flex items-center">
-            <div className="min-w-0 gap-1.5 flex items-center">
-              <Video
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-                Meetings &amp; Huddles
-              </h2>
-            </div>
-          </div>
+      <PageBar
+        icon={<Video />}
+        title="Meetings &amp; Huddles"
+        hasTabs
+        actions={
+          <Button
+            size="sm"
+            className="h-7 text-xs gap-1"
+            leadingIcon={<Plus className="size-3.5" />}
+            onClick={() => {
+              setEditMeeting(null);
+              setScheduleOpen(true);
+            }}
+          >
+            Schedule meeting
+          </Button>
+        }
+      />
 
-          <div className="gap-2 flex items-center">
-            <Button
-              size="sm"
-              className="h-7 text-xs gap-1"
-              leadingIcon={<Plus className="size-3.5" />}
-              onClick={() => {
-                setEditMeeting(null);
-                setScheduleOpen(true);
-              }}
-            >
-              Schedule meeting
-            </Button>
-          </div>
-        </div>
-
-        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <ResponsiveTabsList variant="underline" size="sm" className="border-b-0 min-w-0 w-full">
-              <TabsTrigger
-                value="upcoming"
-                icon={<CalendarClock className="size-3.5" />}
-                count={upcoming.length > 0 ? upcoming.length : undefined}
-              >
-                Upcoming
-              </TabsTrigger>
-              <TabsTrigger
-                value="live"
-                icon={<Radio className="size-3.5 text-accent-teal" />}
-                count={liveMeetings.length > 0 ? liveMeetings.length : undefined}
-              >
-                Happening now
-              </TabsTrigger>
-              <TabsTrigger
-                value="past"
-                icon={<Check className="size-3.5 text-accent-blue" />}
-                count={past.length > 0 ? past.length : undefined}
-              >
-                Past
-              </TabsTrigger>
-              <TabsTrigger
-                value="apps-hub"
-                icon={<Share2 className="size-3.5" />}
-                count={activeApps.length > 0 ? activeApps.length : undefined}
-              >
-                Meeting apps
-              </TabsTrigger>
-            </ResponsiveTabsList>
-          </Tabs>
-        </div>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <PageTabBar>
+          <TabsTrigger
+            value="upcoming"
+            icon={<CalendarClock className="size-4" />}
+            count={upcoming.length > 0 ? upcoming.length : undefined}
+          >
+            Upcoming
+          </TabsTrigger>
+          <TabsTrigger
+            value="live"
+            icon={<Radio className="size-4 text-accent-teal" />}
+            count={liveMeetings.length > 0 ? liveMeetings.length : undefined}
+          >
+            Happening now
+          </TabsTrigger>
+          <TabsTrigger
+            value="past"
+            icon={<Check className="size-4 text-accent-blue" />}
+            count={past.length > 0 ? past.length : undefined}
+          >
+            Past
+          </TabsTrigger>
+          <TabsTrigger
+            value="apps-hub"
+            icon={<Share2 className="size-4" />}
+            count={activeApps.length > 0 ? activeApps.length : undefined}
+          >
+            Meeting apps
+          </TabsTrigger>
+        </PageTabBar>
+      </Tabs>
 
       <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-6xl space-y-6 mx-auto">

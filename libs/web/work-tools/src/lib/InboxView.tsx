@@ -11,7 +11,7 @@ import {
   Tabs,
   TabsContent,
   TabsTrigger,
-  ResponsiveTabsList,
+  PageTabBar,
   UserAvatar,
 } from '@org/ui';
 import { cn, formatDate, formatRelative } from '@org/utils';
@@ -641,15 +641,15 @@ export function InboxView() {
   return (
     <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
-      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 bg-background/95">
+        <div className="gap-2.5 px-3 sm:px-6 pt-2 pb-1 min-h-11 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
             <div className="min-w-0 gap-1.5 flex items-center">
               <Inbox
                 className="size-4 shrink-0 text-muted-foreground"
                 aria-hidden
               />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
+              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
                 Inbox
               </h2>
             </div>
@@ -668,45 +668,43 @@ export function InboxView() {
             ) : null}
           </div>
         </div>
-
-        {/* Tab Navigation directly below header */}
-        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <ResponsiveTabsList variant="underline" size="sm" className="border-b-0 min-w-0 w-full">
-              <TabsTrigger
-                value="notifications"
-                icon={<Bell className="size-3.5" />}
-                count={newCount > 0 ? newCount : undefined}
-              >
-                Notifications
-              </TabsTrigger>
-              <TabsTrigger
-                value="mentions"
-                icon={<AtSign className="size-3.5" />}
-                count={mentions.length > 0 ? mentions.length : undefined}
-              >
-                Mentions
-              </TabsTrigger>
-              <TabsTrigger
-                value="unreads"
-                icon={<MessageSquare className="size-3.5" />}
-                count={
-                  unreadChannels.length > 0 ? unreadChannels.length : undefined
-                }
-              >
-                Unread channels
-              </TabsTrigger>
-              <TabsTrigger
-                value="tasks"
-                icon={<CheckSquare className="size-3.5" />}
-                count={myTasks.length > 0 ? myTasks.length : undefined}
-              >
-                Assigned to you
-              </TabsTrigger>
-            </ResponsiveTabsList>
-          </Tabs>
-        </div>
       </div>
+
+      {/* Tab Navigation directly below header */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <PageTabBar>
+          <TabsTrigger
+            value="notifications"
+            icon={<Bell className="size-4" />}
+            count={newCount > 0 ? newCount : undefined}
+          >
+            Notifications
+          </TabsTrigger>
+          <TabsTrigger
+            value="mentions"
+            icon={<AtSign className="size-4" />}
+            count={mentions.length > 0 ? mentions.length : undefined}
+          >
+            Mentions
+          </TabsTrigger>
+          <TabsTrigger
+            value="unreads"
+            icon={<MessageSquare className="size-4" />}
+            count={
+              unreadChannels.length > 0 ? unreadChannels.length : undefined
+            }
+          >
+            Unread channels
+          </TabsTrigger>
+          <TabsTrigger
+            value="tasks"
+            icon={<CheckSquare className="size-4" />}
+            count={myTasks.length > 0 ? myTasks.length : undefined}
+          >
+            Assigned to you
+          </TabsTrigger>
+        </PageTabBar>
+      </Tabs>
 
       <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-5xl space-y-4 mx-auto">

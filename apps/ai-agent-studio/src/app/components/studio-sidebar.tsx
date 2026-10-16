@@ -2,6 +2,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -481,23 +482,18 @@ export function StudioSidebar({
       <div className="shrink-0 px-2.5 pt-3">
         {collapsed ? (
           <Hint side="right" label="Create with AI">
-            <NavLink
-              to="/create"
-              onClick={onCloseMobile}
-              aria-label="Create with AI"
-              className="mx-auto flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-2xs transition-colors hover:bg-primary/90 outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <Wand2 className="size-4" />
-            </NavLink>
+            <Button asChild size="icon-lg" className="mx-auto flex">
+              <NavLink to="/create" onClick={onCloseMobile} aria-label="Create with AI">
+                <Wand2 />
+              </NavLink>
+            </Button>
           </Hint>
         ) : (
-          <NavLink
-            to="/create"
-            onClick={onCloseMobile}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground shadow-2xs transition-colors hover:bg-primary/90 outline-none focus-visible:ring-1 focus-visible:ring-ring pointer-coarse:min-h-11"
-          >
-            <Wand2 className="size-4" /> Create with AI
-          </NavLink>
+          <Button asChild size="lg" className="w-full pointer-coarse:min-h-11">
+            <NavLink to="/create" onClick={onCloseMobile}>
+              <Wand2 /> Create with AI
+            </NavLink>
+          </Button>
         )}
       </div>
 
