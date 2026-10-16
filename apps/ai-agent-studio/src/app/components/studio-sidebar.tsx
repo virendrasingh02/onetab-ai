@@ -1,7 +1,4 @@
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Button,
   Collapsible,
   CollapsibleContent,
@@ -17,6 +14,8 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  UserAvatar,
+  WorkspaceAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -404,19 +403,19 @@ export function StudioSidebar({
 
   const displayName = user.name || user.email || 'Studio user';
   const displayEmail = user.email || '';
-  const initials =
-    displayName
-      .split(/\s+/)
-      .map((p) => p[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() || 'U';
-  const workspaceInitial = (activeWorkspace.name || 'W').charAt(0).toUpperCase();
 
+  // Same shared avatars the main platform renders, so a workspace keeps its
+  // logo/icon/tint and a person keeps their photo/gradient across both apps.
   const workspaceMark = (
-    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-2xs">
-      {workspaceInitial}
-    </div>
+    <WorkspaceAvatar
+      name={activeWorkspace.name || 'Workspace'}
+      src={activeWorkspace.avatarUrl}
+      icon={activeWorkspace.icon}
+      iconColor={activeWorkspace.iconColor}
+      seed={activeWorkspace.id}
+      size="md"
+      className="shrink-0"
+    />
   );
 
   /** The navigation panel, shared by the desktop rail and the mobile sheet. */
@@ -456,18 +455,19 @@ export function StudioSidebar({
                 onClick={() => setActiveWorkspace(ws)}
                 className="gap-2 text-sm"
               >
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-foreground">
-                  {(ws.name || 'W').charAt(0).toUpperCase()}
-                </span>
+                <WorkspaceAvatar
+                  name={ws.name || 'Workspace'}
+                  src={ws.avatarUrl}
+                  icon={ws.icon}
+                  iconColor={ws.iconColor}
+                  seed={ws.id}
+                  size="xs"
+                />
                 <span className="truncate">{ws.name}</span>
                 {ws.id === activeWorkspace.id && <Check className="size-4 ml-auto text-primary" />}
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => openInvite()} className="gap-2 text-sm">
-              <UserPlus className="size-4" />
-              <span>Invite Team…</span>
-            </DropdownMenuItem>
             <DropdownMenuItem asChild className="gap-2 text-sm">
               <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
                 <ExternalLink className="size-4" />
@@ -571,12 +571,13 @@ export function StudioSidebar({
               )}
               aria-label="Account menu"
             >
-              <Avatar className="size-8 rounded-lg border border-border/60">
-                {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={displayName} /> : null}
-                <AvatarFallback className="rounded-lg bg-foreground text-background text-xs font-bold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={displayName}
+                src={user.avatarUrl ?? undefined}
+                seed={user.id}
+                size="md"
+                indicator={false}
+              />
 
               {!collapsed && (
                 <>
@@ -611,12 +612,6 @@ export function StudioSidebar({
             <DropdownMenuItem onClick={() => navigate('/developer')} className="gap-2 text-sm">
               <BookOpen className="size-4 text-muted-foreground" />
               <span>Documentation</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild className="gap-2 text-sm">
-              <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
-                <ExternalLink className="size-4 text-muted-foreground" />
-                <span>Main Platform</span>
-              </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

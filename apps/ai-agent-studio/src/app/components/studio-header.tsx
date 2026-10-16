@@ -5,11 +5,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
   PlanBadge,
-  UserAvatar,
 } from '@org/ui';
 import {
   ChevronRight,
@@ -28,30 +29,43 @@ const WEB_APP_URL =
   (import.meta.env?.['VITE_WEB_APP_URL'] as string | undefined) ??
   'http://localhost:4200';
 
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const options = [
-    { value: 'light', label: 'Light theme', icon: Sun },
-    { value: 'dark', label: 'Dark theme', icon: Moon },
-    { value: 'system', label: 'System theme', icon: Monitor },
-  ] as const;
+const THEME_OPTIONS = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+] as const;
+
+/** One compact theme menu instead of three always-visible buttons. */
+function ThemeMenu() {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const TriggerIcon = theme === 'system' ? Monitor : resolvedTheme === 'dark' ? Moon : Sun;
 
   return (
-    <div className="gap-1 flex items-center">
-      {options.map(({ value, label, icon: Icon }) => (
-        <Hint key={value} label={label}>
+    <DropdownMenu>
+      <Hint label="Theme">
+        <DropdownMenuTrigger asChild>
           <Button
-            variant={theme === value ? 'secondary' : 'ghost'}
+            variant="ghost"
             size="icon-sm"
-            aria-label={label}
-            aria-pressed={theme === value}
-            onClick={() => setTheme(value)}
+            className="size-8 text-muted-foreground hover:text-foreground"
+            aria-label="Change theme"
           >
-            <Icon className="size-3.5" />
+            <TriggerIcon className="size-4" />
           </Button>
-        </Hint>
-      ))}
-    </div>
+        </DropdownMenuTrigger>
+      </Hint>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">Theme</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as typeof theme)}>
+          {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+            <DropdownMenuRadioItem key={value} value={value} className="gap-2 text-sm">
+              <Icon className="size-4 text-muted-foreground" />
+              {label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -65,7 +79,8 @@ export interface StudioHeaderProps {
 /**
  * Top Header bar for the main area matching the reference image layout:
  * - Left: Collapse/Expand Sidebar Trigger + Breadcrumb Navigation (Dashboard > Overview)
- * - Right: Credits balance, Main Platform link, Theme Toggle, User Avatar dropdown
+ * - Right: Credits balance, Main Platform link, Theme menu. The account menu
+ *   lives only in the sidebar footer, so the user avatar appears once.
  */
 export function StudioHeader({
   collapsed = false,
@@ -73,15 +88,12 @@ export function StudioHeader({
   onToggleMobile,
   breadcrumb = { section: 'Plan, Run & Approve', page: 'Studio Home' },
 }: StudioHeaderProps) {
-  const { user, activeWorkspace } = useStudioSession();
+  const { activeWorkspace } = useStudioSession();
 
   // Same plan record the main app's billing page reads.
   const { plan, planName, credits, lowCredits, canManageBilling, subscription, billingUrl } = useStudioPlan();
   const isFree = plan === 'free';
   const pastDue = subscription?.status === 'PAST_DUE' || subscription?.status === 'UNPAID';
-
-  const displayName = user.name || user.email || 'Studio user';
-  const displayEmail = user.email || '';
 
   return (
     <header className="h-14 border-b border-border/60 bg-background/95 backdrop-blur-xs px-4 sm:px-6 flex shrink-0 items-center justify-between z-30">
@@ -117,7 +129,7 @@ export function StudioHeader({
         </nav>
       </div>
 
-      {/* Right: Credits, Main Platform Link, Theme Toggle & User Profile */}
+      {/* Right: Credits, Main Platform Link & Theme */}
       <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
         {/* Plan + shared credits */}
         {plan ? (
@@ -182,47 +194,7 @@ export function StudioHeader({
           </a>
         </Button>
 
-        {/* Segmented Theme Toggle */}
-        <ThemeToggle />
-
-        {/* User Avatar Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="size-8 rounded-full p-0 ml-1"
-              aria-label="User account"
-            >
-              <UserAvatar
-                name={displayName}
-                src={user.avatarUrl ?? undefined}
-                seed={user.id}
-                size="sm"
-                indicator={false}
-              />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-xs font-semibold leading-none text-foreground">
-                  {displayName}
-                </p>
-                <p className="text-[11px] leading-none text-muted-foreground">
-                  {displayEmail}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="gap-2 text-xs">
-              <a href={`${WEB_APP_URL}/w/${activeWorkspace.slug}`}>
-                <ExternalLink className="size-3.5 text-muted-foreground" />
-                <span>Main Platform</span>
-              </a>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ThemeMenu />
       </div>
     </header>
   );
