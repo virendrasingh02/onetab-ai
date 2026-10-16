@@ -27,23 +27,30 @@ import {
   Activity,
   ChevronDown,
   Inbox,
+  Info,
   KeyRound,
   RefreshCw,
   Share2,
   Webhook,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   OAuthAppsDialog,
   oauthAppFor,
   useOAuthApps,
 } from './OAuthAppsDialog.js';
 import {
+  CONNECTOR_CATEGORIES,
+  isCustomConnectorProvider,
   isPolicyRoleAllowed,
+  normalizeConnectorCategory,
   PolicySubjectRole,
+  type ConnectorCategory,
   type ExternalIntegration,
+  type IntegrationCapabilities,
 } from '@org/types';
 import { useCurrentWorkspace, useWorkspacePolicies } from '@org/web-workspace';
+import { ConnectCredentialsDialog } from './ConnectCredentialsDialog.js';
 import { CustomApiModal } from './CustomApiModal.js';
 import { GmailInboxModal } from './GmailInboxModal.js';
 import { GoogleCalendarModal } from './GoogleCalendarModal.js';
@@ -66,13 +73,14 @@ export interface IntegrationCard {
   description: string;
   isInternal?: boolean;
   /**
-   * Whether this deployment has a real, registered backend adapter for this
-   * provider (`IntegrationManagerService.getAllCapabilities()`). An
-   * unsupported card never gets a working Connect button — nothing in this
-   * product should look connectable when it can't actually connect to
-   * anything real.
+   * Whether this deployment has a registered backend adapter for this
+   * provider (`GET /integrations/providers`). An unsupported card never gets a
+   * working Connect button: nothing here may look connectable when it can't
+   * actually connect to anything real.
    */
   supported: boolean;
+  /** The provider's registry entry; absent on a "coming soon" card. */
+  capabilities?: IntegrationCapabilities;
 }
 
 /** Providers with a viewer/actions modal beyond the generic connect toggle. */
@@ -83,22 +91,13 @@ type ActiveAppModal =
   | { kind: 'google_docs'; integrationId: string; email?: string }
   | { kind: 'google_sheets'; integrationId: string; email?: string };
 
-export type AppCategory =
-  | 'Analytics'
-  | 'Customer Support & Communication'
-  | 'Design'
-  | 'Developer Tools'
-  | 'Productivity & Project Management'
-  | 'HR & Team Culture'
-  | 'Sales & Marketing'
-  | 'Finance'
-  | 'Internal Apps'
-  | 'Other';
+/** The connector registry's categories (`@org/types` connectors). */
+export type AppCategory = ConnectorCategory;
 
 /**
  * Custom High-Quality SVG Icons for key services matching reference design
  */
-function IntegrationAppIcon({ id }: { id: string; name: string }) {
+function IntegrationAppIcon({ id, name }: { id: string; name: string }) {
   switch (id.toLowerCase()) {
     case 'slack':
       return (
@@ -259,298 +258,72 @@ function IntegrationAppIcon({ id }: { id: string; name: string }) {
         </svg>
       );
 
-    default:
+    case 'custom_api':
+    case 'webhooks':
       return <Webhook className="size-5 text-muted-foreground" />;
+
+    default:
+      return (
+        <span
+          aria-hidden
+          className="size-5 text-[11px] font-bold flex shrink-0 items-center justify-center rounded-md border border-border bg-surface-raised text-muted-foreground"
+        >
+          {name.charAt(0).toUpperCase()}
+        </span>
+      );
   }
 }
 
 /**
- * Catalogue ordered according to the reference image:
- * 1. Slack 2. Stripe 3. Supabase 4. Make 5. Zoom 6. Loom 7. Discord 8. Gemini AI 9. Spotify
- * followed by other integrations.
+ * Apps people ask for that have no backend adapter yet. Shown disabled as
+ * "Coming soon" so the catalogue stays honest; every connectable app comes
+ * from the provider registry instead (`cardsFromProviders`). An id here that
+ * the registry starts returning is dropped automatically.
  */
-const integrationsList: IntegrationCard[] = [
-  {
-    id: 'gmail',
-    name: 'Gmail',
-    category: 'Productivity & Project Management',
-    description:
-      'Read, send, and search Gmail threads directly from your workspace.',
-    supported: true,
-  },
-  {
-    id: 'google_calendar',
-    name: 'Google Calendar',
-    category: 'Productivity & Project Management',
-    description:
-      'Day/week agenda, availability, and event creation synced with Google Calendar.',
-    supported: true,
-  },
-  {
-    id: 'google_drive',
-    name: 'Google Drive',
-    category: 'Productivity & Project Management',
-    description:
-      'Browse, search, preview, and upload files across your Google Drive.',
-    supported: true,
-  },
-  {
-    id: 'google_docs',
-    name: 'Google Docs',
-    category: 'Productivity & Project Management',
-    description:
-      'Browse and read Google Docs — real content, ready for AI summarization.',
-    supported: true,
-  },
-  {
-    id: 'google_sheets',
-    name: 'Google Sheets',
-    category: 'Productivity & Project Management',
-    description:
-      'Browse spreadsheets and read real cell data, sortable and filterable.',
-    supported: true,
-  },
-  {
-    id: 'custom_api',
-    name: 'Custom External API',
-    category: 'Developer Tools',
-    description:
-      'Connect any REST API with custom headers, bearer tokens, or API keys.',
-    supported: true,
-  },
-  {
-    id: 'onetab_internal',
-    name: 'Onetab Native Bridge',
-    category: 'Internal Apps',
-    description:
-      'Internal workspace events, activity streams, and channel notifications.',
-    isInternal: true,
-    supported: true,
-  },
-  {
-    id: 'slack',
-    name: 'Slack',
-    category: 'Customer Support & Communication',
-    description: 'Search, read, and post in your connected Slack workspace.',
-    supported: true,
-  },
-  {
-    id: 'github',
-    name: 'GitHub',
-    category: 'Developer Tools',
-    description:
-      'Repos, issues, pull requests, commits, and notifications from your real GitHub account.',
-    supported: true,
-  },
-  {
-    id: 'jira',
-    name: 'Jira Software',
-    category: 'Productivity & Project Management',
-    description: 'Two-way task, backlog, and sprint status synchronization.',
-    supported: false,
-  },
-  {
-    id: 'linear',
-    name: 'Linear',
-    category: 'Productivity & Project Management',
-    description:
-      "Real issues, teams, and cycles — including each team's own identifier prefix.",
-    supported: true,
-  },
-  {
-    id: 'notion',
-    name: 'Notion',
-    category: 'Productivity & Project Management',
-    description:
-      'Search real pages and databases shared with this integration.',
-    supported: true,
-  },
-  {
-    id: 'trello',
-    name: 'Trello',
-    category: 'Productivity & Project Management',
-    description:
-      'Real boards, lists, and cards using your personal Trello API key + token.',
-    supported: true,
-  },
-  {
-    id: 'figma',
-    name: 'Figma',
-    category: 'Design',
-    description:
-      'Design file embeds, live cursor feedback, and canvas updates.',
-    supported: false,
-  },
-  {
-    id: 'outlook',
-    name: 'Microsoft Outlook',
-    category: 'Productivity & Project Management',
-    description: 'Sync Outlook mail, availability, and meeting join links.',
-    supported: false,
-  },
-  {
-    id: 'microsoft_calendar',
-    name: 'Microsoft Calendar',
-    category: 'Productivity & Project Management',
-    description: 'Events, attendees, and availability from Microsoft 365.',
-    supported: false,
-  },
-  {
-    id: 'onedrive',
-    name: 'Microsoft OneDrive',
-    category: 'Productivity & Project Management',
-    description: 'Browse and search files stored in Microsoft OneDrive.',
-    supported: false,
-  },
-  {
-    id: 'teams',
-    name: 'Microsoft Teams',
-    category: 'Customer Support & Communication',
-    description: 'Teams, channels, and messages surfaced in your workspace.',
-    supported: false,
-  },
-  {
-    id: 'hubspot',
-    name: 'HubSpot',
-    category: 'Sales & Marketing',
-    description:
-      'CRM deal stage tracking, contact leads, and sales pipeline alerts.',
-    supported: false,
-  },
-  {
-    id: 'todoist',
-    name: 'Todoist',
-    category: 'Productivity & Project Management',
-    description: 'Projects, tasks, and due dates synced with your workspace.',
-    supported: false,
-  },
-  {
-    id: 'cal',
-    name: 'Cal.com',
-    category: 'Productivity & Project Management',
-    description: 'Booking types, bookings, and availability from Cal.com.',
-    supported: false,
-  },
-  {
-    id: 'zoom',
-    name: 'Zoom',
-    category: 'Productivity & Project Management',
-    description: 'Meetings, recordings, and participants synced.',
-    supported: false,
-  },
-  {
-    id: 'gitlab',
-    name: 'GitLab',
-    category: 'Developer Tools',
-    description:
-      'Merge request checks and CI/CD pipeline deployment notifications.',
-    supported: false,
-  },
-  {
-    id: 'stripe',
-    name: 'Stripe',
-    category: 'Finance',
-    description: 'Charges, retries, and payouts across connected tools.',
-    supported: false,
-  },
-  {
-    id: 'supabase',
-    name: 'Supabase',
-    category: 'Developer Tools',
-    description: 'DB and auth events for live dashboards.',
-    supported: false,
-  },
-  {
-    id: 'make',
-    name: 'Make',
-    category: 'Developer Tools',
-    description: 'Automation runs: successes and failures in one place.',
-    supported: false,
-  },
-  {
-    id: 'loom',
-    name: 'Loom',
-    category: 'Productivity & Project Management',
-    description: 'Async walkthroughs and feedback in one queue.',
-    supported: false,
-  },
-  {
-    id: 'discord',
-    name: 'Discord',
-    category: 'Customer Support & Communication',
-    description: 'Community signals and mod flags to internal channels.',
-    supported: false,
-  },
-  {
-    id: 'gemini',
-    name: 'Gemini AI',
-    category: 'Developer Tools',
-    description: 'AI for documents and content workflows.',
-    supported: false,
-  },
-  {
-    id: 'spotify',
-    name: 'Spotify',
-    category: 'Other',
-    description: 'Playlists and listening data for workspace apps.',
-    supported: false,
-  },
-  {
-    id: 'zendesk',
-    name: 'Zendesk',
-    category: 'Customer Support & Communication',
-    description:
-      'Customer support ticket routing, triage, and reply notifications.',
-    supported: false,
-  },
-  {
-    id: 'intercom',
-    name: 'Intercom',
-    category: 'Customer Support & Communication',
-    description: 'Live lead chat alerts and customer conversation management.',
-    supported: false,
-  },
-  {
-    id: 'mixpanel',
-    name: 'Mixpanel',
-    category: 'Analytics',
-    description:
-      'Product analytics, event tracking reports, and metrics summaries.',
-    supported: false,
-  },
-  {
-    id: 'datadog',
-    name: 'Datadog',
-    category: 'Analytics',
-    description:
-      'Real-time infrastructure monitoring, alerts, and incident tracking.',
-    supported: false,
-  },
-  {
-    id: 'quickbooks',
-    name: 'QuickBooks',
-    category: 'Finance',
-    description: 'Accounting receipts, expense tracking, and payroll reports.',
-    supported: false,
-  },
-  {
-    id: 'bamboohr',
-    name: 'BambooHR',
-    category: 'HR & Team Culture',
-    description:
-      'Team birthday reminders, PTO approvals, and onboarding workflows.',
-    supported: false,
-  },
-  {
-    id: 'webhooks',
-    name: 'Custom Webhooks Hub',
-    category: 'Internal Apps',
-    description:
-      'Incoming and outgoing custom REST webhooks for internal tools.',
-    isInternal: true,
-    supported: false,
-  },
+const COMING_SOON: IntegrationCard[] = [
+  { id: 'figma', name: 'Figma', category: 'productivity', description: 'Design file embeds, comments, and canvas updates.', supported: false },
+  { id: 'outlook', name: 'Microsoft Outlook', category: 'email', description: 'Sync Outlook mail, availability, and meeting join links.', supported: false },
+  { id: 'microsoft_calendar', name: 'Microsoft Calendar', category: 'calendar', description: 'Events, attendees, and availability from Microsoft 365.', supported: false },
+  { id: 'onedrive', name: 'Microsoft OneDrive', category: 'storage', description: 'Browse and search files stored in Microsoft OneDrive.', supported: false },
+  { id: 'todoist', name: 'Todoist', category: 'project_management', description: 'Projects, tasks, and due dates synced with your workspace.', supported: false },
+  { id: 'cal', name: 'Cal.com', category: 'calendar', description: 'Booking types, bookings, and availability from Cal.com.', supported: false },
+  { id: 'zoom', name: 'Zoom', category: 'communication', description: 'Meetings, recordings, and participants synced.', supported: false },
+  { id: 'gitlab', name: 'GitLab', category: 'developer_tools', description: 'Merge request checks and CI/CD pipeline notifications.', supported: false },
+  { id: 'supabase', name: 'Supabase', category: 'database', description: 'DB and auth events for live dashboards.', supported: false },
+  { id: 'make', name: 'Make', category: 'automation', description: 'Automation runs: successes and failures in one place.', supported: false },
+  { id: 'loom', name: 'Loom', category: 'communication', description: 'Async walkthroughs and feedback in one queue.', supported: false },
+  { id: 'discord', name: 'Discord', category: 'communication', description: 'Community signals and mod flags to internal channels.', supported: false },
+  { id: 'mixpanel', name: 'Mixpanel', category: 'analytics', description: 'Product analytics, event tracking, and metrics summaries.', supported: false },
+  { id: 'datadog', name: 'Datadog', category: 'analytics', description: 'Infrastructure monitoring, alerts, and incident tracking.', supported: false },
+  { id: 'quickbooks', name: 'QuickBooks', category: 'finance', description: 'Accounting receipts, expense tracking, and payroll reports.', supported: false },
+  { id: 'bamboohr', name: 'BambooHR', category: 'productivity', description: 'PTO approvals, onboarding workflows, and team reminders.', supported: false },
+  { id: 'webhooks', name: 'Custom Webhooks Hub', category: 'internal', description: 'Incoming and outgoing custom REST webhooks for internal tools.', isInternal: true, supported: false },
 ];
+
+/** Connectable cards, straight from the backend's provider registry. */
+export function cardsFromProviders(
+  providers: IntegrationCapabilities[] | undefined,
+): IntegrationCard[] {
+  return (providers ?? [])
+    .filter((p) => !isCustomConnectorProvider(p.provider))
+    .map((p) => {
+      const category = normalizeConnectorCategory(p.connectorCategory, p.category);
+      return {
+        id: p.provider.toLowerCase(),
+        name: p.displayName,
+        description: p.description,
+        category,
+        isInternal: category === 'internal',
+        supported: true,
+        capabilities: p,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+const CATEGORY_LABELS = new Map<string, string>(
+  CONNECTOR_CATEGORIES.map((c) => [c.id, c.label]),
+);
 
 /** Providers with a viewer modal beyond the generic connection card. */
 const APPS_WITH_MODAL = new Set([
@@ -561,19 +334,66 @@ const APPS_WITH_MODAL = new Set([
   'google_sheets',
 ]);
 
-const APP_CATEGORIES: AppCategory[] = [
-  'Analytics',
-  'Customer Support & Communication',
-  'Design',
-  'Developer Tools',
-  'Productivity & Project Management',
-  'HR & Team Culture',
-  'Sales & Marketing',
-  'Finance',
-  'Other',
+/** Where a card sits in the hub: what the viewer can do with it right now. */
+export type CatalogueSection = 'connected' | 'ready' | 'setup' | 'soon';
+
+const SECTIONS: ReadonlyArray<{
+  id: CatalogueSection;
+  title: string;
+  description: string;
+}> = [
+  {
+    id: 'connected',
+    title: 'Connected',
+    description: 'Linked to this workspace. Agents, search and chat can use them.',
+  },
+  {
+    id: 'ready',
+    title: 'Ready to connect',
+    description: 'Sign in, or paste an API key, and the app is linked.',
+  },
+  {
+    id: 'setup',
+    title: 'Needs setup',
+    description:
+      "These sign in with OAuth. They can be connected once their app credentials (client ID and secret) are added.",
+  },
+  {
+    id: 'soon',
+    title: 'Coming soon',
+    description: 'Not available to connect yet.',
+  },
 ];
 
-export function IntegrationHubView() {
+/**
+ * Which section a card belongs in. Anything linked (even expired or failing)
+ * is "connected" so its Reconnect prompt stays at the top; an OAuth app
+ * whose client credentials haven't been added is "setup", never a Connect
+ * button that can only fail.
+ */
+export function catalogueSection(
+  card: IntegrationCard,
+  { linked, needsSetup }: { linked: boolean; needsSetup: boolean },
+): CatalogueSection {
+  if (!card.supported) return 'soon';
+  if (linked) return 'connected';
+  return needsSetup ? 'setup' : 'ready';
+}
+
+export interface IntegrationHubViewProps {
+  /**
+   * Rendered inside another page (the Marketplace's "Integration Hub" tab):
+   * no page bar or scroll container of its own, and the host's search box
+   * drives `searchQuery`.
+   */
+  embedded?: boolean;
+  searchQuery?: string;
+}
+
+export function IntegrationHubView({
+  embedded = false,
+  searchQuery: externalSearchQuery,
+}: IntegrationHubViewProps = {}) {
   const workspaceId = useWorkspaceId() ?? '';
   const integrations = useIntegrations(workspaceId);
   const { connect, disconnect, sync } = useIntegrationMutations(workspaceId);
@@ -593,9 +413,32 @@ export function IntegrationHubView() {
     policiesQuery.data?.whoCanInstallApps ?? PolicySubjectRole.ADMINS,
   );
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [localSearchQuery, setSearchQuery] = useState('');
+  const searchQuery = externalSearchQuery ?? localSearchQuery;
   const [selectedFilter, setSelectedFilter] = useState<'All' | AppCategory>(
     'All',
+  );
+  const [showComingSoon, setShowComingSoon] = useState(false);
+  const canManageCredentials = isPolicyRoleAllowed(
+    workspace?.role,
+    PolicySubjectRole.ADMINS,
+  );
+  const [credentialsCard, setCredentialsCard] = useState<IntegrationCard | null>(
+    null,
+  );
+
+  /** Every connectable app from the registry, then the "coming soon" ones. */
+  const catalogue = useMemo(() => {
+    const live = cardsFromProviders(providersQuery.data);
+    const liveIds = new Set(live.map((card) => card.id));
+    return [...live, ...COMING_SOON.filter((card) => !liveIds.has(card.id))];
+  }, [providersQuery.data]);
+  const categories = useMemo(
+    () =>
+      CONNECTOR_CATEGORIES.filter((c) =>
+        catalogue.some((card) => card.category === c.id),
+      ),
+    [catalogue],
   );
   const [isCustomApiModalOpen, setIsCustomApiModalOpen] = useState(false);
   const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
@@ -636,9 +479,14 @@ export function IntegrationHubView() {
     }
 
     const providerKey = card.id.toUpperCase();
-    const capabilities = providersQuery.data?.find(
-      (p) => p.provider === providerKey,
-    );
+    const capabilities = card.capabilities;
+
+    // API-key apps (Jira, HubSpot, Stripe...) ask for their credentials first;
+    // the server checks them against the app before storing them encrypted.
+    if (capabilities?.credentialFields?.length) {
+      setCredentialsCard(card);
+      return;
+    }
 
     if (capabilities?.authType === 'OAUTH2') {
       // No OAuth app yet (neither the platform's nor this workspace's): set one up instead of failing.
@@ -757,12 +605,19 @@ export function IntegrationHubView() {
 
   const linkedCount = integrationMap.size;
 
-  const filteredCards = integrationsList.filter((card) => {
+  /** The OAuth app an OAuth card signs in through, when it has one. */
+  const oauthAppOf = (card: IntegrationCard) =>
+    card.capabilities?.authType === 'OAUTH2'
+      ? oauthAppFor(oauthApps.data, card.id)
+      : undefined;
+
+  const filteredCards = catalogue.filter((card) => {
+    const term = searchQuery.trim().toLowerCase();
     const matchesSearch =
-      !searchQuery.trim() ||
-      card.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      card.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      card.category.toLowerCase().includes(searchQuery.toLowerCase());
+      !term ||
+      card.name.toLowerCase().includes(term) ||
+      card.description.toLowerCase().includes(term) ||
+      (CATEGORY_LABELS.get(card.category) ?? '').toLowerCase().includes(term);
 
     if (!matchesSearch) return false;
 
@@ -770,24 +625,155 @@ export function IntegrationHubView() {
     return card.category === selectedFilter;
   });
 
-  return (
-    <div className="min-h-0 flex flex-1 flex-col">
-      <PageBar
-        icon={<Share2 />}
-        title="Apps"
+  const sectionCards = new Map<CatalogueSection, IntegrationCard[]>(
+    SECTIONS.map((section) => [section.id, []]),
+  );
+  for (const card of filteredCards) {
+    const app = oauthAppOf(card);
+    sectionCards
+      .get(
+        catalogueSection(card, {
+          linked: integrationMap.has(card.id.toUpperCase()),
+          needsSetup: Boolean(app && !app.configured),
+        }),
+      )
+      ?.push(card);
+  }
+  const setupCount = sectionCards.get('setup')?.length ?? 0;
+
+  const renderCard = (card: IntegrationCard) => {
+    const integration = integrationMap.get(card.id.toUpperCase());
+    const state = cardState(card, integration);
+    const isConnected = state === 'connected';
+    const hasSettings = card.id === 'custom_api' || card.id === 'trello';
+    const app = oauthAppOf(card);
+    const needsSetup = Boolean(app && !app.configured);
+
+    return (
+      <ConnectionCard
+        key={card.id}
+        name={card.name}
+        description={card.description}
+        icon={<IntegrationAppIcon id={card.id} name={card.name} />}
+        state={state}
+        statusLabel={card.supported ? undefined : 'Coming soon'}
+        account={integration?.displayName}
+        lastSyncAt={integration?.lastSyncAt}
+        errorMessage={integration?.lastErrorMessage}
+        permissions={integration?.scopes}
+        canConnect={canInstallApps}
+        cannotConnectReason="Only admins can install apps in this workspace."
+        needsSetup={needsSetup}
+        onSetup={
+          needsSetup && app && canManageCredentials
+            ? () => setOauthDialog({ appKey: app.appKey })
+            : undefined
+        }
+        setupHint={
+          app ? `Waiting for an admin to add ${app.label} credentials.` : undefined
+        }
+        busy={
+          (connect.isPending &&
+            connect.variables?.provider === card.id.toUpperCase()) ||
+          (disconnect.isPending && disconnect.variables === integration?.id)
+        }
+        onConnect={() => void startConnect(card)}
+        onReconnect={() => void startConnect(card)}
+        onDisconnect={
+          integration ? () => confirmDisconnect(card, integration) : undefined
+        }
+        onSettings={
+          hasSettings
+            ? () =>
+                card.id === 'trello'
+                  ? setIsTrelloModalOpen(true)
+                  : setIsCustomApiModalOpen(true)
+            : undefined
+        }
         actions={
-          <SearchInput
-            value={searchQuery}
-            onValueChange={setSearchQuery}
-            placeholder="Search apps..."
-            className="h-7 text-xs"
-            wrapperClassName="w-36 sm:w-56"
-          />
+          integration ? (
+            <>
+              {isConnected && APPS_WITH_MODAL.has(card.id) ? (
+                <Hint label={`Open ${card.name}`}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Open ${card.name}`}
+                    onClick={() => openAppModal(card, integration)}
+                  >
+                    <Inbox className="size-3.5" />
+                  </Button>
+                </Hint>
+              ) : null}
+              {isConnected ? (
+                <Hint label="Sync now">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Sync ${card.name} now`}
+                    disabled={sync.isPending}
+                    onClick={() =>
+                      sync.mutate(integration.id, {
+                        onError: (err: unknown) =>
+                          toast.error(
+                            err instanceof Error
+                              ? err.message
+                              : `Failed to sync ${card.name}.`,
+                          ),
+                      })
+                    }
+                  >
+                    <RefreshCw
+                      className={cn(
+                        'size-3.5',
+                        sync.isPending &&
+                          sync.variables === integration.id &&
+                          'animate-spin',
+                      )}
+                    />
+                  </Button>
+                </Hint>
+              ) : null}
+              <Hint label="Activity log">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`${card.name} activity log`}
+                  onClick={() => setLogsCard(card)}
+                >
+                  <Activity className="size-3.5" />
+                </Button>
+              </Hint>
+            </>
+          ) : null
         }
       />
+    );
+  };
 
-      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto">
+  return (
+    <div className={embedded ? undefined : 'min-h-0 flex flex-1 flex-col'}>
+      {!embedded && (
+        <PageBar
+          icon={<Share2 />}
+          title="Apps"
+          actions={
+            <SearchInput
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+              placeholder="Search apps..."
+              className="h-7 text-xs"
+              wrapperClassName="w-36 sm:w-56"
+            />
+          }
+        />
+      )}
+
+      <div className={embedded ? undefined : 'min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto'}>
+        <div className={embedded ? undefined : 'max-w-7xl mx-auto'}>
           {/* Category filter & count */}
           <div className="mb-4 gap-2 flex flex-wrap items-center justify-between">
             <DropdownMenu>
@@ -800,7 +786,9 @@ export function IntegrationHubView() {
                     <ChevronDown className="size-3.5 text-muted-foreground" />
                   }
                 >
-                  {selectedFilter === 'All' ? 'All app types' : selectedFilter}
+                  {selectedFilter === 'All'
+                    ? 'All categories'
+                    : CATEGORY_LABELS.get(selectedFilter) ?? selectedFilter}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-72">
@@ -811,23 +799,17 @@ export function IntegrationHubView() {
                   }
                 >
                   <DropdownMenuRadioItem value="All" indicator="check">
-                    All app types
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem
-                    value="Internal Apps"
-                    indicator="check"
-                  >
-                    Internal Apps
+                    All categories
                   </DropdownMenuRadioItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Categories</DropdownMenuLabel>
-                  {APP_CATEGORIES.map((category) => (
+                  {categories.map((category) => (
                     <DropdownMenuRadioItem
-                      key={category}
-                      value={category}
+                      key={category.id}
+                      value={category.id}
                       indicator="check"
                     >
-                      {category}
+                      {category.label}
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>
@@ -842,7 +824,7 @@ export function IntegrationHubView() {
                 leadingIcon={<KeyRound className="size-3.5" />}
                 onClick={() => setOauthDialog({ appKey: null })}
               >
-                OAuth apps
+                App credentials
               </Button>
               <p
                 className="text-xs font-semibold text-muted-foreground"
@@ -851,142 +833,123 @@ export function IntegrationHubView() {
                 {filteredCards.length}{' '}
                 {filteredCards.length === 1 ? 'app' : 'apps'}
                 {linkedCount > 0 ? ` · ${linkedCount} connected` : ''}
+                {setupCount > 0 ? ` · ${setupCount} need setup` : ''}
               </p>
             </div>
           </div>
 
-          <ConnectionList
-            isLoading={integrations.isLoading || providersQuery.isLoading}
-            error={integrations.error ?? providersQuery.error}
-            onRetry={() => {
-              void integrations.refetch();
-              void providersQuery.refetch();
-            }}
-            isEmpty={filteredCards.length === 0}
-            emptyTitle="No integrations found"
-            emptyDescription="Try a different search or category to see available apps."
-            emptyAction={
-              searchQuery || selectedFilter !== 'All' ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setSelectedFilter('All');
-                  }}
-                >
-                  Clear filters
-                </Button>
-              ) : undefined
-            }
-          >
-            {filteredCards.map((card) => {
-              const integration = integrationMap.get(card.id.toUpperCase());
-              const state = cardState(card, integration);
-              const isConnected = state === 'connected';
-              const hasSettings =
-                card.id === 'custom_api' || card.id === 'trello';
+          {!canInstallApps ? (
+            <div
+              role="note"
+              className="mb-5 gap-2 p-3 text-xs flex items-start rounded-lg border border-border bg-surface-raised text-muted-foreground"
+            >
+              <Info className="mt-px size-3.5 shrink-0" aria-hidden />
+              <span>
+                Only admins can connect apps in this workspace. You can browse
+                what's available; ask an admin to connect the ones you need.
+              </span>
+            </div>
+          ) : null}
 
-              return (
-                <ConnectionCard
-                  key={card.id}
-                  name={card.name}
-                  description={card.description}
-                  icon={<IntegrationAppIcon id={card.id} name={card.name} />}
-                  state={state}
-                  statusLabel={card.supported ? undefined : 'Coming soon'}
-                  account={integration?.displayName}
-                  lastSyncAt={integration?.lastSyncAt}
-                  errorMessage={integration?.lastErrorMessage}
-                  permissions={integration?.scopes}
-                  canConnect={canInstallApps}
-                  cannotConnectReason="Only admins can install apps in this workspace."
-                  busy={
-                    (connect.isPending &&
-                      connect.variables?.provider === card.id.toUpperCase()) ||
-                    (disconnect.isPending &&
-                      disconnect.variables === integration?.id)
-                  }
-                  onConnect={() => void startConnect(card)}
-                  onReconnect={() => void startConnect(card)}
-                  onDisconnect={
-                    integration
-                      ? () => confirmDisconnect(card, integration)
-                      : undefined
-                  }
-                  onSettings={
-                    hasSettings
-                      ? () =>
-                          card.id === 'trello'
-                            ? setIsTrelloModalOpen(true)
-                            : setIsCustomApiModalOpen(true)
-                      : undefined
-                  }
-                  actions={
-                    integration ? (
-                      <>
-                        {isConnected && APPS_WITH_MODAL.has(card.id) ? (
-                          <Hint label={`Open ${card.name}`}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Open ${card.name}`}
-                              onClick={() => openAppModal(card, integration)}
-                            >
-                              <Inbox className="size-3.5" />
-                            </Button>
-                          </Hint>
-                        ) : null}
-                        {isConnected ? (
-                          <Hint label="Sync now">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Sync ${card.name} now`}
-                              disabled={sync.isPending}
-                              onClick={() =>
-                                sync.mutate(integration.id, {
-                                  onError: (err: unknown) =>
-                                    toast.error(
-                                      err instanceof Error
-                                        ? err.message
-                                        : `Failed to sync ${card.name}.`,
-                                    ),
-                                })
-                              }
-                            >
-                              <RefreshCw
-                                className={cn(
-                                  'size-3.5',
-                                  sync.isPending &&
-                                    sync.variables === integration.id &&
-                                    'animate-spin',
-                                )}
-                              />
-                            </Button>
-                          </Hint>
-                        ) : null}
-                        <Hint label="Activity log">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`${card.name} activity log`}
-                            onClick={() => setLogsCard(card)}
-                          >
-                            <Activity className="size-3.5" />
-                          </Button>
-                        </Hint>
-                      </>
-                    ) : null
-                  }
-                />
-              );
-            })}
-          </ConnectionList>
+          {integrations.isLoading ||
+          providersQuery.isLoading ||
+          integrations.error ||
+          providersQuery.error ||
+          filteredCards.length === 0 ? (
+            <ConnectionList
+              isLoading={integrations.isLoading || providersQuery.isLoading}
+              error={integrations.error ?? providersQuery.error}
+              onRetry={() => {
+                void integrations.refetch();
+                void providersQuery.refetch();
+              }}
+              isEmpty={filteredCards.length === 0}
+              emptyTitle="No integrations found"
+              emptyDescription="Try a different search or category to see available apps."
+              emptyAction={
+                searchQuery || selectedFilter !== 'All' ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSelectedFilter('All');
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : undefined
+              }
+            >
+              {null}
+            </ConnectionList>
+          ) : (
+            <div className="space-y-8">
+              {SECTIONS.map((section) => {
+                const cards = sectionCards.get(section.id) ?? [];
+                if (cards.length === 0) return null;
+                const collapsed = section.id === 'soon' && !showComingSoon;
+                const headingId = `hub-section-${section.id}`;
+                return (
+                  <section key={section.id} aria-labelledby={headingId}>
+                    <div className="mb-3 gap-3 flex flex-wrap items-end justify-between">
+                      <div className="min-w-0">
+                        <h3
+                          id={headingId}
+                          className="gap-2 text-sm font-semibold flex items-center text-foreground"
+                        >
+                          {section.title}
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {cards.length}
+                          </span>
+                        </h3>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {section.description}
+                        </p>
+                      </div>
+                      {section.id === 'setup' && canManageCredentials ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          leadingIcon={<KeyRound className="size-3.5" />}
+                          onClick={() => setOauthDialog({ appKey: null })}
+                        >
+                          Add credentials
+                        </Button>
+                      ) : null}
+                      {section.id === 'soon' ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-expanded={!collapsed}
+                          aria-controls={`${headingId}-list`}
+                          trailingIcon={
+                            <ChevronDown
+                              className={cn(
+                                'size-3.5 transition-transform',
+                                !collapsed && 'rotate-180',
+                              )}
+                            />
+                          }
+                          onClick={() => setShowComingSoon((v) => !v)}
+                        >
+                          {collapsed ? 'Show' : 'Hide'}
+                        </Button>
+                      ) : null}
+                    </div>
+                    {collapsed ? null : (
+                      <div id={`${headingId}-list`}>
+                        <ConnectionList>{cards.map(renderCard)}</ConnectionList>
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1058,6 +1021,33 @@ export function IntegrationHubView() {
         workspaceId={workspaceId}
         isOpen={isTrelloModalOpen}
         onClose={() => setIsTrelloModalOpen(false)}
+      />
+
+      {/* API-key apps: credentials checked server-side before they're stored */}
+      <ConnectCredentialsDialog
+        app={
+          credentialsCard?.capabilities
+            ? {
+                name: credentialsCard.name,
+                icon: (
+                  <IntegrationAppIcon
+                    id={credentialsCard.id}
+                    name={credentialsCard.name}
+                  />
+                ),
+                capabilities: credentialsCard.capabilities,
+              }
+            : null
+        }
+        onOpenChange={(open) => !open && setCredentialsCard(null)}
+        onSubmit={async (config) => {
+          if (!credentialsCard) return;
+          await connect.mutateAsync({
+            provider: credentialsCard.id.toUpperCase(),
+            config,
+          });
+          toast.success(`${credentialsCard.name} connected.`);
+        }}
       />
 
       {/* Sync & Activity Log Modal */}

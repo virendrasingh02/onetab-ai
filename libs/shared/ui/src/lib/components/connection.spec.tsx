@@ -73,4 +73,40 @@ describe('ConnectionCard', () => {
     );
     expect(screen.getByRole('button', { name: 'Connect' })).toBeDisabled();
   });
+
+  it('swaps Connect for "Add credentials" while the app still needs setting up', async () => {
+    const onSetup = vi.fn();
+    render(
+      <ConnectionCard
+        {...base}
+        state="disconnected"
+        needsSetup
+        onSetup={onSetup}
+        onConnect={() => undefined}
+      />,
+    );
+    expect(screen.getByText('Needs setup')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Connect' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Add credentials' }));
+    expect(onSetup).toHaveBeenCalled();
+  });
+
+  it('explains who has to set the app up when the viewer cannot', () => {
+    render(
+      <ConnectionCard
+        {...base}
+        state="disconnected"
+        needsSetup
+        setupHint="Waiting for an admin to add Google credentials."
+      />,
+    );
+    expect(screen.getByText('Waiting for an admin to add Google credentials.')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('ignores needsSetup once the app is already linked', () => {
+    render(<ConnectionCard {...base} state="connected" needsSetup onSetup={() => undefined} />);
+    expect(screen.getByText('Connected')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add credentials' })).not.toBeInTheDocument();
+  });
 });

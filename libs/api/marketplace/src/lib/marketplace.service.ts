@@ -18,7 +18,11 @@ import {
   type ListingKind,
   type ListingStatus,
 } from './marketplace.constants.js';
-import { SEED_LISTINGS, SEED_PUBLISHER } from './marketplace.seeds.js';
+import {
+  RETIRED_SEED_SLUGS,
+  SEED_LISTINGS,
+  SEED_PUBLISHER,
+} from './marketplace.seeds.js';
 import type {
   BrowseQuery,
   InstallInput,
@@ -146,6 +150,49 @@ export class MarketplaceService implements OnModuleInit {
 
   async onModuleInit() {
     await this.seedOfficialListings();
+    await this.retireOfficialListings();
+  }
+
+  /**
+   * Unpublishes the official app listings that never connected anything
+   * (`RETIRED_SEED_SLUGS`) and closes their installs, which were only rows.
+   * Only official listings are touched, so a third-party listing that happens
+   * to reuse one of these slugs is left alone. Idempotent.
+   */
+  async retireOfficialListings() {
+    try {
+      const retired = await this.prisma.marketplaceListing.findMany({
+        where: {
+          slug: { in: [...RETIRED_SEED_SLUGS] },
+          isOfficial: true,
+          kind: 'INTEGRATION',
+        },
+        select: { id: true, status: true },
+      });
+      if (retired.length === 0) return;
+      const ids = retired.map((l) => l.id);
+      const [listings, installs] = await this.prisma.$transaction([
+        this.prisma.marketplaceListing.updateMany({
+          where: { id: { in: ids }, status: { not: 'DEPRECATED' } },
+          data: { status: 'DEPRECATED' },
+        }),
+        this.prisma.marketplaceInstallation.updateMany({
+          where: { listingId: { in: ids }, status: { not: 'UNINSTALLED' } },
+          data: { status: 'UNINSTALLED' },
+        }),
+      ]);
+      if (listings.count > 0 || installs.count > 0) {
+        this.logger.log(
+          `Retired ${listings.count} placeholder app listing(s) and closed ${installs.count} install(s); apps connect through the integration providers now.`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Failed to retire placeholder marketplace listings: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 
   /** Ensures high-fidelity official Apps and Agents are available in the directory. */

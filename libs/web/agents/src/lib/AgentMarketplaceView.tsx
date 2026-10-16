@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { integrationsApi, queryKeys } from '@org/api-client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Accent } from '@org/design-system';
 import type {
@@ -143,10 +145,18 @@ export interface AgentMarketplaceViewProps {
     onOpenChange: (open: boolean) => void;
     workspaceId: string;
   }) => ReactNode;
+  /**
+   * Renders the live connectors (Gmail, GitHub, Jira, Stripe…: connect,
+   * sync, disconnect) at the top of "Apps & Integrations". They live in
+   * `@org/web-integrations`, so the app supplies them; without it the tab
+   * lists marketplace apps only.
+   */
+  renderIntegrations?: (props: { searchQuery: string }) => ReactNode;
 }
 
 export function AgentMarketplaceView({
   renderCoworkerCreate,
+  renderIntegrations,
 }: AgentMarketplaceViewProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -158,11 +168,14 @@ export function AgentMarketplaceView({
 
   // Read URL query params
   const rawTab = searchParams.get('tab');
-  // `my-agents` / `my-apps` were folded into the combined workspace view.
+  // `my-agents` / `my-apps` were folded into the combined workspace view;
+  // the Integration Hub was folded into "Apps & Integrations".
   const urlTab =
     (rawTab === 'my-agents' || rawTab === 'my-apps'
       ? 'workspace'
-      : (rawTab as MarketplaceActiveTab | null)) || 'discover';
+      : rawTab === 'integrations'
+        ? 'apps'
+        : (rawTab as MarketplaceActiveTab | null)) || 'discover';
   const urlApp = searchParams.get('app');
   const urlAgent = searchParams.get('agent');
   const urlQuery = searchParams.get('q') || '';
@@ -252,7 +265,41 @@ export function AgentMarketplaceView({
   const [configModalItem, setConfigModalItem] =
     useState<MarketplaceInstallation | null>(null);
 
-  const listings = browseQuery.data?.items || [];
+  /*
+   * The connectors the backend can really connect (same query and cache as
+   * the Integration Hub). A marketplace INTEGRATION listing for one of them
+   * (the seeded GitHub, Slack, Jira…) would only record an "install" without
+   * connecting anything, so it's hidden in favour of the live connector card.
+   */
+  const providersQuery = useQuery({
+    queryKey: queryKeys.integrations.providers(activeWorkspaceId),
+    queryFn: () => integrationsApi.getProviders(activeWorkspaceId),
+    enabled: Boolean(activeWorkspaceId) && Boolean(renderIntegrations),
+    staleTime: 60_000,
+  });
+  const connectorIds = useMemo(
+    () =>
+      new Set(
+        (providersQuery.data ?? []).map((p) => p.provider.toLowerCase()),
+      ),
+    [providersQuery.data],
+  );
+  const allListings = browseQuery.data?.items || [];
+  const listings = useMemo(
+    () =>
+      allListings.filter(
+        (l) =>
+          l.kind !== 'INTEGRATION' ||
+          !connectorIds.has(l.slug.toLowerCase().replace(/-/g, '_')),
+      ),
+    [allListings, connectorIds],
+  );
+  // With the live connectors above it, the marketplace-apps list only shows
+  // when there's something in it.
+  const showMarketplaceApps =
+    !renderIntegrations ||
+    browseQuery.isLoading ||
+    listings.some((l) => l.kind === 'INTEGRATION');
   const installations = installationsQuery.data || [];
   const approvals = approvalsQuery.data || [];
   const catalog = useWorkspaceCatalog(activeWorkspaceId, installations);
@@ -460,7 +507,29 @@ export function AgentMarketplaceView({
                 />
               )}
 
-              {activeTab === 'apps' && (
+              {activeTab === 'apps' && renderIntegrations && (
+                <section aria-labelledby="mkt-connect-heading" className="space-y-1">
+                  <h2
+                    id="mkt-connect-heading"
+                    className="text-sm font-semibold text-foreground"
+                  >
+                    Connect your tools
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Sign in once and agents, search and chat can work with
+                    them.
+                  </p>
+                  <div className="pt-3">{renderIntegrations({ searchQuery })}</div>
+                </section>
+              )}
+
+              {activeTab === 'apps' && renderIntegrations && showMarketplaceApps && (
+                <h2 className="pt-4 text-sm font-semibold border-t border-border/60 text-foreground">
+                  More apps from the Marketplace
+                </h2>
+              )}
+
+              {activeTab === 'apps' && showMarketplaceApps && (
                 <MarketplaceCatalogView
                   listings={listings}
                   kind="INTEGRATION"

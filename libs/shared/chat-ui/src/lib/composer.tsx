@@ -10,12 +10,16 @@ import {
 } from '@org/types';
 
 import {
+  AppSelect,
+  Button,
+  Calendar,
   Hint,
   Popover,
   PopoverContent,
   PopoverTrigger,
   UnifiedEmojiPickerPopover,
   toast,
+  type AppSelectOption,
   type UnifiedPickerTab,
 } from '@org/ui';
 import {
@@ -26,7 +30,10 @@ import {
 import { cn, formatBytes } from '@org/utils';
 import {
   CalendarClock,
+  CalendarDays,
   Check,
+  ChevronLeft,
+  ChevronRight,
   File as FileIcon,
   Lock,
   Mic,
@@ -71,6 +78,49 @@ import {
   type SlashCommand,
 } from './slash-commands.js';
 import { VoiceRecorderBar } from './voice-recorder-bar.js';
+
+const SCHEDULE_SLOT_MINUTES = 15;
+
+/** `HH:mm` (24h) — the stable value behind each time-slot option. */
+function toTimeValue(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(
+    date.getMinutes(),
+  ).padStart(2, '0')}`;
+}
+
+function combineDayAndTime(day: Date, time: string): Date {
+  const [h, m] = time.split(':').map(Number);
+  const out = new Date(day);
+  out.setHours(h, m, 0, 0);
+  return out;
+}
+
+/** An hour from now, rounded up to the next slot boundary. */
+function defaultScheduleSlot(): Date {
+  const d = new Date(Date.now() + 60 * 60 * 1000);
+  const rem = d.getMinutes() % SCHEDULE_SLOT_MINUTES;
+  d.setMinutes(d.getMinutes() + (rem ? SCHEDULE_SLOT_MINUTES - rem : 0), 0, 0);
+  return d;
+}
+
+/** Every slot of `day`; slots already in the past are disabled. */
+function buildTimeSlotOptions(day: Date): AppSelectOption[] {
+  const now = Date.now();
+  const options: AppSelectOption[] = [];
+  for (let mins = 0; mins < 24 * 60; mins += SCHEDULE_SLOT_MINUTES) {
+    const slot = new Date(day);
+    slot.setHours(Math.floor(mins / 60), mins % 60, 0, 0);
+    options.push({
+      value: toTimeValue(slot),
+      label: slot.toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+      }),
+      disabled: slot.getTime() <= now,
+    });
+  }
+  return options;
+}
 
 export {
   DEFAULT_SLASH_COMMANDS,
@@ -747,12 +797,55 @@ export function Composer({
   }, [anonAllowed, anon]);
 
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [customDatetime, setCustomDatetime] = useState(() => {
-    const d = new Date(Date.now() + 60 * 60 * 1000);
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-      .toISOString()
-      .slice(0, 16);
-  });
+  // Custom schedule is a second view inside the same popover: a calendar for
+  // the day plus a slot select for the time, instead of the native
+  // `datetime-local` picker (unstyled, unthemed, different per browser).
+  const [scheduleView, setScheduleView] = useState<'presets' | 'custom'>(
+    'presets',
+  );
+  const [customDay, setCustomDay] = useState<Date>(() => new Date());
+  const [customTime, setCustomTime] = useState('');
+
+  const handleScheduleOpenChange = useCallback((open: boolean) => {
+    setScheduleOpen(open);
+    if (open) {
+      const initial = defaultScheduleSlot();
+      setScheduleView('presets');
+      setCustomDay(initial);
+      setCustomTime(toTimeValue(initial));
+    }
+  }, []);
+
+  const customTimeOptions = useMemo(
+    () => buildTimeSlotOptions(customDay),
+    // `scheduleView` re-evaluates "now" each time the custom view opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customDay, scheduleView],
+  );
+
+  const customTarget = useMemo(
+    () => (customTime ? combineDayAndTime(customDay, customTime) : null),
+    [customDay, customTime],
+  );
+  const customTargetValid =
+    customTarget !== null && customTarget.getTime() > Date.now();
+
+  const handleCustomDaySelect = useCallback(
+    (day: Date | undefined) => {
+      if (!day) return;
+      setCustomDay(day);
+      // Keep the chosen time if it is still in the future on the new day,
+      // otherwise snap to the first slot that is.
+      const options = buildTimeSlotOptions(day);
+      const stillValid = options.some(
+        (o) => o.value === customTime && !o.disabled,
+      );
+      if (!stillValid) {
+        setCustomTime(options.find((o) => !o.disabled)?.value ?? '');
+      }
+    },
+    [customTime],
+  );
 
   const schedulePresets = useMemo(() => {
     const now = new Date();
@@ -1431,7 +1524,10 @@ export function Composer({
               {/* Schedule message button & popover — same "no prop, no control"
                 convention as onStartHuddle/onSendVoice below. */}
               {onSchedule ? (
-                <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
+                <Popover
+                  open={scheduleOpen}
+                  onOpenChange={handleScheduleOpenChange}
+                >
                   <PopoverTrigger asChild>
                     <div>
                       <Hint label="Schedule message">
@@ -1452,14 +1548,98 @@ export function Composer({
                   <PopoverContent
                     side="top"
                     align="end"
-                    className="w-72 p-3 space-y-3 z-50 rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
+                    className="w-[304px] p-3 space-y-3 z-50 rounded-lg border border-border bg-popover text-popover-foreground shadow-md"
                   >
-                    <div className="font-semibold text-xs gap-1.5 pb-1 flex items-center border-b border-border text-foreground">
-                      <CalendarClock className="size-3.5 text-primary" />
-                      <span>Schedule message</span>
+                    <div className="font-semibold text-xs gap-1.5 pb-2 flex items-center border-b border-border text-foreground">
+                      {scheduleView === 'custom' ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Back to quick options"
+                          onClick={() => setScheduleView('presets')}
+                          className="-ml-1 size-6 text-muted-foreground hover:text-foreground"
+                        >
+                          <ChevronLeft className="size-4" />
+                        </Button>
+                      ) : (
+                        <CalendarClock className="size-3.5 text-primary" />
+                      )}
+                      <span>
+                        {scheduleView === 'custom'
+                          ? 'Custom date & time'
+                          : 'Schedule message'}
+                      </span>
                     </div>
 
-                    {pendingScheduled.length > 0 ? (
+                    {scheduleView === 'custom' ? (
+                      <div className="space-y-3">
+                        <Calendar
+                          selected={customDay}
+                          onSelect={handleCustomDaySelect}
+                          minDate={(() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            return today;
+                          })()}
+                          className="p-0 w-full"
+                        />
+                        <div className="space-y-1.5">
+                          <span className="font-medium block text-xs text-muted-foreground">
+                            Time
+                          </span>
+                          <AppSelect
+                            size="sm"
+                            aria-label="Send time"
+                            placeholder="Pick a time"
+                            value={customTime}
+                            onValueChange={setCustomTime}
+                            options={customTimeOptions}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-2 pt-2 border-t border-border">
+                          <p className="text-xs text-muted-foreground">
+                            {customTargetValid && customTarget ? (
+                              <>
+                                Sends{' '}
+                                <span className="font-medium text-foreground">
+                                  {customTarget.toLocaleString(undefined, {
+                                    weekday: 'short',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </>
+                            ) : (
+                              'Pick a future time to schedule this message.'
+                            )}
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="w-full"
+                            disabled={!customTargetValid}
+                            onClick={() => {
+                              if (!customTarget || !customTargetValid) {
+                                toast.error(
+                                  'Please select a future date and time',
+                                );
+                                return;
+                              }
+                              void handleSchedule(customTarget.toISOString());
+                            }}
+                          >
+                            Schedule send
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {scheduleView === 'presets' &&
+                    pendingScheduled.length > 0 ? (
                       <div className="space-y-1 pb-2 border-b border-border">
                         <div className="font-medium mb-1 text-xs text-muted-foreground">
                           Pending in this conversation
@@ -1498,6 +1678,7 @@ export function Composer({
                       </div>
                     ) : null}
 
+                    {scheduleView === 'presets' ? (
                     <div className="space-y-1">
                       <div className="font-medium mb-1 text-xs text-muted-foreground">
                         Quick options
@@ -1520,39 +1701,17 @@ export function Composer({
                           </span>
                         </button>
                       ))}
-                    </div>
-
-                    <div className="space-y-2 pt-2 border-t border-border">
-                      <label className="font-medium block text-xs text-muted-foreground">
-                        Custom date & time
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={customDatetime}
-                        min={new Date().toISOString().slice(0, 16)}
-                        onChange={(e) => setCustomDatetime(e.target.value)}
-                        className="px-2 py-1 text-xs rounded-md w-full border border-border bg-background text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
-                      />
                       <button
                         type="button"
-                        disabled={!customDatetime}
-                        onClick={() => {
-                          if (!customDatetime) return;
-                          const targetDate = new Date(customDatetime);
-                          if (
-                            isNaN(targetDate.getTime()) ||
-                            targetDate.getTime() <= Date.now()
-                          ) {
-                            toast.error('Please select a future date and time');
-                            return;
-                          }
-                          void handleSchedule(targetDate.toISOString());
-                        }}
-                        className="py-1.5 px-3 text-xs font-medium rounded-md w-full bg-foreground text-background transition-colors hover:bg-foreground/85"
+                        onClick={() => setScheduleView('custom')}
+                        className="mt-1 pt-2 px-2 py-1.5 gap-2 rounded-md text-xs flex w-full items-center border-t border-border text-left text-foreground transition-colors hover:bg-accent"
                       >
-                        Schedule Send
+                        <CalendarDays className="size-3.5 text-muted-foreground" />
+                        <span className="flex-1">Custom date & time…</span>
+                        <ChevronRight className="size-3.5 text-muted-foreground" />
                       </button>
                     </div>
+                    ) : null}
                   </PopoverContent>
                 </Popover>
               ) : null}

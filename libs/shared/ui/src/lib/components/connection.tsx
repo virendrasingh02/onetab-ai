@@ -1,6 +1,7 @@
 import { cn, formatRelative } from '@org/utils';
 import {
   AlertTriangle,
+  KeyRound,
   Loader2,
   PlugZap,
   RefreshCw,
@@ -122,6 +123,14 @@ export interface ConnectionCardProps {
   cannotConnectReason?: string;
   /** Set while a connect/disconnect request for this card is in flight. */
   busy?: boolean;
+  /**
+   * The app can't be connected until someone adds its credentials (e.g. an
+   * OAuth client ID and secret). Replaces Connect with `onSetup` ("Add
+   * credentials") when the viewer may do that, else with `setupHint`.
+   */
+  needsSetup?: boolean;
+  onSetup?: () => void;
+  setupHint?: string;
   onConnect?: () => void;
   onReconnect?: () => void;
   onDisconnect?: () => void;
@@ -149,6 +158,9 @@ export function ConnectionCard({
   canConnect = true,
   cannotConnectReason,
   busy = false,
+  needsSetup = false,
+  onSetup,
+  setupHint,
   onConnect,
   onReconnect,
   onDisconnect,
@@ -157,6 +169,7 @@ export function ConnectionCard({
   className,
 }: ConnectionCardProps) {
   const linked = isLinked(state);
+  const awaitingSetup = needsSetup && !linked && state !== 'disabled';
   const pending = state === 'connecting' || state === 'reconnecting';
   const titleId = `connection-${name.replace(/\W+/g, '-').toLowerCase()}`;
 
@@ -192,7 +205,14 @@ export function ConnectionCard({
             <h3 id={titleId} className="text-sm font-semibold truncate text-foreground">
               {name}
             </h3>
-            <ConnectionStatusBadge state={state} label={statusLabel} className="mt-1" />
+            {awaitingSetup ? (
+              <Badge variant="warning" className="mt-1 rounded-full">
+                <span aria-hidden className="size-1.5 rounded-full bg-warning" />
+                {statusLabel ?? 'Needs setup'}
+              </Badge>
+            ) : (
+              <ConnectionStatusBadge state={state} label={statusLabel} className="mt-1" />
+            )}
           </div>
         </div>
         {linked && actions ? <div className="gap-0.5 flex shrink-0 items-center">{actions}</div> : null}
@@ -253,6 +273,16 @@ export function ConnectionCard({
       <div className="mt-auto gap-2 pt-1 flex flex-wrap items-center">
         {state === 'disabled' ? (
           <span className="text-xs font-medium text-muted-foreground">Not yet available</span>
+        ) : awaitingSetup ? (
+          onSetup ? (
+            <Button type="button" size="sm" variant="outline" onClick={onSetup} leadingIcon={<KeyRound />}>
+              Add credentials
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {setupHint ?? 'An admin needs to set this app up first.'}
+            </span>
+          )
         ) : pending ? (
           <Button type="button" size="sm" variant="outline" disabled leadingIcon={<Loader2 className="animate-spin" />}>
             {STATE_META[state].label}

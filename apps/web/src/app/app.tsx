@@ -179,7 +179,10 @@ const CoworkerCreateDialog = lazy(() =>
   import('@org/web-coworkers').then((m) => ({ default: m.CoworkerCreateDialog })),
 );
 
-/** The marketplace, with coworker creation (which lives above `@org/web-agents`) plugged in. */
+/**
+ * The marketplace, with coworker creation and the live connectors (both of
+ * which live outside `@org/web-agents`) plugged in.
+ */
 function MarketplaceRoute() {
   return (
     <AgentMarketplaceView
@@ -190,6 +193,11 @@ function MarketplaceRoute() {
           </Suspense>
         ) : null
       }
+      renderIntegrations={({ searchQuery }) => (
+        <Suspense fallback={null}>
+          <IntegrationHubView embedded searchQuery={searchQuery} />
+        </Suspense>
+      )}
     />
   );
 }
@@ -418,7 +426,11 @@ const workspaceChildRoutes = (
             <Route path="marketplace/apps/:slug" element={<MarketplaceItemRedirect kind="app" />} />
             <Route path="marketplace/agents/:slug" element={<MarketplaceItemRedirect kind="agent" />} />
             <Route path="marketplace/developer" element={<MarketplaceRoute />} />
-            <Route path="integrations" element={<IntegrationHubView />} />
+            {/* The Integration Hub lives in Marketplace → Apps & Integrations. */}
+            <Route
+              path="integrations"
+              element={<Navigate to="../marketplace?tab=apps" replace />}
+            />
             <Route path="apps" element={<AppChatView />} />
             <Route path="apps/chat" element={<AppChatView />} />
             <Route path="apps/:appId/chat" element={<AppChatView />} />

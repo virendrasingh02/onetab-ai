@@ -60,14 +60,15 @@ export const MarketplaceCatalogView: React.FC<MarketplaceCatalogViewProps> = ({
   const [sortBy, setSortBy] = useState<SortBy>('recommended');
   const [isCompactList, setIsCompactList] = useState<boolean>(false);
 
-  // Extract all distinct categories
+  // Distinct categories among the listings this view actually shows
   const categories = useMemo(() => {
     const set = new Set<string>();
     listings.forEach((item) => {
+      if ((kind === 'INTEGRATION' || kind === 'AGENT') && item.kind !== kind) return;
       if (item.category) set.add(item.category);
     });
     return Array.from(set).sort();
-  }, [listings]);
+  }, [listings, kind]);
 
   // Filter items
   const filtered = useMemo(() => {

@@ -19,9 +19,9 @@ describe('Navigation Resolver', () => {
     expect(home).toBeDefined();
     expect(home?.fullPath).toBe('/w/test-workspace');
 
-    // Verify Tasks full path
-    const tasks = allItems.find((i) => i.id === 'tasks');
-    expect(tasks?.fullPath).toBe('/w/test-workspace/tasks');
+    // Verify Meetings full path
+    const meetings = allItems.find((i) => i.id === 'meetings');
+    expect(meetings?.fullPath).toBe('/w/test-workspace/meetings');
   });
 
   it('safely incorporates user preferences (hiding items & reordering)', () => {
@@ -53,10 +53,10 @@ describe('Navigation Resolver', () => {
       workspaceSlug: 'test-workspace',
     });
 
-    // New items like the AI Workspace should automatically appear with their defaults
-    const aiWorkspace = allItems.find((i) => i.id === 'ai-workspace');
-    expect(aiWorkspace).toBeDefined();
-    expect(aiWorkspace?.isVisible).toBe(true);
+    // Items the user never customized should appear with their defaults
+    const automations = allItems.find((i) => i.id === 'automations');
+    expect(automations).toBeDefined();
+    expect(automations?.isVisible).toBe(true);
   });
 
   it('injects dynamic unread badges for inbox', () => {

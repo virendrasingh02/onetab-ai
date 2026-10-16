@@ -701,8 +701,8 @@ export function ChannelNav({
 
   /*
    * The primary nav used to render all ~16 destinations as one flat list, which
-   * pushed Channels and DMs below the fold. Only the Workspace group stays flat;
-   * the others fold away. A group nobody has toggled opens on its own while the
+   * pushed Channels and DMs below the fold. Groups marked `collapsible: false`
+   * stay flat (no header); the others fold away. A group nobody has toggled opens on its own while the
    * current page lives inside it, so the active row is never hidden.
    */
   const [navGroupOpen, setNavGroupOpen] = useState<Record<string, boolean>>(
@@ -1443,7 +1443,7 @@ export function ChannelNav({
                 />
               );
               return resolvedNav.groups.map((group) => {
-                if (group.id === 'workspace') {
+                if (!group.collapsible) {
                   return (
                     <div key={group.id} className="space-y-0.5">
                       {group.items.map(renderRow)}
