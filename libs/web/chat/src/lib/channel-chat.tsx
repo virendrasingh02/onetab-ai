@@ -58,6 +58,8 @@ export interface ChannelChatProps {
   canManageConversation?: boolean;
   /** Off hides every "start a huddle" affordance — see `ChatSurface`. */
   huddlesEnabled?: boolean;
+  /** Shareable join link for the huddle — see `ChatSurface`. */
+  huddleLink?: string;
   /**
    * The viewer's own "Channel member suggestions" switch: off stops the
    * composer offering to add people who aren't in the channel.
@@ -93,6 +95,7 @@ export function ChannelChat({
   anonymousPosting,
   canManageConversation,
   huddlesEnabled,
+  huddleLink,
   memberSuggestions,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
@@ -157,6 +160,7 @@ export function ChannelChat({
       welcome={welcome}
       huddleRequest={huddleRequest}
       huddlesEnabled={huddlesEnabled}
+      huddleLink={huddleLink}
       composerReadOnlyMessage={composerReadOnlyMessage}
       threadComposerReadOnlyMessage={threadComposerReadOnlyMessage}
       anonymousPosting={anonymousPosting}

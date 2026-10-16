@@ -1165,6 +1165,11 @@ export function ChannelPage({
             }}
             canManageConversation={canManageChannel}
             huddlesEnabled={channel.huddlesEnabled}
+            huddleLink={
+              channel.membership
+                ? `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}?huddle=join`
+                : undefined
+            }
             memberSuggestions={channel.membership?.memberSuggestions}
           />
         </TabsContent>

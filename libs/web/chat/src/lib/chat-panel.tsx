@@ -127,6 +127,8 @@ export interface ChatPanelProps {
   huddleRequest?: number;
   /** Off hides every "start a huddle" affordance. See `ChatSurface`. */
   huddlesEnabled?: boolean;
+  /** Shareable join link for the huddle. See `ChatSurface`. */
+  huddleLink?: string;
   onCreateTask?: (message: Message) => void;
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
@@ -166,6 +168,7 @@ export function ChatPanel({
   welcome,
   huddleRequest,
   huddlesEnabled,
+  huddleLink,
   onCreateTask,
   onCreateDoc,
   onAskAI,
@@ -852,6 +855,7 @@ export function ChatPanel({
       welcome={welcome}
       huddleRequest={huddleRequest}
       huddlesEnabled={huddlesEnabled}
+      huddleLink={huddleLink}
       isEncrypted={
         showEncryptedBadge &&
         !!client &&
