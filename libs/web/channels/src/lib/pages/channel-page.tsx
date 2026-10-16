@@ -1125,6 +1125,7 @@ export function ChannelPage({
         >
           <ChannelChat
             channelId={channel.id}
+            matrixRoomId={channel.matrixRoomId}
             workspaceId={workspaceId}
             title={channel.name}
             subtitle={channel.topic ?? undefined}

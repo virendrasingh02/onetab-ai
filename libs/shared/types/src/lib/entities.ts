@@ -379,6 +379,12 @@ export interface ChannelSummary extends Channel {
    */
   canPost: boolean;
   /**
+   * The Matrix room already backing this channel, or null when chat has never
+   * been opened for it. Lets the client open the room straight from its synced
+   * store instead of waiting on `POST /matrix/channels/:id/room` first.
+   */
+  matrixRoomId?: string | null;
+  /**
    * Whether the viewer may add a thread reply here right now — `canPost`
    * plus `allowReplies` in announcement mode. Same caveat: a hint for the
    * UI, the Matrix room's power levels are the real gate.

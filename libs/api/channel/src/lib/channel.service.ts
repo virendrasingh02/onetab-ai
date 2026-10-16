@@ -158,6 +158,7 @@ export class ChannelService {
   /** Folds membership state and the derived `canPost` flag onto a channel row. */
   private toSummary(
     channel: Parameters<typeof toChannel>[0] & {
+      matrixRoomId: string | null;
       _count: { members: number };
       members: {
         role: string;
@@ -180,6 +181,7 @@ export class ChannelService {
     return {
       ...base,
       memberCount: channel._count.members,
+      matrixRoomId: channel.matrixRoomId,
       membership: membershipRow
         ? {
             role: membershipRow.role as ChannelRole,

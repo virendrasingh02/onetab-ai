@@ -396,12 +396,23 @@ export function MessageList({
   /** Set synchronously when a backfill is asked for; cleared when it lands. */
   const loadingOlder = useRef(false);
   /** Row to hold steady while heights settle (prepend / conversation switch). */
-  const pendingAnchor = useRef<(Anchor & { frames: number }) | null>(null);
+  const pendingAnchor = useRef<
+    | (Anchor & { frames: number; stableFrames?: number; lastHeight?: number })
+    | null
+  >(null);
   /** Conversation whose saved position we still owe a restore to. */
   const restorePendingFor = useRef<string | null | undefined>(undefined);
   /** True while we move the scrollbar ourselves — makes `onScroll` stand down. */
   const adjusting = useRef(false);
   const settleRaf = useRef<number | null>(null);
+  /**
+   * True while a just-opened conversation is being placed (bottom, unread
+   * line or saved anchor). The viewport is kept invisible for those few frames
+   * so the reader never sees it paint at the wrong offset and then jump — the
+   * Slack behaviour of a channel simply *appearing* at its newest message.
+   */
+  const placing = useRef(false);
+  const placingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRaf = useRef<number | null>(null);
   const readTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Last `following` value handed to the host — only report the transitions. */
@@ -419,7 +430,18 @@ export function MessageList({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 64,
+    /*
+     * Closer first guesses mean smaller corrections while the rows measure.
+     * Real heights are cached per row key and reused on every later visit.
+     */
+    estimateSize: (index) => {
+      const row = rows[index];
+      if (!row) return 64;
+      if (row.kind === 'separator') return 44;
+      if (row.kind === 'unread') return 32;
+      if (row.kind === 'message' && row.grouped) return 32;
+      return 64;
+    },
     overscan: 8,
     getItemKey: (index) => rows[index]?.key ?? index,
     /*
@@ -475,11 +497,38 @@ export function MessageList({
     return { key: String(item.key), offset: item.start - listTop };
   }, [virtualizer, getListOffset]);
 
+  /** Show the viewport again once a placement has landed. */
+  const reveal = useCallback(() => {
+    if (!placing.current) return;
+    placing.current = false;
+    if (placingTimer.current != null) {
+      clearTimeout(placingTimer.current);
+      placingTimer.current = null;
+    }
+    const element = scrollRef.current;
+    if (!element) return;
+    element.style.transition = 'opacity 90ms ease-out';
+    element.style.opacity = '';
+  }, []);
+
+  /** Hide the viewport until the placement that starts now has landed. */
+  const hideWhilePlacing = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    placing.current = true;
+    element.style.transition = 'none';
+    element.style.opacity = '0';
+    // rAF is paused in a background tab; never leave the timeline invisible.
+    if (placingTimer.current != null) clearTimeout(placingTimer.current);
+    placingTimer.current = setTimeout(reveal, 400);
+  }, [reveal]);
+
   const releaseAdjusting = useCallback(() => {
+    reveal();
     requestAnimationFrame(() => {
       adjusting.current = false;
     });
-  }, []);
+  }, [reveal]);
 
   /**
    * Re-pin the viewport to `pendingAnchor` once per frame for a short burst.
@@ -497,19 +546,31 @@ export function MessageList({
     }
 
     const index = rowsRef.current.findIndex((row) => row.key === anchor.key);
+    let stableFrames = anchor.stableFrames ?? 0;
     if (index >= 0) {
       const info = virtualizer.getOffsetForIndex(index, 'start');
       if (info) {
         adjusting.current = true;
-        element.scrollTop = Math.max(
-          0,
-          getListOffset() + info[0] - anchor.offset,
-        );
+        const target = Math.max(0, getListOffset() + info[0] - anchor.offset);
+        const height = element.scrollHeight;
+        stableFrames =
+          Math.abs(element.scrollTop - target) < 1 &&
+          height === anchor.lastHeight
+            ? stableFrames + 1
+            : 0;
+        element.scrollTop = target;
+        anchor.lastHeight = height;
       }
     }
 
-    if (index >= 0 && anchor.frames > 1) {
-      pendingAnchor.current = { ...anchor, frames: anchor.frames - 1 };
+    // Done early once two frames in a row needed no correction: the rows
+    // around the anchor have measured, so the remaining frames would be idle.
+    if (index >= 0 && anchor.frames > 1 && stableFrames < 2) {
+      pendingAnchor.current = {
+        ...anchor,
+        frames: anchor.frames - 1,
+        stableFrames,
+      };
       settleRaf.current = requestAnimationFrame(runSettle);
     } else {
       pendingAnchor.current = null;
@@ -530,15 +591,25 @@ export function MessageList({
       if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
       pendingAnchor.current = null;
       let left = frames;
+      let lastHeight = -1;
+      let stable = 0;
       const step = () => {
         const element = scrollRef.current;
         if (!element) {
           settleRaf.current = null;
+          reveal();
           return;
         }
         adjusting.current = true;
-        element.scrollTop = element.scrollHeight;
-        if (--left > 0) {
+        const height = element.scrollHeight;
+        const atBottom =
+          height - element.scrollTop - element.clientHeight < 1;
+        stable = atBottom && height === lastHeight ? stable + 1 : 0;
+        lastHeight = height;
+        element.scrollTop = height;
+        // Stop as soon as the bottom rows have measured and nothing moved for
+        // two frames — no need to burn the whole budget (or stay hidden).
+        if (--left > 0 && stable < 2) {
           settleRaf.current = requestAnimationFrame(step);
         } else {
           settleRaf.current = null;
@@ -547,7 +618,7 @@ export function MessageList({
       };
       settleRaf.current = requestAnimationFrame(step);
     },
-    [releaseAdjusting],
+    [releaseAdjusting, reveal],
   );
 
   const scrollToBottom = useCallback(() => {
@@ -825,6 +896,8 @@ export function MessageList({
    */
   useLayoutEffect(() => {
     restorePendingFor.current = conversationId;
+    // A placement still running for the previous conversation is moot.
+    reveal();
     setNewMessagesCount(0);
     setFloatingDay(null);
     pendingAnchor.current = null;
@@ -867,6 +940,11 @@ export function MessageList({
       openPosition !== 'newest' && unreadBeforeId
         ? rows.findIndex((row) => row.kind === 'unread')
         : -1;
+    // Everything below runs before this commit paints: hide the viewport, put
+    // the scrollbar as close to the target as the estimates allow right now,
+    // and let the settle loop finish the job (and reveal) over the next frames.
+    hideWhilePlacing();
+
     if (unreadIndex >= 0) {
       stickToBottom.current = false;
       reportFollowing(false);
@@ -875,7 +953,7 @@ export function MessageList({
         offset: 0,
         frames: 16,
       };
-      startSettle();
+      runSettle();
       updateFloatingDay();
       return;
     }
@@ -894,13 +972,15 @@ export function MessageList({
         offset: saved.offset,
         frames: 16,
       };
-      startSettle();
+      runSettle();
       updateFloatingDay();
       return;
     }
 
     stickToBottom.current = true;
     reportFollowing(true);
+    adjusting.current = true;
+    element.scrollTop = element.scrollHeight;
     pinBottom();
     updateFloatingDay();
   }, [
@@ -909,8 +989,9 @@ export function MessageList({
     rows,
     openPosition,
     unreadBeforeId,
-    startSettle,
+    runSettle,
     pinBottom,
+    hideWhilePlacing,
     updateFloatingDay,
     reportFollowing,
   ]);
@@ -1015,6 +1096,7 @@ export function MessageList({
       if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
       if (scrollRaf.current != null) cancelAnimationFrame(scrollRaf.current);
       if (readTimeoutRef.current != null) clearTimeout(readTimeoutRef.current);
+      if (placingTimer.current != null) clearTimeout(placingTimer.current);
     },
     [],
   );

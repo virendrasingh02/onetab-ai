@@ -12,14 +12,23 @@ import { useMatrix } from './matrix-provider.js';
  *
  * Disabled until the Matrix client is connected, so a deployment without a
  * homeserver never provisions rooms it cannot use.
+ *
+ * `knownRoomId` is the room the channel record already names (see
+ * `ChannelSummary.matrixRoomId`). It seeds the cache, so a channel whose room
+ * exists opens straight from the client's synced Matrix store — no round trip,
+ * no "connecting" frame between the switch and the timeline.
  */
-export function useChannelRoom(channelId: string | undefined) {
+export function useChannelRoom(
+  channelId: string | undefined,
+  knownRoomId?: string | null,
+) {
   const { client, enabled } = useMatrix();
 
   const query = useQuery({
     queryKey: queryKeys.matrix.channelRoom(channelId ?? ''),
     queryFn: () => matrixApi.channelRoom(channelId as string),
     enabled: !!channelId && enabled && !!client,
+    initialData: knownRoomId ? { roomId: knownRoomId } : undefined,
     // The mapping does not change, so refetching on focus only adds load.
     staleTime: Infinity,
     retry: 1,

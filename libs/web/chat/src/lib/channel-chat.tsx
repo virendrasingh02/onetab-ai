@@ -8,6 +8,8 @@ import { useChannelRoom } from './use-channel-room.js';
 
 export interface ChannelChatProps {
   channelId: string;
+  /** The channel's Matrix room when already provisioned — skips resolving it. */
+  matrixRoomId?: string | null;
   title: string;
   subtitle?: string;
   workspaceId?: string;
@@ -77,6 +79,7 @@ export interface ChannelChatProps {
  */
 export function ChannelChat({
   channelId,
+  matrixRoomId,
   title,
   subtitle,
   workspaceId,
@@ -93,7 +96,7 @@ export function ChannelChat({
   memberSuggestions,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
-  const { roomId, error } = useChannelRoom(channelId);
+  const { roomId, error } = useChannelRoom(channelId, matrixRoomId);
 
   const composerContext = useMemo<ComposerContext>(
     () => ({
