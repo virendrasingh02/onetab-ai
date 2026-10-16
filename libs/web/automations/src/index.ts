@@ -21,6 +21,7 @@ export * from './lib/center/index.js';
 
 /* AI Agent Studio — agents described in words, planned, run and reviewed. */
 export { StudioHome } from './lib/studio/StudioHome.js';
+export { useAgentFavorites } from './lib/studio/use-studio.js';
 export { AgentLibrary, TemplateGallery } from './lib/studio/AgentLibrary.js';
 export { AgentCreatePage } from './lib/studio/AgentCreatePage.js';
 export { AgentDetailPage } from './lib/studio/AgentDetailPage.js';

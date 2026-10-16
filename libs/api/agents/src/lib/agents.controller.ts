@@ -27,6 +27,7 @@ import {
   zodBody,
 } from '@org/api-common';
 import {
+  agentChatSchema,
   agentTestRunSchema,
   agentVersionSchema,
   createAgentSchema,
@@ -47,6 +48,7 @@ import {
 } from '@org/types';
 import { AgentsService } from './agents.service.js';
 import { CanManageAIEntity } from './ai-entity-access.guard.js';
+import { STUDIO_TEMPLATES } from './studio-templates/studio-templates.js';
 
 /**
  * A workspace's own agents.
@@ -76,6 +78,12 @@ export class AgentsController {
    * but it must stay above any future single-segment `:agentId` route, which
    * would otherwise swallow `/logs`.
    */
+  /** The built-in agent templates a workspace can start from. */
+  @Get('templates')
+  getTemplates() {
+    return STUDIO_TEMPLATES;
+  }
+
   @Get('logs')
   getWorkspaceLogs(@WorkspaceId() workspaceId: string) {
     return this.agentsService.getWorkspaceLogs(workspaceId);
@@ -130,6 +138,49 @@ export class AgentsController {
     @Body(zodBody(executeAIEntitySchema)) body: { promptText: string },
   ) {
     return this.agentsService.executeAgent(workspaceId, agentId, body.promptText);
+  }
+
+  /** One chat turn with this agent; the conversation is stored for the caller. */
+  @Post(':agentId/chat')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  chat(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(agentChatSchema)) body: { conversationId?: string; message: string },
+  ) {
+    return this.agentsService.chat(workspaceId, agentId, userId, body);
+  }
+
+  @Get(':agentId/conversations')
+  listConversations(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.agentsService.listConversations(workspaceId, agentId, userId);
+  }
+
+  @Get(':agentId/conversations/:conversationId')
+  getConversation(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Param('conversationId') conversationId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.agentsService.getConversation(workspaceId, agentId, userId, conversationId);
+  }
+
+  @Delete(':agentId/conversations/:conversationId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteConversation(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Param('conversationId') conversationId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.agentsService.deleteConversation(workspaceId, agentId, userId, conversationId);
   }
 
   @Get(':agentId/logs')

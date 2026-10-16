@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { randomUUID } from 'node:crypto';
 import { AppEvent, type AgentChangeAction } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
@@ -154,6 +155,90 @@ export class AgentsService {
       logId: run.logId,
       tools: run.tools,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Conversations: a person's persisted chat with one agent
+  // -------------------------------------------------------------------------
+
+  private static readonly HISTORY_TURNS = 20;
+
+  private async ownConversation(workspaceId: string, agentId: string, userId: string, id: string) {
+    const convo = await this.prisma.agentConversation.findFirst({
+      where: { id, workspaceId, agentId, userId },
+    });
+    if (!convo) throw new NotFoundException('Conversation not found.');
+    return convo;
+  }
+
+  async listConversations(
+    workspaceId: string,
+    agentId: string,
+    userId: string,
+  ): Promise<Array<{ id: string; title: string; createdAt: Date; updatedAt: Date }>> {
+    return this.prisma.agentConversation.findMany({
+      where: { workspaceId, agentId, userId },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+      select: { id: true, title: true, createdAt: true, updatedAt: true },
+    });
+  }
+
+  async getConversation(workspaceId: string, agentId: string, userId: string, id: string) {
+    return this.ownConversation(workspaceId, agentId, userId, id);
+  }
+
+  async deleteConversation(workspaceId: string, agentId: string, userId: string, id: string) {
+    await this.ownConversation(workspaceId, agentId, userId, id);
+    await this.prisma.agentConversation.delete({ where: { id } });
+  }
+
+  /**
+   * One chat turn: runs the agent with the conversation so far as history,
+   * then stores both sides. A failed run stores nothing, so a retry is clean.
+   */
+  async chat(
+    workspaceId: string,
+    agentId: string,
+    userId: string,
+    input: { conversationId?: string; message: string },
+  ) {
+    const existing = input.conversationId
+      ? await this.ownConversation(workspaceId, agentId, userId, input.conversationId)
+      : null;
+    const prior = (Array.isArray(existing?.messages) ? existing.messages : []) as Array<Record<string, unknown>>;
+    const history = prior
+      .filter((m) => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      .slice(-AgentsService.HISTORY_TURNS * 2)
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content as string }));
+
+    const run = await this.runtimeService.executeTurn(workspaceId, agentId, input.message, {
+      history,
+      requesterId: userId,
+    });
+
+    const now = new Date().toISOString();
+    const userMsg = { id: randomUUID(), role: 'user', content: input.message, at: now };
+    const reply = { id: randomUUID(), role: 'assistant', content: run.result, logId: run.logId, tools: run.tools, at: now };
+    const messages = [...prior, userMsg, reply];
+
+    const saved = existing
+      ? await this.prisma.agentConversation.update({
+          where: { id: existing.id },
+          data: { messages: messages as object[] },
+          select: { id: true, title: true },
+        })
+      : await this.prisma.agentConversation.create({
+          data: {
+            workspaceId,
+            agentId,
+            userId,
+            title: input.message.replace(/\s+/g, ' ').slice(0, 60),
+            messages: messages as object[],
+          },
+          select: { id: true, title: true },
+        });
+    return { conversationId: saved.id, title: saved.title, message: reply };
   }
 
   async getExecutionLogs(workspaceId: string, agentId: string) {

@@ -1,6 +1,6 @@
 import { compileStudioGraph } from '@org/types';
 import { describe, expect, it } from 'vitest';
-import { STUDIO_TEMPLATES } from './templates.js';
+import { STUDIO_TEMPLATES } from './studio-templates.js';
 
 describe('Shopify → Slack → WhatsApp template', () => {
   const template = STUDIO_TEMPLATES.find((t) => t.id === 'shopify-order-slack-whatsapp');

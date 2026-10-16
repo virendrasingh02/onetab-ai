@@ -229,6 +229,32 @@ describe('<SidebarActivityIndicator />', () => {
     );
   });
 
+  it('renders an @ mention pill, with the count only when more than one', () => {
+    const { rerender } = render(
+      <SidebarActivityIndicator
+        state={{ activityType: 'mention', unreadCount: 1 }}
+        surface="channels"
+        itemLabel="#onetab-ai"
+      />,
+    );
+    const single = screen.getByRole('img');
+    expect(single).toHaveAttribute(
+      'aria-label',
+      'You were mentioned in #onetab-ai (1)',
+    );
+    expect(single.querySelector('svg')).not.toBeNull();
+    expect(single).toHaveTextContent('');
+
+    rerender(
+      <SidebarActivityIndicator
+        state={{ activityType: 'mention', unreadCount: 3 }}
+        surface="channels"
+        itemLabel="#onetab-ai"
+      />,
+    );
+    expect(screen.getByRole('img')).toHaveTextContent('3');
+  });
+
   it('obeys a provided config (preferences off)', () => {
     const { container } = render(
       <SidebarActivityConfigProvider value={config({ enabled: false })}>

@@ -1,6 +1,6 @@
 import { LoadingState, ScrollArea } from '@org/ui';
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation } from './router.js';
 import { StudioHeader } from './components/studio-header.js';
 import { StudioSidebar } from './components/studio-sidebar.js';
 import { AgentDetailPage } from './pages/agent-detail-page.js';
@@ -23,8 +23,8 @@ import { WorkflowsPage } from './pages/workflows-page.jsx';
 import { WidgetCenterPage } from './pages/widget-center-page.js';
 import { WidgetBuilderPage } from './pages/widget-builder-page.js';
 import { Providers } from './providers.js';
-import { studioCorePath, studioCoreRoutes } from './studio-core-bridge.js';
-import { SessionGuard, useStudioSession } from './session-guard.js';
+import { studioCoreRoutes } from './studio-core-bridge.js';
+import { SessionGuard } from './session-guard.js';
 
 const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/create': { section: 'Build & Orchestrate', page: 'Create with AI' },
@@ -45,17 +45,26 @@ const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/developer': { section: 'Platform & Config', page: 'Developer Hub' },
 };
 
+const SCOPED_ROOT = /^\/w\/[^/]+\/ai(?=\/|$)/;
+
 function getBreadcrumb(pathname: string): { section: string; page: string } {
-  const core = /^\/w\/[^/]+\/ai(?:\/([^/]+))?/.exec(pathname)?.[1];
-  if (pathname.startsWith('/w/')) {
-    const page = core === 'agents' ? 'Planned Agents' : core === 'runs' ? 'Runs' : core === 'approvals' ? 'Human Approvals' : core === 'studio' ? 'Planned Agent' : core === 'workflows' ? 'Workflow Canvas' : 'Studio Home';
-    return { section: 'Plan, Run & Approve', page };
+  const rest = pathname.replace(SCOPED_ROOT, '') || '/';
+  const first = rest.split('/')[1] ?? '';
+  const core: Record<string, string> = {
+    '': 'Studio Home',
+    agents: 'Planned Agents',
+    runs: 'Runs',
+    approvals: 'Human Approvals',
+    studio: 'Planned Agent',
+  };
+  if (first in core) {
+    return { section: 'Plan, Run & Approve', page: core[first] };
   }
-  if (BREADCRUMB_MAP[pathname]) return BREADCRUMB_MAP[pathname];
-  for (const [key, value] of Object.entries(BREADCRUMB_MAP)) {
-    if (key !== '/' && pathname.startsWith(key)) {
-      return value;
-    }
+  if (/^\/workflows\/[^/]+/.test(rest)) return { section: 'Plan, Run & Approve', page: 'Workflow Canvas' };
+  const key = rest.startsWith('/my-agents') ? rest.replace('/my-agents', '/agents') : rest;
+  if (BREADCRUMB_MAP[key]) return BREADCRUMB_MAP[key];
+  for (const [prefix, value] of Object.entries(BREADCRUMB_MAP)) {
+    if (key.startsWith(prefix)) return value;
   }
   return { section: 'Plan, Run & Approve', page: 'Studio Home' };
 }
@@ -71,10 +80,8 @@ function StudioShell() {
   });
 
   const location = useLocation();
-  const { activeWorkspace } = useStudioSession();
-  const isAgentCanvas =
-    location.pathname.startsWith('/agents/') && location.pathname !== '/agents';
-  const isUserChat = location.pathname.startsWith('/chat/');
+  const isAgentCanvas = /^\/w\/[^/]+\/ai\/my-agents\/[^/]+/.test(location.pathname);
+  const isUserChat = /^\/w\/[^/]+\/ai\/chat\/[^/]+/.test(location.pathname);
 
   const breadcrumb = useMemo(() => getBreadcrumb(location.pathname), [location.pathname]);
 
@@ -109,19 +116,13 @@ function StudioShell() {
 
   if (isUserChat) {
     return (
-      <Routes>
-        <Route path="/chat/:agentId" element={<UserChatPage />} />
-        <Route path="*" element={<Navigate to="/agents" replace />} />
-      </Routes>
+      <Routes>{studioCoreRoutes(<Route path="chat/:agentId" element={<UserChatPage />} />)}</Routes>
     );
   }
 
   if (isAgentCanvas) {
     return (
-      <Routes>
-        <Route path="/agents/:agentId" element={<AgentDetailPage />} />
-        <Route path="*" element={<Navigate to="/agents" replace />} />
-      </Routes>
+      <Routes>{studioCoreRoutes(<Route path="my-agents/:agentId" element={<AgentDetailPage />} />)}</Routes>
     );
   }
 
@@ -145,34 +146,33 @@ function StudioShell() {
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
           <ScrollArea
             className="min-h-0 flex-1"
-            contentClassName="flex min-h-full flex-col p-3 sm:p-6 w-full"
+            contentClassName="flex min-h-full w-full flex-col"
           >
             <Suspense fallback={<LoadingState fullPage />}>
               <Routes>
-                <Route path="/" element={<Navigate to={studioCorePath(activeWorkspace.slug)} replace />} />
-                <Route path="/overview" element={<Navigate to={studioCorePath(activeWorkspace.slug)} replace />} />
-                <Route path="/create" element={<CreateAgentPage />} />
-                <Route path="/agents" element={<AgentsListPage />} />
-                <Route path="/workflows" element={<WorkflowsPage />} />
-                <Route path="/templates" element={<TemplatesPage />} />
-                <Route path="/executions" element={<ExecutionsPage />} />
-                <Route path="/connectors" element={<ConnectorsPage />} />
-                <Route path="/connectors/groups" element={<ConnectorGroupsPage />} />
-                <Route path="/connectors/new" element={<CustomConnectorPage />} />
-                <Route path="/connectors/:connectorId" element={<ConnectorDetailPage />} />
-                <Route path="/connectors/:connectorId/edit" element={<CustomConnectorPage />} />
-                <Route path="/widgets" element={<WidgetCenterPage />} />
-                <Route path="/widgets/new" element={<WidgetBuilderPage />} />
-                <Route path="/widgets/:widgetId" element={<WidgetBuilderPage />} />
-                <Route path="/tools" element={<ToolsPage />} />
-                <Route path="/mcp" element={<McpPage />} />
-                <Route path="/knowledge" element={<KnowledgePage />} />
-                <Route path="/approvals" element={<Navigate to={studioCorePath(activeWorkspace.slug, "approvals")} replace />} />
-                {studioCoreRoutes()}
-                <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/developer" element={<DeveloperPage />} />
-                <Route path="*" element={<Navigate to={studioCorePath(activeWorkspace.slug)} replace />} />
+                {studioCoreRoutes(
+                  <>
+                  <Route path="create" element={<CreateAgentPage />} />
+                  <Route path="my-agents" element={<AgentsListPage />} />
+                  <Route path="workflows" element={<WorkflowsPage />} />
+                  <Route path="templates" element={<TemplatesPage />} />
+                  <Route path="executions" element={<ExecutionsPage />} />
+                  <Route path="connectors" element={<ConnectorsPage />} />
+                  <Route path="connectors/groups" element={<ConnectorGroupsPage />} />
+                  <Route path="connectors/new" element={<CustomConnectorPage />} />
+                  <Route path="connectors/:connectorId" element={<ConnectorDetailPage />} />
+                  <Route path="connectors/:connectorId/edit" element={<CustomConnectorPage />} />
+                  <Route path="widgets" element={<WidgetCenterPage />} />
+                  <Route path="widgets/new" element={<WidgetBuilderPage />} />
+                  <Route path="widgets/:widgetId" element={<WidgetBuilderPage />} />
+                  <Route path="tools" element={<ToolsPage />} />
+                  <Route path="mcp" element={<McpPage />} />
+                  <Route path="knowledge" element={<KnowledgePage />} />
+                  <Route path="analytics" element={<AnalyticsPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                  <Route path="developer" element={<DeveloperPage />} />
+                  </>,
+                )}
               </Routes>
             </Suspense>
           </ScrollArea>

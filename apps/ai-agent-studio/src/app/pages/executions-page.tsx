@@ -143,7 +143,7 @@ export function ExecutionsPage() {
   });
 
   return (
-    <Page width="wide" padding="none" className="space-y-6">
+    <Page className="space-y-6">
       {/* Header matching Admin PageHeader */}
       <PageHeader
         title="Agent Chat Logs"

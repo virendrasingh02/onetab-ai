@@ -1,4 +1,5 @@
 import { agentsApi } from '@org/api-client';
+import { Link } from '../../../router.js';
 import { AppSelect, Badge, Button, Checkbox, confirm, Input, SearchInput, Textarea, Label } from '@org/ui';
 import { cn } from '@org/utils';
 import { connectorActionRef, generateToolGuidance, readPromptSettings, READ_ONLY_AGENT_TOOLS, type ToolGuidanceSource, type CanvasToolPolicy, type ConnectorCapability, type ConnectorSummary } from '@org/types';
@@ -322,9 +323,9 @@ function AppTools({
               {isOpen && (
                 <div className="space-y-0.5 border-t border-border px-1.5 py-1.5">
                   {c.status !== 'connected' && (
-                    <a href={`/connectors/${c.slug}`} target="_blank" rel="noreferrer" className="mb-1 flex items-center gap-1 px-1 text-[11px] font-medium text-primary hover:underline">
+                    <Link to={`/connectors/${c.slug}`} target="_blank" rel="noreferrer" className="mb-1 flex items-center gap-1 px-1 text-[11px] font-medium text-primary hover:underline">
                       <Plug className="size-3" /> Connect {c.name} to use these at run time <ExternalLink className="size-3" />
-                    </a>
+                    </Link>
                   )}
                   {c.capabilities
                     .filter((cap) => !f || cap.label.toLowerCase().includes(f) || c.name.toLowerCase().includes(f))

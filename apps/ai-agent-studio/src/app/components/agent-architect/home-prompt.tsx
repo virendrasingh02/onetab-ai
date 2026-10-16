@@ -3,7 +3,7 @@ import { Badge, Button, Textarea, Label } from '@org/ui';
 import { useQuery } from '@tanstack/react-query';
 import { Lightbulb, Sparkles, Wand2 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../router.js';
 import { PROMPT_SUGGESTIONS } from '../../data/prompt-templates.js';
 
 /** Ideas that only make sense with what this workspace has connected (brief §30). */

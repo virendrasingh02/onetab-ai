@@ -20,7 +20,7 @@ import {
   PanelLeft,
   Sun,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '../router.js';
 import { useStudioPlan } from '../plan/use-studio-plan.js';
 import { useStudioSession } from '../session-guard.js';
 

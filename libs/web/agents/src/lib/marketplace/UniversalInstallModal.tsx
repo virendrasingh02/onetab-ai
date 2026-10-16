@@ -25,6 +25,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import { EntityIcon } from './marketplace-ui';
+import { useNotifyChannelOptions } from './use-marketplace';
 
 type Step = 'review' | 'workspace' | 'permissions' | 'config' | 'confirmation';
 
@@ -43,13 +44,6 @@ const STEP_LABELS: Record<Step, string> = {
   config: 'Initial configuration',
   confirmation: 'Installation complete',
 };
-
-const NOTIFY_CHANNELS = [
-  { value: 'general', label: '# general' },
-  { value: 'engineering', label: '# engineering' },
-  { value: 'alerts', label: '# alerts-feed' },
-  { value: 'product', label: '# product-updates' },
-];
 
 interface UniversalInstallModalProps {
   isOpen: boolean;
@@ -80,7 +74,9 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
   );
 
   // Config state
-  const [notifyChannel, setNotifyChannel] = useState('general');
+  const [notifyChannel, setNotifyChannel] = useState('');
+  const channelOptions = useNotifyChannelOptions(currentWorkspace.id);
+  const channelValue = channelOptions.resolve(notifyChannel);
   const [enableSlashCommands, setEnableSlashCommands] = useState(true);
   const [enableMentionRouting, setEnableMentionRouting] = useState(true);
 
@@ -100,7 +96,7 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
           listingSlug: listing.slug,
           grantedScopes: selectedScopes,
           settings: {
-            notifyChannel,
+            notifyChannel: channelValue || null,
             enableSlashCommands,
             enableMentionRouting,
           },
@@ -319,9 +315,17 @@ export const UniversalInstallModal: React.FC<UniversalInstallModalProps> = ({
               <Field label="Default alert channel">
                 <AppSelect
                   aria-label="Default alert channel"
-                  value={notifyChannel}
+                  value={channelValue}
                   onValueChange={setNotifyChannel}
-                  options={NOTIFY_CHANNELS}
+                  options={channelOptions.options}
+                  loading={channelOptions.isLoading}
+                  searchable={channelOptions.options.length > 8}
+                  placeholder={
+                    channelOptions.isError
+                      ? "Couldn't load channels"
+                      : 'No channels in this workspace'
+                  }
+                  disabled={channelOptions.options.length === 0}
                 />
               </Field>
 

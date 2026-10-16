@@ -14,6 +14,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type Context,
   type ReactNode,
 } from 'react';
 
@@ -45,7 +46,18 @@ interface MatrixContextValue {
   retry: () => void;
 }
 
-const MatrixContext = createContext<MatrixContextValue | null>(null);
+/**
+ * Kept on `globalThis` so a hot reload of this module reuses the context the
+ * mounted provider was built with. A fresh `createContext` per evaluation left
+ * every re-imported `useMatrix` reading an empty context and crashing the
+ * shell with "must be used within a <MatrixProvider>" until a full reload.
+ */
+const MATRIX_CONTEXT_KEY = Symbol.for('@org/web-chat/MatrixContext');
+const contextHost = globalThis as typeof globalThis & {
+  [MATRIX_CONTEXT_KEY]?: Context<MatrixContextValue | null>;
+};
+const MatrixContext = (contextHost[MATRIX_CONTEXT_KEY] ??=
+  createContext<MatrixContextValue | null>(null));
 
 /** Backoff between failed attempts: 2 s, 4 s, 8 s … capped at 30 s. */
 const MAX_RETRY_DELAY_MS = 30_000;

@@ -192,11 +192,11 @@ export function NotificationDisplaySettingsPanel({
           Privacy & Focus Rules
         </h3>
 
-        <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+        <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
           {/* Content Preview Switch */}
           <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
             <div className="gap-3 flex items-start">
-              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                 {notifications.showContentPreview ? (
                   <Eye className="size-4" />
                 ) : (
@@ -204,7 +204,7 @@ export function NotificationDisplaySettingsPanel({
                 )}
               </div>
               <div>
-                <h4 className="text-xs font-medium text-foreground">
+                <h4 className="text-sm font-semibold text-foreground">
                   Show notification message previews
                 </h4>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -224,11 +224,11 @@ export function NotificationDisplaySettingsPanel({
           {/* During Calls & Meetings Switch */}
           <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
             <div className="gap-3 flex items-start">
-              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                 <PhoneCall className="size-4" />
               </div>
               <div>
-                <h4 className="text-xs font-medium text-foreground">
+                <h4 className="text-sm font-semibold text-foreground">
                   Show notifications during calls & meetings
                 </h4>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -248,12 +248,12 @@ export function NotificationDisplaySettingsPanel({
           {/* Flash Taskbar Switch */}
           <div className="p-4 sm:flex-row sm:items-center gap-4 flex flex-col justify-between transition-colors hover:bg-accent/40">
             <div className="gap-3 flex items-start">
-              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                 <Laptop className="size-4" />
               </div>
               <div>
                 <div className="gap-2 flex items-center">
-                  <h4 className="text-xs font-medium text-foreground">
+                  <h4 className="text-sm font-semibold text-foreground">
                     Flash taskbar when notification arrives
                   </h4>
                   {capabilities.isDesktop && (
@@ -312,11 +312,11 @@ export function NotificationDisplaySettingsPanel({
           </div>
         </div>
 
-        <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+        <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
           {/* Master switch */}
           <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
             <div className="gap-3 flex items-start">
-              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                 {sound.enabled ? (
                   <BellRing className="size-4" />
                 ) : (
@@ -324,7 +324,7 @@ export function NotificationDisplaySettingsPanel({
                 )}
               </div>
               <div>
-                <h4 className="text-xs font-medium text-foreground">
+                <h4 className="text-sm font-semibold text-foreground">
                   Play notification sounds
                 </h4>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -348,7 +348,7 @@ export function NotificationDisplaySettingsPanel({
             )}
           >
             <div className="gap-3 flex items-start">
-              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                 {sound.volume < 0.05 ? (
                   <VolumeX className="size-4" />
                 ) : sound.volume < 0.5 ? (
@@ -358,7 +358,7 @@ export function NotificationDisplaySettingsPanel({
                 )}
               </div>
               <div>
-                <h4 className="text-xs font-medium text-foreground">
+                <h4 className="text-sm font-semibold text-foreground">
                   Master volume
                 </h4>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -390,11 +390,11 @@ export function NotificationDisplaySettingsPanel({
             )}
           >
             <div className="gap-3 flex items-start">
-              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                 <Sparkles className="size-4" />
               </div>
               <div>
-                <h4 className="text-xs font-medium text-foreground">
+                <h4 className="text-sm font-semibold text-foreground">
                   Sound profile
                 </h4>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -449,11 +449,11 @@ export function NotificationDisplaySettingsPanel({
             )}
           >
             <div className="gap-3 flex items-start">
-              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                 <Eye className="size-4" />
               </div>
               <div>
-                <h4 className="text-xs font-medium text-foreground">
+                <h4 className="text-sm font-semibold text-foreground">
                   Only when I&rsquo;m not viewing the conversation
                 </h4>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -474,12 +474,12 @@ export function NotificationDisplaySettingsPanel({
           {/* Per-workspace mute */}
           <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
             <div className="gap-3 flex items-start">
-              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                 <VolumeX className="size-4" />
               </div>
               <div>
                 <div className="gap-2 flex items-center">
-                  <h4 className="text-xs font-medium text-foreground">
+                  <h4 className="text-sm font-semibold text-foreground">
                     Mute notification sounds in this workspace
                   </h4>
                   <Badge variant="neutral" className="py-0 px-1.5 text-[9px]">
@@ -504,7 +504,7 @@ export function NotificationDisplaySettingsPanel({
         {/* Sounds by type */}
         <div
           className={cn(
-            'divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs',
+            'divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-surface shadow-xs',
             !sound.enabled && 'opacity-50',
           )}
         >

@@ -35,6 +35,8 @@ export class PresenceService {
   private listeners = new Set<PresenceChangeListener>();
 
   private localStatus: 'online' | 'away' | 'busy' | 'offline' = 'online';
+  /** Mirrors the server-persisted pin (account-level, shared across devices). */
+  private manualAway = false;
   private lastActivityAt = Date.now();
   private idleTimeoutMs: number;
   private heartbeatIntervalMs: number;
@@ -105,6 +107,61 @@ export class PresenceService {
     };
   }
 
+  /**
+   * "Set yourself as away/active". Persisted server-side (not per browser):
+   * idle activity, reconnects and other devices can't undo it, and every
+   * device sees the same state.
+   */
+  public async setManualAway(away: boolean): Promise<void> {
+    const prev = { manual: this.manualAway, status: this.localStatus };
+    this.manualAway = away;
+    this.applyLocal(away ? 'away' : 'online');
+    try {
+      const res = await http.patch<{ presence?: UserPresence }>(
+        '/realtime/presence',
+        {
+          presence: away ? 'away' : 'online',
+          workspaceId: this.currentWorkspaceId,
+        },
+      );
+      this.syncManualFlag(res.data?.presence);
+    } catch (err) {
+      this.manualAway = prev.manual;
+      this.applyLocal(prev.status);
+      throw err;
+    }
+  }
+
+  private syncManualFlag(p?: UserPresence | null) {
+    if (!p || p.userId !== this.currentUserId) return;
+    if (typeof p.manualAway === 'boolean') {
+      this.manualAway = p.manualAway;
+      if (p.manualAway) this.localStatus = 'away';
+      else if (this.localStatus === 'away' && p.status === 'online') {
+        this.localStatus = 'online';
+      }
+    }
+  }
+
+  private applyLocal(status: 'online' | 'away' | 'busy' | 'offline') {
+    this.localStatus = status;
+    this.lastActivityAt = Date.now();
+    if (!this.currentUserId) return;
+    const existing = this.getPresence(this.currentUserId);
+    const updated: UserPresence = {
+      ...existing,
+      status,
+      manualAway: this.manualAway,
+      lastActiveAt: new Date().toISOString(),
+    };
+    this.presenceMap.set(this.currentUserId, updated);
+    this.notifyListeners(this.currentUserId, updated);
+  }
+
+  public isManualAway(): boolean {
+    return this.manualAway;
+  }
+
   public setLocalPresence(
     status: 'online' | 'away' | 'busy' | 'offline',
     statusText?: string,
@@ -137,6 +194,8 @@ export class PresenceService {
         const payload = event.payload;
         if (!payload || !payload.userId) return;
 
+        this.syncManualFlag(payload as unknown as UserPresence);
+
         const existing = this.presenceMap.get(payload.userId);
         const updated: UserPresence = {
           userId: payload.userId,
@@ -146,6 +205,7 @@ export class PresenceService {
           lastActiveAt: payload.lastActiveAt ?? existing?.lastActiveAt ?? null,
           statusText: payload.statusText ?? existing?.statusText ?? null,
           statusEmoji: payload.statusEmoji ?? existing?.statusEmoji ?? null,
+          manualAway: payload.manualAway ?? existing?.manualAway,
         };
 
         this.presenceMap.set(payload.userId, updated);
@@ -171,6 +231,7 @@ export class PresenceService {
       );
       if (response.data?.presence) {
         for (const item of response.data.presence) {
+          this.syncManualFlag(item);
           this.presenceMap.set(item.userId, item);
           this.notifyListeners(item.userId, item);
         }
@@ -194,7 +255,7 @@ export class PresenceService {
       this.lastActivityAt = Date.now();
 
       // If user was away, transition back to online immediately
-      if (this.localStatus === 'away') {
+      if (this.localStatus === 'away' && !this.manualAway) {
         this.setLocalPresence('online');
       }
     };

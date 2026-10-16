@@ -135,6 +135,11 @@ export class AutomationTriggerListener {
     void this.dispatch(AppEvent.ChannelMessagePosted, e as unknown as Record<string, unknown> & { workspaceId: string });
   }
 
+  @OnEvent(AppEvent.GithubPullRequest)
+  onGithubPullRequest(e: Record<string, unknown> & { workspaceId: string }) {
+    void this.dispatch(AppEvent.GithubPullRequest, e);
+  }
+
   @OnEvent(AppEvent.MemberJoined)
   onMemberJoined(e: Record<string, unknown> & { workspaceId: string }) {
     void this.dispatch(AppEvent.MemberJoined, e);

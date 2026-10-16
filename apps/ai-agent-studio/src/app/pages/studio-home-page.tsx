@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@org/ui';
-import { StudioHome } from '@org/web-automations';
+import { StudioHome, useAgentFavorites } from '@org/web-automations';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
@@ -52,8 +52,8 @@ import {
   Wrench,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { STUDIO_TEMPLATES } from '../data/templates.js';
+import { Link, useNavigate } from '../router.js';
+import { useStudioTemplates } from '../services/templates.js';
 import { useStudioSession } from '../session-guard.js';
 
 /** Tools arrive as an array once normalized, or as the API's JSON string. */
@@ -83,7 +83,7 @@ export function StudioHomePage() {
   const { activeWorkspace } = useStudioSession();
   const navigate = useNavigate();
   return (
-    <Page width="wide" padding="none" className="space-y-8">
+    <Page className="space-y-8">
       <PageHeader
         title="Studio Home"
         description={`What your agents are doing in ${activeWorkspace.name} — and what to build next.`}
@@ -175,27 +175,16 @@ function StudioInsights() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [pinnedAgentIds, setPinnedAgentIds] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(`pinned_agents_${activeWorkspace.id}`) || '[]');
-    } catch {
-      return [];
-    }
-  });
+  // Pins are the member's server-side agent favorites — shared with the in-app Studio, synced across devices.
+  const { favorites: pinnedSet, toggle: toggleFavorite } = useAgentFavorites(activeWorkspace.id);
+  const pinnedAgentIds = useMemo(() => [...pinnedSet], [pinnedSet]);
+  const { templates } = useStudioTemplates();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
 
   const { data: agents = [], isLoading: isLoadingAgents } = useQuery({
     queryKey: ['agents', activeWorkspace.id],
-    queryFn: async () => {
-      try {
-        const live = await agentsApi.list(activeWorkspace.id);
-        if (live && live.length > 0) return live;
-      } catch {
-        // Fallback
-      }
-      return agentService.getAgents(activeWorkspace.id);
-    },
+    queryFn: () => agentsApi.list(activeWorkspace.id),
   });
 
   const { data: logs = [], isLoading: isLoadingLogs } = useQuery({
@@ -205,12 +194,8 @@ function StudioInsights() {
 
   const togglePinAgent = (agentId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setPinnedAgentIds((prev) => {
-      const next = prev.includes(agentId) ? prev.filter((id) => id !== agentId) : [...prev, agentId];
-      localStorage.setItem(`pinned_agents_${activeWorkspace.id}`, JSON.stringify(next));
-      toast.success(next.includes(agentId) ? 'Agent pinned to top' : 'Agent unpinned');
-      return next;
-    });
+    toast.success(pinnedSet.has(agentId) ? 'Agent unpinned' : 'Agent pinned to top');
+    toggleFavorite(agentId);
   };
 
   const statusOf = (a: (typeof agents)[number]): string => (a.configuration as any)?.status ?? 'draft';
@@ -610,12 +595,12 @@ function StudioInsights() {
               <h2 className="text-sm font-bold text-foreground">Featured Templates</h2>
             </div>
             <Link to="/templates" className="text-xs font-medium text-primary hover:underline">
-              Browse All ({STUDIO_TEMPLATES.length})
+              Browse All ({templates.length})
             </Link>
           </div>
 
           <div className="space-y-3">
-            {STUDIO_TEMPLATES.slice(0, 5).map((tpl) => (
+            {templates.slice(0, 5).map((tpl) => (
               <div
                 key={tpl.id}
                 onClick={() => navigate(`/templates?use=${tpl.id}`)}

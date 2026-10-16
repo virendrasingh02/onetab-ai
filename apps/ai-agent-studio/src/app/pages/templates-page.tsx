@@ -21,9 +21,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { STUDIO_TEMPLATES, type StudioTemplate } from '../data/templates.js';
-import { agentService } from '../services/agentService.js';
+import { useNavigate, useSearchParams } from '../router.js';
+import type { StudioTemplate } from '@org/types';
+import { useStudioTemplates } from '../services/templates.js';
 import { useConnectors } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
 
@@ -53,6 +53,7 @@ export function TemplatesPage() {
   const connectorsQuery = useConnectors();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const { templates, isLoading: loadingTemplates, error: templatesError } = useStudioTemplates();
   const [search, setSearch] = useState('');
   // `?use=<templateId>` (from the overview's quick-start links) highlights a template.
   const preselectedId = searchParams.get('use');
@@ -61,7 +62,7 @@ export function TemplatesPage() {
     document
       .getElementById(`template-${preselectedId}`)
       ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [preselectedId]);
+  }, [preselectedId, templates.length]);
 
   const createFromTemplateMutation = useMutation({
     mutationFn: async (template: StudioTemplate) => {
@@ -78,11 +79,7 @@ export function TemplatesPage() {
           edges: template.edges,
         }),
       };
-      try {
-        return await agentsApi.create(activeWorkspace.id, payload);
-      } catch {
-        return agentService.createAgent(activeWorkspace.id, payload);
-      }
+      return agentsApi.create(activeWorkspace.id, payload);
     },
     onSuccess: (newAgent) => {
       queryClient.invalidateQueries({
@@ -105,7 +102,7 @@ export function TemplatesPage() {
     { id: 'multi-agent', label: 'Multi-App Workflows' },
   ];
 
-  const filteredTemplates = STUDIO_TEMPLATES.filter((tpl) => {
+  const filteredTemplates = templates.filter((tpl) => {
     const matchesCat =
       selectedCategory === 'all' || tpl.category === selectedCategory;
     const matchesSearch =
@@ -116,7 +113,7 @@ export function TemplatesPage() {
   });
 
   return (
-    <Page width="wide" padding="none" className="space-y-6">
+    <Page className="space-y-6">
       {/* Header bar matching Admin */}
       <PageHeader
         title="Workflow Templates"
@@ -152,6 +149,12 @@ export function TemplatesPage() {
         ))}
       </div>
 
+      {loadingTemplates && <p className="py-10 text-center text-sm text-muted-foreground">Loading templates…</p>}
+      {templatesError && (
+        <p className="py-10 text-center text-sm text-destructive">
+          {templatesError instanceof Error ? templatesError.message : 'Could not load templates.'}
+        </p>
+      )}
       {/* Templates Grid using standard Card */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredTemplates.map((template) => {

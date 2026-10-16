@@ -32,6 +32,8 @@ model User {
   scheduledStatusAppliedId  String?
   emailVerifiedAt           DateTime?
   lastSeenAt                DateTime?
+  /// User pinned themselves "away"; idle detection and reconnects must not undo it.
+  presenceManualAway        Boolean                     @default(false)
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime                    @updatedAt
   /// Bridged Matrix identity, provisioned lazily on first chat use.
@@ -119,6 +121,7 @@ model User {
   callDecisions             CallDecision[]              @relation("CallDecisionMaker")
   callSummaryFeedbacks      CallSummaryFeedback[]       @relation("CallSummaryFeedbackUser")
   widgetDefinitions         WidgetDefinition[]
+  agentConversations        AgentConversation[]
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -292,10 +295,10 @@ model MessageReminder {
 }
 
 model Workspace {
-  id                        String                     @id @default(cuid())
+  id                        String                      @id @default(cuid())
   name                      String
   /// Used in URLs: /w/:slug. Globally unique.
-  slug                      String                     @unique
+  slug                      String                      @unique
   description               String?
   avatarUrl                 String?
   /// Object-store key behind `avatarUrl` when the logo was uploaded to us.
@@ -309,22 +312,22 @@ model Workspace {
   iconColor                 String?
   supportEmail              String?
   accentColor               String?
-  defaultLandingView        String                     @default("home")
-  allowExternalSharing      Boolean                    @default(true)
-  aiProjectRecaps           Boolean                    @default(true)
+  defaultLandingView        String                      @default("home")
+  allowExternalSharing      Boolean                     @default(true)
+  aiProjectRecaps           Boolean                     @default(true)
   ownerId                   String
   /// ARCHIVED freezes the workspace: it stays listed and readable, but every
   /// write is refused. Deletion is separate and irreversible.
-  status                    WorkspaceStatus            @default(ACTIVE)
+  status                    WorkspaceStatus             @default(ACTIVE)
   archivedAt                DateTime?
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
   /// Matrix space (an `m.space` room) backing this workspace. Null until the
   /// first channel in the workspace is linked to a room, then provisioned
   /// lazily. The workspace stays the source of truth for name, membership and
   /// roles; the space mirrors them so the channel rooms nest under one
   /// container on the homeserver.
-  matrixSpaceId             String?                    @unique
+  matrixSpaceId             String?                     @unique
   aiAgents                  AIAgent[]
   aiChatSessions            AIChatSession[]
   aiMemories                AIMemory[]
@@ -399,7 +402,8 @@ model Workspace {
   widgetExecutions          WidgetExecution[]
   agentDeployments          AgentDeployment[]
   agentApiKeys              AgentApiKey[]
-  owner                     User                       @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  owner                     User                        @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  agentConversations        AgentConversation[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -442,17 +446,17 @@ model WorkspaceMember {
 /// preference / the design-system default. Editable only with
 /// `MANAGE_SETTINGS`.
 model WorkspaceSettings {
-  id          String    @id @default(cuid())
-  workspaceId String    @unique
-  theme       Json      @default("{}")
-  policies    Json      @default("{}")
+  id               String    @id @default(cuid())
+  workspaceId      String    @unique
+  theme            Json      @default("{}")
+  policies         Json      @default("{}")
   /// Channel a new member is auto-added to on joining. A soft reference (no
   /// FK/relation) — validated at the application layer against `Channel`, the
   /// same pattern `matrixRoomId`-style ids use elsewhere in this schema. Null
   /// until an admin picks one; join behavior is unchanged (no auto-add).
   defaultChannelId String?
-  updatedAt   DateTime  @updatedAt
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  updatedAt        DateTime  @updatedAt
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("workspace_settings")
 }
@@ -759,29 +763,29 @@ model AnonymousModerationEvent {
 }
 
 model ChannelMember {
-  id             String                @id @default(cuid())
-  channelId      String
-  userId         String
-  role           ChannelRole           @default(MEMBER)
+  id                String                @id @default(cuid())
+  channelId         String
+  userId            String
+  role              ChannelRole           @default(MEMBER)
   /// Per-user star, drives the "Favorites" sidebar group.
-  isFavorite     Boolean               @default(false)
-  isMuted        Boolean               @default(false)
+  isFavorite        Boolean               @default(false)
+  isMuted           Boolean               @default(false)
   /// Per-user "Just mentions" notification level. Only meaningful while
   /// `isMuted` is false — muting ("Nothing") wins, and unmuting restores it.
-  mentionsOnly   Boolean               @default(false)
-  lastReadAt     DateTime?
-  joinedAt       DateTime              @default(now())
+  mentionsOnly      Boolean               @default(false)
+  lastReadAt        DateTime?
+  joinedAt          DateTime              @default(now())
   /// PERMANENT — a normal member. TEMPORARY — self-joined a public channel for
   /// a set window; a cron sweep removes the row (and the Matrix membership)
   /// once `expiresAt` passes. Every pre-existing row is PERMANENT.
-  membershipType ChannelMembershipType @default(PERMANENT)
+  membershipType    ChannelMembershipType @default(PERMANENT)
   /// When a TEMPORARY membership lapses. Null for PERMANENT members.
-  expiresAt      DateTime?
+  expiresAt         DateTime?
   /// Per-user: offer to add someone who isn't in the channel when this member
   /// @mentions them.
-  memberSuggestions Boolean            @default(true)
-  channel        Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberSuggestions Boolean               @default(true)
+  channel           Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([channelId, userId])
   @@index([userId, isFavorite])
@@ -808,14 +812,14 @@ model ChannelPin {
 }
 
 model Invitation {
-  id          String           @id @default(cuid())
-  workspaceId String
-  email       String?
-  role        WorkspaceRole    @default(MEMBER)
+  id            String           @id @default(cuid())
+  workspaceId   String
+  email         String?
+  role          WorkspaceRole    @default(MEMBER)
   /// SHA-256 of the emailed token or shareable link token. The plaintext is never stored.
-  tokenHash   String           @unique
-  status      InvitationStatus @default(PENDING)
-  expiresAt   DateTime
+  tokenHash     String           @unique
+  status        InvitationStatus @default(PENDING)
+  expiresAt     DateTime
   acceptedAt    DateTime?
   declinedAt    DateTime?
   revokedAt     DateTime?
@@ -977,26 +981,26 @@ enum EmailTemplateStatus {
 }
 
 model EmailTemplate {
-  id               String                 @id @default(cuid())
+  id               String                @id @default(cuid())
   templateKey      String
   name             String
-  category         EmailTemplateCategory  @default(SYSTEM)
+  category         EmailTemplateCategory @default(SYSTEM)
   description      String?
   subject          String
   previewText      String?
   htmlBody         String
   textBody         String?
   variablesSchema  Json?
-  status           EmailTemplateStatus    @default(ACTIVE)
-  version          Int                    @default(1)
+  status           EmailTemplateStatus   @default(ACTIVE)
+  version          Int                   @default(1)
   workspaceId      String?
-  isSystemTemplate Boolean                @default(false)
-  isDefault        Boolean                @default(false)
+  isSystemTemplate Boolean               @default(false)
+  isDefault        Boolean               @default(false)
   createdBy        String?
   updatedBy        String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  workspace        Workspace?             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  workspace        Workspace?            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([templateKey, workspaceId])
   @@index([templateKey])
@@ -1042,18 +1046,18 @@ model TwoFactorChallenge {
 }
 
 model TwoFactorAuth {
-  id          String    @id @default(cuid())
-  userId      String    @unique
-  secret      String
-  isEnabled   Boolean   @default(false)
-  verifiedAt  DateTime?
-  backupCodes String    @default("[]")
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  secret       String
+  isEnabled    Boolean   @default(false)
+  verifiedAt   DateTime?
+  backupCodes  String    @default("[]")
   /// The TOTP time step last accepted at sign-in, so a code cannot be replayed.
   lastTotpStep Int?
-  phoneNumber String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phoneNumber  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("two_factor_auths")
 }
@@ -1075,14 +1079,14 @@ model WebAuthnCredential {
 }
 
 model UserIdentity {
-  id             String    @id @default(cuid())
+  id             String   @id @default(cuid())
   userId         String
   provider       String
   providerUserId String
   email          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerUserId])
   @@index([userId])
@@ -1201,29 +1205,29 @@ model PushRegistration {
 
 /// Per-user chat presentation preferences.
 model ChatSettings {
-  id                      String   @id @default(cuid())
-  userId                  String   @unique
+  id                       String   @id @default(cuid())
+  userId                   String   @unique
   /// Compact hides avatars and tightens spacing.
-  density                 String   @default("comfortable")
-  showReadReceipts        Boolean  @default(true)
-  sendTypingNotice        Boolean  @default(true)
+  density                  String   @default("comfortable")
+  showReadReceipts         Boolean  @default(true)
+  sendTypingNotice         Boolean  @default(true)
   /// Show other people's typing indicators. Independent of `sendTypingNotice`,
   /// which controls whether *this* user's own typing is broadcast.
-  showTypingIndicators    Boolean  @default(true)
-  enterToSend             Boolean  @default(true)
-  mentionWarningsEnabled  Boolean  @default(true)
-  allowDirectMessagesFrom String   @default("everyone")
-  playSounds              Boolean  @default(true)
+  showTypingIndicators     Boolean  @default(true)
+  enterToSend              Boolean  @default(true)
+  mentionWarningsEnabled   Boolean  @default(true)
+  allowDirectMessagesFrom  String   @default("everyone")
+  playSounds               Boolean  @default(true)
   /// Load remote images and link previews automatically.
-  autoloadMedia           Boolean  @default(true)
+  autoloadMedia            Boolean  @default(true)
   /// `NotificationDisplayPreferences` (toast position/size/duration/privacy +
   /// nested sound profile) — the "notifications" half of `UserPreferences`.
   /// Was hardcoded server-side; this closes that round-trip gap so it
   /// persists like `chat.*` already does. Null until the user first saves.
   notificationDisplayPrefs Json?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("chat_settings")
@@ -1832,6 +1836,12 @@ model Meeting {
   updatedAt       DateTime             @updatedAt
   /// Soft delete — see Project.deletedAt.
   deletedAt       DateTime?
+  /// Set when the meeting mirrors an event in an external calendar (Google).
+  externalSource  String?
+  externalId      String?
+  /// The external event's own `updated` stamp at the last sync, so a pull
+  /// never re-applies what a push just wrote (and vice versa).
+  externalUpdatedAt DateTime?
   organizer       User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
   workspace       Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project         Project?             @relation(fields: [projectId], references: [id])
@@ -1842,6 +1852,7 @@ model Meeting {
   actionItems     Task[]               @relation("MeetingActionItems")
   calls           Call[]
 
+  @@unique([workspaceId, organizerId, externalSource, externalId])
   @@index([workspaceId, startAt])
   @@index([workspaceId, status])
   @@index([workspaceId, deletedAt])
@@ -1895,42 +1906,42 @@ model MeetingDecision {
 }
 
 model Call {
-  id             String             @id @default(cuid())
-  workspaceId    String
-  conversationId String
-  channelId      String?
-  meetingId      String?
-  title          String
-  kind           CallKind           @default(AUDIO)
-  status         CallSessionStatus  @default(ACTIVE)
-  startedById    String
-  startedAt      DateTime           @default(now())
-  endedAt        DateTime?
-  recordingUrl   String?
+  id                  String            @id @default(cuid())
+  workspaceId         String
+  conversationId      String
+  channelId           String?
+  meetingId           String?
+  title               String
+  kind                CallKind          @default(AUDIO)
+  status              CallSessionStatus @default(ACTIVE)
+  startedById         String
+  startedAt           DateTime          @default(now())
+  endedAt             DateTime?
+  recordingUrl        String?
   /// The Matrix VoIP call id this session tracks. Both ends report the same id,
   /// so they converge on one session; a *different* id arriving while this one
   /// is still ACTIVE means it was orphaned (tab closed mid-call) and is closed.
-  matrixCallId   String?
+  matrixCallId        String?
   /// Who else may open the call's notes / summary / transcript. By default a
   /// call is visible to its participants, to everyone who can see its channel
   /// (public channel, or a member of a private one), and — when linked to a
   /// meeting — to the workspace. "Share" widens it explicitly.
-  sharedWithWorkspace Boolean       @default(false)
-  sharedWithUserIds   String[]      @default([])
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  sharedWithWorkspace Boolean           @default(false)
+  sharedWithUserIds   String[]          @default([])
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
-  workspace      Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  startedBy      User               @relation("CallStarter", fields: [startedById], references: [id], onDelete: Cascade)
-  channel        Channel?           @relation(fields: [channelId], references: [id], onDelete: SetNull)
-  meeting        Meeting?           @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  startedBy User      @relation("CallStarter", fields: [startedById], references: [id], onDelete: Cascade)
+  channel   Channel?  @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  meeting   Meeting?  @relation(fields: [meetingId], references: [id], onDelete: SetNull)
 
-  participants   CallParticipant[]
-  notes          CallNote[]
-  summary        CallSummary?
-  actionItems    CallActionItem[]
-  decisions      CallDecision[]
-  transcripts    CallTranscriptItem[]
+  participants CallParticipant[]
+  notes        CallNote[]
+  summary      CallSummary?
+  actionItems  CallActionItem[]
+  decisions    CallDecision[]
+  transcripts  CallTranscriptItem[]
 
   @@index([workspaceId, status])
   @@index([conversationId, status])
@@ -1940,14 +1951,14 @@ model Call {
 }
 
 model CallParticipant {
-  id        String    @id @default(cuid())
-  callId    String
-  userId    String
-  joinedAt  DateTime  @default(now())
-  leftAt    DateTime?
+  id       String    @id @default(cuid())
+  callId   String
+  userId   String
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
 
-  call      Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
-  user      User      @relation("CallParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation("CallParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([callId, userId])
   @@index([userId])
@@ -1955,17 +1966,17 @@ model CallParticipant {
 }
 
 model CallNote {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   callId      String
   workspaceId String
   authorId    String
-  content     String    @default("")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  content     String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  call        Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  author      User      @relation("CallNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  call      Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author    User      @relation("CallNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([callId, createdAt])
   @@index([workspaceId])
@@ -1989,11 +2000,11 @@ model CallSummary {
   generatedAt    DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  call           Call              @relation(fields: [callId], references: [id], onDelete: Cascade)
-  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  feedbacks      CallSummaryFeedback[]
-  actionItems    CallActionItem[]
-  decisions      CallDecision[]
+  call        Call                  @relation(fields: [callId], references: [id], onDelete: Cascade)
+  workspace   Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  feedbacks   CallSummaryFeedback[]
+  actionItems CallActionItem[]
+  decisions   CallDecision[]
 
   @@index([workspaceId, status])
   @@map("call_summaries")
@@ -2015,11 +2026,11 @@ model CallActionItem {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  call            Call         @relation(fields: [callId], references: [id], onDelete: Cascade)
-  summary         CallSummary? @relation(fields: [summaryId], references: [id], onDelete: SetNull)
-  workspace       Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  assignee        User?        @relation("CallActionItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  task            Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  call      Call         @relation(fields: [callId], references: [id], onDelete: Cascade)
+  summary   CallSummary? @relation(fields: [summaryId], references: [id], onDelete: SetNull)
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignee  User?        @relation("CallActionItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  task      Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([callId])
   @@index([workspaceId])
@@ -2028,20 +2039,20 @@ model CallActionItem {
 }
 
 model CallDecision {
-  id              String       @id @default(cuid())
+  id              String   @id @default(cuid())
   callId          String
   summaryId       String?
   workspaceId     String
   content         String
   sourceTimestamp Int?
   madeById        String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  call            Call         @relation(fields: [callId], references: [id], onDelete: Cascade)
-  summary         CallSummary? @relation(fields: [summaryId], references: [id], onDelete: SetNull)
-  workspace       Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  madeBy          User?        @relation("CallDecisionMaker", fields: [madeById], references: [id], onDelete: SetNull)
+  call      Call         @relation(fields: [callId], references: [id], onDelete: Cascade)
+  summary   CallSummary? @relation(fields: [summaryId], references: [id], onDelete: SetNull)
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  madeBy    User?        @relation("CallDecisionMaker", fields: [madeById], references: [id], onDelete: SetNull)
 
   @@index([callId])
   @@index([workspaceId])
@@ -2057,22 +2068,22 @@ model CallTranscriptItem {
   timestamp   Int      @default(0)
   createdAt   DateTime @default(now())
 
-  call        Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
 
   @@index([callId, timestamp])
   @@map("call_transcript_items")
 }
 
 model CallSummaryFeedback {
-  id        String      @id @default(cuid())
+  id        String   @id @default(cuid())
   summaryId String
   userId    String
   rating    String
   feedback  String?
-  createdAt DateTime    @default(now())
+  createdAt DateTime @default(now())
 
-  summary   CallSummary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
-  user      User        @relation("CallSummaryFeedbackUser", fields: [userId], references: [id], onDelete: Cascade)
+  summary CallSummary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  user    User        @relation("CallSummaryFeedbackUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([summaryId])
   @@map("call_summary_feedbacks")
@@ -2151,6 +2162,26 @@ model AIChatSession {
   @@map("ai_chat_sessions")
 }
 
+/// A person's chat with one agent in the Studio. `messages` is the transcript
+/// the next turn is given as history: [{ id, role, content, logId?, at }].
+model AgentConversation {
+  id          String    @id @default(cuid())
+  workspaceId String
+  agentId     String
+  userId      String
+  title       String    @default("New chat")
+  messages    Json      @default("[]")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent       AIAgent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, userId, updatedAt])
+  @@index([workspaceId])
+  @@map("agent_conversations")
+}
+
 model AIAgent {
   id                 String              @id @default(cuid())
   workspaceId        String
@@ -2198,6 +2229,7 @@ model AIAgent {
   deployments        AgentDeployment[]
   creator            User?               @relation(fields: [creatorId], references: [id])
   workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations      AgentConversation[]
 
   @@index([workspaceId, isActive])
   @@index([workspaceId, type])
@@ -2363,31 +2395,31 @@ model AgentExecutionLog {
 }
 
 model AutomationWorkflow {
-  id          String              @id @default(cuid())
-  workspaceId String
-  creatorId   String?
-  name        String
-  description String?
-  triggerType String              @default("WEBHOOK")
-  isActive    Boolean             @default(true)
-  nodesJson   String              @default("[]")
-  edgesJson   String              @default("[]")
+  id                    String                 @id @default(cuid())
+  workspaceId           String
+  creatorId             String?
+  name                  String
+  description           String?
+  triggerType           String                 @default("WEBHOOK")
+  isActive              Boolean                @default(true)
+  nodesJson             String                 @default("[]")
+  edgesJson             String                 @default("[]")
   /// The AI Agent Studio blueprint this workflow was compiled from (objective,
   /// plan steps, granted scopes, output, params). Null for workflows built on
   /// the canvas. When set, the engine refuses tools outside its scopes.
-  agentProfile Json?
+  agentProfile          Json?
   /// Archived agents keep their runs and versions but leave the library and
   /// never run on a trigger.
-  archivedAt  DateTime?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  creator     User?               @relation(fields: [creatorId], references: [id])
-  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  executions  WorkflowExecution[]
-  versions    AIWorkflowVersion[]
-  aiExecutions AIExecution[]
+  archivedAt            DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  creator               User?                  @relation(fields: [creatorId], references: [id])
+  workspace             Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  executions            WorkflowExecution[]
+  versions              AIWorkflowVersion[]
+  aiExecutions          AIExecution[]
   connectorTriggerState ConnectorTriggerState?
-  geofencePresences GeofencePresence[]
+  geofencePresences     GeofencePresence[]
 
   @@index([workspaceId, isActive])
   @@map("automation_workflows")
@@ -2397,24 +2429,24 @@ model AutomationWorkflow {
 /// the connector's own read action and fires once per item not in `seenIds`;
 /// a changed trigger (`configKey`) starts over without replaying history.
 model ConnectorTriggerState {
-  id             String             @id @default(cuid())
-  workflowId     String             @unique
-  workspaceId    String
-  provider       String
-  triggerId      String
-  configKey      String
+  id            String             @id @default(cuid())
+  workflowId    String             @unique
+  workspaceId   String
+  provider      String
+  triggerId     String
+  configKey     String
   /// Item ids already seen, newest first (bounded). Null until the first poll.
-  seenIds        Json?
-  lastPolledAt   DateTime?
-  lastFiredAt    DateTime?
-  lastError      String?
-  failures       Int                @default(0)
+  seenIds       Json?
+  lastPolledAt  DateTime?
+  lastFiredAt   DateTime?
+  lastError     String?
+  failures      Int                @default(0)
   /// Runs started in the current hour — the loop guard.
-  windowStartAt  DateTime?
-  firedInWindow  Int                @default(0)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  workflow       AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  windowStartAt DateTime?
+  firedInWindow Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  workflow      AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@map("connector_trigger_states")
@@ -2559,42 +2591,42 @@ model OrganizationSubscription {
 }
 
 model WorkspaceSubscription {
-  id                      String    @id @default(cuid())
-  workspaceId             String    @unique
-  planTier                String    @default("FREE")
-  billingInterval         String    @default("MONTHLY")
-  status                  String    @default("ACTIVE")
-  seatsTotal              Int       @default(5)
-  seatsUsed               Int       @default(1)
-  customLlmConfig         String?
-  cancelAtPeriodEnd       Boolean   @default(false)
-  currentPeriodStart      DateTime  @default(now())
-  currentPeriodEnd        DateTime  @default(now())
-  renewAt                 DateTime  @default(now())
-  trialStart              DateTime?
-  trialEnd                DateTime?
-  trialStatus             String?
-  trialUsed               Boolean   @default(false)
-  convertedAt             DateTime?
-  appliedPromotionCode    String?
-  discountPercent         Float?
+  id                       String    @id @default(cuid())
+  workspaceId              String    @unique
+  planTier                 String    @default("FREE")
+  billingInterval          String    @default("MONTHLY")
+  status                   String    @default("ACTIVE")
+  seatsTotal               Int       @default(5)
+  seatsUsed                Int       @default(1)
+  customLlmConfig          String?
+  cancelAtPeriodEnd        Boolean   @default(false)
+  currentPeriodStart       DateTime  @default(now())
+  currentPeriodEnd         DateTime  @default(now())
+  renewAt                  DateTime  @default(now())
+  trialStart               DateTime?
+  trialEnd                 DateTime?
+  trialStatus              String?
+  trialUsed                Boolean   @default(false)
+  convertedAt              DateTime?
+  appliedPromotionCode     String?
+  discountPercent          Float?
   /// Where entitlement comes from: PROVIDER (paid via payment provider),
   /// PROMOTION (server-approved zero-total checkout), CONTRACT (enterprise,
   /// set by a platform admin) or FREE.
-  source                  String    @default("FREE")
-  provider                String?
-  providerCustomerId      String?
-  providerSubscriptionId  String?
-  pastDueSince            DateTime?
+  source                   String    @default("FREE")
+  provider                 String?
+  providerCustomerId       String?
+  providerSubscriptionId   String?
+  pastDueSince             DateTime?
   /// Timestamp of the newest provider event applied; older events are ignored.
-  providerEventAt         DateTime?
-  cancelledAt             DateTime?
-  scheduledPlanTier       String?
+  providerEventAt          DateTime?
+  cancelledAt              DateTime?
+  scheduledPlanTier        String?
   scheduledBillingInterval String?
-  scheduledChangeAt       DateTime?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  workspace               Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  scheduledChangeAt        DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  workspace                Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([planTier, status])
@@ -2604,33 +2636,33 @@ model WorkspaceSubscription {
 }
 
 model Promotion {
-  id                   String                @id @default(cuid())
-  code                 String                @unique
-  name                 String?
-  description          String?
-  discountType         String                @default("PERCENTAGE")
+  id                    String                @id @default(cuid())
+  code                  String                @unique
+  name                  String?
+  description           String?
+  discountType          String                @default("PERCENTAGE")
   /// PERCENTAGE: 0-100. FIXED: amount in minor units (cents) of `currency`.
-  discountValue        Float                 @default(0)
-  currency             String                @default("USD")
-  applicablePlans      String[]              @default(["pro", "max"])
+  discountValue         Float                 @default(0)
+  currency              String                @default("USD")
+  applicablePlans       String[]              @default(["pro", "max"])
   /// Empty = every interval. Otherwise subset of MONTHLY / ANNUAL.
-  applicableIntervals  String[]              @default([])
-  minPurchaseCents     Int?
-  firstTimeCustomerOnly Boolean              @default(false)
-  trialExtensionDays   Int?
+  applicableIntervals   String[]              @default([])
+  minPurchaseCents      Int?
+  firstTimeCustomerOnly Boolean               @default(false)
+  trialExtensionDays    Int?
   /// DISABLED | TEST_ONLY | APPROVED — whether a fully-discounted checkout may
   /// activate a plan without a payment-provider confirmation. TEST_ONLY only
   /// works while BILLING_MODE != live.
-  freeCheckoutPolicy   String                @default("DISABLED")
-  validFrom            DateTime              @default(now())
-  validUntil           DateTime?
-  maxRedemptions       Int?
-  redemptionsCount     Int                   @default(0)
-  perUserLimit         Int                   @default(1)
-  active               Boolean               @default(true)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  redemptions          PromotionRedemption[]
+  freeCheckoutPolicy    String                @default("DISABLED")
+  validFrom             DateTime              @default(now())
+  validUntil            DateTime?
+  maxRedemptions        Int?
+  redemptionsCount      Int                   @default(0)
+  perUserLimit          Int                   @default(1)
+  active                Boolean               @default(true)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  redemptions           PromotionRedemption[]
 
   @@map("promotions")
 }
@@ -2658,33 +2690,33 @@ model PromotionRedemption {
 /// changed when a session reaches COMPLETED via a verified provider event or an
 /// approved zero-total rule.
 model BillingCheckoutSession {
-  id                  String    @id @default(cuid())
-  workspaceId         String
-  userId              String
+  id                String    @id @default(cuid())
+  workspaceId       String
+  userId            String
   /// SUBSCRIPTION | CREDIT_TOPUP
-  kind                String    @default("SUBSCRIPTION")
-  planTier            String
-  billingInterval     String
-  seats               Int       @default(1)
-  trialDays           Int       @default(0)
-  currency            String    @default("USD")
-  subtotalCents       Int
-  discountCents       Int       @default(0)
-  taxCents            Int       @default(0)
-  totalCents          Int
-  promotionCode       String?
+  kind              String    @default("SUBSCRIPTION")
+  planTier          String
+  billingInterval   String
+  seats             Int       @default(1)
+  trialDays         Int       @default(0)
+  currency          String    @default("USD")
+  subtotalCents     Int
+  discountCents     Int       @default(0)
+  taxCents          Int       @default(0)
+  totalCents        Int
+  promotionCode     String?
   /// PENDING | COMPLETED | FAILED | CANCELLED | EXPIRED
-  status              String    @default("PENDING")
-  provider            String?
-  providerSessionId   String?   @unique
-  providerUrl         String?
-  idempotencyKey      String?   @unique
-  failureReason       String?
-  expiresAt           DateTime
-  completedAt         DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  status            String    @default("PENDING")
+  provider          String?
+  providerSessionId String?   @unique
+  providerUrl       String?
+  idempotencyKey    String?   @unique
+  failureReason     String?
+  expiresAt         DateTime
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status])
   @@map("billing_checkout_sessions")
@@ -3035,11 +3067,11 @@ model MarketplaceListing {
   reviews            MarketplaceReview[]
   pluginRegistration PluginRegistration?
 
+  @@unique([ownerWorkspaceId, sourceAgentId])
   @@index([kind, status])
   @@index([kind, category])
   @@index([status, isFeatured])
   @@index([ownerWorkspaceId])
-  @@unique([ownerWorkspaceId, sourceAgentId])
   @@map("marketplace_listings")
 }
 
@@ -4032,33 +4064,33 @@ model ApprovalRequest {
 }
 
 model AIExecution {
-  id          String              @id @default(cuid())
-  workspaceId String
-  userId      String?
-  entityType  String
-  entityId    String
-  version     Int                 @default(1)
-  status      String              @default("RUNNING")
-  startedAt   DateTime            @default(now())
-  finishedAt  DateTime?
-  latencyMs   Int                 @default(0)
-  tokensUsed  Int                 @default(0)
-  totalCost   Float               @default(0.0)
-  model       String?
-  toolCalls   Json                @default("[]")
-  errorsJson  Json?
-  stateJson   Json                @default("{}")
-  workflowId  String?
-  agentId     String?
-  appId       String?
-  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
-  workflow    AutomationWorkflow? @relation(fields: [workflowId], references: [id], onDelete: SetNull)
-  agent       AIAgent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  app         AIApp?              @relation(fields: [appId], references: [id], onDelete: SetNull)
-  steps       AIExecutionStep[]
-  feedbacks   AIFeedback[]
-  agentTasks  AgentTask[]
+  id            String              @id @default(cuid())
+  workspaceId   String
+  userId        String?
+  entityType    String
+  entityId      String
+  version       Int                 @default(1)
+  status        String              @default("RUNNING")
+  startedAt     DateTime            @default(now())
+  finishedAt    DateTime?
+  latencyMs     Int                 @default(0)
+  tokensUsed    Int                 @default(0)
+  totalCost     Float               @default(0.0)
+  model         String?
+  toolCalls     Json                @default("[]")
+  errorsJson    Json?
+  stateJson     Json                @default("{}")
+  workflowId    String?
+  agentId       String?
+  appId         String?
+  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workflow      AutomationWorkflow? @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  agent         AIAgent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  app           AIApp?              @relation(fields: [appId], references: [id], onDelete: SetNull)
+  steps         AIExecutionStep[]
+  feedbacks     AIFeedback[]
+  agentTasks    AgentTask[]
   agentMessages AgentMessage[]
 
   @@index([workspaceId, status])
@@ -4090,36 +4122,36 @@ model AIExecutionStep {
 /// delegation to a team member (or a member's own sub-delegation). Tasks form
 /// a tree under the run through `parentTaskId`.
 model AgentTask {
-  id            String         @id @default(cuid())
-  workspaceId   String
-  executionId   String
-  parentTaskId  String?
+  id               String         @id @default(cuid())
+  workspaceId      String
+  executionId      String
+  parentTaskId     String?
   /// The canvas node id (inline agent) or `AIAgent` id doing the work.
-  agentKey      String
-  agentName     String
+  agentKey         String
+  agentName        String
   /// Who handed the work over (canvas node id / agent id), null for the run's root agent.
-  delegatedBy   String?
-  title         String
-  description   String?
+  delegatedBy      String?
+  title            String
+  description      String?
   /// PENDING | QUEUED | RUNNING | WAITING | APPROVAL_REQUIRED | COMPLETED | FAILED | CANCELLED | PAUSED
-  status        String         @default("PENDING")
-  priority      Int            @default(0)
-  input         Json           @default("{}")
-  output        Json?
+  status           String         @default("PENDING")
+  priority         Int            @default(0)
+  input            Json           @default("{}")
+  output           Json?
   /// Task ids this one waited for (sequential delegation).
-  dependencies  String[]       @default([])
-  retryCount    Int            @default(0)
-  error         String?
-  approvalRequired Boolean     @default(false)
-  tokensUsed    Int            @default(0)
-  createdAt     DateTime       @default(now())
-  startedAt     DateTime?
-  completedAt   DateTime?
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  execution     AIExecution    @relation(fields: [executionId], references: [id], onDelete: Cascade)
-  parentTask    AgentTask?     @relation("AgentTaskTree", fields: [parentTaskId], references: [id], onDelete: Cascade)
-  subtasks      AgentTask[]    @relation("AgentTaskTree")
-  messages      AgentMessage[]
+  dependencies     String[]       @default([])
+  retryCount       Int            @default(0)
+  error            String?
+  approvalRequired Boolean        @default(false)
+  tokensUsed       Int            @default(0)
+  createdAt        DateTime       @default(now())
+  startedAt        DateTime?
+  completedAt      DateTime?
+  workspace        Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  execution        AIExecution    @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  parentTask       AgentTask?     @relation("AgentTaskTree", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks         AgentTask[]    @relation("AgentTaskTree")
+  messages         AgentMessage[]
 
   @@index([executionId, createdAt])
   @@index([workspaceId, status])
@@ -4275,7 +4307,7 @@ model MigrationMapping {
   sourceId               String
   destinationId          String?
   destinationWorkspaceId String
-  status                 MigrationMappingStatus     @default(PENDING)
+  status                 MigrationMappingStatus      @default(PENDING)
   resolution             MigrationResolutionStrategy @default(USE_EXISTING)
   metadata               Json?
   error                  String?
@@ -4290,19 +4322,19 @@ model MigrationMapping {
 }
 
 model MigrationError {
-  id          String                  @id @default(cuid())
+  id          String                 @id @default(cuid())
   migrationId String
   stepStage   MigrationStage?
   entityType  MigrationEntityType?
   sourceId    String?
-  severity    MigrationErrorSeverity  @default(RECOVERABLE)
+  severity    MigrationErrorSeverity @default(RECOVERABLE)
   errorCode   String
   message     String
   details     Json?
-  retryCount  Int                     @default(0)
-  resolved    Boolean                 @default(false)
-  createdAt   DateTime                @default(now())
-  migration   MigrationSession        @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+  retryCount  Int                    @default(0)
+  resolved    Boolean                @default(false)
+  createdAt   DateTime               @default(now())
+  migration   MigrationSession       @relation(fields: [migrationId], references: [id], onDelete: Cascade)
 
   @@index([migrationId, severity, resolved])
   @@map("migration_errors")
@@ -4501,22 +4533,22 @@ model WidgetVersion {
 }
 
 model WidgetExecution {
-  id                 String            @id @default(cuid())
+  id                 String           @id @default(cuid())
   workspaceId        String
   widgetDefinitionId String
   widgetInstanceId   String?
-  executionType      String            @default("ACTION")
-  status             String            @default("SUCCESS")
-  inputPayload       Json              @default("{}")
-  outputPayload      Json              @default("{}")
-  latencyMs          Int               @default(0)
+  executionType      String           @default("ACTION")
+  status             String           @default("SUCCESS")
+  inputPayload       Json             @default("{}")
+  outputPayload      Json             @default("{}")
+  latencyMs          Int              @default(0)
   errorMessage       String?
   errorJson          Json?
   initiatedBy        String?
-  createdAt          DateTime          @default(now())
-  workspace          Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  widgetDefinition   WidgetDefinition  @relation(fields: [widgetDefinitionId], references: [id], onDelete: Cascade)
-  widgetInstance     WidgetInstance?   @relation(fields: [widgetInstanceId], references: [id], onDelete: SetNull)
+  createdAt          DateTime         @default(now())
+  workspace          Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  widgetDefinition   WidgetDefinition @relation(fields: [widgetDefinitionId], references: [id], onDelete: Cascade)
+  widgetInstance     WidgetInstance?  @relation(fields: [widgetInstanceId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt])
   @@index([widgetDefinitionId, status])
@@ -4622,5 +4654,3 @@ model AgentApiKey {
   @@index([keyHash])
   @@map("agent_api_keys")
 }
-
-

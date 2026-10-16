@@ -73,6 +73,10 @@ import type {
   AgentSessionMessage,
   AgentExecutionLogEntry,
   AgentRunResult,
+  AgentChatResult,
+  StudioTemplate,
+  AgentConversation,
+  AgentConversationSummary,
   AIEntity,
   AIEntityType,
   AIAgent,
@@ -2718,9 +2722,40 @@ export const agentsApi = {
       }),
     ),
 
+  /** One chat turn; the server keeps the conversation and replays it as history. */
+  chat: (
+    workspaceId: string,
+    agentId: string,
+    body: { message: string; conversationId?: string },
+  ) =>
+    request<AgentChatResult>(
+      http.post(`/workspaces/${workspaceId}/agents/${agentId}/chat`, body),
+    ),
+
+  listConversations: (workspaceId: string, agentId: string) =>
+    request<AgentConversationSummary[]>(
+      http.get(`/workspaces/${workspaceId}/agents/${agentId}/conversations`),
+    ),
+
+  getConversation: (workspaceId: string, agentId: string, conversationId: string) =>
+    request<AgentConversation>(
+      http.get(`/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}`),
+    ),
+
+  deleteConversation: (workspaceId: string, agentId: string, conversationId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}`),
+    ),
+
   logs: (workspaceId: string, agentId: string) =>
     request<AgentExecutionLog[]>(
       http.get(`/workspaces/${workspaceId}/agents/${agentId}/logs`),
+    ),
+
+  /** Built-in agent templates a workspace can start from. */
+  listTemplates: (workspaceId: string) =>
+    request<StudioTemplate[]>(
+      http.get(`/workspaces/${workspaceId}/agents/templates`),
     ),
 
   /** Recent executions across every agent in the workspace. */
@@ -3522,6 +3557,12 @@ export const integrationsApi = {
   getProviders: (workspaceId: string) =>
     request<IntegrationCapabilities[]>(
       http.get(`/workspaces/${workspaceId}/integrations/providers`),
+    ),
+
+  /** The URL and signing secret for a GitHub connection's webhook (admins). */
+  getWebhookSetup: (workspaceId: string, integrationId: string) =>
+    request<{ url: string; secret: string; contentType: string; events: string[] }>(
+      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}/webhook-setup`),
     ),
 
   getDetail: (workspaceId: string, integrationId: string) =>

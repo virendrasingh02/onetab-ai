@@ -60,6 +60,7 @@ export const agentEventSchema = z.enum([
   'document.created',
   'document.updated',
   'meeting.ended',
+  'github.pull_request',
   'channel.message',
   'coworker.completed',
   'coworker.failed',

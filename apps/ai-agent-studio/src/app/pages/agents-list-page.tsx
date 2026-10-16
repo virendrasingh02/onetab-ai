@@ -49,7 +49,7 @@ import {
   Zap,
 } from 'lucide-react';
 import React, { useState, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from '../router.js';
 import {
   AGENT_ICONS,
   AgentAvatar,
@@ -122,26 +122,12 @@ export function AgentsListPage() {
   // Load agents
   const { data: rawAgents = [], isLoading } = useQuery({
     queryKey: ['agents', activeWorkspace.id],
-    queryFn: async () => {
-      try {
-        const live = await agentsApi.list(activeWorkspace.id);
-        if (live && live.length > 0) return live;
-      } catch {
-        // Fallback to local storage
-      }
-      return agentService.getAgents(activeWorkspace.id);
-    },
+    queryFn: () => agentsApi.list(activeWorkspace.id),
   });
 
   // Create Mutation
   const createMutation = useMutation({
-    mutationFn: async (input: any) => {
-      try {
-        return await agentsApi.create(activeWorkspace.id, input);
-      } catch {
-        return agentService.createAgent(activeWorkspace.id, input);
-      }
-    },
+    mutationFn: (input: any) => agentsApi.create(activeWorkspace.id, input),
     onSuccess: (newAgent) => {
       queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
       setIsCreateOpen(false);
@@ -438,7 +424,7 @@ export function AgentsListPage() {
   }
 
   return (
-    <Page width="wide" padding="none" className="space-y-6 w-full">
+    <Page width="full" className="space-y-6">
       {/* Header bar matching Admin */}
       <PageHeader
         title="Agent Lifecycle Management"

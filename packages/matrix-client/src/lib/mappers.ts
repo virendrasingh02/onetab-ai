@@ -51,6 +51,8 @@ interface MessageContentShape {
   body?: string;
   format?: string;
   formatted_body?: string;
+  /** Media only: the file's name, when `body` is a caption (Matrix v1.10). */
+  filename?: string;
   url?: string;
   file?: { url?: string };
   info?: {
@@ -116,7 +118,7 @@ function toAttachment(
   const audio = content['org.matrix.msc1767.audio'];
 
   return {
-    name: content.body ?? 'attachment',
+    name: content.filename || content.body || 'attachment',
     mimeType: content.info?.mimetype ?? 'application/octet-stream',
     size: content.info?.size,
     url,
@@ -388,6 +390,17 @@ const MEDIA_KINDS: readonly MessageKind[] = [
   'file',
 ];
 
+/**
+ * The text a message shows beside its content. A media event's `body` is its
+ * filename — which the attachment card already shows — unless the event also
+ * carries a different `filename`, in which case `body` is a caption.
+ */
+function messageBodyText(content: MessageContentShape, kind: MessageKind): string {
+  const body = content.body ?? '';
+  if (!MEDIA_KINDS.includes(kind)) return body;
+  return content.filename && content.filename !== body ? body : '';
+}
+
 /** A forward payload as the domain's `ForwardedMessage`, media resolved for this reader. */
 export function toForwarded(
   client: SdkClient,
@@ -408,8 +421,7 @@ export function toForwarded(
         height: 64,
       }) ?? undefined,
     kind,
-    // A media event's `body` is its filename — the attachment shows that.
-    body: MEDIA_KINDS.includes(kind) ? '' : (content.body ?? ''),
+    body: messageBodyText(content, kind),
     timestamp: raw.origin_server_ts,
     attachment: toAttachment(client, content, kind),
     threadRootId: raw.thread_root_id,
@@ -500,9 +512,11 @@ export function toMessage(
       ? ''
       : forwarded
         ? (forwarded.comment ?? '')
-        : (content.body ?? ''),
+        : messageBodyText(content, kind),
     formattedBody:
-      !forwarded && content.format === 'org.matrix.custom.html'
+      !forwarded &&
+      !!messageBodyText(content, kind) &&
+      content.format === 'org.matrix.custom.html'
         ? content.formatted_body
         : undefined,
     timestamp: event.getTs(),

@@ -64,7 +64,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../router.js';
 import type { CanvasNodeStatus } from '../workflow-canvas/run-console-drawer.js';
 import type { NodeRunResult } from '../workflow-canvas/node-chrome.js';
 import { ChangeList, FlowLine, IssueList, errorText, integrationsHref } from './architect-ui.js';

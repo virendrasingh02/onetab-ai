@@ -57,6 +57,7 @@ interface GCalEvent {
   organizer?: { email?: string; displayName?: string };
   recurrence?: string[];
   recurringEventId?: string;
+  visibility?: string;
   reminders?: { useDefault?: boolean; overrides?: Array<{ method: string; minutes: number }> };
   created?: string;
   updated?: string;
@@ -82,6 +83,7 @@ function normalizeEvent(raw: GCalEvent) {
     })),
     organizer: raw.organizer,
     isRecurring: Boolean(raw.recurrence?.length || raw.recurringEventId),
+    visibility: raw.visibility,
     reminders: raw.reminders,
     createdAt: raw.created,
     updatedAt: raw.updated,
@@ -455,6 +457,42 @@ export class GoogleCalendarProvider implements ProviderAdapter {
       );
       return (res.data.items ?? []).map(normalizeEvent);
     });
+  }
+
+  /**
+   * Events in a window for the Meetings sync: cancelled ones included (so a
+   * deletion in Google reaches Meetings) and every page followed.
+   */
+  async listEventsForSync(credential: ResolvedCredential, timeMin: string, timeMax: string) {
+    return this.executeWithAuth(credential, async (token) => {
+      const out: GCalEvent[] = [];
+      let pageToken: string | undefined;
+      do {
+        const res = await axios.get<{ items?: GCalEvent[]; nextPageToken?: string }>(
+          'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { timeMin, timeMax, maxResults: 250, singleEvents: true, showDeleted: true, orderBy: 'startTime', pageToken },
+          },
+        );
+        out.push(...(res.data.items ?? []));
+        pageToken = res.data.nextPageToken;
+      } while (pageToken && out.length < 1000);
+      return out.map(normalizeEvent);
+    });
+  }
+
+  /** Writes a Meetings change through to the person's primary calendar. */
+  pushCreate(credential: ResolvedCredential, input: { summary: string; description?: string; location?: string; start: string; end: string; attendees?: string[] }) {
+    return this.createEvent(credential, { calendarId: 'primary', ...input });
+  }
+
+  pushUpdate(credential: ResolvedCredential, eventId: string, input: { summary?: string; description?: string; location?: string; start?: string; end?: string }) {
+    return this.updateEvent(credential, { calendarId: 'primary', eventId, ...input });
+  }
+
+  pushDelete(credential: ResolvedCredential, eventId: string) {
+    return this.deleteEvent(credential, 'primary', eventId);
   }
 
   private async getEvent(credential: ResolvedCredential, calendarId: string, eventId: string) {

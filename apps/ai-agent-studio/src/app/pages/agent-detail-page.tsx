@@ -122,7 +122,7 @@ import {
   Rows3,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { scopeStudioPath, useNavigate, useParams, useSearchParams } from '../router.js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AGENT_ICONS,
@@ -130,6 +130,7 @@ import {
   DEFAULT_CATEGORIES,
   THEME_COLORS,
 } from '../data/agent-metadata.js';
+import { useMemberPreference } from '../hooks/use-member-preference.js';
 import { useStudioSession } from '../session-guard.js';
 import { AgentRuntimeSettings, type AgentRuntimeDraft } from '../components/agent-detail/agent-runtime-settings.js';
 import { modelLabel, STUDIO_NODE_TYPES } from '../components/workflow-canvas/custom-nodes.js';
@@ -336,7 +337,7 @@ const ZOOM_PRESETS = [0.5, 1, 2] as const;
 const LAYOUT_ANIMATION_MS = 420;
 /** Quiet time after the last edit before the draft saves itself. */
 const AUTO_SAVE_DELAY_MS = 2000;
-const AUTO_SAVE_PREF_KEY = 'studio.autosave';
+const AUTO_SAVE_PREF_KEY = 'studioAutosave';
 const isAutoSave = (opts: unknown) => !!(opts as { auto?: boolean } | undefined)?.auto;
 
 /** "just now", "12s ago", "4m ago", then the time. */
@@ -1674,22 +1675,12 @@ export function AgentDetailPage() {
     return ok;
   }, []);
   const [isDirty, setIsDirty] = useState(false);
-  // Auto-save: on by default, remembered per browser
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(() => {
-    try {
-      return window.localStorage.getItem(AUTO_SAVE_PREF_KEY) !== 'off';
-    } catch {
-      return true;
-    }
-  });
-  const toggleAutoSave = useCallback((on: boolean) => {
-    setAutoSaveEnabled(on);
-    try {
-      window.localStorage.setItem(AUTO_SAVE_PREF_KEY, on ? 'on' : 'off');
-    } catch {
-      /* private mode — still applies for this visit */
-    }
-  }, []);
+  // Auto-save: on by default, remembered with the member's workspace preferences
+  const [autoSaveEnabled, toggleAutoSave] = useMemberPreference<boolean>(
+    AUTO_SAVE_PREF_KEY,
+    true,
+    (raw) => (typeof raw === 'boolean' ? raw : undefined),
+  );
   const [lastSaved, setLastSaved] = useState<{ at: number; auto: boolean } | null>(null);
   /** The edit an auto-save failed on; it waits for a new edit before trying again. */
   const [autoSaveFailedAt, setAutoSaveFailedAt] = useState<string | null>(null);
@@ -3890,7 +3881,7 @@ export function AgentDetailPage() {
                   onClick={() => {
                     setIsPublishPopoverOpen(false);
                     // The Studio's own end-user chat page for this agent
-                    window.open(`${window.location.origin}/chat/${agent.id}`, '_blank', 'noopener');
+                    window.open(`${window.location.origin}${scopeStudioPath(activeWorkspace.slug, `/chat/${agent.id}`)}`, '_blank', 'noopener');
                   }}
                   className="group h-auto w-full justify-between rounded-xl p-2 text-foreground"
                 >

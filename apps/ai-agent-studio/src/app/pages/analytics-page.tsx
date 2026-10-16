@@ -249,7 +249,7 @@ export function AnalyticsPage() {
   };
 
   return (
-    <Page width="wide" padding="none" className="space-y-6">
+    <Page className="space-y-6">
       {/* Top Header */}
       <PageHeader
         title="Analytics & Observability Center"

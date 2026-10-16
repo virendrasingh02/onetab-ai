@@ -35,7 +35,8 @@ import {
   Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from '../router.js';
+import { useMemberPreference } from '../hooks/use-member-preference.js';
 import { PlanLimitNotice } from '../plan/plan-limit-notice.js';
 import { readPlanLimit, type PlanLimitInfo } from '../plan/plan-limit.js';
 import { ConnectionBadge, FlowLine, IssueList, errorText, integrationsHref } from '../components/agent-architect/architect-ui.js';
@@ -51,7 +52,7 @@ interface BuildStep {
   detail?: string;
 }
 
-const RECENT_KEY = 'onetab_studio_recent_prompts';
+const RECENT_KEY = 'studioRecentPrompts';
 const DOMAINS = ['HR', 'Sales', 'Marketing', 'Accounts', 'Support', 'Banking & Insurance', 'Ecommerce'];
 
 const SCHEDULE_PRESETS: Array<{ label: string; cron: string | null }> = [
@@ -62,23 +63,8 @@ const SCHEDULE_PRESETS: Array<{ label: string; cron: string | null }> = [
   { label: 'Every day at 18:00', cron: '0 18 * * *' },
 ];
 
-function readRecent(): string[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
-    return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string').slice(0, 5) : [];
-  } catch {
-    return [];
-  }
-}
-
-function rememberPrompt(prompt: string) {
-  try {
-    const next = [prompt, ...readRecent().filter((p) => p !== prompt)].slice(0, 5);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-  } catch {
-    // Private mode / blocked storage: recent prompts are only a convenience.
-  }
-}
+const parseRecent = (raw: unknown): string[] | undefined =>
+  Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string').slice(0, 5) : undefined;
 
 const PROMPT_MAX = 4_000;
 
@@ -120,7 +106,7 @@ export function CreateAgentPage() {
   const [build, setBuild] = useState<BuildStep[]>([]);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [checkingConnections, setCheckingConnections] = useState(false);
-  const [recent, setRecent] = useState<string[]>(readRecent);
+  const [recent, setRecent] = useMemberPreference<string[]>(RECENT_KEY, [], parseRecent);
   const [suggestion, setSuggestion] = useState(0);
   const requestRef = useRef(0);
   const planHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -156,8 +142,7 @@ export function CreateAgentPage() {
       setError(null);
       setPlanLimit(null);
       setPhase('understanding');
-      rememberPrompt(trimmed);
-      setRecent(readRecent());
+      setRecent([trimmed, ...recent.filter((p) => p !== trimmed)].slice(0, 5));
       try {
         const res = await agentArchitectApi.understand(activeWorkspace.id, { prompt: trimmed });
         if (id !== requestRef.current) return;
@@ -173,7 +158,7 @@ export function CreateAgentPage() {
         setPhase('describe');
       }
     },
-    [activeWorkspace.id],
+    [activeWorkspace.id, recent, setRecent],
   );
 
   // `/create?prompt=…&go=1` (from the Home prompt box) plans straight away.
@@ -347,7 +332,7 @@ export function CreateAgentPage() {
   if (phase === 'describe' || phase === 'understanding') {
     const busy = phase === 'understanding';
     return (
-      <Page width="wide" padding="none" className="mx-auto w-full max-w-3xl space-y-8 py-6">
+      <Page className="mx-auto w-full max-w-3xl space-y-8 py-6">
         <header className="space-y-2 text-center">
           <div className="mx-auto flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <Sparkles className="size-5" aria-hidden />
@@ -458,7 +443,7 @@ export function CreateAgentPage() {
     const failed = build.some((b) => b.status === 'failed' && b.id === 'create');
     const waiting = build.filter((b) => b.status === 'waiting');
     return (
-      <Page width="wide" padding="none" className="mx-auto w-full max-w-2xl space-y-6 py-6">
+      <Page className="mx-auto w-full max-w-2xl space-y-6 py-6">
         <header className="space-y-1">
           <h1 className="text-xl font-semibold text-foreground">{phase === 'built' && !failed ? 'Your agent is built' : 'Building your agent'}</h1>
           <p className="text-sm text-muted-foreground">{finalSpec.agent.name}</p>
@@ -537,7 +522,7 @@ export function CreateAgentPage() {
   const triggerPreset = schedulePresets.find((p) => (p.cron ?? null) === currentCron);
 
   return (
-    <Page width="wide" padding="none" className="mx-auto w-full max-w-6xl space-y-6 py-4">
+    <Page className="mx-auto w-full max-w-6xl space-y-6 py-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="ghost" size="sm" onClick={() => setPhase('describe')} className="gap-1.5">
           <ArrowLeft className="size-3.5" /> Edit prompt

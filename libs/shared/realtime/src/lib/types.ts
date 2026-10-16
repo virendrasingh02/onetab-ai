@@ -105,6 +105,7 @@ export interface PresenceUpdatedPayload {
   lastActiveAt?: IsoDateString | null;
   statusText?: string | null;
   statusEmoji?: string | null;
+  manualAway?: boolean;
   user?: Partial<PublicUser> | null;
 }
 

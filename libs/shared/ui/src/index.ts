@@ -505,6 +505,7 @@ export {
 export {
   SidebarActivityIndicator,
   SidebarBadge,
+  SidebarMentionBadge,
   WorkspaceActivityIndicator,
   SidebarActivityConfigProvider,
   useSidebarActivityConfig,
@@ -514,6 +515,7 @@ export {
   type SidebarActivityIndicatorProps,
   type WorkspaceActivityIndicatorProps,
   type SidebarBadgeProps,
+  type SidebarMentionBadgeProps,
   type SidebarActivityState,
   type SidebarActivityConfig,
   type SidebarActivitySurface,

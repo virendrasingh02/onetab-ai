@@ -1,35 +1,6 @@
-export interface WorkflowNodeData {
-  label: string;
-  subtitle?: string;
-  config?: Record<string, any>;
-  [key: string]: any;
-}
+import type { StudioTemplate } from '@org/types';
 
-export interface StudioTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: 'automation' | 'productivity' | 'engineering' | 'support' | 'multi-agent' | 'research';
-  icon: string;
-  recommendedModel: string;
-  recommendedProvider: string;
-  tags: string[];
-  requiredTools: string[];
-  nodes: Array<{
-    id: string;
-    type: string;
-    position: { x: number; y: number };
-    data: WorkflowNodeData;
-  }>;
-  edges: Array<{
-    id: string;
-    source: string;
-    target: string;
-    label?: string;
-    sourceHandle?: string;
-  }>;
-}
-
+/** The agent templates every workspace can start from, served by `GET /agents/templates`. */
 export const STUDIO_TEMPLATES: StudioTemplate[] = [
   // 0. Shopify order -> Slack -> WhatsApp (one agent, three apps)
   {

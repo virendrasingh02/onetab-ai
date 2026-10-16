@@ -60,7 +60,7 @@ import { useModelOptions } from './agent-config/use-agent-config-data.js';
 import { CATALOG_NODES,type CatalogNodeItem, type NodeCategory } from './node-library.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { useConnectorCatalogNodes, useConnectorNode } from './connector-nodes.js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../router.js';
 import { useWorkflowLayout, type WorkflowDirection, type WorkflowEdgeStyle } from './workflow-layout-context.js';
 import { firstIssue, type AgentModuleId, type ModuleSummary } from './agent-config/agent-module-model.js';
 import {

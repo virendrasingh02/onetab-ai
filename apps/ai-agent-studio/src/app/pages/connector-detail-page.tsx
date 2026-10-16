@@ -23,7 +23,7 @@ import {
 } from '@org/ui';
 import { ArrowLeft, Bot, Pencil, CheckCircle2, Copy, Eye, KeyRound, Play, RefreshCw, ShieldAlert, Trash2, Workflow, Wrench, XCircle, Zap } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from '../router.js';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
 import { OAuthAppsDialog } from '@org/web-integrations';
 import { ConnectDialog } from '../components/connectors/connect-dialog.js';

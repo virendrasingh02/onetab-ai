@@ -52,6 +52,8 @@ export interface UserPresence {
   statusText?: string | null;
   statusEmoji?: string | null;
   deviceId?: string | null;
+  /** User pinned themselves away (survives idle/reconnect, shared across devices). */
+  manualAway?: boolean;
 }
 
 /** Single stop within a linear or radial gradient. */

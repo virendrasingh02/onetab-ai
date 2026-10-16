@@ -166,6 +166,9 @@ export default defineConfig(() => ({
     environment: 'jsdom',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
+    alias: {
+      '@lobehub/icons': path.resolve(import.meta.dirname, 'src/test-lobehub-icons-stub.js'),
+    },
     coverage: {
       reportsDirectory: './test-output/vitest/coverage',
       provider: 'v8' as const,

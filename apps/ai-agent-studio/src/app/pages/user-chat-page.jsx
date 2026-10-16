@@ -1,117 +1,176 @@
 import { useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useParams, useNavigate } from '../router.js';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { agentsApi, aiFeedbackApi } from '@org/api-client';
 import { Badge, Button, Input, LoadingState, toast } from '@org/ui';
 import { cn } from '@org/utils';
-import {
-  ArrowLeft,
-  Bot,
-  Copy,
-  ExternalLink,
-  LifeBuoy,
-  RefreshCw,
-  Send,
-  ThumbsDown,
-  ThumbsUp,
-  User,
-} from 'lucide-react';
+import { ArrowLeft, Bot, Copy, MessageSquarePlus, Send, ThumbsDown, ThumbsUp, Trash2, User } from 'lucide-react';
 import { agentService } from '../services/agentService.js';
 import { useStudioSession } from '../session-guard.js';
+
+const timeOf = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const errorText = (err) => (err instanceof Error && err.message ? err.message : 'The agent could not be reached.');
 
 export function UserChatPage() {
   const { agentId } = useParams();
   const { activeWorkspace } = useStudioSession();
   const navigate = useNavigate();
 
-  const [messages, setMessages] = useState([
-    {
-      id: 'msg-welcome',
-      role: 'assistant',
-      content: 'Hello! I am your autonomous AI assistant. How can I help you today?',
-      citations: [],
-      timestamp: 'Just now',
-    },
-  ]);
+  const queryClient = useQueryClient();
+  const [conversationId, setConversationId] = useState(null);
+  // Optimistic tail: what the person just sent, until the stored transcript has it.
+  const [pending, setPending] = useState(null);
+  const [turnError, setTurnError] = useState(null);
+  const [rated, setRated] = useState({});
   const [inputValue, setInputValue] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [humanHandedOver, setHumanHandedOver] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const { data: agent, isLoading } = useQuery({
+  const { data: agent, isLoading, error } = useQuery({
     queryKey: ['agent-detail', activeWorkspace.id, agentId],
-    queryFn: () => agentService.getAgentById(activeWorkspace.id, agentId || 'agent-support-pro'),
+    queryFn: () => agentService.getAgentById(activeWorkspace.id, agentId),
+    enabled: Boolean(agentId),
   });
+
+  const conversationsKey = ['agent-conversations', activeWorkspace.id, agentId];
+  const { data: conversations = [] } = useQuery({
+    queryKey: conversationsKey,
+    queryFn: () => agentsApi.listConversations(activeWorkspace.id, agentId),
+    enabled: Boolean(agentId),
+  });
+
+  const { data: conversation } = useQuery({
+    queryKey: ['agent-conversation', activeWorkspace.id, agentId, conversationId],
+    queryFn: () => agentsApi.getConversation(activeWorkspace.id, agentId, conversationId),
+    enabled: Boolean(agentId && conversationId),
+  });
+
+  const messages = [
+    ...(conversation?.messages ?? []),
+    ...(pending ? [{ id: 'pending', role: 'user', content: pending, at: new Date().toISOString() }] : []),
+    ...(turnError ? [{ id: 'turn-error', role: 'system', content: turnError, at: new Date().toISOString() }] : []),
+  ];
+
+  const run = useMutation({
+    mutationFn: (text) => agentsApi.chat(activeWorkspace.id, agentId, { message: text, conversationId: conversationId ?? undefined }),
+    onMutate: (text) => {
+      setPending(text);
+      setTurnError(null);
+    },
+    onSuccess: async (res) => {
+      await queryClient.invalidateQueries({ queryKey: ['agent-conversation', activeWorkspace.id, agentId, res.conversationId] });
+      queryClient.invalidateQueries({ queryKey: conversationsKey });
+      setConversationId(res.conversationId);
+      setPending(null);
+    },
+    onError: (err) => {
+      setPending(null);
+      setTurnError(errorText(err));
+    },
+  });
+
+  const removeConversation = useMutation({
+    mutationFn: (id) => agentsApi.deleteConversation(activeWorkspace.id, agentId, id),
+    onSuccess: (_r, id) => {
+      if (id === conversationId) startNew();
+      queryClient.invalidateQueries({ queryKey: conversationsKey });
+    },
+    onError: (err) => toast.error('Could not delete the conversation', { description: errorText(err) }),
+  });
+
+  const rate = useMutation({
+    mutationFn: ({ msg, rating }) =>
+      aiFeedbackApi.submit(activeWorkspace.id, { executionId: msg.logId, agentId, rating }),
+    onSuccess: (_r, { msg, rating }) => {
+      setRated((prev) => ({ ...prev, [msg.id]: rating }));
+      toast.success('Feedback recorded');
+    },
+    onError: (err) => toast.error('Could not save feedback', { description: errorText(err) }),
+  });
+
+  const startNew = () => {
+    setConversationId(null);
+    setPending(null);
+    setTurnError(null);
+    setRated({});
+  };
+
+  const isStreaming = run.isPending;
+  const starters = Array.isArray(agent?.configuration?.conversationStarters)
+    ? agent.configuration.conversationStarters.filter((v) => typeof v === 'string').slice(0, 4)
+    : [];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming]);
 
-  const handleSend = async (textToSend = null) => {
-    const text = textToSend || inputValue;
-    if (!text.trim() || isStreaming) return;
-
-    const userMsg = {
-      id: `usr-${Date.now()}`,
-      role: 'user',
-      content: text.trim(),
-      timestamp: 'Just now',
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
+  const handleSend = (textToSend = null) => {
+    const text = (textToSend || inputValue).trim();
+    if (!text || isStreaming) return;
     setInputValue('');
-    setIsStreaming(true);
-
-    const botMsgId = `bot-${Date.now()}`;
-    const botMsg = {
-      id: botMsgId,
-      role: 'assistant',
-      content: '',
-      citations: [
-        { title: 'Onetab Security Handbook (SAML SSO)', url: 'https://docs.onetab.ai/sso' },
-      ],
-      timestamp: 'Just now',
-    };
-
-    setMessages((prev) => [...prev, botMsg]);
-
-    // Stream chunks
-    const simulatedResponse = `I've analyzed your inquiry regarding "${text}".\n\nBased on the indexed enterprise documentation in ${activeWorkspace.name}, here is the recommended resolution:\n\n1. Open **Workspace Settings > Security**.\n2. In the **SAML 2.0 / Okta** section, copy the ACS URL and Entity ID.\n3. Configure your Identity Provider metadata file.\n\nWould you like me to guide you through creating an automated test run?`;
-
-    let currentLength = 0;
-    const interval = setInterval(() => {
-      currentLength += 8;
-      const slice = simulatedResponse.slice(0, currentLength);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === botMsgId ? { ...m, content: slice } : m)),
-      );
-
-      if (currentLength >= simulatedResponse.length) {
-        clearInterval(interval);
-        setIsStreaming(false);
-      }
-    }, 25);
+    run.mutate(text);
   };
 
-  const handleEscalateToHuman = () => {
-    setHumanHandedOver(true);
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `sys-${Date.now()}`,
-        role: 'system',
-        content: 'Conversation has been escalated to a Human Support Specialist. Elena Rostova (Staff Specialist) will join shortly.',
-        timestamp: 'Just now',
-      },
-    ]);
-    toast.info('Support specialist notified and assigned');
-  };
-
+  if (!agentId || error) {
+    return (
+      <div className="flex h-screen w-full flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground">
+        <p>{agentId ? errorText(error) : 'No agent selected.'}</p>
+        <Button variant="outline" size="sm" onClick={() => navigate('/agents')}>
+          Back to agents
+        </Button>
+      </div>
+    );
+  }
   if (isLoading || !agent) {
-    return <LoadingState label="Connecting to autonomous agent chat..." />;
+    return <LoadingState label="Connecting to agent..." />;
   }
 
   return (
-    <div className="flex h-screen w-full flex-col bg-background text-foreground">
+    <div className="flex h-screen w-full bg-background text-foreground">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
+        <div className="flex h-14 items-center justify-between border-b border-border px-3">
+          <span className="text-xs font-semibold">Conversations</span>
+          <Button variant="ghost" size="icon-xs" onClick={startNew} title="New chat" className="size-6">
+            <MessageSquarePlus className="size-3.5" />
+          </Button>
+        </div>
+        <div className="flex-1 space-y-0.5 overflow-y-auto p-2">
+          {conversations.length === 0 && (
+            <p className="px-2 py-4 text-center text-[11px] text-muted-foreground">No conversations yet.</p>
+          )}
+          {conversations.map((c) => (
+            <div
+              key={c.id}
+              className={cn(
+                'group flex items-center gap-1 rounded-md px-2 py-1.5 text-xs hover:bg-surface-raised',
+                c.id === conversationId && 'bg-surface-raised font-medium',
+              )}
+            >
+              <button
+                type="button"
+                className="min-w-0 flex-1 truncate text-left"
+                onClick={() => {
+                  setPending(null);
+                  setTurnError(null);
+                  setConversationId(c.id);
+                }}
+              >
+                {c.title}
+              </button>
+              <button
+                type="button"
+                title="Delete conversation"
+                className="opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                disabled={removeConversation.isPending}
+                onClick={() => removeConversation.mutate(c.id)}
+              >
+                <Trash2 className="size-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
       {/* Header */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
         <div className="flex items-center gap-3">
@@ -131,59 +190,38 @@ export function UserChatPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-foreground">{agent.name}</span>
-                <Badge variant="success" className="text-[10px] px-1.5 py-0.2">
-                  Live
+                <Badge variant={agent.status === 'published' ? 'success' : 'outline'} className="text-[10px] px-1.5 py-0.2">
+                  {agent.status === 'published' ? 'Live' : 'Draft'}
                 </Badge>
               </div>
               <p className="text-[11px] text-muted-foreground truncate max-w-xs">
-                {agent.role} • {agent.model || 'gpt-4o'}
+                {[agent.role, agent.model].filter(Boolean).join(' • ')}
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {!humanHandedOver ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleEscalateToHuman}
-              className="gap-1.5 text-xs text-warning border-warning/30 hover:bg-warning/10"
-            >
-              <LifeBuoy className="size-3.5" />
-              Human Takeover
-            </Button>
-          ) : (
-            <Badge variant="outline" className="text-xs text-warning border-warning/30">
-              Human In Loop Active
-            </Badge>
-          )}
-
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              setMessages([
-                {
-                  id: 'msg-welcome',
-                  role: 'assistant',
-                  content: 'Conversation reset. How can I help you today?',
-                  timestamp: 'Just now',
-                },
-              ]);
-              setHumanHandedOver(false);
-              toast.success('Chat history cleared');
-            }}
+            disabled={isStreaming || (!conversationId && messages.length === 0)}
+            onClick={startNew}
             className="gap-1.5 text-xs text-muted-foreground"
           >
-            <RefreshCw className="size-3.5" />
-            Reset
+            <MessageSquarePlus className="size-3.5" />
+            New chat
           </Button>
         </div>
       </header>
 
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-3xl w-full mx-auto space-y-4">
+        {messages.length === 0 && (
+          <p className="pt-16 text-center text-xs text-muted-foreground">
+            Send a message to run {agent.name}.
+          </p>
+        )}
         {messages.map((msg) => {
           if (msg.role === 'system') {
             return (
@@ -221,31 +259,10 @@ export function UserChatPage() {
               >
                 <div className="whitespace-pre-wrap">{msg.content}</div>
 
-                {/* Citations badges */}
-                {msg.citations && msg.citations.length > 0 && (
-                  <div className="mt-3 pt-2.5 border-t border-border/60 space-y-1">
-                    <div className="text-[10px] font-semibold text-muted-foreground uppercase">
-                      Sources & Citations:
-                    </div>
-                    {msg.citations.map((c, i) => (
-                      <a
-                        key={i}
-                        href={c.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded bg-surface-raised px-2 py-0.5 text-[10px] text-primary hover:underline mr-1"
-                      >
-                        <span>{c.title}</span>
-                        <ExternalLink className="size-2.5" />
-                      </a>
-                    ))}
-                  </div>
-                )}
-
                 {/* Assistant Feedback Buttons */}
-                {!isUser && msg.content && (
+                {!isUser && msg.logId && (
                   <div className="mt-2.5 flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/40">
-                    <span>{msg.timestamp}</span>
+                    <span>{timeOf(new Date(msg.at))}</span>
                     <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
@@ -262,18 +279,20 @@ export function UserChatPage() {
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        onClick={() => toast.success('Thanks for your feedback!')}
+                        disabled={rate.isPending || rated[msg.id] !== undefined}
+                        onClick={() => rate.mutate({ msg, rating: 1 })}
                         title="Helpful"
-                        className="size-5 hover:text-success"
+                        className={cn('size-5 hover:text-success', rated[msg.id] === 1 && 'text-success')}
                       >
                         <ThumbsUp className="size-3" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        onClick={() => toast.info('Feedback recorded for agent prompt tuning')}
+                        disabled={rate.isPending || rated[msg.id] !== undefined}
+                        onClick={() => rate.mutate({ msg, rating: -1 })}
                         title="Not helpful"
-                        className="size-5 hover:text-destructive"
+                        className={cn('size-5 hover:text-destructive', rated[msg.id] === -1 && 'text-destructive')}
                       >
                         <ThumbsDown className="size-3" />
                       </Button>
@@ -290,25 +309,22 @@ export function UserChatPage() {
       {/* Input Box & Suggested Prompts */}
       <div className="border-t border-border bg-surface p-4">
         <div className="max-w-3xl mx-auto space-y-2">
-          {/* Suggested Prompts */}
-          <div className="flex flex-wrap gap-1.5">
-            {[
-              'How do I configure Single Sign-On?',
-              'What are the API rate limits?',
-              'Check status of invoice #INV-9921',
-            ].map((prompt) => (
-              <Button
-                variant="outline"
-                size="xs"
-                key={prompt}
-                onClick={() => handleSend(prompt)}
-                disabled={isStreaming}
-                className="h-auto rounded-full px-3 py-1 text-[11px] font-normal"
-              >
-                {prompt}
-              </Button>
-            ))}
-          </div>
+          {starters.length > 0 && messages.length === 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {starters.map((prompt) => (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  key={prompt}
+                  onClick={() => handleSend(prompt)}
+                  disabled={isStreaming}
+                  className="h-auto rounded-full px-3 py-1 text-[11px] font-normal"
+                >
+                  {prompt}
+                </Button>
+              ))}
+            </div>
+          )}
 
           <form
             onSubmit={(e) => {
@@ -320,7 +336,7 @@ export function UserChatPage() {
             <Input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask this agent a question or describe an action..."
+              placeholder={isStreaming ? 'Agent is working…' : 'Ask this agent a question or describe an action...'}
               className="text-xs"
               disabled={isStreaming}
             />
@@ -335,6 +351,7 @@ export function UserChatPage() {
             </Button>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );

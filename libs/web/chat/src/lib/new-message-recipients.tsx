@@ -1,3 +1,4 @@
+import { EntityKindBadge } from '@org/chat-ui';
 import {
   Popover,
   PopoverAnchor,
@@ -386,18 +387,10 @@ export function NewMessageRecipients({
                           <span className="font-bold tracking-wider text-[9px] text-muted-foreground uppercase">
                             You
                           </span>
-                        ) : row.person.kind === 'agent' ? (
-                          <span className="font-bold tracking-wider text-[9px] text-primary uppercase">
-                            AI Agent
-                          </span>
-                        ) : row.person.kind === 'coworker' ? (
-                          <span className="font-bold tracking-wider text-[9px] text-primary uppercase">
-                            AI Coworker
-                          </span>
-                        ) : row.person.kind === 'app' ? (
-                          <span className="font-bold tracking-wider text-[9px] text-accent-violet uppercase">
-                            App
-                          </span>
+                        ) : row.person.kind === 'agent' ||
+                          row.person.kind === 'coworker' ||
+                          row.person.kind === 'app' ? (
+                          <EntityKindBadge kind={row.person.kind} size="sm" />
                         ) : null}
                       </span>
                       {(() => {

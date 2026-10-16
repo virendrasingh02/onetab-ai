@@ -17,7 +17,7 @@ import {
   MoreHorizontal,
   X,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import type { MediaItem } from './types.js';
 
 export interface MediaPreviewToolbarProps {
@@ -32,6 +32,7 @@ export interface MediaPreviewToolbarProps {
    * before the generic Download/More/Close group. */
   extraActions?: ReactNode;
   className?: string;
+  ref?: Ref<HTMLDivElement>;
 }
 
 /** Plain file heading, shown when there is no uploader to introduce. */
@@ -51,6 +52,7 @@ export function MediaPreviewToolbar({
   onClose,
   extraActions,
   className,
+  ref,
 }: MediaPreviewToolbarProps) {
   const openUrl = item.url ?? resolvedUrl;
   const isHttpUrl = !!openUrl && /^https?:\/\//i.test(openUrl);
@@ -92,8 +94,11 @@ export function MediaPreviewToolbar({
 
   return (
     <div
+      ref={ref}
       className={cn(
-        'gap-3 px-3 sm:px-4 h-12 flex shrink-0 items-center justify-between border-b border-border/60 bg-popover text-popover-foreground',
+        // Frosted overlay: translucent surface + backdrop blur so the media
+        // shows through beneath the header instead of being cut off by a slab.
+        'gap-3 px-3 sm:px-4 h-14 flex shrink-0 items-center justify-between border-b border-white/10 bg-popover/55 text-popover-foreground backdrop-blur-xl backdrop-saturate-150',
         className,
       )}
     >

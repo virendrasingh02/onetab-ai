@@ -51,6 +51,7 @@ export {
   type AiRunFinishedEvent,
   type AiApprovalRequestedEvent,
   type ConnectorEventReceivedEvent,
+  type GithubPullRequestEvent,
   type AiAgentMessageEvent,
   type CoworkerTurnSource,
   type CoworkerRunEvent,

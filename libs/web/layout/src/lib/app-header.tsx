@@ -46,7 +46,7 @@ import {
   Smile,
   Sparkles,
 } from 'lucide-react';
-import { useState } from 'react';
+import { usePresence } from '@org/realtime';
 import { useNavigate } from 'react-router-dom';
 import { WorkspaceMenu } from './workspace-switcher.js';
 
@@ -108,7 +108,21 @@ export function AppHeader({
   const rightPanelView = useRightPanelStore((s) => s.view);
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
   const setRightPanelView = useRightPanelStore((s) => s.setView);
-  const [isSelfAway, setIsSelfAway] = useState(false);
+  // Live, server-backed presence (heartbeat + SSE), not local state. Before
+  // the first heartbeat lands the map has no entry for us — we're plainly
+  // here, so show active rather than "offline".
+  const { status: selfStatus, setManualAway } = usePresence(user.id);
+  const isSelfAway = selfStatus === 'away';
+
+  const handleToggleAway = async () => {
+    const goingAway = !isSelfAway;
+    try {
+      await setManualAway(goingAway);
+      toast.success(goingAway ? 'Status set to away' : 'Status set to active');
+    } catch {
+      toast.error('Could not update your status. Please try again.');
+    }
+  };
 
   const isAssistantActive = isRightPanelOpen && rightPanelView === 'assistant';
 
@@ -334,7 +348,7 @@ export function AppHeader({
                   src={user.avatarUrl}
                   seed={user.id}
                   size="sm"
-                  presence={isSelfAway ? 'away' : 'online'}
+                  presence={selfStatus === 'offline' ? 'online' : selfStatus}
                   statusEmoji={user.statusEmoji}
                   statusText={user.statusText}
                 />
@@ -358,7 +372,7 @@ export function AppHeader({
                   src={user.avatarUrl}
                   seed={user.id}
                   size="md"
-                  presence={isSelfAway ? 'away' : 'online'}
+                  presence={selfStatus === 'offline' ? 'online' : selfStatus}
                   className="size-10 shrink-0 ring-1 ring-border/50"
                 />
                 <div className="min-w-0 flex-1">
@@ -403,12 +417,7 @@ export function AppHeader({
 
               {/* Set yourself as away */}
               <DropdownMenuItem
-                onClick={() => {
-                  setIsSelfAway((prev) => !prev);
-                  toast.success(
-                    !isSelfAway ? 'Status set to away' : 'Status set to active',
-                  );
-                }}
+                onClick={handleToggleAway}
                 className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60"
               >
                 <span>

@@ -22,7 +22,7 @@ import {
   Layers,
   Search,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../router.js';
 
 interface WorkflowsViewProps {
   workflows: WorkflowAnalyticsProfile[];

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../router.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Page,
@@ -187,7 +187,7 @@ export function WidgetCenterPage() {
   };
 
   return (
-    <Page width="wide" padding="none" className="space-y-6">
+    <Page className="space-y-6">
       <PageHeader
         title="Widget Center"
         description="Discover, design, configure, and orchestrate interactive UI widgets for AI agents, workflows, and dashboards."

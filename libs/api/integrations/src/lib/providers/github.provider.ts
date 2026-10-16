@@ -9,7 +9,9 @@ import type {
 } from '@org/types';
 import axios from 'axios';
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { deriveWebhookSecret } from '../core/webhook-secret.js';
 import type {
+  ConnectorInboundEvent,
   ProviderAdapter,
   ResolvedCredential,
   SyncResult,
@@ -217,6 +219,80 @@ export class GitHubProvider implements ProviderAdapter {
     return { success: true, eventType: `github.${eventType}`, data: payload };
   }
 
+  /**
+   * Checks a push against this connection's own secret (see
+   * `deriveWebhookSecret`) over the exact bytes GitHub signed.
+   */
+  verifyWebhook(credential: ResolvedCredential, rawBody: string, headers: Record<string, string>): boolean {
+    const given = headers['x-hub-signature-256'];
+    if (!given) return false;
+    const expected = `sha256=${createHmac('sha256', deriveWebhookSecret(this.config, credential.id)).update(rawBody, 'utf8').digest('hex')}`;
+    const a = Buffer.from(expected);
+    const b = Buffer.from(given);
+    return a.length === b.length && timingSafeEqual(a, b);
+  }
+
+  parseWebhookEvents(_credential: ResolvedCredential, payload: unknown, headers: Record<string, string>): ConnectorInboundEvent[] {
+    if (!payload || typeof payload !== 'object') return [];
+    const body = payload as Record<string, any>;
+    const delivery = headers['x-github-delivery'];
+    const repo = typeof body['repository']?.full_name === 'string' ? (body['repository'].full_name as string) : '';
+    const sender = typeof body['sender']?.login === 'string' ? (body['sender'].login as string) : '';
+    const event = headers['x-github-event'];
+
+    if (event === 'pull_request') {
+      const pr = body['pull_request'] as Record<string, any> | undefined;
+      const action = String(body['action'] ?? '');
+      if (!pr || !['opened', 'reopened', 'closed', 'ready_for_review', 'synchronize'].includes(action)) return [];
+      const merged = action === 'closed' && pr['merged'] === true;
+      return [
+        {
+          eventId: delivery || `pr:${repo}:${pr['number']}:${action}:${pr['updated_at'] ?? ''}`,
+          triggerId: 'pull_request',
+          item: {
+            id: pr['id'],
+            action: merged ? 'merged' : action,
+            number: pr['number'],
+            title: pr['title'],
+            url: pr['html_url'],
+            author: pr['user']?.login ?? sender,
+            repository: repo,
+            baseBranch: pr['base']?.ref,
+            headBranch: pr['head']?.ref,
+            draft: pr['draft'] === true,
+            merged,
+          },
+        },
+      ];
+    }
+
+    if (event === 'push') {
+      const commits = Array.isArray(body['commits']) ? (body['commits'] as Array<Record<string, any>>) : [];
+      if (commits.length === 0 || body['deleted'] === true) return [];
+      return [
+        {
+          eventId: delivery || `push:${repo}:${body['after']}`,
+          triggerId: 'push',
+          item: {
+            id: body['after'],
+            repository: repo,
+            branch: String(body['ref'] ?? '').replace(/^refs\/heads\//, ''),
+            pusher: body['pusher']?.name ?? sender,
+            commitCount: commits.length,
+            commits: commits.slice(0, 20).map((c) => ({
+              id: c['id'],
+              message: String(c['message'] ?? '').split(String.fromCharCode(10))[0].slice(0, 200),
+              author: c['author']?.name,
+              url: c['url'],
+            })),
+            compareUrl: body['compare'],
+          },
+        },
+      ];
+    }
+    return [];
+  }
+
   isServerConfigured(): boolean {
     return Boolean(oauthEnv(this.config, 'GITHUB_CLIENT_ID') && oauthEnv(this.config, 'GITHUB_CLIENT_SECRET'));
   }
@@ -245,6 +321,22 @@ export class GitHubProvider implements ProviderAdapter {
         description: 'Starts the agent when someone asks you to review a pull request.',
         pollActionId: 'list_review_requests',
         itemsPath: 'pullRequests',
+        idField: 'id',
+      },
+      {
+        id: 'pull_request',
+        label: 'Pull request activity (instant)',
+        description: 'Starts the agent the moment a pull request is opened, updated, merged or closed. Needs a GitHub webhook.',
+        delivery: 'webhook',
+        itemsPath: '',
+        idField: 'id',
+      },
+      {
+        id: 'push',
+        label: 'Commits pushed (instant)',
+        description: 'Starts the agent when commits are pushed to a repository. Needs a GitHub webhook.',
+        delivery: 'webhook',
+        itemsPath: '',
         idField: 'id',
       },
     ];

@@ -1038,6 +1038,33 @@ describe('forwarding', () => {
     });
   });
 
+  it('hides a media filename body but keeps a caption', () => {
+    const plain = toMessage(
+      client,
+      fakeEvent({
+        content: { msgtype: 'm.video', body: 'clip.webm', url: 'mxc://example.org/clip' },
+      }),
+      room,
+    );
+    expect(plain?.body).toBe('');
+    expect(plain?.attachment?.name).toBe('clip.webm');
+
+    const captioned = toMessage(
+      client,
+      fakeEvent({
+        content: {
+          msgtype: 'm.video',
+          body: 'Look at this',
+          filename: 'clip.webm',
+          url: 'mxc://example.org/clip',
+        },
+      }),
+      room,
+    );
+    expect(captioned?.body).toBe('Look at this');
+    expect(captioned?.attachment?.name).toBe('clip.webm');
+  });
+
   it('ignores a malformed payload', () => {
     expect(readForwardedContent({ [FORWARDED_CONTENT_KEY]: { event_id: 1 } })).toBeUndefined();
     expect(readForwardedContent(null)).toBeUndefined();

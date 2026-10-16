@@ -241,6 +241,7 @@ export type AgentEventName =
   | 'document.created'
   | 'document.updated'
   | 'meeting.ended'
+  | 'github.pull_request'
   | 'channel.message'
   | 'coworker.completed'
   | 'coworker.failed'
@@ -261,6 +262,7 @@ export const AGENT_EVENTS: ReadonlyArray<{
   { value: 'document.created', label: 'A doc is created' },
   { value: 'document.updated', label: 'A doc is updated' },
   { value: 'meeting.ended', label: 'A meeting ends' },
+  { value: 'github.pull_request', label: 'A GitHub pull request is opened, merged or closed' },
   { value: 'channel.message', label: 'A message is posted in a channel', filter: 'channel' },
   { value: 'coworker.completed', label: 'An AI coworker finishes a piece of work' },
   { value: 'coworker.failed', label: 'An AI coworker can’t finish its work' },

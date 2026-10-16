@@ -106,6 +106,9 @@ export function parseLocation(ip?: string | null): string {
  * use — presenting a token that was already exchanged means it leaked, so the
  * whole session family is revoked.
  */
+/** How long a just-rotated refresh token may still be exchanged (concurrent cross-app refresh). */
+const REFRESH_REUSE_GRACE_MS = 10_000;
+
 @Injectable()
 export class TokenService {
   constructor(
@@ -182,6 +185,13 @@ export class TokenService {
     }
 
     if (existing.revokedAt) {
+      // Two apps sharing the refresh cookie (web :4200, Studio :4202) can
+      // present the same token a moment apart; they have separate Web Lock
+      // scopes, so the loser is a benign race, not a replay. Within a short
+      // grace window, treat it as a rotation instead of a theft.
+      if (Date.now() - existing.revokedAt.getTime() <= REFRESH_REUSE_GRACE_MS) {
+        return this.issueSession(existing.user, context);
+      }
       // A revoked token being replayed means it was captured after rotation.
       // Drop every session for this user rather than just this one.
       await this.revokeAllForUser(existing.userId);

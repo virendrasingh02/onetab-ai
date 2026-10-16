@@ -20,16 +20,19 @@ export interface ImageViewerProps {
   onNext: () => void;
   onPrevious: () => void;
   onDownload: () => void;
+  /** Called for a click on the empty canvas around the image (not a pan). */
+  onClose?: () => void;
 }
 
 /** `null` zoom means "fit to the viewport" — the natural default. Any other
  * value is an explicit percentage of the image's natural size. */
-export function ImageViewer({ item, url, onNext, onPrevious }: ImageViewerProps) {
+export function ImageViewer({ item, url, onNext, onPrevious, onClose }: ImageViewerProps) {
   const [zoom, setZoom] = useState<number | null>(null);
   const [rotation, setRotation] = useState(0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
   const dragState = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
   const touchStartX = useRef<number | null>(null);
 
@@ -73,6 +76,7 @@ export function ImageViewer({ item, url, onNext, onPrevious }: ImageViewerProps)
   };
 
   const onPointerDown = (event: React.PointerEvent) => {
+    pressStart.current = { x: event.clientX, y: event.clientY };
     if (!isZoomed) return;
     dragState.current = { startX: event.clientX, startY: event.clientY, panX: pan.x, panY: pan.y };
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
@@ -87,6 +91,17 @@ export function ImageViewer({ item, url, onNext, onPrevious }: ImageViewerProps)
 
   const onPointerUp = () => {
     dragState.current = null;
+  };
+
+  // A click that lands on the canvas itself (not the image) dismisses the
+  // viewer like a lightbox backdrop — unless the pointer travelled, which
+  // means it was the end of a pan rather than a click.
+  const onStageClick = (event: React.MouseEvent) => {
+    if (event.target !== event.currentTarget || !onClose) return;
+    const start = pressStart.current;
+    pressStart.current = null;
+    if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 5) return;
+    onClose();
   };
 
   const onTouchStart = (event: React.TouchEvent) => {
@@ -113,6 +128,7 @@ export function ImageViewer({ item, url, onNext, onPrevious }: ImageViewerProps)
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
+        onClick={onStageClick}
         onDoubleClick={() => (isZoomed ? zoomReset() : setZoom(200))}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}

@@ -4,7 +4,7 @@ import { Button, Card, Field, Input, Label, SegmentedControl, Textarea, ToggleGr
 import { cn } from '@org/utils';
 import { AlertCircle, Laptop, Palette, RefreshCw, Send, Smartphone, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '../../../router.js';
 import { cleanColor, cleanOrigins, readWidgetForm, toWidgetConfig, type WidgetForm } from './widget-config.js';
 import { errorMessage, type DeploymentApi } from './use-deployment.js';
 

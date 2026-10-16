@@ -1,4 +1,4 @@
-import { agentsApi, connectorsApi, coworkersApi, integrationsApi } from '@org/api-client';
+import { agentsApi, connectorsApi, coworkersApi, integrationsApi, queryKeys, workspaceApi } from '@org/api-client';
 import {
   connectorToolName,
   type AIAgentDetail,
@@ -11,8 +11,9 @@ import {
   type ConnectorSummary,
   type CustomConnectorInput,
 } from '@org/types';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { toast } from '@org/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useStudioSession } from '../session-guard.js';
 import { agentService } from './agentService.js';
 
@@ -20,8 +21,8 @@ import { agentService } from './agentService.js';
  * The Studio's connector layer — every call is the real API.
  *
  * Manifests, connections, usage and history come from `connectorsApi`;
- * connecting, disconnecting and running actions from `integrationsApi`. The
- * only thing kept in the browser is which connectors this person starred.
+ * connecting, disconnecting and running actions from `integrationsApi`. Which connectors a
+ * person starred is saved with their workspace preferences.
  */
 
 export const connectorKeys = {
@@ -204,34 +205,45 @@ export function agentConnectorActions(agent: AgentWithApps, connector: Pick<Conn
 }
 
 // ---------------------------------------------------------------------------
-// Starred connectors (per person, this browser only)
+// Starred connectors (per person, saved with their workspace preferences)
 // ---------------------------------------------------------------------------
 
-const STAR_KEY = 'studio.connectors.starred';
-
-function readStars(): string[] {
-  try {
-    const raw = window.localStorage.getItem(STAR_KEY);
-    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
-  } catch {
-    return [];
-  }
-}
+const STAR_KEY = 'studioStarredConnectors';
 
 export function useStarredConnectors() {
-  const [starred, setStarred] = useState<string[]>(readStars);
-  const toggle = useCallback((provider: string) => {
-    setStarred((prev) => {
-      const next = prev.includes(provider) ? prev.filter((p) => p !== provider) : [...prev, provider];
-      try {
-        window.localStorage.setItem(STAR_KEY, JSON.stringify(next));
-      } catch {
-        /* storage unavailable — the star just won't persist */
-      }
-      return next;
-    });
-  }, []);
+  const { activeWorkspace } = useStudioSession();
+  const queryClient = useQueryClient();
+  const key = queryKeys.workspaces.memberPreferences(activeWorkspace.id);
+  const prefs = useQuery({
+    queryKey: key,
+    queryFn: () => workspaceApi.getMemberPreferences(activeWorkspace.id),
+    staleTime: 60_000,
+  });
+  const raw = prefs.data?.[STAR_KEY];
+  const starred = useMemo(
+    () => (Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : []),
+    [raw],
+  );
+  const save = useMutation({
+    mutationFn: (next: string[]) => workspaceApi.saveMemberPreferences(activeWorkspace.id, { [STAR_KEY]: next }),
+    onMutate: async (next) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Record<string, unknown>>(key);
+      queryClient.setQueryData(key, { ...(previous ?? {}), [STAR_KEY]: next });
+      return { previous };
+    },
+    onError: (err, _next, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
+      toast.error('Could not update starred connectors', {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    },
+  });
+  const toggle = useCallback(
+    (provider: string) =>
+      save.mutate(starred.includes(provider) ? starred.filter((p) => p !== provider) : [...starred, provider]),
+    [starred, save],
+  );
   return { starred, toggle };
 }
 

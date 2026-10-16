@@ -178,6 +178,8 @@ const ESTIMATED_COST_PER_TOKEN_USD = 0.000002;
 const MEMORY_CONTEXT_LIMIT = 20;
 
 export interface AIEntityTurnContext {
+  /** Earlier turns of this conversation, oldest first — sent ahead of the new prompt. */
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   channelId?: string;
   channelName?: string;
   projectId?: string;
@@ -1009,6 +1011,7 @@ export class AIRuntimeService {
     const cred = await this.credentialService.resolveCredential(provider, { workspaceId });
     const messages: AIChatMessage[] = [
       { role: 'system', content: plan.systemPrompt },
+      ...(context.history ?? []).map((m): AIChatMessage => ({ role: m.role, content: m.content })),
       { role: 'user', content: promptText },
     ];
     const tools = plan.toolSchemas.length > 0 ? plan.toolSchemas : undefined;

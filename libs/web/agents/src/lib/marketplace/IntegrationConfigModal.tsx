@@ -15,14 +15,8 @@ import {
   Input,
 } from '@org/ui';
 import { EntityIcon } from './marketplace-ui';
+import { useNotifyChannelOptions } from './use-marketplace';
 import { Shield, Check } from 'lucide-react';
-
-const NOTIFY_CHANNELS = [
-  { value: 'general', label: '# general' },
-  { value: 'engineering', label: '# engineering' },
-  { value: 'alerts', label: '# alerts-feed' },
-  { value: 'product', label: '# product-updates' },
-];
 
 interface IntegrationConfigModalProps {
   isOpen: boolean;
@@ -40,7 +34,9 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
   installation,
   onSaveSettings,
 }) => {
-  const [notifyChannel, setNotifyChannel] = useState('general');
+  const [notifyChannel, setNotifyChannel] = useState('');
+  const channelOptions = useNotifyChannelOptions(installation?.workspaceId);
+  const channelValue = channelOptions.resolve(notifyChannel);
   const [enableSlashCommands, setEnableSlashCommands] = useState(true);
   const [webhookUrl, setWebhookUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -67,7 +63,7 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
     setIsSaving(true);
     try {
       await onSaveSettings(targetSlug, {
-        notifyChannel,
+        notifyChannel: channelValue || null,
         enableSlashCommands,
         webhookUrl,
       });
@@ -99,9 +95,17 @@ export const IntegrationConfigModal: React.FC<IntegrationConfigModalProps> = ({
           <Field label="Primary notification channel">
             <AppSelect
               aria-label="Primary notification channel"
-              value={notifyChannel}
+              value={channelValue}
               onValueChange={setNotifyChannel}
-              options={NOTIFY_CHANNELS}
+              options={channelOptions.options}
+              loading={channelOptions.isLoading}
+              searchable={channelOptions.options.length > 8}
+              placeholder={
+                channelOptions.isError
+                  ? "Couldn't load channels"
+                  : 'No channels in this workspace'
+              }
+              disabled={channelOptions.options.length === 0}
             />
           </Field>
 

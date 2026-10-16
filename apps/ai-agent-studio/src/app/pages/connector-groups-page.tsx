@@ -28,7 +28,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Copy, Layers, Pencil, Plus, Send, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../router.js';
 import { AppConnectorIcon } from '../components/common/app-connector-icon.jsx';
 import {
   applyGroupToAgent,

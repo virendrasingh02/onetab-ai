@@ -20,7 +20,7 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { AppWindow, ArrowRight, Flame, Loader2, Play, Plug, Search, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '../router.js';
 import { useStudioSession } from '../session-guard.js';
 
 /** These mutations report their own errors, so the app-wide error toast stays quiet. */
@@ -101,7 +101,7 @@ export function ToolsPage() {
   const result = runMutation.data;
 
   return (
-    <Page width="wide" padding="none" className="space-y-6">
+    <Page className="space-y-6">
       <PageHeader
         title="Tools & Integrations"
         description="The built-in capabilities agents can call, with a sandbox to try them. Connect apps and your own tool servers from their own pages."

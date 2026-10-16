@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { marketplaceApi, queryKeys } from '@org/api-client';
+import { channelApi, marketplaceApi, queryKeys } from '@org/api-client';
 import type {
+  ChannelSummary,
   MarketplaceBrowseParams,
   MarketplaceCategoryCount,
   MarketplaceInstallation,
@@ -10,6 +11,7 @@ import type {
   MarketplaceStorefrontStat,
 } from '@org/types';
 import { toast } from '@org/ui';
+import { useMemo } from 'react';
 
 export function useMarketplaceBrowse(
   params: MarketplaceBrowseParams,
@@ -235,4 +237,40 @@ export function useMarketplaceMutations(workspaceId: string) {
     resolveApproval,
     publishCustom,
   };
+}
+
+/**
+ * Real workspace channels as `AppSelect` options for an integration's
+ * notification-channel binding. Values are channel ids; `resolve` maps a
+ * stored value (an id, or a legacy slug from older installs) onto a current
+ * option, falling back to #general / the first channel.
+ */
+export function useNotifyChannelOptions(workspaceId: string | undefined) {
+  // Same cache entry as the sidebar's `useChannels`, so this is usually warm.
+  const channels = useQuery<ChannelSummary[]>({
+    queryKey: queryKeys.channels.list(workspaceId ?? '', false),
+    queryFn: () => channelApi.list(workspaceId as string, false),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+
+  return useMemo(() => {
+    const list = (channels.data ?? []).filter((c) => !c.isArchived);
+    const options = list.map((c) => ({ value: c.id, label: `# ${c.name}` }));
+    const resolve = (stored?: string | null): string => {
+      const match =
+        stored && list.find((c) => c.id === stored || c.slug === stored);
+      if (match) return match.id;
+      const fallback =
+        list.find((c) => c.slug === 'general' || c.name === 'general') ??
+        list[0];
+      return fallback?.id ?? '';
+    };
+    return {
+      options,
+      resolve,
+      isLoading: channels.isLoading,
+      isError: channels.isError,
+    };
+  }, [channels.data, channels.isLoading, channels.isError]);
 }

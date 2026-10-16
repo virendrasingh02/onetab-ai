@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from '../router.js';
 import { aiApi } from '@org/api-client';
 import type { AIProvider } from '@org/types';
 import {
@@ -222,7 +222,7 @@ export function SettingsPage() {
   };
 
   return (
-    <Page width="wide" padding="none" className="space-y-6">
+    <Page className="space-y-6">
       {/* Header matching Admin */}
       <PageHeader
         title="Workspace Settings & Model Providers"

@@ -14,7 +14,7 @@ import {
 } from '@org/ui';
 import { Layers, Save } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../router.js';
 import {
   applyGroupToAgent,
   errorMessage,

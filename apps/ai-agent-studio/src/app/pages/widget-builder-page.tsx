@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from '../router.js';
 import { Button, Badge, toast } from '@org/ui';
 import { widgetsApi } from '@org/api-client';
 import { useStudioSession } from '../session-guard.js';

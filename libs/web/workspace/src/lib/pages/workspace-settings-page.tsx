@@ -3,6 +3,7 @@ import {
   authApi,
   channelApi,
   http,
+  integrationsApi,
   queryKeys,
   toApiError,
   userApi,
@@ -162,6 +163,7 @@ import { EnterpriseCustomLLMSettings } from '../components/enterprise-custom-llm
 import { ChatSettingsPanel } from '../components/chat-settings-panel.js';
 import { NotificationDisplaySettingsPanel } from '../components/notification-display-settings-panel.js';
 import {
+  SettingsBadge,
   SettingsCard,
   SettingsRow,
   SettingsSectionHeader,
@@ -446,11 +448,30 @@ export function WorkspaceSettingsPage({
     'forever',
   );
 
+  // Off until chosen: turning it on publishes your calendar to this workspace.
   const [googleCalendarSync, setGoogleCalendarSync] = useWorkspacePreference(
     workspaceId,
     'googleCalendarSync',
-    true,
+    false,
   );
+  const integrationsQuery = useQuery({
+    queryKey: queryKeys.integrations.list(workspaceId ?? ''),
+    queryFn: () => integrationsApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 15_000,
+  });
+  const githubConnection = integrationsQuery.data?.find(
+    (i) => i.provider === 'GITHUB' && i.status === 'CONNECTED',
+  );
+  const googleCalendarConnection = integrationsQuery.data?.find(
+    (i) => i.provider === 'GOOGLE_CALENDAR' && i.status === 'CONNECTED',
+  );
+  const githubWebhookQuery = useQuery({
+    queryKey: ['github-webhook-setup', workspaceId, githubConnection?.id],
+    queryFn: () => integrationsApi.getWebhookSetup(workspaceId as string, githubConnection?.id as string),
+    enabled: !!workspaceId && !!githubConnection,
+    retry: false,
+  });
   const [meetingProvider, setMeetingProvider] = useWorkspacePreference(
     workspaceId,
     'meetingProvider',
@@ -1151,9 +1172,6 @@ export function WorkspaceSettingsPage({
                       onChange={handleLanguageChange}
                     />
                   </div>
-                  <Badge variant="outline" className="text-[10px] px-2 py-0.5">
-                    {isRtl ? 'RTL Mode' : 'LTR Mode'}
-                  </Badge>
                 </div>
               </SettingsRow>
             </SettingsCard>
@@ -2104,31 +2122,17 @@ export function WorkspaceSettingsPage({
             description={<>Choose how workspace updates reach you.</>}
           />
 
-          {/* 1. Primary Notification Delivery Channels (matching reference design) */}
-          <div className="space-y-3">
-            {/* Inbox */}
-            <div className="p-4 sm:p-5 gap-4 flex items-center justify-between rounded-xl border border-border bg-surface transition-colors hover:bg-accent/40">
-              <div className="gap-3.5 flex items-center">
-                <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
-                  <Inbox className="size-4.5" />
-                </div>
-                <div>
-                  <div className="gap-2 flex items-center">
-                    <span className="text-sm font-semibold text-foreground">
-                      Inbox
-                    </span>
-                  </div>
-                  <p className="text-xs mt-0.5 text-muted-foreground">
-                    Approvals, handoffs, and follow-ups.
-                  </p>
-                </div>
-              </div>
-
+          <SettingsCard divided>
+            <SettingsRow
+              icon={<Inbox />}
+              title="Inbox"
+              description="Approvals, handoffs, and follow-ups."
+            >
               <Select
                 value={notifyChannelScope}
                 onValueChange={setNotifyChannelScope}
               >
-                <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
+                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="Default" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2143,48 +2147,36 @@ export function WorkspaceSettingsPage({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </SettingsRow>
 
-            {/* Email */}
-            <div className="p-4 sm:p-5 gap-4 flex items-center justify-between rounded-xl border border-border bg-surface transition-colors hover:bg-accent/40">
-              <div className="gap-3.5 flex items-center">
-                <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
-                  <Mail className="size-4.5" />
-                </div>
-                <div>
-                  <div className="gap-2 flex items-center">
-                    <span className="text-sm font-semibold text-foreground">
-                      Email
-                    </span>
-                    <button
-                      type="button"
-                      disabled={testNotifSending}
-                      onClick={async () => {
-                        setTestNotifSending(true);
-                        await notify({
-                          title: 'Onetab AI Sample Digest',
-                          body: 'Sample email digest: 3 new mentions, 1 task completed.',
-                        });
-                        setTestNotifSending(false);
-                        setTestNotifSent(true);
-                        setTimeout(() => setTestNotifSent(false), 3000);
-                      }}
-                      className="px-2 py-0.5 font-medium cursor-pointer rounded-full border border-success/30 bg-success/10 text-[10px] text-success-text transition-colors hover:bg-success/20"
-                    >
-                      {testNotifSent ? 'Sample sent!' : 'Send sample'}
-                    </button>
-                  </div>
-                  <p className="text-xs mt-0.5 text-muted-foreground">
-                    Digests and direct alerts.
-                  </p>
-                </div>
-              </div>
-
+            <SettingsRow
+              icon={<Mail />}
+              title="Email"
+              description="Digests and direct alerts."
+              badge={
+                <SettingsBadge
+                  tone="success"
+                  disabled={testNotifSending}
+                  onClick={async () => {
+                    setTestNotifSending(true);
+                    await notify({
+                      title: 'Onetab AI Sample Digest',
+                      body: 'Sample email digest: 3 new mentions, 1 task completed.',
+                    });
+                    setTestNotifSending(false);
+                    setTestNotifSent(true);
+                    setTimeout(() => setTestNotifSent(false), 3000);
+                  }}
+                >
+                  {testNotifSent ? 'Sample sent!' : 'Send sample'}
+                </SettingsBadge>
+              }
+            >
               <Select
                 value={notifyDigest ? 'weekly' : 'default'}
                 onValueChange={(val) => setNotifyDigest(val === 'weekly')}
               >
-                <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
+                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="Default" />
                 </SelectTrigger>
                 <SelectContent>
@@ -2199,45 +2191,31 @@ export function WorkspaceSettingsPage({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </SettingsRow>
 
-            {/* Browser */}
-            <div className="p-4 sm:p-5 gap-4 flex items-center justify-between rounded-xl border border-border bg-surface transition-colors hover:bg-accent/40">
-              <div className="gap-3.5 flex items-center">
-                <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
-                  <Monitor className="size-4.5" />
-                </div>
-                <div>
-                  <div className="gap-2 flex items-center">
-                    <span className="text-sm font-semibold text-foreground">
-                      Browser
-                    </span>
-                    {notifBarState.permission === 'granted' && (
-                      <span className="px-2 py-0.5 font-medium rounded-full border border-success/30 bg-success/10 text-[10px] text-success-text">
-                        Active
-                      </span>
-                    )}
-                    {notifBarState.permission === 'denied' && (
-                      <span className="px-2 py-0.5 font-medium rounded-full border border-destructive/30 bg-destructive/10 text-[10px] text-destructive-text">
-                        Blocked
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs mt-0.5 text-muted-foreground">
-                    {notifBarState.permission === 'granted'
-                      ? 'Desktop push notifications are enabled and active.'
-                      : notifBarState.permission === 'denied'
-                        ? 'Notifications blocked in browser permissions.'
-                        : 'Desktop banners stay off until enabled.'}
-                  </p>
-                </div>
-              </div>
-
+            <SettingsRow
+              icon={<Monitor />}
+              title="Browser"
+              description={
+                notifBarState.permission === 'granted'
+                  ? 'Desktop push notifications are enabled and active.'
+                  : notifBarState.permission === 'denied'
+                    ? 'Notifications blocked in browser permissions.'
+                    : 'Desktop banners stay off until enabled.'
+              }
+              badge={
+                notifBarState.permission === 'granted' ? (
+                  <SettingsBadge tone="success">Active</SettingsBadge>
+                ) : notifBarState.permission === 'denied' ? (
+                  <SettingsBadge tone="danger">Blocked</SettingsBadge>
+                ) : null
+              }
+            >
               {notifBarState.permission === 'granted' ? (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-xs shrink-0"
+                  className="h-8 px-3 text-xs"
                   disabled={testNotifSending}
                   onClick={async () => {
                     setTestNotifSending(true);
@@ -2252,87 +2230,68 @@ export function WorkspaceSettingsPage({
                   <span>Send Test Alert</span>
                 </Button>
               ) : notifBarState.permission === 'denied' ? (
-                <span className="text-xs shrink-0 text-muted-foreground italic">
+                <span className="text-xs text-muted-foreground italic">
                   Unblock in browser
                 </span>
               ) : (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-xs shrink-0"
+                  className="h-8 px-3 text-xs"
                   onClick={() => void notifBarState.requestPermission()}
                 >
                   <span>Enable notifications</span>
                 </Button>
               )}
-            </div>
+            </SettingsRow>
 
-            {/* Mobile & Smart Notifications */}
-            <div className="p-4 sm:p-5 space-y-4 rounded-xl border border-border bg-surface transition-colors">
-              <div className="gap-4 flex items-center justify-between">
-                <div className="gap-3.5 flex items-center">
-                  <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
-                    <Smartphone className="size-4.5" />
-                  </div>
-                  <div>
-                    <div className="gap-2 flex items-center">
-                      <span className="text-sm font-semibold text-foreground">
-                        Mobile
-                      </span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await notify({
-                            title: 'Mobile Preview',
-                            body: 'Sarah replied to your thread in #engineering',
-                          });
-                        }}
-                        className="px-2 py-0.5 font-medium cursor-pointer rounded-full border border-accent-violet/30 bg-accent-violet-soft text-[10px] text-accent-violet transition-colors hover:bg-accent-violet/20"
-                      >
-                        Show example
-                      </button>
-                    </div>
-                    <p className="text-xs mt-0.5 text-muted-foreground">
-                      Away-from-desk delivery.
-                    </p>
-                  </div>
-                </div>
+            <SettingsRow
+              icon={<Smartphone />}
+              title="Mobile"
+              description="Away-from-desk delivery."
+              badge={
+                <SettingsBadge
+                  tone="violet"
+                  onClick={async () => {
+                    await notify({
+                      title: 'Mobile Preview',
+                      body: 'Sarah replied to your thread in #engineering',
+                    });
+                  }}
+                >
+                  Show example
+                </SettingsBadge>
+              }
+            >
+              <Select value="muted" onValueChange={() => undefined}>
+                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
+                  <SelectValue placeholder="Muted" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="muted" className="text-xs">
+                    Muted
+                  </SelectItem>
+                  <SelectItem value="default" className="text-xs">
+                    Default
+                  </SelectItem>
+                  <SelectItem value="all" className="text-xs">
+                    All activity
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </SettingsRow>
 
-                <Select value="muted" onValueChange={() => undefined}>
-                  <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
-                    <SelectValue placeholder="Muted" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="muted" className="text-xs">
-                      Muted
-                    </SelectItem>
-                    <SelectItem value="default" className="text-xs">
-                      Default
-                    </SelectItem>
-                    <SelectItem value="all" className="text-xs">
-                      All activity
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Sub-row: Smart notifications */}
-              <div className="pt-3 gap-4 pl-12 flex items-center justify-between border-t border-border/60">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Smart notifications
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Pause phone alerts while desktop stays active.
-                  </p>
-                </div>
-                <Switch
-                  checked={notifyDesktopPush}
-                  onCheckedChange={setNotifyDesktopPush}
-                />
-              </div>
-            </div>
-          </div>
+            <SettingsRow
+              nested
+              title="Smart notifications"
+              description="Pause phone alerts while desktop stays active."
+            >
+              <Switch
+                checked={notifyDesktopPush}
+                onCheckedChange={setNotifyDesktopPush}
+              />
+            </SettingsRow>
+          </SettingsCard>
 
           {/* Display Preferences & Screen Positioning */}
           <div className="pt-8 border-t border-border">
@@ -2570,7 +2529,55 @@ export function WorkspaceSettingsPage({
               <Switch
                 checked={githubPRWebhook}
                 onCheckedChange={setGithubPRWebhook}
+                disabled={!githubConnection}
               />
+            </SettingsRow>
+
+            <SettingsRow
+              title={<>GitHub webhook setup</>}
+              description={
+                !githubConnection ? (
+                  <>Connect GitHub in Integrations first — pull-request events arrive through a webhook on your repository.</>
+                ) : githubWebhookQuery.data ? (
+                  <>
+                    In your repository: Settings → Webhooks → Add webhook. Content type{' '}
+                    <code>application/json</code>, events <em>Pull requests</em>. Workflows with the “GitHub pull request”
+                    trigger then run for this workspace.
+                  </>
+                ) : githubWebhookQuery.isError ? (
+                  <>Only workspace admins can see the webhook URL and secret.</>
+                ) : (
+                  <>Loading…</>
+                )
+              }
+            >
+              {githubWebhookQuery.data ? (
+                <div className="flex flex-col gap-1.5">
+                  {(
+                    [
+                      ['Payload URL', githubWebhookQuery.data.url],
+                      ['Secret', githubWebhookQuery.data.secret],
+                    ] as const
+                  ).map(([label, value]) => (
+                    <Button
+                      key={label}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 justify-between gap-2 px-2.5 text-[11px]"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(value).then(
+                          () => toast.success(`${label} copied`),
+                          () => toast.error('Could not copy'),
+                        );
+                      }}
+                    >
+                      <span>Copy {label.toLowerCase()}</span>
+                      <Copy className="size-3" />
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
             </SettingsRow>
 
             <SettingsRow
@@ -2869,12 +2876,21 @@ export function WorkspaceSettingsPage({
             <SettingsRow
               title={<>Google Calendar Sync</>}
               description={
-                <>Synchronize schedule events with your Google Calendar</>
+                googleCalendarConnection ? (
+                  <>
+                    Two-way sync with {googleCalendarConnection.displayName ?? 'your Google Calendar'}: upcoming events
+                    appear in this workspace’s Meetings (visible to its members; private and all-day events are
+                    skipped) and meetings you schedule here are added to your calendar.
+                  </>
+                ) : (
+                  <>Connect Google Calendar in Integrations to sync it with this workspace’s Meetings.</>
+                )
               }
             >
               <Switch
                 checked={googleCalendarSync}
                 onCheckedChange={setGoogleCalendarSync}
+                disabled={!googleCalendarConnection}
               />
             </SettingsRow>
 

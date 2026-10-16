@@ -112,6 +112,11 @@ export const updateAIEntitySchema = updateCoworkerSchema.extend({
   status: z.enum(['AVAILABLE', 'WORKING', 'IDLE', 'RUNNING_TASK', 'ERROR']).optional(),
 });
 
+export const agentChatSchema = z.object({
+  conversationId: id.optional(),
+  message: z.string().trim().min(1, 'Type a message first.').max(20_000),
+});
+
 export const executeAIEntitySchema = z.object({
   promptText: z.string().trim().min(1, 'Say what the agent should do.').max(20_000),
   channelId: id.optional(),
@@ -370,6 +375,7 @@ export type CreateCoworkerInput = z.infer<typeof createCoworkerSchema>;
 export type UpdateCoworkerInput = z.infer<typeof updateCoworkerSchema>;
 export type CreateAIEntityInput = z.infer<typeof createAIEntitySchema>;
 export type UpdateAIEntityInput = z.infer<typeof updateAIEntitySchema>;
+export type AgentChatInput = z.infer<typeof agentChatSchema>;
 export type ExecuteAIEntityInput = z.infer<typeof executeAIEntitySchema>;
 export type CreateWorkflowInput = z.infer<typeof createWorkflowSchema>;
 export type UpdateWorkflowInput = z.infer<typeof updateWorkflowSchema>;

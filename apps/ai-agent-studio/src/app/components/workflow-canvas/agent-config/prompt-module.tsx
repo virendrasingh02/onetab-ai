@@ -29,7 +29,7 @@ import {
 } from '@org/types';
 import { ArrowDown, ArrowUp, Braces, CheckCircle2, ExternalLink, FileText, FlaskConical, GitCompare, History, Loader2, Play, Plus, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from '../../../router.js';
 import type { Edge, Node } from '@xyflow/react';
 import { readAgentModules, type ModuleIssue } from './agent-module-model.js';
 import {

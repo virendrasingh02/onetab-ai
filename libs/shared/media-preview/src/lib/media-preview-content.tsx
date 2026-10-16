@@ -45,6 +45,9 @@ export interface MediaPreviewContentProps {
   onNext: () => void;
   onPrevious: () => void;
   onDownload: () => void;
+  /** Closes the preview — the image viewer calls it for a click on the empty
+   * canvas around the image. */
+  onClose?: () => void;
 }
 
 /** Picks the viewer for `item.category` and owns the shared loading/error
@@ -58,6 +61,7 @@ export function MediaPreviewContent({
   onNext,
   onPrevious,
   onDownload,
+  onClose,
 }: MediaPreviewContentProps) {
   if (error) {
     return (
@@ -92,7 +96,7 @@ export function MediaPreviewContent({
   // object, or React never sees it as the special reconciliation key.
   switch (item.category) {
     case 'image':
-      return <ImageViewer key={item.id} item={item} url={url as string} {...shared} />;
+      return <ImageViewer key={item.id} item={item} url={url as string} onClose={onClose} {...shared} />;
     case 'video':
       return <VideoViewer key={item.id} item={item} url={url as string} {...shared} />;
     case 'audio':

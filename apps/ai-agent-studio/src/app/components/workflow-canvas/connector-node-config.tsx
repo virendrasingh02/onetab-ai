@@ -3,7 +3,7 @@ import { AppSelect, Badge, Button, CodeBlock, Label, Switch, confirm, toast } fr
 import type { Node } from '@xyflow/react';
 import { Braces, ExternalLink, Play, ShieldCheck, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../router.js';
 import { errorMessage, runConnectorAction, usableConnection, useConnectors } from '../../services/connectors.js';
 import { useStudioSession } from '../../session-guard.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';

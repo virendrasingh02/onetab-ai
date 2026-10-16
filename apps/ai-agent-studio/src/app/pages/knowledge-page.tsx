@@ -200,7 +200,7 @@ export function KnowledgePage() {
   }
 
   return (
-    <Page width="wide" padding="none" className="space-y-6">
+    <Page className="space-y-6">
       <PageHeader
         title="Knowledge Base & RAG Management"
         description={`Index documents for semantic and keyword search that your agents can cite in ${activeWorkspace.name}.`}

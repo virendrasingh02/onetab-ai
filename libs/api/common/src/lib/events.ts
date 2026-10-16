@@ -154,6 +154,13 @@ export const AppEvent = {
   /** A connected app pushed a verified event to the connector webhook (a Shopify order, a WhatsApp message). */
   ConnectorEventReceived: 'connector.event.received',
   /**
+   * A pull request was opened / updated / merged / closed on a connected GitHub
+   * repository (verified webhook, workspace resolved from the connection).
+   * Workflows trigger on it, subject to the connector owner's
+   * `githubPRWebhook` setting.
+   */
+  GithubPullRequest: 'github.pull_request',
+  /**
    * An AI Coworker turn started / finished / failed (`AIRuntimeService`),
    * whoever asked — a person in chat, a schedule, a workflow node or another
    * coworker handing work over. Workflows can trigger on these, so one
@@ -613,6 +620,20 @@ export interface AiRunFinishedEvent {
   notify: { onComplete: boolean; onFailure: boolean };
 }
 
+export interface GithubPullRequestEvent extends BaseEvent {
+  integrationId: string;
+  action: string;
+  number: number;
+  title: string;
+  url: string | null;
+  author: string | null;
+  repository: string;
+  baseBranch: string | null;
+  headBranch: string | null;
+  merged: boolean;
+  draft: boolean;
+}
+
 export interface ConnectorEventReceivedEvent {
   workspaceId: string | null;
   integrationId: string;
@@ -750,6 +771,7 @@ export interface AppEventPayloads {
   [AppEvent.AiApprovalRequested]: AiApprovalRequestedEvent;
   [AppEvent.AiAgentMessage]: AiAgentMessageEvent;
   [AppEvent.ConnectorEventReceived]: ConnectorEventReceivedEvent;
+  [AppEvent.GithubPullRequest]: GithubPullRequestEvent;
   [AppEvent.CoworkerStarted]: CoworkerRunEvent;
   [AppEvent.CoworkerCompleted]: CoworkerCompletedEvent;
   [AppEvent.CoworkerFailed]: CoworkerFailedEvent;

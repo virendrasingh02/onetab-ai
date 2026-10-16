@@ -5,7 +5,7 @@ import { WorkflowCanvasView } from '@org/web-automations';
 import { AgentCreatePage, AgentDetailPage, AgentLibrary } from '@org/web-automations';
 import { AIApprovalsSection, AIRunsSection } from '@org/web-ai';
 import { useEffect, type ReactNode } from 'react';
-import { Navigate, Outlet, Route, useParams } from 'react-router-dom';
+import { LEGACY_SEGMENTS, Navigate, Outlet, Route, scopeStudioPath, useLocation, useParams } from './router.js';
 
 import { StudioHomePage } from './pages/studio-home-page.js';
 
@@ -64,6 +64,17 @@ function StudioCoreRoute() {
   );
 }
 
+/** Old un-prefixed URLs (`/agents/x`, `/connectors`…) → their one canonical `/w/:slug/ai/...` spelling. */
+function LegacyRedirect() {
+  const { pathname, search, hash } = useLocation();
+  const { activeWorkspace } = useStudioSession();
+  const first = pathname.split('/')[1] ?? '';
+  const target = LEGACY_SEGMENTS.has(first)
+    ? scopeStudioPath(activeWorkspace.slug, `${pathname}${search}${hash}`)
+    : studioCorePath(activeWorkspace.slug);
+  return <Navigate to={target} replace />;
+}
+
 function AgentRedirect() {
   const { agentId } = useParams<{ agentId: string }>();
   return <Navigate to={`/agents/${agentId}`} replace />;
@@ -74,9 +85,13 @@ function CanvasRoute() {
   return <WorkflowCanvasView />;
 }
 
-/** Routes to nest inside the shell's `<Routes>` (full path, so keep them top-level). */
-export function studioCoreRoutes() {
+/**
+ * Routes to nest inside the shell's `<Routes>` (full path, so keep them top-level).
+ * `children` are the Studio's own pages, mounted under the same `/w/:slug/ai` root.
+ */
+export function studioCoreRoutes(children?: ReactNode) {
   return (
+    <>
     <Route path={STUDIO_CORE_PATH} element={<StudioCoreRoute />}>
       <Route index element={<StudioHomePage />} />
       <Route path="agents" element={<AgentLibrary />} />
@@ -86,14 +101,13 @@ export function studioCoreRoutes() {
       <Route path="studio/:workflowId" element={<AgentDetailPage />} />
       <Route path="workflows/:workflowId" element={<CanvasRoute />} />
       {/* Links from the main app (`/w/:slug/ai/...`) that land on a Studio page of its own. */}
-      <Route path="create" element={<Navigate to="/create" replace />} />
-      <Route path="workflows" element={<Navigate to="/workflows" replace />} />
-      <Route path="knowledge" element={<Navigate to="/knowledge" replace />} />
-      <Route path="tools" element={<Navigate to="/tools" replace />} />
       <Route path="prompts" element={<Navigate to="/templates" replace />} />
       <Route path="agents/new" element={<Navigate to="/create" replace />} />
       <Route path="agents/:agentId" element={<AgentRedirect />} />
+      {children}
       <Route path="*" element={<Navigate to=".." replace />} />
     </Route>
+    <Route path="*" element={<LegacyRedirect />} />
+    </>
   );
 }

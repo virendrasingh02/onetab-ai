@@ -30,6 +30,19 @@ export function sampleEvent(agent: StudioAgentDetail): Record<string, unknown> |
       };
     case 'meeting.ended':
       return { meetingId: '', title: 'Weekly sync', startAt: new Date().toISOString() };
+    case 'github.pull_request':
+      return {
+        action: 'opened',
+        number: 128,
+        title: 'Fix checkout rounding for EU totals',
+        url: 'https://github.com/acme/web/pull/128',
+        author: 'jordan',
+        repository: 'acme/web',
+        baseBranch: 'main',
+        headBranch: 'fix/eu-rounding',
+        merged: false,
+        draft: false,
+      };
     case 'document.created':
     case 'document.updated':
       return { documentId: '', title: 'Q4 launch plan' };

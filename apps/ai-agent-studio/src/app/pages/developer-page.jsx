@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { agentsApi, publicAgentApi, queryKeys } from '@org/api-client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../router.js';
 import { useStudioSession } from '../session-guard.js';
 
 export function DeveloperPage() {
@@ -138,7 +138,7 @@ print("Result:", data.get("result"))`,
   };
 
   return (
-    <Page width="wide" padding="none" className="space-y-6">
+    <Page className="space-y-6">
       {/* Header */}
       <PageHeader
         title="Developer Hub & Universal API Sandbox"

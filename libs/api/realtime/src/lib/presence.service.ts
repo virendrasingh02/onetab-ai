@@ -24,6 +24,8 @@ interface UserPresenceState {
   statusText: string | null;
   statusEmoji: string | null;
   workspaces: Set<string>;
+  /** User pinned themselves away; idle/heartbeat/reconnect must not undo it. */
+  manualAway: boolean;
 }
 
 @Injectable()
@@ -73,14 +75,21 @@ export class PresenceService {
           statusText: true,
           statusEmoji: true,
           presence: true,
+          presenceManualAway: true,
           lastSeenAt: true,
         },
       });
+      const manualAway = user?.presenceManualAway ?? false;
 
       state = {
         userId,
         activeClientIds: new Set([clientId]),
-        status: user?.presence === 'BUSY' ? 'busy' : 'online',
+        status: manualAway
+          ? 'away'
+          : user?.presence === 'BUSY'
+          ? 'busy'
+          : 'online',
+        manualAway,
         lastActiveAt: now,
         lastSeenAt: now,
         connectedAt: now,
@@ -92,8 +101,13 @@ export class PresenceService {
     } else {
       state.activeClientIds.add(clientId);
       state.lastActiveAt = now;
-      if (state.status === 'offline' || state.status === 'away') {
+      if (
+        !state.manualAway &&
+        (state.status === 'offline' || state.status === 'away')
+      ) {
         state.status = 'online';
+      } else if (state.manualAway) {
+        state.status = 'away';
       }
     }
 
@@ -114,7 +128,12 @@ export class PresenceService {
     await this.prisma.user.update({
       where: { id: userId },
       data: {
-        presence: state.status === 'busy' ? 'BUSY' : 'ONLINE',
+        presence:
+          state.status === 'busy'
+            ? 'BUSY'
+            : state.status === 'away'
+            ? 'AWAY'
+            : 'ONLINE',
         lastSeenAt: now,
       },
     });
@@ -200,11 +219,13 @@ export class PresenceService {
         statusText: statusText ?? null,
         statusEmoji: statusEmoji ?? null,
         workspaces: new Set(workspaceId ? [workspaceId] : []),
+        manualAway: false,
       };
       this.userPresenceStates.set(userId, state);
     } else {
       state.lastActiveAt = now;
-      if (status) state.status = status;
+      // A pinned "away" is only changed by setExplicitPresence.
+      if (status && !state.manualAway) state.status = status;
       if (statusText !== undefined) state.statusText = statusText;
       if (statusEmoji !== undefined) state.statusEmoji = statusEmoji;
       if (workspaceId) state.workspaces.add(workspaceId);
@@ -249,6 +270,36 @@ export class PresenceService {
     presence: 'online' | 'away' | 'busy' | 'offline',
     workspaceId?: string | null,
   ): Promise<UserPresence> {
+    // online/away are the user's own "Set yourself as ..." toggle: persist it
+    // so it survives reconnects and applies on every device.
+    if (presence === 'online' || presence === 'away') {
+      const manualAway = presence === 'away';
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { presenceManualAway: manualAway },
+      });
+      // Lift the pin while applying so the heartbeat guard doesn't swallow
+      // this change, then re-pin.
+      const existing = this.userPresenceStates.get(userId);
+      if (existing) existing.manualAway = false;
+      const result = await this.recordHeartbeat(userId, workspaceId, presence);
+      const state = this.userPresenceStates.get(userId);
+      if (state) {
+        state.manualAway = manualAway;
+        const pinned = this.toUserPresence(state, workspaceId);
+        await this.cache.set(`presence:user:${userId}`, pinned, 300_000);
+        // Re-broadcast with the final flag so the user's other devices pick
+        // up the pin even when the visible status didn't change.
+        this.events.emit(AppEvent.PresenceUpdated, {
+          workspaceId,
+          actorId: userId,
+          presence: pinned,
+          targetWorkspaces: Array.from(state.workspaces),
+        });
+        return pinned;
+      }
+      return { ...result, manualAway };
+    }
     return this.recordHeartbeat(userId, workspaceId, presence);
   }
 
@@ -436,6 +487,7 @@ export class PresenceService {
       connectedAt: state.connectedAt.toISOString(),
       statusText: state.statusText,
       statusEmoji: state.statusEmoji,
+      manualAway: state.manualAway,
     };
   }
 }

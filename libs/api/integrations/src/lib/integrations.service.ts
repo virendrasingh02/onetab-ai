@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AppEvent } from '@org/api-common';
 import { MatrixBotMessagingService } from '@org/api-matrix';
@@ -19,6 +20,7 @@ import type {
   SendMessageInput,
 } from '@org/types';
 import { validateActionInput } from './core/action-input.js';
+import { deriveWebhookSecret } from './core/webhook-secret.js';
 import { IntegrationEncryptionService } from './core/integration-encryption.service.js';
 import { IntegrationLoggerService } from './core/integration-logger.service.js';
 import { IntegrationManagerService } from './core/integration-manager.service.js';
@@ -44,6 +46,7 @@ export class IntegrationsService {
     private readonly botMessaging: MatrixBotMessagingService,
     private readonly events: EventEmitter2,
     @Optional() private readonly oauthApps?: OAuthAppCredentialsService,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   /**
@@ -423,6 +426,23 @@ export class IntegrationsService {
     });
 
     return this.formatSafeIntegration(updated);
+  }
+
+  /**
+   * What to type into GitHub's "Add webhook" form for this connection: the
+   * payload URL, the signing secret, and the events the workspace uses. Only
+   * someone who may manage the connection sees the secret.
+   */
+  async getWebhookSetup(integrationId: string, userId: string, workspaceId?: string) {
+    const row = await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'manage');
+    if (row.provider !== 'GITHUB') throw new BadRequestException('Only GitHub connections take a webhook.');
+    const base = (this.config?.get<string>('API_URL') || 'http://localhost:3000/api/v1').replace(/\/+$/, '');
+    return {
+      url: `${base}/webhooks/connectors/${row.id}`,
+      secret: deriveWebhookSecret(this.config ?? { get: () => undefined }, row.id),
+      contentType: 'application/json',
+      events: ['pull_request', 'push'],
+    };
   }
 
   /**

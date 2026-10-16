@@ -1,3 +1,4 @@
+import { EntityKindBadge } from '@org/chat-ui';
 import type { WorkspaceMember } from '@org/types';
 import {
   Badge,
@@ -134,20 +135,8 @@ export function PeoplePicker({
                           You
                         </Badge>
                       ) : null}
-                      {kind === 'agent' ? (
-                        <Badge
-                          variant="primary"
-                          className="py-0 h-3.5 font-bold tracking-wider text-[9px] uppercase"
-                        >
-                          AI Agent
-                        </Badge>
-                      ) : kind === 'app' ? (
-                        <Badge
-                          variant="neutral"
-                          className="py-0 h-3.5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
-                        >
-                          App
-                        </Badge>
+                      {kind === 'agent' || kind === 'app' ? (
+                        <EntityKindBadge kind={kind} size="sm" />
                       ) : null}
                     </span>
                     <span className="text-xs block truncate text-muted-foreground">

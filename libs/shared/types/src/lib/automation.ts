@@ -132,6 +132,65 @@ export interface AgentRunResult {
   logId: string;
 }
 
+export interface StudioTemplateNodeData {
+  label: string;
+  subtitle?: string;
+  config?: Record<string, any>;
+  [key: string]: any;
+}
+
+export interface StudioTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: 'automation' | 'productivity' | 'engineering' | 'support' | 'multi-agent' | 'research';
+  icon: string;
+  recommendedModel: string;
+  recommendedProvider: string;
+  tags: string[];
+  requiredTools: string[];
+  nodes: Array<{
+    id: string;
+    type: string;
+    position: { x: number; y: number };
+    data: StudioTemplateNodeData;
+  }>;
+  edges: Array<{
+    id: string;
+    source: string;
+    target: string;
+    label?: string;
+    sourceHandle?: string;
+  }>;
+}
+
+export interface AgentChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  /** The execution log this reply came from — what feedback is filed against. */
+  logId?: string;
+  at: IsoDateString;
+}
+
+export interface AgentConversationSummary {
+  id: string;
+  title: string;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+}
+
+export interface AgentConversation extends AgentConversationSummary {
+  agentId: string;
+  messages: AgentChatMessage[];
+}
+
+export interface AgentChatResult {
+  conversationId: string;
+  title: string;
+  message: AgentChatMessage;
+}
+
 export interface AutomationWorkflow {
   id: string;
   workspaceId: string;

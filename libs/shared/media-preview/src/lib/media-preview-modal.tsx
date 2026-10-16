@@ -3,7 +3,7 @@ import { Dialog, DialogOverlay, DialogPortal, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MediaPreviewContent } from './media-preview-content.js';
 import { useMediaPreviewStore } from './media-preview-store.js';
 import { MediaPreviewToolbar } from './media-preview-toolbar.js';
@@ -17,17 +17,25 @@ function usesDarkCanvas(category: string): boolean {
   return category === 'image' || category === 'video' || category === 'pdf';
 }
 
+/** How long the pointer can sit still over the media before the header
+ * fades back out. */
+const CHROME_IDLE_MS = 2200;
+
 /**
- * The toolbar floats over the media and is hidden until the pointer is over the
- * viewer (or a control inside it takes focus, or its "More" menu is open), the
- * way a photo viewer's chrome auto-hides. Opacity — not `display` — so the
- * buttons stay keyboard-reachable while faded out.
+ * The toolbar floats over the media and auto-hides the way a photo viewer's
+ * chrome does: it slides in when the pointer moves over the viewer, fades out
+ * after a short idle (or when the pointer leaves), and stays put while the
+ * pointer rests on it, its "More" menu is open, or a control in it has
+ * keyboard focus. `:focus-visible` rather than `focus-within`, so a mouse
+ * click on Download doesn't pin the header open indefinitely. Opacity — not
+ * `display` — so the buttons stay keyboard-reachable while faded out.
  */
 const TOOLBAR_REVEAL = cn(
-  'absolute inset-x-0 top-0 z-20 shadow-lg transition duration-200 ease-standard',
+  'absolute inset-x-0 top-0 z-20 transition duration-200 ease-standard',
   'pointer-events-none -translate-y-1 opacity-0',
-  'group-hover/preview:pointer-events-auto group-hover/preview:translate-y-0 group-hover/preview:opacity-100',
-  'focus-within:pointer-events-auto focus-within:translate-y-0 focus-within:opacity-100',
+  'group-data-[chrome=visible]/preview:pointer-events-auto group-data-[chrome=visible]/preview:translate-y-0 group-data-[chrome=visible]/preview:opacity-100',
+  'hover:pointer-events-auto hover:translate-y-0 hover:opacity-100',
+  'has-focus-visible:pointer-events-auto has-focus-visible:translate-y-0 has-focus-visible:opacity-100',
   'has-data-[state=open]:pointer-events-auto has-data-[state=open]:translate-y-0 has-data-[state=open]:opacity-100',
 );
 
@@ -45,6 +53,36 @@ export function MediaPreviewModal() {
 
   const activeItem = items[activeIndex];
   const contentRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [chromeVisible, setChromeVisible] = useState(false);
+
+  const clearIdleTimer = useCallback(() => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = null;
+  }, []);
+
+  // Any pointer movement reveals the header; it hides again after an idle
+  // spell — unless the pointer is resting on the header itself.
+  const revealChrome = useCallback(
+    (event: React.PointerEvent) => {
+      setChromeVisible(true);
+      clearIdleTimer();
+      if (toolbarRef.current?.contains(event.target as Node)) return;
+      idleTimer.current = setTimeout(() => setChromeVisible(false), CHROME_IDLE_MS);
+    },
+    [clearIdleTimer],
+  );
+
+  const hideChrome = useCallback(() => {
+    clearIdleTimer();
+    setChromeVisible(false);
+  }, [clearIdleTimer]);
+
+  useEffect(() => clearIdleTimer, [clearIdleTimer]);
+  useEffect(() => {
+    if (!isOpen) hideChrome();
+  }, [isOpen, hideChrome]);
 
   // A Matrix attachment's resolved URL points at its authenticated media
   // repo — the same problem `@org/ui`'s `AvatarImage` works around — so
@@ -122,16 +160,28 @@ export function MediaPreviewModal() {
               contentRef.current?.focus();
             }}
             className={cn(
-              // Sits inside the same 6px gutter the app shell uses for its
-              // panels (see app-shell.tsx), framed the same way — rounded-xl
-              // with a 1px border — so the viewer reads as one of the app's
-              // surfaces rather than a full-bleed takeover.
-              'group/preview fixed inset-1.5 z-50 flex flex-col overflow-hidden rounded-xl border border-border outline-none',
+              // Floats over the dimmed app with a gutter that grows with the
+              // viewport (tight on phones, generous on desktop) so it reads as
+              // a lightbox above the workspace rather than a full-bleed
+              // takeover. Fullscreen drops the gutter and frame entirely.
+              'group/preview fixed inset-2 z-50 flex flex-col overflow-hidden rounded-2xl border shadow-2xl outline-none',
+              // A light theme border reads as a white halo around the
+              // near-black media canvas, so dark canvases get a dark frame
+              // (matching the canvas fill) instead.
+              usesDarkCanvas(activeItem.category)
+                ? 'border-neutral-950 bg-neutral-950'
+                : 'border-border/60 bg-popover',
+              'sm:inset-6 lg:inset-x-16 lg:inset-y-10 xl:inset-x-24 xl:inset-y-12',
+              '[&:fullscreen]:inset-0 [&:fullscreen]:rounded-none [&:fullscreen]:border-0',
               'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-98',
               'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-98',
               'duration-(--duration-base) ease-standard',
             )}
             aria-label={`${activeItem.name} preview`}
+            data-chrome={chromeVisible ? 'visible' : 'hidden'}
+            onPointerMove={revealChrome}
+            onPointerDown={revealChrome}
+            onPointerLeave={hideChrome}
           >
             <DialogPrimitive.Title className="sr-only">
               {activeItem.name}
@@ -142,6 +192,7 @@ export function MediaPreviewModal() {
             </DialogPrimitive.Description>
 
             <MediaPreviewToolbar
+              ref={toolbarRef}
               item={activeItem}
               index={activeIndex}
               count={items.length}
@@ -149,7 +200,12 @@ export function MediaPreviewModal() {
               isResolving={resolvingIds[activeItem.id]}
               onDownload={handleDownload}
               onClose={close}
-              className={TOOLBAR_REVEAL}
+              className={cn(
+                TOOLBAR_REVEAL,
+                // Over the near-black media canvas the frosted header uses the
+                // dark token set regardless of app theme, so it stays legible.
+                usesDarkCanvas(activeItem.category) && 'dark',
+              )}
             />
 
             <div
@@ -180,6 +236,7 @@ export function MediaPreviewModal() {
                 onNext={next}
                 onPrevious={previous}
                 onDownload={handleDownload}
+                onClose={close}
               />
 
               {items.length > 1 ? (

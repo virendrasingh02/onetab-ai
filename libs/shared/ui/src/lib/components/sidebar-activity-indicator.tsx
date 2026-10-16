@@ -1,4 +1,5 @@
 import { cn } from '@org/utils';
+import { AtSign } from 'lucide-react';
 import { createContext, useContext, type ReactNode } from 'react';
 import type { ActivityLevel } from './activity-dot.js';
 import { Badge } from './badge.js';
@@ -247,6 +248,51 @@ export function SidebarBadge({
   );
 }
 
+export interface SidebarMentionBadgeProps {
+  /** Raw mention count; the number is only drawn when more than one is waiting. */
+  count?: number;
+  /** Pre-clamped text for `count`, e.g. `"99+"`. */
+  display?: string;
+  label?: string;
+  /** Workspace surfaces draw a hair larger than a single channel row. */
+  size?: 'sm' | 'md';
+  className?: string;
+}
+
+/**
+ * The "you were mentioned" mark: a solid pill with an `@` glyph, plus the count
+ * when there is more than one. Distinct in shape from the round activity dot so
+ * a mention reads at a glance even for colour-blind users, not only by hue.
+ */
+export function SidebarMentionBadge({
+  count = 0,
+  display,
+  label,
+  size = 'sm',
+  className,
+}: SidebarMentionBadgeProps) {
+  const showCount = count > 1;
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center gap-px rounded-full bg-destructive font-semibold text-destructive-foreground leading-none tabular-nums shadow-sm',
+        size === 'md' ? 'h-[18px] min-w-[18px] text-[10.5px]' : 'h-4 min-w-4 text-[10px]',
+        showCount ? 'pl-[3px] pr-1.5' : 'px-0',
+        className,
+      )}
+    >
+      <AtSign
+        aria-hidden
+        strokeWidth={2.75}
+        className={size === 'md' ? 'size-3' : 'size-2.5'}
+      />
+      {showCount ? <span>{display ?? count}</span> : null}
+    </span>
+  );
+}
+
 export interface SidebarActivityIndicatorProps {
   state: SidebarActivityState | undefined;
   surface: SidebarActivitySurface;
@@ -280,6 +326,20 @@ export function SidebarActivityIndicator({
 
   if (resolved.render === 'none') return null;
 
+  if (resolved.tone === 'mention') {
+    return (
+      <SidebarMentionBadge
+        count={resolved.render === 'badge' ? resolved.count : 0}
+        display={resolved.display}
+        label={resolved.label}
+        className={cn(
+          collapsed && '-right-1 -top-1 absolute ring-2 ring-background',
+          className,
+        )}
+      />
+    );
+  }
+
   if (resolved.render === 'badge') {
     return (
       <SidebarBadge
@@ -303,8 +363,7 @@ export function SidebarActivityIndicator({
       role="img"
       aria-label={resolved.label}
       className={cn(
-        'size-2 block shrink-0 rounded-full',
-        resolved.tone === 'mention' ? 'bg-destructive' : 'bg-primary',
+        'size-2 block shrink-0 rounded-full bg-primary',
         collapsed && 'right-1 top-1 absolute ring-2 ring-background',
         className,
       )}
@@ -339,6 +398,19 @@ export function WorkspaceActivityIndicator({
 
   if (resolved.render === 'none') return null;
 
+  if (resolved.tone === 'mention') {
+    return (
+      <SidebarMentionBadge
+        // Over an avatar corner the full-size pill would cover the glyph.
+        size={overlay ? 'sm' : 'md'}
+        count={resolved.render === 'badge' ? resolved.count : 0}
+        display={resolved.display}
+        label={resolved.label}
+        className={cn(overlay && 'ring-2 ring-background', className)}
+      />
+    );
+  }
+
   if (resolved.render === 'badge') {
     return (
       <SidebarBadge
@@ -356,8 +428,7 @@ export function WorkspaceActivityIndicator({
       role="img"
       aria-label={resolved.label}
       className={cn(
-        'size-2.5 block shrink-0 rounded-full',
-        resolved.tone === 'mention' ? 'bg-destructive' : 'bg-primary',
+        'size-2.5 block shrink-0 rounded-full bg-primary',
         overlay && 'ring-2 ring-background',
         className,
       )}

@@ -18,7 +18,7 @@ import { cn } from '@org/utils';
 import { CONNECTOR_CATEGORIES } from '@org/types';
 import { Bot, Check, ExternalLink, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../router.js';
 import {
   agentConnectorActions,
   detachConnectorFromAgent,

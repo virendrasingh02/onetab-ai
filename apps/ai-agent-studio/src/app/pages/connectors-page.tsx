@@ -17,7 +17,7 @@ import {
 import { cn } from '@org/utils';
 import { Bot, ChevronRight, KeyRound, Layers, Plug, Plus, Search, Star, Wrench, Zap, Eye } from 'lucide-react';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../router.js';
 import { AddToAgentDialog } from '../components/connectors/add-to-agent-dialog.js';
 import { useStudioSession } from '../session-guard.js';
 import { OAuthAppsDialog } from '@org/web-integrations';

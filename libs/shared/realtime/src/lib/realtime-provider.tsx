@@ -54,6 +54,7 @@ interface PresenceContextValue {
     statusText?: string,
     statusEmoji?: string,
   ) => Promise<void>;
+  setManualAway: (away: boolean) => Promise<void>;
 }
 
 const PresenceContext = createContext<PresenceContextValue | null>(null);
@@ -445,6 +446,13 @@ export function PresenceProvider({
     [presenceService],
   );
 
+  const setManualAway = useCallback(
+    async (away: boolean) => {
+      if (presenceService) await presenceService.setManualAway(away);
+    },
+    [presenceService],
+  );
+
   const value = useMemo<PresenceContextValue>(
     () => ({
       presenceService,
@@ -452,8 +460,16 @@ export function PresenceProvider({
       getPresence,
       isOnline,
       setLocalPresence,
+      setManualAway,
     }),
-    [presenceService, presenceMap, getPresence, isOnline, setLocalPresence],
+    [
+      presenceService,
+      presenceMap,
+      getPresence,
+      isOnline,
+      setLocalPresence,
+      setManualAway,
+    ],
   );
 
   return (
@@ -521,6 +537,7 @@ export function usePresence(userId?: string) {
     presenceMap: ctx.presenceMap,
     getPresence: ctx.getPresence,
     setLocalPresence: ctx.setLocalPresence,
+    setManualAway: ctx.setManualAway,
   };
 }
 

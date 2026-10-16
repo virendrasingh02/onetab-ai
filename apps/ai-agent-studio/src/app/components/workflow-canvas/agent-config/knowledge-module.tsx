@@ -1,4 +1,5 @@
 import { knowledgeApi } from '@org/api-client';
+import { Link } from '../../../router.js';
 import { AppSelect, Badge, Button, confirm, Input, SegmentedControl, Slider, Switch } from '@org/ui';
 import { cn } from '@org/utils';
 import type { KnowledgeRetrievalResult, KnowledgeSearchMode } from '@org/types';
@@ -129,9 +130,9 @@ export function KnowledgeModule({ view, issues, readOnly, setConfig, actions, ju
             </Button>
           </div>
         )}
-        <a href="/knowledge" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline">
+        <Link to="/knowledge" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline">
           Manage knowledge bases and documents <ExternalLink className="size-3" />
-        </a>
+        </Link>
       </SettingSection>
 
       <SettingSection id="retrieval" title="Retrieval" description="How each source is searched. Changes apply to the agent’s next run.">

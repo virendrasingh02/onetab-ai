@@ -15,7 +15,7 @@ import {
 } from '@org/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../router.js';
 import {
   agentConnectorActions,
   attachConnectorToAgent,

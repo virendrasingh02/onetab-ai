@@ -47,7 +47,7 @@ import {
 import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, scopeStudioPath, useLocation, useNavigate } from '../router.js';
 import {
   fetchWorkspaceApprovals,
   workspaceApprovalsKey,
@@ -80,7 +80,7 @@ export interface NavGroup {
  * Navigation groups matching the studio architecture with authentic nav names.
  */
 function buildNavGroups(slug: string): NavGroup[] {
-  return [
+  const groups: NavGroup[] = [
   {
     id: 'plan-run',
     title: 'Plan, Run & Approve',
@@ -183,6 +183,10 @@ function buildNavGroups(slug: string): NavGroup[] {
     ],
   },
   ];
+  return groups.map((g) => ({
+    ...g,
+    items: g.items.map((item) => ({ ...item, to: scopeStudioPath(slug, item.to) })),
+  }));
 }
 
 /*

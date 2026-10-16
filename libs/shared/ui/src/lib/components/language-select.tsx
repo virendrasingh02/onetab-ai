@@ -86,9 +86,7 @@ export function LanguageSelect({
             {compact ? (
               <Globe className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
             ) : (
-              <span className="text-sm shrink-0" aria-hidden>
-                {currentLang.flag}
-              </span>
+              <Globe className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
             )}
             <span className="truncate font-medium">
               {compact ? currentLang.nativeName : currentLang.name}
@@ -149,9 +147,6 @@ export function LanguageSelect({
                     )}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-base shrink-0" aria-hidden>
-                        {lang.flag}
-                      </span>
                       <div className="flex flex-col min-w-0">
                         <span className="truncate font-medium">{lang.nativeName}</span>
                         <span className="text-[11px] text-muted-foreground truncate">

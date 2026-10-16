@@ -28,7 +28,7 @@ import {
 import { cn } from '@org/utils';
 import { ArrowLeft, ChevronDown, ChevronRight, Play, Plug, Plus, Save, Trash2, Zap } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from '../router.js';
 import {
   blankAction,
   draftFromDefinition,

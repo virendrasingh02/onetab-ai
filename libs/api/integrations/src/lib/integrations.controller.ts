@@ -181,6 +181,17 @@ export class IntegrationsController {
     return this.integrationsService.triggerSync(integrationId, userId, workspaceId);
   }
 
+  /** The URL and signing secret to put in GitHub's webhook form (admins only). */
+  @Get('workspaces/:workspaceId/integrations/:id/webhook-setup')
+  @UseGuards(WorkspaceRoleGuard)
+  getWebhookSetup(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') integrationId: string,
+  ) {
+    return this.integrationsService.getWebhookSetup(integrationId, userId, workspaceId);
+  }
+
   @Get('workspaces/:workspaceId/integrations/:id/jobs')
   @UseGuards(WorkspaceRoleGuard)
   getSyncJobs(

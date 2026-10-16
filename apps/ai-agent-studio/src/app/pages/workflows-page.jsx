@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../router.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Badge,
@@ -126,7 +126,7 @@ export function WorkflowsPage() {
   }, [agents, search]);
 
   return (
-    <Page width="wide" padding="none" className="space-y-6 w-full">
+    <Page width="full" className="space-y-6">
       {/* Header bar matching Admin */}
       <PageHeader
         title="Visual Workflows"

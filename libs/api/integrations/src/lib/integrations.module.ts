@@ -26,6 +26,8 @@ import { IntegrationsService } from './integrations.service.js';
 import { NotionImporterService } from './notion-importer.service.js';
 import { CustomApiProvider } from './providers/custom-api.provider.js';
 import { CustomConnectorProvider } from './providers/custom-connector.provider.js';
+import { GoogleCalendarMeetingSyncService } from './google-calendar-meeting-sync.service.js';
+import { GithubEventsListener } from './github-events.listener.js';
 import { GitHubProvider } from './providers/github.provider.js';
 import { GmailProvider } from './providers/gmail.provider.js';
 import { GoogleCalendarProvider } from './providers/google-calendar.provider.js';
@@ -93,6 +95,8 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     ConnectorRegistryService,
     CustomConnectorsService,
     ConnectorWebhookService,
+    GithubEventsListener,
+    GoogleCalendarMeetingSyncService,
     ConnectorGroupsService,
     OAuthAppCredentialsService,
 

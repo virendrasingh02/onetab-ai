@@ -29,7 +29,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MailPlus, Trash2, UserPlus, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from '../../router.js';
 import { useStudioSession } from '../../session-guard.js';
 
 const QUIET = { disableToast: true } as const;
