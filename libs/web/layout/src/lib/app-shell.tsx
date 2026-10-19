@@ -211,9 +211,11 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   useRememberWorkspacePath(workspace?.id, workspace?.slug);
 
   /*
-   * The feed is fetched here as well as on the Inbox page so the bell and the
-   * Inbox row can carry a count from anywhere in the app. Both calls share one
-   * query key, so this is a cache read rather than a second request.
+   * The feed is fetched here as well as on the Inbox page so channel dots can
+   * light up from anywhere in the app (one shared query key, so a cache read).
+   * The Inbox row, mobile tab and OS badge all show the server-side unread
+   * count of personal notifications — the same rows the Inbox "For you" tab
+   * lists and marks read — so every surface agrees on one number.
    */
   const notificationFeed = useNotificationFeed(workspaceId);
   const unread = useNotificationUnread(workspaceId, notificationFeed.data);
@@ -477,7 +479,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
       workspaceSlug={slug}
       channels={channelsQuery.data}
       isLoading={channelsQuery.isLoading}
-      inboxUnread={unread.count}
+      inboxUnread={totalUnreadBadge}
       channelActivity={channelActivity}
       channelLastActivity={channelLastActivity}
       directMessageLastActivity={directMessageLastActivity}
@@ -524,7 +526,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
           onOpenSearch={() => palette.setOpen(true)}
           onToggleSidebar={toggleSidebar}
           sidebarOpen={sidebarOpen}
-          unreadNotifications={unread.count}
+          unreadNotifications={totalUnreadBadge}
           workspaceActivity={workspaceActivity}
         />
 
@@ -704,7 +706,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
         {isMobile ? (
           <MobileBottomNav
             workspaceSlug={slug}
-            inboxUnread={unread.count}
+            inboxUnread={totalUnreadBadge}
             onOpenSearch={() => palette.setOpen(true)}
             onOpenMenu={toggleSidebar}
             menuOpen={sidebarOpen}

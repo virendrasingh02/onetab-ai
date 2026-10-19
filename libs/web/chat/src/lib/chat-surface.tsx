@@ -47,7 +47,6 @@ import type {
   Thread,
 } from '@org/matrix-client';
 import { toPlatformUserId, type ComposerContext } from '@org/types';
-import { cn } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useComposerControl } from './use-composer-control.js';
 import { useMentionAddActions } from './use-mention-add-actions.js';
@@ -67,21 +66,13 @@ import {
   Button,
   Checkbox,
   DetachedMenuItem,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Hint,
   toast,
   useRightPanelStore,
   type RightPanelProfile,
 } from '@org/ui';
 import {
-  ChevronDown,
   Hash,
-  Headphones,
-  Link2,
   Lock,
   Pin,
   Search,
@@ -105,6 +96,7 @@ import { useRegisterActiveConversation } from './active-conversation.js';
 import { deriveAttachmentBursts } from './derive-attachment-bursts.js';
 import { deriveThreads, groupReplies, threadReplyCount } from './derive-threads.js';
 import { useHuddleSession } from './use-huddle.js';
+import { ConversationCallControl } from './conversation-call-control.js';
 import { useMentionNavigation } from './use-mention-navigation.js';
 import { useMessageScrollTarget } from './use-message-scroll-target.js';
 import { useMatrix } from './matrix-provider.js';
@@ -256,11 +248,15 @@ export interface ChatSurfaceProps {
   huddlesEnabled?: boolean;
   /**
    * A shareable URL that joins this conversation's huddle when opened (a
-   * channel's `?huddle=join` link). Set, the header's huddle button grows a
-   * dropdown with "Copy huddle link"; left unset — direct messages, which have
-   * no such route — it stays a plain button.
+   * channel's `?huddle=join` link). Set, the call menu gains "Copy huddle
+   * link"; direct messages have no such route and leave it unset.
    */
   huddleLink?: string;
+  /**
+   * A 1:1 conversation: the call menu also offers voice and video calls in
+   * this room. Groups and channels use the huddle instead.
+   */
+  directCalls?: boolean;
 
   pinnedIds?: string[];
   /** Pinned messages older than the loaded timeline, fetched on their own. */
@@ -437,6 +433,7 @@ export function ChatSurface({
   huddleRequest = 0,
   huddlesEnabled = true,
   huddleLink,
+  directCalls = false,
   pinnedIds = [],
   pinnedOutsideTimeline,
   savedIds = [],
@@ -1752,74 +1749,16 @@ export function ChatSurface({
     [memberById, workspaceMemberById],
   );
 
-  // A huddle already running here is joined, not started — the button used to
-  // vanish in that case, leaving the bar as the only way in.
-  const huddleActionLabel = huddle.huddle ? 'Join huddle' : 'Start a huddle';
-  const copyHuddleLink = useCallback(() => {
-    if (!huddleLink) return;
-    navigator.clipboard?.writeText(huddleLink).then(
-      () =>
-        toast.success('Huddle link copied', {
-          description: 'Anyone in the channel who opens it joins the huddle.',
-        }),
-      () => toast.error('Could not copy the huddle link.'),
-    );
-  }, [huddleLink]);
-
   const headerActions = (
     <>
       {huddlesEnabled && !huddleJoined ? (
-        <div
-          className={cn(
-            'inline-flex h-7 items-center overflow-hidden rounded-md border border-border bg-background shadow-xs transition-colors',
-            'hover:border-foreground/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40',
-          )}
-        >
-          <Hint label={huddleActionLabel}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={huddleActionLabel}
-              onClick={() => huddle.startOrJoin()}
-              disabled={huddle.busy}
-              className="h-full w-8 rounded-none focus-visible:ring-0"
-            >
-              <Headphones />
-            </Button>
-          </Hint>
-          {huddleLink ? (
-            <DropdownMenu>
-              <span aria-hidden className="h-4 w-px bg-border" />
-              <Hint label="Huddle options">
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Huddle options"
-                    className="h-full w-6 rounded-none text-muted-foreground focus-visible:ring-0 data-[state=open]:bg-accent data-[state=open]:text-foreground"
-                  >
-                    <ChevronDown className="size-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </Hint>
-              <DropdownMenuContent align="end" className="min-w-48">
-                <DropdownMenuItem
-                  className="gap-2.5"
-                  disabled={huddle.busy}
-                  onSelect={() => huddle.startOrJoin()}
-                >
-                  <Headphones className="size-4" />
-                  <span>{huddleActionLabel}</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2.5" onSelect={copyHuddleLink}>
-                  <Link2 className="size-4" />
-                  <span>Copy huddle link</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-        </div>
+        <ConversationCallControl
+          onHuddle={() => huddle.startOrJoin()}
+          huddleRunning={Boolean(huddle.huddle)}
+          busy={huddle.busy}
+          huddleLink={huddleLink}
+          directCallRoomId={directCalls ? conversationId : undefined}
+        />
       ) : null}
 
       {/*

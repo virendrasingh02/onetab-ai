@@ -581,6 +581,8 @@ function DirectRoom({
       showEncryptedBadge={false}
       // A huddle with yourself has no one to talk to.
       huddlesEnabled={!isSelf}
+      // 1:1 voice/video live in the same call menu as the huddle.
+      directCalls={!isSelf && peerKind !== 'agent' && peerKind !== 'app'}
       composerContext={composerContext}
       welcome={{
         kind: isSelf ? 'self' : 'direct',
@@ -1049,33 +1051,6 @@ function DirectMessageHeader({
         </div>
 
         <div className="gap-1 flex items-center">
-          {canCall ? (
-            <>
-              <Hint label="Start voice call">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Start voice call"
-                  onClick={handleStartVoiceCall}
-                  disabled={isCallLive(callState)}
-                >
-                  <Phone className="size-4" />
-                </Button>
-              </Hint>
-              <Hint label="Start video call">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Start video call"
-                  onClick={handleStartVideoCall}
-                  disabled={isCallLive(callState)}
-                >
-                  <Video className="size-4" />
-                </Button>
-              </Hint>
-            </>
-          ) : null}
-
           {/* Conversation tools portal in from the chat surface. */}
           <div
             ref={chatActionsRef}

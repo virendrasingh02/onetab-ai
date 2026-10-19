@@ -6,9 +6,9 @@ export {
 } from './lib/notification-avatar.js';
 
 export {
-  NotificationBell,
-  type NotificationBellProps,
-} from './lib/notification-bell.js';
+  NotificationCenterList,
+  type NotificationCenterListProps,
+} from './lib/notification-center-list.js';
 
 export {
   useNotificationList,

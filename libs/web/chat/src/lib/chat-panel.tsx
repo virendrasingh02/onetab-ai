@@ -129,6 +129,8 @@ export interface ChatPanelProps {
   huddlesEnabled?: boolean;
   /** Shareable join link for the huddle. See `ChatSurface`. */
   huddleLink?: string;
+  /** Offers 1:1 voice/video calls in the call menu. See `ChatSurface`. */
+  directCalls?: boolean;
   onCreateTask?: (message: Message) => void;
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
@@ -169,6 +171,7 @@ export function ChatPanel({
   huddleRequest,
   huddlesEnabled,
   huddleLink,
+  directCalls,
   onCreateTask,
   onCreateDoc,
   onAskAI,
@@ -856,6 +859,7 @@ export function ChatPanel({
       huddleRequest={huddleRequest}
       huddlesEnabled={huddlesEnabled}
       huddleLink={huddleLink}
+      directCalls={directCalls}
       isEncrypted={
         showEncryptedBadge &&
         !!client &&

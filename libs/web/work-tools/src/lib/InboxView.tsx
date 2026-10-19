@@ -1,5 +1,10 @@
 import { useCurrentUser } from '@org/auth';
-import { useNotificationFeed, useNotificationUnread } from '@org/notifications';
+import {
+  NotificationCenterList,
+  useNotificationFeed,
+  useNotificationUnread,
+  useNotificationUnreadCount,
+} from '@org/notifications';
 import { TaskPriority, TaskStatus, type ActivityFeedItem } from '@org/types';
 import {
   Badge,
@@ -20,6 +25,7 @@ import {
   ArrowRight,
   ArrowUp,
   AtSign,
+  Activity,
   Bell,
   Calendar,
   CheckCircle2,
@@ -472,7 +478,11 @@ export function InboxView() {
   const channels = useWorkspaceChannels(workspaceId);
   const tasks = useTasks(workspaceId);
 
-  const [activeTab, setActiveTab] = useState('notifications');
+  // Personal notifications (server read state) — the same count the sidebar
+  // Inbox row shows.
+  const personalUnread = useNotificationUnreadCount(workspaceId).data ?? 0;
+
+  const [activeTab, setActiveTab] = useState('for-you');
 
   // Search & category filters
   const [notificationCategory, setNotificationCategory] =
@@ -494,7 +504,7 @@ export function InboxView() {
   }, [feed.data, snapshot, unreadCount]);
 
   useEffect(() => {
-    if (activeTab !== 'notifications' || !snapshot || unreadCount === 0) return;
+    if (activeTab !== 'activity' || !snapshot || unreadCount === 0) return;
     markAllSeen();
   }, [activeTab, snapshot, unreadCount, markAllSeen]);
 
@@ -656,7 +666,7 @@ export function InboxView() {
           </div>
 
           <div className="gap-2 flex items-center">
-            {newCount > 0 ? (
+            {activeTab === 'activity' && newCount > 0 ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -674,11 +684,18 @@ export function InboxView() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <PageTabBar>
           <TabsTrigger
-            value="notifications"
+            value="for-you"
             icon={<Bell className="size-4" />}
+            count={personalUnread > 0 ? personalUnread : undefined}
+          >
+            For you
+          </TabsTrigger>
+          <TabsTrigger
+            value="activity"
+            icon={<Activity className="size-4" />}
             count={newCount > 0 ? newCount : undefined}
           >
-            Notifications
+            Activity
           </TabsTrigger>
           <TabsTrigger
             value="mentions"
@@ -709,8 +726,20 @@ export function InboxView() {
       <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-5xl space-y-4 mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            {/* 1. NOTIFICATIONS TAB */}
-            <TabsContent value="notifications" className="space-y-3.5 mt-0">
+            {/* 1. FOR YOU — personal notifications (formerly the header bell) */}
+            <TabsContent value="for-you" className="mt-0">
+              {workspaceId ? (
+                <NotificationCenterList
+                  workspaceId={workspaceId}
+                  workspaceSlug={slug ?? ''}
+                />
+              ) : (
+                <SkeletonList rows={5} withAvatar />
+              )}
+            </TabsContent>
+
+            {/* 2. ACTIVITY — workspace-wide feed */}
+            <TabsContent value="activity" className="space-y-3.5 mt-0">
               {/* Category & Search Toolbar */}
               <div className="sm:flex-row sm:items-center gap-2.5 pb-1 flex flex-col items-stretch justify-between">
                 <div className="gap-1.5 py-0.5 no-scrollbar flex items-center overflow-x-auto">
@@ -742,7 +771,7 @@ export function InboxView() {
                     type="text"
                     value={notificationSearch}
                     onChange={(e) => setNotificationSearch(e.target.value)}
-                    placeholder="Filter notifications..."
+                    placeholder="Filter activity..."
                     className="pl-8 pr-7 py-1 text-xs w-full rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary focus:outline-none"
                   />
                   {notificationSearch && (
@@ -804,7 +833,7 @@ export function InboxView() {
               )}
             </TabsContent>
 
-            {/* 2. MENTIONS TAB */}
+            {/* 3. MENTIONS TAB */}
             <TabsContent value="mentions" className="space-y-3.5 mt-0">
               {feed.isLoading ? (
                 <SkeletonList rows={4} withAvatar />
@@ -831,7 +860,7 @@ export function InboxView() {
               )}
             </TabsContent>
 
-            {/* 3. UNREAD CHANNELS TAB */}
+            {/* 4. UNREAD CHANNELS TAB */}
             <TabsContent value="unreads" className="space-y-3.5 mt-0">
               {channels.isLoading || feed.isLoading ? (
                 <SkeletonList rows={4} />
@@ -913,7 +942,7 @@ export function InboxView() {
               )}
             </TabsContent>
 
-            {/* 4. ASSIGNED TO YOU TAB */}
+            {/* 5. ASSIGNED TO YOU TAB */}
             <TabsContent value="tasks" className="space-y-3.5 mt-0">
               {/* Task Filters & Search */}
               <div className="sm:flex-row sm:items-center gap-2.5 pb-1 flex flex-col items-stretch justify-between">

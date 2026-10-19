@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NotificationView } from '@org/types';
-import { NotificationBell } from './notification-bell.js';
+import { NotificationCenterList } from './notification-center-list.js';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
@@ -122,37 +122,28 @@ vi.mock('./use-notification-center.js', () => ({
   })),
 }));
 
-describe('NotificationBell In-App Notification Center', () => {
+describe('NotificationCenterList (Inbox "For you")', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders the bell button with unread count badge', () => {
-    render(<NotificationBell workspaceId="ws-1" workspaceSlug="alpha" />);
+  it('shows the unread count on the Unread filter', () => {
+    render(<NotificationCenterList workspaceId="ws-1" workspaceSlug="alpha" />);
 
-    const button = screen.getByRole('button', { name: /Notifications, 3 unread/i });
-    expect(button).toBeDefined();
-    expect(screen.getByText('3')).toBeDefined();
+    expect(screen.getByRole('button', { name: /^Unread\s*3$/i })).toBeDefined();
   });
 
-  it('opens notification panel with All, Unread, Mentions, and Activity filters', () => {
-    render(<NotificationBell workspaceId="ws-1" workspaceSlug="alpha" />);
+  it('renders All, Unread, Mentions, and Updates filters', () => {
+    render(<NotificationCenterList workspaceId="ws-1" workspaceSlug="alpha" />);
 
-    // Click the bell to open popover
-    fireEvent.click(screen.getByRole('button', { name: /Notifications, 3 unread/i }));
-
-    // Verify header and filter tabs exist
-    expect(screen.getByText('Notifications')).toBeDefined();
     expect(screen.getByRole('button', { name: /^All$/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /^Unread/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /^Mentions$/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /^Activity$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^Updates$/i })).toBeDefined();
   });
 
   it('filters notifications when switching tabs', () => {
-    render(<NotificationBell workspaceId="ws-1" workspaceSlug="alpha" />);
-
-    fireEvent.click(screen.getByRole('button', { name: /Notifications, 3 unread/i }));
+    render(<NotificationCenterList workspaceId="ws-1" workspaceSlug="alpha" />);
 
     // "All" tab shows all items
     expect(screen.getByText('Alice mentioned you in #general')).toBeDefined();
@@ -165,26 +156,23 @@ describe('NotificationBell In-App Notification Center', () => {
     expect(screen.queryByText('You were assigned task PROJ-42')).toBeNull();
     expect(screen.queryByText('“Research Agent” finished')).toBeNull();
 
-    // Switch to "Activity" tab
-    fireEvent.click(screen.getByRole('button', { name: /^Activity$/i }));
+    // Switch to "Updates" tab
+    fireEvent.click(screen.getByRole('button', { name: /^Updates$/i }));
     expect(screen.queryByText('Alice mentioned you in #general')).toBeNull();
     expect(screen.getByText('You were assigned task PROJ-42')).toBeDefined();
     expect(screen.getByText('“Research Agent” finished')).toBeDefined();
   });
 
   it('calls markAllRead when clicking "Mark all as read"', () => {
-    render(<NotificationBell workspaceId="ws-1" workspaceSlug="alpha" />);
+    render(<NotificationCenterList workspaceId="ws-1" workspaceSlug="alpha" />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Notifications, 3 unread/i }));
     fireEvent.click(screen.getByRole('button', { name: /Mark all as read/i }));
 
     expect(mockMarkAllRead).toHaveBeenCalled();
   });
 
   it('calls markRead and navigates when clicking a notification row', () => {
-    render(<NotificationBell workspaceId="ws-1" workspaceSlug="alpha" />);
-
-    fireEvent.click(screen.getByRole('button', { name: /Notifications, 3 unread/i }));
+    render(<NotificationCenterList workspaceId="ws-1" workspaceSlug="alpha" />);
 
     const unreadItem = screen.getByText('Alice mentioned you in #general');
     fireEvent.click(unreadItem);
@@ -194,9 +182,7 @@ describe('NotificationBell In-App Notification Center', () => {
   });
 
   it('calls markRead independently when clicking "Mark as read" button on an unread row', () => {
-    render(<NotificationBell workspaceId="ws-1" workspaceSlug="alpha" />);
-
-    fireEvent.click(screen.getByRole('button', { name: /Notifications, 3 unread/i }));
+    render(<NotificationCenterList workspaceId="ws-1" workspaceSlug="alpha" />);
 
     const markReadButtons = screen.getAllByRole('button', { name: 'Mark notification read' });
     fireEvent.click(markReadButtons[0]);
@@ -206,9 +192,7 @@ describe('NotificationBell In-App Notification Center', () => {
   });
 
   it('calls dismiss when clicking "Dismiss" button', () => {
-    render(<NotificationBell workspaceId="ws-1" workspaceSlug="alpha" />);
-
-    fireEvent.click(screen.getByRole('button', { name: /Notifications, 3 unread/i }));
+    render(<NotificationCenterList workspaceId="ws-1" workspaceSlug="alpha" />);
 
     const dismissButtons = screen.getAllByRole('button', { name: 'Dismiss notification' });
     fireEvent.click(dismissButtons[0]);

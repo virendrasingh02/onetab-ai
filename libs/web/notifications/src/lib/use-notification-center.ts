@@ -55,7 +55,7 @@ export function useNotificationUnreadCount(workspaceId: string | undefined) {
   });
 }
 
-/** The paginated list behind the open bell menu. */
+/** The paginated list behind the Inbox "For you" tab. */
 export function useNotificationList(
   workspaceId: string | undefined,
   options: { unreadOnly?: boolean; enabled?: boolean } = {},

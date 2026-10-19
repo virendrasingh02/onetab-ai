@@ -15,7 +15,7 @@ import {
   useRightPanelStore,
   WorkspaceMenuSkeleton,
 } from '@org/ui';
-import { NotificationBell, type ActivityIndicator } from '@org/notifications';
+import type { ActivityIndicator } from '@org/notifications';
 import { useAccounts, useLogout, useRemoveAccount } from '@org/auth';
 import { cn } from '@org/utils';
 import {
@@ -53,7 +53,10 @@ import { WorkspaceMenu } from './workspace-switcher.js';
 export interface AppHeaderProps {
   user: CurrentUser;
   workspaceSlug: string;
-  /** Enables the notification bell. Omitted before a workspace is resolved. */
+  /**
+   * Kept for callers; the header no longer carries a notification bell —
+   * every notification lives in the Inbox, whose sidebar row holds the count.
+   */
   workspaceId?: string;
   title: string;
   subtitle?: string;
@@ -80,7 +83,6 @@ export interface AppHeaderProps {
 export function AppHeader({
   user,
   workspaceSlug,
-  workspaceId: explicitWorkspaceId,
   workspaces,
   currentWorkspace,
   onOpenSearch,
@@ -91,7 +93,6 @@ export function AppHeader({
   leftActions,
   actions,
 }: AppHeaderProps) {
-  const workspaceId = explicitWorkspaceId ?? currentWorkspace?.id;
   const logout = useLogout();
   const removeAccount = useRemoveAccount();
   const { accounts, activeAccountId } = useAccounts();
@@ -332,16 +333,6 @@ export function AppHeader({
           <div style={NO_DRAG} className="flex items-center gap-1.5">
             <DesktopUpdateIndicator />
           </div>
-
-          {/* Notification Bell (Slack-style In-App Notification Center) */}
-          {workspaceId ? (
-            <div style={NO_DRAG} className="flex items-center">
-              <NotificationBell
-                workspaceId={workspaceId}
-                workspaceSlug={workspaceSlug}
-              />
-            </div>
-          ) : null}
 
           {/* Caller-supplied actions anchor here, right against the profile menu */}
           {actions ? <div style={NO_DRAG}>{actions}</div> : null}
