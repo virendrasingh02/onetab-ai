@@ -14,8 +14,8 @@ import type {
   AgentWidgetConfig,
 } from '@org/types';
 import { toast } from '@org/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { useStudioSession } from '../../../session-guard.js';
 
 /** These mutations report their own errors, so the app-wide error toast stays quiet. */
@@ -29,6 +29,10 @@ export function apiBase(): string {
   const base = http.defaults.baseURL;
   return (base && /^https?:/i.test(base) ? base : `${window.location.origin}/api/v1`).replace(/\/+$/, '');
 }
+
+/** The windows the deployment's run statistics can be read over. */
+export const ANALYTICS_PERIODS = ['24h', '7d', '30d', '90d'] as const;
+export type AnalyticsPeriod = (typeof ANALYTICS_PERIODS)[number];
 
 /** Versions of the agent that can actually be put live: published snapshots, not the unsaved draft. */
 export function publishableVersions(versions: AgentVersion[] | undefined): AgentVersion[] {
@@ -66,10 +70,15 @@ export function useDeployment(agentId: string) {
     enabled: !!workspaceId && !!agentId,
   });
 
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<AnalyticsPeriod>('7d');
   const analyticsQuery = useQuery<AgentDeploymentAnalyticsSummary>({
-    queryKey: queryKeys.agents.deploymentAnalytics(workspaceId, agentId, deploymentId),
-    queryFn: () => agentDeploymentsApi.analytics(workspaceId, agentId, deploymentId),
+    queryKey: [...queryKeys.agents.deploymentAnalytics(workspaceId, agentId, deploymentId), analyticsPeriod],
+    queryFn: () => agentDeploymentsApi.analytics(workspaceId, agentId, deploymentId, analyticsPeriod),
     enabled: !!deploymentId,
+    // Live traffic keeps arriving while the page is open; switching the window keeps the old figures until the new ones land.
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    placeholderData: keepPreviousData,
   });
 
   const webhooksKey = queryKeys.agents.deploymentWebhooks(workspaceId, agentId, deploymentId);
@@ -202,6 +211,8 @@ export function useDeployment(agentId: string) {
     deployment,
     versionsQuery,
     analyticsQuery,
+    analyticsPeriod,
+    setAnalyticsPeriod,
     webhooksQuery,
     create,
     update,

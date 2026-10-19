@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { AgentDeploymentService, periodToMs } from './agent-deployment.service.js';
+import { AgentDeploymentService, bucketRuns, periodToMs } from './agent-deployment.service.js';
 import { AgentSessionService } from './agent-session.service.js';
 import { AgentDeploymentWebhookService } from './agent-webhook.service.js';
 import { AgentRuntimeBridgeService, publicRunError } from './agent-runtime-bridge.service.js';
@@ -671,11 +671,14 @@ describe('Universal AI Agent Deployment System', () => {
   });
 
   describe('6c. Deployment analytics come from recorded runs', () => {
+    const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3_600_000);
+    const viaSession = { prompt: 'Where is my order?', deploymentId: 'dep_mac_1', deploymentChannel: 'session' };
+    const viaApiKey = { prompt: 'Summarise ticket 42', deploymentChannel: 'api_key' };
     const runs = [
-      { id: 'e1', status: 'COMPLETED', latencyMs: 1000, tokensUsed: 100, totalCost: 0.001, toolCalls: [{ name: 'search_docs' }, { name: 'search_docs' }], errorsJson: null },
-      { id: 'e2', status: 'COMPLETED', latencyMs: 3000, tokensUsed: 300, totalCost: 0.003, toolCalls: [{ name: 'create_task' }], errorsJson: null },
-      { id: 'e3', status: 'FAILED', latencyMs: 500, tokensUsed: 0, totalCost: 0, toolCalls: [], errorsJson: { message: 'Request timed out after 30s' } },
-      { id: 'e4', status: 'WAITING_APPROVAL', latencyMs: 800, tokensUsed: 50, totalCost: 0.0005, toolCalls: [], errorsJson: null },
+      { id: 'e1', status: 'COMPLETED', startedAt: at(1), latencyMs: 1000, tokensUsed: 100, totalCost: 0.001, toolCalls: [{ name: 'search_docs' }, { name: 'search_docs' }], errorsJson: null, stateJson: viaSession },
+      { id: 'e2', status: 'COMPLETED', startedAt: at(2), latencyMs: 3000, tokensUsed: 300, totalCost: 0.003, toolCalls: [{ name: 'create_task' }], errorsJson: null, stateJson: viaSession },
+      { id: 'e3', status: 'FAILED', startedAt: at(30), latencyMs: 500, tokensUsed: 0, totalCost: 0, toolCalls: [], errorsJson: { message: 'Request timed out after 30s' }, stateJson: viaApiKey },
+      { id: 'e4', status: 'WAITING_APPROVAL', startedAt: at(50), latencyMs: 800, tokensUsed: 50, totalCost: 0.0005, toolCalls: [], errorsJson: null, stateJson: viaSession },
     ];
 
     beforeEach(() => {
@@ -683,6 +686,7 @@ describe('Universal AI Agent Deployment System', () => {
       prisma.aIExecution = { findMany: vi.fn().mockResolvedValue(runs) };
       prisma.approvalRequest = {
         findMany: vi.fn().mockResolvedValue([{ state: 'APPROVED' }, { state: 'REJECTED' }, { state: 'PENDING' }]),
+        count: vi.fn().mockResolvedValue(1),
       };
     });
 
@@ -705,6 +709,33 @@ describe('Universal AI Agent Deployment System', () => {
       expect(a.estimatedCost).toBeCloseTo(0.0045, 4);
       expect(a.topTools[0]).toEqual({ name: 'search_docs', count: 2 });
       expect(a.recentErrorCategories).toEqual([{ category: 'Timeout', count: 1 }]);
+      expect(a.approvalsPending).toBe(1);
+      expect(a.channels).toEqual([
+        { channel: 'session', count: 3 },
+        { channel: 'api_key', count: 1 },
+      ]);
+      expect(a.recentRuns.map((r) => r.id)).toEqual(['e1', 'e2', 'e3', 'e4']);
+      expect(a.recentRuns[0]).toMatchObject({ channel: 'session', prompt: 'Where is my order?' });
+    });
+
+    it('counts only traffic through the deployment, not Studio test runs', async () => {
+      await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1', '7d');
+      const where = prisma.aIExecution.findMany.mock.calls[0][0].where;
+      expect(where.OR).toEqual([
+        { stateJson: { path: ['deploymentId'], equals: 'dep_mac_1' } },
+        { stateJson: { path: ['deploymentChannel'], equals: 'api_key' } },
+      ]);
+    });
+
+    it('buckets runs hourly for a day and daily for longer periods, keeping quiet buckets', async () => {
+      const day = await deploymentService.getDeploymentAnalytics(workspaceId, 'dep_mac_1', '24h');
+      expect(day.series).toHaveLength(24);
+      expect(day.series.reduce((n, b) => n + b.runs, 0)).toBe(2);
+
+      const week = bucketRuns(runs, '7d', Date.now());
+      expect(week).toHaveLength(7);
+      expect(week.reduce((n, b) => n + b.runs, 0)).toBe(4);
+      expect(week.reduce((n, b) => n + b.failed, 0)).toBe(1);
     });
 
     it('scopes the run query to this workspace, this agent and the period', async () => {

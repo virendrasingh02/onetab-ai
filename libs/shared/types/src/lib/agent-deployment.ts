@@ -236,6 +236,28 @@ export interface AgentDeploymentAnalyticsSummary {
   toolExecutionsCount: number;
   topTools: Array<{ name: string; count: number }>;
   recentErrorCategories: Array<{ category: string; count: number }>;
+  /** Approvals raised by this deployment's runs that nobody has decided yet, whenever they were raised. */
+  approvalsPending: number;
+  /** Runs by how they reached the agent: embed sessions, public-key REST calls, private API keys. */
+  channels: Array<{ channel: AgentDeploymentRunChannel; count: number }>;
+  /** Runs over the period, oldest first, in hourly buckets for `24h` and daily ones otherwise. */
+  series: Array<{ bucket: string; runs: number; failed: number; tokens: number }>;
+  /** The latest runs, newest first. */
+  recentRuns: AgentDeploymentRecentRun[];
+}
+
+/** How a deployed agent was called. */
+export type AgentDeploymentRunChannel = 'session' | 'public_key' | 'api_key';
+
+export interface AgentDeploymentRecentRun {
+  id: string;
+  status: string;
+  channel: AgentDeploymentRunChannel | null;
+  startedAt: string;
+  latencyMs: number;
+  tokensUsed: number;
+  /** The start of the prompt, for recognising the run. */
+  prompt: string | null;
 }
 
 export const DEFAULT_WIDGET_CONFIG: AgentWidgetConfig = {

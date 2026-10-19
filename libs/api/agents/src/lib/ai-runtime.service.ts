@@ -22,6 +22,7 @@ import { IntegrationsService } from '@org/api-integrations';
 import { CreditService } from '@org/api-workspace';
 import { RealtimeGatewayService } from '@org/api-realtime';
 import type {
+  AgentDeploymentRunChannel,
   AgentRuntimeConfig,
   AgentRulePolicy,
   AgentToolExecution,
@@ -219,6 +220,11 @@ export interface AIEntityTurnContext {
   team?: AgentTeamRun;
   /** The task this turn is doing, so a member's own delegations nest under it. */
   teamTaskId?: string;
+  /**
+   * The published deployment that took this call, recorded on the run so the
+   * deployment's analytics count its own traffic and not Studio test runs.
+   */
+  deployment?: { id?: string; channel: AgentDeploymentRunChannel };
 }
 
 /**
@@ -549,6 +555,12 @@ export class AIRuntimeService {
             prompt: promptText.slice(0, 4_000),
             ...(context.channelId ? { channelId: context.channelId } : {}),
             ...(context.projectId ? { projectId: context.projectId } : {}),
+            ...(context.deployment
+              ? {
+                  deploymentChannel: context.deployment.channel,
+                  ...(context.deployment.id ? { deploymentId: context.deployment.id } : {}),
+                }
+              : {}),
           },
         },
         select: { id: true },

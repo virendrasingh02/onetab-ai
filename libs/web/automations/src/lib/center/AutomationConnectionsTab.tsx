@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { ExternalIntegration, IntegrationCapabilities } from '@org/types';
 import {
   Badge,
   Button,
-  Card,
+  ConnectionCard,
+  ConnectionList,
   Dialog,
   DialogBody,
   DialogContent,
@@ -11,288 +13,290 @@ import {
   DialogHeader,
   DialogTitle,
   SearchInput,
+  Skeleton,
   toast,
+  toConnectionState,
 } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
-  CheckCircle2,
-  ExternalLink,
-  Layers,
-  RefreshCw,
-  XCircle,
-  Zap,
-} from 'lucide-react';
-import { useAutomationOverview } from '../use-automations.js';
+  IntegrationAppIcon,
+  useIntegrationActions,
+  useIntegrationMutations,
+  useIntegrationProviders,
+  useIntegrations,
+} from '@org/web-integrations';
+import { ExternalLink, Layers, ListChecks, RefreshCw } from 'lucide-react';
 
-interface ProviderCard {
+/** A workspace connection joined with its provider's registry entry. */
+interface ConnectionRow {
+  integration: ExternalIntegration;
   id: string;
   name: string;
-  category: string;
   description: string;
-  icon: string;
-  status: 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED';
-  supportedTriggers: string[];
-  supportedActions: string[];
+  capabilities?: IntegrationCapabilities;
 }
 
-const KNOWN_PROVIDERS: ProviderCard[] = [
-  {
-    id: 'slack',
-    name: 'Slack',
-    category: 'Communication',
-    description: 'Post messages to channels, listen to bot mentions, and notify teams in real-time.',
-    icon: '💬',
-    status: 'CONNECTED',
-    supportedTriggers: ['slack.message_posted', 'slack.reaction_added', 'slack.channel_created'],
-    supportedActions: ['slack.post_message', 'slack.create_channel', 'slack.upload_file'],
-  },
-  {
-    id: 'google-drive',
-    name: 'Google Drive & Docs',
-    category: 'Productivity',
-    description: 'Create Google Docs, watch folders for file changes, and synchronize file storage.',
-    icon: '📁',
-    status: 'CONNECTED',
-    supportedTriggers: ['google.file_uploaded', 'google.folder_updated'],
-    supportedActions: ['google.create_doc', 'google.search_files', 'google.export_pdf'],
-  },
-  {
-    id: 'google-sheets',
-    name: 'Google Sheets',
-    category: 'Data & Spreadsheets',
-    description: 'Append rows, update spreadsheets, read cell ranges, and automate reports.',
-    icon: '📊',
-    status: 'CONNECTED',
-    supportedTriggers: ['sheets.row_added', 'sheets.row_updated'],
-    supportedActions: ['sheets.append_row', 'sheets.read_rows', 'sheets.update_cell'],
-  },
-  {
-    id: 'google-calendar',
-    name: 'Google Calendar',
-    category: 'Calendar',
-    description: 'Schedule events, detect newly scheduled meetings, and sync calendar reminders.',
-    icon: '📅',
-    status: 'CONNECTED',
-    supportedTriggers: ['calendar.event_starting', 'calendar.event_created'],
-    supportedActions: ['calendar.create_event', 'calendar.update_event'],
-  },
-  {
-    id: 'trello',
-    name: 'Trello',
-    category: 'Project Management',
-    description: 'Sync cards, manage Kanban lists, and listen for board activity.',
-    icon: '📋',
-    status: 'DISCONNECTED',
-    supportedTriggers: ['trello.card_moved', 'trello.card_created'],
-    supportedActions: ['trello.create_card', 'trello.archive_card'],
-  },
-  {
-    id: 'custom-webhook-api',
-    name: 'Custom REST / HTTP API',
-    category: 'Developer & Webhooks',
-    description: 'Execute arbitrary authenticated HTTP requests (GET, POST, PUT, DELETE) with headers and JSON bodies.',
-    icon: '🌐',
-    status: 'CONNECTED',
-    supportedTriggers: ['http.inbound_webhook'],
-    supportedActions: ['http.request', 'http.graphql_query'],
-  },
+const CAPABILITY_FLAGS: Array<{ key: keyof IntegrationCapabilities; label: string }> = [
+  { key: 'supportsSync', label: 'Data sync' },
+  { key: 'supportsWebhooks', label: 'Webhooks' },
+  { key: 'supportsMessaging', label: 'Messaging' },
+  { key: 'supportsCustomEndpoints', label: 'Custom endpoints' },
 ];
 
+const PERMISSION_VARIANT = {
+  read: 'neutral',
+  write: 'info',
+  destructive: 'destructive',
+} as const;
+
+/**
+ * The workspace's linked apps as seen from automations: the same connection
+ * data and card as the Integration Hub, plus the actions each app exposes to
+ * workflows. Connecting and credentials stay in the Hub.
+ */
 export function AutomationConnectionsTab() {
   const navigate = useNavigate();
   const { workspaceId, slug } = useCurrentWorkspace();
-  const overviewQuery = useAutomationOverview(workspaceId);
+  const integrations = useIntegrations(workspaceId);
+  const providers = useIntegrationProviders(workspaceId);
+  const { sync } = useIntegrationMutations(workspaceId);
 
   const [search, setSearch] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState<ProviderCard | null>(null);
-  const [testingId, setTestingId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<ConnectionRow | null>(null);
 
-  const connectorHealth = overviewQuery.data?.connectorHealth ?? [];
+  const openHub = () => navigate(`/w/${slug}/integrations`);
 
-  // Match provider status from real overview if present
-  const providers: ProviderCard[] = KNOWN_PROVIDERS.map((p) => {
-    const health = connectorHealth.find((h) => h.provider.toLowerCase().includes(p.id.toLowerCase()));
-    if (health) {
-      return {
-        ...p,
-        status: (health.status as 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED') || p.status,
-      };
-    }
-    return p;
-  });
+  const rows = useMemo<ConnectionRow[]>(() => {
+    const byProvider = new Map(
+      (providers.data ?? []).map((p) => [p.provider.toUpperCase(), p]),
+    );
+    return (integrations.data ?? [])
+      .filter((i) => toConnectionState(i.status) !== 'disconnected')
+      .map((integration) => {
+        const capabilities = byProvider.get(integration.provider.toUpperCase());
+        return {
+          integration,
+          id: integration.provider.toLowerCase(),
+          name: capabilities?.displayName ?? integration.displayName ?? integration.provider,
+          description: capabilities?.description ?? '',
+          capabilities,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [integrations.data, providers.data]);
 
-  const filtered = providers.filter((p) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
-  });
+  const term = search.trim().toLowerCase();
+  const filtered = term
+    ? rows.filter((r) =>
+        [r.name, r.description, r.capabilities?.category ?? ''].some((v) =>
+          v.toLowerCase().includes(term),
+        ),
+      )
+    : rows;
 
-  const handleTestConnection = (id: string) => {
-    setTestingId(id);
-    setTimeout(() => {
-      setTestingId(null);
-      toast.success(`Connection to ${id} verified healthy and active`);
-    }, 800);
-  };
+  const syncNow = (row: ConnectionRow) =>
+    sync.mutate(row.integration.id, {
+      onSuccess: () => toast.success(`${row.name} sync started`),
+      onError: (err: unknown) =>
+        toast.error(err instanceof Error ? err.message : `Could not sync ${row.name}`),
+    });
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-semibold text-lg text-foreground">App Connections & Connectors</h3>
+          <h3 className="font-semibold text-lg text-foreground">App Connections</h3>
           <p className="text-sm text-muted-foreground">
-            Manage connected external applications, inspect their exposed triggers and actions, and verify API token validity.
+            Apps linked to this workspace and the actions they expose to your automations.
           </p>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="w-full sm:w-64">
             <SearchInput
-              placeholder="Search connectors…"
+              placeholder="Search connections…"
               value={search}
               onValueChange={setSearch}
             />
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => navigate(`/w/${slug}/integrations`)}
-          >
+          <Button size="sm" variant="outline" onClick={openHub}>
             Manage in Hub
             <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((provider) => {
-          const isConnected = provider.status === 'CONNECTED';
-          const isTesting = testingId === provider.id;
-
+      <ConnectionList
+        isLoading={integrations.isLoading}
+        error={integrations.error}
+        onRetry={() => void integrations.refetch()}
+        isEmpty={filtered.length === 0}
+        emptyTitle={term ? 'No matching connections' : 'No connected apps'}
+        emptyDescription={
+          term
+            ? 'Try a different search.'
+            : 'Connect an app in the Integration Hub to use it in automations.'
+        }
+        emptyAction={
+          term ? undefined : (
+            <Button size="sm" onClick={openHub}>
+              Open Integration Hub
+            </Button>
+          )
+        }
+      >
+        {filtered.map((row) => {
+          const state = toConnectionState(row.integration.status);
+          const syncing = sync.isPending && sync.variables === row.integration.id;
           return (
-            <Card
-              key={provider.id}
-              className="p-5 flex flex-col justify-between hover:border-primary/50 transition-colors"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <span className="text-2xl">{provider.icon}</span>
-                  <Badge
-                    variant={isConnected ? 'success' : 'outline'}
-                    className={`text-[11px] gap-1 ${
-                      isConnected
-                        ? 'bg-success/15 text-success-text border-success/30'
-                        : 'text-muted-foreground'
-                    }`}
-                  >
-                    {isConnected ? (
-                      <CheckCircle2 className="h-3 w-3 text-success-text" />
-                    ) : (
-                      <XCircle className="h-3 w-3 text-muted-foreground" />
-                    )}
-                    {provider.status}
-                  </Badge>
-                </div>
-
-                <h4 className="font-semibold text-base text-foreground mb-1">
-                  {provider.name}
-                </h4>
-
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
-                  {provider.description}
-                </p>
-              </div>
-
-              <div className="pt-3 border-t border-border/50">
-                <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-                  <span>{provider.supportedTriggers.length} Triggers</span>
-                  <span>{provider.supportedActions.length} Actions</span>
-                </div>
-
-                <div className="flex items-center gap-2">
+            <ConnectionCard
+              key={row.integration.id}
+              name={row.name}
+              description={row.description}
+              icon={<IntegrationAppIcon id={row.id} name={row.name} />}
+              state={state}
+              account={row.integration.displayName}
+              lastSyncAt={row.integration.lastSyncAt}
+              errorMessage={row.integration.lastErrorMessage}
+              permissions={row.integration.scopes}
+              onReconnect={openHub}
+              actions={
+                <>
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full text-xs"
-                    onClick={() => setSelectedProvider(provider)}
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`View ${row.name} actions`}
+                    title="View actions"
+                    onClick={() => setSelected(row)}
                   >
-                    View Capabilities
+                    <ListChecks className="size-3.5" />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="w-full text-xs"
-                    onClick={() => handleTestConnection(provider.id)}
-                    disabled={isTesting}
-                  >
-                    {isTesting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : 'Test'}
-                  </Button>
-                </div>
-              </div>
-            </Card>
+                  {state === 'connected' && row.capabilities?.supportsSync ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Sync ${row.name} now`}
+                      title="Sync now"
+                      disabled={syncing}
+                      onClick={() => syncNow(row)}
+                    >
+                      <RefreshCw className={`size-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                    </Button>
+                  ) : null}
+                </>
+              }
+            />
           );
         })}
-      </div>
+      </ConnectionList>
 
-      {/* Capabilities Dialog */}
-      {selectedProvider && (
-        <Dialog open={!!selectedProvider} onOpenChange={(open) => !open && setSelectedProvider(null)}>
-          <DialogContent className="max-w-xl">
+      <ConnectionActionsDialog
+        workspaceId={workspaceId}
+        row={selected}
+        onClose={() => setSelected(null)}
+        onOpenHub={openHub}
+      />
+    </div>
+  );
+}
+
+function ConnectionActionsDialog({
+  workspaceId,
+  row,
+  onClose,
+  onOpenHub,
+}: {
+  workspaceId: string | undefined;
+  row: ConnectionRow | null;
+  onClose: () => void;
+  onOpenHub: () => void;
+}) {
+  const actions = useIntegrationActions(workspaceId, row?.integration.id);
+  const flags = CAPABILITY_FLAGS.filter((f) => row?.capabilities?.[f.key] === true);
+
+  return (
+    <Dialog open={!!row} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-xl">
+        {row ? (
+          <>
             <DialogHeader>
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{selectedProvider.icon}</span>
+                <div className="size-10 p-2 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface">
+                  <IntegrationAppIcon id={row.id} name={row.name} />
+                </div>
                 <div>
-                  <DialogTitle>{selectedProvider.name} Connector</DialogTitle>
-                  <p className="text-xs text-muted-foreground">{selectedProvider.category}</p>
+                  <DialogTitle>{row.name}</DialogTitle>
+                  {row.integration.displayName ? (
+                    <p className="text-xs text-muted-foreground">{row.integration.displayName}</p>
+                  ) : null}
                 </div>
               </div>
             </DialogHeader>
 
             <DialogBody className="space-y-4 py-2">
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {selectedProvider.description}
-              </p>
+              {row.description ? (
+                <p className="text-sm text-muted-foreground leading-relaxed">{row.description}</p>
+              ) : null}
 
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <Zap className="h-3.5 w-3.5 text-amber-500" />
-                  Available Triggers
-                </h4>
-                <div className="space-y-1.5">
-                  {selectedProvider.supportedTriggers.map((trig) => (
-                    <div key={trig} className="p-2 rounded bg-muted/40 font-mono text-xs text-foreground">
-                      {trig}
-                    </div>
+              {flags.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {flags.map((f) => (
+                    <Badge key={f.key} variant="outline" className="rounded-full">
+                      {f.label}
+                    </Badge>
                   ))}
                 </div>
-              </div>
+              ) : null}
 
               <div>
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
                   <Layers className="h-3.5 w-3.5 text-primary" />
-                  Available Executable Actions
+                  Actions
                 </h4>
-                <div className="space-y-1.5">
-                  {selectedProvider.supportedActions.map((act) => (
-                    <div key={act} className="p-2 rounded bg-muted/40 font-mono text-xs text-foreground">
-                      {act}
-                    </div>
-                  ))}
-                </div>
+                {actions.isLoading ? (
+                  <div className="space-y-1.5">
+                    {Array.from({ length: 3 }, (_, i) => (
+                      <Skeleton key={i} className="h-12 rounded-md" />
+                    ))}
+                  </div>
+                ) : actions.error ? (
+                  <p className="text-sm text-destructive">Could not load actions for this app.</p>
+                ) : (actions.data ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">This app exposes no actions.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {actions.data?.map((action) => (
+                      <li key={action.id} className="p-2.5 rounded-md bg-muted/40">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium text-foreground">{action.label}</span>
+                          <Badge
+                            variant={PERMISSION_VARIANT[action.permissionLevel]}
+                            className="rounded-full capitalize"
+                          >
+                            {action.permissionLevel}
+                          </Badge>
+                        </div>
+                        {action.description ? (
+                          <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </DialogBody>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedProvider(null)}>
+              <Button variant="outline" onClick={onClose}>
                 Close
               </Button>
-              <Button onClick={() => navigate(`/w/${slug}/integrations`)}>
-                Configure in Integration Hub
-              </Button>
+              <Button onClick={onOpenHub}>Configure in Integration Hub</Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
+          </>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }

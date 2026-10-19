@@ -97,7 +97,7 @@ export type AppCategory = ConnectorCategory;
 /**
  * Custom High-Quality SVG Icons for key services matching reference design
  */
-function IntegrationAppIcon({ id, name }: { id: string; name: string }) {
+export function IntegrationAppIcon({ id, name }: { id: string; name: string }) {
   switch (id.toLowerCase()) {
     case 'slack':
       return (

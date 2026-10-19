@@ -12,6 +12,7 @@ import type {
   AgentDeploymentTarget,
   AgentDeploymentView,
   AgentDeploymentAnalyticsSummary,
+  AgentDeploymentRunChannel,
   AgentWidgetConfig,
   AgentSecurityConfig,
 } from '@org/types';
@@ -37,6 +38,51 @@ export function categorizeRunError(message: string): string {
   if (/api key|credential|unauthori[sz]ed|401|403|not connected|provider/i.test(message)) return 'Provider or credentials';
   if (/tool/i.test(message)) return 'Tool error';
   return 'Other';
+}
+
+/**
+ * The runs that came in through a deployment: its embed sessions and
+ * public-key calls, plus private API-key calls to the agent (those name no
+ * deployment). Studio test runs and in-workspace chats are left out.
+ */
+export function deploymentTrafficFilter(deploymentId: string) {
+  return [
+    { stateJson: { path: ['deploymentId'], equals: deploymentId } },
+    { stateJson: { path: ['deploymentChannel'], equals: 'api_key' } },
+  ];
+}
+
+/** How a recorded run reached the agent, from its run state. */
+export function runChannel(state: unknown): AgentDeploymentRunChannel | null {
+  const value = (state as { deploymentChannel?: unknown } | null)?.deploymentChannel;
+  return value === 'session' || value === 'public_key' || value === 'api_key' ? value : null;
+}
+
+/**
+ * Runs over a period as an evenly spaced series, oldest first: hourly for a
+ * period of up to two days, daily (UTC) otherwise. Empty buckets are kept so a
+ * chart shows quiet stretches as quiet.
+ */
+export function bucketRuns(
+  runs: Array<{ startedAt: Date; status: string; tokensUsed: number }>,
+  period: string,
+  now: number,
+): Array<{ bucket: string; runs: number; failed: number; tokens: number }> {
+  const span = periodToMs(period);
+  const step = span <= 2 * 86_400_000 ? 3_600_000 : 86_400_000;
+  const floor = (t: number) => Math.floor(t / step) * step;
+  const buckets = new Map<number, { bucket: string; runs: number; failed: number; tokens: number }>();
+  for (let t = floor(now - span) + step; t <= floor(now); t += step) {
+    buckets.set(t, { bucket: new Date(t).toISOString(), runs: 0, failed: 0, tokens: 0 });
+  }
+  for (const run of runs) {
+    const entry = buckets.get(floor(run.startedAt.getTime()));
+    if (!entry) continue;
+    entry.runs += 1;
+    if (run.status === 'FAILED') entry.failed += 1;
+    entry.tokens += run.tokensUsed;
+  }
+  return [...buckets.values()];
 }
 
 @Injectable()
@@ -485,24 +531,28 @@ export class AgentDeploymentService {
     if (!deployment) throw new NotFoundException('Deployment not found.');
 
     const activeSessions = await this.prisma.agentDeploymentSession.count({
-      where: { deploymentId, status: 'ACTIVE' },
+      where: { deploymentId, status: 'ACTIVE', expiresAt: { gt: new Date() } },
     });
 
-    const since = new Date(Date.now() - periodToMs(period));
+    const now = Date.now();
+    const since = new Date(now - periodToMs(period));
     const executions = await this.prisma.aIExecution.findMany({
       where: {
         workspaceId,
         agentId: deployment.agentId,
         startedAt: { gte: since },
+        OR: deploymentTrafficFilter(deploymentId),
       },
       select: {
         id: true,
         status: true,
+        startedAt: true,
         latencyMs: true,
         tokensUsed: true,
         totalCost: true,
         toolCalls: true,
         errorsJson: true,
+        stateJson: true,
       },
       orderBy: { startedAt: 'desc' },
       take: 5000,
@@ -537,6 +587,12 @@ export class AgentDeploymentService {
       errorCategories[category] = (errorCategories[category] || 0) + 1;
     }
 
+    const channelCounts: Partial<Record<AgentDeploymentRunChannel, number>> = {};
+    for (const execution of executions) {
+      const channel = runChannel(execution.stateJson);
+      if (channel) channelCounts[channel] = (channelCounts[channel] ?? 0) + 1;
+    }
+
     return {
       deploymentId,
       period,
@@ -551,6 +607,7 @@ export class AgentDeploymentService {
       approvalsRequested: approvals.length,
       approvalsApproved: approvals.filter((a) => a.state === 'APPROVED').length,
       approvalsRejected: approvals.filter((a) => a.state === 'REJECTED').length,
+      approvalsPending: await this.countPendingApprovals(workspaceId, deployment.agentId, deploymentId),
       toolExecutionsCount: Object.values(toolCounts).reduce((a, b) => a + b, 0),
       topTools: Object.entries(toolCounts)
         .map(([name, count]) => ({ name, count }))
@@ -559,7 +616,36 @@ export class AgentDeploymentService {
       recentErrorCategories: Object.entries(errorCategories)
         .map(([category, count]) => ({ category, count }))
         .sort((a, b) => b.count - a.count),
+      channels: (Object.entries(channelCounts) as Array<[AgentDeploymentRunChannel, number]>)
+        .map(([channel, count]) => ({ channel, count }))
+        .sort((a, b) => b.count - a.count),
+      series: bucketRuns(executions, period, now),
+      recentRuns: executions.slice(0, 8).map((e) => {
+        const prompt = (e.stateJson as { prompt?: unknown } | null)?.prompt;
+        return {
+          id: e.id,
+          status: e.status,
+          channel: runChannel(e.stateJson),
+          startedAt: e.startedAt.toISOString(),
+          latencyMs: e.latencyMs,
+          tokensUsed: e.tokensUsed,
+          prompt: typeof prompt === 'string' ? prompt.slice(0, 140) : null,
+        };
+      }),
     };
+  }
+
+  /** Undecided approvals from this deployment's runs, however long ago they were raised. */
+  private async countPendingApprovals(workspaceId: string, agentId: string, deploymentId: string): Promise<number> {
+    const waiting = await this.prisma.aIExecution.findMany({
+      where: { workspaceId, agentId, status: 'WAITING_APPROVAL', OR: deploymentTrafficFilter(deploymentId) },
+      select: { id: true },
+      take: 1000,
+    });
+    if (waiting.length === 0) return 0;
+    return this.prisma.approvalRequest.count({
+      where: { workspaceId, state: 'PENDING', executionId: { in: waiting.map((e) => e.id) } },
+    });
   }
 
   /** Throws NotFound unless the deployment belongs to this agent in this workspace. */

@@ -13,6 +13,7 @@ export {
 
 export {
   IntegrationHubView,
+  IntegrationAppIcon,
   type IntegrationCard,
   type AppCategory,
 } from './lib/IntegrationHubView.js';

@@ -17,6 +17,9 @@
       "path": "../workspace/tsconfig.lib.json"
     },
     {
+      "path": "../integrations/tsconfig.lib.json"
+    },
+    {
       "path": "../coworkers/tsconfig.lib.json"
     },
     {

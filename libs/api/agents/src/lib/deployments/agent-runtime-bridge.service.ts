@@ -143,6 +143,11 @@ export class AgentRuntimeBridgeService {
       // 6. Build turn context and execute through existing AIRuntimeService
       const turnContext: AIEntityTurnContext = {
         requesterId: userId ?? agent.creatorId ?? undefined,
+        // An embed session, a public-key call, or (no deployment) a private API key.
+        deployment: {
+          ...(deploymentId ? { id: deploymentId } : {}),
+          channel: sessionId ? 'session' : deploymentId ? 'public_key' : 'api_key',
+        },
       };
 
       this.notifyListeners(runId, 'status', { status: 'RUNNING', runId });

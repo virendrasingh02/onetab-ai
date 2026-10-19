@@ -24,6 +24,7 @@
     "@org/web-agents": "*",
     "@org/web-ai": "*",
     "@org/web-coworkers": "*",
+    "@org/web-integrations": "*",
     "@org/web-workspace": "*",
     "@tanstack/react-query": "^5.101.4",
     "date-fns": "^4.4.0",
