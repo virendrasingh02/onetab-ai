@@ -10,11 +10,11 @@ import { Stack, useRouter, type Href } from 'expo-router';
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
 import {
+  AppRefreshControl,
   Avatar,
   Divider,
   EmptyState,
@@ -99,11 +99,10 @@ export default function NotificationsScreen() {
             void list.fetchNextPage();
         }}
         refreshControl={
-          <RefreshControl
+          <AppRefreshControl
             refreshing={list.isRefetching}
             onRefresh={() => void list.refetch()}
-            tintColor={colors.primaryText}
-          />
+            />
         }
         ListFooterComponent={
           list.isFetchingNextPage ? (

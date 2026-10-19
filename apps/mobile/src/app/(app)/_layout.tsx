@@ -7,11 +7,14 @@ import {
   LoadingState,
   Screen,
 } from '../../components/ui';
+import {
+  useModalScreenOptions,
+  useStackScreenOptions,
+} from '../../components/navigation';
 import { appConfig } from '../../lib/config';
 import { usePushNotifications } from '../../lib/push';
 import { useSession } from '../../lib/session';
 import { useWorkspace, WorkspaceProvider } from '../../lib/workspace';
-import { useTheme } from '../../theme/theme';
 
 export default function AppLayout() {
   const { status } = useSession();
@@ -28,7 +31,8 @@ export default function AppLayout() {
 function WorkspaceGate() {
   const { workspace, isPending, error, refetch } = useWorkspace();
   const { signOut } = useSession();
-  const { colors } = useTheme();
+  const stackOptions = useStackScreenOptions();
+  const modal = useModalScreenOptions();
   usePushNotifications();
 
   if (isPending) {
@@ -78,36 +82,28 @@ function WorkspaceGate() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.card },
-        headerTintColor: colors.foreground,
-        headerShadowVisible: false,
-        headerBackButtonDisplayMode: 'minimal',
-        contentStyle: { backgroundColor: colors.background },
-      }}
-    >
+    <Stack screenOptions={stackOptions}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="channel/[slug]" options={{ title: 'Channel' }} />
       <Stack.Screen name="dm/[roomId]" options={{ title: 'Direct message' }} />
       <Stack.Screen
         name="dm/new"
-        options={{ title: 'New message', presentation: 'modal' }}
+        options={modal('New message')}
       />
       <Stack.Screen name="thread/[rootId]" options={{ title: 'Thread' }} />
       <Stack.Screen
         name="agent/new"
-        options={{ title: 'New agent', presentation: 'modal' }}
+        options={modal('New agent')}
       />
       <Stack.Screen name="agent/[agentId]/index" options={{ title: 'Agent' }} />
       <Stack.Screen name="agent/[agentId]/chat" options={{ title: 'Chat' }} />
       <Stack.Screen
         name="agent/[agentId]/edit"
-        options={{ title: 'Configure agent', presentation: 'modal' }}
+        options={modal('Configure agent')}
       />
       <Stack.Screen
         name="automation/new"
-        options={{ title: 'New automation', presentation: 'modal' }}
+        options={modal('New automation')}
       />
       <Stack.Screen
         name="automation/[workflowId]"
@@ -125,7 +121,7 @@ function WorkspaceGate() {
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       <Stack.Screen
         name="workspaces"
-        options={{ title: 'Switch workspace', presentation: 'modal' }}
+        options={modal('Switch workspace')}
       />
     </Stack>
   );

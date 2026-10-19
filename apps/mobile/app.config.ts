@@ -57,6 +57,8 @@ const config: ExpoConfig = {
   android: {
     package: identifier,
     versionCode: 1,
+    // Android 14+ back-swipe preview (react-native-screens supports it).
+    predictiveBackGestureEnabled: true,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#FFFFFF',

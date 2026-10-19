@@ -1,15 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useQuery } from '@tanstack/react-query';
-import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActionSheetIOS,
   ActivityIndicator,
   FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   TextInput,
@@ -24,6 +21,7 @@ import {
   type PickSource,
 } from '../lib/files';
 import { formatBytes } from '../lib/format';
+import { haptics } from '../lib/haptics';
 import {
   localpartOf,
   MatrixError,
@@ -39,6 +37,8 @@ import {
 import { useAuthedImageSource } from '../lib/use-authed-uri';
 import { useRoomTimeline } from '../lib/use-room-timeline';
 import { useTheme } from '../theme/theme';
+import { showActionSheet } from './action-sheet';
+import { useKeyboardAvoidingProps } from './navigation';
 import { maxContentWidth, radius, spacing } from '../theme/tokens';
 import {
   AppText,
@@ -46,6 +46,7 @@ import {
   EmptyState,
   ErrorState,
   IconButton,
+  keyboardDismissMode,
   LoadingState,
 } from './ui';
 
@@ -85,6 +86,7 @@ export function Conversation({
   onSessionInvalid: () => Promise<void>;
 }) {
   const { colors } = useTheme();
+  const keyboardAvoiding = useKeyboardAvoidingProps();
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<PendingItem[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -161,7 +163,7 @@ export function Conversation({
     ]);
     try {
       const { event_id } = await sendContent({ msgtype: 'm.text', body: text });
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      haptics.light();
       // Kept until the sync loop delivers the real event, so it never blinks.
       setPending((prev) =>
         prev.map((p) => (p.id === id ? { ...p, eventId: event_id } : p)),
@@ -189,7 +191,7 @@ export function Conversation({
 
   const toggleReaction = async (item: TimelineItem, key: string) => {
     const existing = item.reactions?.find((r) => r.key === key)?.mine;
-    void Haptics.selectionAsync();
+    haptics.selection();
     try {
       if (existing) await client.redact(roomId, existing, newTxnId());
       else await client.react(roomId, item.id, key, newTxnId());
@@ -204,6 +206,7 @@ export function Conversation({
 
   const showActions = (item: TimelineItem) => {
     if (item.id.startsWith('pending:') || item.kind === 'encrypted') return;
+    haptics.medium();
     setActionItem(item);
   };
 
@@ -239,31 +242,25 @@ export function Conversation({
   };
 
   const chooseAttachment = () => {
-    const options: Array<{ label: string; source: PickSource }> = [
-      { label: 'Take photo', source: 'camera' },
-      { label: 'Photo library', source: 'library' },
-      { label: 'File', source: 'document' },
-    ];
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet({
+      options: [
         {
-          options: [...options.map((o) => o.label), 'Cancel'],
-          cancelButtonIndex: options.length,
+          label: 'Take photo',
+          icon: 'camera-outline',
+          onPress: () => void attach('camera'),
         },
-        (index) => {
-          const choice = options[index];
-          if (choice) void attach(choice.source);
+        {
+          label: 'Photo library',
+          icon: 'images-outline',
+          onPress: () => void attach('library'),
         },
-      );
-    } else {
-      Alert.alert('Attach', undefined, [
-        ...options.map((o) => ({
-          text: o.label,
-          onPress: () => void attach(o.source),
-        })),
-        { text: 'Cancel', style: 'cancel' as const },
-      ]);
-    }
+        {
+          label: 'File',
+          icon: 'document-outline',
+          onPress: () => void attach('document'),
+        },
+      ],
+    });
   };
 
   const openMedia = async (item: TimelineItem) => {
@@ -340,6 +337,9 @@ export function Conversation({
           onChangeText={setDraft}
           placeholder={threadRootId ? 'Reply in thread' : 'Message'}
           placeholderTextColor={colors.subtle}
+          selectionColor={colors.ring}
+          cursorColor={colors.primary}
+          underlineColorAndroid="transparent"
           multiline
           accessibilityLabel={threadRootId ? 'Reply in thread' : 'Message'}
           style={[
@@ -364,8 +364,7 @@ export function Conversation({
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      {...keyboardAvoiding}
     >
       {state.error ? (
         <View style={[styles.banner, { backgroundColor: colors.accent }]}>
@@ -374,6 +373,7 @@ export function Conversation({
       ) : null}
       <FlatList
         inverted
+        keyboardDismissMode={keyboardDismissMode}
         data={reversed}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messages}

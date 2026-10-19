@@ -12,10 +12,10 @@ import {
   QueryBoundary,
   Screen,
   SectionHeader,
-} from '../../../components/ui';
-import { humanize, relativeTime } from '../../../lib/format';
-import { useWorkspace } from '../../../lib/workspace';
-import { spacing } from '../../../theme/tokens';
+} from '../../../../components/ui';
+import { humanize, relativeTime } from '../../../../lib/format';
+import { useWorkspace } from '../../../../lib/workspace';
+import { spacing } from '../../../../theme/tokens';
 
 export default function AutomationsTab() {
   const { workspaceId } = useWorkspace();

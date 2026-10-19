@@ -6,14 +6,19 @@ import { useEffect, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   TextInput,
   View,
 } from 'react-native';
 import { Alert } from '../../../../lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AppText, IconButton, LoadingState } from '../../../../components/ui';
+import { useKeyboardAvoidingProps } from '../../../../components/navigation';
+import {
+  AppText,
+  IconButton,
+  keyboardDismissMode,
+  LoadingState,
+} from '../../../../components/ui';
 import { useWorkspace } from '../../../../lib/workspace';
 import { useTheme } from '../../../../theme/theme';
 import { maxContentWidth, radius, spacing } from '../../../../theme/tokens';
@@ -23,6 +28,7 @@ export default function AgentChatScreen() {
   const { agentId } = useLocalSearchParams<{ agentId: string }>();
   const { workspaceId } = useWorkspace();
   const { colors } = useTheme();
+  const keyboardAvoiding = useKeyboardAvoidingProps();
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -95,8 +101,7 @@ export default function AgentChatScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={90}
+      {...keyboardAvoiding}
     >
       <Stack.Screen
         options={{
@@ -112,6 +117,7 @@ export default function AgentChatScreen() {
       />
       <FlatList
         inverted
+        keyboardDismissMode={keyboardDismissMode}
         data={reversed}
         keyExtractor={(m) => m.id}
         contentContainerStyle={styles.list}
@@ -169,6 +175,9 @@ export default function AgentChatScreen() {
             onChangeText={setDraft}
             placeholder="Message the agent"
             placeholderTextColor={colors.subtle}
+            selectionColor={colors.ring}
+            cursorColor={colors.primary}
+            underlineColorAndroid="transparent"
             multiline
             accessibilityLabel="Message the agent"
             style={[

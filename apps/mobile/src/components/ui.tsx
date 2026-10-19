@@ -1,8 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { type ComponentProps, type ReactNode } from 'react';
 import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from 'react';
+import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Animated,
   Image,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -18,11 +27,44 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { initials, type StatusTone } from '../lib/format';
+import { haptics } from '../lib/haptics';
 import { useAuthedImageSource } from '../lib/use-authed-uri';
 import { toneColors, useTheme } from '../theme/theme';
 import { fontSize, maxContentWidth, radius, spacing } from '../theme/tokens';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
+
+const isAndroid = Platform.OS === 'android';
+const isIOS = Platform.OS === 'ios';
+
+/** Drag-to-dismiss the keyboard the way each platform's own apps do. */
+export const keyboardDismissMode = isIOS ? 'interactive' : 'on-drag';
+
+/**
+ * Pull-to-refresh with the platform's spinner colours and a light tick when
+ * the refresh actually starts.
+ */
+export function AppRefreshControl({
+  refreshing,
+  onRefresh,
+}: {
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={() => {
+        haptics.light();
+        onRefresh();
+      }}
+      tintColor={colors.primaryText}
+      colors={[colors.primary]}
+      progressBackgroundColor={colors.card}
+    />
+  );
+}
 
 // --- layout -----------------------------------------------------------------
 
@@ -52,12 +94,14 @@ export function Screen({
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={keyboardDismissMode}
+          // Lets the iOS large title collapse into the bar as content scrolls.
+          contentInsetAdjustmentBehavior="automatic"
           refreshControl={
             onRefresh ? (
-              <RefreshControl
+              <AppRefreshControl
                 refreshing={Boolean(refreshing)}
                 onRefresh={onRefresh}
-                tintColor={colors.primaryText}
               />
             ) : undefined
           }
@@ -220,8 +264,19 @@ export function Button({
   const inactive = disabled || loading;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        if (variant === 'primary') haptics.light();
+        else if (variant === 'destructive') haptics.warning();
+        onPress();
+      }}
       disabled={inactive}
+      android_ripple={{
+        color:
+          variant === 'primary' || variant === 'destructive'
+            ? 'rgba(255,255,255,0.22)'
+            : colors.accent,
+        foreground: true,
+      }}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
@@ -234,7 +289,8 @@ export function Button({
         {
           backgroundColor: tone.bg,
           borderColor: tone.border,
-          opacity: inactive ? 0.55 : pressed ? 0.8 : 1,
+          opacity: inactive ? 0.55 : pressed && !isAndroid ? 0.85 : 1,
+          transform: [{ scale: pressed && !isAndroid ? 0.97 : 1 }],
         },
         style,
       ]}
@@ -270,9 +326,10 @@ export function IconButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={8}
+      android_ripple={{ color: colors.accent, borderless: true, radius: 22 }}
       style={({ pressed }) => [
         styles.iconButton,
-        { opacity: disabled ? 0.4 : pressed ? 0.6 : 1 },
+        { opacity: disabled ? 0.4 : pressed && !isAndroid ? 0.5 : 1 },
       ]}
     >
       <Ionicons name={icon} size={22} color={colors.foreground} />
@@ -292,6 +349,9 @@ export function TextField({
       {label ? <AppText variant="label">{label}</AppText> : null}
       <TextInput
         placeholderTextColor={colors.subtle}
+        selectionColor={colors.ring}
+        cursorColor={colors.primary}
+        underlineColorAndroid="transparent"
         accessibilityLabel={label}
         {...props}
         style={[
@@ -328,21 +388,40 @@ export function ToggleRow({
   disabled?: boolean;
 }) {
   const { colors } = useTheme();
+  const change = (next: boolean) => {
+    haptics.selection();
+    onValueChange(next);
+  };
+  // The whole row is the hit target, like the system Settings apps; the
+  // switch stays the accessible control.
   return (
-    <View style={[styles.row, styles.listRow]}>
-      <View style={styles.flex}>
-        <AppText variant="body">{label}</AppText>
-        {description ? <AppText variant="muted">{description}</AppText> : null}
+    <Pressable
+      onPress={() => change(!value)}
+      disabled={disabled}
+      accessible={false}
+      android_ripple={{ color: colors.accent }}
+      style={({ pressed }) => ({
+        backgroundColor: pressed && !isAndroid ? colors.accent : 'transparent',
+      })}
+    >
+      <View style={[styles.row, styles.listRow]}>
+        <View style={styles.flex}>
+          <AppText variant="body">{label}</AppText>
+          {description ? (
+            <AppText variant="muted">{description}</AppText>
+          ) : null}
+        </View>
+        <Switch
+          value={value}
+          onValueChange={change}
+          disabled={disabled}
+          accessibilityLabel={label}
+          trackColor={{ true: colors.primary, false: colors.input }}
+          thumbColor={isIOS ? undefined : '#ffffff'}
+          ios_backgroundColor={colors.input}
+        />
       </View>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        disabled={disabled}
-        accessibilityLabel={label}
-        trackColor={{ true: colors.primary, false: colors.input }}
-        thumbColor="#ffffff"
-      />
-    </View>
+    </Pressable>
   );
 }
 
@@ -355,6 +434,7 @@ export function ListRow({
   avatar,
   right,
   onPress,
+  onLongPress,
   chevron = Boolean(onPress),
   destructive,
 }: {
@@ -368,6 +448,7 @@ export function ListRow({
   };
   right?: ReactNode;
   onPress?: () => void;
+  onLongPress?: () => void;
   chevron?: boolean;
   destructive?: boolean;
 }) {
@@ -401,7 +482,8 @@ export function ListRow({
         ) : null}
       </View>
       {right}
-      {chevron ? (
+      {/* Android lists do not draw disclosure chevrons. */}
+      {chevron && !isAndroid ? (
         <Ionicons name="chevron-forward" size={18} color={colors.subtle} />
       ) : null}
     </View>
@@ -410,10 +492,19 @@ export function ListRow({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={
+        onLongPress
+          ? () => {
+              haptics.medium();
+              onLongPress();
+            }
+          : undefined
+      }
       accessibilityRole="button"
       accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
+      android_ripple={{ color: colors.accent }}
       style={({ pressed }) => ({
-        backgroundColor: pressed ? colors.accent : 'transparent',
+        backgroundColor: pressed && !isAndroid ? colors.accent : 'transparent',
       })}
     >
       {content}
@@ -421,17 +512,25 @@ export function ListRow({
   );
 }
 
-export function Divider() {
+/**
+ * Hairline separator. `inset` starts it after a row's leading icon/avatar,
+ * like grouped iOS lists.
+ */
+export function Divider({ inset = 0 }: { inset?: number } = {}) {
   const { colors } = useTheme();
   return (
     <View
       style={{
         height: StyleSheet.hairlineWidth,
+        marginLeft: inset,
         backgroundColor: colors.border,
       }}
     />
   );
 }
+
+/** Separator inset matching a `ListRow` with an `icon` or default `avatar`. */
+export const rowDividerInset = spacing.xs + 34 + spacing.md;
 
 export function Badge({
   label,
@@ -560,6 +659,87 @@ export function ProgressBar({
 
 // --- states -----------------------------------------------------------------
 
+function usePulse(): Animated.Value {
+  const opacity = useRef(new Animated.Value(0.55)).current;
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((value) => alive && setReduceMotion(value))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (reduceMotion) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.55,
+          duration: 700,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity, reduceMotion]);
+  return opacity;
+}
+
+/**
+ * Placeholder rows shaped like the content that is about to appear, so the
+ * layout does not jump when data lands (instead of a centred spinner).
+ */
+export function SkeletonList({
+  rows = 4,
+  label = 'Loading…',
+}: {
+  rows?: number;
+  label?: string;
+}) {
+  const { colors } = useTheme();
+  const opacity = usePulse();
+  const block = { backgroundColor: colors.muted };
+  return (
+    <Animated.View
+      style={[styles.skeleton, { opacity }]}
+      accessible
+      accessibilityLabel={label}
+      accessibilityLiveRegion="polite"
+    >
+      {Array.from({ length: rows }, (_, index) => (
+        <View key={index} style={[styles.row, styles.listRow]}>
+          <View style={[styles.skeletonIcon, block]} />
+          <View style={[styles.flex, { gap: spacing.sm }]}>
+            <View
+              style={[
+                styles.skeletonLine,
+                block,
+                { width: index % 2 ? '55%' : '70%' },
+              ]}
+            />
+            <View
+              style={[
+                styles.skeletonLine,
+                styles.skeletonLineSmall,
+                block,
+                { width: index % 2 ? '80%' : '40%' },
+              ]}
+            />
+          </View>
+        </View>
+      ))}
+    </Animated.View>
+  );
+}
+
 export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   const { colors } = useTheme();
   return (
@@ -642,7 +822,7 @@ export function QueryBoundary<T>({
   children: (data: T) => ReactNode;
   loadingLabel?: string;
 }) {
-  if (query.isPending) return <LoadingState label={loadingLabel} />;
+  if (query.isPending) return <SkeletonList rows={3} label={loadingLabel} />;
   if (query.error || query.data === undefined) {
     return (
       <ErrorState error={query.error} onRetry={() => void query.refetch()} />
@@ -665,6 +845,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   card: {
+    // Clips Android ripples and pressed highlights to the rounded corners.
+    overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.lg,
     padding: spacing.lg,
@@ -725,6 +907,10 @@ const styles = StyleSheet.create({
   statTile: { flexGrow: 1, flexBasis: '45%', minWidth: 140, gap: spacing.xs },
   progressTrack: { height: 8, borderRadius: radius.full, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: radius.full },
+  skeleton: { gap: spacing.xs },
+  skeletonIcon: { width: 34, height: 34, borderRadius: radius.md },
+  skeletonLine: { height: 12, borderRadius: radius.sm },
+  skeletonLineSmall: { height: 10 },
   state: {
     paddingVertical: spacing.xxl,
     gap: spacing.md,

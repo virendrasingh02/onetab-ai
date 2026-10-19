@@ -3,13 +3,14 @@ import { View } from 'react-native';
 import {
   Card,
   Divider,
+  rowDividerInset,
   ListRow,
   Screen,
   SectionHeader,
   type IconName,
-} from '../../../components/ui';
-import { useSession } from '../../../lib/session';
-import { useWorkspace } from '../../../lib/workspace';
+} from '../../../../components/ui';
+import { useSession } from '../../../../lib/session';
+import { useWorkspace } from '../../../../lib/workspace';
 
 interface Item {
   icon: IconName;
@@ -24,7 +25,7 @@ function Group({ items }: { items: Item[] }) {
     <Card style={{ paddingVertical: 4 }}>
       {items.map((item, index) => (
         <View key={item.title}>
-          {index > 0 ? <Divider /> : null}
+          {index > 0 ? <Divider inset={rowDividerInset} /> : null}
           <ListRow
             icon={item.icon}
             title={item.title}

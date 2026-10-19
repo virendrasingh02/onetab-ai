@@ -1032,17 +1032,18 @@ export function ChatBubble({
       aria-label={`Message from ${message.senderName}, ${formatFullTimestamp(message.timestamp)}`}
       ref={articleRef}
       className={cn(
-        'group/message relative flex transition-[background-color,opacity] hover:bg-foreground/[0.035]',
+        'group/message relative flex flex-wrap transition-[background-color,opacity] hover:bg-foreground/[0.035]',
         actionsPinned && 'bg-foreground/[0.035]',
         isCompact
           ? cn(
-              'chat-density-compact gap-2.5 px-3',
-              isGrouped ? 'py-0' : 'pt-1 pb-0.5',
+              'chat-density-compact gap-x-2.5 px-3',
+              isGrouped && !isSaved ? 'py-0' : 'pt-1 pb-0.5',
             )
           : cn(
-              'chat-density-comfy gap-4 px-4',
-              isGrouped ? 'py-0.5' : 'pt-2.5 pb-0.5',
+              'chat-density-comfy gap-x-4 px-4',
+              isGrouped && !isSaved ? 'py-0.5' : 'pt-2.5 pb-0.5',
             ),
+        isSaved && 'bg-primary/[0.05]',
         isPinned && 'bg-warning/[0.05]',
         isHighlighted && 'message-flash',
         showSending && 'opacity-70',
@@ -1056,6 +1057,27 @@ export function ChatBubble({
           style={threadConnector}
           className="pointer-events-none absolute rounded-bl-lg border-b-2 border-l-2 border-border"
         />
+      ) : null}
+
+      {/* Slack-style "Saved for later" label — a full-width row above the
+          message (shown for grouped messages too), icon in the avatar gutter. */}
+      {isSaved ? (
+        <div
+          className={cn(
+            'mb-0.5 flex basis-full items-center text-xs font-medium text-primary-text',
+            isCompact ? 'gap-x-2.5' : 'gap-x-4',
+          )}
+        >
+          <span
+            className={cn(
+              isCompact ? 'w-8' : 'w-10',
+              'flex shrink-0 justify-end',
+            )}
+          >
+            <Bookmark className="size-3.5 fill-current" aria-hidden />
+          </span>
+          <span>Saved for later</span>
+        </div>
       ) : null}
 
       <div
@@ -1153,14 +1175,6 @@ export function ChatBubble({
                 <Pin
                   className="size-3 fill-current text-warning-text"
                   aria-label="Pinned"
-                />
-              </Hint>
-            ) : null}
-            {isSaved ? (
-              <Hint label="Saved for later">
-                <Bookmark
-                  className="size-3 fill-current text-primary-text"
-                  aria-label="Saved for later"
                 />
               </Hint>
             ) : null}

@@ -1,10 +1,12 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SystemUI from 'expo-system-ui';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ActionSheetHost } from '../components/action-sheet';
 import { LockOverlay } from '../components/lock-overlay';
 import { OfflineBanner } from '../components/offline-banner';
 import { Button, EmptyState, Screen } from '../components/ui';
@@ -35,6 +37,13 @@ function RootNavigator() {
     if (Platform.OS !== 'web' && status !== 'loading')
       void SplashScreen.hideAsync();
   }, [status]);
+
+  // The native root view shows through during transitions, keyboard resizes
+  // and sheet presentation; keep it the app background so dark mode never
+  // flashes white.
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.background).catch(() => undefined);
+  }, [colors.background]);
 
   if (status === 'loading') return null;
 
@@ -76,6 +85,7 @@ function RootNavigator() {
         <Stack.Screen name="(app)" options={{ headerShown: false }} />
       </Stack>
       <OfflineBanner />
+      <ActionSheetHost />
       {locked ? <LockOverlay /> : null}
     </>
   );

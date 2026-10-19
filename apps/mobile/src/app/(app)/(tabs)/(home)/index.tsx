@@ -19,7 +19,7 @@ import {
   Screen,
   SectionHeader,
   StatTile,
-} from '../../../components/ui';
+} from '../../../../components/ui';
 import {
   formatDuration,
   formatLimit,
@@ -27,10 +27,10 @@ import {
   lastDaysRange,
   relativeTime,
   statusTone,
-} from '../../../lib/format';
-import { useSession } from '../../../lib/session';
-import { useWorkspace } from '../../../lib/workspace';
-import { spacing } from '../../../theme/tokens';
+} from '../../../../lib/format';
+import { useSession } from '../../../../lib/session';
+import { useWorkspace } from '../../../../lib/workspace';
+import { spacing } from '../../../../theme/tokens';
 
 export default function HomeScreen() {
   const { user } = useSession();

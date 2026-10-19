@@ -2,42 +2,59 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { channelApi, queryKeys } from '@org/api-client';
 import type { ChannelSummary } from '@org/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
+  Platform,
   Pressable,
-  RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
-import { Alert } from '../../../lib/alert';
+import { Alert } from '../../../../lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  AppRefreshControl,
   AppText,
   Badge,
   Button,
   Divider,
   EmptyState,
   ErrorState,
+  IconButton,
   ListRow,
   LoadingState,
   TextField,
-} from '../../../components/ui';
+} from '../../../../components/ui';
 import {
   directRoomTitle,
   displayNameOf,
   recordAcceptedInvite,
   type DirectRoom,
-} from '../../../lib/direct-rooms';
-import { relativeTime } from '../../../lib/format';
-import { directRoomsKey, useDirectRooms } from '../../../lib/use-direct-rooms';
-import { useMatrixClient } from '../../../lib/use-matrix';
-import { useWorkspace } from '../../../lib/workspace';
-import { useTheme } from '../../../theme/theme';
-import { maxContentWidth, radius, spacing } from '../../../theme/tokens';
+} from '../../../../lib/direct-rooms';
+import { NotificationsBell } from '../../../../components/navigation';
+import { relativeTime } from '../../../../lib/format';
+import { haptics } from '../../../../lib/haptics';
+import { directRoomsKey, useDirectRooms } from '../../../../lib/use-direct-rooms';
+import { useMatrixClient } from '../../../../lib/use-matrix';
+import { useWorkspace } from '../../../../lib/workspace';
+import { useTheme } from '../../../../theme/theme';
+import { maxContentWidth, radius, spacing } from '../../../../theme/tokens';
 
 type Segment = 'channels' | 'dms';
+
+/** iOS / Android get the header's native search field; web keeps an inline one. */
+const nativeSearch = Platform.OS !== 'web';
+
+interface ListProps {
+  filter: string;
+  setFilter: (value: string) => void;
+}
 
 export default function ChatTab() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
@@ -48,12 +65,46 @@ export default function ChatTab() {
     if (tab === 'dms' || tab === 'channels') setSegment(tab);
   }, [tab]);
   const { colors } = useTheme();
+  const router = useRouter();
+  const [filter, setFilter] = useState('');
+
+  const select = (value: Segment) => {
+    if (value === segment) return;
+    haptics.selection();
+    setSegment(value);
+  };
 
   return (
     <SafeAreaView
       edges={[]}
       style={[styles.flex, { backgroundColor: colors.background }]}
     >
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <View style={styles.headerActions}>
+              <IconButton
+                icon="create-outline"
+                label="New message"
+                onPress={() => router.push('/dm/new')}
+              />
+              <NotificationsBell />
+            </View>
+          ),
+          headerSearchBarOptions: nativeSearch
+            ? {
+                placeholder:
+                  segment === 'channels'
+                    ? 'Find a channel'
+                    : 'Find a conversation',
+                autoCapitalize: 'none',
+                hideWhenScrolling: false,
+                onChangeText: (event) => setFilter(event.nativeEvent.text),
+                onCancelButtonPress: () => setFilter(''),
+              }
+            : undefined,
+        }}
+      />
       <View style={styles.segmentsWrap}>
         <View
           style={[styles.segments, { backgroundColor: colors.accent }]}
@@ -69,7 +120,7 @@ export default function ChatTab() {
             return (
               <Pressable
                 key={value}
-                onPress={() => setSegment(value)}
+                onPress={() => select(value)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: active }}
                 style={[
@@ -90,16 +141,19 @@ export default function ChatTab() {
           })}
         </View>
       </View>
-      {segment === 'channels' ? <ChannelList /> : <DirectMessageList />}
+      {segment === 'channels' ? (
+        <ChannelList filter={filter} setFilter={setFilter} />
+      ) : (
+        <DirectMessageList filter={filter} setFilter={setFilter} />
+      )}
     </SafeAreaView>
   );
 }
 
-function ChannelList() {
+function ChannelList({ filter, setFilter }: ListProps) {
   const { workspaceId } = useWorkspace();
   const router = useRouter();
   const { colors } = useTheme();
-  const [filter, setFilter] = useState('');
 
   const query = useQuery({
     queryKey: queryKeys.channels.list(workspaceId, false),
@@ -135,29 +189,37 @@ function ChannelList() {
       ItemSeparatorComponent={Divider}
       keyboardShouldPersistTaps="handled"
       refreshControl={
-        <RefreshControl
+        <AppRefreshControl
           refreshing={query.isRefetching}
           onRefresh={() => void query.refetch()}
-          tintColor={colors.primaryText}
-        />
-      }
-      ListHeaderComponent={
-        <View style={styles.search}>
-          <TextField
-            placeholder="Find a channel"
-            value={filter}
-            onChangeText={setFilter}
-            accessibilityLabel="Find a channel"
-            autoCapitalize="none"
-            clearButtonMode="while-editing"
           />
-        </View>
+      }
+      keyboardDismissMode="on-drag"
+      contentInsetAdjustmentBehavior="automatic"
+      ListHeaderComponent={
+        nativeSearch ? (
+          <View style={styles.listTop} />
+        ) : (
+          <View style={styles.search}>
+            <TextField
+              placeholder="Find a channel"
+              value={filter}
+              onChangeText={setFilter}
+              accessibilityLabel="Find a channel"
+              autoCapitalize="none"
+            />
+          </View>
+        )
       }
       ListEmptyComponent={
         <EmptyState
           icon="chatbubbles-outline"
-          title="No channels"
-          description="Channels you can see in this workspace appear here."
+          title={filter ? 'No matching channels' : 'No channels'}
+          description={
+            filter
+              ? `Nothing matches "${filter.trim()}".`
+              : 'Channels you can see in this workspace appear here.'
+          }
         />
       }
       renderItem={({ item }) => (
@@ -193,13 +255,12 @@ function ChannelList() {
   );
 }
 
-function DirectMessageList() {
+function DirectMessageList({ filter, setFilter }: ListProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const queryClient = useQueryClient();
   const matrix = useMatrixClient();
   const query = useDirectRooms(matrix.client);
-  const [filter, setFilter] = useState('');
   const [opening, setOpening] = useState<string | null>(null);
 
   // No timer: the list refreshes whenever the tab comes back into view.
@@ -270,35 +331,46 @@ function DirectMessageList() {
       ItemSeparatorComponent={Divider}
       keyboardShouldPersistTaps="handled"
       refreshControl={
-        <RefreshControl
+        <AppRefreshControl
           refreshing={query.isRefetching}
           onRefresh={() => void query.refetch()}
-          tintColor={colors.primaryText}
-        />
+          />
       }
+      keyboardDismissMode="on-drag"
+      contentInsetAdjustmentBehavior="automatic"
       ListHeaderComponent={
-        <View style={styles.search}>
-          <TextField
-            placeholder="Find a conversation"
-            value={filter}
-            onChangeText={setFilter}
-            accessibilityLabel="Find a conversation"
-            autoCapitalize="none"
-            clearButtonMode="while-editing"
-          />
-          <Button
-            label="New message"
-            icon="create-outline"
-            variant="secondary"
-            onPress={() => router.push('/dm/new')}
-          />
-        </View>
+        nativeSearch ? (
+          <View style={styles.listTop} />
+        ) : (
+          <View style={styles.search}>
+            <TextField
+              placeholder="Find a conversation"
+              value={filter}
+              onChangeText={setFilter}
+              accessibilityLabel="Find a conversation"
+              autoCapitalize="none"
+            />
+          </View>
+        )
       }
       ListEmptyComponent={
         <EmptyState
           icon="chatbubble-outline"
-          title="No direct messages"
-          description="Start a conversation with one person or a small group."
+          title={filter ? 'No matching conversations' : 'No direct messages'}
+          description={
+            filter
+              ? `Nothing matches "${filter.trim()}".`
+              : 'Start a conversation with one person or a small group.'
+          }
+          action={
+            filter ? undefined : (
+              <Button
+                label="New message"
+                icon="create-outline"
+                onPress={() => router.push('/dm/new')}
+              />
+            )
+          }
         />
       }
       renderItem={({ item }) => {
@@ -395,5 +467,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   search: { paddingVertical: spacing.md, gap: spacing.sm },
+  listTop: { height: spacing.sm },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
   badges: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
 });

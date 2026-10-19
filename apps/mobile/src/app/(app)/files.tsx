@@ -5,12 +5,12 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
 import { Alert } from '../../lib/alert';
 import {
+  AppRefreshControl,
   AppText,
   Button,
   Card,
@@ -30,7 +30,6 @@ import {
 } from '../../lib/files';
 import { formatBytes, relativeTime } from '../../lib/format';
 import { useWorkspace } from '../../lib/workspace';
-import { useTheme } from '../../theme/theme';
 import { maxContentWidth, spacing } from '../../theme/tokens';
 
 function iconFor(mime: string): IconName {
@@ -45,7 +44,6 @@ function iconFor(mime: string): IconName {
 export default function FilesScreen() {
   const { workspaceId } = useWorkspace();
   const queryClient = useQueryClient();
-  const { colors } = useTheme();
   const [progress, setProgress] = useState<number | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
 
@@ -109,11 +107,10 @@ export default function FilesScreen() {
           void list.fetchNextPage();
       }}
       refreshControl={
-        <RefreshControl
+        <AppRefreshControl
           refreshing={list.isRefetching}
           onRefresh={() => void list.refetch()}
-          tintColor={colors.primaryText}
-        />
+          />
       }
       ListHeaderComponent={
         <Card style={styles.header}>

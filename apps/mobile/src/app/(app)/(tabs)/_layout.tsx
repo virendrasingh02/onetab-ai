@@ -1,85 +1,102 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { notificationApi, queryKeys } from '@org/api-client';
+import { automationsApi, queryKeys } from '@org/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { Tabs, useRouter } from 'expo-router';
-import type { ColorValue } from 'react-native';
-import { IconButton, type IconName } from '../../../components/ui';
+import type { ComponentProps } from 'react';
+import { NativeTabs, type SFSymbolIcon } from 'expo-router/native-tabs';
+import { haptics } from '../../../lib/haptics';
 import { useWorkspace } from '../../../lib/workspace';
 import { useTheme } from '../../../theme/theme';
 
-const tabIcon =
-  (name: IconName) =>
-  ({ color, size }: { color: ColorValue; size: number }) => (
-    <Ionicons name={name} color={color as string} size={size} />
+type SFSymbol = Exclude<NonNullable<SFSymbolIcon['sf']>, object>;
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
+
+/**
+ * The platform's own tab bar (UITabBar on iOS — Liquid Glass on iOS 26 —
+ * and the Material 3 navigation bar on Android) instead of a JS imitation.
+ * Re-tapping the active tab pops its stack and scrolls to the top natively.
+ * Each tab owns a native stack (`<tab>/_layout.tsx`) for its header.
+ */
+function TabIcon({
+  sf,
+  sfSelected,
+  ionicon,
+}: {
+  sf: SFSymbol;
+  sfSelected: SFSymbol;
+  ionicon: IoniconName;
+}) {
+  return (
+    <NativeTabs.Trigger.Icon
+      sf={{ default: sf, selected: sfSelected }}
+      src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name={ionicon} />}
+    />
   );
+}
 
 export default function TabsLayout() {
   const { colors } = useTheme();
-  const { workspace, workspaceId } = useWorkspace();
-  const router = useRouter();
+  const { workspaceId } = useWorkspace();
 
-  const unread = useQuery({
-    queryKey: queryKeys.notifications.unreadCount(workspaceId),
-    queryFn: () => notificationApi.unreadCount(workspaceId),
+  // Shares the Home dashboard's cache entry; no extra request when warm.
+  const overview = useQuery({
+    queryKey: queryKeys.automations.overview(workspaceId),
+    queryFn: () => automationsApi.overview(workspaceId),
     enabled: Boolean(workspaceId),
-    refetchInterval: 60_000,
+    refetchInterval: 120_000,
   });
-
-  const bell = () => (
-    <IconButton
-      icon={unread.data?.count ? 'notifications' : 'notifications-outline'}
-      label={
-        unread.data?.count
-          ? `Notifications, ${unread.data.count} unread`
-          : 'Notifications'
-      }
-      onPress={() => router.push('/notifications')}
-    />
-  );
+  const pendingApprovals = overview.data?.pendingApprovalsCount ?? 0;
 
   return (
-    <Tabs
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.card },
-        headerTintColor: colors.foreground,
-        headerShadowVisible: false,
-        headerRight: bell,
-        tabBarActiveTintColor: colors.primaryText,
-        tabBarInactiveTintColor: colors.subtle,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-        },
-        sceneStyle: { backgroundColor: colors.background },
+    <NativeTabs
+      tintColor={colors.primaryText}
+      iconColor={{ default: colors.subtle, selected: colors.primaryText }}
+      labelStyle={{
+        default: { color: colors.subtle },
+        selected: { color: colors.primaryText },
       }}
+      backgroundColor={colors.card}
+      indicatorColor={colors.selected}
+      rippleColor={colors.accent}
+      badgeBackgroundColor={colors.destructive}
+      labelVisibilityMode="labeled"
+      minimizeBehavior="onScrollDown"
+      screenListeners={{ tabPress: () => haptics.selection() }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: workspace?.name ?? 'Home',
-          tabBarLabel: 'Home',
-          tabBarIcon: tabIcon('home-outline'),
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{ title: 'Chat', tabBarIcon: tabIcon('chatbubbles-outline') }}
-      />
-      <Tabs.Screen
-        name="agents"
-        options={{ title: 'Agents', tabBarIcon: tabIcon('sparkles-outline') }}
-      />
-      <Tabs.Screen
-        name="automations"
-        options={{
-          title: 'Automations',
-          tabBarIcon: tabIcon('git-network-outline'),
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{ title: 'More', tabBarIcon: tabIcon('grid-outline') }}
-      />
-    </Tabs>
+      <NativeTabs.Trigger name="(home)">
+        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+        <TabIcon sf="house" sfSelected="house.fill" ionicon="home-outline" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="chat">
+        <NativeTabs.Trigger.Label>Chat</NativeTabs.Trigger.Label>
+        <TabIcon
+          sf="bubble.left.and.bubble.right"
+          sfSelected="bubble.left.and.bubble.right.fill"
+          ionicon="chatbubbles-outline"
+        />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="agents">
+        <NativeTabs.Trigger.Label>Agents</NativeTabs.Trigger.Label>
+        <TabIcon sf="sparkles" sfSelected="sparkles" ionicon="sparkles-outline" />
+        <NativeTabs.Trigger.Badge hidden={pendingApprovals === 0}>
+          {pendingApprovals > 99 ? '99+' : String(pendingApprovals)}
+        </NativeTabs.Trigger.Badge>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="automations">
+        <NativeTabs.Trigger.Label>Automations</NativeTabs.Trigger.Label>
+        <TabIcon
+          sf="point.3.connected.trianglepath.dotted"
+          sfSelected="point.3.filled.connected.trianglepath.dotted"
+          ionicon="git-network-outline"
+        />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="more">
+        <NativeTabs.Trigger.Label>More</NativeTabs.Trigger.Label>
+        <TabIcon
+          sf="square.grid.2x2"
+          sfSelected="square.grid.2x2.fill"
+          ionicon="grid-outline"
+        />
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }

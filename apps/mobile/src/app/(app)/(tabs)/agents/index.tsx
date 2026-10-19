@@ -7,15 +7,16 @@ import {
   Button,
   Card,
   Divider,
+  rowDividerInset,
   EmptyState,
   ListRow,
   QueryBoundary,
   Screen,
   SectionHeader,
-} from '../../../components/ui';
-import { humanize, relativeTime } from '../../../lib/format';
-import { useWorkspace } from '../../../lib/workspace';
-import { spacing } from '../../../theme/tokens';
+} from '../../../../components/ui';
+import { humanize, relativeTime } from '../../../../lib/format';
+import { useWorkspace } from '../../../../lib/workspace';
+import { spacing } from '../../../../theme/tokens';
 
 export default function AgentsTab() {
   const { workspaceId } = useWorkspace();
@@ -67,7 +68,7 @@ export default function AgentsTab() {
             <Card style={styles.listCard}>
               {list.map((agent, index) => (
                 <View key={agent.id}>
-                  {index > 0 ? <Divider /> : null}
+                  {index > 0 ? <Divider inset={rowDividerInset} /> : null}
                   <ListRow
                     avatar={{ name: agent.name, uri: agent.avatarUrl }}
                     title={agent.name}
