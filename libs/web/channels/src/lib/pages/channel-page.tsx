@@ -30,10 +30,15 @@ import {
   UserAvatar,
   useRightPanelStore,
 } from '@org/ui';
-import { cn, formatBytes, formatRelative } from '@org/utils';
+import { cn, formatRelative } from '@org/utils';
 import { AddBookmarkDialog, BookmarkFavicon } from '@org/chat-ui';
 import { useMarkChannelSeen } from '@org/notifications';
-import { ChannelChat } from '@org/web-chat';
+import { queryKeys, uploadApi } from '@org/api-client';
+import { ChannelChat, ConversationFilesPanel } from '@org/web-chat';
+import {
+  ALLOWED_UPLOAD_MIME_TYPES,
+  uploadRequestSchema,
+} from '@org/validation';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Archive,
@@ -46,12 +51,8 @@ import {
   Check,
   Clock,
   Copy,
-  Download,
   ExternalLink,
-  FileText,
-  FolderOpen,
   Hash,
-  Image as ImageIcon,
   Info,
   LayoutTemplate,
   Lock,
@@ -114,19 +115,6 @@ import {
   useChannelPreferences,
   useJoinChannel,
 } from '../use-channels.js';
-
-/**
- * Where an upload's bytes live.
- *
- * Real uploads are keys under the upload server; sample ones already carry a
- * full URL, so passing those through keeps the Media tab renderable with no
- * upload server running.
- */
-function fileSrc(storageKey: string): string {
-  return /^(data:|https?:)/.test(storageKey)
-    ? storageKey
-    : `/uploads/${storageKey}`;
-}
 
 function ChannelHeader({
   channel,
@@ -638,6 +626,7 @@ export function ChannelPage({
     (workspacePermissions?.includes(WorkspacePermission.MANAGE_SETTINGS) ??
       false);
 
+  const queryClient = useQueryClient();
   const pins = useChannelPins(workspaceId, channel?.id);
   const files = useChannelFiles(workspaceId, channel?.id);
   const { bookmarks, addBookmark, removeBookmark } = useChannelBookmarks(
@@ -659,9 +648,6 @@ export function ChannelPage({
   const [addAppOpen, setAddAppOpen] = useState(false);
   const [workflowsOpen, setWorkflowsOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [filesFilter, setFilesFilter] = useState<
-    'all' | 'files' | 'media' | 'links'
-  >('all');
 
   // Controlled so the welcome block's "Ask the AI copilot" card can switch to
   // that tab; the tabs are otherwise driven by the user.
@@ -702,13 +688,60 @@ export function ChannelPage({
 
   const closeDetailsPanel = useCallback(() => setDetailsPanelOpen(false), []);
 
+  /*
+   * Files uploaded from the channel are real `Upload` rows filed to it
+   * (contextType CHANNEL), so they show in this tab, the Files hub and search.
+   * Validated client-side with the API's own schema; the server re-checks.
+   */
   const handleUploadFile = useCallback(() => {
-    toast.info('Select a file from your device to upload');
+    const channelId = channel?.id;
+    if (!workspaceId || !channelId) return;
     const input = document.createElement('input');
     input.type = 'file';
-    input.onchange = () => toast.success('File uploaded to channel');
+    input.multiple = true;
+    input.accept = ALLOWED_UPLOAD_MIME_TYPES.join(',');
+    input.onchange = async () => {
+      const picked = Array.from(input.files ?? []);
+      if (picked.length === 0) return;
+      setActiveTab('files-media');
+      let uploaded = 0;
+      for (const file of picked) {
+        const check = uploadRequestSchema.safeParse({
+          filename: file.name,
+          mimeType: file.type,
+          size: file.size,
+        });
+        if (!check.success) {
+          toast.error(
+            `${file.name}: ${check.error.issues[0]?.message ?? 'This file cannot be uploaded.'}`,
+          );
+          continue;
+        }
+        try {
+          await uploadApi.upload(workspaceId, file, {
+            contextType: 'CHANNEL',
+            contextId: channelId,
+          });
+          uploaded += 1;
+        } catch (error) {
+          toast.error(
+            `${file.name}: ${error instanceof Error ? error.message : 'The upload failed.'}`,
+          );
+        }
+      }
+      if (uploaded > 0) {
+        toast.success(
+          uploaded === 1
+            ? 'File uploaded to channel'
+            : `${uploaded} files uploaded to channel`,
+        );
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.uploads.all(workspaceId),
+        });
+      }
+    };
     input.click();
-  }, []);
+  }, [workspaceId, channel?.id, queryClient]);
 
   /*
    * Claims the rail while the details panel is open, and gives it back on close
@@ -804,12 +837,7 @@ export function ChannelPage({
     workspaceRole: workspaceRole ?? null,
   });
 
-  const mediaFiles =
-    files.data?.filter((file) => file.mimeType.startsWith('image/')) ?? [];
-  const documentFiles =
-    files.data?.filter((file) => !file.mimeType.startsWith('image/')) ?? [];
-
-  const fileCount = mediaFiles.length + documentFiles.length;
+  const fileCount = files.data?.length ?? 0;
   const pinCount = pins.data?.length ?? 0;
   const tabCounts: Record<ChannelTabId, number | undefined> = {
     'files-media': fileCount > 0 ? fileCount : undefined,
@@ -1077,7 +1105,8 @@ export function ChannelPage({
           }
           end={
             <>
-              {activeTab === 'files-media' && (
+              {activeTab === 'files-media' &&
+                workspacePermissions?.includes(WorkspacePermission.CREATE) && (
                 <Button
                   size="sm"
                   className="h-7 text-xs gap-1.5"
@@ -1179,140 +1208,14 @@ export function ChannelPage({
           value="files-media"
           className="min-h-0 flex flex-1 flex-col"
         >
-          <ScrollArea
-            className="min-h-0 flex-1"
-            contentClassName="px-4 sm:px-6 py-3 space-y-4"
-          >
-            {/* Top Toolbar: Filter pills */}
-            <div className="gap-2 pb-2.5 flex flex-wrap items-center justify-between border-b border-border/40">
-              <div className="p-0.5 gap-1 inline-flex items-center rounded-lg border border-border/40 bg-muted/60">
-                <button
-                  type="button"
-                  onClick={() => setFilesFilter('all')}
-                  className={cn(
-                    'h-6 px-2.5 text-xs font-medium cursor-pointer rounded-md transition-colors',
-                    filesFilter === 'all'
-                      ? 'font-semibold bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  All ({mediaFiles.length + documentFiles.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilesFilter('files')}
-                  className={cn(
-                    'h-6 px-2.5 text-xs font-medium gap-1.5 inline-flex cursor-pointer items-center rounded-md transition-colors',
-                    filesFilter === 'files'
-                      ? 'font-semibold bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <FileText className="size-3" />
-                  <span>Documents ({documentFiles.length})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilesFilter('media')}
-                  className={cn(
-                    'h-6 px-2.5 text-xs font-medium gap-1.5 inline-flex cursor-pointer items-center rounded-md transition-colors',
-                    filesFilter === 'media'
-                      ? 'font-semibold bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <ImageIcon className="size-3" />
-                  <span>Media ({mediaFiles.length})</span>
-                </button>
-              </div>
-            </div>
-
-            {mediaFiles.length + documentFiles.length === 0 ? (
-              <EmptyState
-                icon={<FolderOpen />}
-                title="No files or media yet"
-                description="Share documents, design assets, and screenshots in this channel."
-                action={
-                  <Button size="sm" onClick={handleUploadFile}>
-                    Upload file
-                  </Button>
-                }
-              />
-            ) : null}
-
-            {/* Media & Images Section */}
-            {(filesFilter === 'all' || filesFilter === 'media') &&
-            mediaFiles.length > 0 ? (
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
-                  <ImageIcon className="size-3.5 text-accent-amber" />
-                  <span>Media &amp; Images ({mediaFiles.length})</span>
-                </h4>
-
-                <div className="gap-3 sm:grid-cols-4 grid grid-cols-2">
-                  {mediaFiles.map((file) => (
-                    <figure
-                      key={file.id}
-                      className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted"
-                    >
-                      <img
-                        src={fileSrc(file.storageKey)}
-                        alt={file.filename}
-                        className="size-full object-cover transition-transform group-hover:scale-105"
-                        loading="lazy"
-                      />
-                      <div className="inset-0 bg-black/50 p-2 text-white absolute flex items-end opacity-0 transition-opacity group-hover:opacity-100">
-                        <span className="font-medium truncate text-[11px]">
-                          {file.filename}
-                        </span>
-                      </div>
-                    </figure>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {/* Documents & Files Section */}
-            {(filesFilter === 'all' || filesFilter === 'files') &&
-            documentFiles.length > 0 ? (
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
-                  <FileText className="size-3.5 text-accent-violet" />
-                  <span>Documents &amp; Files ({documentFiles.length})</span>
-                </h4>
-
-                <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
-                  {documentFiles.map((file) => (
-                    <li
-                      key={file.id}
-                      className="gap-3 px-4 py-3 flex items-center transition-colors hover:bg-surface-raised"
-                    >
-                      <FileText className="size-5 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate text-foreground">
-                          {file.filename}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatBytes(file.size)} · Uploaded by{' '}
-                          {file.uploader.displayName ?? file.uploader.name}
-                        </p>
-                      </div>
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        onClick={() => {
-                          window.open(fileSrc(file.storageKey), '_blank');
-                        }}
-                        title="Download file"
-                      >
-                        <Download className="size-4" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </ScrollArea>
+          {/* Filed channel uploads + attachments shared in the chat — the
+              same panel every DM / agent / app conversation uses. */}
+          <ConversationFilesPanel
+            context={{ type: 'CHANNEL', id: channel.id }}
+            roomId={channel.matrixRoomId ?? null}
+            workspaceId={workspaceId}
+            currentUserId={currentUser?.id}
+          />
         </TabsContent>
 
         {/* Dedicated Bookmarks Tab (placed before Pins) */}

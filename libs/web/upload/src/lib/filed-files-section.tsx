@@ -1,4 +1,5 @@
 import { resolveMediaUrl } from '@org/api-client';
+import { WorkspacePermission } from '@org/types';
 import { useMediaPreview } from '@org/media-preview';
 import {
   Button,
@@ -6,6 +7,7 @@ import {
   SkeletonList,
   usePromptDialog,
 } from '@org/ui';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import { HardDrive, Plus, TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { AssetDetailsDialog } from './asset-details-dialog.js';
@@ -21,7 +23,11 @@ export interface FiledFilesSectionProps {
   /** Slug used to deep-link a file to its origin from the details panel. */
   workspaceSlug?: string;
   currentUserId?: string;
-  /** Gates rename / move / delete. Defaults to true. */
+  /**
+   * Gates rename / move / delete on top of the caller's workspace permissions
+   * (UPDATE for rename / move / versions, DELETE for delete — what the uploads
+   * API enforces). Defaults to true.
+   */
   canManage?: boolean;
   /** Dropzone label. */
   uploadLabel?: string;
@@ -48,6 +54,14 @@ export function FiledFilesSection({
   onNavigateSource,
   className,
 }: FiledFilesSectionProps) {
+  /* Mirror the uploads API's guards so nobody is offered an action that 403s. */
+  const { permissions } = useCurrentWorkspace();
+  const canUpload = permissions?.includes(WorkspacePermission.CREATE) ?? false;
+  const canEdit =
+    canManage && (permissions?.includes(WorkspacePermission.UPDATE) ?? false);
+  const canDelete =
+    canManage && (permissions?.includes(WorkspacePermission.DELETE) ?? false);
+
   const uploads = useUploads(workspaceId, target);
   const { remove, download } = useUploadMutations(workspaceId);
   const { toMediaItem } = useUploadMediaAdapter(workspaceId);
@@ -98,7 +112,7 @@ export function FiledFilesSection({
           size="sm"
           variant="ghost"
           className="h-6 text-xs gap-1 px-1.5"
-          disabled={!workspaceId}
+          disabled={!workspaceId || !canUpload}
           onClick={() => setShowDropzone((v) => !v)}
         >
           <Plus className="size-3.5" /> Upload
@@ -145,7 +159,7 @@ export function FiledFilesSection({
           onDownload={(item) =>
             download.mutate({ id: item.id, filename: item.filename })
           }
-          onDelete={canManage ? confirmDelete : undefined}
+          onDelete={canDelete ? confirmDelete : undefined}
           empty={
             <EmptyState
               size="sm"
@@ -153,9 +167,11 @@ export function FiledFilesSection({
               title="No files yet"
               description={emptyDescription}
               action={
-                <Button size="sm" onClick={() => setShowDropzone(true)}>
-                  Upload a file
-                </Button>
+                canUpload ? (
+                  <Button size="sm" onClick={() => setShowDropzone(true)}>
+                    Upload a file
+                  </Button>
+                ) : undefined
               }
             />
           }
@@ -168,7 +184,7 @@ export function FiledFilesSection({
         onOpenChange={(o) => !o && setDetailsId(null)}
         workspaceId={workspaceId}
         workspaceSlug={workspaceSlug}
-        canManage={canManage}
+        canManage={canEdit}
         onNavigateSource={onNavigateSource}
       />
 

@@ -26,6 +26,9 @@
   ],
   "references": [
     {
+      "path": "../workspace/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/validation/tsconfig.lib.json"
     },
     {

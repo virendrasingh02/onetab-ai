@@ -3,6 +3,7 @@ import {
   channelApi,
   channelEmailApi,
   queryKeys,
+  uploadApi,
   workToolsApi,
 } from '@org/api-client';
 import {
@@ -248,10 +249,25 @@ export function useChannelFiles(
   workspaceId: string | undefined,
   channelId: string | undefined,
 ) {
+  /*
+   * Same key and request as `useUploads(workspaceId, { type: 'CHANNEL', id })`
+   * in @org/web-upload, so the channel's Files & Media panel and this count
+   * share one cache entry — an upload or delete there updates the tab badge.
+   */
   return useQuery({
-    queryKey: queryKeys.channels.files(workspaceId ?? '', channelId ?? ''),
-    queryFn: () => channelApi.files(workspaceId as string, channelId as string),
+    queryKey: queryKeys.uploads.list(
+      workspaceId ?? '',
+      `CHANNEL:${channelId ?? ''}`,
+    ),
+    queryFn: () =>
+      uploadApi.list(
+        workspaceId as string,
+        { contextType: 'CHANNEL', contextId: channelId as string },
+        { limit: 200 },
+      ),
     enabled: !!workspaceId && !!channelId,
+    staleTime: 30_000,
+    select: (page) => page.items,
   });
 }
 
