@@ -12,7 +12,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, WorkspaceId } from '@org/api-common';
+import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
+import { z } from 'zod';
 import { NotificationCenterService } from './notification-center.service.js';
 import {
   NotificationsService,
@@ -124,6 +125,12 @@ export class NotificationsController {
  * Push devices belong to the person, not to a workspace, so these sit outside
  * the workspace path — one registration serves every workspace they are in.
  */
+const pushRegistrationSchema = z.object({
+  pushKey: z.string().trim().min(1).max(2048),
+  appId: z.string().trim().min(1).max(200),
+  deviceDisplayName: z.string().trim().max(200).optional(),
+});
+
 @Controller({ path: 'notifications/devices', version: '1' })
 export class PushDeviceController {
   constructor(private readonly notifications: NotificationsService) {}
@@ -136,7 +143,7 @@ export class PushDeviceController {
   @Post()
   register(
     @CurrentUser('id') userId: string,
-    @Body() body: PushRegistrationInput,
+    @Body(zodBody(pushRegistrationSchema)) body: PushRegistrationInput,
   ) {
     return this.notifications.registerDevice(userId, body);
   }

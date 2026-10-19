@@ -2,7 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TokenService } from './token.service.js';
 
-function build(revokedAgoMs: number | null) {
+function build(revokedAgoMs: number | null, { rotated = true } = {}) {
   const revokedAt = revokedAgoMs === null ? null : new Date(Date.now() - revokedAgoMs);
   const prisma = {
     refreshToken: {
@@ -13,6 +13,8 @@ function build(revokedAgoMs: number | null) {
         expiresAt: new Date(Date.now() + 60_000),
         user: { id: 'u1', email: 'a@b.test' },
       }),
+      // A rotation leaves a successor row; an explicit sign-out does not.
+      findFirst: vi.fn().mockResolvedValue(rotated ? { id: 'rt-next' } : null),
       create: vi.fn().mockResolvedValue({ id: 'rt2' }),
       update: vi.fn().mockResolvedValue({}),
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -34,6 +36,14 @@ describe('TokenService.rotate reuse grace', () => {
     const { service, prisma } = build(2_000);
     const session = await service.rotate('tok');
     expect(session.tokens.accessToken).toBe('access');
+    expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses a token revoked by sign-out even inside the grace window', async () => {
+    const { service, prisma } = build(2_000, { rotated: false });
+    await expect(service.rotate('tok')).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+    // The session is already over; no need to end the user's other devices.
     expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
   });
 

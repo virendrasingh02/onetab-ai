@@ -242,6 +242,9 @@
     },
     {
       "path": "./apps/ai-agent-studio"
+    },
+    {
+      "path": "./apps/mobile"
     }
   ],
   "compilerOptions": {}

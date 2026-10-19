@@ -24,6 +24,14 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["exec", "nx", "--", "run", "@org/ai-agent-studio:serve"],
       "port": 4202
+    },
+    {
+      "name": "mobile-web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--web", "--port", "8082", "--clear"],
+      "cwd": "apps/mobile",
+      "env": { "EXPO_PUBLIC_API_URL": "http://localhost:3000/api/v1" },
+      "port": 8082
     }
   ]
 }

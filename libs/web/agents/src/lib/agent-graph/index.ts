@@ -1,5 +1,5 @@
 /**
- * Shared option-source plumbing for builder pickers (tools, models, channels…),
+ * Shared option-source plumbing for builder pickers (tools, models, channelsâ€¦),
  * used by the automations canvas.
  */
 

@@ -207,20 +207,26 @@ export class NotificationCenterService {
   }
 
   async markRead(userId: string, notificationId: string): Promise<void> {
-    const result = await this.prisma.notification.updateMany({
-      // `recipientId` in the predicate is the authorization check: you can only
-      // mark your own notifications read.
-      where: { id: notificationId, recipientId: userId, readAt: null },
-      data: { readAt: new Date() },
+    const existing = await this.prisma.notification.findFirst({
+      where: { id: notificationId, recipientId: userId },
+      select: { id: true, workspaceId: true, readAt: true },
     });
-    if (result.count === 0) {
-      // Either it doesn't exist, isn't theirs, or was already read — a repeat
-      // click is fine, a missing row is not.
-      const exists = await this.prisma.notification.findFirst({
-        where: { id: notificationId, recipientId: userId },
-        select: { id: true },
+    if (!existing) {
+      throw new NotFoundException('Notification not found.');
+    }
+
+    if (!existing.readAt) {
+      await this.prisma.notification.update({
+        where: { id: notificationId },
+        data: { readAt: new Date() },
       });
-      if (!exists) throw new NotFoundException('Notification not found.');
+      const unreadCount = await this.unreadCount(existing.workspaceId, userId);
+      this.events.emit('notification.read', {
+        recipientId: userId,
+        workspaceId: existing.workspaceId,
+        notificationId,
+        unreadCount,
+      });
     }
   }
 
@@ -229,15 +235,35 @@ export class NotificationCenterService {
       where: { workspaceId, recipientId: userId, readAt: null },
       data: { readAt: new Date() },
     });
+
+    this.events.emit('notification.read', {
+      recipientId: userId,
+      workspaceId,
+      unreadCount: 0,
+    });
+
     return { count: result.count };
   }
 
   async dismiss(userId: string, notificationId: string): Promise<void> {
-    const result = await this.prisma.notification.deleteMany({
+    const existing = await this.prisma.notification.findFirst({
       where: { id: notificationId, recipientId: userId },
+      select: { id: true, workspaceId: true },
     });
-    if (result.count === 0) {
+    if (!existing) {
       throw new NotFoundException('Notification not found.');
     }
+
+    await this.prisma.notification.delete({
+      where: { id: notificationId },
+    });
+
+    const unreadCount = await this.unreadCount(existing.workspaceId, userId);
+    this.events.emit('notification.read', {
+      recipientId: userId,
+      workspaceId: existing.workspaceId,
+      notificationId,
+      unreadCount,
+    });
   }
 }

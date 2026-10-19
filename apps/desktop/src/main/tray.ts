@@ -100,41 +100,116 @@ export function setTrayBadge(count: number): void {
   tray?.setToolTip(count > 0 ? `Onetab AI — ${count} unread` : 'Onetab AI');
 }
 
-let overlayIcon: Electron.NativeImage | null = null;
+let currentBadgeCount = 0;
+let windowListenersAttached = false;
+const badgeCache = new Map<number, Electron.NativeImage>();
+
+// 3x5 bitmap font for digits 1-9 centered on 16x16 overlay
+const DIGIT_GLYPHS: Record<number, number[]> = {
+  1: [0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1],
+  2: [1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1],
+  3: [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+  4: [1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1],
+  5: [1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+  6: [1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+  7: [1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+  8: [1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+  9: [1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1],
+};
 
 /**
- * Windows has no numeric badge API, only a small overlay on the taskbar icon.
- * A plain red dot is drawn from raw pixels (BGRA, premultiplied is not needed
- * for fully opaque pixels) so no icon asset has to ship; the exact count goes
- * in the accessible description.
+ * Builds a Slack-style blue notification indicator badge for Windows taskbar.
+ *
+ * For counts 1-9: renders a Slack-blue circle with a white border and crisp white count.
+ * For counts > 9: renders a Slack-blue notification dot with a crisp white border ring.
+ * Uses BGRA bitmap format with anti-aliased edges for crisp contrast on light and dark taskbars.
  */
-function buildOverlayDot(): Electron.NativeImage {
-  if (overlayIcon) return overlayIcon;
+export function buildOverlayBadge(count: number): Electron.NativeImage {
+  const cacheKey = count > 0 && count <= 9 ? count : 10;
+  const cached = badgeCache.get(cacheKey);
+  if (cached) return cached;
+
   const size = 16;
   const buffer = Buffer.alloc(size * size * 4);
   const centre = (size - 1) / 2;
+
+  // Slack notification blue (#007AFF -> B: 255, G: 122, R: 0)
+  const BLUE_B = 255;
+  const BLUE_G = 122;
+  const BLUE_R = 0;
+
+  const glyph = count > 0 && count <= 9 ? DIGIT_GLYPHS[count] : null;
+  const glyphStartX = 6;
+  const glyphStartY = 5;
+
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const distance = Math.hypot(x - centre, y - centre);
-      if (distance > 7.2) continue;
+      if (distance > 7.3) continue;
+
       const offset = (y * size + x) * 4;
-      // Anti-alias the rim; the interior is solid so premultiplication is moot.
-      const alpha = distance > 6.2 ? Math.round((7.2 - distance) * 255) : 255;
-      buffer[offset] = Math.round((0x3b * alpha) / 255); // B
-      buffer[offset + 1] = Math.round((0x3b * alpha) / 255); // G
-      buffer[offset + 2] = Math.round((0xe5 * alpha) / 255); // R
+      const alpha = distance > 6.3 ? Math.round((7.3 - distance) * 255) : 255;
+
+      const isWhiteRing = distance >= 5.5 && distance <= 7.0;
+
+      // Check if this pixel falls inside the digit glyph
+      const gx = x - glyphStartX;
+      const gy = y - glyphStartY;
+      const isDigitPixel =
+        glyph &&
+        gx >= 0 &&
+        gx < 3 &&
+        gy >= 0 &&
+        gy < 5 &&
+        glyph[gy * 3 + gx] === 1;
+
+      if (isDigitPixel || isWhiteRing) {
+        // Crisp white ring or digit (#FFFFFF)
+        buffer[offset] = Math.round((255 * alpha) / 255); // B
+        buffer[offset + 1] = Math.round((255 * alpha) / 255); // G
+        buffer[offset + 2] = Math.round((255 * alpha) / 255); // R
+      } else {
+        // Vibrant Slack Blue (#007AFF)
+        buffer[offset] = Math.round((BLUE_B * alpha) / 255); // B
+        buffer[offset + 1] = Math.round((BLUE_G * alpha) / 255); // G
+        buffer[offset + 2] = Math.round((BLUE_R * alpha) / 255); // R
+      }
       buffer[offset + 3] = alpha;
     }
   }
-  overlayIcon = nativeImage.createFromBitmap(buffer, { width: size, height: size });
-  return overlayIcon;
+
+  const image = nativeImage.createFromBitmap(buffer, { width: size, height: size });
+  badgeCache.set(cacheKey, image);
+  return image;
+}
+
+function attachWindowOverlayListeners(): void {
+  if (windowListenersAttached) return;
+  const window = getMainWindow();
+  if (!window || window.isDestroyed()) return;
+  window.on('restore', () => refreshBadgeOverlay());
+  window.on('show', () => refreshBadgeOverlay());
+  windowListenersAttached = true;
+}
+
+export function getBadgeCount(): number {
+  return currentBadgeCount;
+}
+
+export function refreshBadgeOverlay(): void {
+  if (process.platform === 'win32') {
+    setWindowsOverlay(currentBadgeCount);
+  }
 }
 
 function setWindowsOverlay(count: number): void {
   const window = getMainWindow();
   if (!window || window.isDestroyed()) return;
+  attachWindowOverlayListeners();
+
   if (count > 0) {
-    window.setOverlayIcon(buildOverlayDot(), `${count} unread`);
+    const label = `${count} unread notification${count === 1 ? '' : 's'}`;
+    window.setOverlayIcon(buildOverlayBadge(count), label);
   } else {
     window.setOverlayIcon(null, '');
   }
@@ -142,8 +217,22 @@ function setWindowsOverlay(count: number): void {
 
 /** The one place a badge count reaches the OS (dock/launcher badge, taskbar overlay, tray tooltip). */
 export function applyBadgeCount(count: number): void {
-  if (process.platform === 'win32') setWindowsOverlay(count);
-  else app.setBadgeCount(count);
+  currentBadgeCount = count;
+  if (process.platform === 'win32') {
+    setWindowsOverlay(count);
+  } else if (process.platform === 'darwin') {
+    if (app.dock?.setBadge) {
+      app.dock.setBadge(count > 0 ? (count > 99 ? '99+' : String(count)) : '');
+    } else {
+      app.setBadgeCount(count);
+    }
+  } else if (process.platform === 'linux') {
+    try {
+      app.setBadgeCount(count);
+    } catch {
+      // Gracefully handle unsupported Linux desktop environments
+    }
+  }
   setTrayBadge(count);
 }
 

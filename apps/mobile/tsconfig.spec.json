@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "out-tsc/spec",
+    "tsBuildInfoFile": "out-tsc/spec/tsconfig.spec.tsbuildinfo",
+    "rootDir": "src",
+    "lib": ["es2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["vitest/globals", "node"]
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "src/lib/deep-links.ts",
+    "src/lib/direct-rooms.ts",
+    "src/lib/format.ts",
+    "src/lib/matrix.ts",
+    "src/lib/room-timeline.ts",
+    "src/lib/session-core.ts",
+    "src/lib/web-alert.ts",
+    "src/lib/web-transfer.ts",
+    "src/lib/blob-url-cache.ts"
+  ],
+  "exclude": []
+}

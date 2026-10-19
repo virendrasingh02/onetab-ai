@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   AppEvent,
+  type AgentApprovalDecidedEvent,
   type AiAgentMessageEvent,
   type AiApprovalRequestedEvent,
   type AiRunFinishedEvent,
@@ -11,6 +12,8 @@ import {
   type CallSummaryUpdatedEvent,
   type ChannelAccessExpiredEvent,
   type ChannelCreatedEvent,
+  type CoworkerCompletedEvent,
+  type CoworkerFailedEvent,
   type DocumentCreatedEvent,
   type FileSharedEvent,
   type MeetingCancelledEvent,
@@ -576,6 +579,77 @@ export class DomainEventsListener {
           ? (e.bodyAsIs ? e.body : `${e.agentName}: ${e.body}`).slice(0, 1_500)
           : e.agentName,
         deepLink: e.deepLink ?? (e.runId ? `ai/runs?run=${e.runId}` : 'ai'),
+      }),
+    );
+  }
+
+  @OnEvent(AppEvent.CoworkerFailed)
+  async onCoworkerFailed(e: CoworkerFailedEvent): Promise<void> {
+    const coworker = await this.prisma.aIAgent.findUnique({
+      where: { id: e.coworkerId },
+      select: { creatorId: true },
+    });
+    const creatorId = coworker?.creatorId;
+    if (!creatorId) return;
+
+    await this.safeNotify(() =>
+      this.notifications.create({
+        workspaceId: e.workspaceId,
+        recipientId: creatorId,
+        kind: NotificationKind.AI_RUN_FAILED,
+        title: `Coworker “${e.coworkerName}” couldn’t finish`,
+        body: (e.error ?? 'A step failed during coworker execution.').slice(0, 500),
+        deepLink: `ai/coworkers/${e.coworkerId}`,
+        resourceType: 'coworker',
+        resourceId: e.coworkerId,
+      }),
+    );
+  }
+
+  @OnEvent(AppEvent.CoworkerCompleted)
+  async onCoworkerCompleted(e: CoworkerCompletedEvent): Promise<void> {
+    if (e.source !== 'schedule' && e.source !== 'workflow') {
+      return;
+    }
+    const coworker = await this.prisma.aIAgent.findUnique({
+      where: { id: e.coworkerId },
+      select: { creatorId: true },
+    });
+    const creatorId = coworker?.creatorId;
+    if (!creatorId) return;
+
+    await this.safeNotify(() =>
+      this.notifications.create({
+        workspaceId: e.workspaceId,
+        recipientId: creatorId,
+        kind: NotificationKind.AI_RUN_COMPLETED,
+        title: `Coworker “${e.coworkerName}” finished`,
+        body: (e.result ?? 'Work completed successfully.').slice(0, 500),
+        deepLink: `ai/coworkers/${e.coworkerId}`,
+        resourceType: 'coworker',
+        resourceId: e.coworkerId,
+      }),
+    );
+  }
+
+  @OnEvent(AppEvent.AgentApprovalDecided)
+  async onAgentApprovalDecided(e: AgentApprovalDecidedEvent): Promise<void> {
+    const approval = await this.prisma.approvalRequest.findUnique({
+      where: { id: e.approvalId },
+      select: { requesterId: true },
+    });
+    if (!approval?.requesterId || approval.requesterId === e.approverId) return;
+
+    await this.safeNotify(() =>
+      this.notifications.create({
+        workspaceId: e.workspaceId,
+        recipientId: approval.requesterId!,
+        actorId: e.approverId,
+        kind: NotificationKind.SYSTEM,
+        title: `Action “${e.actionType}” was ${e.decision.toLowerCase()}`,
+        deepLink: 'ai/approvals',
+        resourceType: 'approval',
+        resourceId: e.approvalId,
       }),
     );
   }

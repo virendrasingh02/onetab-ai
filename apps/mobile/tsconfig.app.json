@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "out-tsc/app",
+    "tsBuildInfoFile": "out-tsc/app/tsconfig.app.tsbuildinfo",
+    "rootDir": "src",
+    "jsx": "react-jsx",
+    "lib": ["es2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "customConditions": ["react-native", "@org/source"],
+    "types": ["node"],
+    "allowJs": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "references": [
+    {
+      "path": "../../libs/shared/api-client/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/shared/types/tsconfig.lib.json"
+    }
+  ]
+}

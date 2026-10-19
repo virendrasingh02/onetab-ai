@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
-/** Where a builder picker's choices come from — always live data, never a hard-coded list. */
+/** Where a builder picker's choices come from â€” always live data, never a hard-coded list. */
 export type OptionSource =
   | 'tools'
   | 'knowledgeBases'

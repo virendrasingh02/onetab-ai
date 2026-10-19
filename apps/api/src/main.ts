@@ -68,8 +68,14 @@ function getCorsOrigins(configuredOrigins: string[], isProduction: boolean) {
     { length: 10 },
     (_, index) => `http://localhost:${4200 + index}`,
   );
+  // The mobile app's web target (`expo start --web`) serves from Metro.
+  const expoWebOrigins = [8081, 8082, 8083].map(
+    (port) => `http://localhost:${port}`,
+  );
 
-  return [...new Set([...configuredOrigins, ...localWebOrigins])];
+  return [
+    ...new Set([...configuredOrigins, ...localWebOrigins, ...expoWebOrigins]),
+  ];
 }
 
 async function listen(

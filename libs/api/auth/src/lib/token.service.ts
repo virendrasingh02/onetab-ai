@@ -108,6 +108,8 @@ export function parseLocation(ip?: string | null): string {
  */
 /** How long a just-rotated refresh token may still be exchanged (concurrent cross-app refresh). */
 const REFRESH_REUSE_GRACE_MS = 10_000;
+/** A rotation writes its successor within this long of revoking the old row. */
+const ROTATION_SUCCESSOR_WINDOW_MS = 5_000;
 
 @Injectable()
 export class TokenService {
@@ -190,7 +192,14 @@ export class TokenService {
       // scopes, so the loser is a benign race, not a replay. Within a short
       // grace window, treat it as a rotation instead of a theft.
       if (Date.now() - existing.revokedAt.getTime() <= REFRESH_REUSE_GRACE_MS) {
-        return this.issueSession(existing.user, context);
+        // Only a *rotated* token earns the grace. One revoked by sign-out or
+        // "end session" has no successor, and must stay dead — otherwise a
+        // token captured before sign-out could mint a fresh session for the
+        // next few seconds. Rejecting it is enough: the session is already over.
+        if (await this.hasRotationSuccessor(existing.userId, existing.id, existing.revokedAt)) {
+          return this.issueSession(existing.user, context);
+        }
+        throw new UnauthorizedException('Refresh token has been revoked.');
       }
       // A revoked token being replayed means it was captured after rotation.
       // Drop every session for this user rather than just this one.
@@ -210,6 +219,30 @@ export class TokenService {
     });
 
     return this.issueSession(existing.user, context);
+  }
+
+  /**
+   * Whether `revokedAt` was a rotation: `rotate` revokes the old row and then
+   * immediately issues its successor, so a rotation leaves a newer row for the
+   * same user created right after. Explicit revocations never create one.
+   */
+  private async hasRotationSuccessor(
+    userId: string,
+    revokedId: string,
+    revokedAt: Date,
+  ): Promise<boolean> {
+    const successor = await this.prisma.refreshToken.findFirst({
+      where: {
+        userId,
+        id: { not: revokedId },
+        createdAt: {
+          gte: revokedAt,
+          lte: new Date(revokedAt.getTime() + ROTATION_SUCCESSOR_WINDOW_MS),
+        },
+      },
+      select: { id: true },
+    });
+    return successor !== null;
   }
 
   async revoke(refreshToken: string): Promise<void> {

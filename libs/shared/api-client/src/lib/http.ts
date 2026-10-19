@@ -50,7 +50,8 @@ export function getAccessToken(): string | null {
  * revoking every session for the user. Adopting a sibling's token keeps the
  * tabs on one session instead of racing to rotate it.
  */
-if (typeof window !== 'undefined') {
+// React Native defines `window` but not its event target, hence the extra check.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('storage', (event) => {
     if (event.key !== TOKEN_KEY || event.storageArea !== localStorage) return;
     accessToken = event.newValue;
@@ -118,7 +119,7 @@ function getLocalBaseURLCandidates(value: string): string[] {
   }
 }
 
-const localBaseURLCandidates = getLocalBaseURLCandidates(configuredBaseURL);
+let localBaseURLCandidates = getLocalBaseURLCandidates(configuredBaseURL);
 
 async function resolveBaseURL(): Promise<string> {
   if (localBaseURLCandidates.length === 1) {
@@ -157,6 +158,21 @@ async function resolveBaseURL(): Promise<string> {
   })();
 
   return baseURLResolution;
+}
+
+/**
+ * Points the client at an API host chosen at runtime.
+ *
+ * The browser apps get theirs from `VITE_API_URL` at build time; the mobile app
+ * reads it from its Expo config instead, and a phone can never reach the dev
+ * machine's `localhost`, so the local port probing is skipped for it too.
+ */
+export function setApiBaseURL(url: string): void {
+  const normalized = normalizeBaseURL(url);
+  activeBaseURL = normalized;
+  localBaseURLCandidates = [normalized];
+  baseURLResolution = null;
+  http.defaults.baseURL = normalized;
 }
 
 export const http: AxiosInstance = axios.create({
@@ -226,7 +242,7 @@ let refreshInFlight: Promise<string> | null = null;
  * leaving the single-tab guarantee `refreshInFlight` already provides.
  */
 async function withRefreshLock<T>(run: () => Promise<T>): Promise<T> {
-  if (!navigator.locks) return run();
+  if (typeof navigator === 'undefined' || !navigator.locks) return run();
   return navigator.locks.request('onetab-auth-refresh', run);
 }
 

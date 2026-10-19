@@ -20,7 +20,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { CreateChannelDialog, useChannels } from '@org/web-channels';
-import { AppDownloadBanner, useDesktopCommand } from '@org/web-desktop';
+import { AppDownloadBanner, useDesktopBadge, useDesktopCommand } from '@org/web-desktop';
 import { useMembers } from '@org/web-members';
 import {
   NotificationEnableBar,
@@ -30,6 +30,7 @@ import {
   useNotificationFeed,
   useNotificationSoundSync,
   useNotificationUnread,
+  useNotificationUnreadCount,
   useWorkspaceActivity,
   type ActivityIndicator,
 } from '@org/notifications';
@@ -216,6 +217,10 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
    */
   const notificationFeed = useNotificationFeed(workspaceId);
   const unread = useNotificationUnread(workspaceId, notificationFeed.data);
+  const serverUnreadCountQuery = useNotificationUnreadCount(workspaceId);
+  const totalUnreadBadge = serverUnreadCountQuery.data ?? unread.count;
+  // Synchronize unread badge to native OS icon (Windows taskbar overlay, macOS dock badge, Linux launcher)
+  useDesktopBadge(totalUnreadBadge);
   const feedChannelActivity = useChannelActivity(
     workspaceId,
     notificationFeed.data,

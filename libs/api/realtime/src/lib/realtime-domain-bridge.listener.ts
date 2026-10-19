@@ -450,6 +450,20 @@ export class RealtimeDomainBridgeListener {
     });
   }
 
+  @OnEvent('notification.read')
+  async onNotificationRead(e: {
+    recipientId: string;
+    workspaceId: string;
+    unreadCount?: number;
+    notificationId?: string;
+  }): Promise<void> {
+    this.gateway.broadcastToUser(e.recipientId, {
+      type: 'notification.read',
+      workspaceId: e.workspaceId,
+      payload: e,
+    });
+  }
+
   @OnEvent(AppEvent.MentionCreated)
   async onMentionCreated(e: {
     workspaceId: string;

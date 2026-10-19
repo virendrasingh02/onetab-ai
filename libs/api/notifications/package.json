@@ -42,6 +42,7 @@
     "@org/api-common": "*",
     "@org/database": "*",
     "@org/types": "*",
-    "@org/validation": "*"
+    "@org/validation": "*",
+    "zod": "^4.4.3"
   }
 }

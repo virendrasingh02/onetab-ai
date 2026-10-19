@@ -13,6 +13,7 @@ import {
   PushDeviceController,
 } from './notifications.controller.js';
 import { NotificationsService } from './notifications.service.js';
+import { PushDeliveryService } from './push-delivery.service.js';
 import { RemindersController } from './reminders.controller.js';
 import { RemindersService } from './reminders.service.js';
 
@@ -34,6 +35,8 @@ import { RemindersService } from './reminders.service.js';
     // Bridges the app event bus onto notification + activity rows. Registered
     // as a provider so NestJS instantiates it and its @OnEvent handlers bind.
     DomainEventsListener,
+    // Sends notification-centre rows to registered mobile devices.
+    PushDeliveryService,
   ],
   exports: [
     NotificationsService,
