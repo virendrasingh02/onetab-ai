@@ -319,6 +319,19 @@ export const FORWARDED_CONTENT_KEY = 'org.onetab.forwarded';
 export const ALSO_SEND_TO_CHANNEL_KEY = 'org.onetab.also_send_to_channel';
 
 /**
+ * Content key tagging each file of a multi-file upload with `{ id, index,
+ * count }` — one event per file still, but grouped back into one message.
+ */
+export const ATTACHMENT_BATCH_KEY = 'org.onetab.attachment_batch';
+
+function readBatchId(content: MessageContentShape): string | undefined {
+  const batch = (content as Record<string, unknown>)[ATTACHMENT_BATCH_KEY];
+  if (!batch || typeof batch !== 'object') return undefined;
+  const id = (batch as { id?: unknown }).id;
+  return typeof id === 'string' && id ? id : undefined;
+}
+
+/**
  * The wire shape of a forward, stored under `FORWARDED_CONTENT_KEY` on an
  * ordinary `m.text` event.
  *
@@ -574,6 +587,7 @@ export function toMessage(
       relation?.rel_type === 'm.thread' ? relation.event_id : undefined,
     ),
     forwarded: forwarded ? toForwarded(client, forwarded) : undefined,
+    batchId: MEDIA_KINDS.includes(kind) ? readBatchId(content) : undefined,
   };
 }
 

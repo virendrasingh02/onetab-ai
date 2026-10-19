@@ -20,6 +20,7 @@ import {
   MessageList,
   type MessageListHandle,
   MessageRenderer,
+  PendingUploadMessage,
   PinnedBanner,
   PinnedPanel,
   ReactorDirectoryProvider,
@@ -94,6 +95,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import type { ForwardMessageSource } from './forward-message-dialog.js';
 import { useRegisterActiveConversation } from './active-conversation.js';
 import { deriveAttachmentBursts } from './derive-attachment-bursts.js';
+import {
+  retryUpload,
+  usePendingBatchIds,
+  usePendingUploads,
+  usePendingUploadsStore,
+  type PendingUpload,
+} from './pending-uploads.js';
 import { deriveThreads, groupReplies, threadReplyCount } from './derive-threads.js';
 import { useHuddleSession } from './use-huddle.js';
 import { ConversationCallControl } from './conversation-call-control.js';
@@ -322,7 +330,8 @@ export interface ChatSurfaceProps {
     options?: { alsoSendToChannel?: boolean; replyToId?: string },
   ) => void | string | undefined | Promise<void | string | undefined>;
   onEdit?: (eventId: string, body: string) => void | Promise<void>;
-  onDelete?: (eventId: string) => void | Promise<void>;
+  /** `groupedIds` is every file of a grouped multi-file upload, head included. */
+  onDelete?: (eventId: string, groupedIds?: string[]) => void | Promise<void>;
   /** Holds `WorkspacePermission.MODERATE_MESSAGES` — may delete another member's message. */
   canModerateMessages?: boolean;
   /** `WorkspacePolicy.messageEditWindowMinutes` — null/unset means unlimited. */
@@ -662,10 +671,31 @@ export function ChatSurface({
    * regroups the caption-less runs so the timeline renders one grid per
    * upload instead of one bubble per file. See `renderMessage` below.
    */
-  const attachmentBursts = useMemo(
-    () => deriveAttachmentBursts(rootMessages),
-    [rootMessages],
+  // Files of an upload still going out stay hidden behind its pending row,
+  // so the row turns into the finished message in one step.
+  const pendingBatchIds = usePendingBatchIds(
+    composerContext?.roomId ?? conversationId,
   );
+
+  const attachmentBursts = useMemo(() => {
+    const merged = deriveAttachmentBursts(rootMessages);
+    // A bulk upload into a thread groups the same way inside the thread.
+    for (const replies of repliesByRoot.values()) {
+      const inThread = deriveAttachmentBursts(replies);
+      for (const id of inThread.hidden) merged.hidden.add(id);
+      for (const [head, members] of inThread.membersByHead) {
+        merged.membersByHead.set(head, members);
+      }
+    }
+    if (pendingBatchIds.size > 0) {
+      for (const message of messages) {
+        if (message.batchId && pendingBatchIds.has(message.batchId)) {
+          merged.hidden.add(message.id);
+        }
+      }
+    }
+    return merged;
+  }, [rootMessages, repliesByRoot, messages, pendingBatchIds]);
 
   const threadSummaryById = useMemo(
     () => new Map((threadSummaries ?? []).map((thread) => [thread.rootId, thread])),
@@ -964,6 +994,47 @@ export function ChatSurface({
     mainNotices,
     addMentionTargets,
   );
+
+  /*
+   * The viewer's own uploads still going out — one row per upload, every file
+   * previewed with its progress, until the real message replaces it.
+   */
+  const mainUploads = usePendingUploads(effectiveRoomId);
+  const threadUploads = usePendingUploads(effectiveRoomId, threadRootId ?? '');
+  const me = myUserId ? memberById.get(myUserId) : undefined;
+  const renderPendingUpload = useCallback(
+    (upload: PendingUpload) => (
+      <PendingUploadMessage
+        senderId={myUserId ?? ''}
+        senderName={me?.displayName ?? 'You'}
+        senderAvatarUrl={me?.avatarUrl}
+        files={upload.files}
+        status={upload.status}
+        error={upload.error}
+        compact={messageDensity === 'compact'}
+        onRetry={client ? () => void retryUpload(client, upload.id) : undefined}
+        onDismiss={() => usePendingUploadsStore.getState().remove(upload.id)}
+      />
+    ),
+    [client, me, myUserId, messageDensity],
+  );
+  const timelineEphemeral = useMemo(() => {
+    if (mainUploads.length === 0) return noticeTimeline;
+    const byId = new Map(mainUploads.map((upload) => [`upload:${upload.id}`, upload]));
+    return {
+      ephemeralItems: [
+        ...noticeTimeline.ephemeralItems,
+        ...mainUploads.map((upload) => ({
+          id: `upload:${upload.id}`,
+          timestamp: upload.createdAt,
+        })),
+      ],
+      renderEphemeral: (id: string) => {
+        const upload = byId.get(id);
+        return upload ? renderPendingUpload(upload) : noticeTimeline.renderEphemeral(id);
+      },
+    };
+  }, [mainUploads, noticeTimeline, renderPendingUpload]);
 
   const scheduledMessagesQuery = useScheduledMessages(effectiveWorkspaceId);
   const scheduledMessageMutations = useScheduledMessageMutations(effectiveWorkspaceId);
@@ -1387,7 +1458,18 @@ export function ChatSurface({
               />
             ) : undefined
           }
-          onDelete={onDelete ? () => void onDelete(message.id) : undefined}
+          onDelete={
+            onDelete
+              ? () =>
+                  void onDelete(
+                    message.id,
+                    // A grouped upload is one message — delete every file.
+                    burst && burst.length > 1
+                      ? burst.map((item) => item.id)
+                      : undefined,
+                  )
+              : undefined
+          }
           canModerateMessages={canModerateMessages}
           editWindowMinutes={editWindowMinutes}
           onOpenThread={() =>
@@ -1990,19 +2072,26 @@ export function ChatSurface({
                     </div>
                   }
                   rootSlot={renderMessage(threadRoot, false, undefined, true)}
-                  repliesSlot={interleaveMentionNotices(
-                    threadReplies,
-                    threadNotices,
-                    (reply) => (
-                      <div>{renderMessage(reply, false, undefined, true)}</div>
-                    ),
-                    (notice) => (
-                      <MentionNoticeRow
-                        notice={notice}
-                        onAddTargets={addMentionTargets}
-                      />
-                    ),
-                  )}
+                  repliesSlot={
+                    <>
+                      {interleaveMentionNotices(
+                        threadReplies,
+                        threadNotices,
+                        (reply) => (
+                          <div>{renderMessage(reply, false, undefined, true)}</div>
+                        ),
+                        (notice) => (
+                          <MentionNoticeRow
+                            notice={notice}
+                            onAddTargets={addMentionTargets}
+                          />
+                        ),
+                      )}
+                      {threadUploads.map((upload) => (
+                        <div key={upload.id}>{renderPendingUpload(upload)}</div>
+                      ))}
+                    </>
+                  }
                   composerSlot={
                     <Composer
                       conversationId={
@@ -2136,8 +2225,8 @@ export function ChatSurface({
             mentionsRemaining={mainMentionNav.remaining}
             onJumpToMention={mainMentionNav.jumpToNext}
             renderMessage={renderMessage}
-            ephemeralItems={noticeTimeline.ephemeralItems}
-            renderEphemeral={noticeTimeline.renderEphemeral}
+            ephemeralItems={timelineEphemeral.ephemeralItems}
+            renderEphemeral={timelineEphemeral.renderEphemeral}
             introSlot={
               welcome ? (
                 <ChannelWelcome

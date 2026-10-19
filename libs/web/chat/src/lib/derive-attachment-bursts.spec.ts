@@ -121,6 +121,46 @@ describe('deriveAttachmentBursts', () => {
     expect(hidden.has(third.id)).toBe(true);
   });
 
+  it('groups bare files whose body the mapper blanked (the real shape)', () => {
+    const files = [
+      attachmentMessage({ timestamp: 1000, body: '' }),
+      attachmentMessage({ timestamp: 1500, body: '' }),
+    ];
+
+    const { hidden, membersByHead } = deriveAttachmentBursts(files);
+
+    expect(membersByHead.get(files[0].id)).toEqual(files);
+    expect(hidden.has(files[1].id)).toBe(true);
+  });
+
+  it('groups a tagged batch even when slow or interleaved with other messages', () => {
+    const first = attachmentMessage({ timestamp: 1000, body: '', batchId: 'b1' });
+    const other = textMessage({ timestamp: 2000, senderId: '@bob:hs' });
+    const second = attachmentMessage({ timestamp: 90_000, body: '', batchId: 'b1' });
+
+    const { hidden, membersByHead } = deriveAttachmentBursts([first, other, second]);
+
+    expect(membersByHead.get(first.id)).toEqual([first, second]);
+    expect(hidden.has(second.id)).toBe(true);
+    expect(hidden.has(other.id)).toBe(false);
+  });
+
+  it('keeps separate batches apart even when sent back to back', () => {
+    const a = [
+      attachmentMessage({ timestamp: 1000, body: '', batchId: 'b1' }),
+      attachmentMessage({ timestamp: 1100, body: '', batchId: 'b1' }),
+    ];
+    const b = [
+      attachmentMessage({ timestamp: 1200, body: '', batchId: 'b2' }),
+      attachmentMessage({ timestamp: 1300, body: '', batchId: 'b2' }),
+    ];
+
+    const { membersByHead } = deriveAttachmentBursts([...a, ...b]);
+
+    expect(membersByHead.get(a[0].id)).toEqual(a);
+    expect(membersByHead.get(b[0].id)).toEqual(b);
+  });
+
   it('supports two separate bursts from the same sender with a long gap between them', () => {
     const burstA = [
       attachmentMessage({ timestamp: 1000 }),

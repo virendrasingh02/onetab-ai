@@ -92,6 +92,7 @@ import { useChannelRoom } from './use-channel-room.js';
 import { useCreateConversation } from './use-create-conversation.js';
 import { useDirectMessageBookmarks } from './use-dm-bookmarks.js';
 import { useDirectRoom } from './use-direct-room.js';
+import { uploadFiles } from './pending-uploads.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
 
 const ConversationFilesPanel = lazy(() =>
@@ -1343,9 +1344,9 @@ function NewDirectMessage({
       try {
         const target = await resolveTarget();
         if (!target) return;
-        for (const file of Array.from(files)) {
-          await client.sendFile(target.roomId, file);
-        }
+        // Open the conversation straight away — the files show uploading
+        // there (failures stay on the pending row with a retry).
+        void uploadFiles(client, target.roomId, Array.from(files));
         navigate(target.href, { replace: true });
       } catch (err) {
         toast.error(

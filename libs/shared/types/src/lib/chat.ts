@@ -243,6 +243,12 @@ export interface Message {
    * forwarder's own note (often empty) — the forwarded content lives here.
    */
   forwarded?: ForwardedMessage;
+  /**
+   * Set on each file of a multi-file upload. Matrix still carries one event
+   * per file; every file of one upload shares this id, so the timeline can
+   * render the upload as a single message with a grid.
+   */
+  batchId?: string;
 }
 
 export interface MessageReader {

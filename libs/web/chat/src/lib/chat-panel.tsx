@@ -253,15 +253,20 @@ export function ChatPanel({
      it always goes through a confirm — the menu item used to fire straight
      off the click. */
   const handleDeleteMessage = useCallback(
-    async (messageId: string) => {
+    async (messageId: string, groupedIds?: string[]) => {
+      const ids = groupedIds?.length ? groupedIds : [messageId];
       const ok = await confirm({
-        title: 'Delete this message?',
+        title:
+          ids.length > 1
+            ? `Delete these ${ids.length} files?`
+            : 'Delete this message?',
         description:
           'It is removed for everyone in the conversation. This cannot be undone.',
         confirmLabel: 'Delete',
         destructive: true,
       });
-      if (ok) await actions.remove(messageId);
+      if (!ok) return;
+      for (const id of ids) await actions.remove(id);
     },
     [actions],
   );

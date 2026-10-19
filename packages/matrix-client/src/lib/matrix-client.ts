@@ -26,6 +26,7 @@ import { toMatrixError, withRetry } from './errors.js';
 import {
   collectUnreadMentions,
   ALSO_SEND_TO_CHANNEL_KEY,
+  ATTACHMENT_BATCH_KEY,
   FORWARDED_CONTENT_KEY,
   forwardFallbackBody,
   type ForwardedContent,
@@ -99,6 +100,67 @@ const MAX_SAVED_MESSAGES = 500;
 
 /** Cap on 50-reply pages fetched when a thread is opened (2,500 replies). */
 const MAX_THREAD_PAGES = 50;
+
+interface ImageSize {
+  w: number;
+  h: number;
+}
+
+/**
+ * An image's pixel size, sent as `info.w`/`info.h` so every reader can lay the
+ * image out at its real aspect ratio before it loads. Undefined for
+ * non-images, or where the browser cannot decode it — size is only a hint.
+ */
+async function readImageSize(file: File): Promise<ImageSize | undefined> {
+  if (!file.type.startsWith('image/') || typeof createImageBitmap !== 'function') {
+    return undefined;
+  }
+  try {
+    const bitmap = await createImageBitmap(file);
+    const size = { w: bitmap.width, h: bitmap.height };
+    bitmap.close();
+    return size.w > 0 && size.h > 0 ? size : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The `m.room.message` content for an uploaded file (or a voice note). */
+function fileMessageContent(
+  file: File,
+  contentUri: string,
+  voice?: { durationMs: number; waveform: number[] },
+  size?: ImageSize,
+): Record<string, unknown> {
+  const msgtype = voice
+    ? 'm.audio'
+    : file.type.startsWith('image/')
+      ? 'm.image'
+      : file.type.startsWith('video/')
+        ? 'm.video'
+        : file.type.startsWith('audio/')
+          ? 'm.audio'
+          : 'm.file';
+
+  return {
+    msgtype,
+    body: file.name,
+    url: contentUri,
+    info: { mimetype: file.type, size: file.size, ...(size ?? {}) },
+    ...(voice
+      ? {
+          // MSC3245 marks this as a voice note rather than an audio file.
+          'org.matrix.msc3245.voice': {},
+          'org.matrix.msc1767.audio': {
+            duration: voice.durationMs,
+            waveform: voice.waveform.map((v) =>
+              Math.round(Math.min(1, Math.max(0, v)) * 1024),
+            ),
+          },
+        }
+      : {}),
+  };
+}
 
 export interface MatrixClientOptions {
   homeserverUrl: string;
@@ -2153,48 +2215,114 @@ export class OneTabMatrixClient {
     } = {},
   ): Promise<void> {
     const sdk = this.require();
+    const [contentUri, size] = await Promise.all([
+      this.uploadFile(file, options.onProgress),
+      readImageSize(file),
+    ]);
+    const content = fileMessageContent(file, contentUri, options.voice, size);
 
+    await withRetry(() =>
+      sdk.sendMessage(roomId, options.threadRootId ?? null, content as never),
+    );
+  }
+
+  /**
+   * Sends several files as one upload. Matrix has no multi-file message, so
+   * each file is still its own event — but every event carries the same
+   * {@link ATTACHMENT_BATCH_KEY} id, which is what lets the timeline render
+   * them as one message with a grid.
+   *
+   * Uploads run in parallel (a few at a time) and report per-file progress;
+   * the events are then sent in the order the files were picked, back to
+   * back, so they land together. A file that fails to upload is skipped
+   * rather than sinking the rest — its index comes back in `failed` so the
+   * caller can offer a retry. Rejects only if sending the events fails.
+   */
+  async sendFiles(
+    roomId: RoomId,
+    files: File[],
+    options: {
+      threadRootId?: EventId;
+      /** Shared by every event of the upload; generated when omitted. */
+      batchId?: string;
+      /** Upload progress of the file at `index`, 0..100. */
+      onFileProgress?: (index: number, percent: number) => void;
+      /** The file at `index` finished uploading (`ok`) or gave up. */
+      onFileUploaded?: (index: number, ok: boolean) => void;
+    } = {},
+  ): Promise<{ failed: number[] }> {
+    if (files.length === 0) return { failed: [] };
+    const sdk = this.require();
+
+    const UPLOAD_CONCURRENCY = 3;
+    const uploads: ({ uri: string; size?: ImageSize } | null)[] = new Array(
+      files.length,
+    ).fill(null);
+    let next = 0;
+    const worker = async () => {
+      while (next < files.length) {
+        const index = next++;
+        try {
+          const [uri, size] = await Promise.all([
+            this.uploadFile(files[index], (percent) =>
+              options.onFileProgress?.(index, percent),
+            ),
+            readImageSize(files[index]),
+          ]);
+          uploads[index] = { uri, size };
+          options.onFileProgress?.(index, 100);
+          options.onFileUploaded?.(index, true);
+        } catch {
+          uploads[index] = null;
+          options.onFileUploaded?.(index, false);
+        }
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(UPLOAD_CONCURRENCY, files.length) }, worker),
+    );
+
+    const failed = files.flatMap((_, index) => (uploads[index] ? [] : [index]));
+    const uploaded = files.flatMap((file, index) => {
+      const upload = uploads[index];
+      return upload ? [{ file, ...upload }] : [];
+    });
+
+    // A lone file needs no batch tag — it is already one message.
+    const id =
+      uploaded.length > 1
+        ? (options.batchId ??
+          `b.${Date.now()}.${Math.random().toString(36).slice(2)}`)
+        : undefined;
+    for (const [index, { file, uri, size }] of uploaded.entries()) {
+      const content = {
+        ...fileMessageContent(file, uri, undefined, size),
+        ...(id
+          ? { [ATTACHMENT_BATCH_KEY]: { id, index, count: uploaded.length } }
+          : {}),
+      };
+      await withRetry(() =>
+        sdk.sendMessage(roomId, options.threadRootId ?? null, content as never),
+      );
+    }
+
+    return { failed };
+  }
+
+  private async uploadFile(
+    file: File,
+    onProgress?: (percent: number) => void,
+  ): Promise<string> {
+    const sdk = this.require();
     const upload = await withRetry(() =>
       sdk.uploadContent(file, {
         name: file.name,
         type: file.type,
         progressHandler: ({ loaded, total }) =>
-          options.onProgress?.(total ? Math.round((loaded / total) * 100) : 0),
+          onProgress?.(total ? Math.round((loaded / total) * 100) : 0),
       }),
     );
-
-    const msgtype = options.voice
-      ? 'm.audio'
-      : file.type.startsWith('image/')
-        ? 'm.image'
-        : file.type.startsWith('video/')
-          ? 'm.video'
-          : file.type.startsWith('audio/')
-            ? 'm.audio'
-            : 'm.file';
-
-    const content: Record<string, unknown> = {
-      msgtype,
-      body: file.name,
-      url: upload.content_uri,
-      info: { mimetype: file.type, size: file.size },
-      ...(options.voice
-        ? {
-            // MSC3245 marks this as a voice note rather than an audio file.
-            'org.matrix.msc3245.voice': {},
-            'org.matrix.msc1767.audio': {
-              duration: options.voice.durationMs,
-              waveform: options.voice.waveform.map((v) =>
-                Math.round(Math.min(1, Math.max(0, v)) * 1024),
-              ),
-            },
-          }
-        : {}),
-    };
-
-    await withRetry(() =>
-      sdk.sendMessage(roomId, options.threadRootId ?? null, content as never),
-    );
+    return upload.content_uri;
   }
 
   /** Resolves an `mxc://` URI for rendering. */

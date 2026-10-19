@@ -39,6 +39,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from 'react';
+import { MediaMosaic } from './media-mosaic.js';
 import { WaveformBars } from './waveform-bars.js';
 
 export interface AttachmentFileHeaderProps {
@@ -663,9 +664,6 @@ export interface AttachmentGridItem {
   onOpen?: () => void;
 }
 
-/** Media tiles beyond this many collapse into a "+N" overlay on the last one. */
-const GRID_MEDIA_LIMIT = 4;
-
 function isMediaItem(item: AttachmentGridItem) {
   return (
     item.kind === 'image' ||
@@ -681,11 +679,14 @@ function AttachmentGridTile({
   overflowCount,
   className,
   style,
+  onNaturalRatio,
 }: {
   item: AttachmentGridItem;
   overflowCount: number;
   className?: string;
   style?: CSSProperties;
+  /** Reports width / height once the image loads — for files sent without `info.w/h`. */
+  onNaturalRatio?: (ratio: number) => void;
 }) {
   const { attachment, kind, onOpen } = item;
   const [loaded, setLoaded] = useState(false);
@@ -752,7 +753,13 @@ function AttachmentGridTile({
         alt={attachment.name}
         loading="lazy"
         decoding="async"
-        onLoad={() => setLoaded(true)}
+        onLoad={(event) => {
+          setLoaded(true);
+          const { naturalWidth, naturalHeight } = event.currentTarget;
+          if (naturalWidth > 0 && naturalHeight > 0) {
+            onNaturalRatio?.(naturalWidth / naturalHeight);
+          }
+        }}
         onError={() => setFailed(true)}
         className={cn(
           'size-full object-cover transition-transform group-hover:scale-105 duration-200',
@@ -825,17 +832,19 @@ export interface AttachmentGridProps {
 }
 
 /**
- * Renders a burst of attachments sent as one upload — a Slack/Discord-style
- * grid instead of a stacked row per file. Images and videos tile up to
- * {@link GRID_MEDIA_LIMIT} squares (extra files collapse into a "+N" overlay
- * on the last tile); anything else (voice notes, PDFs, generic files) falls
- * back to the regular full-width card, stacked beneath the grid.
+ * Renders a burst of attachments sent as one upload — one message instead of
+ * a stacked row per file. Images and videos pack into a {@link MediaMosaic}:
+ * justified rows sized by each file's real aspect ratio (extra files collapse
+ * into a "+N" overlay); anything else (voice notes, PDFs, generic files)
+ * falls back to the regular full-width card, stacked beneath it.
  *
  * A single item skips the grid entirely and renders exactly like a lone
  * attachment always has.
  */
 export function AttachmentGrid({ items }: AttachmentGridProps) {
   const [downloadingAll, setDownloadingAll] = useState(false);
+  // Aspect ratios learnt from loaded images, for files sent without `info.w/h`.
+  const [learntRatios, setLearntRatios] = useState<Record<string, number>>({});
 
   if (items.length === 0) return null;
   if (items.length === 1) {
@@ -851,13 +860,11 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
 
   const media = items.filter(isMediaItem);
   const other = items.filter((item) => !isMediaItem(item));
-  const visibleMedia = media.slice(0, GRID_MEDIA_LIMIT);
-  const overflow = media.length - visibleMedia.length;
-
-  // A 2-up grid uses a wide flex container so the natural aspect ratios
-  // of both files (e.g. desktop widescreen + mobile portrait) are preserved
-  // side-by-side with full fidelity, matching modern chat designs.
-  const gridWidthClass = visibleMedia.length === 2 ? 'max-w-2xl' : 'max-w-lg';
+  const ratioOf = (item: AttachmentGridItem) => {
+    const { width, height, url } = item.attachment;
+    if (width && height) return width / height;
+    return learntRatios[url] ?? (item.kind === 'video' ? 16 / 9 : undefined);
+  };
 
   const downloadAll = async () => {
     if (downloadingAll) return;
@@ -882,8 +889,7 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
   return (
     <div
       className={cn(
-        'group/attachments relative mt-1.5 space-y-1.5',
-        gridWidthClass,
+        'group/attachments relative mt-1.5 w-full max-w-xl space-y-1.5',
       )}
     >
       {/* Slack-style multi-attachment header: "N files ▼ | ☁ Download all" */}
@@ -958,46 +964,28 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
           onOpen={media[0].onOpen}
           showHeader={false}
         />
-      ) : visibleMedia.length === 2 ? (
-        <div className="flex items-stretch gap-1.5 overflow-hidden rounded-xl border border-border/80 bg-surface-inset/30 h-[260px] sm:h-[320px] shadow-xs">
-          {visibleMedia.map((item, index) => {
-            const ratio =
-              item.attachment.width && item.attachment.height
-                ? item.attachment.width / item.attachment.height
-                : index === 0
-                ? 1.4
-                : 0.9;
-            return (
-              <AttachmentGridTile
-                key={`${item.attachment.url}-${index}`}
-                item={item}
-                overflowCount={
-                  index === visibleMedia.length - 1 ? overflow : 0
-                }
-                className="h-full min-w-0"
-                style={{ flex: `${ratio} ${ratio} 0px` }}
-              />
-            );
-          })}
-        </div>
       ) : media.length > 1 ? (
-        <div
-          className={cn(
-            'grid gap-1 overflow-hidden rounded-xl border border-border/80 shadow-xs',
-            visibleMedia.length === 3 && 'grid-cols-3',
-            visibleMedia.length >= 4 && 'grid-cols-2',
-          )}
-        >
-          {visibleMedia.map((item, index) => (
-            <AttachmentGridTile
-              key={`${item.attachment.url}-${index}`}
-              item={item}
-              overflowCount={
-                index === visibleMedia.length - 1 ? overflow : 0
-              }
-            />
-          ))}
-        </div>
+        <MediaMosaic
+          items={media.map((item, index) => ({
+            key: `${item.attachment.url}-${index}`,
+            ratio: ratioOf(item),
+            render: (box) => (
+              <AttachmentGridTile
+                item={item}
+                overflowCount={box.overflowCount}
+                className={box.className}
+                style={box.style}
+                onNaturalRatio={(ratio) =>
+                  setLearntRatios((current) =>
+                    current[item.attachment.url] === ratio
+                      ? current
+                      : { ...current, [item.attachment.url]: ratio },
+                  )
+                }
+              />
+            ),
+          }))}
+        />
       ) : null}
 
       {other.map((item, index) => (

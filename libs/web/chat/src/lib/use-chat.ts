@@ -8,6 +8,7 @@ import type {
 } from '@org/matrix-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
+import { uploadFiles } from './pending-uploads.js';
 import { useReadReceiptsEnabled } from './use-read-receipts-enabled.js';
 
 interface ChatState {
@@ -656,9 +657,9 @@ export function useRoomActions(roomId: RoomId | undefined) {
   const attach = useCallback(
     async (files: FileList, threadRootId?: string) => {
       if (!client || !roomId) return;
-      for (const file of Array.from(files)) {
-        await client.sendFile(roomId, file, { threadRootId });
-      }
+      // One upload, however many files — shown uploading in place, then as
+      // one grouped message.
+      await uploadFiles(client, roomId, Array.from(files), { threadRootId });
     },
     [client, roomId],
   );

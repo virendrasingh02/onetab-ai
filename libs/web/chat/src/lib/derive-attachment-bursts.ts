@@ -2,10 +2,9 @@ import type { Message } from '@org/matrix-client';
 
 /**
  * Consecutive attachment messages from the same sender inside this window are
- * treated as one multi-file upload rather than separate sends. Matrix has no
- * "one event, many files" message type, so attaching several files still
- * fires one `m.room.message` per file in a tight loop — this is what turns
- * that back into the single grouped send the user actually made.
+ * treated as one multi-file upload rather than separate sends. Only used for
+ * files sent before uploads were tagged with a batch id (`Message.batchId`) —
+ * tagged files are grouped by that id alone.
  */
 const BURST_WINDOW_MS = 10_000;
 
@@ -16,46 +15,60 @@ export interface AttachmentBursts {
   membersByHead: Map<string, Message[]>;
 }
 
-/** A message that is nothing but an uncaptioned file — no user text was added. */
+/**
+ * A message that is nothing but an uncaptioned file — no user text was added.
+ * The mapper blanks a media event's `body` when it is only the filename, so an
+ * empty body (or one equal to the filename, from older mappings) means bare.
+ */
 function isBareAttachment(message: Message): boolean {
   return (
     !!message.attachment &&
     !message.structuredEvent &&
+    !message.forwarded &&
+    !message.replyToId &&
     !message.isRedacted &&
-    message.body === message.attachment.name
+    (message.body === '' || message.body === message.attachment.name)
   );
 }
 
 /**
- * Groups consecutive same-sender, caption-less attachment messages sent
- * within {@link BURST_WINDOW_MS} of each other into bursts, so a bulk upload
- * renders as one grid instead of one bubble per file.
+ * Groups a bulk upload's files into one burst, so it renders as one message
+ * with a grid instead of one bubble per file.
  *
- * Single attachments, and ones with their own caption, are left alone — this
- * only ever merges rows that would otherwise look like an accidental flood of
- * near-identical, header-less messages.
+ * - Files tagged with the same `batchId` (sent together via `sendFiles`) are
+ *   always one burst, even if someone else's message landed between them.
+ * - Untagged legacy files fall back to a heuristic: consecutive same-sender,
+ *   caption-less attachments sent within {@link BURST_WINDOW_MS}.
+ *
+ * Single attachments, and ones with their own caption, are left alone.
  */
 export function deriveAttachmentBursts(messages: Message[]): AttachmentBursts {
   const hidden = new Set<string>();
   const membersByHead = new Map<string, Message[]>();
 
-  let head: Message | null = null;
-  let run: Message[] = [];
-
-  const flush = () => {
-    if (head && run.length > 1) {
-      membersByHead.set(head.id, run);
-      for (const message of run) {
-        if (message.id !== head.id) hidden.add(message.id);
-      }
-    }
-    head = null;
-    run = [];
+  const addBurst = (run: Message[]) => {
+    if (run.length < 2) return;
+    membersByHead.set(run[0].id, run);
+    for (const message of run.slice(1)) hidden.add(message.id);
   };
 
+  // Tagged uploads: group by batch id, keyed by sender so an id can never
+  // pull in someone else's file.
+  const batches = new Map<string, Message[]>();
+  for (const message of messages) {
+    if (!message.batchId || !message.attachment || message.isRedacted) continue;
+    const key = `${message.senderId}\u0000${message.batchId}`;
+    const run = batches.get(key);
+    if (run) run.push(message);
+    else batches.set(key, [message]);
+  }
+  for (const run of batches.values()) addBurst(run);
+
+  // Legacy, untagged uploads.
+  let run: Message[] = [];
   let previous: Message | undefined;
   for (const message of messages) {
-    const eligible = isBareAttachment(message);
+    const eligible = !message.batchId && isBareAttachment(message);
     const continuesRun =
       eligible &&
       !!previous &&
@@ -66,15 +79,12 @@ export function deriveAttachmentBursts(messages: Message[]): AttachmentBursts {
     if (continuesRun) {
       run.push(message);
     } else {
-      flush();
-      if (eligible) {
-        head = message;
-        run = [message];
-      }
+      addBurst(run);
+      run = eligible ? [message] : [];
     }
     previous = message;
   }
-  flush();
+  addBurst(run);
 
   return { hidden, membersByHead };
 }

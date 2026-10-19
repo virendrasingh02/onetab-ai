@@ -180,6 +180,17 @@ export {
   type MediaPreviewProps,
   type VoiceMessageProps,
 } from './lib/attachments.js';
+export {
+  MediaMosaic,
+  layoutMosaicRows,
+  type MediaMosaicItem,
+  type MosaicRow,
+} from './lib/media-mosaic.js';
+export {
+  PendingUploadMessage,
+  type PendingUploadMessageFile,
+  type PendingUploadMessageProps,
+} from './lib/pending-upload-message.js';
 
 export { WaveformBars, type WaveformBarsProps } from './lib/waveform-bars.js';
 
