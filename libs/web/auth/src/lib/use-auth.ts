@@ -28,7 +28,7 @@ import { useAuthStore } from './auth.store.js';
 import { refreshActiveAccountToken } from './use-account-switcher.js';
 
 /** Seeds or refreshes the multi-account row for the signed-in identity. */
-function trackAccount(
+export function trackAccount(
   user: CurrentUser,
   accessToken: string,
   refreshToken?: string,

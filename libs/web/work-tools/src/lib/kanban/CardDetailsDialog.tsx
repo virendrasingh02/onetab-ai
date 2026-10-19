@@ -1,6 +1,7 @@
 import { aiApi } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
 import { type RelationType, type TaskStatus } from '@org/types';
+import { useSaveForLater } from '@org/web-chat/bookmarks';
 import { FiledFilesSection } from '@org/web-upload';
 import {
   Button,
@@ -89,10 +90,7 @@ import {
   useKanbanCardViewStore,
   type KanbanCardViewMode,
 } from './kanban-card-view-store.js';
-import {
-  useKanbanCustomStore,
-  type ChecklistItem,
-} from './kanban-custom-store.js';
+import { useKanbanLabels, type ChecklistItem } from './kanban-custom-store.js';
 import { KanbanEstimatePicker } from './KanbanEstimatePicker.js';
 import { KanbanLabelPicker } from './KanbanLabelPicker.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
@@ -446,36 +444,40 @@ function CardDetailsBody({
   const handleRemoveRelation = (relationId: string) =>
     relationMutations.removeRelation.mutate(relationId);
 
-  // Custom Kanban Store
-  const customStore = useKanbanCustomStore();
-  const cardCustomProps = customStore.getCardProperties(card.id);
-  const storeLabels = customStore.labels;
+  const { colorOf } = useKanbanLabels();
 
   /*
-   * Checklist and star persist per-card through the same local store the
-   * lead/labels/start-date fields already use — real data, kept in this
-   * browser, rather than throwaway `useState` that reset every time the
-   * dialog reopened.
+   * Labels, start date and checklist are task fields (`labels`, `startDate`,
+   * `customFields.checklist`), so every member sees the same card. The star is
+   * the viewer's own "Save for later" — the same bookmark the card menu and the
+   * Saved page use.
    */
-  const checklists = cardCustomProps.checklist ?? [];
+  const checklists = card.checklist;
   const setChecklists = (next: ChecklistItem[]) =>
-    customStore.setCardProperties(card.id, { checklist: next });
-  const isStarred = cardCustomProps.isStarred ?? false;
-  const setIsStarred = (next: boolean) =>
-    customStore.setCardProperties(card.id, { isStarred: next });
+    dispatch({ type: 'card/update', cardId: card.id, patch: { checklist: next } });
+  const { isSaved, toggleSaved } = useSaveForLater();
+  const isStarred = isSaved('task', card.id);
+  const toggleStarred = () =>
+    toggleSaved({
+      type: 'task',
+      id: card.id,
+      title: card.ticketId ? `${card.ticketId} ${card.title}` : card.title,
+      snippet: card.description,
+      href: `${window.location.pathname}?card=${card.id}`,
+    });
 
   const currentStatus = listId;
   const currentPriority = card.priority || 'NO_PRIORITY';
-  const currentLeadId = cardCustomProps.leadId ?? card.memberIds[0];
+  const currentLeadId = card.memberIds[0];
   const currentLead = board.members.find((m) => m.id === currentLeadId);
-  const currentStartDate = cardCustomProps.startDate ?? '';
-  const currentLabels = cardCustomProps.labels ?? [];
+  const currentStartDate = card.startDate ?? '';
+  const currentLabels = card.labels;
 
   const handleToggleLabel = (labelName: string) => {
     const nextLabels = currentLabels.includes(labelName)
       ? currentLabels.filter((l) => l !== labelName)
       : [...currentLabels, labelName];
-    customStore.setCardProperties(card.id, { labels: nextLabels });
+    dispatch({ type: 'card/update', cardId: card.id, patch: { labels: nextLabels } });
   };
 
   const handleStatusChange = (newStatus: TaskStatus) => {
@@ -498,7 +500,6 @@ function CardDetailsBody({
   };
 
   const handleLeadChange = (memberId: string | null) => {
-    customStore.setCardProperties(card.id, { leadId: memberId || undefined });
     dispatch({
       type: 'card/update',
       cardId: card.id,
@@ -507,9 +508,6 @@ function CardDetailsBody({
   };
 
   const handleAssigneesChange = (memberIds: string[]) => {
-    customStore.setCardProperties(card.id, {
-      leadId: memberIds[0] || undefined,
-    });
     dispatch({
       type: 'card/update',
       cardId: card.id,
@@ -709,9 +707,10 @@ function CardDetailsBody({
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => setIsStarred(!isStarred)}
+            onClick={toggleStarred}
             className={cn('size-7', isStarred ? 'text-accent-amber' : 'text-muted-foreground')}
-            title="Star task"
+            title={isStarred ? 'Remove from saved' : 'Save for later'}
+            aria-pressed={isStarred}
           >
             <Star className={cn('size-3.5', isStarred && 'fill-current')} />
           </Button>
@@ -869,7 +868,11 @@ function CardDetailsBody({
                 <DatePicker
                   value={currentStartDate}
                   onChange={(d) =>
-                    customStore.setCardProperties(card.id, { startDate: d || undefined })
+                    dispatch({
+                      type: 'card/update',
+                      cardId: card.id,
+                      patch: { startDate: d || null },
+                    })
                   }
                   trigger={
                     <button
@@ -986,15 +989,15 @@ function CardDetailsBody({
               </span>
               <div className="flex items-center gap-1 flex-wrap">
                 {currentLabels.map((lbl) => {
-                  const meta = storeLabels.find((l) => l.name === lbl);
+                  const color = colorOf(lbl);
                   return (
                     <span
                       key={lbl}
                       className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[11px] font-semibold border"
                       style={{
-                        backgroundColor: meta ? `${meta.color}18` : '#8b5cf618',
-                        borderColor: meta ? `${meta.color}40` : '#8b5cf640',
-                        color: meta?.color || '#8b5cf6',
+                        backgroundColor: `${color}18`,
+                        borderColor: `${color}40`,
+                        color,
                       }}
                     >
                       <span>{lbl}</span>

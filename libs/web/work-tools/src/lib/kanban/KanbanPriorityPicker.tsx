@@ -8,7 +8,7 @@ import {
 import { cn } from '@org/utils';
 import { Check } from 'lucide-react';
 import React, { useEffect } from 'react';
-import { useKanbanCustomStore } from './kanban-custom-store.js';
+import { KANBAN_PRIORITIES } from './kanban-custom-store.js';
 import { PriorityIcon } from './kanban-icons.js';
 import type { Priority } from './types.js';
 
@@ -28,7 +28,7 @@ export function KanbanPriorityPicker({
   align = 'start',
 }: KanbanPriorityPickerProps) {
   const [open, setOpen] = React.useState(false);
-  const customPriorities = useKanbanCustomStore((s) => s.priorities);
+  const customPriorities = KANBAN_PRIORITIES;
 
   // Keyboard shortcut listener when open
   useEffect(() => {

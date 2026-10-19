@@ -124,6 +124,7 @@ export type {
   TotpSetupResponse,
   TotpVerifyResponse,
   WebAuthnCredentialDto,
+  PasskeyOptionsResponse,
 } from './lib/entities.js';
 
 export { EMAIL_EVENT_KEY } from './lib/email.js';
@@ -373,6 +374,8 @@ export type {
   TaskComment,
   TaskProjectRef,
   Team,
+  TaskLabel,
+  TaskChecklistItem,
   WorkDocument,
   WorkDocumentChild,
   WorkItem,

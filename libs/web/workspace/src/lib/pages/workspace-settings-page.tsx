@@ -9,7 +9,13 @@ import {
   userApi,
   workspaceApi,
 } from '@org/api-client';
-import { formErrorMessage, useAuthStore, useCurrentUser } from '@org/auth';
+import {
+  browserSupportsPasskeys,
+  formErrorMessage,
+  passkeyErrorMessage,
+  useAuthStore,
+  useCurrentUser,
+} from '@org/auth';
 import { useTheme } from '@org/design-system';
 import {
   Badge,
@@ -842,22 +848,16 @@ export function WorkspaceSettingsPage({
   };
 
   const handleRegisterPasskey = async () => {
-    const name = passkeyDeviceName.trim() || 'Security Key / Device Passkey';
-    const fakeCredentialId = `cred_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    const fakePublicKey = `pk_${Math.random().toString(36).slice(2, 16)}`;
-
     try {
-      await registerWebAuthnMutation.mutateAsync({
-        credentialId: fakeCredentialId,
-        publicKey: fakePublicKey,
-        deviceName: name,
-        transports: ['internal', 'hybrid', 'usb'],
-      });
+      await registerWebAuthnMutation.mutateAsync(
+        passkeyDeviceName.trim() || undefined,
+      );
       setAddPasskeyModalOpen(false);
       setPasskeyDeviceName('');
-      toast.success('Passkey added successfully');
-    } catch {
-      toast.error('Failed to register passkey');
+      toast.success('Passkey added');
+    } catch (error) {
+      const message = passkeyErrorMessage(error);
+      if (message) toast.error(message);
     }
   };
 
@@ -3935,6 +3935,12 @@ export function WorkspaceSettingsPage({
                     variant="outline"
                     size="sm"
                     onClick={() => setAddPasskeyModalOpen(true)}
+                    disabled={!browserSupportsPasskeys()}
+                    title={
+                      browserSupportsPasskeys()
+                        ? undefined
+                        : 'This browser does not support passkeys'
+                    }
                     className="text-xs h-8"
                   >
                     Add passkey
@@ -4538,8 +4544,9 @@ export function WorkspaceSettingsPage({
           <DialogHeader>
             <DialogTitle>Register New Passkey</DialogTitle>
             <DialogDescription>
-              Assign a recognizable device name for this biometric or physical
-              key.
+              Name it so you can recognise it later. Your browser will then ask
+              you to confirm with your device (Touch ID, Windows Hello, phone)
+              or a security key.
             </DialogDescription>
           </DialogHeader>
 

@@ -1,16 +1,18 @@
 import { workToolsApi } from '@org/api-client';
 import { TaskStatus, type ProjectDetail } from '@org/types';
 import type { CreateTaskInput } from '@org/validation';
+import type { Accent } from '@org/design-system';
 import type { ImportedBoard, ImportedCard } from './import/board-ir.js';
 import { exportBoard } from './import/normalize.js';
-import { dayToIso, isoToDay, STATUS_TITLES } from './server-board.js';
+import { checklistOf, dayToIso, isoToDay, STATUS_TITLES } from './server-board.js';
 
 /**
  * Where an import lands.
  *
  * Parsing produces the import IR — arbitrary column names, labels, checklists,
  * several assignees per card. This narrows that to what `POST /tasks` accepts
- * and reports everything it had to leave behind, so the dialog can show it
+ * (labels → `labels` + the workspace catalogue, checklists →
+ * `customFields.checklist`) and reports everything it had to leave behind, so the dialog can show it
  * before the user treats the import as complete.
  */
 
@@ -58,19 +60,6 @@ function describeLosses(board: ImportedBoard): string[] {
   const warnings: string[] = [];
 
   const cards = board.lists.flatMap((list) => list.cards);
-
-  if (board.labels.length > 0) {
-    warnings.push(
-      `${board.labels.length} label${board.labels.length === 1 ? '' : 's'} were not imported — tasks do not carry labels.`,
-    );
-  }
-
-  const withChecklists = cards.filter((card) => card.checklist.length > 0);
-  if (withChecklists.length > 0) {
-    warnings.push(
-      `Checklists on ${withChecklists.length} task${withChecklists.length === 1 ? '' : 's'} were not imported.`,
-    );
-  }
 
   const withComments = cards.filter((card) => card.comments.length > 0);
   if (withComments.length > 0) {
@@ -121,21 +110,43 @@ export interface ImportTasksInput {
   onProgress?: (progress: ImportProgress) => void;
 }
 
+/** Hex for an imported label's accent — the catalogue stores `#rrggbb`. */
+const ACCENT_HEX: Record<Accent, string> = {
+  mint: '#10b981',
+  violet: '#8b5cf6',
+  blue: '#3b82f6',
+  green: '#22c55e',
+  amber: '#f59e0b',
+  pink: '#ec4899',
+  cyan: '#06b6d4',
+  orange: '#f97316',
+  indigo: '#6366f1',
+  teal: '#14b8a6',
+  rose: '#f43f5e',
+};
+
+function accentForHex(hex: string | undefined): Accent {
+  const match = (Object.entries(ACCENT_HEX) as Array<[Accent, string]>).find(
+    ([, value]) => value.toLowerCase() === hex?.toLowerCase(),
+  );
+  return match?.[0] ?? 'violet';
+}
+
 function toCreateInput(
   card: ImportedCard,
   projectId: string,
   status: TaskStatus,
-  memberMap?: Map<string, string>,
+  memberMap: Map<string, string> | undefined,
+  labelNames: Map<string, string>,
 ): CreateTaskInput {
-  let description = card.description || '';
-  if (card.checklist && card.checklist.length > 0) {
-    const checklistText = card.checklist
-      .map((item) => `- [${item.done ? 'x' : ' '}] ${item.text}`)
-      .join('\n');
-    description = description
-      ? `${description}\n\n### Checklist\n${checklistText}`
-      : `### Checklist\n${checklistText}`;
-  }
+  const description = card.description || '';
+  const labels = [
+    ...new Set(
+      card.labelIds
+        .map((id) => labelNames.get(id))
+        .filter((name): name is string => !!name),
+    ),
+  ];
 
   let assigneeId: string | null = null;
   if (memberMap && card.memberIds && card.memberIds.length > 0) {
@@ -156,6 +167,18 @@ function toCreateInput(
     projectId,
     assigneeId,
     dueDate: card.dueDate ? dayToIso(card.dueDate) : null,
+    ...(labels.length > 0 ? { labels } : {}),
+    ...(card.checklist.length > 0
+      ? {
+          customFields: {
+            checklist: card.checklist.map((item) => ({
+              id: item.id,
+              text: item.text.slice(0, 500),
+              done: item.done,
+            })),
+          },
+        }
+      : {}),
   };
 }
 
@@ -189,6 +212,27 @@ export async function importTasksInto({
 
   onProgress?.({ ...progress });
 
+  // Label names, trimmed to what the catalogue accepts, each added once.
+  const labelNames = new Map<string, string>();
+  for (const label of board.labels) {
+    const name = label.name.trim().slice(0, 50);
+    if (name) labelNames.set(label.id, name);
+  }
+  const catalogue = new Map<string, string>();
+  for (const label of board.labels) {
+    const name = labelNames.get(label.id);
+    if (name && !catalogue.has(name)) {
+      catalogue.set(name, ACCENT_HEX[label.color] ?? '#64748b');
+    }
+  }
+  await Promise.all(
+    [...catalogue].map(([name, color]) =>
+      workToolsApi
+        .createTaskLabel(workspaceId, { name, color })
+        .catch(() => undefined),
+    ),
+  );
+
   await Promise.all(
     board.lists.map(async (list) => {
       const status = statusForListName(list.title);
@@ -197,7 +241,7 @@ export async function importTasksInto({
         try {
           await workToolsApi.createTask(
             workspaceId,
-            toCreateInput(card, projectId, status, memberMap),
+            toCreateInput(card, projectId, status, memberMap, labelNames),
           );
           progress.created += 1;
         } catch {
@@ -223,7 +267,11 @@ export async function exportProjectBoard(
   workspaceId: string,
   project: ProjectDetail,
 ): Promise<string> {
-  const tasks = await workToolsApi.tasks(workspaceId, project.id);
+  const [tasks, labels] = await Promise.all([
+    workToolsApi.tasks(workspaceId, project.id),
+    workToolsApi.taskLabels(workspaceId).catch(() => []),
+  ]);
+  const catalogue = new Map(labels.map((label) => [label.name, label.color]));
   const milestones = new Map(
     project.milestones.map((milestone) => [milestone.id, milestone.title]),
   );
@@ -235,13 +283,13 @@ export async function exportProjectBoard(
       id: task.id,
       title: task.title,
       description: task.description ?? '',
-      labelIds: [],
+      labelIds: task.labels ?? [],
       memberIds: task.assigneeId ? [task.assigneeId] : [],
       milestone: task.milestoneId ? milestones.get(task.milestoneId) : undefined,
       dueDate: isoToDay(task.dueDate),
       dueComplete: task.status === TaskStatus.DONE,
       priority: task.priority,
-      checklist: [],
+      checklist: checklistOf(task),
       comments: [],
       createdAt: task.createdAt,
     });
@@ -255,7 +303,10 @@ export async function exportProjectBoard(
       title: STATUS_TITLES[status],
       cards,
     })),
-    labels: [],
+    // Label ids in the file are the names themselves, so a re-import maps back.
+    labels: [...new Set(tasks.flatMap((task) => task.labels ?? []))].map(
+      (name) => ({ id: name, name, color: accentForHex(catalogue.get(name)) }),
+    ),
     members: (tasks ?? [])
       .flatMap((task) => (task.assignee ? [task.assignee] : []))
       .filter(

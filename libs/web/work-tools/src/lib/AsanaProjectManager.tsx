@@ -79,6 +79,7 @@ import {
   ImportBoardDialog,
   type ImportResult,
 } from './kanban/import/ImportBoardDialog.js';
+import { useImportLegacyCardProperties } from './kanban/legacy-card-import.js';
 import { LinearFilterMenu } from './kanban/LinearFilterMenu.js';
 import { LinearCommandMenu } from './kanban/LinearCommandMenu.js';
 import { LinearShortcutsDialog } from './kanban/LinearShortcutsDialog.js';
@@ -385,6 +386,7 @@ export function AsanaProjectManager() {
     members,
     currentUserId: currentUser?.id,
   });
+  useImportLegacyCardProperties(workspaceId, board.tasks);
 
   const milestones = useMemo(
     () => (activeProject?.milestones ?? []).map((milestone) => milestone.title),

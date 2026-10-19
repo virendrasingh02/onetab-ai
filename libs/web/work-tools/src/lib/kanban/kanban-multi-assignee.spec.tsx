@@ -2,8 +2,10 @@
 import '@testing-library/jest-dom/vitest';
 import { TaskStatus } from '@org/types';
 import { TooltipProvider } from '@org/ui';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { KanbanCardTile } from './KanbanCardTile.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
@@ -26,6 +28,8 @@ describe('Kanban Multi-User Assignment', () => {
       dueComplete: false,
       priority: 'HIGH',
       createdAt: '2026-09-01T00:00:00.000Z',
+      labels: ['Design'],
+      checklist: [],
     };
 
     const dragHandlers = {
@@ -33,7 +37,11 @@ describe('Kanban Multi-User Assignment', () => {
       onKeyDown: vi.fn(),
     };
 
+    // The tile reads the workspace label catalogue (for colours) via React Query.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { container } = render(
+      <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
       <TooltipProvider>
         <KanbanCardTile
           card={card}
@@ -47,13 +55,17 @@ describe('Kanban Multi-User Assignment', () => {
           onDelete={vi.fn()}
           onMoveToList={vi.fn()}
         />
-      </TooltipProvider>,
+      </TooltipProvider>
+      </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     // Should render a group with both assigned users
     const group = container.querySelector('[role="group"]');
     expect(group).not.toBeNull();
     expect(group).toHaveAttribute('aria-label', 'Assigned to: Alice Cooper, Bob Dylan');
+    // Labels come from the task itself now, not a per-browser store.
+    expect(screen.getByText('Design')).toBeInTheDocument();
   });
 
   it('allows searching, toggling multiple assignees, and clearing in KanbanLeadPicker', async () => {

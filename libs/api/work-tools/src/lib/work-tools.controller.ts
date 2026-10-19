@@ -38,6 +38,7 @@ import {
   createSavedViewSchema,
   createTaskCommentSchema,
   createTaskSchema,
+  createTaskLabelSchema,
   createTeamSchema,
   createWorkItemRelationSchema,
   moveTaskSchema,
@@ -51,6 +52,7 @@ import {
   updateProjectSchema,
   updateSavedViewSchema,
   updateTaskSchema,
+  updateTaskLabelSchema,
   updateTeamSchema,
   type ConvertIntakeRequestInput,
   type CreateCalendarEventInput,
@@ -65,6 +67,7 @@ import {
   type CreateSavedViewInput,
   type CreateTaskCommentInput,
   type CreateTaskInput,
+  type CreateTaskLabelInput,
   type CreateTeamInput,
   type CreateWorkItemRelationInput,
   type MoveTaskInput,
@@ -78,6 +81,7 @@ import {
   type UpdateProjectInput,
   type UpdateSavedViewInput,
   type UpdateTaskInput,
+  type UpdateTaskLabelInput,
   type UpdateTeamInput,
   createCrossObjectLinkSchema,
   type CreateCrossObjectLinkInput,
@@ -174,6 +178,43 @@ export class WorkToolsController {
     @Param('teamId') teamId: string,
   ) {
     return this.workTools.deleteTeam(workspaceId, teamId);
+  }
+
+  // --- task labels ----------------------------------------------------------
+
+  @Get('labels')
+  getTaskLabels(@WorkspaceId() workspaceId: string) {
+    return this.workTools.getTaskLabels(workspaceId);
+  }
+
+  /** Any member who can create work may add a label while tagging a card. */
+  @Post('labels')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  createTaskLabel(
+    @WorkspaceId() workspaceId: string,
+    @Body(zodBody(createTaskLabelSchema)) body: CreateTaskLabelInput,
+  ) {
+    return this.workTools.createTaskLabel(workspaceId, body);
+  }
+
+  @Patch('labels/:labelId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  updateTaskLabel(
+    @WorkspaceId() workspaceId: string,
+    @Param('labelId') labelId: string,
+    @Body(zodBody(updateTaskLabelSchema)) body: UpdateTaskLabelInput,
+  ) {
+    return this.workTools.updateTaskLabel(workspaceId, labelId, body);
+  }
+
+  @Delete('labels/:labelId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteTaskLabel(
+    @WorkspaceId() workspaceId: string,
+    @Param('labelId') labelId: string,
+  ) {
+    return this.workTools.deleteTaskLabel(workspaceId, labelId);
   }
 
   // --- initiatives ----------------------------------------------------------

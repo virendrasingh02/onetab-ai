@@ -52,6 +52,24 @@ export interface Team extends IconSelection {
   updatedAt: IsoDateString;
 }
 
+/** An entry in the workspace's label catalogue. `Task.labels` holds the names. */
+export interface TaskLabel {
+  id: string;
+  workspaceId: string;
+  name: string;
+  /** `#rrggbb`. */
+  color: string;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+}
+
+/** One line of a task's checklist, kept in `Task.customFields.checklist`. */
+export interface TaskChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface Initiative extends IconSelection {
   id: string;
   workspaceId: string;

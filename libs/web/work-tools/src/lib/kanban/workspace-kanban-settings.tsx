@@ -1,5 +1,5 @@
+import type { TaskLabel, Team } from '@org/types';
 import {
-  Badge,
   Button,
   confirm,
   Dialog,
@@ -9,45 +9,41 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Switch,
+  toast,
 } from '@org/ui';
+import { Contact, Pencil, Plus, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  useCurrentWorkspace,
+  useTaskLabelMutations,
+  useTaskLabels,
+  useTeamMutations,
+  useTeams,
+} from '../use-work-tools.js';
 import { PriorityIcon, StatusIcon } from './kanban-icons.js';
 import {
-  useKanbanCustomStore,
+  KANBAN_PRIORITIES,
+  KANBAN_STATUSES,
+  LABEL_COLORS,
 } from './kanban-custom-store.js';
-import {
-  Contact,
-  Hash,
-  Plus,
-  Ticket,
-  Trash2,
-} from 'lucide-react';
-import React, { useState } from 'react';
 
-const PRESET_COLORS = [
-  '#8b5cf6',
-  '#3b82f6',
-  '#10b981',
-  '#ef4444',
-  '#f59e0b',
-  '#06b6d4',
-  '#ec4899',
-  '#64748b',
-];
+/** The server's message for a rejected request, when it sent one. */
+function errorMessage(error: unknown, fallback: string): string {
+  const message = (error as { response?: { data?: { message?: unknown } } })
+    ?.response?.data?.message;
+  return typeof message === 'string' ? message : fallback;
+}
+
+/** A team key from its name: `Core Engineering` → `COREENG`. */
+function keyFromName(name: string): string {
+  return name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+}
 
 /**
- * The swatch row shared by the status, priority and label dialogs.
+ * The swatch row shared by the label dialog.
  *
- * They each drew their own before, which is why they had drifted: one offered
- * five colours and the others eight, the selected ring was `border-primary` in
- * one and `border-foreground` in the next, and none of the swatches carried a
- * name — a colour-only button reads as an unlabelled control to a screen
- * reader.
+ * Each swatch carries its colour as an accessible name — a colour-only button
+ * otherwise reads as an unlabelled control to a screen reader.
  */
 function ColorSwatchPicker({
   label,
@@ -62,7 +58,7 @@ function ColorSwatchPicker({
     <div>
       <label className="text-xs font-semibold mb-1.5 block">{label}</label>
       <div role="group" aria-label={label} className="flex items-center gap-2">
-        {PRESET_COLORS.map((color) => (
+        {LABEL_COLORS.map((color) => (
           <button
             key={color}
             type="button"
@@ -82,95 +78,134 @@ function ColorSwatchPicker({
   );
 }
 
+function SectionHeading({
+  title,
+  action,
+}: {
+  title: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between px-1">
+      <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+        {title}
+      </h3>
+      {action}
+    </div>
+  );
+}
+
+/**
+ * Settings → Tasks & Kanban.
+ *
+ * Statuses and priorities are enums on the server — every board shares them —
+ * so they are shown, with their menu shortcuts, rather than edited. Labels are
+ * the workspace's `TaskLabel` catalogue and teams are `Team` rows; both are
+ * shared with every member and every device.
+ */
 export function WorkspaceKanbanSettings() {
-  const store = useKanbanCustomStore();
+  const { workspaceId } = useCurrentWorkspace();
+  const labelsQuery = useTaskLabels(workspaceId);
+  const labelMutations = useTaskLabelMutations(workspaceId);
+  const teamsQuery = useTeams(workspaceId);
+  const teamMutations = useTeamMutations(workspaceId);
 
-  // General Settings
-  const [kanbanDefaultView, setKanbanDefaultView] = useState('board');
-  const [showTaskAge, setShowTaskAge] = useState(true);
-  const [enableWipLimits, setEnableWipLimits] = useState(false);
-  const [autoArchiveCompleted, setAutoArchiveCompleted] = useState('30');
+  const labels = labelsQuery.data ?? [];
+  const teams = teamsQuery.data ?? [];
 
-  // Status Modal State
-  const [isAddStatusOpen, setIsAddStatusOpen] = useState(false);
-  const [statusName, setStatusName] = useState('');
-  const [statusKey, setStatusKey] = useState('');
-  const [statusColor, setStatusColor] = useState('#3b82f6');
-
-  // Priority Modal State
-  const [isAddPriorityOpen, setIsAddPriorityOpen] = useState(false);
-  const [priorityName, setPriorityName] = useState('');
-  const [priorityKey, setPriorityKey] = useState('');
-  const [priorityColor, setPriorityColor] = useState('#f59e0b');
-
-  // Label Modal State
-  const [isAddLabelOpen, setIsAddLabelOpen] = useState(false);
+  // Label dialog: `editing` is the label being changed, or null for a new one.
+  const [labelDialogOpen, setLabelDialogOpen] = useState(false);
+  const [editingLabel, setEditingLabel] = useState<TaskLabel | null>(null);
   const [labelName, setLabelName] = useState('');
-  const [labelColor, setLabelColor] = useState('#8b5cf6');
+  const [labelColor, setLabelColor] = useState<string>(LABEL_COLORS[0]);
 
-  // Team Modal State
-  const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
   const [teamName, setTeamName] = useState('');
+  const [teamKey, setTeamKey] = useState('');
+  const [teamKeyTouched, setTeamKeyTouched] = useState(false);
 
-  // Slack Channel Modal State
-  const [isAddSlackOpen, setIsAddSlackOpen] = useState(false);
-  const [slackName, setSlackName] = useState('');
-
-  const handleAddStatus = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!statusName.trim()) return;
-    const id = statusName.trim().toUpperCase().replace(/\s+/g, '_');
-    store.addStatus({
-      id,
-      label: statusName.trim(),
-      key: statusKey.trim() || `${store.statuses.length + 1}`,
-      color: statusColor,
-    });
-    setStatusName('');
-    setStatusKey('');
-    setIsAddStatusOpen(false);
+  const openLabelDialog = (label: TaskLabel | null) => {
+    setEditingLabel(label);
+    setLabelName(label?.name ?? '');
+    setLabelColor(label?.color ?? LABEL_COLORS[0]);
+    setLabelDialogOpen(true);
   };
 
-  const handleAddPriority = (e: React.FormEvent) => {
+  const handleSaveLabel = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!priorityName.trim()) return;
-    const id = priorityName.trim().toUpperCase().replace(/\s+/g, '_');
-    store.addPriority({
-      id,
-      label: priorityName.trim(),
-      key: priorityKey.trim() || `${store.priorities.length}`,
-      color: priorityColor,
-    });
-    setPriorityName('');
-    setPriorityKey('');
-    setIsAddPriorityOpen(false);
+    const name = labelName.trim();
+    if (!name) return;
+    try {
+      if (editingLabel) {
+        await labelMutations.update.mutateAsync({
+          labelId: editingLabel.id,
+          input: { name, color: labelColor },
+        });
+        toast.success('Label updated');
+      } else {
+        await labelMutations.create.mutateAsync({ name, color: labelColor });
+        toast.success(`Label “${name}” added`);
+      }
+      setLabelDialogOpen(false);
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not save the label'));
+    }
   };
 
-  const handleAddLabel = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!labelName.trim()) return;
-    store.addLabel({
-      name: labelName.trim(),
-      color: labelColor,
+  const handleRemoveLabel = async (label: TaskLabel) => {
+    const ok = await confirm({
+      title: `Remove the “${label.name}” label?`,
+      description:
+        'It is taken off every task that has it. This cannot be undone.',
+      confirmLabel: 'Remove label',
+      destructive: true,
     });
-    setLabelName('');
-    setIsAddLabelOpen(false);
+    if (!ok) return;
+    try {
+      await labelMutations.remove.mutateAsync(label.id);
+      toast.success(`Label “${label.name}” removed`);
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not remove the label'));
+    }
   };
 
-  const handleAddTeam = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!teamName.trim()) return;
-    store.addTeam({ name: teamName.trim() });
+  const openTeamDialog = () => {
     setTeamName('');
-    setIsAddTeamOpen(false);
+    setTeamKey('');
+    setTeamKeyTouched(false);
+    setTeamDialogOpen(true);
   };
 
-  const handleAddSlack = (e: React.FormEvent) => {
+  const effectiveTeamKey = teamKeyTouched ? teamKey : keyFromName(teamName);
+
+  const handleAddTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!slackName.trim()) return;
-    store.addSlackChannel({ name: slackName.trim().replace(/^#/, '') });
-    setSlackName('');
-    setIsAddSlackOpen(false);
+    const name = teamName.trim();
+    if (name.length < 2 || effectiveTeamKey.length < 2) return;
+    try {
+      await teamMutations.create.mutateAsync({ name, key: effectiveTeamKey });
+      toast.success(`Team “${name}” created`);
+      setTeamDialogOpen(false);
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not create the team'));
+    }
+  };
+
+  const handleRemoveTeam = async (team: Team) => {
+    const ok = await confirm({
+      title: `Delete the “${team.name}” team?`,
+      description:
+        'Its tasks and projects stay, but are no longer filed under a team. This cannot be undone.',
+      confirmLabel: 'Delete team',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await teamMutations.remove.mutateAsync(team.id);
+      toast.success(`Team “${team.name}” deleted`);
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not delete the team'));
+    }
   };
 
   return (
@@ -180,586 +215,280 @@ export function WorkspaceKanbanSettings() {
           Tasks & Kanban
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Customize task statuses, priority levels, labels, teams, ticket IDs, and board workflows.
+          Workspace labels and teams, shared by every board. Ticket IDs are set
+          per project, from the project&apos;s identifier settings.
         </p>
       </div>
 
-      {/* ---------------- 1. TICKET IDENTIFIER ---------------- */}
+      {/* ---------------- STATUSES ---------------- */}
       <div className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-          Ticket Key & Identifier
-        </h3>
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <Ticket className="size-4 text-primary" />
-              <h4 className="text-xs font-medium text-foreground">
-                Ticket Identifier Prefix
-              </h4>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Prefix used for unique issue and card references (e.g. {store.ticketPrefix}-101)
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Input
-              value={store.ticketPrefix}
-              onChange={(e) => store.setTicketPrefix(e.target.value)}
-              placeholder="DES"
-              className="w-24 h-8 text-xs font-mono uppercase text-center font-bold bg-surface"
-              maxLength={6}
-            />
-            <span className="text-xs font-mono text-muted-foreground">
-              → Preview: <span className="font-semibold text-foreground">{store.ticketPrefix}-101</span>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------- 2. CUSTOM STATUSES ---------------- */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-            Board Statuses ({store.statuses.length})
-          </h3>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsAddStatusOpen(true)}
-            className="h-7 text-xs gap-1.5"
-          >
-            <Plus className="size-3.5" />
-            <span>Add Status</span>
-          </Button>
-        </div>
-
+        <SectionHeading title={<>Board statuses ({KANBAN_STATUSES.length})</>} />
         <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-          {store.statuses.map((status) => (
+          {KANBAN_STATUSES.map((status) => (
             <div
               key={status.id}
-              className="p-3.5 flex items-center justify-between gap-4 hover:bg-accent/30 transition-colors"
+              className="p-3.5 flex items-center justify-between gap-4"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <StatusIcon status={status.id as any} className="size-4" />
+                <StatusIcon status={status.id as never} className="size-4" />
                 <span className="text-xs font-semibold text-foreground">
                   {status.label}
                 </span>
-                {status.isCustom && (
-                  <Badge variant="neutral" className="text-[10px] py-0 px-1.5">
-                    Custom
-                  </Badge>
-                )}
               </div>
-
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-[11px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
-                  Key: {status.key}
-                </span>
-
-                {status.isCustom ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void confirm({
-                        title: `Remove the “${status.label}” status?`,
-                        description:
-                          'Cards in this status move back to the default. This cannot be undone.',
-                        confirmLabel: 'Remove status',
-                        destructive: true,
-                      }).then((ok) => {
-                        if (ok) store.removeStatus(status.id);
-                      });
-                    }}
-                    className="text-muted-foreground hover:text-destructive p-1 transition-colors"
-                    title="Remove custom status"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                ) : (
-                  <span className="text-[10px] text-muted-foreground/60 select-none">
-                    Default
-                  </span>
-                )}
-              </div>
+              <span className="font-mono text-[11px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
+                Key: {status.key}
+              </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ---------------- 3. CUSTOM PRIORITIES ---------------- */}
+      {/* ---------------- PRIORITIES ---------------- */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-            Task Priorities ({store.priorities.length})
-          </h3>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsAddPriorityOpen(true)}
-            className="h-7 text-xs gap-1.5"
-          >
-            <Plus className="size-3.5" />
-            <span>Add Priority</span>
-          </Button>
-        </div>
-
+        <SectionHeading title={<>Task priorities ({KANBAN_PRIORITIES.length})</>} />
         <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-          {store.priorities.map((priority) => (
+          {KANBAN_PRIORITIES.map((priority) => (
             <div
               key={priority.id}
-              className="p-3.5 flex items-center justify-between gap-4 hover:bg-accent/30 transition-colors"
+              className="p-3.5 flex items-center justify-between gap-4"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <PriorityIcon priority={priority.id as any} className="size-4" />
+                <PriorityIcon priority={priority.id as never} className="size-4" />
                 <span className="text-xs font-semibold text-foreground">
                   {priority.label}
                 </span>
-                {priority.isCustom && (
-                  <Badge variant="neutral" className="text-[10px] py-0 px-1.5">
-                    Custom
-                  </Badge>
-                )}
               </div>
-
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-[11px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
-                  Key: {priority.key}
-                </span>
-
-                {priority.isCustom ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void confirm({
-                        title: `Remove the “${priority.label}” priority?`,
-                        description:
-                          'Cards at this priority move back to the default. This cannot be undone.',
-                        confirmLabel: 'Remove priority',
-                        destructive: true,
-                      }).then((ok) => {
-                        if (ok) store.removePriority(priority.id);
-                      });
-                    }}
-                    className="text-muted-foreground hover:text-destructive p-1 transition-colors"
-                    title="Remove custom priority"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                ) : (
-                  <span className="text-[10px] text-muted-foreground/60 select-none">
-                    Default
-                  </span>
-                )}
-              </div>
+              <span className="font-mono text-[11px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
+                Key: {priority.key}
+              </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ---------------- 4. LABELS & TAGS ---------------- */}
+      {/* ---------------- LABELS ---------------- */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-            Workspace Labels ({store.labels.length})
-          </h3>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsAddLabelOpen(true)}
-            className="h-7 text-xs gap-1.5"
-          >
-            <Plus className="size-3.5" />
-            <span>Add Label</span>
-          </Button>
-        </div>
-
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            {store.labels.map((lbl) => (
-              <span
-                key={lbl.id}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border group"
-                style={{
-                  backgroundColor: `${lbl.color}15`,
-                  borderColor: `${lbl.color}40`,
-                  color: lbl.color,
-                }}
-              >
-                <span
-                  className="size-2 rounded-full"
-                  style={{ backgroundColor: lbl.color }}
-                />
-                <span>{lbl.name}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void confirm({
-                      title: `Remove the “${lbl.name}” label?`,
-                      description:
-                        'It is taken off every card that has it. This cannot be undone.',
-                      confirmLabel: 'Remove label',
-                      destructive: true,
-                    }).then((ok) => {
-                      if (ok) store.removeLabel(lbl.id);
-                    });
-                  }}
-                  className="opacity-50 group-hover:opacity-100 hover:text-destructive cursor-pointer ml-1"
-                  title="Remove label"
-                >
-                  <Trash2 className="size-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------- 5. TEAMS & SLACK ---------------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Teams */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-              Team Links
-            </h3>
+        <SectionHeading
+          title={<>Workspace labels ({labels.length})</>}
+          action={
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setIsAddTeamOpen(true)}
-              className="h-6 text-[11px] px-2 gap-1"
+              onClick={() => openLabelDialog(null)}
+              className="h-7 text-xs gap-1.5"
+              disabled={!workspaceId}
             >
-              <Plus className="size-3" />
-              <span>Add</span>
+              <Plus className="size-3.5" />
+              <span>Add label</span>
             </Button>
-          </div>
+          }
+        />
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-            {store.teams.map((team) => (
+        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-4">
+          {labelsQuery.isLoading ? (
+            <p className="text-xs text-muted-foreground">Loading labels…</p>
+          ) : labelsQuery.isError ? (
+            <p className="text-xs text-destructive">Could not load labels.</p>
+          ) : labels.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No labels yet. Add one here, or create one while tagging a card.
+            </p>
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap">
+              {labels.map((lbl) => (
+                <span
+                  key={lbl.id}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border group"
+                  style={{
+                    backgroundColor: `${lbl.color}15`,
+                    borderColor: `${lbl.color}40`,
+                    color: lbl.color,
+                  }}
+                >
+                  <span
+                    className="size-2 rounded-full"
+                    style={{ backgroundColor: lbl.color }}
+                  />
+                  <span>{lbl.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => openLabelDialog(lbl)}
+                    className="opacity-50 group-hover:opacity-100 hover:text-foreground cursor-pointer ml-1"
+                    aria-label={`Edit label ${lbl.name}`}
+                    title="Edit label"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRemoveLabel(lbl)}
+                    className="opacity-50 group-hover:opacity-100 hover:text-destructive cursor-pointer"
+                    aria-label={`Remove label ${lbl.name}`}
+                    title="Remove label"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ---------------- TEAMS ---------------- */}
+      <div className="space-y-3">
+        <SectionHeading
+          title={<>Teams ({teams.length})</>}
+          action={
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={openTeamDialog}
+              className="h-7 text-xs gap-1.5"
+              disabled={!workspaceId}
+            >
+              <Plus className="size-3.5" />
+              <span>Add team</span>
+            </Button>
+          }
+        />
+
+        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+          {teamsQuery.isLoading ? (
+            <p className="p-3 text-xs text-muted-foreground">Loading teams…</p>
+          ) : teamsQuery.isError ? (
+            <p className="p-3 text-xs text-destructive">Could not load teams.</p>
+          ) : teams.length === 0 ? (
+            <p className="p-3 text-xs text-muted-foreground">
+              No teams yet. Tasks and projects can be filed under a team once
+              one exists.
+            </p>
+          ) : (
+            teams.map((team) => (
               <div
                 key={team.id}
                 className="p-3 flex items-center justify-between gap-2 hover:bg-accent/30"
               >
-                <div className="flex items-center gap-2 text-xs font-medium text-accent-blue">
-                  <Contact className="size-3.5 text-accent-blue" />
-                  <span>{team.name}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void confirm({
-                      title: `Remove the “${team.name}” team?`,
-                      description: 'This cannot be undone.',
-                      confirmLabel: 'Remove team',
-                      destructive: true,
-                    }).then((ok) => {
-                      if (ok) store.removeTeam(team.id);
-                    });
-                  }}
-                  className="text-muted-foreground hover:text-destructive p-1"
-                >
-                  <Trash2 className="size-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Slack Channels */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-              Slack Channels
-            </h3>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsAddSlackOpen(true)}
-              className="h-6 text-[11px] px-2 gap-1"
-            >
-              <Plus className="size-3" />
-              <span>Add</span>
-            </Button>
-          </div>
-
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-            {store.slackChannels.map((slk) => (
-              <div
-                key={slk.id}
-                className="p-3 flex items-center justify-between gap-2 hover:bg-accent/30"
-              >
-                <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-                  <Hash className="size-3.5 text-muted-foreground" />
-                  <span>{slk.name}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void confirm({
-                      title: `Remove #${slk.name}?`,
-                      description:
-                        'Kanban updates stop posting to this Slack channel. This cannot be undone.',
-                      confirmLabel: 'Remove channel',
-                      destructive: true,
-                    }).then((ok) => {
-                      if (ok) store.removeSlackChannel(slk.id);
-                    });
-                  }}
-                  className="text-muted-foreground hover:text-destructive p-1"
-                >
-                  <Trash2 className="size-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------- 6. GENERAL WORKFLOWS ---------------- */}
-      <div className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-          Board Workflows
-        </h3>
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div>
-              <h4 className="text-xs font-medium text-foreground">Default Task Layout</h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Select default view when opening project tasks</p>
-            </div>
-            <Select value={kanbanDefaultView} onValueChange={setKanbanDefaultView}>
-              <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
-                <SelectValue placeholder="Board" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="board" className="text-xs">Kanban Board</SelectItem>
-                <SelectItem value="list" className="text-xs">Task List</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div>
-              <h4 className="text-xs font-medium text-foreground">Show Task Age Indicator</h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Display time elapsed since task creation on cards</p>
-            </div>
-            <Switch checked={showTaskAge} onCheckedChange={setShowTaskAge} />
-          </div>
-
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div>
-              <h4 className="text-xs font-medium text-foreground">Enable WIP Limits per Column</h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Restrict maximum active tasks per board status column</p>
-            </div>
-            <Switch checked={enableWipLimits} onCheckedChange={setEnableWipLimits} />
-          </div>
-
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div>
-              <h4 className="text-xs font-medium text-foreground">Auto-archive Completed Tasks</h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Move completed tasks to archive after set duration</p>
-            </div>
-            <Select value={autoArchiveCompleted} onValueChange={setAutoArchiveCompleted}>
-              <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
-                <SelectValue placeholder="30 days" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="30" className="text-xs">30 days</SelectItem>
-                <SelectItem value="7" className="text-xs">7 days</SelectItem>
-                <SelectItem value="never" className="text-xs">Never</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------- MODALS ---------------- */}
-
-      {/* Add Status Dialog */}
-      <Dialog open={isAddStatusOpen} onOpenChange={setIsAddStatusOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleAddStatus}>
-            <DialogHeader>
-              <DialogTitle className="text-sm font-bold">Add Custom Status</DialogTitle>
-            </DialogHeader>
-            <DialogBody className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold mb-1 block">Status Name</label>
-                <Input
-                  autoFocus
-                  value={statusName}
-                  onChange={(e) => setStatusName(e.target.value)}
-                  placeholder="e.g. Under Review, In QA, Blocked"
-                  className="h-9 text-xs"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold mb-1 block">Keyboard Key</label>
-                  <Input
-                    value={statusKey}
-                    onChange={(e) => setStatusKey(e.target.value)}
-                    placeholder="e.g. 6"
-                    maxLength={2}
-                    className="h-9 text-xs font-mono"
+                <div className="flex items-center gap-2 text-xs font-medium text-foreground min-w-0">
+                  <Contact
+                    className="size-3.5 shrink-0"
+                    style={{ color: team.color ?? undefined }}
                   />
+                  <span className="truncate">{team.name}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/50">
+                    {team.key}
+                  </span>
                 </div>
-                <ColorSwatchPicker
-                  label="Color"
-                  value={statusColor}
-                  onChange={setStatusColor}
-                />
+                <button
+                  type="button"
+                  onClick={() => void handleRemoveTeam(team)}
+                  className="text-muted-foreground hover:text-destructive p-1"
+                  aria-label={`Delete team ${team.name}`}
+                >
+                  <Trash2 className="size-3" />
+                </button>
               </div>
-            </DialogBody>
-            <DialogFooter>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddStatusOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={!statusName.trim()}>
-                Add Status
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+            ))
+          )}
+        </div>
+      </div>
 
-      {/* Add Priority Dialog */}
-      <Dialog open={isAddPriorityOpen} onOpenChange={setIsAddPriorityOpen}>
+      {/* ---------------- DIALOGS ---------------- */}
+
+      <Dialog open={labelDialogOpen} onOpenChange={setLabelDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleAddPriority}>
+          <form onSubmit={handleSaveLabel}>
             <DialogHeader>
-              <DialogTitle className="text-sm font-bold">Add Custom Priority</DialogTitle>
+              <DialogTitle className="text-sm font-bold">
+                {editingLabel ? 'Edit label' : 'Add label'}
+              </DialogTitle>
             </DialogHeader>
             <DialogBody className="space-y-4">
               <div>
-                <label className="text-xs font-semibold mb-1 block">Priority Name</label>
-                <Input
-                  autoFocus
-                  value={priorityName}
-                  onChange={(e) => setPriorityName(e.target.value)}
-                  placeholder="e.g. Critical, Blocker, Nice to have"
-                  className="h-9 text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold mb-1 block">Keyboard Key</label>
-                <Input
-                  value={priorityKey}
-                  onChange={(e) => setPriorityKey(e.target.value)}
-                  placeholder="e.g. 5"
-                  maxLength={2}
-                  className="h-9 text-xs font-mono"
-                />
-              </div>
-              <ColorSwatchPicker
-                label="Color"
-                value={priorityColor}
-                onChange={setPriorityColor}
-              />
-            </DialogBody>
-            <DialogFooter>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddPriorityOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={!priorityName.trim()}>
-                Add Priority
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Label Dialog */}
-      <Dialog open={isAddLabelOpen} onOpenChange={setIsAddLabelOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleAddLabel}>
-            <DialogHeader>
-              <DialogTitle className="text-sm font-bold">Add Label / Tag</DialogTitle>
-            </DialogHeader>
-            <DialogBody className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold mb-1 block">Label Name</label>
+                <label className="text-xs font-semibold mb-1 block">Label name</label>
                 <Input
                   autoFocus
                   value={labelName}
                   onChange={(e) => setLabelName(e.target.value)}
-                  placeholder="e.g. Design, Mobile, Security, High-Impact"
+                  placeholder="e.g. Design, Mobile, Security"
+                  maxLength={50}
                   className="h-9 text-xs"
                 />
+                {editingLabel && labelName.trim() && labelName.trim() !== editingLabel.name ? (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Every task tagged “{editingLabel.name}” is renamed too.
+                  </p>
+                ) : null}
               </div>
               <ColorSwatchPicker
-                label="Label Color"
+                label="Label colour"
                 value={labelColor}
                 onChange={setLabelColor}
               />
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddLabelOpen(false)}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setLabelDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" size="sm" disabled={!labelName.trim()}>
-                Create Label
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!labelName.trim()}
+                loading={labelMutations.create.isPending || labelMutations.update.isPending}
+              >
+                {editingLabel ? 'Save' : 'Create label'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Add Team Dialog */}
-      <Dialog open={isAddTeamOpen} onOpenChange={setIsAddTeamOpen}>
+      <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleAddTeam}>
             <DialogHeader>
-              <DialogTitle className="text-sm font-bold">Add Team Link</DialogTitle>
+              <DialogTitle className="text-sm font-bold">Add team</DialogTitle>
             </DialogHeader>
             <DialogBody className="space-y-4">
               <div>
-                <label className="text-xs font-semibold mb-1 block">Team Name</label>
+                <label className="text-xs font-semibold mb-1 block">Team name</label>
                 <Input
                   autoFocus
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
-                  placeholder="e.g. Designteam-link, Core-Eng, QA-Squad"
+                  placeholder="e.g. Core Engineering"
+                  maxLength={80}
                   className="h-9 text-xs"
                 />
               </div>
-            </DialogBody>
-            <DialogFooter>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddTeamOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={!teamName.trim()}>
-                Add Team
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Slack Channel Dialog */}
-      <Dialog open={isAddSlackOpen} onOpenChange={setIsAddSlackOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleAddSlack}>
-            <DialogHeader>
-              <DialogTitle className="text-sm font-bold">Add Slack Channel Link</DialogTitle>
-            </DialogHeader>
-            <DialogBody className="space-y-4">
               <div>
-                <label className="text-xs font-semibold mb-1 block">Channel Name</label>
+                <label className="text-xs font-semibold mb-1 block">Key</label>
                 <Input
-                  autoFocus
-                  value={slackName}
-                  onChange={(e) => setSlackName(e.target.value)}
-                  placeholder="e.g. design-sync, general, alerts"
-                  className="h-9 text-xs"
+                  value={effectiveTeamKey}
+                  onChange={(e) => {
+                    setTeamKeyTouched(true);
+                    setTeamKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+                  }}
+                  placeholder="ENG"
+                  maxLength={10}
+                  className="h-9 text-xs font-mono uppercase"
                 />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  2–10 letters or digits, unique in this workspace.
+                </p>
               </div>
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddSlackOpen(false)}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setTeamDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" size="sm" disabled={!slackName.trim()}>
-                Add Channel
+              <Button
+                type="submit"
+                size="sm"
+                disabled={teamName.trim().length < 2 || effectiveTeamKey.length < 2}
+                loading={teamMutations.create.isPending}
+              >
+                Create team
               </Button>
             </DialogFooter>
           </form>

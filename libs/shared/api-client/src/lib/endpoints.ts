@@ -238,6 +238,7 @@ import type {
   Task,
   TaskComment,
   Team,
+  TaskLabel,
   Upload,
   UploadContextType,
   UploadDestinations,
@@ -261,6 +262,7 @@ import type {
   TotpSetupResponse,
   TotpVerifyResponse,
   WebAuthnCredentialDto,
+  PasskeyOptionsResponse,
   UserIdentityDto,
   Cycle,
   Epic,
@@ -406,6 +408,7 @@ import type {
   CreateTaskCommentInput,
   CreateTaskInput,
   CreateTeamInput,
+  CreateTaskLabelInput,
   CreateWorkItemRelationInput,
   CreateWorkspaceInput,
   DesktopAuthorizeInput,
@@ -419,6 +422,8 @@ import type {
   MagicLinkRequestInput,
   MagicLinkVerifyInput,
   TwoFactorLoginInput,
+  PasskeyLoginVerifyInput,
+  PasskeyRegisterVerifyInput,
   IconPatch,
   InviteMembersInput,
   CreateInvitationLinkInput,
@@ -449,6 +454,7 @@ import type {
   UpdateStatusInput,
   UpdateTaskInput,
   UpdateTeamInput,
+  UpdateTaskLabelInput,
   UpdateUserPreferencesInput,
   UpdateWorkspaceInput,
   OAuthInitQueryInput,
@@ -616,12 +622,21 @@ export const authApi = {
   getWebAuthnCredentials: () =>
     request<WebAuthnCredentialDto[]>(http.get('/auth/webauthn/credentials')),
 
-  registerWebAuthn: (input: {
-    credentialId: string;
-    publicKey: string;
-    deviceName?: string;
-    transports?: string[];
-  }) => request<WebAuthnCredentialDto>(http.post('/auth/webauthn/register', input)),
+  /** Server-issued creation options; pass to `startRegistration`. */
+  getWebAuthnRegistrationOptions: () =>
+    request<PasskeyOptionsResponse>(http.post('/auth/webauthn/register/options')),
+
+  /** Verifies the browser's attestation and stores the passkey. */
+  registerWebAuthn: (input: PasskeyRegisterVerifyInput) =>
+    request<WebAuthnCredentialDto>(http.post('/auth/webauthn/register', input)),
+
+  /** Passkey sign-in, step 1: a challenge for any discoverable credential. */
+  getWebAuthnLoginOptions: () =>
+    request<PasskeyOptionsResponse>(http.post('/auth/webauthn/login/options')),
+
+  /** Passkey sign-in, step 2: a session or — rarely — the two-factor step. */
+  loginWithWebAuthn: (input: PasskeyLoginVerifyInput) =>
+    request<SignInResponse>(http.post('/auth/webauthn/login', input)),
 
   deleteWebAuthn: (credentialId: string) =>
     request<void>(http.delete(`/auth/webauthn/credentials/${credentialId}`)),
@@ -1882,6 +1897,30 @@ export const workToolsApi = {
   deleteTeam: (workspaceId: string, teamId: string) =>
     request<void>(
       http.delete(`/workspaces/${workspaceId}/work-tools/teams/${teamId}`),
+    ),
+
+  // --- task labels ----------------------------------------------------------
+
+  taskLabels: (workspaceId: string) =>
+    request<TaskLabel[]>(http.get(`/workspaces/${workspaceId}/work-tools/labels`)),
+
+  createTaskLabel: (workspaceId: string, input: CreateTaskLabelInput) =>
+    request<TaskLabel>(
+      http.post(`/workspaces/${workspaceId}/work-tools/labels`, input),
+    ),
+
+  updateTaskLabel: (
+    workspaceId: string,
+    labelId: string,
+    input: UpdateTaskLabelInput,
+  ) =>
+    request<TaskLabel>(
+      http.patch(`/workspaces/${workspaceId}/work-tools/labels/${labelId}`, input),
+    ),
+
+  deleteTaskLabel: (workspaceId: string, labelId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/labels/${labelId}`),
     ),
 
   // --- initiatives ----------------------------------------------------------

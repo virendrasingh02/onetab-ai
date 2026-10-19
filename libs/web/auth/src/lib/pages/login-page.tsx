@@ -32,6 +32,7 @@ import {
   Copy,
   Eye,
   EyeOff,
+  Fingerprint,
   Laptop,
   Loader2,
   Mail,
@@ -48,6 +49,11 @@ import {
 import { trackAuthEvent } from '../auth-analytics.js';
 import { AuthLayout } from '../auth-layout.js';
 import { DesktopBrowserSignIn } from '../components/desktop-browser-sign-in.js';
+import {
+  browserSupportsPasskeys,
+  passkeyErrorMessage,
+  useSignInWithPasskey,
+} from '../passkeys.js';
 import { DesktopHandoffPanel } from '../components/desktop-handoff-panel.js';
 import { MagicLinkPanel } from '../components/magic-link-panel.js';
 import { SocialAuthButtons } from '../components/social-auth-buttons.js';
@@ -123,6 +129,9 @@ export function LoginPage() {
    * session back to the desktop app. Both already have their own flows.
    */
   const magicLinkAvailable = !isDesktop && !isDesktopHandoff;
+  const passkeyAvailable = !isDesktop && browserSupportsPasskeys();
+  const passkeySignIn = useSignInWithPasskey();
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const [authMode, setAuthMode] = useState<'magic-link' | 'password'>(() =>
     magicLinkAvailable && searchParams.get('method') === 'magic-link'
@@ -346,6 +355,22 @@ export function LoginPage() {
     }
   };
 
+  const handlePasskeyLogin = async () => {
+    setPasskeyError(null);
+    login.reset();
+    try {
+      const result = await passkeySignIn.mutateAsync();
+      if (isTwoFactorChallenge(result)) {
+        setTwoFactor(result);
+        return;
+      }
+      trackAuthEvent('auth_password_login_success', { method: 'passkey' });
+      await finishSignIn();
+    } catch (error) {
+      setPasskeyError(passkeyErrorMessage(error));
+    }
+  };
+
   const handleCopyCode = () => {
     if (deviceAuthData?.userCode) {
       navigator.clipboard.writeText(deviceAuthData.userCode);
@@ -566,7 +591,7 @@ export function LoginPage() {
             className="space-y-3"
             noValidate
           >
-            <FormError error={formErrorMessage(login.error)} />
+            <FormError error={passkeyError ?? formErrorMessage(login.error)} />
 
             <FormField
               control={form.control}
@@ -663,7 +688,7 @@ export function LoginPage() {
               Sign in
             </Button>
 
-            {magicLinkAvailable ? (
+            {magicLinkAvailable || passkeyAvailable ? (
               <>
                 {/* The label sits on the page background, not a card. */}
                 <div className="relative my-4 flex items-center justify-center">
@@ -673,11 +698,27 @@ export function LoginPage() {
                   </span>
                 </div>
 
+                {passkeyAvailable ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="md"
+                    className="w-full"
+                    loading={passkeySignIn.isPending}
+                    disabled={login.isPending}
+                    onClick={() => void handlePasskeyLogin()}
+                    leadingIcon={<Fingerprint className="size-3.5" />}
+                  >
+                    Sign in with a passkey
+                  </Button>
+                ) : null}
+
+                {magicLinkAvailable ? (
                 <Button
                   type="button"
                   variant="outline"
                   size="md"
-                  className="w-full"
+                  className={passkeyAvailable ? 'w-full mt-2' : 'w-full'}
                   onClick={() => {
                     setAuthMode('magic-link');
                     setMagicLinkSent(false);
@@ -689,6 +730,7 @@ export function LoginPage() {
                 >
                   Email me a sign-in link
                 </Button>
+                ) : null}
               </>
             ) : null}
           </form>

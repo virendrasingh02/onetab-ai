@@ -9,6 +9,7 @@ import { DeviceAuthService } from './device-auth.service.js';
 import { JwtAuthGuard, WorkspaceRoleGuard } from './guards.js';
 import { JwtStrategy } from './jwt.strategy.js';
 import { OAuthAuthService } from './oauth-auth.service.js';
+import { PasskeyService } from './passkey.service.js';
 import { TokenCleanupService } from './token-cleanup.service.js';
 import { TokenService } from './token.service.js';
 
@@ -24,6 +25,7 @@ import { TokenService } from './token.service.js';
     OAuthAuthService,
     DesktopAuthService,
     DeviceAuthService,
+    PasskeyService,
     TokenService,
     TokenCleanupService,
     JwtStrategy,

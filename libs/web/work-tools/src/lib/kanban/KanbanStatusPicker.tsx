@@ -9,7 +9,7 @@ import {
 import { cn } from '@org/utils';
 import { Check } from 'lucide-react';
 import React, { useEffect } from 'react';
-import { useKanbanCustomStore } from './kanban-custom-store.js';
+import { KANBAN_STATUSES } from './kanban-custom-store.js';
 import { StatusIcon } from './kanban-icons.js';
 
 export interface KanbanStatusPickerProps {
@@ -26,7 +26,7 @@ export function KanbanStatusPicker({
   align = 'start',
 }: KanbanStatusPickerProps) {
   const [open, setOpen] = React.useState(false);
-  const customStatuses = useKanbanCustomStore((s) => s.statuses);
+  const customStatuses = KANBAN_STATUSES;
 
   // Keyboard shortcut listener when open
   useEffect(() => {

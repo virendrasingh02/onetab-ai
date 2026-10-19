@@ -17,6 +17,7 @@
     "@hookform/resolvers": "^5.7.1",
     "@org/i18n": "*",
     "@org/ui": "*",
+    "@simplewebauthn/browser": "^14.0.0",
     "@tanstack/react-query": "^5.101.4",
     "lucide-react": "^1.28.0",
     "react-hook-form": "^7.84.0",

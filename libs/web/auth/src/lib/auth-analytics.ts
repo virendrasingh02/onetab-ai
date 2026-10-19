@@ -31,7 +31,7 @@ export type AuthAnalyticsEvent =
   | 'auth_logout';
 
 export interface AuthAnalyticsPayload {
-  method?: 'password' | 'magic_link' | 'device' | 'google' | 'apple';
+  method?: 'password' | 'magic_link' | 'device' | 'google' | 'apple' | 'passkey';
   emailDomain?: string;
   hasReturnTo?: boolean;
   errorCode?: string;

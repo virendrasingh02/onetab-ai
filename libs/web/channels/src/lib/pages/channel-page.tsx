@@ -1329,7 +1329,7 @@ export function ChannelPage({
               </h3>
               <p className="text-xs mt-0.5 text-muted-foreground">
                 Links and resources you've saved from #{channel.name} — only
-                visible to you, on this device.
+                visible to you, on every device you sign in on.
               </p>
             </div>
 
@@ -1337,7 +1337,7 @@ export function ChannelPage({
               <EmptyState
                 icon={<Bookmark />}
                 title="No bookmarks yet"
-                description="Save links, spreadsheets, Figma designs, and docs from this channel for quick access. Only you can see them, on this device."
+                description="Save links, spreadsheets, Figma designs, and docs from this channel for quick access. Only you can see them."
                 action={
                   <Button
                     variant="outline"

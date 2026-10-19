@@ -18,6 +18,8 @@ export {
   useTasks,
   useTaskDetail,
   useTeams,
+  useTaskLabels,
+  useTaskLabelMutations,
   useTeamMutations,
   useInitiatives,
   useInitiativeMutations,
@@ -59,13 +61,12 @@ export {
   type KanbanTaskLinkOption,
 } from './lib/kanban/KanbanTaskLinkPicker.js';
 export {
-  useKanbanCustomStore,
+  useKanbanLabels,
+  KANBAN_STATUSES,
+  KANBAN_PRIORITIES,
   type CustomStatusItem,
   type CustomPriorityItem,
   type CustomLabelItem,
-  type CustomTeamItem,
-  type CustomSlackChannelItem,
-  type CustomCardProperties,
 } from './lib/kanban/kanban-custom-store.js';
 export {
   StatusIcon,

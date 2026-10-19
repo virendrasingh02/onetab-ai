@@ -25,7 +25,7 @@ import {
   Users,
 } from 'lucide-react';
 import { parseDay } from './card-meta.js';
-import { useKanbanCustomStore } from './kanban-custom-store.js';
+import { useKanbanLabels } from './kanban-custom-store.js';
 import { CubeProjectIcon } from './kanban-icons.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
 import { KanbanStatusPicker } from './KanbanStatusPicker.js';
@@ -132,19 +132,17 @@ export function KanbanCardTile({
   onConvertToDoc,
   saveAction,
 }: KanbanCardTileProps) {
-  const customStore = useKanbanCustomStore();
-  const cardCustomProps = customStore.getCardProperties(card.id);
-  const storeLabels = customStore.labels;
+  const { colorOf } = useKanbanLabels();
 
   const formattedDate = formatCardDate(card.dueDate);
   const currentStatus = (listId as TaskStatus) || TaskStatus.TODO;
-  const currentLeadId = cardCustomProps.leadId ?? card.memberIds[0];
-  const currentLabels = cardCustomProps.labels ?? [];
-  const currentStartDate = cardCustomProps.startDate;
+  // The lead is the primary assignee — `assigneeIds[0]` on the task.
+  const currentLeadId = card.memberIds[0];
+  const currentLabels = card.labels;
+  const currentStartDate = card.startDate;
   const cardName = `“${card.title}”`;
 
   const setAssignees = (memberIds: string[]) => {
-    customStore.setCardProperties(card.id, { leadId: memberIds[0] || undefined });
     onAssigneeChange?.(memberIds[0] ?? null);
     onAssigneesChange?.(memberIds);
   };
@@ -387,9 +385,6 @@ export function KanbanCardTile({
             multiple={true}
             onSelectMembers={setAssignees}
             onSelectMember={(memberId) => {
-              customStore.setCardProperties(card.id, {
-                leadId: memberId || undefined,
-              });
               onAssigneeChange?.(memberId);
               onAssigneesChange?.(memberId ? [memberId] : []);
             }}
@@ -424,20 +419,20 @@ export function KanbanCardTile({
       {currentLabels.length > 0 && (
         <div className="mt-2 flex items-center gap-1 flex-wrap">
           {currentLabels.map((lbl) => {
-            const meta = storeLabels.find((l) => l.name === lbl);
+            const color = colorOf(lbl);
             return (
               <span
                 key={lbl}
                 className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[10px] font-medium rounded-md border"
                 style={{
-                  backgroundColor: meta ? `${meta.color}15` : '#8b5cf615',
-                  borderColor: meta ? `${meta.color}35` : '#8b5cf635',
-                  color: meta?.color || '#8b5cf6',
+                  backgroundColor: `${color}15`,
+                  borderColor: `${color}35`,
+                  color,
                 }}
               >
                 <span
                   className="size-1 rounded-full"
-                  style={{ backgroundColor: meta?.color || '#8b5cf6' }}
+                  style={{ backgroundColor: color }}
                 />
                 <span>{lbl}</span>
               </span>
@@ -450,13 +445,13 @@ export function KanbanCardTile({
       <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground/75 font-medium">
         <span>{card.commentCount} issues</span>
         {/*
-          The server's id, `${project.ticketPrefix}-${task.ticketNumber}`. The
-          local store's copy is only a fallback for a task filed outside any
-          project, which has no prefix to pair a number with.
+          The server's id, `${project.ticketPrefix}-${task.ticketNumber}`,
+          falling back to the task's own `identifier` for a task filed outside
+          any project.
         */}
-        {card.ticketId ?? cardCustomProps.ticketId ? (
+        {card.ticketId ?? card.identifier ? (
           <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-muted/70 text-muted-foreground font-semibold">
-            {card.ticketId ?? cardCustomProps.ticketId}
+            {card.ticketId ?? card.identifier}
           </span>
         ) : null}
       </div>

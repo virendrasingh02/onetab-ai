@@ -90,6 +90,7 @@ model User {
   meetingDecisions          MeetingDecision[]
   twoFactorAuth             TwoFactorAuth?
   webAuthnCredentials       WebAuthnCredential[]
+  webAuthnChallenges        WebAuthnChallenge[]
   complianceReviews         ComplianceReview[]          @relation("ComplianceReviewer")
   assignedChecklistItems    ComplianceChecklistItem[]   @relation("ChecklistAssignee")
   verifiedChecklistItems    ComplianceChecklistItem[]   @relation("ChecklistVerifier")
@@ -353,6 +354,7 @@ model Workspace {
   promptTemplates           PromptTemplate[]
   recentActivities          RecentActivity[]
   tasks                     Task[]
+  taskLabels                TaskLabel[]
   teams                     Team[]
   initiatives               Initiative[]
   epics                     Epic[]
@@ -1032,7 +1034,7 @@ model TwoFactorChallenge {
   id        String    @id @default(cuid())
   userId    String
   tokenHash String    @unique
-  /// "password" | "magic_link" | "google" | "apple" — which first factor started it.
+  /// "password" | "magic_link" | "google" | "apple" | "passkey" — which first factor started it.
   method    String
   attempts  Int       @default(0)
   expiresAt DateTime
@@ -1076,6 +1078,26 @@ model WebAuthnCredential {
 
   @@index([userId])
   @@map("webauthn_credentials")
+}
+
+/// A server-issued WebAuthn challenge, single use and short-lived. Registration
+/// challenges belong to the signed-in user; sign-in challenges have no user yet
+/// (discoverable passkeys) and are redeemed by the opaque token handed out with
+/// the options.
+model WebAuthnChallenge {
+  id        String   @id @default(cuid())
+  /// "registration" | "authentication"
+  type      String
+  userId    String?
+  tokenHash String   @unique
+  challenge String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("webauthn_challenges")
 }
 
 model UserIdentity {
@@ -1297,6 +1319,22 @@ model Notification {
   @@index([recipientId, createdAt])
   @@index([workspaceId, recipientId])
   @@map("notifications")
+}
+
+/// The workspace's label catalogue: the names a task's `labels` array draws on,
+/// with the colour every board paints them in. `Task.labels` stores names, not
+/// ids, so a rename/delete here is propagated onto the tasks by the service.
+model TaskLabel {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  color       String    @default("#64748b")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+  @@map("task_labels")
 }
 
 model Team {

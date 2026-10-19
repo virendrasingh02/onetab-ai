@@ -78,6 +78,33 @@ export const twoFactorLoginSchema = z.object({
     .max(32, 'That code is too long'),
 });
 
+/**
+ * A browser's WebAuthn response (`RegistrationResponseJSON` /
+ * `AuthenticationResponseJSON`). Only the envelope is checked here; the
+ * signature, challenge, origin and RP ID are verified by @simplewebauthn/server.
+ */
+const webAuthnResponseSchema = z
+  .object({
+    id: z.string().min(1).max(1024),
+    rawId: z.string().min(1).max(1024),
+    type: z.literal('public-key'),
+    response: z.record(z.string(), z.unknown()),
+    clientExtensionResults: z.record(z.string(), z.unknown()).default({}),
+    authenticatorAttachment: z.enum(['platform', 'cross-platform']).optional(),
+  })
+  .passthrough();
+
+export const passkeyRegisterVerifySchema = z.object({
+  challengeToken: z.string().min(1).max(256),
+  deviceName: z.string().trim().max(100).optional(),
+  response: webAuthnResponseSchema,
+});
+
+export const passkeyLoginVerifySchema = z.object({
+  challengeToken: z.string().min(1).max(256),
+  response: webAuthnResponseSchema,
+});
+
 export const resetPasswordSchema = z
   .object({
     token: z.string().min(1, 'Reset token is required'),
@@ -187,6 +214,8 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type MagicLinkRequestInput = z.infer<typeof magicLinkRequestSchema>;
 export type MagicLinkVerifyInput = z.infer<typeof magicLinkVerifySchema>;
 export type TwoFactorLoginInput = z.infer<typeof twoFactorLoginSchema>;
+export type PasskeyRegisterVerifyInput = z.infer<typeof passkeyRegisterVerifySchema>;
+export type PasskeyLoginVerifyInput = z.infer<typeof passkeyLoginVerifySchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type VerifyResetTokenInput = z.infer<typeof verifyResetTokenSchema>;
 export type EmailVerificationSendInput = z.infer<typeof emailVerificationSendSchema>;

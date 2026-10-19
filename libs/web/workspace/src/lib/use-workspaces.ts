@@ -1,4 +1,5 @@
 import { authApi, invitationApi, queryKeys, workspaceApi } from '@org/api-client';
+import { registerPasskey } from '@org/auth';
 import {
   isPolicyRoleAllowed,
   PolicySubjectRole,
@@ -451,12 +452,8 @@ export function useRegisterWebAuthn() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: {
-      credentialId: string;
-      publicKey: string;
-      deviceName?: string;
-      transports?: string[];
-    }) => authApi.registerWebAuthn(input),
+    // Opens the browser's WebAuthn prompt; the server verifies the attestation.
+    mutationFn: (deviceName?: string) => registerPasskey(deviceName),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth', 'webauthn', 'credentials'] });
       queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });

@@ -3,11 +3,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { Check, Plus, Search, Tag } from 'lucide-react';
-import React, { useState } from 'react';
-import { useKanbanCustomStore } from './kanban-custom-store.js';
+import React, { useMemo, useState } from 'react';
+import { useKanbanLabels } from './kanban-custom-store.js';
 
 export interface KanbanLabelPickerProps {
   selectedLabels: string[];
@@ -15,17 +16,6 @@ export interface KanbanLabelPickerProps {
   trigger?: React.ReactNode;
   align?: 'start' | 'center' | 'end';
 }
-
-const PRESET_COLORS = [
-  '#8b5cf6',
-  '#3b82f6',
-  '#10b981',
-  '#ef4444',
-  '#f59e0b',
-  '#06b6d4',
-  '#ec4899',
-  '#64748b',
-];
 
 export function KanbanLabelPicker({
   selectedLabels,
@@ -35,21 +25,32 @@ export function KanbanLabelPicker({
 }: KanbanLabelPickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const labels = useKanbanCustomStore((s) => s.labels);
-  const addLabel = useKanbanCustomStore((s) => s.addLabel);
+  const { labels: catalog, colorOf, createLabel } = useKanbanLabels();
+
+  // The catalogue, plus any name a card already carries that it does not have
+  // (imported, or tagged before the catalogue existed) so it can be untagged.
+  const labels = useMemo(() => {
+    const known = new Set(catalog.map((l) => l.name));
+    return [
+      ...catalog.map((l) => ({ id: l.id, name: l.name, color: l.color })),
+      ...selectedLabels
+        .filter((name) => !known.has(name))
+        .map((name) => ({ id: `name:${name}`, name, color: colorOf(name) })),
+    ];
+  }, [catalog, selectedLabels, colorOf]);
 
   const filteredLabels = labels.filter((l) =>
     l.name.toLowerCase().includes(search.trim().toLowerCase()),
   );
 
   const handleCreateLabel = () => {
-    const name = search.trim();
+    const name = search.trim().slice(0, 50);
     if (!name) return;
-    const randomColor =
-      PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
-    addLabel({ name, color: randomColor });
     onToggleLabel(name);
     setSearch('');
+    createLabel(name).catch(() => {
+      toast.error(`Could not add “${name}” to the workspace labels.`);
+    });
   };
 
   return (

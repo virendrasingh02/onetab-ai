@@ -28,6 +28,10 @@ import {
   magicLinkRequestSchema,
   magicLinkVerifySchema,
   twoFactorLoginSchema,
+  passkeyLoginVerifySchema,
+  passkeyRegisterVerifySchema,
+  type PasskeyLoginVerifyInput,
+  type PasskeyRegisterVerifyInput,
   pollDeviceAuthSchema,
   refreshSchema,
   registerSchema,
@@ -67,6 +71,7 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
 import { DesktopAuthService } from './desktop-auth.service.js';
 import { DeviceAuthService } from './device-auth.service.js';
+import { PasskeyService } from './passkey.service.js';
 import {
   OAUTH_FLOW_COOKIE,
   OAUTH_FLOW_TTL_MS,
@@ -84,6 +89,7 @@ export class AuthController {
     private readonly desktopAuth: DesktopAuthService,
     private readonly deviceAuth: DeviceAuthService,
     private readonly oauth: OAuthAuthService,
+    private readonly passkeys: PasskeyService,
     private readonly config: ConfigService,
   ) {}
 
@@ -424,19 +430,55 @@ export class AuthController {
     return this.auth.getPasskeys(userId);
   }
 
+  /** Step 1 of adding a passkey: server-issued creation options + challenge. */
+  @Post('webauthn/register/options')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async webAuthnRegistrationOptions(@CurrentUser('id') userId: string) {
+    return this.passkeys.registrationOptions(userId);
+  }
+
+  /** Step 2: verify the authenticator's attestation and store the credential. */
   @Post('webauthn/register')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async registerWebAuthn(
     @CurrentUser('id') userId: string,
-    @Body()
-    body: {
-      credentialId: string;
-      publicKey: string;
-      deviceName?: string;
-      transports?: string[];
-    },
+    @Body(zodBody(passkeyRegisterVerifySchema)) body: PasskeyRegisterVerifyInput,
   ) {
-    return this.auth.registerPasskey(userId, body);
+    return this.passkeys.verifyRegistration(userId, body);
+  }
+
+  /** Passkey sign-in, step 1: a challenge for any discoverable credential. */
+  @Public()
+  @Post('webauthn/login/options')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  async webAuthnLoginOptions() {
+    return this.passkeys.authenticationOptions();
+  }
+
+  /**
+   * Passkey sign-in, step 2: verify the assertion. Same answer shape as
+   * `login` — a session, or the two-factor challenge.
+   */
+  @Public()
+  @Post('webauthn/login')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async webAuthnLogin(
+    @Body(zodBody(passkeyLoginVerifySchema)) body: PasskeyLoginVerifyInput,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.passkeys.verifyAuthentication(
+      body,
+      this.contextOf(request),
+    );
+    if ('twoFactor' in result) return result.twoFactor;
+    const { user, session } = result;
+    this.setRefreshCookie(response, session);
+    return { user, ...session.tokens, refreshToken: session.refreshToken };
   }
 
   @Delete('webauthn/credentials/:id')

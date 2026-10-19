@@ -138,6 +138,20 @@ export const updateTeamSchema = z.object({
   ...iconPatchShape,
 });
 
+// --- task labels ------------------------------------------------------------
+
+const labelColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Colour must be a #rrggbb hex');
+
+export const createTaskLabelSchema = z.object({
+  name: z.string().trim().min(1).max(50),
+  color: labelColor.optional(),
+});
+
+export const updateTaskLabelSchema = z.object({
+  name: z.string().trim().min(1).max(50).optional(),
+  color: labelColor.optional(),
+});
+
 // --- initiatives ------------------------------------------------------------
 
 export const createInitiativeSchema = z.object({
@@ -504,6 +518,8 @@ export type ProjectIdentifierSettingsInput = z.infer<
 >;
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 export type UpdateTeamInput = z.infer<typeof updateTeamSchema>;
+export type CreateTaskLabelInput = z.infer<typeof createTaskLabelSchema>;
+export type UpdateTaskLabelInput = z.infer<typeof updateTaskLabelSchema>;
 export type CreateInitiativeInput = z.infer<typeof createInitiativeSchema>;
 export type UpdateInitiativeInput = z.infer<typeof updateInitiativeSchema>;
 export type CreateEpicInput = z.infer<typeof createEpicSchema>;

@@ -45,6 +45,7 @@ import type {
   CreateSavedViewInput,
   CreateTaskCommentInput,
   CreateTaskInput,
+  CreateTaskLabelInput,
   CreateTeamInput,
   CreateWorkItemRelationInput,
   MoveTaskInput,
@@ -58,6 +59,7 @@ import type {
   UpdateProjectInput,
   UpdateSavedViewInput,
   UpdateTaskInput,
+  UpdateTaskLabelInput,
   UpdateTeamInput,
 } from '@org/validation';
 
@@ -131,6 +133,78 @@ export class WorkToolsService {
   async deleteTeam(workspaceId: string, teamId: string): Promise<void> {
     await this.assertTeam(workspaceId, teamId);
     await this.prisma.team.delete({ where: { id: teamId } });
+  }
+
+  // --- task labels ----------------------------------------------------------
+  //
+  // `Task.labels` stores label *names*, so the catalogue is the source of each
+  // name's colour, and a rename or delete here is written through to every task
+  // in the workspace that carries it — otherwise a card would keep a label that
+  // no longer exists, or lose its colour on a rename.
+
+  async getTaskLabels(workspaceId: string) {
+    return this.prisma.taskLabel.findMany({
+      where: { workspaceId },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  /** Idempotent by name: tagging a card with a new label creates it once. */
+  async createTaskLabel(workspaceId: string, input: CreateTaskLabelInput) {
+    return this.prisma.taskLabel.upsert({
+      where: { workspaceId_name: { workspaceId, name: input.name } },
+      create: {
+        workspaceId,
+        name: input.name,
+        ...(input.color ? { color: input.color } : {}),
+      },
+      update: {},
+    });
+  }
+
+  async updateTaskLabel(
+    workspaceId: string,
+    labelId: string,
+    input: UpdateTaskLabelInput,
+  ) {
+    const label = await this.assertTaskLabel(workspaceId, labelId);
+    const renamed = input.name !== undefined && input.name !== label.name;
+    if (renamed) {
+      const clash = await this.prisma.taskLabel.findUnique({
+        where: { workspaceId_name: { workspaceId, name: input.name as string } },
+      });
+      if (clash) {
+        throw new ConflictException(`A label named "${input.name}" already exists`);
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.taskLabel.update({
+        where: { id: labelId },
+        data: {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.color !== undefined ? { color: input.color } : {}),
+        },
+      });
+      if (renamed) {
+        await tx.$executeRaw`
+          UPDATE "tasks"
+          SET "labels" = array_replace("labels", ${label.name}, ${input.name as string})
+          WHERE "workspaceId" = ${workspaceId} AND ${label.name} = ANY("labels")`;
+      }
+      return updated;
+    });
+  }
+
+  async deleteTaskLabel(workspaceId: string, labelId: string): Promise<void> {
+    const label = await this.assertTaskLabel(workspaceId, labelId);
+    await this.prisma.$transaction([
+      this.prisma.$executeRaw`
+        UPDATE "tasks"
+        SET "labels" = array_remove("labels", ${label.name})
+        WHERE "workspaceId" = ${workspaceId} AND ${label.name} = ANY("labels")`,
+      this.prisma.taskLabel.delete({ where: { id: labelId } }),
+    ]);
   }
 
   // --- initiatives ----------------------------------------------------------
@@ -1712,6 +1786,14 @@ export class WorkToolsService {
     });
     if (!team) throw new NotFoundException('Team not found');
     return team;
+  }
+
+  private async assertTaskLabel(workspaceId: string, labelId: string) {
+    const label = await this.prisma.taskLabel.findFirst({
+      where: { id: labelId, workspaceId },
+    });
+    if (!label) throw new NotFoundException('Label not found');
+    return label;
   }
 
   private async assertInitiative(workspaceId: string, initiativeId: string) {

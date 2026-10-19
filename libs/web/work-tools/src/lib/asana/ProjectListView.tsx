@@ -27,7 +27,6 @@ import {
   PRIORITIES,
   DUE_TONE_CLASSES,
 } from '../kanban/card-meta.js';
-import { useKanbanCustomStore } from '../kanban/kanban-custom-store.js';
 import { PriorityIcon, StatusIcon } from '../kanban/kanban-icons.js';
 import type { BoardAction } from '../kanban/server-board.js';
 import type { BoardState, KanbanCard, KanbanList } from '../kanban/types.js';
@@ -52,7 +51,6 @@ export function ProjectListView({
     listId: TaskStatus;
     title: string;
   } | null>(null);
-  const customStore = useKanbanCustomStore();
 
   const toggleCollapse = (listId: string) => {
     setCollapsedLists((prev) => ({ ...prev, [listId]: !prev[listId] }));
@@ -149,7 +147,7 @@ export function ProjectListView({
                         .filter((m): m is (typeof board.members)[number] => !!m);
                       const assignedMember = assignedMembers[0];
 
-                      const cardProps = customStore.getCardProperties(card.id);
+                      const ticketId = card.ticketId ?? card.identifier;
                       return (
                         <tr
                           key={card.id}
@@ -192,9 +190,11 @@ export function ProjectListView({
                                 )}
                               </button>
 
-                              <span className="font-mono text-[10.5px] font-semibold text-muted-foreground bg-muted/70 px-1.5 py-0.2 rounded border border-border/50 shrink-0">
-                                {cardProps.ticketId}
-                              </span>
+                              {ticketId ? (
+                                <span className="font-mono text-[10.5px] font-semibold text-muted-foreground bg-muted/70 px-1.5 py-0.2 rounded border border-border/50 shrink-0">
+                                  {ticketId}
+                                </span>
+                              ) : null}
 
                               <button
                                 type="button"
@@ -207,9 +207,9 @@ export function ProjectListView({
                                 {card.title}
                               </button>
 
-                              {cardProps.labels && cardProps.labels.length > 0 && (
+                              {card.labels.length > 0 && (
                                 <div className="hidden sm:flex items-center gap-1">
-                                  {cardProps.labels.slice(0, 2).map((lbl) => (
+                                  {card.labels.slice(0, 2).map((lbl) => (
                                     <span
                                       key={lbl}
                                       className="text-[9.5px] font-semibold px-1.5 py-0.2 rounded bg-accent-violet-soft text-accent-violet border border-accent-violet/20"

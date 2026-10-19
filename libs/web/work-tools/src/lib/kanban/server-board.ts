@@ -3,6 +3,7 @@ import {
   TaskStatus,
   type ProjectDetail,
   type Task,
+  type TaskChecklistItem,
   type WorkspaceMember,
 } from '@org/types';
 import type { CreateTaskInput, UpdateTaskInput } from '@org/validation';
@@ -135,6 +136,19 @@ export function columnsFor(project: ProjectDetail | undefined): TaskStatus[] {
   return ordered;
 }
 
+const isChecklistItem = (value: unknown): value is TaskChecklistItem =>
+  !!value &&
+  typeof value === 'object' &&
+  typeof (value as TaskChecklistItem).id === 'string' &&
+  typeof (value as TaskChecklistItem).text === 'string' &&
+  typeof (value as TaskChecklistItem).done === 'boolean';
+
+/** `Task.customFields.checklist`, tolerating anything malformed in the JSON. */
+export function checklistOf(task: Pick<Task, 'customFields'>): TaskChecklistItem[] {
+  const raw = task.customFields?.['checklist'];
+  return Array.isArray(raw) ? raw.filter(isChecklistItem) : [];
+}
+
 export function taskToCard(
   task: Task,
   milestoneTitles: ReadonlyMap<string, string>,
@@ -169,6 +183,9 @@ export function taskToCard(
     dueComplete: TERMINAL.has(task.status),
     priority: task.priority,
     createdAt: task.createdAt,
+    labels: task.labels ?? [],
+    startDate: isoToDay(task.startDate ?? null),
+    checklist: checklistOf(task),
   };
 }
 
@@ -240,7 +257,8 @@ export function buildBoard({
  *
  * A narrower set than the local reducer had: there is no `list/add`,
  * `list/rename` or `list/remove` because the columns are the `TaskStatus` enum,
- * and no label or checklist actions because the API has nowhere to keep them.
+ * Labels, the start date and the checklist ride on `card/update` — they are
+ * task fields (`labels`, `startDate`, `customFields.checklist`).
  * Comments are their own resource — the card dialog fetches and posts them
  * directly.
  */
@@ -265,6 +283,10 @@ export interface CardPatch {
   /** `yyyy-mm-dd`, or `null` to clear the deadline. */
   dueDate?: string | null;
   memberIds?: string[];
+  labels?: string[];
+  /** `yyyy-mm-dd`, or `null` to clear it. */
+  startDate?: string | null;
+  checklist?: TaskChecklistItem[];
 }
 
 const PRIORITY_RANK: Record<Priority, number> = {
@@ -306,6 +328,14 @@ function patchToInput(patch: CardPatch): UpdateTaskInput {
   if (patch.memberIds !== undefined) {
     input.assigneeIds = patch.memberIds;
     input.assigneeId = patch.memberIds[0] ?? null;
+  }
+  if (patch.labels !== undefined) input.labels = patch.labels;
+  if (patch.startDate !== undefined) {
+    input.startDate = patch.startDate ? dayToIso(patch.startDate) : null;
+  }
+  // The server merges `customFields` key by key, so this leaves the rest alone.
+  if (patch.checklist !== undefined) {
+    input.customFields = { checklist: patch.checklist };
   }
   return input;
 }
@@ -486,6 +516,11 @@ export function useServerBoard({
             projectId: projectId ?? null,
             assigneeId: found.card.memberIds[0] ?? null,
             dueDate: found.card.dueDate ? dayToIso(found.card.dueDate) : null,
+            startDate: found.card.startDate ? dayToIso(found.card.startDate) : null,
+            labels: found.card.labels,
+            ...(found.card.checklist.length > 0
+              ? { customFields: { checklist: found.card.checklist } }
+              : {}),
           });
           return;
         }

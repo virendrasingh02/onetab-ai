@@ -98,6 +98,24 @@ describe('AuthService - two-factor sign-in', () => {
     expect(tokens.issueSession).not.toHaveBeenCalled();
   });
 
+  it('gates a presence-only passkey (no user verification) behind the code step', async () => {
+    const result = await service.signInWithPasskey(user.id, false);
+
+    expect('twoFactor' in result).toBe(true);
+    expect(tokens.issueSession).not.toHaveBeenCalled();
+    expect(prisma.twoFactorChallenge.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: user.id, method: 'passkey' }),
+    });
+  });
+
+  it('treats a user-verified passkey as both factors', async () => {
+    const result = await service.signInWithPasskey(user.id, true);
+
+    expect('session' in result).toBe(true);
+    expect(tokens.issueSession).toHaveBeenCalledTimes(1);
+    expect(prisma.twoFactorChallenge.create).not.toHaveBeenCalled();
+  });
+
   it('gates a Google / Apple sign-in behind the code step too', async () => {
     const result = await service.signInWithFederatedIdentity(user.id, 'google');
 

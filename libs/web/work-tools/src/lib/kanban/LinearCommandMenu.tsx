@@ -17,7 +17,6 @@ import {
   Timeline,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useKanbanCustomStore } from './kanban-custom-store.js';
 import { StatusIcon } from './kanban-icons.js';
 import type { KanbanCard, KanbanList } from './types.js';
 
@@ -44,7 +43,6 @@ export function LinearCommandMenu({
 }: LinearCommandMenuProps) {
   const [query, setQuery] = useState('');
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const customStore = useKanbanCustomStore();
 
   const allCards: Array<{ card: KanbanCard; list: KanbanList }> = [];
   for (const list of lists) {
@@ -55,14 +53,13 @@ export function LinearCommandMenu({
 
   const needle = query.trim().toLowerCase();
 
-  const matchedCards = allCards.filter(({ card }) => {
-    const customProps = customStore.getCardProperties(card.id);
-    return (
-      card.title.toLowerCase().includes(needle) ||
-      (customProps.ticketId ?? '').toLowerCase().includes(needle) ||
-      card.description?.toLowerCase().includes(needle)
-    );
-  });
+  const ticketOf = (card: KanbanCard) => card.ticketId ?? card.identifier ?? '';
+
+  const matchedCards = allCards.filter(({ card }) =>
+    card.title.toLowerCase().includes(needle) ||
+    ticketOf(card).toLowerCase().includes(needle) ||
+    card.description?.toLowerCase().includes(needle),
+  );
 
   const handleCopyBranch = (ticketId: string, title: string) => {
     const branchName = `git checkout -b ${ticketId.toLowerCase()}-${title
@@ -106,7 +103,7 @@ export function LinearCommandMenu({
                 Issues ({matchedCards.length})
               </div>
               {matchedCards.slice(0, 8).map(({ card, list }) => {
-                const props = customStore.getCardProperties(card.id);
+                const ticketId = ticketOf(card);
                 return (
                   <div
                     key={card.id}
@@ -119,7 +116,7 @@ export function LinearCommandMenu({
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <StatusIcon status={list.id} className="size-3.5" />
                       <span className="font-mono text-[11px] font-semibold text-muted-foreground shrink-0">
-                        {props.ticketId}
+                        {ticketId}
                       </span>
                       <span className="font-semibold text-foreground truncate">
                         {card.title}
@@ -131,13 +128,13 @@ export function LinearCommandMenu({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleCopyBranch(props.ticketId || 'DES', card.title);
+                          handleCopyBranch(ticketId || card.id.slice(0, 8), card.title);
                         }}
                         className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10.5px] text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
                         title="Copy Git branch command"
                       >
                         <GitBranch className="size-3" />
-                        <span>{copiedText === props.ticketId ? 'Copied!' : 'Branch'}</span>
+                        <span>{copiedText === ticketId ? 'Copied!' : 'Branch'}</span>
                       </button>
 
                       <span className="text-[10px] text-muted-foreground">

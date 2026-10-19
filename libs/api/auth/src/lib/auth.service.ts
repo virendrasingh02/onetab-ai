@@ -592,12 +592,41 @@ export class AuthService {
   }
 
   /**
+   * Finishes a sign-in whose credential was a verified passkey assertion. A
+   * passkey that performed user verification (biometric / device PIN) is
+   * already two factors — something you have plus something you are or know —
+   * so it goes straight to a session. One that only proved presence (a bare
+   * security key tap) is a single factor: an account with two-factor on gets
+   * the code step, exactly like password sign-in.
+   */
+  async signInWithPasskey(
+    userId: string,
+    userVerified: boolean,
+    context: SessionContext = {},
+  ): Promise<SignInResult> {
+    if (!userVerified) {
+      const challenge = await this.startTwoFactorChallenge(userId, 'passkey');
+      if (challenge) return { twoFactor: challenge };
+    }
+
+    const signedIn = await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastSeenAt: new Date(), presence: 'ONLINE' },
+    });
+    const session = await this.tokens.issueSession(signedIn, context);
+
+    this.logger.log({ event: 'passkey_signed_in', userId, userVerified });
+    this.events?.emit('auth.passkey_signed_in', { userId });
+    return { user: toCurrentUser(signedIn), session };
+  }
+
+  /**
    * Opens the code step of a sign-in when the account has two-factor on;
    * `null` when it does not. The token is returned once and stored hashed.
    */
   private async startTwoFactorChallenge(
     userId: string,
-    method: 'password' | 'magic_link' | 'google' | 'apple',
+    method: 'password' | 'magic_link' | 'google' | 'apple' | 'passkey',
   ): Promise<TwoFactorChallengeResponse | null> {
     const twoFactor = await this.prisma.twoFactorAuth.findUnique({
       where: { userId },
@@ -1034,29 +1063,6 @@ export class AuthService {
       createdAt: c.createdAt.toISOString(),
       lastUsedAt: c.lastUsedAt?.toISOString() ?? null,
     }));
-  }
-
-  async registerPasskey(
-    userId: string,
-    input: { credentialId: string; publicKey: string; deviceName?: string; transports?: string[] },
-  ): Promise<WebAuthnCredentialDto> {
-    const cred = await this.prisma.webAuthnCredential.create({
-      data: {
-        userId,
-        credentialId: input.credentialId,
-        publicKey: input.publicKey,
-        deviceName: input.deviceName || 'Security Key / Passkey',
-        transports: JSON.stringify(input.transports ?? []),
-      },
-    });
-
-    return {
-      id: cred.id,
-      credentialId: cred.credentialId,
-      deviceName: cred.deviceName,
-      createdAt: cred.createdAt.toISOString(),
-      lastUsedAt: null,
-    };
   }
 
   async deletePasskey(userId: string, credentialId: string): Promise<void> {

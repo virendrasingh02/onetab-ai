@@ -1,9 +1,13 @@
-import { queryKeys, workspaceApi } from '@org/api-client';
 import { toast } from '@org/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useDirectRoomIndex } from './dm-room-index.js';
 import { useMatrix } from './matrix-provider.js';
+import {
+  DM_BOOKMARKS_KEY,
+  useMemberPreferenceBlob,
+} from './member-preference-blob.js';
+
+export { DM_BOOKMARKS_KEY, useMemberPreferenceBlob };
 
 /**
  * Per-conversation preferences for DMs: favorite and mute (and, in
@@ -23,7 +27,6 @@ import { useMatrix } from './matrix-provider.js';
  */
 export const DM_FAVORITES_KEY = 'dmFavorites';
 export const DM_MUTED_KEY = 'dmMuted';
-export const DM_BOOKMARKS_KEY = 'dmBookmarks';
 
 /** Where these lived before they were server-backed; imported once, then dropped. */
 const LEGACY_PREFERENCES_KEY = 'onetab-dm-preferences';
@@ -44,49 +47,6 @@ const toggle = (ids: string[], id: string) =>
 const errorText = (err: unknown) =>
   err instanceof Error && err.message ? err.message : undefined;
 
-/**
- * The member's preference blob for a workspace, plus an optimistic partial
- * write. Shares its query key with the settings screen and Studio favorites.
- */
-export function useMemberPreferenceBlob(workspaceId: string | undefined) {
-  const queryClient = useQueryClient();
-  const key = useMemo(
-    () => queryKeys.workspaces.memberPreferences(workspaceId ?? ''),
-    [workspaceId],
-  );
-
-  const query = useQuery({
-    queryKey: key,
-    queryFn: () => workspaceApi.getMemberPreferences(workspaceId as string),
-    enabled: Boolean(workspaceId),
-    staleTime: 60_000,
-  });
-
-  const save = useMutation({
-    mutationFn: (patch: Record<string, unknown>) =>
-      workspaceApi.saveMemberPreferences(workspaceId as string, patch),
-    onMutate: async (patch) => {
-      await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<Record<string, unknown>>(key);
-      queryClient.setQueryData(key, { ...(previous ?? {}), ...patch });
-      return { previous };
-    },
-    onError: (err, _patch, ctx) => {
-      if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
-      toast.error('Could not save conversation preference', {
-        description: errorText(err),
-      });
-    },
-  });
-
-  /** Reads the freshest cached blob — rapid toggles must build on each other. */
-  const current = useCallback(
-    () => queryClient.getQueryData<Record<string, unknown>>(key) ?? {},
-    [queryClient, key],
-  );
-
-  return { query, save: save.mutate, current };
-}
 
 /**
  * One-time import of the favorites/mutes this browser kept in localStorage

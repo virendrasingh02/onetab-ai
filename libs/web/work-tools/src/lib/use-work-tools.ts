@@ -20,6 +20,7 @@ import type {
   ProjectUpdate,
   SavedView,
   Task,
+  TaskLabel,
   Team,
   WorkDocument,
   WorkItemRelation,
@@ -43,6 +44,7 @@ import type {
   CreateSavedViewInput,
   CreateTaskCommentInput,
   CreateTaskInput,
+  CreateTaskLabelInput,
   CreateTeamInput,
   CreateWorkItemRelationInput,
   MeetingParticipantsInput,
@@ -59,6 +61,7 @@ import type {
   UpdateProjectInput,
   UpdateSavedViewInput,
   UpdateTaskInput,
+  UpdateTaskLabelInput,
   UpdateTeamInput,
 } from '@org/validation';
 import {
@@ -167,6 +170,52 @@ export function useTeamMutations(workspaceId: string | undefined) {
     mutationFn: (teamId: string) =>
       workToolsApi.deleteTeam(workspaceId as string, teamId),
     onSuccess: invalidate,
+  });
+
+  return { create, update, remove };
+}
+
+// --- task labels --------------------------------------------------------------
+
+/** The workspace's label catalogue — names and the colour each is painted in. */
+export function useTaskLabels(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workTools.taskLabels(workspaceId ?? ''),
+    queryFn: (): Promise<TaskLabel[]> =>
+      workToolsApi.taskLabels(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+}
+
+export function useTaskLabelMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidateLabels = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.taskLabels(workspaceId ?? ''),
+    });
+  // A rename or delete is written through to every task carrying the label.
+  const invalidateAll = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateTaskLabelInput) =>
+      workToolsApi.createTaskLabel(workspaceId as string, input),
+    onSuccess: invalidateLabels,
+  });
+
+  const update = useMutation({
+    mutationFn: ({ labelId, input }: { labelId: string; input: UpdateTaskLabelInput }) =>
+      workToolsApi.updateTaskLabel(workspaceId as string, labelId, input),
+    onSuccess: invalidateAll,
+  });
+
+  const remove = useMutation({
+    mutationFn: (labelId: string) =>
+      workToolsApi.deleteTaskLabel(workspaceId as string, labelId),
+    onSuccess: invalidateAll,
   });
 
   return { create, update, remove };

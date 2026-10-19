@@ -9,3 +9,7 @@ export {
   useSaveForLater,
   type SaveForLaterTarget,
 } from './lib/use-bookmarks.js';
+export {
+  useChannelMemberBookmarks,
+  useDirectMessageBookmarks,
+} from './lib/use-dm-bookmarks.js';

@@ -1,4 +1,4 @@
-import type { PresenceStatus, TaskStatus } from '@org/types';
+import type { PresenceStatus, TaskChecklistItem, TaskStatus } from '@org/types';
 
 /**
  * The board's view of the tasks API.
@@ -68,6 +68,12 @@ export interface KanbanCard {
   dueComplete: boolean;
   priority: Priority;
   createdAt: string;
+  /** Label names, from `Task.labels`; colours come from the workspace catalogue. */
+  labels: string[];
+  /** Local calendar day as `yyyy-mm-dd`, from `Task.startDate`. */
+  startDate?: string;
+  /** From `Task.customFields.checklist`. */
+  checklist: TaskChecklistItem[];
 }
 
 export interface KanbanList {

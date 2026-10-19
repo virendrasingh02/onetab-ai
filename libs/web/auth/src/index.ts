@@ -47,6 +47,14 @@ export {
   useSendEmailVerification,
 } from './lib/use-auth.js';
 
+export {
+  browserSupportsPasskeys,
+  isPasskeyCancelled,
+  passkeyErrorMessage,
+  registerPasskey,
+  useSignInWithPasskey,
+} from './lib/passkeys.js';
+
 export { ProtectedRoute, PublicOnlyRoute } from './lib/protected-route.js';
 export {
   resolveSafeHandoff,

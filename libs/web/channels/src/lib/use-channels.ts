@@ -7,7 +7,6 @@ import {
 } from '@org/api-client';
 import {
   channelNotificationLevel,
-  type ChannelBookmark,
   type ChannelSummary,
 } from '@org/types';
 import type { ChatAppEntity } from '@org/chat-ui';
@@ -32,8 +31,8 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { generateId } from '@org/utils';
+import { useMemo } from 'react';
+import { useChannelMemberBookmarks } from '@org/web-chat/bookmarks';
 
 const CHANNELS_BOOTSTRAP_KEY_PREFIX = 'channels_bootstrap:';
 
@@ -683,93 +682,16 @@ export function usePinMutations(workspaceId: string | undefined) {
 }
 
 /**
- * Manages pinned links and resources for a specific channel with localStorage persistence.
+ * The member's own bookmarks for a channel. Private to them, kept in their
+ * server-side workspace preferences so they follow them to every device (the
+ * same store the DM bookmarks use); anything this browser held in localStorage
+ * before is imported once.
  */
 export function useChannelBookmarks(
   workspaceId: string | undefined,
   channelId: string | undefined,
 ) {
-  const storageKey = useMemo(
-    () =>
-      `onetab_channel_bm_${workspaceId || 'default'}_${channelId || 'default'}`,
-    [workspaceId, channelId],
-  );
-
-  const [bookmarks, setBookmarks] = useState<ChannelBookmark[]>(() => {
-    if (typeof window === 'undefined' || !channelId) return [];
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {
-      // ignore
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !channelId) return;
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setBookmarks(parsed);
-          return;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    setBookmarks([]);
-  }, [storageKey, channelId]);
-
-  const addBookmark = useCallback(
-    (bookmark: Omit<ChannelBookmark, 'id'>) => {
-      setBookmarks((prev) => {
-        const newEntry: ChannelBookmark = {
-          ...bookmark,
-          id: generateId('bm'),
-        };
-        const updated = [...prev, newEntry];
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(updated));
-        } catch {
-          // ignore
-        }
-        toast.success(`Bookmark "${bookmark.label}" saved`);
-        return updated;
-      });
-    },
-    [storageKey],
-  );
-
-  const removeBookmark = useCallback(
-    (id: string) => {
-      setBookmarks((prev) => {
-        const target = prev.find((b) => b.id === id);
-        const updated = prev.filter((b) => b.id !== id);
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(updated));
-        } catch {
-          // ignore
-        }
-        toast.info(
-          target ? `Bookmark "${target.label}" removed` : 'Bookmark removed',
-        );
-        return updated;
-      });
-    },
-    [storageKey],
-  );
-
-  return {
-    bookmarks,
-    addBookmark,
-    removeBookmark,
-  };
+  return useChannelMemberBookmarks(workspaceId, channelId);
 }
 
 /**

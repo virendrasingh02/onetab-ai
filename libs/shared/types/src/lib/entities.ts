@@ -289,6 +289,16 @@ export interface WebAuthnCredentialDto {
 }
 
 /**
+ * Server-issued WebAuthn options (`PublicKeyCredentialCreationOptionsJSON` /
+ * `PublicKeyCredentialRequestOptionsJSON`) plus the opaque handle that must be
+ * sent back with the browser's response to redeem the stored challenge.
+ */
+export interface PasskeyOptionsResponse<TOptions = Record<string, unknown>> {
+  options: TOptions;
+  challengeToken: string;
+}
+
+/**
  * A workspace in the switcher, with the viewer's own standing attached.
  *
  * `permissions` is derived from `role` server-side and shipped alongside it so

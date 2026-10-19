@@ -350,6 +350,8 @@ export const queryKeys = {
     all: (workspaceId: string) => ['work-tools', workspaceId] as const,
     teams: (workspaceId: string) =>
       ['work-tools', workspaceId, 'teams'] as const,
+    taskLabels: (workspaceId: string) =>
+      ['work-tools', workspaceId, 'task-labels'] as const,
     initiatives: (workspaceId: string) =>
       ['work-tools', workspaceId, 'initiatives'] as const,
     projects: (workspaceId: string, teamId?: string) =>

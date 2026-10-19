@@ -454,13 +454,9 @@ export function ImportBoardDialog({
                   </div>
                 </div>
 
-                {/*
-                  Shown, but struck through: tasks have no labels, so these are
-                  read out of the file and then dropped. Better to say so here
-                  than to have them quietly vanish.
-                */}
+                {/* Labels become task labels and join the workspace catalogue. */}
                 {preview.board.labels.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 opacity-60 line-through">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <Tag className="size-3.5 text-muted-foreground" />
                     {preview.board.labels.slice(0, 8).map((label) => (
                       <span
