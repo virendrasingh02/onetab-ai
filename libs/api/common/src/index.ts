@@ -140,6 +140,7 @@ export {
 } from './lib/pagination.js';
 
 export {
+  PUBLIC_PROFILE_EXTRAS_SELECT,
   PUBLIC_USER_SELECT,
   toChannel,
   toChannelMember,

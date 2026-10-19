@@ -1,5 +1,6 @@
 import type { CurrentUser } from '@org/types';
-import { LocalTime, UserAvatar } from '@org/ui';
+import { resolveMediaUrl } from '@org/api-client';
+import { LocalTime, UserAvatar, UserCover } from '@org/ui';
 import {
   describeTimezone,
   formatZoneDifference,
@@ -41,16 +42,11 @@ export function ProfileSummaryCard({
       className={`rounded-2xl border border-border bg-surface text-foreground shadow-xs overflow-hidden ${className}`}
     >
       {/* Mini Cover Header */}
-      <div
-        className="h-24 w-full relative bg-cover bg-center"
-        style={{
-          backgroundImage: user.coverUrl
-            ? `url(${user.coverUrl})`
-            : 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #022c22 100%)',
-        }}
-      >
-        <div className="absolute inset-0 bg-black/20" />
-      </div>
+      <UserCover
+        src={resolveMediaUrl(user.coverUrl)}
+        seed={user.id}
+        className="h-24"
+      />
 
       {/* Content Body with Overlapping Avatar */}
       <div className="px-5 pb-5 pt-0 relative">

@@ -132,6 +132,20 @@ export class UserController {
     return this.users.uploadAvatar(userId, file);
   }
 
+  @Post('me/cover')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
+  uploadCover(
+    @CurrentUser('id') userId: string,
+    @UploadedFile() file: any,
+  ) {
+    return this.users.uploadCover(userId, file);
+  }
+
+  @Delete('me/cover')
+  removeCover(@CurrentUser('id') userId: string) {
+    return this.users.removeCover(userId);
+  }
+
   @Patch('me/status')
   updateStatus(
     @CurrentUser('id') userId: string,
@@ -204,6 +218,23 @@ export class UserController {
     const s = size ? parseInt(size, 10) : undefined;
     const { content, mimeType } = await this.users.readAvatar(userId, s);
     response.setHeader('Content-Type', mimeType);
+    response.setHeader('Cache-Control', 'public, max-age=86400');
+    response.send(content);
+  }
+
+  /**
+   * Public for the same reason as the avatar route: an `<img>` / CSS
+   * background cannot carry the bearer token.
+   */
+  @Public()
+  @Get(':userId/cover')
+  async getCover(
+    @Param('userId') userId: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const { content, mimeType } = await this.users.readCover(userId);
+    response.setHeader('Content-Type', mimeType);
+    response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Cache-Control', 'public, max-age=86400');
     response.send(content);
   }

@@ -18,6 +18,14 @@ model User {
   displayName               String?
   avatarUrl                 String?
   bio                       String?
+  /// Public role line shown on profile cards ("Product Designer").
+  jobTitle                  String?
+  /// Profile extras shown on the profile page (free text / http(s) URL / GitHub handle).
+  location                  String?
+  website                   String?
+  github                    String?
+  /// Profile banner: an http(s) URL or a cropped `data:image/...;base64` upload.
+  coverUrl                  String?
   timezone                  String                      @default("UTC")
   preferredLanguage         String                      @default("en")
   systemRole                SystemRole                  @default(USER)

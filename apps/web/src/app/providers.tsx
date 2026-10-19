@@ -1,4 +1,11 @@
-import { ApiError, gifsApi, stickersApi, queryKeys } from '@org/api-client';
+import {
+  ApiError,
+  gifsApi,
+  memberApi,
+  resolveMediaUrl,
+  stickersApi,
+  queryKeys,
+} from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
 import { store, useNotificationDisplayPreferences } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
@@ -25,7 +32,12 @@ import {
   LinkPreviewBridge,
   MatrixProvider,
 } from '@org/web-chat';
-import { AgentAvatarProvider } from '@org/chat-ui';
+import {
+  AgentAvatarProvider,
+  MemberProfileProvider,
+  type MemberProfileResolver,
+} from '@org/chat-ui';
+import { toPlatformUserId } from '@org/types';
 import { SyncProvider } from '@org/sync';
 import { useAgents } from '@org/web-agents';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
@@ -33,6 +45,7 @@ import {
   MutationCache,
   QueryClient,
   QueryClientProvider,
+  useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
 import { useI18nStore } from '@org/i18n';
@@ -124,7 +137,9 @@ function RealtimeAppBridge({ children }: { children: ReactNode }) {
       <SyncProvider userId={user?.id} workspaceId={activeWorkspaceId}>
         <AvatarPresenceBridge>
           <AgentAvatarBridge workspaceId={activeWorkspaceId ?? undefined}>
-            {children}
+            <MemberProfileBridge workspaceId={activeWorkspaceId ?? undefined}>
+              {children}
+            </MemberProfileBridge>
           </AgentAvatarBridge>
         </AvatarPresenceBridge>
       </SyncProvider>
@@ -150,6 +165,50 @@ function AgentAvatarBridge({
     [agents],
   );
   return <AgentAvatarProvider value={resolve}>{children}</AgentAvatarProvider>;
+}
+
+/**
+ * Gives every profile hover card / profile rail the person's real workspace
+ * role (Owner / Admin / Guest), title and time zone from `GET
+ * /workspaces/:id/members`. Shares the composer's members query cache, and
+ * accepts either id spelling since chat senders are Matrix ids.
+ */
+function MemberProfileBridge({
+  workspaceId,
+  children,
+}: {
+  workspaceId: string | undefined;
+  children: ReactNode;
+}) {
+  const { data: members } = useQuery({
+    queryKey: queryKeys.members.list(workspaceId ?? ''),
+    queryFn: () => memberApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+  const byUserId = useMemo(
+    () => new Map((members ?? []).map((m) => [m.user.id, m])),
+    [members],
+  );
+  const resolve = useCallback<MemberProfileResolver>(
+    (userId) => {
+      const m = byUserId.get(toPlatformUserId(userId));
+      if (!m) return undefined;
+      return {
+        role: m.role,
+        title: m.user.jobTitle ?? m.user.title,
+        bio: m.user.bio,
+        timezone: m.user.timezone,
+        joinedAt: m.joinedAt,
+        email: m.email,
+        coverUrl: resolveMediaUrl(m.user.coverUrl) ?? null,
+      };
+    },
+    [byUserId],
+  );
+  return (
+    <MemberProfileProvider value={resolve}>{children}</MemberProfileProvider>
+  );
 }
 
 /**

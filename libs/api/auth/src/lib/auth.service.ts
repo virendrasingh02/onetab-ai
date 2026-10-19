@@ -1165,6 +1165,11 @@ export function toCurrentUser(user: {
   displayName: string | null;
   avatarUrl: string | null;
   bio: string | null;
+  jobTitle?: string | null;
+  location?: string | null;
+  website?: string | null;
+  github?: string | null;
+  coverUrl?: string | null;
   timezone: string;
   preferredLanguage?: string | null;
   systemRole: string;
@@ -1186,6 +1191,12 @@ export function toCurrentUser(user: {
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     bio: user.bio,
+    jobTitle: user.jobTitle ?? null,
+    title: user.jobTitle ?? null,
+    location: user.location ?? null,
+    website: user.website ?? null,
+    github: user.github ?? null,
+    coverUrl: user.coverUrl ?? null,
     timezone: user.timezone,
     preferredLanguage: user.preferredLanguage ?? 'en',
     systemRole: user.systemRole as CurrentUser['systemRole'],

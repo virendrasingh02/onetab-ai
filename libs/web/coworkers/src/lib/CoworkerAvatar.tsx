@@ -88,8 +88,11 @@ export function getEntityInitial(name?: string | null): string {
   return (first ?? 'A').toUpperCase();
 }
 
-/** Deterministic gradient based on coworker name string */
-function getGradientByName(name: string): string {
+/**
+ * Deterministic gradient based on coworker name string. Exported so a
+ * coworker's cover banner can use the same gradient as their avatar.
+ */
+export function getGradientByName(name: string): string {
   const gradients = [
     'from-violet-500/20 to-purple-600/20 text-violet-600 dark:text-violet-300 border-violet-500/30',
     'from-indigo-500/20 to-blue-600/20 text-indigo-600 dark:text-indigo-300 border-indigo-500/30',

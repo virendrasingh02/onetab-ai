@@ -11,6 +11,7 @@ import { ProfileDetails } from '../components/profile-details.js';
 import { ProfileEditModal } from '../components/profile-edit-modal.js';
 import { ProfileHeader } from '../components/profile-header.js';
 import { ProfileSummaryCard } from '../components/profile-summary-card.js';
+import { useProfileCover } from '../use-profile-cover.js';
 
 export function ProfilePage() {
   const { workspaceSlug } = useParams<{ workspaceSlug?: string }>();
@@ -23,10 +24,12 @@ export function ProfilePage() {
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropType, setCropType] = useState<'avatar' | 'cover'>('avatar');
 
+  const { cropSource, uploadCover, removeCover } = useProfileCover();
+
   const backUrl = workspaceSlug ? `/w/${workspaceSlug}` : '/';
 
   const updateProfileMutation = useMutation({
-    mutationFn: (input: { avatarUrl?: string | null; coverUrl?: string | null }) =>
+    mutationFn: (input: { avatarUrl?: string | null }) =>
       userApi.updateProfile({
         name: user?.name || 'User',
         ...input,
@@ -50,12 +53,8 @@ export function ProfilePage() {
     if (cropType === 'avatar') {
       await updateProfileMutation.mutateAsync({ avatarUrl: croppedDataUrl });
     } else {
-      await updateProfileMutation.mutateAsync({ coverUrl: croppedDataUrl });
+      await uploadCover(croppedDataUrl);
     }
-  };
-
-  const handleRemoveCover = async () => {
-    await updateProfileMutation.mutateAsync({ coverUrl: null });
   };
 
   if (isWorkspaceLoading || !user) {
@@ -107,7 +106,7 @@ export function ProfilePage() {
             onOpenEditModal={() => setEditModalOpen(true)}
             onOpenAvatarCrop={handleOpenAvatarCrop}
             onOpenCoverCrop={handleOpenCoverCrop}
-            onRemoveCover={handleRemoveCover}
+            onRemoveCover={() => void removeCover()}
             onOpenStatusModal={openStatusModal}
           />
 
@@ -158,7 +157,7 @@ export function ProfilePage() {
         open={cropperOpen}
         onOpenChange={setCropperOpen}
         cropType={cropType}
-        initialImageUrl={cropType === 'avatar' ? user.avatarUrl : user.coverUrl}
+        initialImageUrl={cropType === 'avatar' ? user.avatarUrl : cropSource}
         onCropComplete={handleCropComplete}
       />
     </div>

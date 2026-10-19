@@ -25,6 +25,34 @@ export const updateLanguageSchema = z.object({
 
 export type UpdateLanguageInput = z.infer<typeof updateLanguageSchema>;
 
+/**
+ * Normalises a profile website to an absolute http(s) URL, or `null` when it is
+ * not one. A bare `example.com` gets `https://`; any other scheme
+ * (`javascript:`, `data:`, `ftp:`) is rejected, since the value is rendered
+ * as a link on other people's screens.
+ */
+export function normalizeProfileWebsite(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const url = new URL(withScheme);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    if (!url.hostname.includes('.') && url.hostname !== 'localhost') return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/*
+ * Cover images are rendered as an unquoted CSS `url(...)`, so on top of the
+ * scheme check they must not contain quotes, parentheses, backslashes or
+ * whitespace that could break out of it.
+ */
+const COVER_URL_PATTERN =
+  /^(?:data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+|https?:\/\/[^\s"'()\\]+|\/users\/[A-Za-z0-9_-]+\/cover\?v=\d+)$/;
+
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(80),
   displayName: z.string().trim().max(48).nullable().optional(),
@@ -32,12 +60,31 @@ export const updateProfileSchema = z.object({
   timezone: z.string().min(1).max(64).optional(),
   preferredLanguage: languageCodeSchema.optional(),
   avatarUrl: z.string().nullable().optional(),
-  coverUrl: z.string().nullable().optional(),
+  // Empty string is the form's "cleared" value; the API stores it as null.
+  coverUrl: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || COVER_URL_PATTERN.test(v), 'Cover must be an image upload or an http(s) URL')
+    .nullable()
+    .optional(),
   title: z.string().trim().max(80).nullable().optional(),
   jobTitle: z.string().trim().max(80).nullable().optional(),
   location: z.string().trim().max(80).nullable().optional(),
-  website: z.string().trim().max(255).nullable().optional(),
-  github: z.string().trim().max(80).nullable().optional(),
+  website: z
+    .string()
+    .trim()
+    .max(255)
+    .refine((v) => v === '' || normalizeProfileWebsite(v) !== null, 'Enter a valid website URL')
+    .nullable()
+    .optional(),
+  github: z
+    .string()
+    .trim()
+    .max(80)
+    // GitHub handle, optionally with a leading `@`.
+    .regex(/^(?:@?[A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))?$/, 'Enter a GitHub username')
+    .nullable()
+    .optional(),
   statusText: z.string().trim().max(100).nullable().optional(),
   statusEmoji: z.string().trim().max(32).nullable().optional(),
   statusExpiresAt: z.string().datetime().nullable().optional(),

@@ -17,6 +17,7 @@ import {
   Textarea,
   toast,
   UserAvatar,
+  UserCover,
 } from '@org/ui';
 import { useTranslation, type SupportedLanguageCode } from '@org/i18n';
 import { updateProfileSchema, type UpdateProfileInput } from '@org/validation';
@@ -40,6 +41,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ImageCropperDialog } from './image-cropper-dialog.js';
 import { ProfileSummaryCard } from './profile-summary-card.js';
+import { useProfileCover } from '../use-profile-cover.js';
 
 export function ProfileSettingsPanel() {
   const { workspace } = useCurrentWorkspace();
@@ -49,6 +51,8 @@ export function ProfileSettingsPanel() {
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropType, setCropType] = useState<'avatar' | 'cover'>('avatar');
   const { t, locale, setLocale } = useTranslation();
+  const { coverUrl, coverSrc, cropSource, uploadCover, removeCover, isSaving: isCoverSaving } =
+    useProfileCover();
 
   // Split name into first and last name
   const nameParts = (user?.name || '').trim().split(/\s+/);
@@ -67,7 +71,6 @@ export function ProfileSettingsPanel() {
       timezone: user?.timezone || 'UTC',
       preferredLanguage: (user?.preferredLanguage as SupportedLanguageCode) || locale || 'en',
       avatarUrl: user?.avatarUrl || '',
-      coverUrl: user?.coverUrl || '',
       jobTitle: user?.jobTitle || user?.title || '',
       location: user?.location || '',
       website: user?.website || '',
@@ -88,7 +91,6 @@ export function ProfileSettingsPanel() {
         timezone: user.timezone || 'UTC',
         preferredLanguage: (user.preferredLanguage as SupportedLanguageCode) || locale || 'en',
         avatarUrl: user.avatarUrl || '',
-        coverUrl: user.coverUrl || '',
         jobTitle: user.jobTitle || user.title || '',
         location: user.location || '',
         website: user.website || '',
@@ -111,7 +113,6 @@ export function ProfileSettingsPanel() {
         timezone: updated.timezone || 'UTC',
         preferredLanguage: (updated.preferredLanguage as SupportedLanguageCode) || locale || 'en',
         avatarUrl: updated.avatarUrl || '',
-        coverUrl: updated.coverUrl || '',
         jobTitle: updated.jobTitle || updated.title || '',
         location: updated.location || '',
         website: updated.website || '',
@@ -134,7 +135,6 @@ export function ProfileSettingsPanel() {
       displayName: values.displayName?.trim() || null,
       bio: values.bio?.trim() || null,
       avatarUrl: values.avatarUrl?.trim() || null,
-      coverUrl: values.coverUrl?.trim() || null,
       jobTitle: values.jobTitle?.trim() || null,
       location: values.location?.trim() || null,
       website: values.website?.trim() || null,
@@ -170,7 +170,8 @@ export function ProfileSettingsPanel() {
     if (cropType === 'avatar') {
       form.setValue('avatarUrl', croppedDataUrl, { shouldDirty: true });
     } else {
-      form.setValue('coverUrl', croppedDataUrl, { shouldDirty: true });
+      // Covers save straight away rather than riding the form draft.
+      void uploadCover(croppedDataUrl);
     }
   };
 
@@ -180,7 +181,6 @@ export function ProfileSettingsPanel() {
 
   const workspaceRole = workspace?.role || 'Member';
   const avatarWatch = form.watch('avatarUrl') || user.avatarUrl;
-  const coverWatch = form.watch('coverUrl') || user.coverUrl;
   const displayNameWatch = form.watch('displayName') || `${firstName} ${lastName}`.trim() || user.name;
   const jobTitleWatch = form.watch('jobTitle') || user.jobTitle || user.title;
   const bioWatch = form.watch('bio') || user.bio;
@@ -191,7 +191,7 @@ export function ProfileSettingsPanel() {
     name: `${firstName} ${lastName}`.trim() || user.name,
     displayName: displayNameWatch,
     avatarUrl: avatarWatch,
-    coverUrl: coverWatch,
+    coverUrl,
     jobTitle: jobTitleWatch,
     title: jobTitleWatch,
     bio: bioWatch,
@@ -210,15 +210,8 @@ export function ProfileSettingsPanel() {
             </h3>
             <div className="relative rounded-2xl overflow-hidden border border-border bg-surface-raised shadow-xs">
               {/* Cover Preview Area */}
-              <div
-                className="h-36 sm:h-44 w-full relative bg-cover bg-center"
-                style={{
-                  backgroundImage: coverWatch
-                    ? `url(${coverWatch})`
-                    : 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #022c22 100%)',
-                }}
-              >
-                <div className="absolute inset-0 bg-black/25" />
+              <UserCover src={coverSrc} seed={user.id} className="h-36 sm:h-44">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
 
                 {/* Change/Remove Cover buttons */}
                 <div className="absolute top-3 right-3 flex items-center gap-2">
@@ -227,18 +220,20 @@ export function ProfileSettingsPanel() {
                     variant="secondary"
                     size="xs"
                     onClick={handleOpenCoverCropper}
+                    disabled={isCoverSaving}
                     className="bg-black/60 hover:bg-black/80 text-white backdrop-blur-md text-xs gap-1.5 shadow-md border border-white/20"
                   >
                     <Camera className="size-3.5" />
                     <span>Change Cover</span>
                   </Button>
 
-                  {coverWatch ? (
+                  {coverUrl ? (
                     <Button
                       type="button"
                       variant="secondary"
                       size="xs"
-                      onClick={() => form.setValue('coverUrl', '', { shouldDirty: true })}
+                      disabled={isCoverSaving}
+                      onClick={() => void removeCover()}
                       className="bg-black/60 hover:bg-destructive/80 text-white backdrop-blur-md text-xs px-2 shadow-md border border-white/20"
                       title="Remove cover"
                     >
@@ -246,7 +241,7 @@ export function ProfileSettingsPanel() {
                     </Button>
                   ) : null}
                 </div>
-              </div>
+              </UserCover>
 
               {/* Avatar Preview Area */}
               <div className="px-6 pb-5 pt-0 relative flex items-end justify-between flex-wrap gap-4">
@@ -258,6 +253,7 @@ export function ProfileSettingsPanel() {
                       seed={user.id}
                       size="xl"
                       className="size-24 rounded-full"
+                      indicator={false}
                     />
                     <button
                       type="button"
@@ -565,7 +561,7 @@ export function ProfileSettingsPanel() {
         open={cropperOpen}
         onOpenChange={setCropperOpen}
         cropType={cropType}
-        initialImageUrl={cropType === 'avatar' ? avatarWatch : coverWatch}
+        initialImageUrl={cropType === 'avatar' ? avatarWatch : cropSource}
         onCropComplete={handleCropComplete}
       />
     </div>

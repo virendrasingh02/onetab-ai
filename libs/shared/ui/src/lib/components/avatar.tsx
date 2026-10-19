@@ -614,3 +614,40 @@ export function WorkspaceAvatar({
     </Avatar>
   );
 }
+
+export interface UserCoverProps extends ComponentProps<'div'> {
+  /** Loadable cover image (resolve API-relative paths before passing). */
+  src?: string | null;
+  /** Same seed the person's `UserAvatar` uses — a user id where available. */
+  seed: string;
+}
+
+/**
+ * A person's profile cover banner. With no uploaded image it paints the exact
+ * gradient their avatar fallback uses, so cover and avatar always match. The
+ * gradient also sits under an uploaded image, so a cover that fails to load
+ * degrades to it instead of a blank box.
+ */
+export function UserCover({
+  src,
+  seed,
+  className,
+  style,
+  children,
+  ...props
+}: UserCoverProps) {
+  const gradient = avatarGradient(seed);
+  return (
+    <div
+      className={cn('relative w-full bg-cover bg-center', className)}
+      style={{
+        backgroundImage: src ? `url("${src}"), ${gradient}` : gradient,
+        backgroundColor: avatarTint(seed),
+        ...style,
+      }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}

@@ -80,7 +80,9 @@ export class MemberService {
       where: { workspaceId },
       orderBy: [{ joinedAt: 'asc' }],
       include: {
-        user: { select: { ...PUBLIC_USER_SELECT, email: true } },
+        user: {
+          select: { ...PUBLIC_USER_SELECT, email: true, bio: true, coverUrl: true },
+        },
         invitedBy: { select: PUBLIC_USER_SELECT },
       },
     });
@@ -91,7 +93,14 @@ export class MemberService {
       role: member.role as WorkspaceRole,
       status: member.status as MembershipStatus,
       joinedAt: member.joinedAt.toISOString(),
-      user: toPublicUser(member.user),
+      user: toPublicUser({
+        ...member.user,
+        // Uploaded covers are a short API path; a legacy inline data URL could
+        // be megabytes, so it never rides the whole-roster payload.
+        coverUrl: member.user.coverUrl?.startsWith('data:')
+          ? null
+          : member.user.coverUrl,
+      }),
       email: member.email ?? member.user?.email ?? null,
       lastActiveAt: (member.lastActiveAt ?? member.lastSeenAt)?.toISOString() ?? null,
       lastSeenAt: member.lastSeenAt?.toISOString() ?? null,

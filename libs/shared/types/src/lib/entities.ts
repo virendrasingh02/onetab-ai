@@ -25,6 +25,8 @@ export interface PublicUser {
   coverUrl?: string | null;
   title?: string | null;
   jobTitle?: string | null;
+  /** Present on full-profile reads (member roster, `/users/:id`), not in feeds. */
+  bio?: string | null;
   location?: string | null;
   website?: string | null;
   github?: string | null;

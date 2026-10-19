@@ -42,6 +42,15 @@ export {
 } from './lib/user-profile-card.js';
 
 export {
+  MemberProfileProvider,
+  useMemberProfile,
+  MEMBER_ROLE_LABELS,
+  type MemberProfile,
+  type MemberProfileResolver,
+  type MemberWorkspaceRole,
+} from './lib/member-profile-context.js';
+
+export {
   Composer,
   GROUP_MENTIONS,
   DEFAULT_AI_AGENT_MENTIONS,

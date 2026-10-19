@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AppEvent, PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
+import {
+  AppEvent,
+  PUBLIC_PROFILE_EXTRAS_SELECT,
+  PUBLIC_USER_SELECT,
+  toPublicUser,
+} from '@org/api-common';
 import { MatrixAdminService } from '@org/api-matrix';
 import { ImageProcessingService } from '@org/api-media-processing';
 import { StorageService } from '@org/api-storage';
@@ -11,6 +16,7 @@ import {
   type PublicUser,
   type UserPreferences,
 } from '@org/types';
+import { normalizeProfileWebsite } from '@org/validation';
 import type {
   NavigationPreferenceInput,
   SidebarPreferencesInput,
@@ -19,6 +25,11 @@ import type {
   UpdateStatusInput,
   UpdateUserPreferencesInput,
 } from '@org/validation';
+
+/** One cover per user; replaced in place on every upload. */
+function coverStorageKey(userId: string): string {
+  return `covers/${userId}/cover.webp`;
+}
 
 @Injectable()
 export class UserService {
@@ -98,6 +109,51 @@ export class UserService {
     throw new NotFoundException('Avatar not found.');
   }
 
+  /**
+   * Stores a profile cover as one 1920×720 webp (the `coverImage` preset) and
+   * points `coverUrl` at the public read route. The `?v=` stamp busts caches,
+   * since the storage key is the same on every replace.
+   */
+  async uploadCover(
+    userId: string,
+    file: { buffer: Buffer; originalname: string; mimetype: string },
+  ): Promise<{ coverUrl: string }> {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Cover file is empty.');
+    }
+
+    const { coverImage } = await this.imageProcessing
+      .generateVariants(file.buffer, ['coverImage'])
+      .catch(() => ({}) as Record<string, undefined>);
+    if (!coverImage) {
+      throw new BadRequestException('Cover must be a PNG, JPEG, WebP or GIF image.');
+    }
+
+    await this.storage.put(coverStorageKey(userId), coverImage.buffer);
+
+    const coverUrl = `/users/${userId}/cover?v=${Date.now()}`;
+    await this.prisma.user.update({ where: { id: userId }, data: { coverUrl } });
+    return { coverUrl };
+  }
+
+  async readCover(userId: string): Promise<{ content: Buffer; mimeType: string }> {
+    const key = coverStorageKey(userId);
+    if (!(await this.storage.exists(key))) {
+      throw new NotFoundException('Cover not found.');
+    }
+    return { content: await this.storage.get(key), mimeType: 'image/webp' };
+  }
+
+  async removeCover(userId: string): Promise<{ coverUrl: null }> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { coverUrl: null },
+    });
+    const key = coverStorageKey(userId);
+    if (await this.storage.exists(key)) await this.storage.delete(key);
+    return { coverUrl: null };
+  }
+
   async findPublic(userId: string): Promise<PublicUser> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -130,7 +186,7 @@ export class UserService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: targetId },
-      select: PUBLIC_USER_SELECT,
+      select: { ...PUBLIC_USER_SELECT, ...PUBLIC_PROFILE_EXTRAS_SELECT },
     });
     if (!user) throw new NotFoundException('User not found.');
     return toPublicUser(user);
@@ -158,6 +214,28 @@ export class UserService {
           ? { displayName: input.displayName }
           : {}),
         ...(input.bio !== undefined ? { bio: input.bio } : {}),
+        // `title` is the older spelling of the same field; `jobTitle` wins.
+        ...(input.jobTitle !== undefined
+          ? { jobTitle: input.jobTitle || null }
+          : input.title !== undefined
+            ? { jobTitle: input.title || null }
+            : {}),
+        ...(input.location !== undefined
+          ? { location: input.location || null }
+          : {}),
+        ...(input.website !== undefined
+          ? {
+              website: input.website
+                ? normalizeProfileWebsite(input.website)
+                : null,
+            }
+          : {}),
+        ...(input.github !== undefined
+          ? { github: input.github ? input.github.replace(/^@/, '') : null }
+          : {}),
+        ...(input.coverUrl !== undefined
+          ? { coverUrl: input.coverUrl || null }
+          : {}),
         ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
         ...(input.preferredLanguage !== undefined
           ? { preferredLanguage: input.preferredLanguage }
@@ -210,12 +288,12 @@ export class UserService {
       name: user.name,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
-      coverUrl: input.coverUrl !== undefined ? input.coverUrl : ((user as any).coverUrl ?? null),
-      title: input.title !== undefined ? input.title : (user as any).title ?? null,
-      jobTitle: input.jobTitle !== undefined ? input.jobTitle : ((user as any).jobTitle ?? null),
-      location: input.location !== undefined ? input.location : ((user as any).location ?? null),
-      website: input.website !== undefined ? input.website : ((user as any).website ?? null),
-      github: input.github !== undefined ? input.github : ((user as any).github ?? null),
+      title: user.jobTitle ?? null,
+      jobTitle: user.jobTitle ?? null,
+      location: user.location ?? null,
+      website: user.website ?? null,
+      github: user.github ?? null,
+      coverUrl: user.coverUrl ?? null,
       bio: user.bio,
       timezone: user.timezone,
       preferredLanguage: user.preferredLanguage ?? 'en',
@@ -274,6 +352,12 @@ export class UserService {
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
+      jobTitle: user.jobTitle ?? null,
+      title: user.jobTitle ?? null,
+      location: user.location ?? null,
+      website: user.website ?? null,
+      github: user.github ?? null,
+      coverUrl: user.coverUrl ?? null,
       timezone: user.timezone,
       preferredLanguage: user.preferredLanguage ?? 'en',
       systemRole: user.systemRole as CurrentUser['systemRole'],
@@ -600,6 +684,12 @@ export class UserService {
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
       bio: user.bio,
+      jobTitle: user.jobTitle ?? null,
+      title: user.jobTitle ?? null,
+      location: user.location ?? null,
+      website: user.website ?? null,
+      github: user.github ?? null,
+      coverUrl: user.coverUrl ?? null,
       timezone: user.timezone,
       preferredLanguage: user.preferredLanguage ?? 'en',
       systemRole: user.systemRole as CurrentUser['systemRole'],

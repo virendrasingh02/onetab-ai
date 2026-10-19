@@ -10,19 +10,58 @@ import {
   ScrollArea,
   toPresenceStatus,
   UserAvatar,
+  UserCover,
   useRightPanelStore,
 } from '@org/ui';
+import { cn } from '@org/utils';
 import {
   Calendar,
+  Crown,
   Mail,
   MessageSquare,
   Phone,
   Shield,
+  ShieldCheck,
+  UserRound,
   Video,
   Zap,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { getUserColor } from './indicators.js';
+import {
+  MEMBER_ROLE_LABELS,
+  useMemberProfile,
+  type MemberWorkspaceRole,
+} from './member-profile-context.js';
+
+/**
+ * Owner / Admin / Guest pill from the workspace roster. Plain members get no
+ * pill — the label would be noise on almost every card.
+ */
+function WorkspaceRoleBadge({
+  role,
+  className,
+}: {
+  role: MemberWorkspaceRole;
+  className?: string;
+}) {
+  if (role === 'MEMBER') return null;
+  const Icon =
+    role === 'OWNER' ? Crown : role === 'ADMIN' ? ShieldCheck : UserRound;
+  return (
+    <span
+      className={cn(
+        'gap-1 px-1.5 py-0.5 font-semibold inline-flex items-center rounded-md border text-2xs whitespace-nowrap',
+        role === 'OWNER' && 'border-warning/30 bg-warning/10 text-warning-text',
+        role === 'ADMIN' && 'border-primary/30 bg-primary/10 text-primary-text',
+        role === 'GUEST' && 'border-border bg-surface-inset text-muted-foreground',
+        className,
+      )}
+    >
+      <Icon className="size-3" aria-hidden />
+      {MEMBER_ROLE_LABELS[role]}
+    </span>
+  );
+}
 
 /**
  * How long the pointer has to rest on a name or avatar before the preview
@@ -70,7 +109,7 @@ export function UserProfileCard({
   powerLevel = 0,
   email,
   joinedAt,
-  bio = 'Software Engineer & Team Collaborator on Onetab AI.',
+  bio,
   timezone,
   status = 'online',
   statusEmoji,
@@ -83,6 +122,14 @@ export function UserProfileCard({
 }: UserProfileCardProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
+  // Real workspace role/title/zone from the roster; agents, apps and
+  // coworkers aren't workspace members, so they never get a role pill.
+  const member = useMemberProfile(
+    !entityKind || entityKind === 'user' ? userId : undefined,
+  );
+  const resolvedTitle = title || member?.title || undefined;
+  const resolvedTimezone = timezone ?? member?.timezone ?? undefined;
+  const resolvedBio = (bio ?? member?.bio)?.trim() || undefined;
 
   /* One timer for both directions: any new intent cancels the pending one. */
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,7 +152,6 @@ export function UserProfileCard({
   // would otherwise open over whatever replaced it.
   useEffect(() => cancelHoverTimer, []);
 
-  const userColor = getUserColor(userId);
   const handle = `@${userId.replace(/^@/, '').split(':')[0]}`;
 
   /* Clicking a person always fills the right rail — there is no modal fallback. */
@@ -119,13 +165,13 @@ export function UserProfileCard({
       userId,
       name,
       avatarUrl,
-      title,
-      role,
+      title: resolvedTitle,
+      role: member ? MEMBER_ROLE_LABELS[member.role] : role,
       powerLevel,
-      email,
-      joinedAt,
-      bio,
-      timezone,
+      email: email ?? member?.email ?? undefined,
+      joinedAt: joinedAt ?? member?.joinedAt ?? undefined,
+      bio: resolvedBio,
+      timezone: resolvedTimezone,
       status:
         status === 'away' || status === 'busy' ? 'unavailable' : status,
       statusEmoji,
@@ -161,15 +207,12 @@ export function UserProfileCard({
         onMouseLeave={() => scheduleHover(false, HOVER_CLOSE_DELAY_MS)}
         className="z-[100] w-80 max-w-[calc(100vw-1.5rem)] p-0 shadow-2xl overflow-hidden rounded-2xl border border-border bg-popover text-foreground"
       >
-        {/* Header Banner Gradient */}
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${userColor} 0%, var(--surface-inset) 100%)`,
-          }}
-          className="h-20 relative w-full"
-        >
+        {/* Header banner — the person's cover, else their avatar gradient */}
+        <UserCover src={member?.coverUrl} seed={userId} className="h-20">
           <div className="top-2 right-2 gap-1 absolute flex">
-            {powerLevel >= 100 ? (
+            {/* Workspace role wins; the Matrix room power level is only a
+                fallback for people outside this workspace's roster. */}
+            {member ? null : powerLevel >= 100 ? (
               <span className="bg-black/40 px-2 py-0.5 font-bold text-white backdrop-blur-xs rounded-full text-2xs">
                 👑 Admin
               </span>
@@ -179,7 +222,7 @@ export function UserProfileCard({
               </span>
             ) : null}
           </div>
-        </div>
+        </UserCover>
 
         {/* User Avatar Row */}
         <div className="px-4 pb-3 pt-0 relative">
@@ -211,9 +254,17 @@ export function UserProfileCard({
                 </span>
               )}
             </div>
+            {resolvedTitle ? (
+              <p className="text-xs font-medium text-foreground">
+                {resolvedTitle}
+              </p>
+            ) : null}
             <p className="text-xs font-medium font-mono text-muted-foreground">
               {handle}
             </p>
+            {member && member.role !== 'MEMBER' ? (
+              <WorkspaceRoleBadge role={member.role} className="mt-1.5" />
+            ) : null}
           </div>
 
           {/* Custom status banner */}
@@ -230,19 +281,21 @@ export function UserProfileCard({
 
           {/* Bio & Details */}
           <div className="space-y-2 text-xs">
-            <div>
-              <p className="font-bold tracking-wider text-2xs text-muted-foreground uppercase">
-                About Me
-              </p>
-              <p className="mt-0.5 leading-relaxed line-clamp-2 text-foreground">
-                {bio}
-              </p>
-            </div>
+            {resolvedBio ? (
+              <div>
+                <p className="font-bold tracking-wider text-2xs text-muted-foreground uppercase">
+                  About Me
+                </p>
+                <p className="mt-0.5 leading-relaxed line-clamp-2 text-foreground">
+                  {resolvedBio}
+                </p>
+              </div>
+            ) : null}
 
             {/* Local time — just the clock and the time, nothing else. */}
             <div className="gap-1.5 flex items-center text-muted-foreground">
               <LocalTime
-                timezone={timezone || 'UTC'}
+                timezone={resolvedTimezone || 'UTC'}
                 icon
                 className="font-medium text-foreground"
               />
@@ -284,7 +337,7 @@ export function UserProfileRightPanel({
   powerLevel = 0,
   email,
   joinedAt,
-  bio = 'Software Engineer & Team Collaborator on Onetab AI.',
+  bio,
   timezone,
   status = 'online',
   statusEmoji,
@@ -310,9 +363,13 @@ export function UserProfileRightPanel({
   onStartCall?: (userId: string) => void;
   onStartVideoCall?: (userId: string) => void;
 }) {
-  const userColor = getUserColor(userId);
   const handle = `@${userId.replace(/^@/, '').split(':')[0]}`;
   const isBotOrAgent = userId.startsWith('agent-') || userId.startsWith('app-');
+  const member = useMemberProfile(isBotOrAgent ? undefined : userId);
+  const roleLabel = member ? MEMBER_ROLE_LABELS[member.role] : role;
+  const resolvedTitle = title || member?.title || undefined;
+  const resolvedBio = (bio ?? member?.bio)?.trim() || undefined;
+  const resolvedTimezone = timezone || member?.timezone || undefined;
 
   return (
     <div className="flex h-full flex-col bg-surface text-foreground">
@@ -321,12 +378,11 @@ export function UserProfileRightPanel({
         className="min-h-0 relative flex-1"
         contentClassName="pb-6"
       >
-        {/* Cover Header Banner */}
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${userColor} 0%, var(--surface-inset) 100%)`,
-          }}
-          className="h-24 relative w-full shrink-0"
+        {/* Cover banner — the person's cover, else their avatar gradient */}
+        <UserCover
+          src={member?.coverUrl}
+          seed={userId}
+          className="h-24 shrink-0"
         />
 
         <div className="space-y-4 px-4">
@@ -404,7 +460,9 @@ export function UserProfileRightPanel({
             <h2 className="text-lg font-extrabold tracking-tight text-foreground">
               {name}
             </h2>
-            {powerLevel >= 50 ? (
+            {member ? (
+              <WorkspaceRoleBadge role={member.role} />
+            ) : powerLevel >= 50 ? (
               <Badge
                 variant="primary"
                 className="bg-primary text-2xs text-primary-foreground"
@@ -414,8 +472,10 @@ export function UserProfileRightPanel({
             ) : null}
           </div>
 
-          {title ? (
-            <p className="text-xs font-semibold text-primary-text">{title}</p>
+          {resolvedTitle ? (
+            <p className="text-xs font-semibold text-primary-text">
+              {resolvedTitle}
+            </p>
           ) : null}
 
           <div className="gap-2 text-xs flex items-center">
@@ -445,7 +505,7 @@ export function UserProfileRightPanel({
         {/* Local time — just the clock and the time, nothing else. */}
         <div className="gap-1.5 flex items-center text-xs text-muted-foreground">
           <LocalTime
-            timezone={timezone || 'UTC'}
+            timezone={resolvedTimezone || 'UTC'}
             icon
             className="font-medium text-foreground"
           />
@@ -454,12 +514,14 @@ export function UserProfileRightPanel({
 
         {/* Bio & Details */}
         <div className="space-y-3 text-xs">
-          <div className="p-3 space-y-1.5 rounded-xl border border-border bg-surface-inset/50">
-            <p className="font-bold tracking-wider text-2xs text-muted-foreground uppercase">
-              About Me
-            </p>
-            <p className="leading-relaxed text-foreground">{bio}</p>
-          </div>
+          {resolvedBio ? (
+            <div className="p-3 space-y-1.5 rounded-xl border border-border bg-surface-inset/50">
+              <p className="font-bold tracking-wider text-2xs text-muted-foreground uppercase">
+                About Me
+              </p>
+              <p className="leading-relaxed text-foreground">{resolvedBio}</p>
+            </div>
+          ) : null}
 
           <div className="gap-2 grid grid-cols-2">
             <div className="p-2.5 rounded-xl border border-border bg-surface-inset/50">
@@ -468,7 +530,7 @@ export function UserProfileRightPanel({
                 <span>Role</span>
               </div>
               <p className="mt-0.5 text-xs font-semibold text-foreground">
-                {role}
+                {roleLabel}
               </p>
             </div>
 

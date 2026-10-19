@@ -32,6 +32,14 @@ interface UserRow {
   statusExpiresAt?: Date | null;
   lastSeenAt: Date | null;
   timezone: string;
+  jobTitle?: string | null;
+  /** Only selected where a full profile is shown (member roster, profile). */
+  bio?: string | null;
+  /** Only selected for a single full-profile read; see PUBLIC_PROFILE_EXTRAS_SELECT. */
+  location?: string | null;
+  website?: string | null;
+  github?: string | null;
+  coverUrl?: string | null;
 }
 
 export function toPublicUser(user: UserRow): PublicUser {
@@ -51,6 +59,14 @@ export function toPublicUser(user: UserRow): PublicUser {
       : (user.statusExpiresAt?.toISOString() ?? null),
     lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
     timezone: user.timezone,
+    jobTitle: user.jobTitle ?? null,
+    // Older readers look at `title`; both mean the same stored column.
+    title: user.jobTitle ?? null,
+    ...(user.bio !== undefined ? { bio: user.bio } : {}),
+    ...(user.location !== undefined ? { location: user.location } : {}),
+    ...(user.website !== undefined ? { website: user.website } : {}),
+    ...(user.github !== undefined ? { github: user.github } : {}),
+    ...(user.coverUrl !== undefined ? { coverUrl: user.coverUrl } : {}),
   };
 }
 
@@ -393,4 +409,18 @@ export const PUBLIC_USER_SELECT = {
   statusExpiresAt: true,
   lastSeenAt: true,
   timezone: true,
+  jobTitle: true,
+} as const;
+
+/**
+ * Full-profile columns for a single `/users/:id` read. Kept out of
+ * PUBLIC_USER_SELECT because that is spread into every feed and roster query,
+ * and `coverUrl` can be a sizeable data URL.
+ */
+export const PUBLIC_PROFILE_EXTRAS_SELECT = {
+  bio: true,
+  location: true,
+  website: true,
+  github: true,
+  coverUrl: true,
 } as const;

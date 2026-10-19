@@ -24,6 +24,7 @@ import {
   TimezoneSelect,
   toast,
   UserAvatar,
+  UserCover,
 } from '@org/ui';
 import { getSystemTimezone } from '@org/utils';
 import { updateProfileSchema, type UpdateProfileInput } from '@org/validation';
@@ -32,6 +33,7 @@ import { Camera, Info, Lock, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ImageCropperDialog } from './image-cropper-dialog.js';
+import { useProfileCover } from '../use-profile-cover.js';
 
 export interface ProfileEditModalProps {
   open: boolean;
@@ -42,6 +44,8 @@ export interface ProfileEditModalProps {
 export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalProps) {
   const setUser = useAuthStore((state) => state.setUser);
   const systemTimezone = getSystemTimezone();
+  const { coverUrl, coverSrc, cropSource, uploadCover, removeCover, isSaving: isCoverSaving } =
+    useProfileCover();
 
   // Cropper states
   const [cropperOpen, setCropperOpen] = useState(false);
@@ -63,7 +67,6 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
       bio: user.bio || '',
       timezone: user.timezone || systemTimezone,
       avatarUrl: user.avatarUrl || '',
-      coverUrl: user.coverUrl || '',
       jobTitle: user.jobTitle || user.title || '',
       location: user.location || '',
       website: user.website || '',
@@ -84,7 +87,6 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
         bio: user.bio || '',
         timezone: user.timezone || systemTimezone,
         avatarUrl: user.avatarUrl || '',
-        coverUrl: user.coverUrl || '',
         jobTitle: user.jobTitle || user.title || '',
         location: user.location || '',
         website: user.website || '',
@@ -115,7 +117,6 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
       displayName: values.displayName?.trim() || null,
       bio: values.bio?.trim() || null,
       avatarUrl: values.avatarUrl?.trim() || null,
-      coverUrl: values.coverUrl?.trim() || null,
       jobTitle: values.jobTitle?.trim() || null,
       location: values.location?.trim() || null,
       website: values.website?.trim() || null,
@@ -137,12 +138,12 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
     if (cropType === 'avatar') {
       form.setValue('avatarUrl', croppedDataUrl, { shouldDirty: true });
     } else {
-      form.setValue('coverUrl', croppedDataUrl, { shouldDirty: true });
+      // Covers save straight away rather than riding the form draft.
+      void uploadCover(croppedDataUrl);
     }
   };
 
   const avatarWatch = form.watch('avatarUrl') || user.avatarUrl;
-  const coverWatch = form.watch('coverUrl') || user.coverUrl;
   const displayNameWatch = form.watch('displayName') || `${firstName} ${lastName}`.trim() || user.name;
   const usernameHandle = `@${user.email.split('@')[0]}`;
 
@@ -163,15 +164,8 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
               <div className="text-xs font-semibold text-foreground">Cover &amp; Profile Picture</div>
               <div className="relative rounded-2xl overflow-hidden border border-border bg-surface-raised">
                 {/* Cover Preview Area */}
-                <div
-                  className="h-36 sm:h-44 w-full relative bg-cover bg-center"
-                  style={{
-                    backgroundImage: coverWatch
-                      ? `url(${coverWatch})`
-                      : 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #022c22 100%)',
-                  }}
-                >
-                  <div className="absolute inset-0 bg-black/30" />
+                <UserCover src={coverSrc} seed={user.id} className="h-36 sm:h-44">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
 
                   {/* Change/Remove Cover buttons */}
                   <div className="absolute top-3 right-3 flex items-center gap-2">
@@ -180,18 +174,20 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                       variant="secondary"
                       size="xs"
                       onClick={handleOpenCoverCropper}
+                      disabled={isCoverSaving}
                       className="bg-black/60 hover:bg-black/80 text-white backdrop-blur-md text-xs gap-1.5 shadow-md border border-white/20"
                     >
                       <Camera className="size-3.5" />
                       <span>Change Cover</span>
                     </Button>
 
-                    {coverWatch ? (
+                    {coverUrl ? (
                       <Button
                         type="button"
                         variant="secondary"
                         size="xs"
-                        onClick={() => form.setValue('coverUrl', '', { shouldDirty: true })}
+                        disabled={isCoverSaving}
+                        onClick={() => void removeCover()}
                         className="bg-black/60 hover:bg-destructive/80 text-white backdrop-blur-md text-xs px-2 shadow-md border border-white/20"
                         title="Remove cover"
                       >
@@ -199,7 +195,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                       </Button>
                     ) : null}
                   </div>
-                </div>
+                </UserCover>
 
                 {/* Avatar Preview Area */}
                 <div className="px-6 pb-4 pt-0 relative flex items-end justify-between">
@@ -211,6 +207,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                         seed={user.id}
                         size="xl"
                         className="size-24 rounded-full"
+                        indicator={false}
                       />
                       <button
                         type="button"
@@ -495,7 +492,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
         open={cropperOpen}
         onOpenChange={setCropperOpen}
         cropType={cropType}
-        initialImageUrl={cropType === 'avatar' ? avatarWatch : coverWatch}
+        initialImageUrl={cropType === 'avatar' ? avatarWatch : cropSource}
         onCropComplete={handleCropComplete}
       />
     </>

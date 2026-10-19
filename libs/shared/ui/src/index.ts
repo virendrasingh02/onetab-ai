@@ -46,6 +46,7 @@ export {
   toPresenceStatus,
   useResolvedPresence,
   UserAvatar,
+  UserCover,
   WorkspaceAvatar,
   type ApiPresenceStatus,
   type AvatarPresenceResolver,
@@ -54,6 +55,7 @@ export {
   type PresenceInput,
   type PresenceStatus,
   type UserAvatarProps,
+  type UserCoverProps,
   type WorkspaceAvatarProps,
 } from './lib/components/avatar.js';
 

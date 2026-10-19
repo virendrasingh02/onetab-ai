@@ -44,7 +44,7 @@ import {
 import { type FC, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCanManageTrackerMonitor } from '@org/web-workspace';
-import { CoworkerAvatar } from './CoworkerAvatar.js';
+import { CoworkerAvatar, getGradientByName } from './CoworkerAvatar.js';
 import { CoworkerCreateDialog } from './CoworkerCreateDialog.js';
 import {
   useCoworker,
@@ -259,14 +259,11 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
       <ScrollArea className="flex-1">
         {/* Mini Cover Header */}
         <div
-          className="h-24 w-full relative bg-cover bg-center"
-          style={{
-            backgroundImage:
-              'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #022c22 100%)',
-          }}
-        >
-          <div className="absolute inset-0 bg-black/20" />
-        </div>
+          className={cn(
+            'h-24 w-full bg-gradient-to-br',
+            getGradientByName(coworker.name),
+          )}
+        />
 
         {/* Content Body with Overlapping Avatar */}
         <div className="px-5 pb-5 pt-0 relative">
@@ -676,14 +673,11 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
       <div className="rounded-2xl border border-border bg-surface text-foreground shadow-xs overflow-hidden">
         {/* Cover Header Banner */}
         <div
-          className="h-32 sm:h-44 w-full relative bg-cover bg-center"
-          style={{
-            backgroundImage:
-              'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #022c22 100%)',
-          }}
-        >
-          <div className="absolute inset-0 bg-black/25 backdrop-blur-[0.5px]" />
-        </div>
+          className={cn(
+            'h-32 sm:h-44 w-full bg-gradient-to-br',
+            getGradientByName(coworker.name),
+          )}
+        />
 
         {/* Identity & Actions Bar */}
         <div className="px-6 pb-6 pt-0 relative">

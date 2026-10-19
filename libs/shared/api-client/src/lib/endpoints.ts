@@ -1365,6 +1365,24 @@ export const userApi = {
   updateProfile: (input: UpdateProfileInput) =>
     request<CurrentUser>(http.patch('/users/me', input)),
 
+  /**
+   * Multipart profile cover upload. Returns the stored, API-relative
+   * `coverUrl` — render it through `resolveMediaUrl`.
+   */
+  uploadCover: (file: Blob) => {
+    const form = new FormData();
+    form.append('file', file, 'cover.webp');
+    return request<{ coverUrl: string }>(
+      http.post('/users/me/cover', form, {
+        headers: { 'Content-Type': undefined as unknown as string },
+        timeout: 0,
+      }),
+    );
+  },
+
+  removeCover: () =>
+    request<{ coverUrl: null }>(http.delete('/users/me/cover')),
+
   updateStatus: (input: UpdateStatusInput) =>
     request<CurrentUser>(http.patch('/users/me/status', input)),
 

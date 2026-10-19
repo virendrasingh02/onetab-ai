@@ -1,9 +1,11 @@
-import { Button } from '@org/ui';
-import { Camera, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { resolveMediaUrl } from '@org/api-client';
+import { Button, UserCover } from '@org/ui';
+import { Camera, Trash2 } from 'lucide-react';
 
 export interface ProfileCoverProps {
   coverUrl?: string | null;
   name: string;
+  /** The person's avatar seed (user id) — the no-cover gradient matches it. */
   seed?: string;
   onChangeCover?: () => void;
   onRemoveCover?: () => void;
@@ -13,27 +15,21 @@ export interface ProfileCoverProps {
 
 export function ProfileCover({
   coverUrl,
-  name: _name,
-  seed: _seed,
+  name,
+  seed,
   onChangeCover,
   onRemoveCover,
   editable = true,
   className = '',
 }: ProfileCoverProps) {
-  // Deterministic gradient fallback if no cover image
-  const defaultGradient = 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #022c22 100%)';
-
   return (
-    <div
-      className={`group/cover relative w-full h-44 sm:h-56 md:h-64 rounded-2xl overflow-hidden border border-border/80 shadow-xs select-none ${className}`}
-      style={{
-        backgroundImage: coverUrl ? `url(${coverUrl})` : defaultGradient,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
+    <UserCover
+      src={resolveMediaUrl(coverUrl)}
+      seed={seed?.trim() ? seed : name}
+      className={`group/cover h-44 sm:h-56 md:h-64 rounded-2xl overflow-hidden border border-border/80 shadow-xs select-none ${className}`}
     >
       {/* Subtle overlay shading for contrast */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
 
       {/* Action Controls for Cover */}
       {editable && (
@@ -66,13 +62,6 @@ export function ProfileCover({
         </div>
       )}
 
-      {/* Default banner aesthetic indicator if no image */}
-      {!coverUrl && (
-        <div className="absolute bottom-3 right-3 hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/40 backdrop-blur-xs text-[11px] font-medium text-white/70">
-          <ImageIcon className="size-3.5 text-primary" />
-          <span>Profile Banner</span>
-        </div>
-      )}
-    </div>
+    </UserCover>
   );
 }
