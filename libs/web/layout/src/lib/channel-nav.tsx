@@ -924,6 +924,55 @@ export function ChannelNav({
      count per real navigation — the ref guard stops the channel-list refetch
      from re-counting the channel already on screen. */
   const lastVisitKeyRef = useRef<string>('');
+
+  /* Keep the selected row visible. After a refresh the list mounts scrolled to
+     the top and rows stream in as data loads, so watch the container until the
+     active row exists, scroll it into view once, then stop — never fighting a
+     scroll the user starts themselves. */
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const ACTIVE = '.nav-row-active, [aria-current="page"]';
+    let userScrolled = false;
+    const markUserScroll = () => {
+      userScrolled = true;
+    };
+    const reveal = () => {
+      if (userScrolled) return true;
+      const el = container.querySelector<HTMLElement>(ACTIVE);
+      if (!el) return false;
+      const box = container.getBoundingClientRect();
+      const rect = el.getBoundingClientRect();
+      if (rect.top < box.top || rect.bottom > box.bottom) {
+        el.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }
+      return true;
+    };
+    container.addEventListener('wheel', markUserScroll, { passive: true });
+    container.addEventListener('touchmove', markUserScroll, { passive: true });
+    container.addEventListener('pointerdown', markUserScroll, { passive: true });
+    if (reveal()) {
+      return () => {
+        container.removeEventListener('wheel', markUserScroll);
+        container.removeEventListener('touchmove', markUserScroll);
+        container.removeEventListener('pointerdown', markUserScroll);
+      };
+    }
+    const observer = new MutationObserver(() => {
+      if (reveal()) observer.disconnect();
+    });
+    observer.observe(container, { childList: true, subtree: true });
+    const timeout = window.setTimeout(() => observer.disconnect(), 5000);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(timeout);
+      container.removeEventListener('wheel', markUserScroll);
+      container.removeEventListener('touchmove', markUserScroll);
+      container.removeEventListener('pointerdown', markUserScroll);
+    };
+  }, [location.pathname, isCollapsed]);
+
   useEffect(() => {
     const match = location.pathname.match(/\/w\/[^/]+\/c\/([^/]+)/);
     const slug = match?.[1];
@@ -1420,7 +1469,10 @@ export function ChannelNav({
   return (
     <div className="min-h-0 flex h-full flex-col overflow-hidden bg-background">
       {/* TODO: restore <ScrollArea> (SimpleBar) here later */}
-      <div className="min-h-0 p-3 px-1.5 flex-1 scrollbar-on-hover overflow-y-auto overscroll-none-touch">
+      <div
+        ref={scrollRef}
+        className="min-h-0 p-3 px-1.5 flex-1 scrollbar-on-hover overflow-y-auto overscroll-none-touch"
+      >
         <div className="p-2 space-y-4">
           {/* Top Primary Navigation Items (Customizable via Dialog) */}
           <nav

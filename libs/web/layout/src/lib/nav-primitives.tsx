@@ -100,7 +100,8 @@ export function navRowClass(
     isActive
       ? // Selected row: primary-tinted fill + primary text — clearly distinct
         // from the neutral hover state.
-        'font-semibold text-primary-text bg-primary/12 shadow-2xs ring-1 ring-inset ring-primary/20'
+        // `nav-row-active` is a hook for the sidebar's scroll-to-active effect.
+        'nav-row-active font-semibold text-primary-text bg-primary/12 shadow-2xs ring-1 ring-inset ring-primary/20'
       : 'font-medium text-foreground/90 hover:bg-accent/70 hover:text-foreground',
     extra,
   );
