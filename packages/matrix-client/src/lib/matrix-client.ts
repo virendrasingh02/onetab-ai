@@ -1852,6 +1852,10 @@ export class OneTabMatrixClient {
     const room = sdk.getRoom(roomId);
     const event = room?.getUnfilteredTimelineSet().findEventById(eventId);
     if (!event) return;
+    // A local echo (`~room:txn` id) has no server event to point a receipt
+    // at — the homeserver rejects it with a 400. The acknowledged event
+    // re-triggers this once it lands.
+    if (event.status !== null || !event.getId()?.startsWith('$')) return;
     await sdk.sendReadReceipt(
       event,
       options.private ? ReceiptType.ReadPrivate : ReceiptType.Read,
