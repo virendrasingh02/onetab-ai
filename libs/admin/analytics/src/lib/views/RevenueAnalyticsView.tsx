@@ -65,7 +65,7 @@ export function RevenueAnalyticsView() {
           label="MRR (Monthly)"
           subtitle="Subscription Run-Rate"
           value={data?.mrr !== undefined ? formatCurrency(data.mrr) : '—'}
-          badgeText="+14.2%"
+          badgeText={data?.newRevenue && data?.mrr ? `+${Math.round((data.newRevenue / data.mrr) * 100)}%` : "Live"}
           badgeType="positive"
           secondaryText={`New: +${data?.newRevenue ? formatCurrency(data.newRevenue) : '$0'}`}
           sparklineColor="emerald"
@@ -76,7 +76,7 @@ export function RevenueAnalyticsView() {
           label="ARR (Annualized)"
           subtitle="Projected Contract Value"
           value={data?.arr !== undefined ? formatCurrency(data.arr) : '—'}
-          badgeText="+18.5%"
+          badgeText={data?.arr ? "Annualized" : "Live"}
           badgeType="positive"
           secondaryText="Total contracted run-rate"
           sparklineColor="cyan"
@@ -87,7 +87,7 @@ export function RevenueAnalyticsView() {
           label="Average Revenue Per User"
           subtitle="ARPU Benchmark"
           value={data?.arpu !== undefined ? formatCurrency(data.arpu) : '—'}
-          badgeText="+5.8%"
+          badgeText={data?.arpu ? "ARPU" : "Live"}
           badgeType="positive"
           secondaryText="Across paying accounts"
           sparklineColor="emerald"

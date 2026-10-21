@@ -287,6 +287,15 @@ export const queryKeys = {
         ['admin', 'analytics', 'engagement', filter ?? {}] as const,
       liveActivity: () => ['admin', 'analytics', 'live-activity'] as const,
     },
+    billing: {
+      all: () => ['admin-billing'] as const,
+      stats: (params?: Record<string, unknown>) => ['admin-billing', 'stats', params ?? {}] as const,
+      coupons: () => ['admin-billing', 'coupons'] as const,
+      subscriptions: (params?: Record<string, unknown>) => ['admin-billing', 'subscriptions', params ?? {}] as const,
+      invoices: (params?: Record<string, unknown>) => ['admin-billing', 'invoices', params ?? {}] as const,
+      audit: (params?: Record<string, unknown>) => ['admin-billing', 'audit', params ?? {}] as const,
+      webhooks: (params?: Record<string, unknown>) => ['admin-billing', 'webhooks', params ?? {}] as const,
+    },
   },
 
   enterprise: {

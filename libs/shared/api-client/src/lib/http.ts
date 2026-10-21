@@ -99,6 +99,9 @@ function normalizeBaseURL(value: string): string {
 }
 
 function getLocalBaseURLCandidates(value: string): string[] {
+  if (value.startsWith('/')) {
+    return [normalizeBaseURL(value)];
+  }
   try {
     const url = new URL(value);
     const isLocalHost =

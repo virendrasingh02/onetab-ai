@@ -143,7 +143,7 @@ export function ApiAnalyticsView() {
           label="Total Requests"
           subtitle="API Gateway & Ingestion"
           value={data?.totalRequests?.toLocaleString() ?? '—'}
-          badgeText="+22.4%"
+          badgeText={data?.totalRequests ? `${Number(data.totalRequests).toLocaleString()} reqs` : "Live"}
           badgeType="positive"
           secondaryText={`Across ${data?.totalApis ?? 0} registered APIs`}
           sparklineColor="emerald"
@@ -180,7 +180,7 @@ export function ApiAnalyticsView() {
           label="Peak Rate"
           subtitle="Throughput Envelope"
           value={`${data?.peakRequestsPerMinute?.toLocaleString() ?? '—'} /min`}
-          badgeText="+18.0%"
+          badgeText={data?.peakRequestsPerMinute ? `${data.peakRequestsPerMinute}/min peak` : "Live"}
           badgeType="positive"
           secondaryText="Peak requests per minute"
           sparklineColor="amber"

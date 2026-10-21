@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminBillingApi } from '@org/api-client';
 import {
@@ -43,8 +43,8 @@ import {
   toast,
   DateTimePicker,
 } from '@org/ui';
-import { formatDateTime } from '@org/utils';
-import { Download, Pencil, Plus, Receipt } from 'lucide-react';
+import { cn, formatDateTime } from '@org/utils';
+import { Building2, Download, Pencil, Plus, Receipt, RefreshCw } from 'lucide-react';
 
 const money = (cents: number, currency = 'USD') =>
   new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100);
@@ -419,6 +419,112 @@ function CouponsTab() {
   );
 }
 
+
+function ContractDialog({
+  workspace,
+  open,
+  onOpenChange,
+}: {
+  workspace: { workspaceId: string; workspaceName: string } | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [workspaceId, setWorkspaceId] = useState(workspace?.workspaceId || "");
+  const [periodEnd, setPeriodEnd] = useState("");
+  const [interval, setInterval] = useState<'monthly' | 'annual'>("annual");
+  const [seats, setSeats] = useState("50");
+  const [note, setNote] = useState("Custom negotiated enterprise contract");
+
+  useEffect(() => {
+    if (workspace?.workspaceId) {
+      setWorkspaceId(workspace.workspaceId);
+    }
+  }, [workspace]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      adminBillingApi.setContract(workspaceId, {
+        periodEnd: new Date(periodEnd).toISOString(),
+        billingInterval: interval,
+        seatsTotal: Number(seats) || undefined,
+        note: note.trim() || undefined,
+      }),
+    onSuccess: () => {
+      toast.success("Enterprise contract terms active.");
+      queryClient.invalidateQueries({ queryKey: ["admin-billing"] });
+      onOpenChange(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Set Enterprise Contract</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Workspace ID</label>
+            <Input
+              value={workspaceId}
+              onChange={(e) => setWorkspaceId(e.target.value)}
+              placeholder="e.g. cly..."
+              className="font-mono text-xs"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Contract Term Expiration</label>
+            <DateTimePicker value={periodEnd} onChange={(v) => setPeriodEnd(v ?? "")} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Billing Interval</label>
+              <Select value={interval} onValueChange={(v) => setInterval(v as "monthly" | "annual")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="annual">Annual</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Licensed Seats</label>
+              <Input
+                type="number"
+                min={1}
+                value={seats}
+                onChange={(e) => setSeats(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Contract Reference / Notes</label>
+            <Input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Signed MSA 2026-10-21"
+              className="text-xs"
+            />
+          </div>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            variant="primary"
+            disabled={save.isPending || !workspaceId.trim() || !periodEnd}
+            onClick={() => save.mutate()}
+          >
+            {save.isPending ? "Applying…" : "Apply Terms"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ---------------------------------------------------------- subscriptions --- */
 
 function SubscriptionsTab() {
@@ -426,6 +532,7 @@ function SubscriptionsTab() {
   const [plan, setPlan] = useState('all');
   const [status, setStatus] = useState('all');
   const [page, setPage] = useState(1);
+  const [contractWorkspace, setContractWorkspace] = useState<{ workspaceId: string; workspaceName: string } | null>(null);
   const q = useQuery({
     queryKey: ['admin-billing', 'subs', search, plan, status, page],
     queryFn: () =>
@@ -454,7 +561,10 @@ function SubscriptionsTab() {
             {['ACTIVE', 'TRIALING', 'PAST_DUE', 'UNPAID', 'CANCELLED', 'EXPIRED'].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button size="sm" variant="outline" className="gap-1.5 ml-auto" onClick={() => void download('subscriptions')}>
+        <Button size="sm" variant="primary" className="gap-1.5 ml-auto" onClick={() => setContractWorkspace({ workspaceId: '', workspaceName: '' })}>
+          <Building2 className="size-3.5" /> Set Enterprise Contract
+        </Button>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void download('subscriptions')}>
           <Download className="size-3.5" /> CSV
         </Button>
       </div>
@@ -474,6 +584,7 @@ function SubscriptionsTab() {
                   <TableHead>Source</TableHead>
                   <TableHead>Period ends</TableHead>
                   <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -486,6 +597,11 @@ function SubscriptionsTab() {
                     <TableCell className="text-xs text-muted-foreground">{formatDateTime(s.currentPeriodEnd)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {[s.cancelAtPeriodEnd ? 'cancelling' : null, s.scheduledPlanTier ? `→ ${s.scheduledPlanTier}` : null, s.appliedPromotionCode].filter(Boolean).join(' · ')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button size="xs" variant="ghost" className="text-xs font-mono" onClick={() => setContractWorkspace({ workspaceId: s.workspaceId, workspaceName: s.workspaceName })}>
+                        Contract
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -502,6 +618,13 @@ function SubscriptionsTab() {
         </>
       ) : (
         <EmptyState title="No subscriptions match" />
+      )}
+      {contractWorkspace && (
+        <ContractDialog
+          workspace={contractWorkspace}
+          open={Boolean(contractWorkspace)}
+          onOpenChange={(open) => !open && setContractWorkspace(null)}
+        />
       )}
     </div>
   );
@@ -596,6 +719,77 @@ function AuditTab() {
   );
 }
 
+
+/* ---------------------------------------------------------------- webhooks --- */
+
+function WebhooksTab() {
+  const q = useQuery({
+    queryKey: ['admin-billing', 'webhooks'],
+    queryFn: () => adminBillingApi.webhooks({ take: 50 }),
+    refetchInterval: 15_000,
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Live feed of provider-delivered webhook notifications (Stripe & payment gateways).
+        </p>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => q.refetch()} disabled={q.isFetching}>
+          <RefreshCw className={cn("size-3.5", q.isFetching && "animate-spin")} /> Refresh Feed
+        </Button>
+      </div>
+
+      {q.isLoading ? (
+        <LoadingState />
+      ) : q.isError ? (
+        <ErrorState onRetry={() => q.refetch()} />
+      ) : q.data && q.data.length > 0 ? (
+        <div className="rounded-xl border border-border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Event Type</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Received</TableHead>
+                <TableHead>Processed</TableHead>
+                <TableHead>Diagnostic</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {q.data.map((w) => (
+                <TableRow key={w.id}>
+                  <TableCell className="font-mono text-xs font-semibold text-foreground">
+                    {w.type}
+                  </TableCell>
+                  <TableCell className="text-xs uppercase font-mono">
+                    {w.provider}
+                  </TableCell>
+                  <TableCell>
+                    <StatusPill value={w.status} />
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatDateTime(w.receivedAt)}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {w.processedAt ? formatDateTime(w.processedAt) : "Pending"}
+                  </TableCell>
+                  <TableCell className="text-xs text-destructive max-w-xs truncate" title={w.error || undefined}>
+                    {w.error || "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <EmptyState title="No billing webhooks recorded" description="Live webhook dispatches from payment providers will appear here." />
+      )}
+    </div>
+  );
+}
+
 export function AdminBillingView() {
   return (
     <Page>
@@ -610,12 +804,14 @@ export function AdminBillingView() {
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="audit">Audit log</TabsTrigger>
+          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
         </TabsList>
         <TabsContent value="overview"><OverviewTab /></TabsContent>
         <TabsContent value="coupons"><CouponsTab /></TabsContent>
         <TabsContent value="subscriptions"><SubscriptionsTab /></TabsContent>
         <TabsContent value="invoices"><InvoicesTab /></TabsContent>
         <TabsContent value="audit"><AuditTab /></TabsContent>
+        <TabsContent value="webhooks"><WebhooksTab /></TabsContent>
       </Tabs>
     </Page>
   );

@@ -86,7 +86,7 @@ export function MessagingAnalyticsView() {
           label="Total Messages"
           subtitle="Dispatch Throughput"
           value={data?.totalMessages?.toLocaleString() ?? '—'}
-          badgeText="+16.3%"
+          badgeText={data?.totalMessages ? `${Number(data.totalMessages).toLocaleString()} msgs` : "Live"}
           badgeType="positive"
           secondaryText={`Sent: ${data?.messagesSent?.toLocaleString() ?? 0} messages`}
           sparklineColor="emerald"
@@ -97,7 +97,7 @@ export function MessagingAnalyticsView() {
           label="Direct Messages"
           subtitle="1-on-1 Peer Channels"
           value={data?.directMessages?.toLocaleString() ?? '—'}
-          badgeText="+12.8%"
+          badgeText={data?.channelMessages ? `${Number(data.channelMessages).toLocaleString()} channel` : "Live"}
           badgeType="positive"
           secondaryText="Private discussions"
           sparklineColor="cyan"
@@ -108,7 +108,7 @@ export function MessagingAnalyticsView() {
           label="Channel Messages"
           subtitle="Shared Collaboration"
           value={data?.channelMessages?.toLocaleString() ?? '—'}
-          badgeText="+19.5%"
+          badgeText={data?.directMessages ? `${Number(data.directMessages).toLocaleString()} direct` : "Live"}
           badgeType="positive"
           secondaryText={`Threads: ${data?.threadsCount?.toLocaleString() ?? 0} active`}
           sparklineColor="emerald"
@@ -119,7 +119,7 @@ export function MessagingAnalyticsView() {
           label="Reactions & Mentions"
           subtitle="Sentiment Velocity"
           value={((data?.reactionsCount || 0) + (data?.mentionsCount || 0)).toLocaleString()}
-          badgeText="+24.1%"
+          badgeText={data?.reactionsCount ? `${Number(data.reactionsCount).toLocaleString()} reactions` : "Live"}
           badgeType="positive"
           secondaryText={`Reactions: ${data?.reactionsCount ?? 0} · Mentions: ${data?.mentionsCount ?? 0}`}
           sparklineColor="amber"

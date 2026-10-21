@@ -4811,6 +4811,32 @@ export const adminBillingApi = {
   audit: (params: { workspaceId?: string; take?: number } = {}) =>
     request<AdminBillingAuditEntry[]>(http.get('/admin/billing/audit', { params })),
 
+  setContract: (
+    workspaceId: string,
+    input: {
+      periodEnd: string;
+      billingInterval?: 'monthly' | 'annual';
+      seatsTotal?: number;
+      note?: string;
+    },
+  ) =>
+    request<AdminBillingSubscription>(
+      http.post(`/admin/billing/subscriptions/${workspaceId}/contract`, input),
+    ),
+
+  webhooks: (params: { take?: number } = {}) =>
+    request<
+      Array<{
+        id: string;
+        provider: string;
+        type: string;
+        status: string;
+        error: string | null;
+        receivedAt: string;
+        processedAt: string | null;
+      }>
+    >(http.get('/admin/billing/webhooks', { params })),
+
   /** CSV downloads go through the authenticated client, then to a Blob. */
   exportCsv: async (kind: 'subscriptions' | 'invoices', params: Record<string, string | undefined> = {}) => {
     const res = await http.get(`/admin/billing/${kind}.csv`, { params, responseType: 'blob' });

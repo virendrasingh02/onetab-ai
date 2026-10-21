@@ -112,7 +112,7 @@ export function StorageAnalyticsView() {
           label="Total Uploads"
           subtitle="Asset Registry"
           value={data?.totalFiles?.toLocaleString() ?? '—'}
-          badgeText="+10.2%"
+          badgeText={data?.totalFiles ? `${Number(data.totalFiles).toLocaleString()} files` : "Live"}
           badgeType="positive"
           secondaryText={`Uploaded: ${data?.filesUploaded?.toLocaleString() ?? 0} files`}
           sparklineColor="cyan"

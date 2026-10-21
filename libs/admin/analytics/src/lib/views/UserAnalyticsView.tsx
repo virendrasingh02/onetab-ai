@@ -135,7 +135,7 @@ export function UserAnalyticsView() {
           label="Active Accounts"
           subtitle="Platform Concurrency"
           value={data?.activeAccounts?.toLocaleString() ?? '—'}
-          badgeText="+12.5%"
+          badgeText={data?.activeAccounts ? `${data.activeAccounts} active` : "Live"}
           badgeType="positive"
           secondaryText={`DAU: ${data?.dau?.toLocaleString() ?? 0} | WAU: ${data?.wau?.toLocaleString() ?? 0}`}
           sparklineColor="cyan"

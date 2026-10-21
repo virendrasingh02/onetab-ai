@@ -37,9 +37,10 @@ const PROTOCOLS = [
  * screen displayed `https://api.onetab.ai/...` on every deployment.
  */
 function scimBaseEndpoint(): string {
-  const base = (
-    http.defaults.baseURL ?? `${window.location.origin}/api/v1`
-  ).replace(/\/$/, '');
+  const rawBase = http.defaults.baseURL ?? '/api/v1';
+  const base = rawBase.startsWith('http')
+    ? rawBase.replace(/\/$/, '')
+    : `${typeof window !== 'undefined' ? window.location.origin : ''}${rawBase.startsWith('/') ? '' : '/'}${rawBase.replace(/\/$/, '')}`;
   return `${base}/enterprise/scim/v2`;
 }
 

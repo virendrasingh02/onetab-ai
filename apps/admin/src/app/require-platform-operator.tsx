@@ -1,3 +1,4 @@
+import { cn } from '@org/utils';
 import {
   authApi,
   isTwoFactorChallenge,
@@ -187,6 +188,15 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
             </span>
             <span className="font-semibold tracking-wider px-1.5 py-0.5 rounded-md border border-primary/20 bg-primary/10 text-[10px] text-primary uppercase">
               Admin
+            </span>
+            <span className={cn(
+              "font-mono text-[10px] px-2 py-0.5 rounded-full border inline-flex items-center gap-1.5",
+              loginError && loginError.toLowerCase().includes("reach")
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-400"
+                : "border-success/30 bg-success/10 text-success-text"
+            )}>
+              <span className={cn("size-1.5 rounded-full", loginError && loginError.toLowerCase().includes("reach") ? "bg-rose-500" : "bg-success animate-pulse")} />
+              {loginError && loginError.toLowerCase().includes("reach") ? "API Offline" : "API Connected"}
             </span>
           </div>
 
@@ -494,8 +504,20 @@ export function RequirePlatformOperator({ children }: { children: ReactNode }) {
                 variant="primary"
                 size="md"
                 className="w-full"
-                onClick={() => {
+                onClick={async () => {
+                  try {
+                    await authApi.logout();
+                  } catch {
+                    // ignore network errors
+                  }
                   setAccessToken(null);
+                  try {
+                    localStorage.removeItem('onetab_auth_token');
+                    localStorage.removeItem('onetab_access_token');
+                    sessionStorage.clear();
+                  } catch {
+                    // ignore storage errors
+                  }
                   setState({ status: 'unauthenticated' });
                 }}
               >

@@ -133,7 +133,7 @@ export function LocationAnalyticsView() {
           label="Total Regional Users"
           subtitle="Geo-Distributed Traffic"
           value={data?.countries?.reduce((acc, c) => acc + c.usersCount, 0)?.toLocaleString() ?? '—'}
-          badgeText="+14.8%"
+          badgeText={data?.regions?.length ? `${data.regions.length} regions` : "Live"}
           badgeType="positive"
           secondaryText="International adoption"
           sparklineColor="emerald"

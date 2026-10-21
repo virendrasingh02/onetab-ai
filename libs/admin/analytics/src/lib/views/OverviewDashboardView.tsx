@@ -230,17 +230,17 @@ function SystemInfrastructureCard() {
           <Server className="size-3.5 text-primary" />
           <span>Node.js Heap:</span>
           <span className="font-bold text-foreground">
-            {heapUsedMb > 0 ? `${heapUsedMb} MB / ${heapTotalMb} MB` : '182 MB'}
+            {heapUsedMb > 0 ? `${heapUsedMb} MB / ${heapTotalMb} MB` : isHealthLoading ? 'Probing…' : '—'}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <Activity className="size-3.5 text-emerald-500" />
           <span>Avg Latency:</span>
           <span className="font-bold text-foreground">
-            {performance?.latency?.avgMs != null ? `${performance.latency.avgMs}ms` : '14ms'}
+            {performance?.latency?.avgMs != null ? `${performance.latency.avgMs}ms` : isHealthLoading ? 'Probing…' : '—'}
           </span>
           <span className="text-[10px] text-muted-foreground">
-            (p95: {performance?.latency?.p95Ms != null ? `${performance.latency.p95Ms}ms` : '32ms'})
+            (p95: {performance?.latency?.p95Ms != null ? `${performance.latency.p95Ms}ms` : '—'})
           </span>
         </div>
       </div>
@@ -547,7 +547,7 @@ export function OverviewDashboardView() {
           badgeText={
             totalRevenueKpi?.changePct != null
               ? `${totalRevenueKpi.changePct >= 0 ? '+' : ''}${totalRevenueKpi.changePct}%`
-              : '+12.5%'
+              : 'Live'
           }
           badgeType={
             (totalRevenueKpi?.changePct ?? 0) >= 0 ? 'positive' : 'negative'
@@ -555,7 +555,7 @@ export function OverviewDashboardView() {
           value={
             totalRevenueKpi?.value != null
               ? formatKpiValue(totalRevenueKpi.value, 'currency')
-              : '$1,250.00'
+              : isOverviewLoading ? '…' : '$0.00'
           }
           secondaryText={
             overview?.revenueKpis?.['arr']
@@ -574,7 +574,7 @@ export function OverviewDashboardView() {
           badgeText={
             newUsersKpi?.changePct != null
               ? `${newUsersKpi.changePct >= 0 ? '+' : ''}${newUsersKpi.changePct}%`
-              : '+0%'
+              : 'Live'
           }
           badgeType={
             (newUsersKpi?.changePct ?? 0) >= 0 ? 'positive' : 'negative'
@@ -582,7 +582,7 @@ export function OverviewDashboardView() {
           value={
             newUsersKpi?.value != null
               ? Number(newUsersKpi.value).toLocaleString()
-              : '1,234'
+              : isOverviewLoading ? '…' : '0'
           }
           secondaryText={
             overview?.platformKpis?.['totalUsers']?.value
@@ -601,7 +601,7 @@ export function OverviewDashboardView() {
           badgeText={
             activeUsersKpi?.changePct != null
               ? `${activeUsersKpi.changePct >= 0 ? '+' : ''}${activeUsersKpi.changePct}%`
-              : '+12.5%'
+              : 'Live'
           }
           badgeType={
             (activeUsersKpi?.changePct ?? 0) >= 0 ? 'positive' : 'negative'
@@ -609,7 +609,7 @@ export function OverviewDashboardView() {
           value={
             activeUsersKpi?.value != null
               ? Number(activeUsersKpi.value).toLocaleString()
-              : '45,678'
+              : isOverviewLoading ? '…' : '0'
           }
           secondaryText={
             overview?.platformKpis?.['dau']?.value
@@ -633,7 +633,7 @@ export function OverviewDashboardView() {
           value={
             activeWorkspacesKpi?.value != null
               ? Number(activeWorkspacesKpi.value).toLocaleString()
-              : '128'
+              : isOverviewLoading ? '…' : '0'
           }
           secondaryText={
             overview?.communicationKpis?.['messagesSent']?.value

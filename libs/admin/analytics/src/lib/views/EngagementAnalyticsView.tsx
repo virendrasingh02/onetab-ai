@@ -50,7 +50,7 @@ export function EngagementAnalyticsView() {
           label="DAU / MAU Stickiness"
           subtitle="User Immersion Ratio"
           value={data?.stickiness !== undefined ? `${data.stickiness}%` : '—'}
-          badgeText="+4.5%"
+          badgeText={data?.stickiness != null ? `${Math.round(data.stickiness * 100)}% stickiness` : "Live"}
           badgeType="positive"
           secondaryText="Daily to monthly ratio"
           sparklineColor="emerald"
@@ -61,7 +61,7 @@ export function EngagementAnalyticsView() {
           label="Total Sessions"
           subtitle="Interactive Traffic"
           value={data?.totalSessions?.toLocaleString() ?? '—'}
-          badgeText="+17.3%"
+          badgeText={data?.totalSessions ? `${Number(data.totalSessions).toLocaleString()} sessions` : "Live"}
           badgeType="positive"
           secondaryText="User sessions initiated"
           sparklineColor="cyan"
@@ -76,7 +76,7 @@ export function EngagementAnalyticsView() {
               ? `${Math.round(data.avgSessionDurationSeconds / 60)} min`
               : '—'
           }
-          badgeText="+8.2%"
+          badgeText={data?.avgSessionDurationSeconds ? `${Math.round(data.avgSessionDurationSeconds / 60)}m avg` : "Live"}
           badgeType="positive"
           secondaryText="Average duration per visit"
           sparklineColor="amber"
@@ -87,7 +87,7 @@ export function EngagementAnalyticsView() {
           label="Monthly Active (MAU)"
           subtitle="Unique Cohort Size"
           value={data?.mau?.toLocaleString() ?? '—'}
-          badgeText="+12.5%"
+          badgeText={data?.featureUsage?.length ? `${data.featureUsage.length} features` : "Live"}
           badgeType="positive"
           secondaryText={`DAU: ${data?.dau?.toLocaleString() ?? 0} · WAU: ${data?.wau?.toLocaleString() ?? 0}`}
           sparklineColor="emerald"

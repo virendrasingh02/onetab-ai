@@ -31,10 +31,16 @@ const TUNNEL_HOSTS = [
  * which would resolve to the *visitor's* machine over a shared tunnel. See
  * apps/web/vite.config.mts for the full writeup.
  */
+const API_PROXY_TARGET =
+  process.env['API_URL'] ||
+  process.env['VITE_API_URL_PROXY'] ||
+  `http://localhost:${process.env['API_PORT'] || process.env['PORT'] || 3000}`;
+
 const API_PROXY = {
   '/api': {
-    target: 'http://localhost:3000',
+    target: API_PROXY_TARGET,
     changeOrigin: true,
+    ws: true,
   },
 };
 

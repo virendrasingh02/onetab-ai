@@ -57,7 +57,7 @@ export function SubscriptionAnalyticsView() {
           label="Paid Subscriptions"
           subtitle="Enterprise & Pro Plans"
           value={data?.paidCount?.toLocaleString() ?? '—'}
-          badgeText="+12.6%"
+          badgeText={data?.trialConversionRatePct != null ? `${data.trialConversionRatePct}% conversion` : "Live"}
           badgeType="positive"
           secondaryText={`Free tier: ${data?.freeCount?.toLocaleString() ?? 0} accounts`}
           sparklineColor="emerald"
@@ -68,7 +68,7 @@ export function SubscriptionAnalyticsView() {
           label="Trial Conversion"
           subtitle="Funnel Efficiency"
           value={data?.trialConversionRatePct !== undefined ? `${data.trialConversionRatePct}%` : '—'}
-          badgeText="+3.4%"
+          badgeText={data?.trialCount ? `${data.trialCount} active` : "Live"}
           badgeType="positive"
           secondaryText={`Active trials: ${data?.trialCount?.toLocaleString() ?? 0}`}
           sparklineColor="cyan"
@@ -94,7 +94,7 @@ export function SubscriptionAnalyticsView() {
           label="Plan Upgrades"
           subtitle="Expansion Velocity"
           value={data?.upgrades?.toLocaleString() ?? '—'}
-          badgeText="+19.0%"
+          badgeText={data?.upgrades ? `${data.upgrades} upgraded` : "Live"}
           badgeType="positive"
           secondaryText={`Downgrades: ${data?.downgrades?.toLocaleString() ?? 0}`}
           sparklineColor="amber"

@@ -155,7 +155,7 @@ export function PlatformUsageView() {
           label="Active Web Users"
           subtitle="Browser Platform Sessions"
           value={data?.activeWebUsers?.toLocaleString() ?? '—'}
-          badgeText="+14.2%"
+          badgeText={data?.totalWebUsers != null ? `${Number(data.totalWebUsers).toLocaleString()} users` : "Live"}
           badgeType="positive"
           secondaryText={`Total: ${data?.totalWebUsers?.toLocaleString() ?? 0}`}
           sparklineColor="emerald"
@@ -166,7 +166,7 @@ export function PlatformUsageView() {
           label="Active Desktop Users"
           subtitle="Electron Client Adoption"
           value={data?.activeDesktopUsers?.toLocaleString() ?? '—'}
-          badgeText="+8.5%"
+          badgeText={data?.totalDesktopUsers != null ? `${Number(data.totalDesktopUsers).toLocaleString()} users` : "Live"}
           badgeType="positive"
           secondaryText={`Total: ${data?.totalDesktopUsers?.toLocaleString() ?? 0}`}
           sparklineColor="cyan"
@@ -177,7 +177,7 @@ export function PlatformUsageView() {
           label="Total Sessions"
           subtitle="Aggregated Concurrency"
           value={totalSessions.toLocaleString()}
-          badgeText="+12.0%"
+          badgeText={data?.activeWebUsers != null ? `${Number(data.activeWebUsers).toLocaleString()} active` : "Live"}
           badgeType="positive"
           secondaryText={`Web: ${data?.sessionsByPlatform?.web ?? 0} · Desktop: ${data?.sessionsByPlatform?.desktop ?? 0}`}
           sparklineColor="amber"
@@ -188,7 +188,7 @@ export function PlatformUsageView() {
           label="Desktop Share"
           subtitle="Platform Distribution"
           value={`${desktopPct}%`}
-          badgeText="+2.4%"
+          badgeText={data?.activeDesktopUsers != null ? `${Number(data.activeDesktopUsers).toLocaleString()} active` : "Live"}
           badgeType="positive"
           secondaryText="Native app client ratio"
           sparklineColor="emerald"

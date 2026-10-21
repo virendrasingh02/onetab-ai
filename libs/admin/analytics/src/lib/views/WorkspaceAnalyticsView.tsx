@@ -34,6 +34,8 @@ export function WorkspaceAnalyticsView() {
       status: tierFilter !== 'ALL' ? tierFilter : undefined,
     });
 
+  const formatCurrency = (val: number) => "$" + val.toLocaleString();
+
   const formatBytes = (bytes: number) => {
     if (!bytes || bytes === 0) return '0 MB';
     const mb = bytes / (1024 * 1024);
@@ -158,7 +160,7 @@ export function WorkspaceAnalyticsView() {
           label="Total Workspaces"
           subtitle="Tenant Organizations"
           value={summary?.totalWorkspaces?.toLocaleString() ?? '—'}
-          badgeText="+18.4%"
+          badgeText={data?.summary?.totalWorkspaces ? `${data.summary.totalWorkspaces} total` : "Live"}
           badgeType="positive"
           secondaryText="Registered enterprise orgs"
           sparklineColor="emerald"
@@ -169,7 +171,7 @@ export function WorkspaceAnalyticsView() {
           label="Active Workspaces"
           subtitle="Monthly Concurrency"
           value={summary?.activeWorkspaces?.toLocaleString() ?? '—'}
-          badgeText="+9.1%"
+          badgeText={data?.summary?.activeWorkspaces ? `${data.summary.activeWorkspaces} active` : "Live"}
           badgeType="positive"
           secondaryText="Active in last 30 days"
           sparklineColor="cyan"
@@ -180,7 +182,7 @@ export function WorkspaceAnalyticsView() {
           label="Total Revenue"
           subtitle="MRR & Platform Billings"
           value={`$${summary?.totalRevenue?.toLocaleString() ?? '0'}`}
-          badgeText="+15.3%"
+          badgeText={data?.summary?.totalRevenue ? `${formatCurrency(data.summary.totalRevenue)}` : "Live"}
           badgeType="positive"
           secondaryText="Across all active tiers"
           sparklineColor="emerald"
@@ -191,7 +193,7 @@ export function WorkspaceAnalyticsView() {
           label="Storage Consumed"
           subtitle="Volume & Attachments"
           value={formatBytes(summary?.totalStorageBytes ?? 0)}
-          badgeText="+6.8%"
+          badgeText={data?.summary?.totalStorageBytes ? formatBytes(data.summary.totalStorageBytes) : "Live"}
           badgeType="positive"
           secondaryText="Media & document blobs"
           sparklineColor="amber"

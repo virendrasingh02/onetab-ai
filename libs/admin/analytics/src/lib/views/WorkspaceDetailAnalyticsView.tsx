@@ -121,7 +121,7 @@ export function WorkspaceDetailAnalyticsView() {
           label="Total Members"
           subtitle="Seat Allocation"
           value={ws.userCount.toLocaleString()}
-          badgeText="+11.2%"
+          badgeText={data?.overview?.userCount ? `${data.overview.userCount} users` : "Live"}
           badgeType="positive"
           secondaryText={`Active: ${ws.activeUsers.toLocaleString()} members`}
           sparklineColor="emerald"
@@ -132,7 +132,7 @@ export function WorkspaceDetailAnalyticsView() {
           label="Messages Sent"
           subtitle="Internal Comms Velocity"
           value={data?.communication?.messagesSent?.toLocaleString() ?? '0'}
-          badgeText="+14.5%"
+          badgeText={data?.overview?.activeUsers ? `${data.overview.activeUsers} active` : "Live"}
           badgeType="positive"
           secondaryText={`Channels: ${data?.communication?.channelMessages?.toLocaleString() ?? 0} · DMs: ${data?.communication?.directMessages?.toLocaleString() ?? 0}`}
           sparklineColor="cyan"
@@ -143,7 +143,7 @@ export function WorkspaceDetailAnalyticsView() {
           label="Storage Used"
           subtitle="Quota Headroom"
           value={formatBytes(ws.storageBytes)}
-          badgeText="+5.3%"
+          badgeText={data?.overview?.revenue ? `${data.overview.revenue}` : "Live"}
           badgeType="positive"
           secondaryText={`Uploads: ${data?.files?.uploads?.toLocaleString() ?? 0} files`}
           sparklineColor="amber"

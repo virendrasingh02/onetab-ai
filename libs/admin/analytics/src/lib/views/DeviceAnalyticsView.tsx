@@ -55,7 +55,7 @@ export function DeviceAnalyticsView() {
           label="Distinct Devices"
           subtitle="Hardware Fingerprints"
           value={data?.totalDevices?.toLocaleString() ?? '—'}
-          badgeText="+13.4%"
+          badgeText={data?.totalDevices ? `${data.totalDevices} devices` : "Live"}
           badgeType="positive"
           secondaryText={`Active: ${data?.activeDevices?.toLocaleString() ?? 0} devices`}
           sparklineColor="emerald"
