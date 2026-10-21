@@ -4,10 +4,13 @@ import {
   remindersApi,
   workToolsApi,
 } from '@org/api-client';
+import { useCurrentUser } from '@org/auth';
 import {
   ConnectionBanner,
   describeReminderTime,
   executeStructuredAction,
+  insertIntoComposer,
+  quoteMarkdown,
   type ActionExecutionContext,
   type ActionExecutionResult,
 } from '@org/chat-ui';
@@ -44,7 +47,6 @@ import {
 import {
   useLocation,
   useNavigate,
-  useParams,
   useSearchParams,
 } from 'react-router-dom';
 import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
@@ -192,7 +194,9 @@ export function ChatPanel({
   // coworkers), rather than each having its own copy. `workspace` is the
   // active-route workspace, which always matches `workspaceId` here in
   // practice since chat only ever renders inside a workspace route.
-  const { workspace } = useCurrentWorkspace();
+  const { workspace, slug: workspaceSlug } = useCurrentWorkspace();
+  const currentUser = useCurrentUser();
+  const navigate = useNavigate();
   const policiesQuery = useWorkspacePolicies(workspaceId);
   const canReact = isPolicyRoleAllowed(
     workspace?.role,
@@ -499,31 +503,75 @@ export function ChatPanel({
     [room.messages, roomId, title, savedIds, setSaved, location.pathname],
   );
 
-  const handleAssignToMe = useCallback(
-    async (message: Message) => {
+  /*
+   * Where a message lives, and a link straight back to it — written into
+   * every task / doc made from a message so it can be traced to its source.
+   * DMs are named after the person, so only channels get the `#`.
+   */
+  const describeSource = useCallback(
+    (message: Message) => {
+      const where = /^\/w\/[^/]+\/c\//.test(location.pathname) ? `#${title}` : title;
+      const href = `${window.location.origin}${location.pathname}?${new URLSearchParams(
+        message.threadRootId
+          ? { thread: message.threadRootId, msg: message.id }
+          : { msg: message.id },
+      ).toString()}`;
+      const text = message.body || message.attachment?.name || '';
+      return { where, href, text };
+    },
+    [location.pathname, title],
+  );
+
+  /*
+   * "Create task" and "Assign to me" are one action: a real task with the
+   * message as its description, linked back to the message (context links),
+   * optionally assigned to the reader. The assignee is the platform user id —
+   * a Matrix id (`@user:server`) is not a workspace member and was rejected.
+   */
+  const createTaskFromMessage = useCallback(
+    async (message: Message, assignToMe: boolean) => {
       if (!workspaceId) {
-        toast.error('Workspace context required');
+        toast.error('Open a workspace to create tasks.');
         return;
       }
-      const myUserId = client?.getSession()?.userId;
+      const { where, href, text } = describeSource(message);
+      const taskTitle = text.slice(0, 80).replace(/\s+/g, ' ').trim() || 'Follow up on message';
       try {
-        const snippet =
-          message.body.slice(0, 60).replace(/\n/g, ' ') || 'New Task';
-        await workToolsApi.createTask(workspaceId, {
-          title: snippet,
-          description: `Created from message in #${title} by ${message.senderName}:\n\n${message.body}`,
+        const task = await workToolsApi.createTask(workspaceId, {
+          title: taskTitle,
+          description: `From ${message.senderName} in ${where}:\n\n${text}\n\n[View message](${href})`,
           status: 'TODO',
           priority: 'MEDIUM',
-          assigneeId: myUserId ?? undefined,
+          assigneeId: assignToMe ? currentUser?.id : undefined,
         });
-        toast.success('Task assigned to you', {
-          description: `"${snippet}" created and assigned to you.`,
+        if (task?.id) {
+          // The link powers "View related context"; the task exists either way.
+          void contextLinksApi
+            .createLink(workspaceId, {
+              sourceType: 'message',
+              sourceId: message.id,
+              targetType: 'task',
+              targetId: task.id,
+              linkType: 'RESOLVES',
+            })
+            .catch(() => undefined);
+        }
+        toast.success(assignToMe ? 'Task assigned to you' : 'Task created', {
+          description: `"${taskTitle}"`,
+          action: workspaceSlug
+            ? { label: 'Open tasks', onClick: () => navigate(`/w/${workspaceSlug}/tasks`) }
+            : undefined,
         });
       } catch {
-        toast.error('Failed to assign task');
+        toast.error(assignToMe ? 'Could not assign the task.' : 'Could not create the task.');
       }
     },
-    [workspaceId, client, title],
+    [workspaceId, workspaceSlug, currentUser?.id, describeSource, navigate],
+  );
+
+  const handleAssignToMe = useCallback(
+    (message: Message) => createTaskFromMessage(message, true),
+    [createTaskFromMessage],
   );
 
   const handleCreateTask = useCallback(
@@ -532,40 +580,9 @@ export function ChatPanel({
         onCreateTask(message);
         return;
       }
-      if (!workspaceId) {
-        toast.error('Workspace context required');
-        return;
-      }
-      try {
-        const snippet =
-          message.body.slice(0, 60).replace(/\n/g, ' ') || 'New Task';
-        const createdTask = await workToolsApi.createTask(workspaceId, {
-          title: snippet,
-          description: `Created from message in #${title} by ${message.senderName}:\n\n${message.body}`,
-          status: 'TODO',
-          priority: 'MEDIUM',
-        });
-        if (createdTask?.id) {
-          try {
-            await contextLinksApi.createLink(workspaceId, {
-              sourceType: 'message',
-              sourceId: message.id,
-              targetType: 'task',
-              targetId: createdTask.id,
-              linkType: 'RESOLVES',
-            });
-          } catch {
-            // Non-blocking
-          }
-        }
-        toast.success('Task created from message', {
-          description: `"${snippet}" added to Tasks.`,
-        });
-      } catch {
-        toast.error('Failed to create task from message');
-      }
+      await createTaskFromMessage(message, false);
     },
-    [onCreateTask, workspaceId, title],
+    [onCreateTask, createTaskFromMessage],
   );
 
   const handleCreateDoc = useCallback(
@@ -575,14 +592,15 @@ export function ChatPanel({
         return;
       }
       if (!workspaceId) {
-        toast.error('Workspace context required');
+        toast.error('Open a workspace to create documents.');
         return;
       }
+      const { where, href, text } = describeSource(message);
       try {
-        const docTitle = `Note from #${title} (${new Date().toLocaleDateString()})`;
+        const docTitle = `Note from ${where} (${new Date().toLocaleDateString()})`;
         const createdDoc = await workToolsApi.createDocument(workspaceId, {
           title: docTitle,
-          content: message.body,
+          content: `${quoteMarkdown(text, message.senderName)}[View message](${href})\n`,
           kind: 'NOTE',
         });
         if (createdDoc?.id) {
@@ -598,14 +616,21 @@ export function ChatPanel({
             // Non-blocking
           }
         }
-        toast.success('Document created from message', {
-          description: `"${docTitle}" added to Documents.`,
+        toast.success('Document created', {
+          description: `"${docTitle}"`,
+          action:
+            workspaceSlug && createdDoc?.id
+              ? {
+                  label: 'Open',
+                  onClick: () => navigate(`/w/${workspaceSlug}/docs/${createdDoc.id}`),
+                }
+              : undefined,
         });
       } catch {
-        toast.error('Failed to create document from message');
+        toast.error('Could not create the document.');
       }
     },
-    [onCreateDoc, workspaceId, title],
+    [onCreateDoc, workspaceId, workspaceSlug, describeSource, navigate],
   );
 
   const handleViewContext = useCallback((message: Message) => {
@@ -624,8 +649,6 @@ export function ChatPanel({
    * itself — and `kind: 'channel'` has nowhere better to go than where the
    * viewer already is.
    */
-  const navigate = useNavigate();
-  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
   const handleViewSystemEventEntity = useCallback(
     (entity: SystemEventEntity) => {
       if (!workspaceSlug || !entity.id) return;
@@ -646,12 +669,20 @@ export function ChatPanel({
         onAskAI(message);
         return;
       }
+      /*
+       * Hand the message to the assistant: open the rail and quote it into its
+       * composer (the request waits there until the composer mounts), so the
+       * reader only has to type the question. It used to open the rail with a
+       * toast and nothing of the message in it.
+       */
+      const { where, text } = describeSource(message);
       useRightPanelStore.getState().setView('assistant');
-      toast.info('AI Copilot ready', {
-        description: `Context: "${message.body.slice(0, 50)}..."`,
-      });
+      insertIntoComposer(
+        'ai-assistant-panel',
+        `${quoteMarkdown(text, `${message.senderName} in ${where}`)}`,
+      );
     },
-    [onAskAI],
+    [onAskAI, describeSource],
   );
 
   const handleAction = useCallback(

@@ -80,6 +80,11 @@ export {
   type ConversationFilesPanelProps,
   type ConversationTabsShellProps,
 } from './lib/conversation-files-panel.js';
+export {
+  ConversationPinsPanel,
+  useConversationPinCount,
+  type ConversationPinsPanelProps,
+} from './lib/conversation-pins-panel.js';
 export { ChatPanel, type ChatPanelProps } from './lib/chat-panel.js';
 export {
   ChatSurface,

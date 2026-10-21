@@ -439,6 +439,13 @@ export function MessageList({
   >(null);
   /** Conversation whose saved position we still owe a restore to. */
   const restorePendingFor = useRef<string | null | undefined>(undefined);
+  /**
+   * The message a caller explicitly jumped to (`scrollToMessage`), per
+   * conversation. An open placement that re-runs after the jump (a late
+   * restore, StrictMode re-running mount effects) lands here instead of the
+   * saved position or the bottom. Cleared once the reader scrolls themselves.
+   */
+  const jumpTarget = useRef<{ conversationId: string; key: string } | null>(null);
   /** True while we move the scrollbar ourselves — makes `onScroll` stand down. */
   const adjusting = useRef(false);
   const settleRaf = useRef<number | null>(null);
@@ -642,6 +649,7 @@ export function MessageList({
    * virtualizer's own size-change corrections keep the rows steady after this.
    */
   const yieldSettleToReader = useCallback(() => {
+    jumpTarget.current = null;
     if (!pendingAnchor.current || placing.current) return;
     pendingAnchor.current = null;
     if (settleRaf.current != null) {
@@ -741,10 +749,30 @@ export function MessageList({
         (row) => row.kind === 'message' && row.key === messageId,
       );
       if (index < 0) return false;
-      animateToIndex(index, 'center');
+      /*
+       * Pin to the row, not to a one-off offset: the rows around it (images,
+       * cards) measure over the next frames and would push a centred target
+       * off screen. The settle loop re-places it every frame until stable —
+       * the same mechanism a conversation switch uses — and any placement or
+       * prepend anchor still pending is dropped so it cannot win afterwards.
+       */
+      const element = scrollRef.current;
+      restorePendingFor.current = null;
+      stickToBottom.current = false;
+      reportFollowing(false);
+      setNewMessagesCount(0);
+      if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
+      virtualizer.scrollToIndex(index, { align: 'center' });
+      if (conversationId) jumpTarget.current = { conversationId, key: messageId };
+      pendingAnchor.current = {
+        key: rowsRef.current[index].key,
+        offset: Math.round(element.clientHeight / 3),
+        frames: 30,
+      };
+      runSettle();
       return true;
     },
-    [animateToIndex],
+    [virtualizer, reportFollowing, runSettle, conversationId],
   );
 
   /**
@@ -1001,6 +1029,24 @@ export function MessageList({
     restorePendingFor.current = null;
     previousCount.current = messages.length;
     firstMessageKey.current = rows.find((row) => row.kind === 'message')?.key;
+
+    const jumped = jumpTarget.current;
+    if (
+      jumped?.conversationId === conversationId &&
+      rows.some((row) => row.key === jumped.key)
+    ) {
+      hideWhilePlacing();
+      stickToBottom.current = false;
+      reportFollowing(false);
+      pendingAnchor.current = {
+        key: jumped.key,
+        offset: Math.round(element.clientHeight / 3),
+        frames: 30,
+      };
+      runSettle();
+      updateFloatingDay();
+      return;
+    }
 
     const unreadIndex =
       openPosition !== 'newest' && unreadBeforeId

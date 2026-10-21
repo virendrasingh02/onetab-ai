@@ -59,7 +59,10 @@ import {
 } from './composer-attach-menu.js';
 import { compactBlankLines } from './blank-lines.js';
 import { useDraftsStore } from './drafts-store.js';
-import { useComposerInsertStore } from './composer-insert-store.js';
+import {
+  claimComposerInsert,
+  useComposerInsertStore,
+} from './composer-insert-store.js';
 import {
   LexicalComposerInput,
   type LexicalEditorRef,
@@ -552,6 +555,7 @@ export function Composer({
   const consumeInsert = useComposerInsertStore((s) => s.consume);
   useEffect(() => {
     if (!insertRequest || !lexicalRef.current || edit) return;
+    if (!claimComposerInsert(insertRequest.nonce)) return;
     const current = lexicalRef.current.getMarkdown().trimEnd();
     const next = current ? `${current}\n\n${insertRequest.markdown}` : insertRequest.markdown;
     lexicalRef.current.setMarkdown(next);

@@ -18,7 +18,6 @@ import type {
   ChannelTabsInput,
   CreateChannelInput,
   CreateDocumentInput,
-  CreatePinInput,
   CreateTaskInput,
   PostAnonymousMessageInput,
   UpdateChannelAnonymousSettingsInput,
@@ -230,17 +229,6 @@ export function useChannelMembers(
     queryKey: queryKeys.channels.members(workspaceId ?? '', channelId ?? ''),
     queryFn: () =>
       channelApi.members(workspaceId as string, channelId as string),
-    enabled: !!workspaceId && !!channelId,
-  });
-}
-
-export function useChannelPins(
-  workspaceId: string | undefined,
-  channelId: string | undefined,
-) {
-  return useQuery({
-    queryKey: queryKeys.channels.pins(workspaceId ?? '', channelId ?? ''),
-    queryFn: () => channelApi.pins(workspaceId as string, channelId as string),
     enabled: !!workspaceId && !!channelId,
   });
 }
@@ -661,40 +649,6 @@ export function useChannelMemberMutations(workspaceId: string | undefined) {
   });
 
   return { add, remove };
-}
-
-export function usePinMutations(workspaceId: string | undefined) {
-  const queryClient = useQueryClient();
-
-  const invalidate = (channelId: string) =>
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.channels.pins(workspaceId ?? '', channelId),
-    });
-
-  const create = useMutation({
-    mutationFn: ({
-      channelId,
-      input,
-    }: {
-      channelId: string;
-      input: CreatePinInput;
-    }) => channelApi.createPin(workspaceId as string, channelId, input),
-    onSuccess: (_data, { channelId }) => {
-      toast.success('Message pinned to channel');
-      invalidate(channelId);
-    },
-  });
-
-  const remove = useMutation({
-    mutationFn: ({ channelId, pinId }: { channelId: string; pinId: string }) =>
-      channelApi.removePin(workspaceId as string, channelId, pinId),
-    onSuccess: (_data, { channelId }) => {
-      toast.info('Message unpinned');
-      invalidate(channelId);
-    },
-  });
-
-  return { create, remove };
 }
 
 /**

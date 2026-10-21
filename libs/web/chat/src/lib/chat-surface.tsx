@@ -861,7 +861,9 @@ export function ChatSurface({
   /*
    * Deep link to a message (`?msg=`). Only jumps once per id, so a later render
    * does not yank the reader back after they have scrolled away; `scrollToMessage`
-   * pages the message in itself if it is not loaded yet.
+   * pages the message in itself if it is not loaded yet. Waits for the
+   * timeline to finish loading: until then the list is not mounted, so a jump
+   * fired on mount (a notification link, the Pins tab) would be dropped.
    */
   const jumpedToDeepLink = useRef<string | null>(null);
   useEffect(() => {
@@ -869,10 +871,11 @@ export function ChatSurface({
       jumpedToDeepLink.current = null;
       return;
     }
+    if (isLoading) return;
     if (deepLinkMessageId === jumpedToDeepLink.current) return;
     jumpedToDeepLink.current = deepLinkMessageId;
     jumpTo(deepLinkMessageId);
-  }, [deepLinkMessageId, jumpTo]);
+  }, [deepLinkMessageId, isLoading, jumpTo]);
 
   const unreadThreadRoots = useMemo(
     () => new Set(unreadThreadRootIds ?? []),
@@ -1573,8 +1576,8 @@ export function ChatSurface({
                       targetId,
                       `@Scheduler schedule: "${message.body.slice(0, 100)}" `,
                     );
-                    toast.info('Assigned to Scheduler', {
-                      description: 'Drafted prompt with @Scheduler',
+                    toast.info('Drafted for @Scheduler', {
+                      description: 'Send it to hand the message to Scheduler.',
                     });
                   }
                 : undefined
@@ -1591,8 +1594,8 @@ export function ChatSurface({
                       targetId,
                       `@Tracker track: "${message.body.slice(0, 100)}" `,
                     );
-                    toast.info('Track with Tracker', {
-                      description: 'Drafted prompt with @Tracker',
+                    toast.info('Drafted for @Tracker', {
+                      description: 'Send it to have Tracker follow this.',
                     });
                   }
                 : undefined

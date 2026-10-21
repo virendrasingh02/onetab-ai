@@ -20,6 +20,20 @@ interface ComposerInsertState {
 }
 
 let nonce = 0;
+/** Highest request already applied — nonces only grow. */
+let applied = 0;
+
+/**
+ * Claims a request for applying, exactly once. A composer that mounts with a
+ * request waiting (the assistant rail opening for "Ask AI") would otherwise
+ * apply it twice under StrictMode, whose re-run effect still holds the old
+ * request; two composers bound to one conversation would each apply it too.
+ */
+export function claimComposerInsert(requestNonce: number): boolean {
+  if (requestNonce <= applied) return false;
+  applied = requestNonce;
+  return true;
+}
 
 export const useComposerInsertStore = create<ComposerInsertState>()((set, get) => ({
   request: null,

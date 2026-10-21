@@ -79,6 +79,10 @@ import {
 } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
+import {
+  ConversationPinsPanel,
+  useConversationPinCount,
+} from './conversation-pins-panel.js';
 import { GroupConversation } from './GroupConversation.js';
 import { useMatrix } from './matrix-provider.js';
 import {
@@ -211,6 +215,7 @@ function DirectConversation({
   // of room provisioning. The tab strip's Files & Media panel needs the room id
   // too, and hooks cannot run after the early returns below.
   const { roomId } = useDirectRoom(peerId);
+  const pinCount = useConversationPinCount(roomId);
 
   // Mirrors `ChannelPage`: the conversation is one tab beside Files & Media and
   // Pins, so a DM and a channel carry the same chrome.
@@ -340,7 +345,11 @@ function DirectConversation({
           >
             Bookmarks
           </TabsTrigger>
-          <TabsTrigger value="pins" icon={<Pin className="size-4" />}>
+          <TabsTrigger
+            value="pins"
+            icon={<Pin className="size-4" />}
+            count={pinCount > 0 ? pinCount : undefined}
+          >
             Pins
           </TabsTrigger>
         </PageTabBar>
@@ -491,13 +500,10 @@ function DirectConversation({
         </TabsContent>
 
         <TabsContent value="pins" className="min-h-0 flex flex-1 flex-col">
-          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
-            <EmptyState
-              icon={<Pin />}
-              title="Nothing pinned"
-              description="Pin important messages in this conversation so they stay easy to find."
-            />
-          </ScrollArea>
+          <ConversationPinsPanel
+            roomId={roomId}
+            onShowInChat={() => setActiveTab('chat')}
+          />
         </TabsContent>
       </Tabs>
     </div>

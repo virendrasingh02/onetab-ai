@@ -21,7 +21,6 @@ import {
   ErrorState,
   Hint,
   ScrollArea,
-  SkeletonList,
   Tabs,
   TabsContent,
   PageTabBar,
@@ -34,7 +33,12 @@ import { cn, formatRelative } from '@org/utils';
 import { AddBookmarkDialog, BookmarkFavicon } from '@org/chat-ui';
 import { useMarkChannelSeen } from '@org/notifications';
 import { queryKeys, uploadApi } from '@org/api-client';
-import { ChannelChat, ConversationFilesPanel } from '@org/web-chat';
+import {
+  ChannelChat,
+  ConversationFilesPanel,
+  ConversationPinsPanel,
+  useConversationPinCount,
+} from '@org/web-chat';
 import {
   ALLOWED_UPLOAD_MIME_TYPES,
   uploadRequestSchema,
@@ -111,7 +115,6 @@ import {
   useChannelBookmarks,
   useChannelFiles,
   useChannelMembers,
-  useChannelPins,
   useChannelPreferences,
   useJoinChannel,
 } from '../use-channels.js';
@@ -627,7 +630,8 @@ export function ChannelPage({
       false);
 
   const queryClient = useQueryClient();
-  const pins = useChannelPins(workspaceId, channel?.id);
+  // Pins are Matrix `m.room.pinned_events` state — what pinning a message writes.
+  const pinCount = useConversationPinCount(channel?.matrixRoomId);
   const files = useChannelFiles(workspaceId, channel?.id);
   const { bookmarks, addBookmark, removeBookmark } = useChannelBookmarks(
     workspaceId,
@@ -838,7 +842,6 @@ export function ChannelPage({
   });
 
   const fileCount = files.data?.length ?? 0;
-  const pinCount = pins.data?.length ?? 0;
   const tabCounts: Record<ChannelTabId, number | undefined> = {
     'files-media': fileCount > 0 ? fileCount : undefined,
     bookmarks: bookmarks.length > 0 ? bookmarks.length : undefined,
@@ -1310,35 +1313,10 @@ export function ChannelPage({
         </TabsContent>
 
         <TabsContent value="pins" className="min-h-0 flex flex-1 flex-col">
-          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
-            {pins.isLoading ? (
-              <SkeletonList rows={3} />
-            ) : (pins.data?.length ?? 0) === 0 ? (
-              <EmptyState
-                icon={<Pin />}
-                title="Nothing pinned"
-                description="Pin important links and notes so they stay easy to find."
-              />
-            ) : (
-              <ul className="space-y-2">
-                {pins.data?.map((pin) => (
-                  <li key={pin.id} className="p-3 rounded-card border">
-                    <p className="text-sm font-medium">{pin.title}</p>
-                    {pin.url ? (
-                      <a
-                        href={pin.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs mt-0.5 block truncate text-primary underline"
-                      >
-                        {pin.url}
-                      </a>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </ScrollArea>
+          <ConversationPinsPanel
+            roomId={channel.matrixRoomId}
+            onShowInChat={() => setActiveTab('chat')}
+          />
         </TabsContent>
       </Tabs>
     </div>
