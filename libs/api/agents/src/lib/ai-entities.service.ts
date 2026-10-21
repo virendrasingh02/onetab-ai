@@ -41,6 +41,13 @@ interface GraphApplication {
   warnings: string[];
 }
 
+/** Every coworker carries the same default glyph until it is given a photo or another preset. */
+const DEFAULT_COWORKER_AVATAR = 'icon:bot';
+
+function resolveAvatarUrl(row: { type: string; avatarUrl: string | null }): string | null {
+  return row.avatarUrl ?? (row.type === 'coworker' ? DEFAULT_COWORKER_AVATAR : null);
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -163,6 +170,7 @@ export class AIEntitiesService {
 
     return rows.map((row) => ({
       ...row,
+      avatarUrl: resolveAvatarUrl(row),
       permissions: parsePermissions(row.permissions),
     }));
   }
@@ -212,6 +220,7 @@ export class AIEntitiesService {
     if (!row) throw new NotFoundException('AI Entity not found.');
     return {
       ...row,
+      avatarUrl: resolveAvatarUrl(row),
       permissions: parsePermissions(row.permissions),
     };
   }
@@ -276,7 +285,7 @@ export class AIEntitiesService {
         name: dto.name,
         role: dto.role ?? derived.role ?? (dto.type === 'coworker' ? 'Coworker' : 'Assistant'),
         description: dto.description ?? derived.description,
-        avatarUrl: dto.avatarUrl,
+        avatarUrl: dto.avatarUrl ?? (dto.type === 'coworker' ? DEFAULT_COWORKER_AVATAR : undefined),
         personality: dto.personality,
         welcomeMessage: dto.welcomeMessage,
         systemPrompt:

@@ -79,6 +79,18 @@ export function getCoworkerPresetIcon(avatarUrl?: string | null): typeof Bot | u
   return avatarUrl ? COWORKER_PRESET_ICONS[avatarUrl] : undefined;
 }
 
+const isPhotoSource = (avatarUrl?: string | null) =>
+  !!avatarUrl && !avatarUrl.startsWith('icon:');
+
+/**
+ * The glyph a coworker shows when it has no photo: its chosen preset, else the
+ * default `Bot` — so every coworker reads as the same kind of entity everywhere
+ * (sidebar, chat header, lists) instead of mixing icons and initials.
+ */
+export function getCoworkerGlyph(avatarUrl?: string | null): typeof Bot | undefined {
+  return isPhotoSource(avatarUrl) ? undefined : (getCoworkerPresetIcon(avatarUrl) ?? Bot);
+}
+
 /**
  * The single letter shown for any AI entity (coworker, agent, app) that has no
  * uploaded image or icon. One letter keeps every avatar visually consistent.
@@ -121,8 +133,8 @@ export const CoworkerAvatar: FC<CoworkerAvatarProps> = ({
   const sizeConfig = SIZE_MAP[size] ?? SIZE_MAP.md;
   const gradientClass = getGradientByName(name);
 
-  const PresetComponent = getCoworkerPresetIcon(avatarUrl);
-  // An unknown `icon:*` preset is never a loadable image — fall to the initial.
+  const PresetComponent = getCoworkerGlyph(avatarUrl);
+  // An unknown `icon:*` preset is never a loadable image — fall to the default glyph.
   const isPresetIcon = !!avatarUrl?.startsWith('icon:');
 
   return (

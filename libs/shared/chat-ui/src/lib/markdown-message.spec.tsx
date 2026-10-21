@@ -141,10 +141,10 @@ describe('MarkdownMessage', () => {
     );
 
     const spacers = container.querySelectorAll<HTMLElement>('.msg-blank-line');
-    // Leading/trailing blanks draw nothing; 20 blanks cap at 3, 1 stays 1.
-    expect(spacers).toHaveLength(2);
-    expect(spacers[0].style.height).toBe('1.5lh');
-    expect(spacers[1].style.height).toBe('0.5lh');
+    // Leading/trailing blanks and single paragraph breaks draw no spacer;
+    // 20 blanks cap at 3, of which one is the normal paragraph gap.
+    expect(spacers).toHaveLength(1);
+    expect(spacers[0].style.height).toBe('1lh');
   });
 
   it('opens profile in rightbar when mention is clicked', () => {

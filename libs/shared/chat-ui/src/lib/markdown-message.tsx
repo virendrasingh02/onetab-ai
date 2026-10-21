@@ -411,13 +411,15 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
     // Leading and trailing blanks draw nothing.
     if (blankRun > 0) {
       const count = compactBlankLineCount(blankRun);
-      if (blocks.length > 0) {
+      // A single blank line is just a paragraph break, which the block spacing
+      // already draws; only extra blanks add a spacer on top of it.
+      if (blocks.length > 0 && count > 1) {
         blocks.push(
           <div
             key={`blank-${index}`}
             aria-hidden
             className="msg-blank-line mt-0!"
-            style={{ height: `${count * 0.5}lh` }}
+            style={{ height: `${(count - 1) * 0.5}lh` }}
           />,
         );
       }

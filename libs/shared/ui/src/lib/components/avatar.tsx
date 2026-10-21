@@ -285,11 +285,11 @@ const INDICATOR_SIZES: Record<
   NonNullable<AvatarProps['size']>,
   { dot: string; emoji: string }
 > = {
-  xs: { dot: 'size-1.5', emoji: 'text-[9px]' },
-  sm: { dot: 'size-2', emoji: 'text-[10px]' },
-  md: { dot: 'size-2.5', emoji: 'text-[11px]' },
-  lg: { dot: 'size-3', emoji: 'text-xs' },
-  xl: { dot: 'size-4', emoji: 'text-base' },
+  xs: { dot: 'size-[5px]', emoji: 'text-[9px]' },
+  sm: { dot: 'size-1.5', emoji: 'text-[10px]' },
+  md: { dot: 'size-[7px]', emoji: 'text-[11px]' },
+  lg: { dot: 'size-[9px]', emoji: 'text-xs' },
+  xl: { dot: 'size-3', emoji: 'text-base' },
 };
 
 /**
@@ -299,11 +299,11 @@ const INDICATOR_SIZES: Record<
  * concave corner cut is measured from it, not from the avatar.
  */
 const DOT_PX: Record<NonNullable<AvatarProps['size']>, number> = {
-  xs: 6,
-  sm: 8,
-  md: 10,
-  lg: 12,
-  xl: 16,
+  xs: 5,
+  sm: 6,
+  md: 7,
+  lg: 9,
+  xl: 12,
 };
 
 /**
@@ -330,7 +330,7 @@ const INDICATOR_POSITION = {
  */
 function notchMaskStyle(size: NonNullable<AvatarProps['size']>) {
   // Dot radius + its 2px ring + ~1px breathing room — the floor below the %.
-  const min = `${DOT_PX[size] / 2 + 3}px`;
+  const min = `${DOT_PX[size] / 2 + 2.5}px`;
   const r = `max(12%, ${min})`;
   const mask =
     `radial-gradient(ellipse ${r} ${r} at 86% 86%, #0000 0 99%, #000 100%)`;
@@ -501,7 +501,7 @@ export function UserAvatar({
           size={size}
           name={name}
           style={INDICATOR_POSITION}
-          className="pointer-events-auto absolute cursor-default ring-2 ring-background"
+          className="pointer-events-auto absolute cursor-default ring-[1.5px] ring-background"
         />
       ) : null}
       {showEmoji ? (

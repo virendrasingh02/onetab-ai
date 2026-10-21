@@ -14,7 +14,8 @@ import { cn } from '@org/utils';
 import {
   useCoworkerMutations,
   useCoworkers,
-  getCoworkerPresetIcon,
+  getCoworkerGlyph,
+  getGradientByName,
   getEntityInitial,
 } from '@org/web-coworkers';
 import { useAgentMutations, useAgents } from '@org/web-agents';
@@ -186,12 +187,15 @@ export function NavEntityTile({
   glyph: Glyph,
   fit = 'cover',
   tone = 'neutral',
+  toneClassName,
   size = 'md',
   fallbackEmoji,
   working = false,
   className,
 }: {
   working?: boolean;
+  /** Overrides `tone` with a full colour recipe (e.g. a coworker's name gradient). */
+  toneClassName?: string;
   label: string;
   image?: string | null;
   icon?: string;
@@ -214,7 +218,7 @@ export function NavEntityTile({
         'relative flex shrink-0 items-center justify-center overflow-hidden border font-semibold leading-none shadow-xs',
         box,
         // A logo on a transparent PNG still needs a quiet, light backdrop.
-        src && fit === 'contain' ? TILE_TONE.neutral : TILE_TONE[tone],
+        src && fit === 'contain' ? TILE_TONE.neutral : (toneClassName ?? TILE_TONE[tone]),
         !working && className,
       )}
     >
@@ -451,8 +455,8 @@ export function CoworkerNavRow({
       <NavEntityTile
         label={coworker.name}
         image={coworker.avatarUrl}
-        glyph={getCoworkerPresetIcon(coworker.avatarUrl)}
-        tone="primary"
+        glyph={getCoworkerGlyph(coworker.avatarUrl)}
+        toneClassName={cn('bg-gradient-to-br', getGradientByName(coworker.name))}
         working={coworker.status === 'WORKING' || coworker.status === 'RUNNING_TASK'}
       />
       <span className="flex-1 truncate">{coworker.name}</span>
@@ -961,7 +965,8 @@ export function CoworkersSection({
           <NavEntityTile
             label={cw.name}
             image={cw.avatarUrl}
-            glyph={getCoworkerPresetIcon(cw.avatarUrl)}
+            glyph={getCoworkerGlyph(cw.avatarUrl)}
+            toneClassName={cn('bg-gradient-to-br', getGradientByName(cw.name))}
             size="sm"
             tone="primary"
           />
