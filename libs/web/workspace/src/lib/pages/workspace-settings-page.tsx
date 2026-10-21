@@ -67,6 +67,7 @@ import {
   getSystemTimezone,
   getWorkingHoursStatus,
   initials,
+  slugify,
   type RegionInfo,
 } from '@org/utils';
 import {
@@ -272,6 +273,8 @@ export function WorkspaceSettingsPage({
   const [logoError, setLogoError] = useState<string | null>(null);
   const [isLogoRemoved, setIsLogoRemoved] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState(false);
+  // The URL follows the name until the admin edits the URL by hand.
+  const [slugTouched, setSlugTouched] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -788,6 +791,7 @@ export function WorkspaceSettingsPage({
           allowExternalSharing: saved.allowExternalSharing,
           aiProjectRecaps: saved.aiProjectRecaps,
         });
+        setSlugTouched(false);
         if (saved.slug !== workspace.slug) {
           // Every query under this page is keyed on the slug in the URL, which
           // now 404s — move to the new address in place.
@@ -811,6 +815,7 @@ export function WorkspaceSettingsPage({
   });
 
   const discardWorkspaceChanges = () => {
+    setSlugTouched(false);
     workspaceForm.reset();
     setLogoFile(null);
     setLogoError(null);
@@ -3276,6 +3281,20 @@ export function WorkspaceSettingsPage({
                             placeholder="e.g. Acme Corp, Design System Team"
                             disabled={!isAdmin}
                             className="h-9 text-xs"
+                            onChange={(event) => {
+                              field.onChange(event);
+                              if (slugTouched) return;
+                              const derived = slugify(event.target.value).slice(
+                                0,
+                                40,
+                              );
+                              if (derived) {
+                                workspaceForm.setValue('slug', derived, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                });
+                              }
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -3297,13 +3316,14 @@ export function WorkspaceSettingsPage({
                           <Input
                             {...field}
                             value={field.value ?? ''}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              setSlugTouched(true);
                               field.onChange(
                                 event.target.value
                                   .toLowerCase()
                                   .replace(/[^a-z0-9-]/g, '-'),
-                              )
-                            }
+                              );
+                            }}
                             prefix={`${window.location.host}/w/`}
                             spellCheck={false}
                             autoComplete="off"
@@ -3325,6 +3345,17 @@ export function WorkspaceSettingsPage({
                           <code className="font-mono text-primary">
                             {window.location.host}/w/{workspace.slug}
                           </code>
+                          {workspaceForm.watch('slug') &&
+                            workspaceForm.watch('slug') !== workspace.slug && (
+                              <>
+                                {' '}
+                                → will change to{' '}
+                                <code className="font-mono text-primary">
+                                  /w/{workspaceForm.watch('slug')}
+                                </code>{' '}
+                                on save
+                              </>
+                            )}
                         </span>
                       </span>
                       <Button
