@@ -95,6 +95,7 @@ import {
   isOnPath,
   navActionClass,
   navIconClass,
+  NAV_ROW_ACTIONS_PADDING,
   navRowClass,
   NavRow,
   NavRowActions,
@@ -359,7 +360,7 @@ function ChannelRow({
           navRowClass(isActive, {
             depth: 1,
             extra: cn(
-              channel.membership ? 'pr-14' : 'pr-8',
+              channel.membership ? NAV_ROW_ACTIONS_PADDING : 'pr-8',
               channel.isArchived && 'opacity-65',
               isMuted && 'text-muted-foreground',
               // Unread rows read as bold in every chat client; without it the

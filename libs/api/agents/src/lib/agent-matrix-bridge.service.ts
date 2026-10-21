@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '@org/database';
 import type { AgentToolExecution, AIAgentMessageContent } from '@org/types';
 import { AIRuntimeService } from './ai-runtime.service.js';
+import { FollowUpSuggestionsService } from './follow-up-suggestions.service.js';
 
 const ENTITY_SELECT = {
   id: true,
@@ -16,6 +17,7 @@ const ENTITY_SELECT = {
   name: true,
   role: true,
   model: true,
+  provider: true,
   avatarUrl: true,
   matrixUserId: true,
 } as const;
@@ -27,6 +29,7 @@ interface EntityTarget {
   name: string;
   role: string;
   model: string;
+  provider?: string | null;
   avatarUrl: string | null;
   matrixUserId: string | null;
 }
@@ -54,6 +57,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
     private readonly messaging: MatrixBotMessagingService,
     private readonly admin: MatrixAdminService,
     private readonly runtimeService: AIRuntimeService,
+    private readonly followUps: FollowUpSuggestionsService,
   ) {}
 
   onModuleInit(): void {
@@ -236,6 +240,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
       name: string;
       role: string;
       model: string;
+      provider?: string | null;
       avatarUrl: string | null;
       matrixUserId: string | null;
     },
@@ -305,20 +310,51 @@ export class AgentMatrixBridgeService implements OnModuleInit {
         postToolUpdate,
       );
 
+      const completed: AIAgentMessageContent = {
+        ...base,
+        status: 'completed',
+        responseText: result.result,
+        tools: result.tools,
+        durationMs: Date.now() - startedAt,
+        completedAt: Date.now(),
+      };
       await this.messaging.updateStructured(
         roomId,
         entity.matrixUserId,
         eventId,
-        {
-          ...base,
-          status: 'completed',
-          responseText: result.result,
-          tools: result.tools,
-          durationMs: Date.now() - startedAt,
-          completedAt: Date.now(),
-        },
+        completed,
         { threadRootId },
       );
+
+      // The answer is already on screen; follow-ups arrive as a second edit
+      // so they never delay it. `matrixUserId` is narrowed by the guard above.
+      const matrixUserId = entity.matrixUserId;
+      void this.followUps
+        .suggest({
+          workspaceId: entity.workspaceId,
+          provider: entity.provider,
+          model: entity.model,
+          agentName: entity.name,
+          agentRole: roleBadge,
+          question: promptText,
+          answer: result.result ?? '',
+          toolNames: result.tools?.map((t) => t.name),
+        })
+        .then(async (suggestedActions) => {
+          if (suggestedActions.length === 0) return;
+          await this.messaging.updateStructured(
+            roomId,
+            matrixUserId,
+            eventId,
+            { ...completed, suggestedActions },
+            { threadRootId },
+          );
+        })
+        .catch((error: unknown) =>
+          this.logger.warn(
+            `Could not attach follow-ups: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await this.messaging.updateStructured(

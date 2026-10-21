@@ -77,6 +77,13 @@ export function navIconClass(depth: NavDepth = 0, extra?: string) {
 /**
  * One nav row.
  */
+/**
+ * Label padding for rows with a hover `NavRowActions` cluster: the space is
+ * only claimed while the actions are visible, so names aren't truncated at rest.
+ */
+export const NAV_ROW_ACTIONS_PADDING =
+  'pr-2 group-hover/row:pr-14 group-focus-within/row:pr-14 pointer-coarse:pr-14';
+
 export function navRowClass(
   isActive: boolean,
   options: { depth?: NavDepth; extra?: string } = {},
@@ -466,7 +473,7 @@ export function Section({
  *
  * Every resource row — channels, docs, projects, agents, apps, workflows —
  * had its own byte-identical copy of this positioning block. Rows using it
- * must reserve the space with `extra: 'pr-14'` on `navRowClass`, or the label
+ * must reserve the space with `extra: NAV_ROW_ACTIONS_PADDING` on `navRowClass`, or the label
  * runs under the buttons.
  *
  * `isPinned` keeps the cluster visible when the row is favourited: the star is

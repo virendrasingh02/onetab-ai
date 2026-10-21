@@ -74,6 +74,10 @@ export interface MessageRendererProps {
   onViewContext?: () => void;
   onAction?: (action: StructuredMessageAction) => void | Promise<void>;
   onRetry?: () => void;
+  /** Sends a suggested follow-up question as the viewer's next message. */
+  onFollowUp?: (text: string) => void;
+  /** Only the newest agent answer offers its follow-ups. */
+  showFollowUps?: boolean;
   entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread' | 'coworker';
   /** Whether the viewer can manage this conversation — gates a system
    * event's admin-only actions (delete/hide). */
@@ -132,6 +136,19 @@ export const MessageRenderer = memo(function MessageRenderer(
               onToggleSave={onToggleSave}
               isSaved={isSaved}
               onReact={onReact}
+              onFollowUp={props.onFollowUp}
+              showFollowUps={props.showFollowUps}
+              onReply={props.onReply}
+              onForward={props.onForward}
+              onCopyLink={props.onCopyLink}
+              onCopyText={props.onCopyText}
+              onQuote={props.onQuote}
+              onMarkUnread={props.onMarkUnread}
+              onRemind={props.onRemind}
+              onTogglePin={props.onTogglePin}
+              isPinned={props.isPinned}
+              onDelete={onDelete}
+              canModerateMessages={props.canModerateMessages}
               threadReplyCount={props.threadReplyCount}
               threadHasUnread={props.threadHasUnread}
               threadParticipants={props.threadParticipants}

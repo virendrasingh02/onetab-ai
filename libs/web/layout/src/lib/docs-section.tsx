@@ -39,6 +39,7 @@ import {
   navGroupHeaderClass,
   navGroupTriggerClass,
   navIconClass,
+  NAV_ROW_ACTIONS_PADDING,
   navRowClass,
   NavRowActions,
   NavRowMenuButton,
@@ -183,7 +184,7 @@ export function DocNavRow({
           to={docPath}
           className={navRowClass(isSelected, {
             depth,
-            extra: 'pr-14',
+            extra: NAV_ROW_ACTIONS_PADDING,
           })}
         >
           <IconRenderer

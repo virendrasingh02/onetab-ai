@@ -40,6 +40,7 @@ import {
   FavoriteToggle,
   navActionClass,
   navIconClass,
+  NAV_ROW_ACTIONS_PADDING,
   navRowClass,
   NavRowActions,
   NavRowMenuButton,
@@ -118,7 +119,7 @@ export function ProjectNavRow({
           to={projectPath}
           className={navRowClass(isSelected, {
             depth,
-            extra: cn('pr-14', isArchived && 'opacity-65'),
+            extra: cn(NAV_ROW_ACTIONS_PADDING, isArchived && 'opacity-65'),
           })}
         >
           <ProjectGlyph

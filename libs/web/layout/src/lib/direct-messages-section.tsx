@@ -81,6 +81,7 @@ import {
   isOnPath,
   navActionClass,
   navIconClass,
+  NAV_ROW_ACTIONS_PADDING,
   navRowClass,
   NavRowActions,
   NavRowMenuButton,
@@ -229,7 +230,7 @@ function DirectMessageRow({
           navRowClass(isActive, {
             depth: 1,
             extra: cn(
-              'pr-14',
+              NAV_ROW_ACTIONS_PADDING,
               isMuted && 'text-muted-foreground',
               hasUnread && 'font-semibold text-foreground',
             ),
@@ -476,7 +477,7 @@ function GroupDmRow({
           navRowClass(isActive, {
             depth: 1,
             extra: cn(
-              'pr-14',
+              NAV_ROW_ACTIONS_PADDING,
               isMuted && 'text-muted-foreground',
               hasUnread && 'font-semibold text-foreground',
             ),

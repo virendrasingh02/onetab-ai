@@ -1,4 +1,4 @@
-import { HttpStatus, Logger, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
   AIChatMessage,
@@ -14,6 +14,11 @@ import type {
 } from './provider-adapter.interface.js';
 
 export const NEMOTRON_MODEL_ID = 'nvidia/nemotron-3-super-120b-a12b';
+/** Verified-invocable models tried, in order, when the requested one 404s/410s. */
+export const NVIDIA_FALLBACK_MODELS = [
+  'nvidia/nemotron-3-ultra-550b-a55b',
+  'nvidia/nemotron-3.5-lightning-30b-a3b',
+];
 export const NVIDIA_BASE_URL_DEFAULT = 'https://integrate.api.nvidia.com/v1';
 
 export class NvidiaAdapter extends BaseProviderAdapter {
@@ -135,7 +140,71 @@ export class NvidiaAdapter extends BaseProviderAdapter {
     ];
   }
 
+  /** Models to fall back to when the requested one is missing for the account
+   *  (404) or retired (410) — NVIDIA's catalog lists models an account may not
+   *  actually be able to invoke. */
+  private fallbackModels(requested: string): string[] {
+    return NVIDIA_FALLBACK_MODELS.filter((m) => m !== requested);
+  }
+
   async chat(options: ChatExecutionOptions): Promise<AIChatResponse> {
+    try {
+      return await this.chatOnce(options);
+    } catch (err) {
+      if (!(err instanceof HttpException) || err.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw err;
+      }
+      let lastError: unknown = err;
+      for (const model of this.fallbackModels(options.model)) {
+        try {
+          this.logger.warn(`NVIDIA model ${options.model} unavailable; retrying with ${model}`);
+          return await this.chatOnce({ ...options, model });
+        } catch (retryErr) {
+          lastError = retryErr;
+        }
+      }
+      throw lastError;
+    }
+  }
+
+  async *stream(
+    options: ChatExecutionOptions
+  ): AsyncGenerator<AIStreamEvent, void, unknown> {
+    const candidates = [options.model, ...this.fallbackModels(options.model)];
+    for (let i = 0; i < candidates.length; i++) {
+      const isLast = i === candidates.length - 1;
+      let held: AIStreamEvent | undefined;
+      let first = true;
+      let retry = false;
+      for await (const event of this.streamOnce({ ...options, model: candidates[i] })) {
+        if (first) {
+          first = false;
+          if (event.type === 'message_start') {
+            held = event;
+            continue;
+          }
+        }
+        if (
+          !isLast &&
+          held &&
+          event.type === 'error' &&
+          (event.error.status === 404 || event.error.status === 410)
+        ) {
+          this.logger.warn(`NVIDIA model ${candidates[i]} unavailable; retrying with ${candidates[i + 1]}`);
+          retry = true;
+          break;
+        }
+        if (held) {
+          yield held;
+          held = undefined;
+        }
+        yield event;
+      }
+      if (!retry) return;
+    }
+  }
+
+  private async chatOnce(options: ChatExecutionOptions): Promise<AIChatResponse> {
     const apiKey = options.apiKey?.trim() || this.apiKey;
     const baseUrl = (
       options.baseUrl?.trim() ||
@@ -258,7 +327,7 @@ export class NvidiaAdapter extends BaseProviderAdapter {
     }
   }
 
-  async *stream(
+  private async *streamOnce(
     options: ChatExecutionOptions
   ): AsyncGenerator<AIStreamEvent, void, unknown> {
     const apiKey = options.apiKey?.trim() || this.apiKey;

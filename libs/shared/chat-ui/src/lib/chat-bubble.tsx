@@ -1451,121 +1451,23 @@ export function ChatBubble({
         ) : null}
       </div>
 
-      {/* Floating action toolbar — revealed on hover/focus (pointer), or
-          long-press (touch, via `actionsPinned`). */}
-      <div
-        role="toolbar"
-        aria-label="Message actions"
-        className={cn(
-          '-top-4.5 right-4 p-1 gap-1 absolute z-20 items-center rounded-xl border border-border/80 bg-white dark:bg-surface-raised shadow-md transition-all duration-200 ease-out hover:shadow-lg animate-in fade-in-0 zoom-in-95',
-          isMenuOpen || isReactionOpen || actionsPinned
-            ? 'flex'
-            : 'hidden group-focus-within/message:flex group-hover/message:flex',
-        )}
-      >
-        {onReact ? (
-          <ReactionPicker
-            onSelect={onReact}
-            open={isReactionOpen}
-            onOpenChange={(open) => {
-              setIsReactionOpen(open);
-              if (!open) setActionsPinned(false);
-            }}
-          >
-            <button
-              aria-label="Add a reaction"
-              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95"
-            >
-              <Smile className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:rotate-12" />
-            </button>
-          </ReactionPicker>
-        ) : null}
-
-        {onOpenThread ? (
-          <Hint label="Reply in thread">
-            <button
-              aria-label="Reply in thread"
-              onClick={() => {
-                onOpenThread();
-                setActionsPinned(false);
-              }}
-              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95"
-            >
-              <MessageSquare className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-rotate-6" />
-            </button>
-          </Hint>
-        ) : null}
-
-        {onReply || onOpenThread ? (
-          <Hint label="Reply">
-            <button
-              aria-label="Reply"
-              onClick={() => {
-                (onReply ?? onOpenThread)?.();
-                setActionsPinned(false);
-              }}
-              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95"
-            >
-              <Reply className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-translate-x-0.5" />
-            </button>
-          </Hint>
-        ) : null}
-
-        {onForward || onCopyLink ? (
-          <Hint label="Forward message">
-            <button
-              aria-label="Forward message"
-              onClick={() => {
-                (onForward ?? onCopyLink)?.();
-                setActionsPinned(false);
-              }}
-              className="group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95"
-            >
-              <Forward className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:translate-x-0.5" />
-            </button>
-          </Hint>
-        ) : null}
-
-        {onToggleSave ? (
-          <Hint label={isSaved ? 'Remove from saved' : 'Save for later'}>
-            <button
-              aria-label={isSaved ? 'Remove from saved' : 'Save for later'}
-              aria-pressed={isSaved}
-              onClick={onToggleSave}
-              className={cn(
-                'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95',
-                isSaved && 'text-primary-text',
-              )}
-            >
-              <Bookmark className={cn('size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110', isSaved && 'fill-current')} />
-            </button>
-          </Hint>
-        ) : null}
-
-        <ActionDropdownMenu
-          open={isMenuOpen}
-          onOpenChange={(open) => {
-            setIsMenuOpen(open);
-            if (!open) setActionsPinned(false);
-          }}
-          actions={() => buildActions('dropdown')}
-          entityType="message"
-          entity={message}
-          scope={`message:${message.id}`}
-          contentClassName="w-64"
-          trigger={
-            <button
-              aria-label="More actions"
-              className={cn(
-                'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95',
-                isMenuOpen && 'bg-foreground/[0.06] text-foreground',
-              )}
-            >
-              <MoreHorizontal className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110" />
-            </button>
-          }
-        />
-      </div>
+      <MessageActionToolbar
+        isMenuOpen={isMenuOpen}
+        onMenuOpenChange={setIsMenuOpen}
+        isReactionOpen={isReactionOpen}
+        onReactionOpenChange={setIsReactionOpen}
+        actionsPinned={actionsPinned}
+        onPinnedChange={setActionsPinned}
+        onReact={onReact}
+        onOpenThread={onOpenThread}
+        onReply={onReply}
+        onForward={onForward}
+        onCopyLink={onCopyLink}
+        onToggleSave={onToggleSave}
+        isSaved={isSaved}
+        buildActions={() => buildActions('dropdown')}
+        entity={message}
+      />
     </article>
     </EntityContextMenu>
   );
@@ -1815,6 +1717,161 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
       </Popover>
 
       <span className="h-px flex-1 bg-border" aria-hidden />
+    </div>
+  );
+}
+
+const TOOLBAR_BTN =
+  'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95';
+
+/**
+ * The floating hover/focus toolbar every message row shares — a plain message
+ * and an agent's card render this same component, so the two can't drift.
+ * Each button only appears when its handler is wired; the "⋯" menu carries
+ * whatever `buildActions` offers for the entity (that part is data-driven).
+ */
+export function MessageActionToolbar({
+  isMenuOpen,
+  onMenuOpenChange,
+  isReactionOpen,
+  onReactionOpenChange,
+  actionsPinned,
+  onPinnedChange,
+  onReact,
+  onOpenThread,
+  onReply,
+  onForward,
+  onCopyLink,
+  onToggleSave,
+  isSaved = false,
+  buildActions,
+  entity,
+}: {
+  isMenuOpen: boolean;
+  onMenuOpenChange: (open: boolean) => void;
+  isReactionOpen: boolean;
+  onReactionOpenChange: (open: boolean) => void;
+  actionsPinned: boolean;
+  onPinnedChange: (pinned: boolean) => void;
+  onReact?: (key: string) => void;
+  onOpenThread?: () => void;
+  onReply?: () => void;
+  onForward?: () => void;
+  onCopyLink?: () => void;
+  onToggleSave?: () => void;
+  isSaved?: boolean;
+  buildActions: () => EntityAction[];
+  entity: Message;
+}) {
+  return (
+    <div
+      role="toolbar"
+      aria-label="Message actions"
+      className={cn(
+        '-top-4.5 right-4 p-1 gap-1 absolute z-20 items-center rounded-xl border border-border/80 bg-white dark:bg-surface-raised shadow-md transition-all duration-200 ease-out hover:shadow-lg animate-in fade-in-0 zoom-in-95',
+        isMenuOpen || isReactionOpen || actionsPinned
+          ? 'flex'
+          : 'hidden group-focus-within/message:flex group-hover/message:flex',
+      )}
+    >
+      {onReact ? (
+        <ReactionPicker
+          onSelect={onReact}
+          open={isReactionOpen}
+          onOpenChange={(open) => {
+            onReactionOpenChange(open);
+            if (!open) onPinnedChange(false);
+          }}
+        >
+          <button aria-label="Add a reaction" className={TOOLBAR_BTN}>
+            <Smile className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:rotate-12" />
+          </button>
+        </ReactionPicker>
+      ) : null}
+
+      {onOpenThread ? (
+        <Hint label="Reply in thread">
+          <button
+            aria-label="Reply in thread"
+            onClick={() => {
+              onOpenThread();
+              onPinnedChange(false);
+            }}
+            className={TOOLBAR_BTN}
+          >
+            <MessageSquare className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-rotate-6" />
+          </button>
+        </Hint>
+      ) : null}
+
+      {onReply || onOpenThread ? (
+        <Hint label="Reply">
+          <button
+            aria-label="Reply"
+            onClick={() => {
+              (onReply ?? onOpenThread)?.();
+              onPinnedChange(false);
+            }}
+            className={TOOLBAR_BTN}
+          >
+            <Reply className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:-translate-x-0.5" />
+          </button>
+        </Hint>
+      ) : null}
+
+      {onForward || onCopyLink ? (
+        <Hint label="Forward message">
+          <button
+            aria-label="Forward message"
+            onClick={() => {
+              (onForward ?? onCopyLink)?.();
+              onPinnedChange(false);
+            }}
+            className={TOOLBAR_BTN}
+          >
+            <Forward className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110 group-hover/btn:translate-x-0.5" />
+          </button>
+        </Hint>
+      ) : null}
+
+      {onToggleSave ? (
+        <Hint label={isSaved ? 'Remove from saved' : 'Save for later'}>
+          <button
+            aria-label={isSaved ? 'Remove from saved' : 'Save for later'}
+            aria-pressed={isSaved}
+            onClick={onToggleSave}
+            className={cn(TOOLBAR_BTN, isSaved && 'text-primary-text')}
+          >
+            <Bookmark
+              className={cn(
+                'size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110',
+                isSaved && 'fill-current',
+              )}
+            />
+          </button>
+        </Hint>
+      ) : null}
+
+      <ActionDropdownMenu
+        open={isMenuOpen}
+        onOpenChange={(open) => {
+          onMenuOpenChange(open);
+          if (!open) onPinnedChange(false);
+        }}
+        actions={buildActions}
+        entityType="message"
+        entity={entity}
+        scope={`message:${entity.id}`}
+        contentClassName="w-64"
+        trigger={
+          <button
+            aria-label="More actions"
+            className={cn(TOOLBAR_BTN, isMenuOpen && 'bg-foreground/[0.06] text-foreground')}
+          >
+            <MoreHorizontal className="size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110" />
+          </button>
+        }
+      />
     </div>
   );
 }

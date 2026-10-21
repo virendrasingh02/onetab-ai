@@ -117,7 +117,8 @@ export abstract class BaseProviderAdapter implements IProviderAdapter {
       );
     }
 
-    if (status === 404 || status === 503) {
+    // 410 = the provider retired the model; same remedy as 404 (pick another).
+    if (status === 404 || status === 410 || status === 503) {
       return new HttpException(
         {
           statusCode: HttpStatus.SERVICE_UNAVAILABLE,

@@ -14,11 +14,8 @@ import {
   DialogBody,
   DialogHeader,
   DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  EntityContextMenu,
+  type EntityAction,
   Hint,
   toast,
   UserAvatar,
@@ -33,6 +30,7 @@ import {
   Bot,
   Check,
   CheckCircle2,
+  CornerDownRight,
   ChevronDown,
   Clock,
   Copy,
@@ -45,20 +43,25 @@ import {
   ImageIcon,
   Link2,
   Loader2,
-  MoreHorizontal,
+  Forward,
   Pause,
+  Pin,
+  PinOff,
+  Quote,
   RefreshCw,
   Search,
   Settings,
   ShieldAlert,
   SmilePlus,
+  SquareDot,
   Terminal,
+  Trash2,
   XCircle,
 } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { UserProfileCard } from '../user-profile-card.js';
 import { MarkdownMessage } from '../markdown-message.js';
-import { ThreadRepliesButton, ReactionPicker } from '../chat-bubble.js';
+import { MessageActionToolbar, ThreadRepliesButton, ReactionPicker } from '../chat-bubble.js';
 import { ReactionBar, reactionAddButtonClass } from '../reaction-bar.js';
 import { executeStructuredAction } from './action-handler.js';
 import { useAgentAvatar } from './agent-avatar-context.js';
@@ -72,9 +75,24 @@ export interface AgentMessageCardProps {
   isHighlighted?: boolean;
   onAction?: (action: StructuredMessageAction) => void | Promise<void>;
   onRetry?: () => void;
+  onFollowUp?: (text: string) => void;
+  showFollowUps?: boolean;
   onOpenThread?: () => void;
   onToggleSave?: () => void;
   isSaved?: boolean;
+  /** Same optional handlers a normal message row takes — each action shows
+   *  only when its handler is wired, exactly like `ChatBubble`. */
+  onReply?: () => void;
+  onForward?: () => void;
+  onCopyLink?: () => void;
+  onCopyText?: () => void;
+  onQuote?: () => void;
+  onMarkUnread?: () => void;
+  onRemind?: (remindAt: Date) => void;
+  onTogglePin?: () => void;
+  isPinned?: boolean;
+  onDelete?: () => void;
+  canModerateMessages?: boolean;
   /** Same reaction + thread affordances a normal message row has. */
   onReact?: (key: string) => void;
   threadReplyCount?: number;
@@ -90,6 +108,39 @@ export function formatDuration(durationMs?: number): string {
   return `${seconds}s`;
 }
 
+/** Turns a raw provider error into something a non-engineer can act on. */
+export function describeAgentError(raw?: string): { title: string; hint: string } {
+  const msg = (raw ?? '').toLowerCase();
+  if (/unavailable|http 40[4]|http 410|not found|end of life|overloaded|http 503/.test(msg)) {
+    return {
+      title: "This agent's AI model isn't available right now",
+      hint: 'The model may be temporarily down or retired. Try again in a moment — if it keeps failing, ask a workspace admin to switch the agent to another model.',
+    };
+  }
+  if (/rate limit|http 429|too many/.test(msg)) {
+    return {
+      title: 'The agent is getting too many requests',
+      hint: 'Wait a few seconds and try again.',
+    };
+  }
+  if (/credential|unauthorized|auth|api key|http 40[13]/.test(msg)) {
+    return {
+      title: "The agent can't sign in to its AI provider",
+      hint: 'The provider key looks missing or invalid. A workspace admin needs to check the AI provider settings.',
+    };
+  }
+  if (/timed out|timeout/.test(msg)) {
+    return {
+      title: 'The agent took too long to respond',
+      hint: 'Try again, or ask for something smaller.',
+    };
+  }
+  return {
+    title: "The agent couldn't finish this request",
+    hint: 'Something went wrong while it was working. Try again.',
+  };
+}
+
 export function AgentMessageCard({
   message,
   event,
@@ -97,9 +148,22 @@ export function AgentMessageCard({
   isHighlighted = false,
   onAction,
   onRetry,
+  onFollowUp,
+  showFollowUps = true,
   onOpenThread,
   onToggleSave,
   isSaved = false,
+  onReply,
+  onForward,
+  onCopyLink,
+  onCopyText,
+  onQuote,
+  onMarkUnread,
+  onRemind,
+  onTogglePin,
+  isPinned = false,
+  onDelete,
+  canModerateMessages = false,
   onReact,
   threadReplyCount,
   threadHasUnread,
@@ -115,6 +179,7 @@ export function AgentMessageCard({
   const [toolsExpanded, setToolsExpanded] = useState(!prefs.collapseToolCalls);
   const [sourcesExpanded, setSourcesExpanded] = useState(!prefs.collapseSources);
   const [reasoningExpanded, setReasoningExpanded] = useState(false);
+  const [followUpSent, setFollowUpSent] = useState(false);
   const [expandedToolIds, setExpandedToolIds] = useState<Set<string>>(new Set());
 
   const liveAvatarUrl = useAgentAvatar(event.agentId);
@@ -127,6 +192,9 @@ export function AgentMessageCard({
   const hasContent = Boolean(event.responseText || event.summary);
   const isFailed = event.status === 'failed';
   const isWaitingApproval = event.status === 'waiting_for_approval';
+  const followUps = (event.suggestedActions ?? []).filter((a) => a.actionType === 'follow_up');
+  const otherActions = (event.suggestedActions ?? []).filter((a) => a.actionType !== 'follow_up');
+  const friendlyError = describeAgentError(event.errorMessage);
 
   const statusConfig = useMemo(() => {
     switch (event.status) {
@@ -265,6 +333,151 @@ export function AgentMessageCard({
     </UserProfileCard>
   );
 
+  // Same open/pinned bookkeeping as ChatBubble so the shared toolbar behaves
+  // identically (touch long-press pins it open, picker keeps it up).
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isReactionOpen, setIsReactionOpen] = useState(false);
+  const [actionsPinned, setActionsPinned] = useState(false);
+  const articleRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!actionsPinned) return;
+    const dismiss = (e: Event) => {
+      if (isMenuOpen || isReactionOpen) return;
+      if (e.type === 'pointerdown' && articleRef.current?.contains(e.target as Node)) return;
+      setActionsPinned(false);
+    };
+    document.addEventListener('pointerdown', dismiss, true);
+    window.addEventListener('scroll', dismiss, true);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss, true);
+      window.removeEventListener('scroll', dismiss, true);
+    };
+  }, [actionsPinned, isMenuOpen, isReactionOpen]);
+
+  const responseText = event.responseText || event.summary || message.body;
+  // Generic message actions + the ones that only make sense for an agent run
+  // (run again, event JSON, card display). The toolbar owns the quick ones, so
+  // the "⋯" menu skips those; the right-click menu / touch sheet show all.
+  const buildActions = (surface: 'menu' | 'dropdown' = 'menu'): EntityAction[] => {
+    const onToolbar = surface === 'dropdown';
+    return [
+      {
+        id: 'reply-thread',
+        group: 'reply',
+        label: 'Reply in thread',
+        icon: ArrowRight,
+        hidden: onToolbar || !onOpenThread,
+        run: onOpenThread,
+      },
+      {
+        id: 'quote',
+        group: 'reply',
+        label: 'Quote response',
+        icon: Quote,
+        hidden: !onQuote || !responseText,
+        run: onQuote,
+      },
+      {
+        id: 'save',
+        group: 'reply',
+        label: isSaved ? 'Remove from saved' : 'Save for later',
+        icon: Bookmark,
+        hidden: onToolbar || !onToggleSave,
+        run: onToggleSave,
+      },
+      {
+        id: 'run-again',
+        group: 'agent',
+        label: isFailed ? 'Try again' : 'Run again',
+        icon: RefreshCw,
+        hidden: !onRetry || isPending,
+        run: onRetry,
+      },
+      {
+        id: 'mark-unread',
+        group: 'state',
+        label: 'Mark unread',
+        icon: SquareDot,
+        hidden: !onMarkUnread,
+        run: onMarkUnread,
+      },
+      {
+        id: 'remind',
+        group: 'state',
+        label: 'Remind me about this',
+        icon: Clock,
+        hidden: !onRemind,
+        children: onRemind
+          ? [
+              { id: 'remind-1h', label: 'In 1 hour', hours: 1 },
+              { id: 'remind-3h', label: 'In 3 hours', hours: 3 },
+              { id: 'remind-24h', label: 'Tomorrow', hours: 24 },
+            ].map(
+              (preset): EntityAction => ({
+                id: preset.id,
+                label: preset.label,
+                run: () => onRemind(new Date(Date.now() + preset.hours * 3_600_000)),
+              }),
+            )
+          : [],
+      },
+      {
+        id: 'copy-link',
+        group: 'share',
+        label: 'Copy link',
+        icon: Link2,
+        run: onCopyLink ?? handleCopyLink,
+      },
+      {
+        id: 'copy-text',
+        group: 'share',
+        label: 'Copy response',
+        icon: Copy,
+        hidden: !responseText,
+        run: onCopyText ?? handleCopyText,
+      },
+      {
+        id: 'forward',
+        group: 'share',
+        label: 'Forward message',
+        icon: Forward,
+        hidden: onToolbar || !onForward,
+        run: onForward,
+      },
+      {
+        id: 'pin',
+        group: 'more',
+        label: isPinned ? 'Unpin from channel' : 'Pin to channel',
+        icon: isPinned ? PinOff : Pin,
+        hidden: !onTogglePin,
+        run: onTogglePin,
+      },
+      {
+        id: 'display-settings',
+        group: 'agent',
+        label: 'Card display settings',
+        icon: Settings,
+        run: () => setSettingsOpen(true),
+      },
+      {
+        id: 'debug-json',
+        group: 'agent',
+        label: 'View event JSON',
+        icon: Terminal,
+        run: () => setDebugModalOpen(true),
+      },
+      {
+        id: 'delete',
+        group: 'danger',
+        label: 'Delete message…',
+        icon: Trash2,
+        destructive: true,
+        hidden: !onDelete || !canModerateMessages,
+        run: onDelete,
+      },
+    ];
+  };
+
   // Compact Mode Rendering
   if (density === 'compact') {
     return (
@@ -332,13 +545,23 @@ export function AgentMessageCard({
 
   // Standard (Comfortable) & Expanded Card Rendering
   return (
+    <EntityContextMenu
+      actions={() => buildActions('menu')}
+      entityType="message"
+      entity={message}
+      scope={`message:${message.id}`}
+      label={`Message from ${agentName}`}
+    >
     <article
       data-message-id={message.id}
+      ref={articleRef}
       className={cn(
         // Same row rhythm as a normal message (ChatBubble comfy density).
-        'group/card relative -mx-4 flex gap-4 px-4 pt-2.5 pb-1 transition-colors hover:bg-foreground/[0.035]',
+        'group/message relative -mx-4 flex gap-4 px-4 pt-2.5 pb-1 transition-colors hover:bg-foreground/[0.035]',
+        actionsPinned && 'bg-foreground/[0.035]',
+        isSaved && 'bg-primary/[0.05]',
+        isPinned && 'bg-warning/[0.05]',
         isHighlighted && 'border-l-2 border-l-primary bg-primary/5',
-        isFailed && 'bg-destructive/5',
       )}
     >
       <div className="relative w-10 shrink-0">
@@ -393,86 +616,6 @@ export function AgentMessageCard({
           </div>
         </div>
 
-        {/* Top-Right Card Actions */}
-        <div className="flex items-center gap-1 self-start opacity-0 transition-opacity group-hover/card:opacity-100 focus-within:opacity-100">
-          {prefs.showSaveAction && onToggleSave && (
-            <Hint label={isSaved ? 'Remove from saved' : 'Save for later'}>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={onToggleSave}
-                aria-label="Save card"
-                className={cn(
-                  'size-7 text-muted-foreground hover:text-foreground',
-                  isSaved && 'text-primary',
-                )}
-              >
-                <Bookmark className={cn('size-3.5', isSaved && 'fill-current')} />
-              </Button>
-            </Hint>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label="More agent options"
-                className="size-7 text-muted-foreground hover:text-foreground"
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              side="bottom"
-              sideOffset={4}
-              collisionPadding={8}
-              className="w-52 text-xs border-border bg-popover text-popover-foreground z-50 shadow-overlay"
-            >
-              <DropdownMenuItem onClick={handleCopyText} className="gap-2">
-                <Copy className="size-3.5" />
-                <span>Copy Response</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleCopyLink} className="gap-2">
-                <Link2 className="size-3.5" />
-                <span>Copy Message Link</span>
-              </DropdownMenuItem>
-
-              {onOpenThread && (
-                <DropdownMenuItem onClick={onOpenThread} className="gap-2">
-                  <ArrowRight className="size-3.5" />
-                  <span>Reply in Thread</span>
-                </DropdownMenuItem>
-              )}
-
-              {onRetry && (
-                <DropdownMenuItem onClick={onRetry} className="gap-2">
-                  <RefreshCw className="size-3.5" />
-                  <span>Run Again</span>
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onClick={() => setSettingsOpen(true)}
-                className="gap-2"
-              >
-                <Settings className="size-3.5" />
-                <span>Display Settings</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                onClick={() => setDebugModalOpen(true)}
-                className="gap-2 font-mono text-xs"
-              >
-                <Terminal className="size-3.5 text-primary" />
-                <span>View Event Debug JSON</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </header>
 
       {/* 2. LIVE / STREAMING EXECUTION PROGRESS */}
@@ -579,23 +722,36 @@ export function AgentMessageCard({
 
       {/* 4. FAILED STATE BANNER */}
       {isFailed && (
-        <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold flex items-center gap-1.5">
-              <AlertTriangle className="size-4" />
-              <span>{event.errorMessage || 'Execution encountered an unrecoverable error.'}</span>
-            </span>
-            {onRetry && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onRetry}
-                className="h-6 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
-              >
-                Retry
-              </Button>
+        <div
+          role="alert"
+          className="mt-2 flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs"
+        >
+          <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-warning/20 text-warning-text">
+            <AlertTriangle className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{friendlyError.title}</p>
+            <p className="mt-0.5 text-muted-foreground">{friendlyError.hint}</p>
+            {event.errorMessage && (
+              <details className="mt-1.5 text-muted-foreground">
+                <summary className="w-fit cursor-pointer select-none text-2xs font-medium hover:text-foreground">
+                  Technical details
+                </summary>
+                <p className="mt-1 break-words font-mono text-2xs">{event.errorMessage}</p>
+              </details>
             )}
           </div>
+          {onRetry && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onRetry}
+              className="h-7 shrink-0 gap-1.5 text-xs"
+            >
+              <RefreshCw className="size-3" />
+              Try again
+            </Button>
+          )}
         </div>
       )}
 
@@ -643,7 +799,7 @@ export function AgentMessageCard({
       )}
 
       {/* 7. MAIN AGENT RESPONSE BODY */}
-      {(hasContent || (!isPending && message.body)) && (
+      {(hasContent || (!isPending && !isFailed && message.body)) && (
         <div className="text-message text-foreground animate-in fade-in-0 duration-300">
           <MarkdownMessage
             text={event.responseText || event.summary || message.body}
@@ -928,14 +1084,44 @@ export function AgentMessageCard({
         </div>
       )}
 
-      {/* 12. DYNAMIC SUGGESTED ACTIONS BAR */}
-      {event.suggestedActions && event.suggestedActions.length > 0 && (
+      {/* 12. FOLLOW-UP QUESTIONS — generated from this answer; one click sends */}
+      {followUps.length > 0 && showFollowUps && !followUpSent && onFollowUp && (
+        <nav
+          aria-label="Suggested follow-up questions"
+          className="mt-2 flex flex-wrap gap-1.5 animate-in fade-in-0 duration-300"
+        >
+          {followUps.map((act) => {
+            const prompt = String(act.payload?.['prompt'] ?? act.label);
+            return (
+              <button
+                key={act.id}
+                type="button"
+                title={prompt}
+                onClick={() => {
+                  setFollowUpSent(true);
+                  onFollowUp(prompt);
+                }}
+                className="group/fu inline-flex max-w-full items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary-text shadow-2xs transition-all hover:-translate-y-px hover:border-primary hover:bg-primary hover:text-primary-foreground hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 active:translate-y-0"
+              >
+                <CornerDownRight
+                  className="size-3 shrink-0 opacity-70 group-hover/fu:opacity-100"
+                  aria-hidden
+                />
+                <span className="truncate">{act.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      {/* Other suggested actions (non follow-up): buttons */}
+      {otherActions.length > 0 && (
         <div className="mt-4 pt-3 border-t border-border/60">
           <span className="text-2xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">
-            ⚡ Suggested Follow-up Actions
+            Suggested actions
           </span>
           <div className="flex items-center gap-2 flex-wrap">
-            {event.suggestedActions.map((act) => {
+            {otherActions.map((act) => {
               const btnVariant =
                 act.variant === 'default' ? 'primary' : act.variant || 'outline';
               return (
@@ -1038,6 +1224,25 @@ export function AgentMessageCard({
       {/* Card Settings Dialog */}
       <CardSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       </div>
+
+      <MessageActionToolbar
+        isMenuOpen={isMenuOpen}
+        onMenuOpenChange={setIsMenuOpen}
+        isReactionOpen={isReactionOpen}
+        onReactionOpenChange={setIsReactionOpen}
+        actionsPinned={actionsPinned}
+        onPinnedChange={setActionsPinned}
+        onReact={onReact}
+        onOpenThread={onOpenThread}
+        onReply={onReply}
+        onForward={onForward}
+        onCopyLink={onCopyLink}
+        onToggleSave={onToggleSave}
+        isSaved={isSaved}
+        buildActions={() => buildActions('dropdown')}
+        entity={message}
+      />
     </article>
+    </EntityContextMenu>
   );
 }

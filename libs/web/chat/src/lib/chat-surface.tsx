@@ -1608,6 +1608,13 @@ export function ChatSurface({
                   void onAction(message, action)
               : undefined
           }
+          onFollowUp={(text) => void onSend(text, message.threadRootId)}
+          showFollowUps={
+            message.id ===
+            (inThread && message.threadRootId
+              ? repliesByRoot.get(message.threadRootId)?.at(-1)?.id
+              : messages[messages.length - 1]?.id)
+          }
           onRetry={
             message.structuredEvent?.type === 'mie.ai.agent'
               ? onRetryAgent
@@ -1754,6 +1761,8 @@ export function ChatSurface({
       conversationId,
       handleForward,
       openForwardedOriginal,
+      messages,
+      onSend,
     ],
   );
 

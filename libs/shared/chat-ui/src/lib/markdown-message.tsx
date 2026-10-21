@@ -1,8 +1,8 @@
 import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { CodeBlock, useRightPanelStore, type RightPanelProfile } from '@org/ui';
 import { cn } from '@org/utils';
-import { CheckSquare, Link2, Square } from 'lucide-react';
-import { Fragment, useCallback, useMemo, type ReactNode } from 'react';
+import { CheckSquare, ChevronDown, ChevronUp, ChevronsUpDown, Link2, Square } from 'lucide-react';
+import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react';
 
 import { compactBlankLineCount } from './blank-lines.js';
 
@@ -492,36 +492,12 @@ function renderBlocks(markdown: string, options: InlineOptions): ReactNode[] {
         index += 1;
       }
       blocks.push(
-        <div key={`table-${index}`} className="my-1.5 overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                {header.map((cell, cellIndex) => (
-                  <th
-                    key={cellIndex}
-                    className="border border-border bg-surface-inset px-2 py-1 text-left font-semibold text-foreground"
-                  >
-                    {renderInline(cell, `th-${index}-${cellIndex}`, options)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, rowIndex) => (
-                <tr key={rowIndex}>
-                  {row.map((cell, cellIndex) => (
-                    <td
-                      key={cellIndex}
-                      className="border border-border px-2 py-1 align-top"
-                    >
-                      {renderInline(cell, `td-${index}-${rowIndex}-${cellIndex}`, options)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>,
+        <MarkdownTable
+          key={`table-${index}`}
+          header={header}
+          rows={rows}
+          renderCell={(cell, id) => renderInline(cell, `${id}-${index}`, options)}
+        />,
       );
       continue;
     }
@@ -733,6 +709,125 @@ export function MarkdownMessage({
       )}
     >
       {renderBlocks(text, options)}
+    </div>
+  );
+}
+
+/** Rows shown before a long table collapses behind "Show all". */
+const TABLE_COLLAPSED_ROWS = 10;
+
+function compareCells(a: string, b: string): number {
+  const na = Number(a.replace(/[,$%\s]/g, ''));
+  const nb = Number(b.replace(/[,$%\s]/g, ''));
+  if (a.trim() !== '' && b.trim() !== '' && !Number.isNaN(na) && !Number.isNaN(nb)) {
+    return na - nb;
+  }
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+/**
+ * Chat table: rounded card, sticky header, row hover, sortable columns, and
+ * for long tables a collapsed view with a row count + "Show all" toggle.
+ * Wide tables scroll horizontally inside the card instead of squeezing cells.
+ */
+function MarkdownTable({
+  header,
+  rows,
+  renderCell,
+}: {
+  header: string[];
+  rows: string[][];
+  renderCell: (cell: string, id: string) => ReactNode;
+}) {
+  const [sort, setSort] = useState<{ col: number; dir: 'asc' | 'desc' } | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const sorted = useMemo(() => {
+    if (!sort) return rows;
+    const factor = sort.dir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => factor * compareCells(a[sort.col] ?? '', b[sort.col] ?? ''));
+  }, [rows, sort]);
+
+  const collapsible = sorted.length > TABLE_COLLAPSED_ROWS;
+  const visible = collapsible && !expanded ? sorted.slice(0, TABLE_COLLAPSED_ROWS) : sorted;
+
+  const toggleSort = (col: number) =>
+    setSort((prev) =>
+      !prev || prev.col !== col
+        ? { col, dir: 'asc' }
+        : prev.dir === 'asc'
+          ? { col, dir: 'desc' }
+          : null,
+    );
+
+  return (
+    <div className="my-2 overflow-hidden rounded-xl border border-border bg-surface">
+      <div className={cn('overflow-auto', expanded && 'max-h-[28rem]')}>
+        <table className="w-full min-w-max border-collapse text-sm">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-surface-inset">
+              {header.map((cell, col) => {
+                const active = sort?.col === col;
+                const Icon = !active ? ChevronsUpDown : sort.dir === 'asc' ? ChevronUp : ChevronDown;
+                return (
+                  <th
+                    key={col}
+                    scope="col"
+                    aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    className="border-b border-border p-0 text-left"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(col)}
+                      className="group/th flex w-full items-center gap-1 whitespace-nowrap px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {renderCell(cell, `th-${col}`)}
+                      <Icon
+                        className={cn(
+                          'size-3 shrink-0',
+                          active ? 'text-primary' : 'opacity-0 group-hover/th:opacity-60',
+                        )}
+                        aria-hidden
+                      />
+                    </button>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((row, rowIndex) => (
+              <tr
+                key={rowIndex}
+                className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-foreground/[0.035]"
+              >
+                {header.map((_, col) => (
+                  <td
+                    key={col}
+                    className="max-w-[28rem] px-3 py-2 align-top text-foreground [overflow-wrap:anywhere]"
+                  >
+                    {renderCell(row[col] ?? '', `td-${rowIndex}-${col}`)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {collapsible && (
+        <div className="flex items-center justify-between border-t border-border bg-surface-inset px-3 py-1.5 text-xs text-muted-foreground">
+          <span>
+            {expanded ? `${sorted.length} rows` : `Showing ${visible.length} of ${sorted.length} rows`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="font-semibold text-primary hover:underline"
+          >
+            {expanded ? 'Show less' : 'Show all'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

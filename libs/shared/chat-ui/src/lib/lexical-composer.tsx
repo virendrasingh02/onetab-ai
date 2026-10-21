@@ -118,6 +118,7 @@ import { EntityKindBadge } from './entity-kind-badge.js';
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1774,9 +1775,12 @@ function ToolButton({
 export function ToolbarContent({
   toolbarSlot,
   onInteractionChange,
+  floating = false,
 }: {
   toolbarSlot?: ReactNode;
   onInteractionChange?: (interacting: boolean) => void;
+  /** Selection-popover styling: stronger elevation, no slot, roomier hit areas. */
+  floating?: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
   const [formats, setFormats] = useState({
@@ -1952,7 +1956,12 @@ export function ToolbarContent({
     <div
       role="toolbar"
       aria-label="Formatting tools"
-      className="gap-0.5 p-1 shadow-lg border-border inline-flex items-center rounded-xl border bg-popover text-popover-foreground whitespace-nowrap select-none"
+      className={cn(
+        'gap-0.5 p-1 border-border inline-flex items-center rounded-xl border bg-popover text-popover-foreground whitespace-nowrap select-none',
+        floating
+          ? 'shadow-xl ring-1 ring-black/5 dark:ring-white/10 [&_button]:size-8'
+          : 'shadow-lg',
+      )}
     >
       {/* Link Button & Popover */}
       <div ref={linkContainerRef} className="relative">
@@ -2076,7 +2085,7 @@ export function ToolbarContent({
           <SquareCode className="size-3.5" />
       </ToolButton>
 
-      {toolbarSlot ? (
+      {toolbarSlot && !floating ? (
         <>
           <span className="mx-1 h-4 bg-border w-px shrink-0" />
           {toolbarSlot}
@@ -2097,12 +2106,24 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
 export function FloatingSelectionToolbar() {
   const [editor] = useLexicalComposerContext();
   const [isVisible, setIsVisible] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(
-    null,
-  );
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+    placement: 'top' | 'bottom';
+  } | null>(null);
   const isInteractingRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const hide = useCallback(() => {
+    if (!isInteractingRef.current) setIsVisible(false);
+  }, []);
 
   const updatePosition = useCallback(() => {
+    // Wait for the pointer to be released: a toolbar that chases a drag
+    // selection flickers and covers the text being selected.
+    if (isDraggingRef.current) return;
+
     const domSelection = window.getSelection();
     const rootElement = editor.getRootElement();
 
@@ -2112,49 +2133,42 @@ export function FloatingSelectionToolbar() {
       domSelection.rangeCount === 0 ||
       !rootElement
     ) {
-      if (!isInteractingRef.current) {
-        setIsVisible(false);
-      }
+      hide();
       return;
     }
 
     const range = domSelection.getRangeAt(0);
-    if (!rootElement.contains(range.commonAncestorContainer)) {
-      if (!isInteractingRef.current) {
-        setIsVisible(false);
-      }
-      return;
-    }
-
-    const text = domSelection.toString().trim();
-    if (!text) {
-      if (!isInteractingRef.current) {
-        setIsVisible(false);
-      }
+    if (
+      !rootElement.contains(range.commonAncestorContainer) ||
+      !domSelection.toString().trim()
+    ) {
+      hide();
       return;
     }
 
     const rect = range.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
-      if (!isInteractingRef.current) {
-        setIsVisible(false);
-      }
+      hide();
       return;
     }
 
-    const toolbarHeight = 42;
-    let top = rect.top - toolbarHeight - 8;
-    if (top < 10) {
-      top = rect.bottom + 8;
-    }
+    const width = popoverRef.current?.offsetWidth ?? 280;
+    const height = popoverRef.current?.offsetHeight ?? 44;
+    const gap = 10;
+    const margin = 8;
 
+    const placement = rect.top - height - gap < margin ? 'bottom' : 'top';
+    const top =
+      placement === 'top' ? rect.top - height - gap : rect.bottom + gap;
+
+    const center = rect.left + rect.width / 2;
     const left = Math.max(
-      130,
-      Math.min(window.innerWidth - 130, rect.left + rect.width / 2),
+      width / 2 + margin,
+      Math.min(window.innerWidth - width / 2 - margin, center),
     );
-    setCoords({ top, left });
+    setCoords({ top, left, placement });
     setIsVisible(true);
-  }, [editor]);
+  }, [editor, hide]);
 
   useEffect(() => {
     return mergeRegister(
@@ -2175,11 +2189,33 @@ export function FloatingSelectionToolbar() {
   }, [editor, updatePosition]);
 
   useEffect(() => {
-    const handleScrollOrResize = () => {
-      if (isVisible) {
-        updatePosition();
-      }
+    const root = editor.getRootElement();
+    const onDown = () => {
+      isDraggingRef.current = true;
+      hide();
     };
+    const onUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      // Let the browser commit the final selection before measuring it.
+      requestAnimationFrame(updatePosition);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') hide();
+    };
+    root?.addEventListener('pointerdown', onDown);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      root?.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [editor, hide, updatePosition]);
+
+  useEffect(() => {
+    if (!isVisible) return;
+    const handleScrollOrResize = () => updatePosition();
     window.addEventListener('scroll', handleScrollOrResize, true);
     window.addEventListener('resize', handleScrollOrResize);
     return () => {
@@ -2188,10 +2224,16 @@ export function FloatingSelectionToolbar() {
     };
   }, [isVisible, updatePosition]);
 
+  // Re-measure once mounted so the first placement uses the real size.
+  useLayoutEffect(() => {
+    if (isVisible) updatePosition();
+  }, [isVisible, updatePosition]);
+
   if (!isVisible || !coords) return null;
 
   return createPortal(
     <div
+      ref={popoverRef}
       style={{
         position: 'fixed',
         top: `${coords.top}px`,
@@ -2199,14 +2241,18 @@ export function FloatingSelectionToolbar() {
         transform: 'translateX(-50%)',
         zIndex: 9999,
       }}
-      className="animate-in fade-in-0 zoom-in-95 pointer-events-auto duration-100 select-none"
+      className={cn(
+        'animate-in fade-in-0 pointer-events-auto duration-150 select-none',
+        coords.placement === 'top'
+          ? 'slide-in-from-bottom-1'
+          : 'slide-in-from-top-1',
+      )}
     >
       <ToolbarContent
+        floating
         onInteractionChange={(interacting) => {
           isInteractingRef.current = interacting;
-          if (!interacting) {
-            updatePosition();
-          }
+          if (!interacting) updatePosition();
         }}
       />
     </div>,

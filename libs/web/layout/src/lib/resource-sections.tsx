@@ -68,6 +68,7 @@ import {
   FavoriteToggle,
   navActionClass,
   navIconClass,
+  NAV_ROW_ACTIONS_PADDING,
   navRowClass,
   NavRowActions,
   NavRowMenuButton,
@@ -337,7 +338,7 @@ function ResourceRowShell({
         <NavLink
           to={to}
           className={({ isActive }) =>
-            navRowClass(isSelected || isActive, { depth, extra: 'pr-14' })
+            navRowClass(isSelected || isActive, { depth, extra: NAV_ROW_ACTIONS_PADDING })
           }
           title={title}
         >

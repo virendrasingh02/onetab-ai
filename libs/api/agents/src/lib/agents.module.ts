@@ -12,6 +12,7 @@ import { WorkspaceModule } from '@org/api-workspace';
 import { AppChatAgentService } from './app-chat-agent.service.js';
 import { AgentApprovalListener } from './agent-approval.listener.js';
 import { AgentMatrixBridgeService } from './agent-matrix-bridge.service.js';
+import { FollowUpSuggestionsService } from './follow-up-suggestions.service.js';
 import { AgentScheduleSweepService } from './agent-schedule-sweep.service.js';
 import {
   AgentsController,
@@ -72,6 +73,7 @@ import { AgentPublicController } from './deployments/agent-public.controller.js'
     FirecrawlService,
     IntegrationToolBridgeService,
     AgentMatrixBridgeService,
+    FollowUpSuggestionsService,
     AppChatAgentService,
     AgentApprovalListener,
     AgentScheduleSweepService,
