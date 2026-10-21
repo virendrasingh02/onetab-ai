@@ -84,6 +84,7 @@ import type {
   AgentConnectionStatus,
   AICoworker,
   AICoworkerDetail,
+  CoworkerRoster,
   CoworkerExecutionLog,
   CoworkerPermissions,
   CoworkerRunResult,
@@ -3188,6 +3189,10 @@ export const publicAgentApi = {
 export const coworkersApi = {
   list: (workspaceId: string) =>
     request<AICoworkerDetail[]>(http.get(`/workspaces/${workspaceId}/coworkers`)),
+
+  /** Each coworker as an orchestrator with its specialists, connectors, workflows and live numbers. */
+  roster: (workspaceId: string) =>
+    request<CoworkerRoster>(http.get(`/workspaces/${workspaceId}/coworkers/roster`)),
 
   get: (workspaceId: string, coworkerId: string) =>
     request<AICoworkerDetail>(

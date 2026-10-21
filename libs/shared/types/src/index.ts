@@ -330,8 +330,19 @@ export {
   coworkerTemplateKey,
   getCoworkerTemplate,
   resolveCoworkerCollaborators,
+  BUSINESS_COWORKER_KEYS,
 } from './lib/coworker-templates.js';
 export type { CoworkerTemplate, CoworkerTemplateKey } from './lib/coworker-templates.js';
+export { buildRosterConnectors, workflowCoworkerIds } from './lib/coworker-roster.js';
+export type {
+  CoworkerRoster,
+  CoworkerRosterEntry,
+  RosterConnector,
+  RosterConnectorInput,
+  RosterConnectorState,
+  RosterSpecialist,
+  RosterWorkflow,
+} from './lib/coworker-roster.js';
 
 export type {
   CalendarEvent,

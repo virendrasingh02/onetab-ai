@@ -56,6 +56,15 @@ import { RazorpayProvider } from './providers/razorpay.provider.js';
 import { WooCommerceProvider } from './providers/woocommerce.provider.js';
 import { TelegramProvider } from './providers/telegram.provider.js';
 import { SalesforceProvider } from './providers/salesforce.provider.js';
+import { QuickBooksProvider } from './providers/quickbooks.provider.js';
+import { XeroProvider } from './providers/xero.provider.js';
+import { DocuSignProvider } from './providers/docusign.provider.js';
+import { GitLabProvider } from './providers/gitlab.provider.js';
+import { BitbucketProvider } from './providers/bitbucket.provider.js';
+import { CircleCiProvider } from './providers/circleci.provider.js';
+import { SendGridProvider } from './providers/sendgrid.provider.js';
+import { BambooHRProvider } from './providers/bamboohr.provider.js';
+import { ZohoPeopleProvider } from './providers/zoho-people.provider.js';
 import { WordPressProvider } from './providers/wordpress.provider.js';
 import { SlackImporterService } from './slack-importer.service.js';
 import { WebhooksController } from './webhooks.controller.js';
@@ -143,6 +152,15 @@ import { MigrationEngineService } from './migration/migration-engine.service.js'
     WooCommerceProvider,
     TelegramProvider,
     SalesforceProvider,
+    QuickBooksProvider,
+    XeroProvider,
+    DocuSignProvider,
+    GitLabProvider,
+    BitbucketProvider,
+    CircleCiProvider,
+    SendGridProvider,
+    BambooHRProvider,
+    ZohoPeopleProvider,
 
     // Importers
     SlackImporterService,

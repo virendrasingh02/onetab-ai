@@ -104,6 +104,37 @@ export function useCoworkers(workspaceId: string | undefined) {
   });
 }
 
+/**
+ * The Coworkers page: every coworker's orchestrator, specialists, connectors,
+ * workflows and live numbers. Refetched when a coworker run finishes or any
+ * coworker changes (the mutations invalidate the `coworkers` prefix).
+ */
+export function useCoworkerRoster(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const { bus } = useRealtime();
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    const refresh = (event: { payload?: { workspaceId?: string } }) => {
+      if (event.payload?.workspaceId === workspaceId) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.coworkers.roster(workspaceId) });
+      }
+    };
+    const offs = [
+      bus.on(RealtimeEventType.CoworkerExecutionCompleted, refresh),
+      bus.on(RealtimeEventType.CoworkerStatusChanged, refresh),
+    ];
+    return () => offs.forEach((off) => off());
+  }, [bus, queryClient, workspaceId]);
+
+  return useQuery({
+    queryKey: queryKeys.coworkers.roster(workspaceId ?? ''),
+    queryFn: () => coworkersApi.roster(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 15_000,
+  });
+}
+
 /** Individual coworker detail. */
 export function useCoworker(
   workspaceId: string | undefined,

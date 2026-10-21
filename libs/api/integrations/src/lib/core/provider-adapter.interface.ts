@@ -93,7 +93,8 @@ export interface ProviderAdapter {
   handleCallback?(
     code: string,
     state: string,
-    options?: { redirectUri?: string },
+    /** `params`: extra callback query values some apps send (QuickBooks' `realmId`). */
+    options?: { redirectUri?: string; params?: Record<string, string> },
   ): Promise<TokenResult>;
 
   refreshToken?(refreshToken: string): Promise<TokenResult>;

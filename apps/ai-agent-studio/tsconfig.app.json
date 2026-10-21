@@ -51,13 +51,19 @@
       "path": "../../libs/web/automations/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/web/workspace/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/coworkers/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/agents/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/web/integrations/tsconfig.lib.json"
     },
     {
       "path": "../../libs/shared/design-system/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/shared/utils/tsconfig.lib.json"
     },
     {
       "path": "../../libs/shared/hooks/tsconfig.lib.json"
@@ -70,6 +76,9 @@
     },
     {
       "path": "../../libs/shared/ui/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/shared/utils/tsconfig.lib.json"
     }
   ]
 }

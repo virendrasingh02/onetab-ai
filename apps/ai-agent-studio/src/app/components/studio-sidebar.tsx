@@ -38,6 +38,7 @@ import {
   MoreHorizontal,
   Plug,
   Settings,
+  Users,
   ShieldAlert,
   UserPlus,
   Wand2,
@@ -105,6 +106,11 @@ function buildNavGroups(slug: string): NavGroup[] {
         to: '/agents',
         label: 'My Agents',
         icon: Bot,
+      },
+      {
+        to: '/coworkers',
+        label: 'AI Coworkers',
+        icon: Users,
       },
       {
         to: '/workflows',

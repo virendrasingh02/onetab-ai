@@ -53,6 +53,7 @@ function scopeTo(slug: string, to: To): To {
 /** Studio pages that have no workspace-scoped spelling yet (legacy, un-prefixed URLs). */
 export const LEGACY_SEGMENTS = new Set([
   'agents',
+  'coworkers',
   'chat',
   'create',
   'workflows',

@@ -40,6 +40,7 @@ import {
 import type { WorkspacePolicy, WorkspaceRole } from '@org/types';
 import { isPolicyRoleAllowed, WorkspacePermission } from '@org/types';
 import { CanManageAIEntity } from '@org/api-agents';
+import { CoworkerRosterService } from './coworker-roster.service.js';
 import { CoworkerRuntimeService } from './coworker-runtime.service.js';
 import { CoworkersService } from './coworkers.service.js';
 
@@ -56,11 +57,19 @@ export class CoworkersController {
   constructor(
     private readonly coworkersService: CoworkersService,
     private readonly runtime: CoworkerRuntimeService,
+    private readonly roster: CoworkerRosterService,
   ) {}
 
   @Get()
   getCoworkers(@WorkspaceId() workspaceId: string) {
     return this.coworkersService.getCoworkers(workspaceId);
+  }
+
+  /** Every coworker with its orchestrator, specialists, connectors, workflows and live numbers.
+   *  Declared above `:coworkerId` so it isn't read as a coworker id. */
+  @Get('roster')
+  getRoster(@WorkspaceId() workspaceId: string, @CurrentUser('id') userId: string) {
+    return this.roster.getRoster(workspaceId, userId);
   }
 
   /** Workspace-wide telemetry — declared above `:coworkerId` so it isn't

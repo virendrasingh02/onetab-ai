@@ -486,7 +486,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
  * "google", which is not a provider id the runtime knows, so a coworker set
  * to it failed on its first message.
  */
-function ProviderModelFields({
+export function ProviderModelFields({
   provider,
   model,
   onProviderChange,
@@ -510,6 +510,15 @@ function ProviderModelFields({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={DEFAULT}>Workspace default</SelectItem>
+            {/* A stored provider the list doesn't offer (e.g. a local Ollama) still shows, instead of a blank select. */}
+            {provider && !isLoading && !options.providers.some((p) => p.value === provider) ? (
+              <SelectItem value={provider}>
+                <div className="flex items-center gap-2">
+                  <AIProviderIcon provider={provider} size={15} />
+                  <span>{provider}</span>
+                </div>
+              </SelectItem>
+            ) : null}
             {options.providers.map((p) => (
               <SelectItem key={p.value} value={p.value}>
                 <div className="flex items-center gap-2">

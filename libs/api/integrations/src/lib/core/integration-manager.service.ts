@@ -37,6 +37,15 @@ import { RazorpayProvider } from '../providers/razorpay.provider.js';
 import { WooCommerceProvider } from '../providers/woocommerce.provider.js';
 import { TelegramProvider } from '../providers/telegram.provider.js';
 import { SalesforceProvider } from '../providers/salesforce.provider.js';
+import { QuickBooksProvider } from '../providers/quickbooks.provider.js';
+import { XeroProvider } from '../providers/xero.provider.js';
+import { DocuSignProvider } from '../providers/docusign.provider.js';
+import { GitLabProvider } from '../providers/gitlab.provider.js';
+import { BitbucketProvider } from '../providers/bitbucket.provider.js';
+import { CircleCiProvider } from '../providers/circleci.provider.js';
+import { SendGridProvider } from '../providers/sendgrid.provider.js';
+import { BambooHRProvider } from '../providers/bamboohr.provider.js';
+import { ZohoPeopleProvider } from '../providers/zoho-people.provider.js';
 import { MicrosoftTeamsProvider } from '../providers/microsoft-teams.provider.js';
 import { AttendanceProvider } from '../providers/attendance.provider.js';
 import { IntegrationEncryptionService } from './integration-encryption.service.js';
@@ -84,6 +93,15 @@ export class IntegrationManagerService implements OnModuleInit {
     @Optional() private readonly woocommerceProvider?: WooCommerceProvider,
     @Optional() private readonly telegramProvider?: TelegramProvider,
     @Optional() private readonly salesforceProvider?: SalesforceProvider,
+    @Optional() private readonly quickBooksProvider?: QuickBooksProvider,
+    @Optional() private readonly xeroProvider?: XeroProvider,
+    @Optional() private readonly docuSignProvider?: DocuSignProvider,
+    @Optional() private readonly gitLabProvider?: GitLabProvider,
+    @Optional() private readonly bitbucketProvider?: BitbucketProvider,
+    @Optional() private readonly circleCiProvider?: CircleCiProvider,
+    @Optional() private readonly sendGridProvider?: SendGridProvider,
+    @Optional() private readonly bambooHRProvider?: BambooHRProvider,
+    @Optional() private readonly zohoPeopleProvider?: ZohoPeopleProvider,
     @Optional() private readonly oauthApps?: OAuthAppCredentialsService,
   ) {}
 
@@ -106,7 +124,7 @@ export class IntegrationManagerService implements OnModuleInit {
     if (this.attendanceProvider) {
       this.registerAdapter(this.attendanceProvider);
     }
-    for (const adapter of [this.shopifyProvider, this.whatsappProvider, this.wordpressProvider, this.vercelProvider, this.hubspotProvider, this.jiraProvider, this.clickupProvider, this.asanaProvider, this.zendeskProvider, this.intercomProvider, this.airtableProvider, this.stripeProvider, this.razorpayProvider, this.woocommerceProvider, this.telegramProvider, this.salesforceProvider]) {
+    for (const adapter of [this.shopifyProvider, this.whatsappProvider, this.wordpressProvider, this.vercelProvider, this.hubspotProvider, this.jiraProvider, this.clickupProvider, this.asanaProvider, this.zendeskProvider, this.intercomProvider, this.airtableProvider, this.stripeProvider, this.razorpayProvider, this.woocommerceProvider, this.telegramProvider, this.salesforceProvider, this.quickBooksProvider, this.xeroProvider, this.docuSignProvider, this.gitLabProvider, this.bitbucketProvider, this.circleCiProvider, this.sendGridProvider, this.bambooHRProvider, this.zohoPeopleProvider]) {
       if (adapter) this.registerAdapter(adapter);
     }
     this.logger.log(`Initialized IntegrationManager with ${this.adapters.size} providers.`);
@@ -223,12 +241,16 @@ export class IntegrationManagerService implements OnModuleInit {
         const refreshed = await adapter.refreshToken(credential.refreshToken);
         credential.accessToken = refreshed.accessToken;
         credential.tokenExpiresAt = refreshed.tokenExpiresAt;
+        // Apps that rotate refresh tokens (Xero, QuickBooks, Microsoft) revoke
+        // the old one on use — dropping the new one breaks the next refresh.
+        if (refreshed.refreshToken) credential.refreshToken = refreshed.refreshToken;
 
         await this.prisma.externalIntegration.update({
           where: { id: integration.id },
           data: {
             encryptedAccessToken: this.encryption.encrypt(refreshed.accessToken),
             tokenExpiresAt: refreshed.tokenExpiresAt,
+            ...(refreshed.refreshToken ? { encryptedRefreshToken: this.encryption.encrypt(refreshed.refreshToken) } : {}),
           },
         });
       } catch (err) {

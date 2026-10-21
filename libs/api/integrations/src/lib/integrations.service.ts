@@ -293,7 +293,7 @@ export class IntegrationsService {
   /**
    * Handles OAuth callback from external provider.
    */
-  async handleOAuthCallback(code: string, state: string) {
+  async handleOAuthCallback(code: string, state: string, params: Record<string, string> = {}) {
     const startTime = Date.now();
     const statePayload = this.oauth.verifyState(state);
     const adapter = this.manager.getAdapter(statePayload.provider);
@@ -304,7 +304,7 @@ export class IntegrationsService {
 
     const handleCallback = adapter.handleCallback.bind(adapter);
     const tokenResult = await this.withWorkspaceOAuth(statePayload.workspaceId, () =>
-      handleCallback(code, state, { redirectUri: statePayload.redirectUrl }),
+      handleCallback(code, state, { redirectUri: statePayload.redirectUrl, params }),
     );
 
     const encryptedAccessToken = this.encryption.encrypt(tokenResult.accessToken);

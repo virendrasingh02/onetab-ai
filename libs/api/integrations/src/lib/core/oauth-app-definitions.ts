@@ -83,6 +83,36 @@ export const OAUTH_APP_DEFINITIONS: readonly OAuthAppDefinition[] = [
     setupHint: 'Register an app, add a Web redirect URI, and create a client secret.',
     clientIdPlaceholder: 'Application (client) ID',
   },
+  {
+    appKey: 'QUICKBOOKS',
+    label: 'QuickBooks (Intuit)',
+    providers: [{ id: 'QUICKBOOKS', name: 'QuickBooks', callbackPath: 'quickbooks' }],
+    clientIdEnv: 'QUICKBOOKS_CLIENT_ID',
+    clientSecretEnv: 'QUICKBOOKS_CLIENT_SECRET',
+    setupUrl: 'https://developer.intuit.com/app/developer/dashboard',
+    setupHint: 'Create an app with the Accounting scope and add the redirect URI under Keys & credentials.',
+    clientIdPlaceholder: 'Client ID',
+  },
+  {
+    appKey: 'XERO',
+    label: 'Xero',
+    providers: [{ id: 'XERO', name: 'Xero', callbackPath: 'xero' }],
+    clientIdEnv: 'XERO_CLIENT_ID',
+    clientSecretEnv: 'XERO_CLIENT_SECRET',
+    setupUrl: 'https://developer.xero.com/app/manage',
+    setupHint: 'Create a Web app and add the redirect URI.',
+    clientIdPlaceholder: 'Client id',
+  },
+  {
+    appKey: 'DOCUSIGN',
+    label: 'DocuSign',
+    providers: [{ id: 'DOCUSIGN', name: 'DocuSign', callbackPath: 'docusign' }],
+    clientIdEnv: 'DOCUSIGN_CLIENT_ID',
+    clientSecretEnv: 'DOCUSIGN_CLIENT_SECRET',
+    setupUrl: 'https://admindemo.docusign.com/apps-and-keys',
+    setupHint: 'Add an app (integration key), enable Authorization Code Grant, add a secret key and the redirect URI.',
+    clientIdPlaceholder: 'Integration key',
+  },
 ];
 
 export function oauthAppForProvider(providerId: string): OAuthAppDefinition | undefined {

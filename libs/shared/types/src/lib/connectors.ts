@@ -29,6 +29,7 @@ export type ConnectorCategory =
   | 'sales'
   | 'marketing'
   | 'finance'
+  | 'hr'
   | 'commerce'
   | 'content'
   | 'developer_tools'
@@ -53,6 +54,7 @@ export const CONNECTOR_CATEGORIES: ReadonlyArray<{ id: ConnectorCategory; label:
   { id: 'sales', label: 'Sales' },
   { id: 'marketing', label: 'Marketing' },
   { id: 'finance', label: 'Finance' },
+  { id: 'hr', label: 'HR & People' },
   { id: 'commerce', label: 'Commerce' },
   { id: 'content', label: 'Content & CMS' },
   { id: 'developer_tools', label: 'Developer Tools' },
@@ -80,7 +82,8 @@ const CATEGORY_KEYWORDS: ReadonlyArray<[RegExp, ConnectorCategory]> = [
   [/crm|customer relationship/i, 'crm'],
   [/sales/i, 'sales'],
   [/marketing/i, 'marketing'],
-  [/financ|payment|billing|invoice/i, 'finance'],
+  [/financ|payment|billing|invoice|accounting/i, 'finance'],
+  [/\bhr\b|human resources|people|payroll|employee/i, 'hr'],
   [/commerce|shop|store|order/i, 'commerce'],
   [/cms|content|blog|publish/i, 'content'],
   [/developer|engineering|code|repo/i, 'developer_tools'],
@@ -269,6 +272,7 @@ const CATEGORY_AGENT_CAPABILITIES: Partial<Record<ConnectorCategory, AgentCapabi
   sales: ['crm'],
   marketing: ['communication'],
   finance: ['finance'],
+  hr: ['collaboration'],
   customer_support: ['support', 'communication'],
   database: ['knowledge'],
   analytics: ['research'],

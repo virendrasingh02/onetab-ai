@@ -261,7 +261,7 @@ function LegacySettingsRedirect({ section }: { section: string }) {
 const STUDIO_TAB_TO_SECTION: Record<string, string> = {
   overview: '',
   agents: 'agents',
-  coworkers: 'agents?type=coworker',
+  coworkers: 'coworkers',
   workflows: 'workflows',
   executions: 'runs',
   approvals: 'approvals',
@@ -308,7 +308,7 @@ function LegacyAIRedirect({ to }: { to: 'studio' | 'agents' | 'agent-builder' | 
       case 'agent-logs':
         return `${base}/runs?type=AGENT`;
       case 'coworkers':
-        return `${base}/agents?type=coworker`;
+        return `${base}/coworkers`;
       case 'automations': {
         const id = params.get('workflow');
         return id ? `${base}/workflows/${id}` : `${base}/workflows`;

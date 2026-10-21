@@ -181,6 +181,7 @@ export const queryKeys = {
   coworkers: {
     all: (workspaceId: string) => ['coworkers', workspaceId] as const,
     list: (workspaceId: string) => ['coworkers', workspaceId, 'list'] as const,
+    roster: (workspaceId: string) => ['coworkers', workspaceId, 'roster'] as const,
     detail: (workspaceId: string, coworkerId: string) =>
       ['coworkers', workspaceId, coworkerId] as const,
     logs: (workspaceId: string, coworkerId: string) =>

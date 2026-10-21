@@ -39,6 +39,7 @@
     "@org/api-ai": "*",
     "@org/api-auth": "*",
     "@org/api-common": "*",
+    "@org/api-integrations": "*",
     "@org/api-matrix": "*",
     "@org/database": "*",
     "@org/types": "*"

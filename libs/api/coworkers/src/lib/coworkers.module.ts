@@ -3,9 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import { AgentsModule } from '@org/api-agents';
 import { AIInfrastructureModule } from '@org/api-ai';
 import { AuthModule } from '@org/api-auth';
+import { IntegrationsModule } from '@org/api-integrations';
 import { MatrixModule } from '@org/api-matrix';
 import { RealtimeModule } from '@org/api-realtime';
 import { PrismaModule } from '@org/database';
+import { CoworkerRosterService } from './coworker-roster.service.js';
 import { CoworkerRuntimeService } from './coworker-runtime.service.js';
 import {
   ChannelCoworkersController,
@@ -31,13 +33,15 @@ import { CoworkersService } from './coworkers.service.js';
     MatrixModule,
     RealtimeModule,
     AgentsModule,
+    // The connector registry: one canonical connection per app, shared by coworkers.
+    IntegrationsModule,
   ],
   controllers: [
     CoworkersController,
     ChannelCoworkersController,
     ProjectCoworkersController,
   ],
-  providers: [CoworkersService, CoworkerRuntimeService],
+  providers: [CoworkersService, CoworkerRuntimeService, CoworkerRosterService],
   exports: [CoworkersService, CoworkerRuntimeService],
 })
 export class CoworkersModule {}

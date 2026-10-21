@@ -22,6 +22,7 @@ import {
   type AIEntityType,
   type AgentScheduleSpec,
   type CoworkerTemplate,
+  type CoworkerTemplateKey,
   type CoworkerPermissions,
   type CoworkerStatus,
   type DerivedAgentConfig,
@@ -38,6 +39,10 @@ interface GraphApplication {
   runtime: DerivedAgentConfig['runtime'];
   schedules: AgentScheduleSpec[];
   warnings: string[];
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 function parsePermissions(value: unknown): CoworkerPermissions {
@@ -725,6 +730,21 @@ export class AIEntitiesService {
             },
           });
         }
+        for (const { row, template } of work.adopt) {
+          // Same coworker, same name/prompt/grants — it now fills this default's
+          // role, so it gets the default's connectors and collaborators.
+          await tx.aIAgent.update({
+            where: { id: row.id },
+            data: {
+              configuration: {
+                ...row.configuration,
+                coworkerType: template.key,
+                adoptedFrom: row.configuration['coworkerType'] ?? null,
+              } as Prisma.InputJsonValue,
+            },
+          });
+          this.logger.log(`Coworker '${row.name}' now fills the default '${template.name}' role in workspace ${workspaceId}`);
+        }
         for (const template of work.missing) {
           await tx.aIAgent.create({
             data: {
@@ -739,6 +759,9 @@ export class AIEntitiesService {
               systemPrompt: template.systemPrompt,
               systemInstructions: template.systemInstructions,
               status: 'AVAILABLE',
+              // Same default a hand-made coworker gets — not the column's `ollama` placeholder.
+              provider: process.env['AI_DEFAULT_PROVIDER'] || 'nvidia',
+              model: process.env['AI_DEFAULT_MODEL'] || 'nvidia/nemotron-3-super-120b-a12b',
               tools: JSON.stringify(template.tools),
               permissions: { ...template.permissions } as Prisma.InputJsonValue,
               configuration: {
@@ -760,6 +783,8 @@ export class AIEntitiesService {
     return db.aIAgent.findMany({
       where: { workspaceId, type: 'coworker' },
       select: { id: true, name: true, permissions: true, configuration: true },
+      // Oldest first, so adoption picks the longest-standing coworker.
+      orderBy: { createdAt: 'asc' },
     });
   }
 
@@ -777,12 +802,28 @@ export class AIEntitiesService {
       if (template && !('allowActions' in permissions)) needGrants.push({ id: row.id, permissions, template });
     }
     // A renamed default is still that default — matched by template key first.
-    const missing = COWORKER_TEMPLATES.filter(
+    const unfilled = COWORKER_TEMPLATES.filter(
       (t) =>
         t.seedByDefault &&
         !existing.some((e) => coworkerTemplateKey(e.configuration) === t.key || e.name === t.name),
     );
-    return needGrants.length || missing.length ? { needGrants, missing } : null;
+    // An unfilled default adopts the oldest coworker made from a template it
+    // replaces (Finance → Ledger) rather than seeding a near-duplicate.
+    const adopt: Array<{ row: { id: string; name: string; configuration: Record<string, unknown> }; template: CoworkerTemplate }> = [];
+    const missing: CoworkerTemplate[] = [];
+    const claimed = new Set<string>();
+    for (const template of unfilled) {
+      const candidate = existing.find(
+        (e) => !claimed.has(e.id) && (template.adopts ?? []).includes(coworkerTemplateKey(e.configuration) as CoworkerTemplateKey),
+      );
+      if (candidate) {
+        claimed.add(candidate.id);
+        adopt.push({ row: { id: candidate.id, name: candidate.name, configuration: asRecord(candidate.configuration) }, template });
+      } else {
+        missing.push(template);
+      }
+    }
+    return needGrants.length || missing.length || adopt.length ? { needGrants, missing, adopt } : null;
   }
 
   async seedInitialCoworkers(workspaceId: string, creatorId?: string): Promise<void> {

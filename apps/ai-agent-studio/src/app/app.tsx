@@ -15,6 +15,7 @@ import { SettingsPage } from './pages/settings-page.js';
 import { TemplatesPage } from './pages/templates-page.js';
 import { ToolsPage } from './pages/tools-page.js';
 import { ConnectorsPage } from './pages/connectors-page.js';
+import { CoworkersPage } from './pages/coworkers-page.js';
 import { ConnectorDetailPage } from './pages/connector-detail-page.js';
 import { ConnectorGroupsPage } from './pages/connector-groups-page.js';
 import { CustomConnectorPage } from './pages/custom-connector-page.js';
@@ -30,6 +31,7 @@ const BREADCRUMB_MAP: Record<string, { section: string; page: string }> = {
   '/create': { section: 'Build & Orchestrate', page: 'Create with AI' },
   '/connectors/new': { section: 'Intelligence & Tools', page: 'New Custom Connector' },
   '/agents': { section: 'Build & Orchestrate', page: 'My Agents' },
+  '/coworkers': { section: 'Build & Orchestrate', page: 'AI Coworkers' },
   '/workflows': { section: 'Build & Orchestrate', page: 'Visual Workflows' },
   '/templates': { section: 'Build & Orchestrate', page: 'Agent Templates' },
   '/connectors': { section: 'Intelligence & Tools', page: 'App Connectors' },
@@ -154,6 +156,7 @@ function StudioShell() {
                   <>
                   <Route path="create" element={<CreateAgentPage />} />
                   <Route path="my-agents" element={<AgentsListPage />} />
+                  <Route path="coworkers" element={<CoworkersPage />} />
                   <Route path="workflows" element={<WorkflowsPage />} />
                   <Route path="templates" element={<TemplatesPage />} />
                   <Route path="executions" element={<ExecutionsPage />} />

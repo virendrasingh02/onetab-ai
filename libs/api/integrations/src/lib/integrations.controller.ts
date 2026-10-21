@@ -49,9 +49,11 @@ export class IntegrationsController {
     @Param('provider') provider: string,
     @Query('code') code: string,
     @Query('state') state: string,
+    @Query('realmId') realmId: string | undefined,
     @Res() res: Response,
   ) {
-    const result = await this.integrationsService.handleOAuthCallback(code, state);
+    // QuickBooks names the company the person picked in the callback, not the token.
+    const result = await this.integrationsService.handleOAuthCallback(code, state, realmId ? { realmId: String(realmId) } : {});
 
     if (result.redirectUrl) {
       return res.redirect(

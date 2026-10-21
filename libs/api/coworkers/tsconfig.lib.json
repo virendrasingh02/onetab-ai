@@ -27,6 +27,9 @@
       "path": "../matrix/tsconfig.lib.json"
     },
     {
+      "path": "../integrations/tsconfig.lib.json"
+    },
+    {
       "path": "../common/tsconfig.lib.json"
     },
     {
