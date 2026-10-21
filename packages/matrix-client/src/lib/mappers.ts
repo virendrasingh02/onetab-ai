@@ -183,6 +183,18 @@ export function toReactions(
   }));
 }
 
+/**
+ * Matrix ids the platform provisions for non-people — agents, coworkers, apps,
+ * the anonymous and email-to-channel posters, the system-events bot. They
+ * never "see" a message, but the SDK counts whoever sent a room's latest event
+ * as having read it, so an agent's reply would otherwise read "Seen by Agent".
+ */
+const SERVICE_IDENTITY = /^@onetab_(?:agent-|coworker-|app-|anon-|email-|system-events(?::|$))/;
+
+export function isServiceIdentity(userId: string): boolean {
+  return SERVICE_IDENTITY.test(userId);
+}
+
 export function toReaders(
   client: SdkClient,
   room: SdkRoom | null,
@@ -190,6 +202,8 @@ export function toReaders(
   threadRootId?: string,
 ): MessageReader[] {
   if (!room) return [];
+  // A local echo (`~room:txn`) has not reached the server — nobody can have read it.
+  if (!eventId.startsWith('$')) return [];
 
   const readers: MessageReader[] = [];
   const myUserId = client.getUserId();
@@ -204,6 +218,7 @@ export function toReaders(
   const thread = threadRootId ? room.getThread?.(threadRootId) : undefined;
   for (const member of room.getMembers()) {
     if (member.userId === myUserId || member.membership !== 'join') continue;
+    if (isServiceIdentity(member.userId)) continue;
     if (!room.hasUserReadEvent(member.userId, eventId)) continue;
     const threadReceipt = thread?.getReadReceiptForUserId?.(member.userId);
     const receipt = threadReceipt ?? room.getReadReceiptForUserId?.(member.userId);
@@ -580,12 +595,17 @@ export function toMessage(
     structuredEvent: extractStructuredEvent(event, content),
     isMention,
     linkPreviews: content.link_previews ?? content.linkPreviews ?? undefined,
-    readers: toReaders(
-      client,
-      room,
-      id,
-      relation?.rel_type === 'm.thread' ? relation.event_id : undefined,
-    ),
+    // "Seen" is only ever shown under the reader's own messages; walking every
+    // member's receipt for everyone else's messages was pure cost.
+    readers:
+      senderId === client.getUserId() && !event.isRedacted()
+        ? toReaders(
+            client,
+            room,
+            id,
+            relation?.rel_type === 'm.thread' ? relation.event_id : undefined,
+          )
+        : undefined,
     forwarded: forwarded ? toForwarded(client, forwarded) : undefined,
     batchId: MEDIA_KINDS.includes(kind) ? readBatchId(content) : undefined,
   };

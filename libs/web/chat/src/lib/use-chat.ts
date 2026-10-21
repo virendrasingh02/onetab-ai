@@ -280,10 +280,17 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
 
         case 'receipt':
           if (event.roomId !== roomId) return;
+          {
+            // Only other members' receipts change who has seen my messages —
+            // and "Seen" is only shown under my own messages.
+            const myUserId = client.getSession()?.userId;
+            if (event.receipts.every((receipt) => receipt.userId === myUserId)) return;
+          }
           setState((current) => {
-            // Update readers for messages in this room
+            const myUserId = client.getSession()?.userId;
             let changed = false;
             const updated = current.messages.map((message) => {
+              if (message.senderId !== myUserId) return message;
               const freshReaders = client.getMessageReaders(roomId, message.id);
               const previous = message.readers ?? [];
               if (

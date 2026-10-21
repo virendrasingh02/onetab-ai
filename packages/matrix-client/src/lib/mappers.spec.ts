@@ -933,6 +933,41 @@ describe('toReaders', () => {
     expect(toReaders(client, room, '$evt-1').map((r) => r.userId)).toEqual([alice]);
   });
 
+  it('never counts agents, apps or other service identities as readers', () => {
+    const client = fakeClient();
+    const room = {
+      roomId: '!room:example.org',
+      getMembers: () => [
+        member(alice, 'Alice'),
+        member('@onetab_agent-abc:example.org', 'Agent'),
+        member('@onetab_coworker-xyz:example.org', 'Scheduler'),
+        member('@onetab_app-int1:example.org', 'GitHub'),
+        member('@onetab_system-events:example.org', 'System'),
+        member('@onetab_cuid123:example.org', 'Dana'),
+      ],
+      // The SDK treats whoever sent the latest event as having read it.
+      hasUserReadEvent: () => true,
+      getReadReceiptForUserId: () => ({ data: { ts: 1 } }),
+    } as unknown as SdkRoom;
+
+    expect(toReaders(client, room, '$evt-1').map((r) => r.userId)).toEqual([
+      alice,
+      '@onetab_cuid123:example.org',
+    ]);
+  });
+
+  it('has no readers for a local echo the server has not acknowledged', () => {
+    const client = fakeClient();
+    const room = {
+      roomId: '!room:example.org',
+      getMembers: () => [member(alice, 'Alice')],
+      hasUserReadEvent: () => true,
+      getReadReceiptForUserId: () => ({ data: { ts: 1 } }),
+    } as unknown as SdkRoom;
+
+    expect(toReaders(client, room, '~!room:example.org:m1')).toEqual([]);
+  });
+
   it("takes a thread reply's seen time from the thread's own receipt", () => {
     const client = fakeClient();
     const room = {

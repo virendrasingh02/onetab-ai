@@ -1,6 +1,14 @@
 import type { AICoworkerDetail, TrackerMonitor, AgentSchedule } from '@org/types';
 import { coworkerTemplateKey, getCoworkerTemplate } from '@org/types';
 import {
+  AIEntityProfileEmpty,
+  AIEntityProfileFact,
+  AIEntityProfileFacts,
+  AIEntityProfileHero,
+  AIEntityProfilePanel,
+  AIEntityProfileQuote,
+  AIEntityProfileRunList,
+  AIEntityProfileSection,
   Badge,
   Button,
   confirm,
@@ -9,7 +17,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  ScrollArea,
   Spinner,
   toast,
   AIModelIdentity,
@@ -23,8 +30,6 @@ import {
   Brain,
   Briefcase,
   Check,
-  ChevronDown,
-  ChevronRight,
   Clock,
   Copy,
   Cpu,
@@ -38,7 +43,6 @@ import {
   Trash2,
   Unlink,
   UserCheck,
-  X,
   Zap,
 } from 'lucide-react';
 import { type FC, useState } from 'react';
@@ -66,7 +70,8 @@ export interface CoworkerProfilePanelProps {
 }
 
 /**
- * CoworkerProfilePanel — The right-drawer summary card matching ProfileSummaryCard style.
+ * CoworkerProfilePanel — right-drawer summary, laid out like the agent profile
+ * via the shared `AIEntityProfile*` primitives.
  */
 export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
   coworker: propCoworker,
@@ -82,15 +87,14 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
     workspaceId,
     effectiveId,
   );
-  const coworker = propCoworker || fetchedCoworker;
+  // Live record first; the opener's snapshot only fills the first paint.
+  const coworker = fetchedCoworker ?? propCoworker;
 
   const { data: logs, isLoading: logsLoading } = useCoworkerLogs(
     workspaceId,
     effectiveId,
   );
   const mutations = useCoworkerMutations(workspaceId);
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
-  const [copiedHandle, setCopiedHandle] = useState(false);
 
   // What the coworker was created from — not its (renamable) name.
   const templateKey = coworkerTemplateKey(coworker?.configuration);
@@ -199,408 +203,291 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
 
   const handleCopyHandle = () => {
     navigator.clipboard.writeText(handle);
-    setCopiedHandle(true);
     toast.success(`Copied handle ${handle}`);
-    setTimeout(() => setCopiedHandle(false), 2000);
   };
 
   return (
-    <aside
-      className={cn(
-        'flex h-full w-full flex-col bg-surface text-foreground overflow-hidden',
-        className,
-      )}
-    >
-      {/* Drawer Top Bar */}
-      <header className="flex items-center justify-between border-b border-border px-4 py-2.5 bg-muted/20 shrink-0">
-        <h2 className="min-w-0 truncate text-base font-semibold tracking-tight">
-          Coworker Profile
-        </h2>
-        <div className="flex items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEdit?.(coworker)}>
-                <Edit2 className="mr-2 h-3.5 w-3.5" />
+    <AIEntityProfilePanel
+      title="Coworker Profile"
+      onClose={onClose}
+      className={className}
+      menu={
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-7" aria-label="More actions">
+              <MoreVertical className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {onEdit && (
+              <DropdownMenuItem onClick={() => onEdit(coworker)}>
+                <Edit2 className="mr-2 size-3.5" />
                 Edit Settings
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleToggleActive}>
-                <Zap className="mr-2 h-3.5 w-3.5" />
-                {coworker.isActive ? 'Deactivate' : 'Activate'}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleDelete}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="mr-2 h-3.5 w-3.5" />
-                Delete Coworker
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {onClose && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={onClose}
+            )}
+            <DropdownMenuItem onClick={handleToggleActive}>
+              <Zap className="mr-2 size-3.5" />
+              {coworker.isActive ? 'Deactivate Coworker' : 'Activate Coworker'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCopyHandle}>
+              <Copy className="mr-2 size-3.5" />
+              Copy Handle
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleDelete}
+              className="text-destructive focus:text-destructive"
             >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </header>
-
-      {/* Main Body with Mini Cover and User Profile Summary Card Style */}
-      <ScrollArea className="flex-1">
-        {/* Mini Cover Header */}
-        <div
-          className={cn(
-            'h-24 w-full bg-gradient-to-br',
-            getGradientByName(coworker.name),
-          )}
-        />
-
-        {/* Content Body with Overlapping Avatar */}
-        <div className="px-5 pb-5 pt-0 relative">
-          <div className="-mt-10 mb-3 flex items-end justify-between">
-            <div className="relative">
-              <CoworkerAvatar
-                name={coworker.name}
-                avatarUrl={coworker.avatarUrl}
-                status={coworker.status}
-                size="lg"
-                className="size-18 rounded-full shadow-lg ring-4 ring-surface"
-              />
-            </div>
-            <div className="flex items-center gap-1.5 pb-1">
-              <Badge
-                variant={coworker.isActive ? 'secondary' : 'outline'}
-                className="text-[10px] px-2 py-0.5"
+              <Trash2 className="mr-2 size-3.5" />
+              Delete Coworker
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      }
+    >
+      <AIEntityProfileHero
+        avatar={
+          <CoworkerAvatar
+            name={coworker.name}
+            avatarUrl={coworker.avatarUrl}
+            status={coworker.status}
+            size="lg"
+            className="size-18 rounded-2xl shadow-md ring-4 ring-surface"
+          />
+        }
+        coverClassName={getGradientByName(coworker.name)}
+        name={coworker.name}
+        kind="AI Coworker"
+        isActive={coworker.isActive}
+        handle={handle}
+        onCopyHandle={handleCopyHandle}
+        subtitle={coworker.role}
+        actions={
+          <>
+            {onStartChat && (
+              <Button size="sm" className="flex-1 gap-1.5" onClick={() => onStartChat(coworker)}>
+                <Play className="size-3.5 fill-current" />
+                Direct Message
+              </Button>
+            )}
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-1.5"
+                onClick={() => onEdit(coworker)}
               >
-                {coworker.isActive ? 'Active' : 'Disabled'}
-              </Badge>
-            </div>
-          </div>
+                <Edit2 className="size-3.5" />
+                Edit
+              </Button>
+            )}
+          </>
+        }
+      />
 
-          {/* Identity */}
-          <div className="space-y-0.5 mb-3">
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold tracking-tight text-foreground truncate">
-                {coworker.name}
-              </h3>
-              <Badge variant="primary" className="text-[9px] uppercase font-bold px-1.5 py-0">
-                AI COWORKER
-              </Badge>
-            </div>
-            <button
-              type="button"
-              onClick={handleCopyHandle}
-              className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors text-left"
-              title="Click to copy handle"
-            >
-              {handle} {copiedHandle && <Check className="size-3 inline text-success ml-1" />}
-            </button>
-            <p className="text-xs font-medium text-primary mt-1">{coworker.role}</p>
-          </div>
-
-          {onStartChat && (
-            <Button
-              size="sm"
-              className="w-full mb-4 gap-2 font-medium shadow-xs"
-              onClick={() => onStartChat(coworker)}
-            >
-              <Play className="h-3.5 w-3.5 fill-current" />
-              Direct Message
-            </Button>
+      <AIEntityProfileFacts>
+        <AIEntityProfileFact icon={Clock} label="Joined on">
+          {formattedJoinedDate}
+        </AIEntityProfileFact>
+        <AIEntityProfileFact icon={Cpu} label="Model & Provider">
+          {coworker.model ? (
+            <AIModelIdentity
+              modelId={coworker.model}
+              provider={coworker.provider}
+              layout="stacked"
+              className="items-end text-right"
+            />
+          ) : (
+            <span className="text-muted-foreground">Workspace default</span>
           )}
+        </AIEntityProfileFact>
+        <AIEntityProfileFact icon={Shield} label="Knowledge Access">
+          <Badge
+            variant={coworker.permissions?.knowledgeAccess ? 'primary' : 'neutral'}
+            className="text-[10px]"
+          >
+            {coworker.permissions?.knowledgeAccess ? 'RAG Enabled' : 'Restricted'}
+          </Badge>
+        </AIEntityProfileFact>
+        <AIEntityProfileFact icon={Bot} label="Sub-Agents">
+          {coworker.agentLinks?.length ?? 0} delegated
+        </AIEntityProfileFact>
+        <AIEntityProfileFact icon={Plug} label="Connected Apps">
+          {coworker.appLinks?.length ?? 0} active
+        </AIEntityProfileFact>
+      </AIEntityProfileFacts>
 
-          {/* Structured Metadata Table (Matching ProfileSummaryCard) */}
-          <div className="space-y-2.5 pt-3 border-t border-border/60 text-xs">
-            <div className="flex items-center justify-between py-0.5">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="size-3.5" />
-                <span>Joined on</span>
-              </div>
-              <span className="font-semibold text-foreground">{formattedJoinedDate}</span>
-            </div>
+      {coworker.description && (
+        <AIEntityProfileSection icon={UserCheck} title="About">
+          <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">
+            {coworker.description}
+          </p>
+        </AIEntityProfileSection>
+      )}
 
-            <div className="flex items-center justify-between py-0.5">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Cpu className="size-3.5" />
-                <span>Model & Provider</span>
-              </div>
-              <AIModelIdentity
-                modelId={coworker.model || 'gpt-4o'}
-                provider={coworker.provider || 'openai'}
-                layout="stacked"
-                className="text-right items-end"
-              />
-            </div>
+      {coworker.personality && (
+        <AIEntityProfileSection icon={Brain} title="Persona & Tone">
+          <AIEntityProfileQuote>
+            <span className="italic">“{coworker.personality}”</span>
+          </AIEntityProfileQuote>
+        </AIEntityProfileSection>
+      )}
 
-            <div className="flex items-center justify-between py-0.5">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Shield className="size-3.5" />
-                <span>Knowledge Access</span>
-              </div>
-              <Badge
-                variant={coworker.permissions?.knowledgeAccess ? 'primary' : 'secondary'}
-                className="text-[10px]"
+      {coworker.systemInstructions && (
+        <AIEntityProfileSection icon={Brain} title="System Instructions">
+          <AIEntityProfileQuote mono>{coworker.systemInstructions}</AIEntityProfileQuote>
+        </AIEntityProfileSection>
+      )}
+
+      {capabilities.length > 0 && (
+        <AIEntityProfileSection icon={Check} title="Capabilities" count={capabilities.length}>
+          <ul className="space-y-1.5">
+            {capabilities.map((cap, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-foreground/90">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary/70" />
+                <span>{cap}</span>
+              </li>
+            ))}
+          </ul>
+        </AIEntityProfileSection>
+      )}
+
+      {(coworker.agentLinks?.length ?? 0) > 0 && (
+        <AIEntityProfileSection icon={Bot} title="Sub-Agents" count={coworker.agentLinks?.length}>
+          <div className="space-y-1.5">
+            {coworker.agentLinks?.map((link) => (
+              <div
+                key={link.id}
+                className="flex items-center gap-2.5 rounded-lg border border-border bg-surface p-2.5 text-xs"
               >
-                {coworker.permissions?.knowledgeAccess ? 'RAG Enabled' : 'Restricted'}
-              </Badge>
-            </div>
-
-            <div className="flex items-center justify-between py-0.5">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Bot className="size-3.5" />
-                <span>Sub-Agents</span>
-              </div>
-              <span className="font-semibold text-foreground">
-                {coworker.agentLinks?.length ?? 0} delegated
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between py-0.5">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Plug className="size-3.5" />
-                <span>Connected Apps</span>
-              </div>
-              <span className="font-semibold text-foreground">
-                {coworker.appLinks?.length ?? 0} active
-              </span>
-            </div>
-          </div>
-
-          {/* Description & Bio */}
-          {coworker.description && (
-            <div className="mt-4 pt-3 border-t border-border/60">
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                Bio &amp; Scope
-              </h4>
-              <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap">
-                {coworker.description}
-              </p>
-            </div>
-          )}
-
-          {/* Persona Tone */}
-          {coworker.personality && (
-            <div className="mt-3 pt-3 border-t border-border/60">
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1.5">
-                <Brain className="size-3 text-primary" />
-                <span>Persona &amp; Tone</span>
-              </h4>
-              <p className="text-xs italic text-muted-foreground rounded-lg bg-muted/40 p-2.5">
-                "{coworker.personality}"
-              </p>
-            </div>
-          )}
-
-          {/* Capabilities */}
-          {capabilities.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-border/60">
-              <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                <Check className="size-3 text-primary" />
-                <span>Capabilities</span>
-              </h4>
-              <ul className="space-y-1.5">
-                {capabilities.map((cap, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-foreground/90">
-                    <span className="size-1.5 rounded-full bg-primary/70 shrink-0 mt-1.5" />
-                    <span>{cap}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Active Monitors for Tracker */}
-          {isTracker && (
-            <div className="mt-4 pt-3 border-t border-border/60 space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <Activity className="h-3.5 w-3.5 text-primary" />
-                  Active Monitors
-                </span>
-                <span className="text-[10px] font-mono">{monitors?.length ?? 0}</span>
-              </div>
-              {monitors && monitors.length > 0 ? (
-                <div className="space-y-1.5">
-                  {monitors.map((m: TrackerMonitor) => (
-                    <div key={m.id} className="rounded-lg border border-border bg-card p-2 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium truncate">{m.name ?? m.target}</span>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Badge variant={m.enabled ? 'primary' : 'neutral'} className="text-[9px] px-1 py-0">
-                            {m.enabled ? (m.frequency ?? 'hourly') : 'paused'}
-                          </Badge>
-                          {canManageMonitor(m, coworker.creatorId) ? (
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label={`Check “${m.name ?? m.target}” now`}
-                            title="Check now"
-                            disabled={monitorMutations.check.isPending}
-                            onClick={() => void handleCheckMonitor(m)}
-                          >
-                            <RefreshCw
-                              className={cn(
-                                'size-3',
-                                monitorMutations.check.isPending &&
-                                  monitorMutations.check.variables === m.id &&
-                                  'animate-spin',
-                              )}
-                            />
-                          </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Watches {m.target} for “{m.condition}”
-                        {m.destinations?.length ? ` · tells ${m.destinations.join(', ')}` : ''}
-                      </p>
-                      {m.lastError ? (
-                        <p className="text-[11px] text-destructive mt-1">{m.lastError}</p>
-                      ) : m.lastResult ? (
-                        <p className="text-[11px] text-foreground/80 mt-1">
-                          {m.lastResult.count > 0 ? m.lastResult.summary : 'Last check: nothing to report'}
-                          {m.lastCheckedAt ? (
-                            <span className="text-muted-foreground"> · {formatRelative(m.lastCheckedAt)}</span>
-                          ) : null}
-                        </p>
-                      ) : (
-                        <p className="text-[11px] text-muted-foreground mt-1">Not checked yet — first check within 5 minutes.</p>
-                      )}
-                    </div>
-                  ))}
+                <Bot className="size-3.5 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{link.agent.name}</p>
+                  {link.agent.role && (
+                    <p className="truncate text-[11px] text-muted-foreground">{link.agent.role}</p>
+                  )}
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic rounded-lg border border-dashed border-border p-2.5 text-center">
-                  No active monitors configured.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Active Schedules for Scheduler */}
-          {isScheduler && (
-            <div className="mt-4 pt-3 border-t border-border/60 space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-primary" />
-                  Active Schedules
-                </span>
-                <span className="text-[10px] font-mono">{schedules?.length ?? 0}</span>
               </div>
-              {schedules && schedules.length > 0 ? (
-                <div className="space-y-1.5">
-                  {schedules.map((s: AgentSchedule) => (
-                    <div key={s.id} className="rounded-lg border border-border bg-card p-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[11px] font-medium">{s.cronExpression}</span>
-                        <Badge variant={s.isActive ? 'primary' : 'neutral'} className="text-[9px] px-1 py-0">
-                          {s.isActive ? 'Active' : 'Paused'}
-                        </Badge>
-                      </div>
-                      {s.description && (
-                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                          {s.description}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic rounded-lg border border-dashed border-border p-2.5 text-center">
-                  No active schedules configured.
-                </p>
-              )}
-            </div>
-          )}
+            ))}
+          </div>
+        </AIEntityProfileSection>
+      )}
 
-          {/* Execution Activity Logs */}
-          <div className="mt-4 pt-3 border-t border-border/60 space-y-2 pb-6">
-            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Activity className="h-3.5 w-3.5 text-primary" />
-                Recent Telemetry
-              </span>
-              <span className="text-[10px] font-mono">{logs?.length ?? 0} runs</span>
-            </div>
+      {(coworker.appLinks?.length ?? 0) > 0 && (
+        <AIEntityProfileSection icon={Plug} title="Connected Apps" count={coworker.appLinks?.length}>
+          <div className="flex flex-wrap gap-1.5">
+            {coworker.appLinks?.map((link) => (
+              <Badge key={link.id} variant="neutral" className="gap-1 text-[11px] capitalize">
+                <Layers className="size-3" />
+                {link.integration.displayName || link.integration.provider}
+              </Badge>
+            ))}
+          </div>
+        </AIEntityProfileSection>
+      )}
 
-            {logsLoading ? (
-              <div className="text-center py-4 text-xs text-muted-foreground">
-                Loading telemetry...
-              </div>
-            ) : logs && logs.length > 0 ? (
-              <div className="space-y-1.5">
-                {logs.slice(0, 4).map((log) => {
-                  const isExpanded = expandedLogId === log.id;
-                  return (
-                    <div
-                      key={log.id}
-                      className="rounded-lg border border-border bg-card text-xs overflow-hidden"
-                    >
-                      <button
-                        type="button"
-                        className="w-full flex items-center justify-between p-2 text-left hover:bg-muted/30 transition-colors"
-                        onClick={() =>
-                          setExpandedLogId(isExpanded ? null : log.id)
-                        }
-                      >
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <span
+      {isTracker && (
+        <AIEntityProfileSection icon={Activity} title="Active Monitors" count={monitors?.length ?? 0}>
+          {monitors && monitors.length > 0 ? (
+            <div className="space-y-1.5">
+              {monitors.map((m: TrackerMonitor) => (
+                <div key={m.id} className="rounded-lg border border-border bg-surface p-2.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium">{m.name ?? m.target}</span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Badge variant={m.enabled ? 'primary' : 'neutral'} className="px-1 py-0 text-[9px]">
+                        {m.enabled ? (m.frequency ?? 'hourly') : 'paused'}
+                      </Badge>
+                      {canManageMonitor(m, coworker.creatorId) ? (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label={`Check “${m.name ?? m.target}” now`}
+                          title="Check now"
+                          disabled={monitorMutations.check.isPending}
+                          onClick={() => void handleCheckMonitor(m)}
+                        >
+                          <RefreshCw
                             className={cn(
-                              'h-2 w-2 rounded-full shrink-0',
-                              // Logs are written SUCCESS / FAILED.
-                              log.status === 'FAILED' ? 'bg-rose-500' : 'bg-success',
+                              'size-3',
+                              monitorMutations.check.isPending &&
+                                monitorMutations.check.variables === m.id &&
+                                'animate-spin',
                             )}
                           />
-                          <span className="font-medium truncate max-w-[130px]">
-                            {log.promptText || 'Task execution'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-muted-foreground shrink-0 text-[10px]">
-                          <span>{new Date(log.executedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          {isExpanded ? (
-                            <ChevronDown className="h-3 w-3" />
-                          ) : (
-                            <ChevronRight className="h-3 w-3" />
-                          )}
-                        </div>
-                      </button>
-
-                      {isExpanded && (
-                        <div className="p-2.5 bg-muted/20 border-t border-border space-y-1.5 text-[11px]">
-                          <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                            {log.outputResult || 'Completed without textual output.'}
-                          </p>
-                          {log.tokensUsed > 0 && (
-                            <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/40 font-mono">
-                              <span>Tokens:</span>
-                              <span>{log.tokensUsed}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        </Button>
+                      ) : null}
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground italic rounded-lg border border-dashed border-border p-3 text-center">
-                No telemetry recorded yet.
-              </p>
-            )}
-          </div>
-        </div>
-      </ScrollArea>
-    </aside>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Watches {m.target} for “{m.condition}”
+                    {m.destinations?.length ? ` · tells ${m.destinations.join(', ')}` : ''}
+                  </p>
+                  {m.lastError ? (
+                    <p className="mt-1 text-[11px] text-destructive">{m.lastError}</p>
+                  ) : m.lastResult ? (
+                    <p className="mt-1 text-[11px] text-foreground/80">
+                      {m.lastResult.count > 0 ? m.lastResult.summary : 'Last check: nothing to report'}
+                      {m.lastCheckedAt ? (
+                        <span className="text-muted-foreground"> · {formatRelative(m.lastCheckedAt)}</span>
+                      ) : null}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-muted-foreground">Not checked yet — first check within 5 minutes.</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <AIEntityProfileEmpty>No active monitors configured.</AIEntityProfileEmpty>
+          )}
+        </AIEntityProfileSection>
+      )}
+
+      {isScheduler && (
+        <AIEntityProfileSection icon={Clock} title="Active Schedules" count={schedules?.length ?? 0}>
+          {schedules && schedules.length > 0 ? (
+            <div className="space-y-1.5">
+              {schedules.map((s: AgentSchedule) => (
+                <div key={s.id} className="rounded-lg border border-border bg-surface p-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[11px] font-medium">{s.cronExpression}</span>
+                    <Badge variant={s.isActive ? 'primary' : 'neutral'} className="px-1 py-0 text-[9px]">
+                      {s.isActive ? 'Active' : 'Paused'}
+                    </Badge>
+                  </div>
+                  {s.description && (
+                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{s.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <AIEntityProfileEmpty>No active schedules configured.</AIEntityProfileEmpty>
+          )}
+        </AIEntityProfileSection>
+      )}
+
+      <AIEntityProfileSection
+        icon={Activity}
+        title="Recent Runs"
+        count={`${coworker._count?.executionLogs ?? logs?.length ?? 0} runs`}
+      >
+        <AIEntityProfileRunList
+          loading={logsLoading}
+          emptyText="No runs recorded yet."
+          runs={(logs ?? []).slice(0, 5).map((log) => ({
+            id: log.id,
+            // Logs are written SUCCESS / FAILED.
+            failed: log.status === 'FAILED',
+            title: log.promptText || 'Task execution',
+            output: log.outputResult,
+            tokens: log.tokensUsed,
+            at: log.executedAt,
+          }))}
+        />
+      </AIEntityProfileSection>
+    </AIEntityProfilePanel>
   );
 };
 

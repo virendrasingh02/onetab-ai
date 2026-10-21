@@ -1,11 +1,21 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import {
+  AppEvent,
+  type ChannelAppEnabledChangedEvent,
+  type ChannelAppLinkedEvent,
+} from '@org/api-common';
+import {
+  MatrixAdminService,
   MatrixBotMessagingService,
   MatrixInboundRouterService,
   type MatrixTimelineEvent,
 } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
 import { IntegrationsService } from './integrations.service.js';
+
+const REPLAY_WINDOW_MS = 10 * 60_000;
+const REPLAY_HISTORY_LIMIT = 15;
 
 export interface AppChatIntegration {
   id: string;
@@ -53,6 +63,7 @@ export class AppMatrixBridgeService implements OnModuleInit {
     private readonly router: MatrixInboundRouterService,
     private readonly messaging: MatrixBotMessagingService,
     private readonly integrationsService: IntegrationsService,
+    private readonly admin: MatrixAdminService,
   ) {}
 
   private planner?: AppChatPlanner;
@@ -64,6 +75,60 @@ export class AppMatrixBridgeService implements OnModuleInit {
   /** Lets "create a task for the launch" run as real app actions. */
   setPlanner(planner: AppChatPlanner): void {
     this.planner = planner;
+  }
+
+  @OnEvent(AppEvent.ChannelAppLinked)
+  async onAppLinked(event: ChannelAppLinkedEvent): Promise<void> {
+    await this.replayPendingRequest(event.channelId, event.integrationId);
+  }
+
+  @OnEvent(AppEvent.ChannelAppEnabledChanged)
+  async onAppEnabled(event: ChannelAppEnabledChangedEvent): Promise<void> {
+    if (event.isEnabled) await this.replayPendingRequest(event.channelId, event.integrationId);
+  }
+
+  /**
+   * Adding an app from a mention notice happens after the message was sent, so
+   * the app never saw it. Once linked, run the newest recent message that
+   * addresses it back through the normal routing, stopping at the app's own
+   * last reply.
+   */
+  private async replayPendingRequest(channelId: string, integrationId: string): Promise<void> {
+    const linkedAt = Date.now();
+    try {
+      const [channel, integration] = await Promise.all([
+        this.prisma.channel.findUnique({
+          where: { id: channelId },
+          select: { matrixRoomId: true },
+        }),
+        this.prisma.externalIntegration.findUnique({
+          where: { id: integrationId },
+          select: { matrixUserId: true },
+        }),
+      ]);
+      if (!channel?.matrixRoomId || !integration?.matrixUserId) return;
+
+      await this.admin
+        .joinRoomAs(integration.matrixUserId, channel.matrixRoomId)
+        .catch(() => undefined);
+      const history = await this.admin.getRecentRoomEvents(
+        channel.matrixRoomId,
+        integration.matrixUserId,
+        REPLAY_HISTORY_LIMIT,
+      );
+
+      const cutoff = Date.now() - REPLAY_WINDOW_MS;
+      for (const msg of history) {
+        if (msg.type !== 'm.room.message' || msg.origin_server_ts < cutoff) continue;
+        if (msg.origin_server_ts > linkedAt) continue;
+        if (msg.sender === integration.matrixUserId) return;
+        if (await this.tryHandle({ ...msg, room_id: channel.matrixRoomId })) return;
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Could not replay pending request for ${integrationId} in ${channelId}: ${String(error)}`,
+      );
+    }
   }
 
   private async tryHandle(event: MatrixTimelineEvent): Promise<boolean> {

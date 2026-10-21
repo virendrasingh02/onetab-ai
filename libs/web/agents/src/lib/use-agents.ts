@@ -142,10 +142,23 @@ export function useWorkspaceAgentLogs(workspaceId: string | undefined) {
 }
 
 /** Workspace memory — facts saved by any agent/coworker's `save_memory` tool. */
-export function useAiMemory(workspaceId: string | undefined) {
+/** One agent, fresh from the API — the profile panel's source of truth. */
+export function useAgent(workspaceId: string | undefined, agentId: string | undefined) {
   return useQuery({
-    queryKey: queryKeys.agents.memory(workspaceId ?? ''),
-    queryFn: () => aiMemoryApi.list(workspaceId as string),
+    queryKey: queryKeys.agents.detail(workspaceId ?? '', agentId ?? ''),
+    queryFn: () => agentsApi.get(workspaceId as string, agentId as string),
+    enabled: !!workspaceId && !!agentId,
+    staleTime: 15_000,
+  });
+}
+
+/** Workspace memory, or only one agent's entries when `agentId` is given. */
+export function useAiMemory(workspaceId: string | undefined, agentId?: string) {
+  return useQuery({
+    queryKey: agentId
+      ? [...queryKeys.agents.memory(workspaceId ?? ''), agentId]
+      : queryKeys.agents.memory(workspaceId ?? ''),
+    queryFn: () => aiMemoryApi.list(workspaceId as string, agentId ? { agentId } : undefined),
     enabled: !!workspaceId,
     staleTime: 15_000,
   });

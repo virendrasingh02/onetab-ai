@@ -772,6 +772,20 @@ export {
 export { AIRunStatusBadge, toTimelineSteps } from './lib/components/ai-run-status.js';
 
 export {
+  AIEntityProfilePanel,
+  AIEntityProfileHero,
+  AIEntityProfileFacts,
+  AIEntityProfileFact,
+  AIEntityProfileSection,
+  AIEntityProfileEmpty,
+  AIEntityProfileQuote,
+  AIEntityProfileRunList,
+  type AIEntityProfilePanelProps,
+  type AIEntityProfileHeroProps,
+  type AIEntityProfileRun,
+} from './lib/components/ai-entity-profile.js';
+
+export {
   AIThinkingState,
   type AIThinkingStateProps,
 } from './lib/components/ai-thinking-state.js';

@@ -2134,9 +2134,12 @@ export class OneTabMatrixClient {
     if (!sdk) return [];
     try {
       const room = sdk.getRoom(roomId);
+      const event = room?.findEventById(eventId);
+      // Readers are only shown under the viewer's own messages.
+      if (!event || event.getSender() !== sdk.getUserId() || event.isRedacted()) return [];
       // A thread root is itself a main-timeline message; only replies are
       // read on the thread's own receipt.
-      const threadRootId = room?.findEventById(eventId)?.threadRootId;
+      const threadRootId = event.threadRootId;
       return toReaders(
         sdk,
         room,

@@ -2,6 +2,15 @@ import type { FC } from 'react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  AIEntityProfileEmpty,
+  AIEntityProfileFact,
+  AIEntityProfileFacts,
+  AIEntityProfileHero,
+  AIEntityProfilePanel,
+  AIEntityProfileQuote,
+  AIEntityProfileRunList,
+  AIEntityProfileSection,
+  AIModelIdentity,
   Badge,
   Button,
   DropdownMenu,
@@ -9,7 +18,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  ScrollArea,
   Spinner,
   toast,
   type RightPanelProfile,
@@ -20,8 +28,8 @@ import {
   Bot,
   Brain,
   Check,
-  ChevronDown,
-  ChevronRight,
+  CalendarClock,
+  Clock,
   Copy,
   Cpu,
   MoreVertical,
@@ -29,24 +37,38 @@ import {
   Shield,
   Trash2,
   Wrench,
-  X,
   Zap,
 } from 'lucide-react';
 import { AgentAvatar } from './AgentMarketplaceView.js';
+import type { AIAgentDetail } from '@org/types';
 import {
+  useAgent,
   useAgentLogs,
   useAgentMutations,
   useAgents,
   useAiMemory,
   useDeleteAiMemory,
 } from './use-agents.js';
-import type { AgentModelItem } from './AgentChatView.js';
 
 export interface AgentProfileRightPanelProps {
   profile: RightPanelProfile;
   workspaceId: string;
   workspaceSlug: string;
   onClose: () => void;
+}
+
+/** `tools` is stored either as a JSON array or a comma-separated list. */
+function parseTools(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((t): t is string => typeof t === 'string' && t.trim() !== '');
+    }
+  } catch {
+    // not JSON — fall through to the comma-separated form
+  }
+  return raw.split(',').map((t) => t.trim()).filter(Boolean);
 }
 
 export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
@@ -56,26 +78,38 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
   onClose,
 }) => {
   const navigate = useNavigate();
+  const agentId = profile.entityId || profile.userId.replace(/^agent-/, '');
+  const agentQuery = useAgent(workspaceId, agentId);
   const agentsQuery = useAgents(workspaceId, { includeDrafts: true });
   const mutations = useAgentMutations(workspaceId);
 
-  const agentId = profile.entityId || profile.userId.replace(/^agent-/, '');
-  const agent: AgentModelItem | undefined =
-    (profile.raw as AgentModelItem | undefined) ||
-    agentsQuery.data?.find((a: any) => a.id === agentId);
+  // Live record first; the list cache / the opener's snapshot only fill the first paint.
+  const agent: Partial<AIAgentDetail> | undefined =
+    agentQuery.data ??
+    agentsQuery.data?.find((a) => a.id === agentId) ??
+    (profile.raw as Partial<AIAgentDetail> | undefined);
 
   const { data: logs, isLoading: logsLoading } = useAgentLogs(workspaceId, agentId);
-  const { data: memory, isLoading: memoryLoading } = useAiMemory(workspaceId);
+  const { data: memory, isLoading: memoryLoading } = useAiMemory(workspaceId, agentId);
   const deleteMemory = useDeleteAiMemory(workspaceId);
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const name = agent?.name || profile.name || 'AI Agent';
-  const role = agent?.role || profile.role || 'Autonomous Assistant';
-  const model = agent?.model || 'gpt-4o';
-  const description = agent?.description || profile.bio || 'Autonomous workspace AI agent configured for team tasks.';
-  const systemPrompt = agent?.systemPrompt || 'You are an intelligent AI agent assisting the workspace team.';
+  const role = agent?.role || profile.role;
+  const description = agent?.description || profile.bio;
+  const systemPrompt = agent?.systemPrompt || agent?.systemInstructions;
   const isActive = agent?.isActive !== false;
+  const totalRuns = agent?._count?.logs ?? logs?.length ?? 0;
+  const activeSchedules = agent?.schedules?.filter((s) => s.isActive).length ?? 0;
+  const memoryPrefix = `[agent:${agentId}]`;
+  const tools = parseTools(agent?.tools);
+  const createdOn = agent?.createdAt
+    ? new Date(agent.createdAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null;
 
   const handleCopyLink = () => {
     const url = `${window.location.origin}/w/${workspaceSlug}/agents/chat?id=${agentId}`;
@@ -117,291 +151,228 @@ export const AgentProfileRightPanel: FC<AgentProfileRightPanelProps> = ({
     }
   };
 
-  const parsedTools = agent?.tools
-    ? agent.tools.split(',').map((t) => t.trim()).filter(Boolean)
-    : ['workspace_search', 'document_reader', 'code_interpreter'];
+  if (agentQuery.isLoading && !agent) {
+    return (
+      <AIEntityProfilePanel title="AI Agent Profile" onClose={onClose}>
+        <div className="flex justify-center p-10">
+          <Spinner className="size-5" />
+        </div>
+      </AIEntityProfilePanel>
+    );
+  }
+
+  if (!agent) {
+    return (
+      <AIEntityProfilePanel title="AI Agent Profile" onClose={onClose}>
+        <div className="p-5">
+          <AIEntityProfileEmpty>This agent no longer exists or you can't see it.</AIEntityProfileEmpty>
+        </div>
+      </AIEntityProfilePanel>
+    );
+  }
+
+  const openBuilder = () => navigate(`/w/${workspaceSlug}/ai/agents/${agentId}`);
 
   return (
-    <aside className="flex h-full w-full flex-col bg-surface text-foreground overflow-hidden">
-      {/* Drawer Top Bar */}
-      <header className="flex items-center justify-between border-b border-border px-4 py-2.5 bg-muted/20 shrink-0">
-        <h2 className="min-w-0 truncate text-base font-semibold tracking-tight">
-          AI Agent Profile
-        </h2>
-        <div className="flex items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/w/${workspaceSlug}/ai/agents/${agentId}`)}>
-                <Wrench className="mr-2 h-3.5 w-3.5 text-accent-violet" />
-                Open Visual Builder
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleToggleActive}>
-                <Zap className="mr-2 h-3.5 w-3.5" />
-                {isActive ? 'Deactivate Agent' : 'Activate Agent'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleCopyLink}>
-                <Copy className="mr-2 h-3.5 w-3.5" />
-                Copy Agent Link
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
-                <Trash2 className="mr-2 h-3.5 w-3.5" />
-                Delete Agent
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </header>
-
-      {/* Main Body */}
-      <ScrollArea className="flex-1">
-        {/* Cover Header */}
-        <div
-          className="h-24 w-full relative bg-cover bg-center"
-          style={{
-            backgroundImage: 'linear-gradient(135deg, #312e81 0%, #1e1b4b 50%, #0f172a 100%)',
-          }}
-        >
-          <div className="absolute inset-0 bg-black/20" />
-        </div>
-
-        {/* Content Body */}
-        <div className="px-5 pb-5 pt-0 relative">
-          <div className="-mt-10 mb-3 flex items-end justify-between">
-            <div className="relative">
-              <AgentAvatar
-                name={name}
-                avatarUrl={agent?.avatarUrl}
-                size="lg"
-                className="size-18 rounded-2xl shadow-lg ring-4 ring-surface"
-              />
-            </div>
-            <div className="flex items-center gap-1.5 pb-1">
-              <Badge variant={isActive ? 'primary' : 'outline'} className="text-[10px] px-2 py-0.5 font-semibold">
-                {isActive ? 'Active' : 'Disabled'}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold tracking-tight text-foreground truncate">{name}</h2>
-              <Badge variant="primary" className="text-[10px] font-bold uppercase tracking-wider">
-                AI AGENT
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{role}</p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 mb-5">
+    <AIEntityProfilePanel
+      title="AI Agent Profile"
+      onClose={onClose}
+      menu={
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-7" aria-label="More actions">
+              <MoreVertical className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={openBuilder}>
+              <Wrench className="mr-2 size-3.5" />
+              Open Visual Builder
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleToggleActive}>
+              <Zap className="mr-2 size-3.5" />
+              {isActive ? 'Deactivate Agent' : 'Activate Agent'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCopyLink}>
+              <Copy className="mr-2 size-3.5" />
+              Copy Agent Link
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
+              <Trash2 className="mr-2 size-3.5" />
+              Delete Agent
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      }
+    >
+      <AIEntityProfileHero
+        avatar={
+          <AgentAvatar
+            name={name}
+            avatarUrl={agent?.avatarUrl}
+            size="lg"
+            className="size-18 rounded-2xl shadow-md ring-4 ring-surface"
+          />
+        }
+        name={name}
+        kind="AI Agent"
+        isActive={isActive}
+        subtitle={role}
+        actions={
+          <>
             <Button
-              variant="primary"
               size="sm"
               onClick={() => navigate(`/w/${workspaceSlug}/agents/chat?id=${agentId}`)}
-              className="text-xs font-semibold gap-1.5 flex-1 shadow-xs"
+              className="flex-1 gap-1.5"
             >
               <Play className="size-3.5 fill-current" />
-              <span>Direct Message</span>
+              Direct Message
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/w/${workspaceSlug}/ai/agents/${agentId}`)}
-              className="text-xs gap-1.5 flex-1 border-border bg-surface hover:bg-accent"
-            >
-              <Wrench className="size-3.5 text-accent-violet" />
-              <span>Builder</span>
+            <Button variant="outline" size="sm" onClick={openBuilder} className="flex-1 gap-1.5">
+              <Wrench className="size-3.5" />
+              Builder
             </Button>
             <Button
               variant="outline"
               size="icon-sm"
               onClick={handleCopyLink}
-              className="size-8 border-border bg-surface hover:bg-accent shrink-0"
+              className="size-8 shrink-0"
               title="Copy link"
+              aria-label="Copy agent link"
             >
               {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
             </Button>
+          </>
+        }
+      />
+
+      <AIEntityProfileFacts>
+        {createdOn && (
+          <AIEntityProfileFact icon={Clock} label="Created on">
+            {createdOn}
+          </AIEntityProfileFact>
+        )}
+        <AIEntityProfileFact icon={Cpu} label="Model & Provider">
+          {agent.model ? (
+            <AIModelIdentity
+              modelId={agent.model}
+              provider={agent.provider}
+              layout="stacked"
+              className="items-end text-right"
+            />
+          ) : (
+            <span className="text-muted-foreground">Workspace default</span>
+          )}
+        </AIEntityProfileFact>
+        <AIEntityProfileFact icon={Shield} label="Knowledge Access">
+          <Badge
+            variant={agent.permissions?.knowledgeAccess ? 'primary' : 'neutral'}
+            className="text-[10px]"
+          >
+            {agent.permissions?.knowledgeAccess ? 'RAG Enabled' : 'Restricted'}
+          </Badge>
+        </AIEntityProfileFact>
+        <AIEntityProfileFact icon={Wrench} label="Tools">
+          {tools.length} enabled
+        </AIEntityProfileFact>
+        <AIEntityProfileFact icon={CalendarClock} label="Schedules">
+          {activeSchedules} active
+        </AIEntityProfileFact>
+      </AIEntityProfileFacts>
+
+      {description && (
+        <AIEntityProfileSection icon={Bot} title="About">
+          <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground/90">{description}</p>
+        </AIEntityProfileSection>
+      )}
+
+      {agent.personality && (
+        <AIEntityProfileSection icon={Brain} title="Persona & Tone">
+          <AIEntityProfileQuote>
+            <span className="italic">“{agent.personality}”</span>
+          </AIEntityProfileQuote>
+        </AIEntityProfileSection>
+      )}
+
+      {systemPrompt && (
+        <AIEntityProfileSection icon={Brain} title="System Instructions">
+          <AIEntityProfileQuote mono>{systemPrompt}</AIEntityProfileQuote>
+        </AIEntityProfileSection>
+      )}
+
+      <AIEntityProfileSection icon={Wrench} title="Tools" count={tools.length}>
+        {tools.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {tools.map((tool) => (
+              <Badge key={tool} variant="neutral" className="text-[11px]">
+                {tool.replace(/_/g, ' ')}
+              </Badge>
+            ))}
           </div>
+        ) : (
+          <AIEntityProfileEmpty>No tools configured. Add them in the Builder.</AIEntityProfileEmpty>
+        )}
+      </AIEntityProfileSection>
 
-          {/* Meta Chips */}
-          <div className="flex flex-wrap items-center gap-3 py-2.5 text-xs text-muted-foreground border-y border-border/60 mb-5">
-            <div className="flex items-center gap-1.5">
-              <Cpu className="size-3.5 text-primary" />
-              <span className="font-mono font-medium text-foreground">{model}</span>
-            </div>
-            <span className="text-border">·</span>
-            <div className="flex items-center gap-1.5">
-              <Shield className="size-3.5 text-accent-emerald" />
-              <span>Autonomous</span>
-            </div>
+      <AIEntityProfileSection
+        icon={Brain}
+        title="Memory"
+        count={memory?.length ? `${memory.length} facts` : undefined}
+      >
+        {memoryLoading ? (
+          <div className="flex justify-center py-4">
+            <Spinner className="size-4" />
           </div>
-
-          {/* Structured Cards */}
-          <div className="space-y-4">
-            {/* Box 1: About */}
-            <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-2">
-              <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Bot className="size-3.5 text-primary" />
-                <span>About Agent</span>
-              </h3>
-              <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap">{description}</p>
-            </div>
-
-            {/* Box 2: System Prompt Preview */}
-            <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-2">
-              <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Brain className="size-3.5 text-primary" />
-                <span>System Instructions</span>
-              </h3>
-              <p className="text-[11px] font-mono text-muted-foreground bg-surface border border-border/70 rounded-lg p-2.5 line-clamp-4 hover:line-clamp-none transition-all cursor-pointer whitespace-pre-wrap">
-                {systemPrompt}
-              </p>
-            </div>
-
-            {/* Box 3: Configured Tools */}
-            <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-2">
-              <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Wrench className="size-3.5 text-primary" />
-                <span>Tool Capabilities ({parsedTools.length})</span>
-              </h3>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {parsedTools.map((tool) => (
-                  <Badge key={tool} variant="neutral" className="text-[10px] font-mono capitalize">
-                    {tool.replace(/_/g, ' ')}
-                  </Badge>
-                ))}
+        ) : memory && memory.length > 0 ? (
+          <div className="space-y-1.5">
+            {memory.map((entry) => (
+              <div
+                key={entry.id}
+                className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface p-2.5 text-xs"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">
+                    {entry.key.startsWith(memoryPrefix)
+                      ? entry.key.slice(memoryPrefix.length).trim()
+                      : entry.key}
+                  </p>
+                  <p className="line-clamp-2 text-[11px] text-muted-foreground">{entry.value}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => deleteMemory.mutate(entry.key)}
+                  title="Forget this"
+                  aria-label={`Forget ${entry.key}`}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
               </div>
-            </div>
-
-            {/* Box: Workspace Memory */}
-            <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Brain className="size-3.5 text-primary" />
-                  <span>Workspace Memory</span>
-                </h3>
-                {memory && memory.length > 0 && (
-                  <Badge variant="neutral" className="text-[10px]">
-                    {memory.length} facts
-                  </Badge>
-                )}
-              </div>
-
-              {memoryLoading ? (
-                <div className="p-4 text-center">
-                  <Spinner className="size-4 mx-auto" />
-                </div>
-              ) : memory && memory.length > 0 ? (
-                <div className="space-y-1.5">
-                  {memory.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface p-2.5 text-xs"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">{entry.key}</p>
-                        <p className="text-[11px] text-muted-foreground line-clamp-2">{entry.value}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteMemory.mutate(entry.key)}
-                        title="Forget this"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic text-center py-2">
-                  Agent memory will appear here as agents save useful facts with save_memory.
-                </p>
-              )}
-            </div>
-
-            {/* Box 4: Recent Execution Activity */}
-            <div className="rounded-xl border border-border bg-surface-inset/40 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Activity className="size-3.5 text-primary" />
-                  <span>Execution Activity</span>
-                </h3>
-                {logs && logs.length > 0 && (
-                  <Badge variant="neutral" className="text-[10px]">
-                    {logs.length} runs
-                  </Badge>
-                )}
-              </div>
-
-              {logsLoading ? (
-                <div className="p-4 text-center">
-                  <Spinner className="size-4 mx-auto" />
-                </div>
-              ) : logs && logs.length > 0 ? (
-                <div className="space-y-2">
-                  {logs.slice(0, 5).map((log: any) => {
-                    const isExpanded = expandedLogId === log.id;
-                    return (
-                      <div
-                        key={log.id}
-                        className="rounded-lg border border-border bg-surface p-2.5 text-xs transition-colors"
-                      >
-                        <div
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                        >
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <span
-                              className={`size-2 rounded-full shrink-0 ${
-                                log.status === 'SUCCESS' || !log.status ? 'bg-success' : 'bg-destructive'
-                              }`}
-                            />
-                            <p className="truncate font-medium text-foreground">{log.promptText || 'Execution run'}</p>
-                          </div>
-                          {isExpanded ? (
-                            <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
-                          ) : (
-                            <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
-                          )}
-                        </div>
-
-                        {isExpanded && (
-                          <div className="mt-2.5 pt-2.5 border-t border-border/60 space-y-2 font-mono text-[11px]">
-                            {log.outputResult && (
-                              <p className="p-2 rounded bg-surface-inset text-foreground whitespace-pre-wrap">
-                                {log.outputResult}
-                              </p>
-                            )}
-                            <div className="flex items-center justify-between text-muted-foreground text-[10px]">
-                              <span>Tokens: {log.tokensUsed || 0}</span>
-                              <span>{log.createdAt ? new Date(log.createdAt).toLocaleTimeString() : ''}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic text-center py-2">
-                  No execution activity recorded yet.
-                </p>
-              )}
-            </div>
+            ))}
           </div>
-        </div>
-      </ScrollArea>
-    </aside>
+        ) : (
+          <AIEntityProfileEmpty>
+            Nothing remembered yet — facts this agent saves with save_memory show up here.
+          </AIEntityProfileEmpty>
+        )}
+      </AIEntityProfileSection>
+
+      <AIEntityProfileSection icon={Activity} title="Recent Runs" count={`${totalRuns} runs`}>
+        <AIEntityProfileRunList
+          loading={logsLoading}
+          emptyText="No runs recorded yet."
+          runs={(logs ?? []).slice(0, 5).map((log) => ({
+            id: log.id,
+            failed: log.status === 'FAILED' || log.status === 'ERROR',
+            title: log.promptText || 'Execution run',
+            output: log.outputResult,
+            tokens: log.tokensUsed,
+            at: log.executedAt,
+          }))}
+        />
+      </AIEntityProfileSection>
+    </AIEntityProfilePanel>
   );
 };

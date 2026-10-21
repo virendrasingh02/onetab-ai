@@ -245,7 +245,7 @@ function DirectMessageRow({
           presence={presence}
           statusEmoji={member.user.statusEmoji}
           statusText={member.user.statusText}
-          className="size-4"
+          className="shrink-0"
         />
 
         <span className="flex-1 truncate">{name}</span>
@@ -386,7 +386,7 @@ function SelfDmRow({
           seed={member.user.id}
           size="xs"
           presence={presence}
-          className="size-4"
+          className="shrink-0"
         />
         <span className="flex-1 truncate">{name}</span>
         <span className="font-medium text-[10px] text-muted-foreground/70">
@@ -489,7 +489,7 @@ function GroupDmRow({
           avatarUrl={group.avatarUrl}
           members={group.avatarMembers}
           size="xs"
-          className="size-4 shrink-0"
+          className="shrink-0"
         />
 
         <span className="flex-1 truncate">{group.name}</span>
@@ -728,7 +728,7 @@ export function DirectMessagesSection({
             presence={presence}
             statusEmoji={member.user.statusEmoji}
             statusText={member.user.statusText}
-            className="size-4 shrink-0"
+            className="shrink-0"
           />
         ),
         actions: [
@@ -778,7 +778,7 @@ export function DirectMessagesSection({
             name={group.name}
             members={group.avatarMembers}
             size="xs"
-            className="size-4 shrink-0"
+            className="shrink-0"
           />
         ),
         actions: [

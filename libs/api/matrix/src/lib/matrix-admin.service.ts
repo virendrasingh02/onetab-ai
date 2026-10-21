@@ -1245,6 +1245,47 @@ export class MatrixAdminService {
   }
 
   /**
+   * The newest timeline events of a room (newest first), read as the given
+   * Matrix user — which must already be joined. Used to recover a message that
+   * was sent before the bot it mentions was added to the room.
+   */
+  async getRecentRoomEvents(
+    roomId: string,
+    asMatrixUserId: string,
+    limit = 10,
+  ): Promise<
+    Array<{
+      type: string;
+      event_id: string;
+      sender: string;
+      origin_server_ts: number;
+      content: Record<string, unknown>;
+    }>
+  > {
+    this.assertEnabled();
+    const accessToken = this.isAdminMode
+      ? await this.actAs(asMatrixUserId, { expiresInMs: 60_000 })
+      : this.config.asToken;
+
+    const query = new URLSearchParams({ dir: 'b', limit: String(limit) });
+    if (!this.isAdminMode) query.set('user_id', asMatrixUserId);
+
+    const response = await this.request<{
+      chunk?: Array<{
+        type: string;
+        event_id: string;
+        sender: string;
+        origin_server_ts: number;
+        content: Record<string, unknown>;
+      }>;
+    }>(
+      `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/messages?${query.toString()}`,
+      { accessToken },
+    );
+    return response.chunk ?? [];
+  }
+
+  /**
    * Sends a raw timeline event to a room as the given Matrix user.
    *
    * The server-side twin of `MatrixClient.sendMessage` in `@org/matrix-client`
