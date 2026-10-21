@@ -56,6 +56,54 @@ export function formatLimit(
   return `${formatNumber(used)} / ${formatNumber(limit)}${suffix}`;
 }
 
+/**
+ * WhatsApp-style timestamp for chat conversation lists.
+ * Shows time if today, "Yesterday" if yesterday, weekday name if within last 6 days,
+ * or short date otherwise.
+ */
+export function formatChatTime(
+  timestamp: number | string | Date | null | undefined,
+  now = Date.now(),
+): string {
+  if (!timestamp) return '';
+  const date =
+    timestamp instanceof Date
+      ? timestamp
+      : new Date(typeof timestamp === 'number' ? timestamp : String(timestamp));
+  const time = date.getTime();
+  if (Number.isNaN(time)) return '';
+
+  const nowDate = new Date(now);
+  const isToday =
+    date.getFullYear() === nowDate.getFullYear() &&
+    date.getMonth() === nowDate.getMonth() &&
+    date.getDate() === nowDate.getDate();
+
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  const yesterdayDate = new Date(nowDate);
+  yesterdayDate.setDate(nowDate.getDate() - 1);
+  const isYesterday =
+    date.getFullYear() === yesterdayDate.getFullYear() &&
+    date.getMonth() === yesterdayDate.getMonth() &&
+    date.getDate() === yesterdayDate.getDate();
+
+  if (isYesterday) return 'Yesterday';
+
+  const diffDays = Math.floor((now - time) / (1000 * 60 * 60 * 24));
+  if (diffDays >= 0 && diffDays < 7) {
+    return date.toLocaleDateString([], { weekday: 'short' });
+  }
+
+  return date.toLocaleDateString([], {
+    month: 'numeric',
+    day: 'numeric',
+    year: '2-digit',
+  });
+}
+
 export function initials(name: string | null | undefined): string {
   if (!name) return '?';
   const parts = name.trim().split(/\s+/).filter(Boolean);

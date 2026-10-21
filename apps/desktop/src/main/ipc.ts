@@ -28,6 +28,8 @@ import {
   type DesktopStartupRequest,
   type DesktopAgentExecuteRequest,
   type DesktopAgentExecuteResponse,
+  type DesktopUserTask,
+  type DesktopUserActivityPayload,
 } from '../shared/ipc.js';
 import {
   cancelBrowserLogin,
@@ -38,8 +40,16 @@ import {
 } from './auth.js';
 import { resetBadgeOnSignOut } from './background-sync.js';
 import { detectDesktopCapabilities, detectDistribution, isMasBuild } from './capabilities.js';
-import { collectDiagnostics, openAppPath } from './diagnostics.js';
-import { quitApp, restartApp } from './lifecycle.js';
+import {
+  collectDiagnostics,
+  getAppPathValue,
+  openAppPath,
+  removeProtocol,
+  setAccessibilitySupport,
+} from './diagnostics.js';
+import { invalidateUserActivity, setUserActivity } from './handoff.js';
+import { addRecentDocument, clearRecentDocuments, setupWindowsJumpList } from './jump-list.js';
+import { dockBounce, focusApp, quitApp, restartApp, showAboutPanel } from './lifecycle.js';
 import { logger } from './logger.js';
 import { getStartupState, setStartupState } from './startup.js';
 import { checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
@@ -413,6 +423,65 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
   ipcMain.handle(
     IPC.quit,
     guard(() => quitApp()),
+  );
+
+  /* --- lifecycle & app control ------------------------------------------ */
+
+  ipcMain.handle(
+    IPC.showAboutPanel,
+    guard(() => showAboutPanel()),
+  );
+
+  ipcMain.handle(
+    IPC.focus,
+    guard(() => focusApp()),
+  );
+
+  ipcMain.handle(
+    IPC.getPath,
+    guard((_event, key: unknown) => getAppPathValue(key)),
+  );
+
+  ipcMain.handle(
+    IPC.removeProtocol,
+    guard((_event, scheme: string) => removeProtocol(scheme)),
+  );
+
+  ipcMain.handle(
+    IPC.setUserTasks,
+    guard((_event, tasks?: DesktopUserTask[]) => setupWindowsJumpList(tasks)),
+  );
+
+  ipcMain.handle(
+    IPC.clearRecentDocuments,
+    guard(() => clearRecentDocuments()),
+  );
+
+  ipcMain.handle(
+    IPC.addRecentDocument,
+    guard((_event, path: string) => addRecentDocument(path)),
+  );
+
+  ipcMain.handle(
+    IPC.setAccessibilitySupport,
+    guard((_event, enabled: boolean) => setAccessibilitySupport(Boolean(enabled))),
+  );
+
+  ipcMain.handle(
+    IPC.setUserActivity,
+    guard((_event, activity: DesktopUserActivityPayload) =>
+      setUserActivity(activity.activityType, activity.userInfo, activity.webpageURL),
+    ),
+  );
+
+  ipcMain.handle(
+    IPC.invalidateUserActivity,
+    guard(() => invalidateUserActivity()),
+  );
+
+  ipcMain.handle(
+    IPC.dockBounce,
+    guard((_event, type?: 'critical' | 'informational') => dockBounce(type)),
   );
 
   /* --- diagnostics & startup -------------------------------------------- */

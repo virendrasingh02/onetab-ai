@@ -9,3 +9,8 @@ export {
   SystemRoleGuard,
   WorkspaceRoleGuard,
 } from './lib/guards.js';
+export {
+  JwksCache,
+  verifyIdToken,
+  type IdTokenClaims,
+} from './lib/oidc-id-token.js';

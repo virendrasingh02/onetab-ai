@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useDesktop } from './desktop-provider.js';
-import { notify, openExternal } from './desktop-api.js';
+import { getDesktopApi, notify, openExternal } from './desktop-api.js';
 import { PlatformDiagnosticsLink } from './platform-diagnostics-link.js';
 import { useAllFeatures } from './use-feature.js';
 import { DesktopDiagnosticsCard } from './desktop-diagnostics-card.js';
@@ -114,6 +114,7 @@ export function DesktopSettingsCard() {
     true,
   );
   const [testNotificationSent, setTestNotificationSent] = useState(false);
+  const [clearedRecentDocs, setClearedRecentDocs] = useState(false);
 
   const allFeatures = useAllFeatures();
   const userFacingFeatures = useMemo(
@@ -146,6 +147,15 @@ export function DesktopSettingsCard() {
     }
   };
 
+  const handleClearRecentDocs = async () => {
+    const api = getDesktopApi();
+    if (api?.app.clearRecentDocuments) {
+      await api.app.clearRecentDocuments();
+      setClearedRecentDocs(true);
+      setTimeout(() => setClearedRecentDocs(false), 2500);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 1. APPLICATION & STARTUP */}
@@ -153,7 +163,7 @@ export function DesktopSettingsCard() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Power className="size-4 text-primary" />
-            <CardTitle className="text-sm">Desktop Application & Startup</CardTitle>
+            <CardTitle className="text-sm">Desktop Application &amp; Startup</CardTitle>
           </div>
           <CardDescription className="text-xs">
             Manage system-level background execution and automatic launch preferences.
@@ -193,6 +203,28 @@ export function DesktopSettingsCard() {
             checked={minimizeToTray}
             onCheckedChange={setMinimizeToTray}
           />
+
+          {appInfo?.platform === 'win32' && (
+            <>
+              <Separator />
+              <div className="flex items-center justify-between gap-4 py-2 pt-3">
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-xs font-medium">Windows Jump List &amp; Tasks</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Right-click the taskbar icon to launch quick actions (New Channel, Search, AI Copilot, Settings).
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearRecentDocs}
+                  leadingIcon={clearedRecentDocs ? <CheckCircle2 className="size-3.5 text-success" /> : <RotateCcw className="size-3.5" />}
+                >
+                  {clearedRecentDocs ? 'Cleared' : 'Clear Recent Tasks'}
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -243,7 +275,7 @@ export function DesktopSettingsCard() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Link2 className="size-4 text-primary" />
-            <CardTitle className="text-sm">Custom Protocol & Deep Links</CardTitle>
+            <CardTitle className="text-sm">Custom Protocol &amp; Deep Links</CardTitle>
           </div>
           <CardDescription className="text-xs">
             External applications, browser handoffs, and notifications route into this client.
@@ -325,7 +357,7 @@ export function DesktopSettingsCard() {
                   onClick={() => void installUpdate()}
                   leadingIcon={<RotateCcw className="size-3.5" />}
                 >
-                  Restart & Install
+                  Restart &amp; Install
                 </Button>
               ) : updateStatus.state === 'available' ? (
                 <Button

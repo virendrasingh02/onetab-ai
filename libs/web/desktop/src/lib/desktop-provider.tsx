@@ -22,6 +22,7 @@ import {
   type DesktopBrowserAuthIntent,
   type DesktopCapabilities,
   type DesktopCommand,
+  type DesktopFileOpened,
   type DesktopUpdateStatus,
   type DesktopWindowState,
 } from './desktop-api.js';
@@ -45,6 +46,7 @@ interface DesktopContextValue {
   windowState: DesktopWindowState;
   updateStatus: DesktopUpdateStatus;
   authSession: DesktopAuthSession | null;
+  openedFile: DesktopFileOpened | null;
   /** Registers a handler for a menu/tray/shortcut command. Returns a disposer. */
   onCommand: (command: DesktopCommand, handler: () => void) => () => void;
   minimize: () => void;
@@ -82,6 +84,7 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
   const [windowState, setWindowState] = useState<DesktopWindowState>(WEB_WINDOW_STATE);
   const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus>({ state: 'idle' });
   const [authSession, setAuthSession] = useState<DesktopAuthSession | null>(null);
+  const [openedFile, setOpenedFile] = useState<DesktopFileOpened | null>(null);
 
   const handlers = useRef(new Map<DesktopCommand, Set<() => void>>());
 
@@ -165,6 +168,28 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
       api.updates.onStatus(setUpdateStatus),
     ];
 
+    if (api.onFileOpened) {
+      disposers.push(
+        api.onFileOpened((file) => {
+          setOpenedFile(file);
+        }),
+      );
+    }
+
+    if (api.handoff?.onActivity) {
+      disposers.push(
+        api.handoff.onActivity((act) => {
+          const rawRoute = (act.userInfo?.['route'] as string) || act.webpageURL;
+          if (rawRoute) {
+            const resolved = resolveDeepLinkRoute(rawRoute, {
+              workspaceSlug: currentWorkspaceSlug(),
+            });
+            if (resolved.route) navigate(resolved.route);
+          }
+        }),
+      );
+    }
+
     return () => {
       for (const dispose of disposers) dispose();
     };
@@ -218,6 +243,7 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
       windowState,
       updateStatus,
       authSession,
+      openedFile,
       onCommand,
       minimize,
       toggleMaximize,
@@ -235,6 +261,7 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
       windowState,
       updateStatus,
       authSession,
+      openedFile,
       onCommand,
       minimize,
       toggleMaximize,
@@ -261,6 +288,7 @@ export function useDesktop(): DesktopContextValue {
       windowState: WEB_WINDOW_STATE,
       updateStatus: { state: 'idle' },
       authSession: null,
+      openedFile: null,
       onCommand: () => () => undefined,
       minimize: () => undefined,
       toggleMaximize: () => undefined,

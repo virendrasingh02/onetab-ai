@@ -2,7 +2,11 @@ import { useTheme } from '@org/design-system';
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -18,6 +22,9 @@ import {
   Input,
   LoadingState,
   ScrollArea,
+  Sheet,
+  SheetContent,
+  SheetTitle,
   AppSelect,
   toast,
 } from '@org/ui';
@@ -25,8 +32,11 @@ import { cn, initials } from '@org/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   adminApi,
+  adminBillingApi,
   analyticsApi,
+  appVersionsApi,
   authApi,
+  complianceApi,
   emailTemplatesApi,
   queryKeys,
   setAccessToken,
@@ -42,9 +52,12 @@ import {
   Building2,
   Check,
   CheckSquare,
+  ChevronDown,
   ChevronRight,
+  ChevronsUpDown,
   CreditCard,
   DollarSign,
+  ExternalLink,
   FileStack,
   FileText,
   Gauge,
@@ -74,6 +87,7 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Store,
   Sun,
   UserPlus,
@@ -81,9 +95,17 @@ import {
   Workflow,
   Zap,
 } from 'lucide-react';
-import type { ComponentType, SVGProps } from 'react';
+import type { ComponentType, ReactNode, SVGProps } from 'react';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+
+const WEB_APP_URL =
+  (import.meta.env?.['VITE_WEB_APP_URL'] as string | undefined) ??
+  'http://localhost:4200';
+
+const STUDIO_APP_URL =
+  (import.meta.env?.['VITE_STUDIO_APP_URL'] as string | undefined) ??
+  'http://localhost:4201';
 
 function GithubIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -115,13 +137,13 @@ export interface NavGroup {
 }
 
 /**
- * All original navigation routes organized into hierarchical groups
- * matching the ReUI collapsible sidebar architecture.
+ * All navigation routes organized into hierarchical groups
+ * matching the AI Agent Studio and design system architecture.
  */
 const NAV_GROUPS: NavGroup[] = [
   {
     id: 'analytics',
-    title: 'Analytics',
+    title: 'Analytics Intelligence',
     icon: BarChart3,
     items: [
       { to: '/analytics/users', label: 'Users & Growth', icon: Users },
@@ -137,19 +159,18 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: 'business',
-    title: 'Business',
+    title: 'Business & Finance',
     icon: DollarSign,
     items: [
       { to: '/analytics/revenue', label: 'Revenue & Finance', icon: DollarSign },
       { to: '/analytics/subscriptions', label: 'Subscriptions', icon: CreditCard },
-      { to: '/billing', label: 'Billing & Coupons', icon: DollarSign },
+      { to: '/billing', label: 'Billing & Coupons', icon: CreditCard },
     ],
   },
   {
     id: 'system',
-    title: 'System',
+    title: 'System Operations',
     icon: HeartPulse,
-    badge: '14',
     items: [
       { to: '/health', label: 'System Health', icon: HeartPulse },
       { to: '/performance', label: 'Performance', icon: Gauge },
@@ -159,7 +180,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: 'enterprise',
-    title: 'Enterprise',
+    title: 'Enterprise Governance',
     icon: Building2,
     items: [
       { to: '/enterprise', label: 'Governance', icon: Building2, end: true },
@@ -169,7 +190,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: 'marketplace',
-    title: 'Marketplace',
+    title: 'Marketplace & Extensions',
     icon: Store,
     items: [
       { to: '/marketplace', label: 'Catalog', icon: Store, end: true },
@@ -200,7 +221,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: 'releases',
-    title: 'Releases',
+    title: 'Release Engineering',
     icon: Layers,
     items: [
       { to: '/versions', label: 'Versions & Deployments', icon: Layers },
@@ -217,12 +238,12 @@ interface ResourceStatusItem {
   to: string;
 }
 
-const RESOURCE_ITEMS: ResourceStatusItem[] = [
-  { id: 'res-1', name: 'API Gateway', status: 'online', badge: 'Prod', color: 'bg-success', to: '/analytics/apis' },
-  { id: 'res-2', name: 'ML Pipeline', status: 'active', badge: 'Active', color: 'bg-purple-500', to: '/performance' },
-  { id: 'res-3', name: 'PostgreSQL Cluster', status: 'online', badge: 'US-East', color: 'bg-blue-500', to: '/health' },
-  { id: 'res-4', name: 'Object Storage', status: 'online', badge: 'S3', color: 'bg-amber-500', to: '/analytics/storage' },
-  { id: 'res-5', name: 'Authentication SSO', status: 'live', badge: 'Secured', color: 'bg-rose-500', to: '/enterprise/sso' },
+const DEFAULT_RESOURCE_ITEMS: ResourceStatusItem[] = [
+  { id: 'res-api', name: 'API Server', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/analytics/apis' },
+  { id: 'res-db', name: 'PostgreSQL', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/health' },
+  { id: 'res-matrix', name: 'Matrix Chat', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/analytics/messaging' },
+  { id: 'res-storage', name: 'Object Store', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/analytics/storage' },
+  { id: 'res-cache', name: 'Cache Layer', status: 'online', badge: 'Live', color: 'bg-emerald-500', to: '/performance' },
 ];
 
 // Flat list for search & title resolution
@@ -238,6 +259,136 @@ const ALL_FLAT_NAV_ITEMS: (NavItem & { groupTitle: string })[] = [
   ),
 ];
 
+/*
+ * Unified design system tokens mirroring AI Agent Studio (`studio-sidebar.tsx`)
+ * and the main platform (`nav-primitives.tsx` in @org/web-layout):
+ * 14px labels, 16px icons, `rounded-xl` geometry, and primary-tinted selection.
+ */
+const ROW_BASE =
+  'group relative flex w-full items-center gap-2.5 rounded-xl py-1.5 pl-2.5 pr-2 text-left text-sm tracking-[-0.01em] pointer-coarse:min-h-11 transition-all duration-150 ease-standard outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer';
+
+const ROW_ACTIVE =
+  'font-semibold text-primary-text bg-primary/12 shadow-2xs ring-1 ring-inset ring-primary/20';
+
+const ROW_IDLE = 'font-medium text-foreground/90 hover:bg-accent/70 hover:text-foreground';
+
+const ICON_ROW =
+  'relative mx-auto flex size-9 items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer';
+
+const ICON_ACTIVE =
+  'bg-primary/12 text-primary-text shadow-2xs ring-1 ring-inset ring-primary/20';
+
+const ICON_IDLE = 'text-muted-foreground hover:bg-accent/70 hover:text-foreground';
+
+/** One navigation row; renders an icon-only tile with a tooltip when collapsed. */
+function AdminNavRow({
+  to,
+  label,
+  icon: Icon,
+  end,
+  collapsed,
+  badge,
+  onNavigate,
+}: {
+  to: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  end?: boolean;
+  collapsed: boolean;
+  badge?: string;
+  onNavigate?: () => void;
+}) {
+  if (collapsed) {
+    return (
+      <Hint side="right" label={badge ? `${label} (${badge})` : label}>
+        <NavLink
+          to={to}
+          end={end}
+          onClick={onNavigate}
+          aria-label={label}
+          className={({ isActive }) => cn(ICON_ROW, isActive ? ICON_ACTIVE : ICON_IDLE)}
+        >
+          <Icon className="size-4 shrink-0" />
+          {badge ? (
+            <span className="absolute right-1 top-1 size-2 rounded-full bg-primary ring-2 ring-card" />
+          ) : null}
+        </NavLink>
+      </Hint>
+    );
+  }
+
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onNavigate}
+      className={({ isActive }) => cn(ROW_BASE, isActive ? ROW_ACTIVE : ROW_IDLE)}
+    >
+      <Icon className="size-4 shrink-0" />
+      <span className="flex-1 truncate">{label}</span>
+      {badge ? (
+        <span className="ml-auto inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-mono font-semibold tabular-nums bg-muted border border-border/50 text-muted-foreground">
+          {badge}
+        </span>
+      ) : null}
+    </NavLink>
+  );
+}
+
+/** Collapsible titled group — matches AI Agent Studio's Section treatment. */
+function AdminNavSection({
+  title,
+  open,
+  onOpenChange,
+  badge,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  badge?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible open={open} onOpenChange={onOpenChange} asChild>
+      <section aria-label={title} className="mt-3">
+        <div className="group/section flex items-center px-2.5 py-1 select-none">
+          <CollapsibleTrigger
+            aria-label={`Toggle ${title} section`}
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md text-[11px] font-semibold uppercase tracking-wide text-foreground/75 outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <span className="truncate">{title}</span>
+            <ChevronDown
+              className={cn(
+                'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 pointer-coarse:opacity-100',
+                !open && '-rotate-90 opacity-100',
+              )}
+              aria-hidden
+            />
+          </CollapsibleTrigger>
+          {badge ? (
+            <span
+              className={cn(
+                'ml-auto inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-mono font-semibold tabular-nums border shrink-0',
+                badge.includes('Alert')
+                  ? 'bg-destructive/12 text-destructive border-destructive/20'
+                  : badge.includes('Degraded')
+                    ? 'bg-amber-500/12 text-amber-500 border-amber-500/20'
+                    : 'bg-primary/12 text-primary border-primary/20',
+              )}
+            >
+              {badge}
+            </span>
+          ) : null}
+        </div>
+        <CollapsibleContent>
+          <div className="mt-0.5 space-y-0.5">{children}</div>
+        </CollapsibleContent>
+      </section>
+    </Collapsible>
+  );
+}
+
 function ThemeToggleCompact() {
   const { theme, setTheme } = useTheme();
 
@@ -247,7 +398,7 @@ function ThemeToggleCompact() {
         <Button
           variant="ghost"
           size="icon-sm"
-          className="size-8 rounded-md text-muted-foreground hover:text-foreground"
+          className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
           aria-label="Toggle theme"
         >
           {theme === 'dark' ? (
@@ -334,7 +485,7 @@ function SearchCommandPalette({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden gap-0 rounded-xl">
+      <DialogContent className="sm:max-w-lg p-0 overflow-hidden gap-0 rounded-2xl">
         <div className="flex items-center border-b px-3.5 py-2.5 gap-2">
           <Search className="size-4 text-muted-foreground shrink-0" />
           <Input
@@ -365,7 +516,7 @@ function SearchCommandPalette({
                   key={ws.id}
                   onClick={() => handleSelect(`/analytics/workspaces/${ws.id}`)}
                   type="button"
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-foreground hover:bg-accent/80 transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm text-foreground hover:bg-accent/80 transition-colors text-left"
                 >
                   <Building2 className="size-4 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
@@ -394,7 +545,7 @@ function SearchCommandPalette({
                   key={user.id}
                   onClick={() => handleSelect(`/analytics/users`)}
                   type="button"
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-foreground hover:bg-accent/80 transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm text-foreground hover:bg-accent/80 transition-colors text-left"
                 >
                   <Users className="size-4 shrink-0 text-emerald-500" />
                   <div className="min-w-0 flex-1">
@@ -424,7 +575,7 @@ function SearchCommandPalette({
                   key={item.to + item.label}
                   onClick={() => handleSelect(item.to)}
                   type="button"
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-foreground hover:bg-accent/80 transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm text-foreground hover:bg-accent/80 transition-colors text-left"
                 >
                   <item.icon className="size-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
@@ -479,17 +630,24 @@ function InviteTeamDialog({
         toast.success(`Updated permissions for ${existingUser.email} to ${targetRole}`);
       } else {
         // Send actual transactional operator invitation email
-        await emailTemplatesApi.test('auth_invite_user', {
+        await emailTemplatesApi.test('WORKSPACE_INVITATION', {
           recipient: cleanEmail,
           data: {
-            role: targetRole,
-            invitedAt: new Date().toISOString(),
+            workspace: { name: 'Platform Administration' },
+            inviter: { name: 'Platform Superadmin' },
+            invitee: { name: cleanEmail.split('@')[0] },
+            invitation: {
+              url: window.location.origin,
+              expiresAt: new Date(Date.now() + 7 * 86400000).toISOString(),
+            },
+            role: { name: targetRole },
           },
         });
         toast.success(`Platform invitation email dispatched to ${cleanEmail}`);
       }
 
       queryClient.invalidateQueries({ queryKey: [...queryKeys.admin.all(), 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-search-users'] });
       setEmail('');
       onOpenChange(false);
     } catch (err) {
@@ -501,7 +659,7 @@ function InviteTeamDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-xl">
+      <DialogContent className="sm:max-w-md rounded-2xl">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">Invite Operator or Admin</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
@@ -562,19 +720,33 @@ function InviteTeamDialog({
   );
 }
 
+const EXPANDED_GROUPS_KEY = 'onetab_admin_sidebar_expanded_groups';
+const COLLAPSED_KEY = 'onetab_admin_sidebar_collapsed';
+
+function persistExpanded(value: Record<string, boolean>) {
+  try {
+    localStorage.setItem(EXPANDED_GROUPS_KEY, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+}
+
 /**
- * Modern, Minimalist Sidebar matching the reference image layout.
- * Features:
- * - Slim top brand row with logo mark, name, and 3-dots popover
- * - Collapsible navigation groups with smooth expand/collapse and child route highlighting
- * - Collapsible Resources section with colored status indicators
- * - Pinned footer with Settings, Invite Team, Documentation, and User Profile card
+ * Modern Admin Console Shell.
+ * Consistent layout, geometry, and design system tokens with AI Agent Studio:
+ * - 272px standard desktop rail / 68px icon-only collapsed state
+ * - Sleek tenant and platform dropdown header
+ * - Prominent Search Console hero CTA button with Cmd+K badge
+ * - Collapsible titled sections with live telemetries and primary-tinted selection
+ * - Live Infrastructure Health section with latency indicators
+ * - Standard Radix Sheet for mobile navigation drawer
+ * - Pinned footer with Platform Settings, Invite Operator, Documentation, and User Profile menu
  */
 export function AdminShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return localStorage.getItem('onetab_admin_sidebar_collapsed') === 'true';
+      return localStorage.getItem(COLLAPSED_KEY) === 'true';
     } catch {
       return false;
     }
@@ -600,13 +772,54 @@ export function AdminShell() {
     refetchInterval: 15_000,
   });
 
+  // Real platform overview counters
+  const { data: adminOverview } = useQuery({
+    queryKey: queryKeys.admin.overview(),
+    queryFn: () => adminApi.overview(),
+    staleTime: 30_000,
+  });
+
+  // Real workspaces directory for the workspace switcher
+  const { data: workspacesList } = useQuery({
+    queryKey: ['admin-sidebar-workspaces'],
+    queryFn: () => adminApi.workspaces({ pageSize: 6 }),
+    staleTime: 30_000,
+  });
+
+  // Real compliance score & issues
+  const { data: complianceOverview } = useQuery({
+    queryKey: queryKeys.compliance.overview(),
+    queryFn: () => complianceApi.overview(),
+    staleTime: 30_000,
+  });
+
+  // Real app version release counts
+  const { data: appVersionsOverview } = useQuery({
+    queryKey: queryKeys.appVersions.overview(),
+    queryFn: () => appVersionsApi.overview(),
+    staleTime: 30_000,
+  });
+
+  // Real billing telemetry
+  const { data: billingStats } = useQuery({
+    queryKey: queryKeys.admin.billing.stats(),
+    queryFn: () => adminBillingApi.stats(),
+    staleTime: 30_000,
+  });
+
   const liveResources: ResourceStatusItem[] = useMemo(() => {
     if (healthData?.services && healthData.services.length > 0) {
       const routeMap: Record<string, string> = {
         database: '/health',
+        postgres: '/health',
         api: '/analytics/apis',
+        server: '/analytics/apis',
+        gateway: '/performance',
+        ollama: '/performance',
+        nvidia: '/performance',
         cache: '/performance',
         storage: '/analytics/storage',
+        minio: '/analytics/storage',
         matrix: '/analytics/messaging',
       };
       return healthData.services.map((svc) => {
@@ -618,43 +831,117 @@ export function AdminShell() {
             break;
           }
         }
+
+        const isHealthy = svc.status === 'HEALTHY';
+        const isDegraded = svc.status === 'DEGRADED';
+        const color = isHealthy
+          ? 'bg-emerald-500'
+          : isDegraded
+            ? 'bg-amber-500'
+            : 'bg-rose-500';
+
+        const badge =
+          svc.latencyMs !== undefined && svc.latencyMs !== null
+            ? `${svc.latencyMs}ms`
+            : svc.status === 'HEALTHY'
+              ? 'OK'
+              : svc.status;
+
         return {
           id: svc.name,
-          name: svc.name.charAt(0).toUpperCase() + svc.name.slice(1),
-          status: svc.status === 'HEALTHY' ? 'online' : svc.status === 'DEGRADED' ? 'degraded' : 'active',
-          badge: svc.latencyMs !== undefined ? `${svc.latencyMs}ms` : svc.status,
-          color: svc.status === 'HEALTHY' ? 'bg-success' : svc.status === 'DEGRADED' ? 'bg-amber-500' : 'bg-rose-500',
+          name: svc.name,
+          status: isHealthy ? 'online' : isDegraded ? 'degraded' : 'active',
+          badge,
+          color,
           to: targetRoute,
         };
       });
     }
-    return RESOURCE_ITEMS;
+    return DEFAULT_RESOURCE_ITEMS;
   }, [healthData]);
 
-  // Active route matching to determine which groups should be initially expanded
+  // Compute live navigation groups with real API telemetry badges
+  const navGroups: NavGroup[] = useMemo(() => {
+    return NAV_GROUPS.map((group) => {
+      let badge: string | undefined = undefined;
+
+      if (group.id === 'system') {
+        if (healthData) {
+          const healthy = healthData.services.filter((s) => s.status === 'HEALTHY').length;
+          const total = healthData.services.length;
+          if (healthData.status === 'HEALTHY') {
+            badge = `${healthy}/${total} UP`;
+          } else {
+            badge = healthData.status === 'DEGRADED' ? 'Degraded' : 'Alert';
+          }
+        }
+      } else if (group.id === 'enterprise') {
+        if (adminOverview?.organizations && adminOverview.organizations > 0) {
+          badge = `${adminOverview.organizations} orgs`;
+        }
+      } else if (group.id === 'compliance') {
+        if (complianceOverview?.openIssuesCount?.total && complianceOverview.openIssuesCount.total > 0) {
+          badge = `${complianceOverview.openIssuesCount.total} alerts`;
+        } else if (complianceOverview?.overallScore !== undefined) {
+          badge = `${Math.round(complianceOverview.overallScore)}%`;
+        }
+      } else if (group.id === 'releases') {
+        if (appVersionsOverview?.metrics?.activeReleases) {
+          badge = `${appVersionsOverview.metrics.activeReleases} live`;
+        }
+      } else if (group.id === 'business') {
+        if (billingStats?.subscriptionsByPlan && billingStats.subscriptionsByPlan.length > 0) {
+          const totalSubs = billingStats.subscriptionsByPlan.reduce((acc, p) => acc + p.count, 0);
+          if (totalSubs > 0) {
+            badge = `${totalSubs} active`;
+          }
+        }
+      } else if (group.id === 'marketplace') {
+        const totalItems = (adminOverview?.agents ?? 0) + (adminOverview?.workflows ?? 0);
+        if (totalItems > 0) {
+          badge = `${totalItems} items`;
+        }
+      }
+
+      return {
+        ...group,
+        badge,
+      };
+    });
+  }, [healthData, adminOverview, complianceOverview, appVersionsOverview, billingStats]);
+
+  // Section expand/collapse state with persistent storage
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
+    const defaults: Record<string, boolean> = {
+      analytics: true,
+      business: true,
+      system: true,
+      enterprise: true,
+      marketplace: false,
+      compliance: false,
+      releases: false,
+      resources: true,
+    };
     try {
-      const saved = localStorage.getItem('onetab_admin_sidebar_expanded_groups');
+      const saved = localStorage.getItem(EXPANDED_GROUPS_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        return { ...defaults, ...JSON.parse(saved) };
       }
     } catch {
       // ignore
     }
-    const p = location.pathname;
-    return {
-      analytics: p.startsWith('/analytics') && p !== '/analytics/live' && !p.startsWith('/analytics/revenue') && !p.startsWith('/analytics/subscriptions'),
-      business: true, // open by default like reference image
-      system: p === '/health' || p === '/performance' || p === '/errors' || p === '/emails',
-      enterprise: true, // open by default like reference image
-      marketplace: p.startsWith('/marketplace'),
-      compliance: p.startsWith('/compliance'),
-      releases: p.startsWith('/versions'),
-      resources: true,
-    };
+    return defaults;
   });
 
-  // Auto-expand active group upon route transition without collapsing user-opened groups
+  const setGroupOpen = useCallback((groupId: string, open: boolean) => {
+    setExpandedGroups((prev) => {
+      const next = { ...prev, [groupId]: open };
+      persistExpanded(next);
+      return next;
+    });
+  }, []);
+
+  // Auto-expand active group upon route transition
   useEffect(() => {
     const p = location.pathname;
     const activeGroup = NAV_GROUPS.find((g) =>
@@ -669,36 +956,17 @@ export function AdminShell() {
       setExpandedGroups((prev) => {
         if (prev[activeGroup.id]) return prev;
         const next = { ...prev, [activeGroup.id]: true };
-        try {
-          localStorage.setItem('onetab_admin_sidebar_expanded_groups', JSON.stringify(next));
-        } catch {
-          // ignore
-        }
+        persistExpanded(next);
         return next;
       });
     }
   }, [location.pathname]);
 
-  const toggleGroup = useCallback((groupId: string) => {
-    setExpandedGroups((prev) => {
-      const updated = {
-        ...prev,
-        [groupId]: !prev[groupId],
-      };
-      try {
-        localStorage.setItem('onetab_admin_sidebar_expanded_groups', JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-      return updated;
-    });
-  }, []);
-
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('onetab_admin_sidebar_collapsed', String(next));
+        localStorage.setItem(COLLAPSED_KEY, String(next));
       } catch {
         // ignore storage errors
       }
@@ -706,7 +974,7 @@ export function AdminShell() {
     });
   }, []);
 
-  // Keyboard shortcut Ctrl+B / Cmd+B for sidebar, Ctrl+K / Cmd+K for search
+  // Keyboard shortcuts: Ctrl+B / Cmd+B for sidebar, Ctrl+K / Cmd+K for search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
@@ -756,406 +1024,462 @@ export function AdminShell() {
     window.location.reload();
   };
 
-  return (
-    <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground antialiased font-sans">
-      {/* Mobile Drawer Backdrop */}
-      {mobileOpen ? (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden"
-          onClick={() => setMobileOpen(false)}
-          aria-hidden="true"
-        />
-      ) : null}
+  const displayName =
+    currentUser?.name ||
+    currentUser?.displayName ||
+    currentUser?.email?.split('@')[0] ||
+    'Platform Operator';
 
-      {/* ====================================================================
-          LEFT SIDEBAR (Ref image layout: Sleek header, ReUI navigation, Resources, Pinned footer)
-          ==================================================================== */}
-      <aside
-        className={cn(
-          'flex flex-col border-r border-border/70 bg-card z-50 md:z-auto transition-all duration-200 select-none shrink-0',
-          mobileOpen
-            ? 'fixed inset-y-0 left-0 w-64 shadow-2xl md:relative md:shadow-none'
-            : cn(
-                'hidden md:flex',
-                collapsed ? 'w-[68px]' : 'w-64',
-              ),
-        )}
-      >
-        {/* Top Header: Logo + Brand + 3-dots options (Ref Image: ReUI ...) */}
-        <div className="h-14 px-3 flex items-center justify-between border-b border-border/40 shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            {/* Logo mark */}
-            <div className="size-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-              <span className="font-extrabold tracking-tight">O</span>
-            </div>
+  const displayEmail = currentUser?.email || 'operator@onetab.ai';
 
-            {!collapsed && (
-              <span className="font-bold text-sm tracking-tight text-foreground truncate">
-                Onetab AI
-              </span>
-            )}
-          </div>
-
-          {!collapsed && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
-                  aria-label="Workspace options"
-                >
-                  <MoreHorizontal className="size-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
-                <DropdownMenuItem className="gap-2 font-medium">
-                  <span className="size-2 rounded-full bg-success shrink-0" />
-                  <span>Production Console</span>
-                  <Check className="size-3.5 ml-auto text-primary" />
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 text-muted-foreground">
-                  <span className="size-2 rounded-full bg-amber-500 shrink-0" />
-                  <span>Staging Cluster</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 text-muted-foreground">
-                  <span className="size-2 rounded-full bg-blue-500 shrink-0" />
-                  <span>Sandbox Environment</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setSearchOpen(true)} className="gap-2">
-                  <Search className="size-3.5" />
-                  <span>Search Pages…</span>
-                  <kbd className="ml-auto text-[10px] font-mono text-muted-foreground bg-muted px-1 rounded">⌘K</kbd>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-
-        {/* Scrollable Navigation Body */}
-        <ScrollArea className="flex-1 px-2.5 py-3">
-          <nav className="space-y-4">
-            {/* Section: Platform */}
-            <div className="space-y-1">
-              {!collapsed && (
-                <div className="px-2 pb-1 text-[11px] font-medium text-muted-foreground tracking-tight">
-                  Platform
-                </div>
+  /**
+   * Shared Navigation Panel Renderer.
+   * Matches AI Agent Studio's exact structure:
+   * Header -> Hero Slot -> ScrollArea Nav -> Pinned Footer.
+   */
+  const renderPanel = (isCollapsed: boolean, onCloseMobile?: () => void) => (
+    <>
+      {/* 1. Top Header: Platform Switcher & Brand Info */}
+      <div className="h-14 px-2.5 flex items-center border-b border-border/40 shrink-0">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                'flex w-full min-w-0 items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                isCollapsed && 'justify-center',
               )}
-
-              {/* 1. Overview */}
-              <NavLink
-                to="/overview"
-                end
-                onClick={() => setMobileOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                    isActive
-                      ? 'bg-accent text-foreground font-semibold shadow-2xs'
-                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                    collapsed && 'justify-center px-0 py-2',
-                  )
-                }
-                title={collapsed ? 'Overview' : undefined}
-              >
-                <LayoutDashboard className="size-4 shrink-0" />
-                {!collapsed && <span>Overview</span>}
-              </NavLink>
-
-              {/* 2. Live Activity Stream */}
-              <NavLink
-                to="/analytics/live"
-                onClick={() => setMobileOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                    isActive
-                      ? 'bg-accent text-foreground font-semibold shadow-2xs'
-                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                    collapsed && 'justify-center px-0 py-2',
-                  )
-                }
-                title={collapsed ? 'Live Activity Stream' : undefined}
-              >
-                <Radio className="size-4 shrink-0 text-success-text" />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 truncate">Live Activity</span>
-                    <span className="size-2 rounded-full bg-success animate-pulse" />
-                  </>
-                )}
-              </NavLink>
-
-              {/* 3. Collapsible Navigation Groups (Analytics, Business, System, Enterprise, Marketplace, Compliance, Releases) */}
-              {NAV_GROUPS.map((group) => {
-                const isGroupExpanded = expandedGroups[group.id] ?? false;
-                const isAnyChildActive = group.items.some((item) =>
-                  item.end
-                    ? location.pathname === item.to
-                    : location.pathname === item.to || location.pathname.startsWith(item.to + '/'),
-                );
-
-                return (
-                  <div key={group.id} className="space-y-0.5">
-                    {/* Group Header Button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (collapsed) {
-                          toggleCollapsed();
-                        }
-                        toggleGroup(group.id);
-                      }}
-                      className={cn(
-                        'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer select-none',
-                        isAnyChildActive && !isGroupExpanded
-                          ? 'bg-accent/70 text-foreground font-semibold'
-                          : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                        collapsed && 'justify-center px-0 py-2',
-                      )}
-                      title={collapsed ? group.title : undefined}
-                    >
-                      <group.icon className="size-4 shrink-0 text-muted-foreground/80" />
-                      {!collapsed && (
-                        <>
-                          <span className="flex-1 text-left truncate">{group.title}</span>
-                          {group.badge && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-success/15 text-success-text border border-success/25 mr-1 tabular-nums">
-                              {group.badge}
-                            </span>
-                          )}
-                          <ChevronRight
-                            className={cn(
-                              'size-3.5 text-muted-foreground/60 transition-transform duration-200 shrink-0 origin-center',
-                              isGroupExpanded && 'rotate-90 text-foreground',
-                            )}
-                          />
-                        </>
-                      )}
-                    </button>
-
-                    {/* Group Indented Children (Ref image: tree line + sleek capsule active item) */}
-                    {!collapsed && (
-                      <div
-                        className={cn(
-                          'grid transition-all duration-200 ease-in-out',
-                          isGroupExpanded
-                            ? 'grid-rows-[1fr] opacity-100'
-                            : 'grid-rows-[0fr] opacity-0 pointer-events-none',
-                        )}
-                      >
-                        <div className="overflow-hidden">
-                          <div className="ml-4 pl-3.5 border-l border-border/40 my-1 space-y-0.5">
-                            {group.items.map((item) => (
-                              <NavLink
-                                key={item.to}
-                                to={item.to}
-                                end={item.end}
-                                onClick={() => setMobileOpen(false)}
-                                className={({ isActive }) =>
-                                  cn(
-                                    'block w-full px-3 py-1.5 rounded-lg text-xs transition-colors truncate font-medium',
-                                    isActive
-                                      ? 'bg-accent text-foreground font-semibold shadow-2xs'
-                                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/40',
-                                  )
-                                }
-                              >
-                                {item.label}
-                              </NavLink>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+              aria-label="Platform console menu"
+            >
+              <div className="size-8 rounded-xl bg-foreground text-background flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                <span className="font-extrabold tracking-tight">O</span>
+              </div>
+              {!isCollapsed && (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold leading-tight text-foreground flex items-center gap-1.5">
+                      <span>Onetab AI</span>
+                      <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20 font-semibold">
+                        Admin
+                      </span>
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">Platform Console</div>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Section: Resources (Ref image: Resources v with status dots & pill badges) */}
-            <div className="pt-2 border-t border-border/40 space-y-1">
-              {!collapsed && (
-                <button
-                  type="button"
-                  onClick={() => toggleGroup('resources')}
-                  className="w-full flex items-center justify-between px-2.5 py-1 text-[11px] font-medium text-muted-foreground tracking-tight hover:text-foreground transition-colors cursor-pointer select-none"
+                  <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-64">
+            <DropdownMenuLabel className="text-xs text-muted-foreground flex items-center justify-between">
+              <span>Tenants & Workspaces</span>
+              {adminOverview?.workspaces !== undefined && (
+                <span className="text-[10px] font-mono text-primary font-semibold">
+                  {adminOverview.workspaces} Total
+                </span>
+              )}
+            </DropdownMenuLabel>
+            {workspacesList?.items && workspacesList.items.length > 0 ? (
+              workspacesList.items.slice(0, 5).map((ws) => (
+                <DropdownMenuItem
+                  key={ws.id}
+                  onClick={() => {
+                    onCloseMobile?.();
+                    navigate(`/analytics/workspaces/${ws.id}`);
+                  }}
+                  className="gap-2 cursor-pointer text-sm"
                 >
-                  <span>Resources</span>
-                  <ChevronRight
+                  <span
                     className={cn(
-                      'size-3.5 text-muted-foreground/60 transition-transform duration-200 shrink-0 origin-center',
-                      (expandedGroups['resources'] ?? true) && 'rotate-90 text-foreground',
+                      'size-2 rounded-full shrink-0',
+                      ws.status === 'ACTIVE'
+                        ? 'bg-emerald-500'
+                        : ws.status === 'ARCHIVED'
+                          ? 'bg-muted-foreground'
+                          : 'bg-amber-500',
                     )}
                   />
-                </button>
-              )}
+                  <span className="font-medium truncate flex-1">{ws.name}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">/{ws.slug}</span>
+                </DropdownMenuItem>
+              ))
+            ) : (
+              <DropdownMenuItem
+                onClick={() => {
+                  onCloseMobile?.();
+                  navigate('/analytics/workspaces');
+                }}
+                className="gap-2 text-muted-foreground text-sm"
+              >
+                <Building2 className="size-4" />
+                <span>View all workspaces</span>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                onCloseMobile?.();
+                navigate('/enterprise');
+              }}
+              className="gap-2 text-sm"
+            >
+              <Shield className="size-4 text-muted-foreground" />
+              <span>Enterprise Governance ({adminOverview?.organizations ?? 0})</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-2 text-sm">
+              <a href={STUDIO_APP_URL}>
+                <Sparkles className="size-4 text-primary" />
+                <span className="flex-1">Open AI Agent Studio</span>
+                <ExternalLink className="size-3.5 text-muted-foreground" />
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-2 text-sm">
+              <a href={WEB_APP_URL}>
+                <Laptop className="size-4 text-muted-foreground" />
+                <span className="flex-1">Open Main Platform</span>
+                <ExternalLink className="size-3.5 text-muted-foreground" />
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-              {(!collapsed ? (expandedGroups['resources'] ?? true) : true) && (
-                <div
-                  className={cn(
-                    'grid transition-all duration-200 ease-in-out',
-                    (!collapsed ? (expandedGroups['resources'] ?? true) : true)
-                      ? 'grid-rows-[1fr] opacity-100'
-                      : 'grid-rows-[0fr] opacity-0 pointer-events-none',
-                  )}
-                >
-                  <div className="overflow-hidden space-y-0.5">
-                    {liveResources.map((res) => (
-                      <NavLink
-                        key={res.id}
-                        to={res.to}
-                        onClick={() => setMobileOpen(false)}
-                        className={cn(
-                          'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors',
-                          collapsed && 'justify-center px-0 py-2',
-                        )}
-                        title={collapsed ? res.name : undefined}
-                      >
-                        <span className={cn('size-1.5 rounded-full shrink-0', res.color)} />
-                        {!collapsed && (
-                          <>
-                            <span className="flex-1 truncate text-left">{res.name}</span>
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono text-muted-foreground bg-muted border border-border/50 shrink-0">
-                              {res.badge}
-                            </span>
-                          </>
-                        )}
-                      </NavLink>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </nav>
-        </ScrollArea>
-
-        {/* Pinned Footer (Ref image: Settings, Invite Team, Documentation, User Profile Card) */}
-        <div className="p-2 border-t border-border/40 space-y-0.5 shrink-0">
-          {/* Settings */}
-          <NavLink
-            to="/plans"
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) =>
-              cn(
-                'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                isActive
-                  ? 'bg-accent text-foreground font-semibold'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                collapsed && 'justify-center px-0',
-              )
-            }
-            title={collapsed ? 'Settings' : undefined}
-          >
-            <Settings className="size-4 shrink-0" />
-            {!collapsed && <span>Settings</span>}
-          </NavLink>
-
-          {/* Invite Team */}
+      {/* 2. Hero Action: Fast Command Search */}
+      <div className="shrink-0 px-2.5 pt-3">
+        {isCollapsed ? (
+          <Hint side="right" label="Search console (⌘K)">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search console (⌘K)"
+              className="mx-auto flex size-9 items-center justify-center rounded-xl border border-border/60 bg-muted/40 text-muted-foreground transition-all duration-150 hover:bg-accent/70 hover:text-foreground cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <Search className="size-4 shrink-0" />
+            </button>
+          </Hint>
+        ) : (
           <button
             type="button"
-            onClick={() => setInviteOpen(true)}
-            className={cn(
-              'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors text-left',
-              collapsed && 'justify-center px-0',
-            )}
-            title={collapsed ? 'Invite Team' : undefined}
+            onClick={() => setSearchOpen(true)}
+            className="group flex w-full items-center gap-2.5 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-all duration-150 hover:bg-accent/70 hover:text-foreground hover:border-border cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring pointer-coarse:min-h-11"
+            aria-label="Search console (⌘K)"
+          >
+            <Search className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+            <span className="flex-1 truncate">Search console…</span>
+            <kbd className="inline-flex h-5 items-center rounded border border-border/60 bg-background px-1.5 font-mono text-[10px] font-semibold text-muted-foreground">
+              ⌘K
+            </kbd>
+          </button>
+        )}
+      </div>
+
+      {/* 3. Scrollable Navigation Body */}
+      <ScrollArea className="flex-1 px-2.5 py-3">
+        <nav className="space-y-0.5" aria-label="Admin Navigation">
+          {/* Core Platform Routes */}
+          <AdminNavRow
+            to="/overview"
+            end
+            label="Platform Overview"
+            icon={LayoutDashboard}
+            collapsed={isCollapsed}
+            onNavigate={onCloseMobile}
+          />
+
+          {isCollapsed ? (
+            <Hint side="right" label="Live Activity (Streaming)">
+              <NavLink
+                to="/analytics/live"
+                onClick={onCloseMobile}
+                aria-label="Live Activity"
+                className={({ isActive }) => cn(ICON_ROW, isActive ? ICON_ACTIVE : ICON_IDLE)}
+              >
+                <Radio className="size-4 shrink-0 text-emerald-500" />
+                <span className="absolute right-1 top-1 size-2 rounded-full bg-emerald-500 animate-pulse ring-2 ring-card" />
+              </NavLink>
+            </Hint>
+          ) : (
+            <NavLink
+              to="/analytics/live"
+              onClick={onCloseMobile}
+              className={({ isActive }) => cn(ROW_BASE, isActive ? ROW_ACTIVE : ROW_IDLE)}
+            >
+              <Radio className="size-4 shrink-0 text-emerald-500" />
+              <span className="flex-1 truncate">Live Activity</span>
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            </NavLink>
+          )}
+
+          {/* Group Sections */}
+          {navGroups.map((group) => {
+            const rows = group.items.map((item) => (
+              <AdminNavRow
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                label={item.label}
+                icon={item.icon}
+                collapsed={isCollapsed}
+                badge={item.badge}
+                onNavigate={onCloseMobile}
+              />
+            ));
+
+            if (isCollapsed) {
+              return (
+                <div
+                  key={group.id}
+                  className="mt-2 space-y-0.5 border-t border-border/40 pt-2"
+                  aria-label={group.title}
+                >
+                  {rows}
+                </div>
+              );
+            }
+
+            return (
+              <AdminNavSection
+                key={group.id}
+                title={group.title}
+                open={expandedGroups[group.id] ?? true}
+                onOpenChange={(open) => setGroupOpen(group.id, open)}
+                badge={group.badge}
+              >
+                {rows}
+              </AdminNavSection>
+            );
+          })}
+
+          {/* Live Infrastructure / Resources Section */}
+          {isCollapsed ? (
+            <div className="mt-2 space-y-0.5 border-t border-border/40 pt-2" aria-label="Infrastructure">
+              {liveResources.map((res) => (
+                <Hint side="right" key={res.id} label={`${res.name} (${res.badge})`}>
+                  <NavLink
+                    to={res.to}
+                    onClick={onCloseMobile}
+                    aria-label={res.name}
+                    className={({ isActive }) => cn(ICON_ROW, isActive ? ICON_ACTIVE : ICON_IDLE)}
+                  >
+                    <span className={cn('size-2.5 rounded-full shrink-0', res.color)} />
+                  </NavLink>
+                </Hint>
+              ))}
+            </div>
+          ) : (
+            <AdminNavSection
+              title="Infrastructure"
+              open={expandedGroups['resources'] ?? true}
+              onOpenChange={(open) => setGroupOpen('resources', open)}
+              badge={healthData?.status === 'HEALTHY' ? 'All Live' : healthData?.status}
+            >
+              {liveResources.map((res) => (
+                <NavLink
+                  key={res.id}
+                  to={res.to}
+                  onClick={onCloseMobile}
+                  className={({ isActive }) => cn(ROW_BASE, isActive ? ROW_ACTIVE : ROW_IDLE)}
+                >
+                  <span className={cn('size-2 rounded-full shrink-0', res.color)} />
+                  <span className="flex-1 truncate">{res.name}</span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono text-muted-foreground bg-muted border border-border/50 shrink-0">
+                    {res.badge}
+                  </span>
+                </NavLink>
+              ))}
+            </AdminNavSection>
+          )}
+        </nav>
+      </ScrollArea>
+
+      {/* 4. Pinned Footer: Settings, Operator Invite, Docs, Account Card */}
+      <div className="p-2.5 border-t border-border/40 space-y-1 shrink-0">
+        {/* Platform Settings */}
+        <AdminNavRow
+          to="/plans"
+          label="Platform Settings"
+          icon={Settings}
+          collapsed={isCollapsed}
+          onNavigate={onCloseMobile}
+        />
+
+        {/* Invite Operator */}
+        {isCollapsed ? (
+          <Hint side="right" label="Invite Operator">
+            <button
+              type="button"
+              onClick={() => {
+                onCloseMobile?.();
+                setInviteOpen(true);
+              }}
+              aria-label="Invite Operator"
+              className={cn(ICON_ROW, ICON_IDLE)}
+            >
+              <UserPlus className="size-4 shrink-0" />
+            </button>
+          </Hint>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              onCloseMobile?.();
+              setInviteOpen(true);
+            }}
+            className={cn(ROW_BASE, ROW_IDLE)}
           >
             <UserPlus className="size-4 shrink-0" />
-            {!collapsed && <span>Invite Team</span>}
+            <span className="flex-1 truncate">Invite Operator</span>
           </button>
+        )}
 
-          {/* Documentation */}
+        {/* Documentation */}
+        {isCollapsed ? (
+          <Hint side="right" label="Documentation">
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Documentation"
+              className={cn(ICON_ROW, ICON_IDLE)}
+            >
+              <BookOpen className="size-4 shrink-0" />
+            </a>
+          </Hint>
+        ) : (
           <a
             href="https://github.com"
             target="_blank"
             rel="noreferrer"
-            className={cn(
-              'w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors',
-              collapsed && 'justify-center px-0',
-            )}
-            title={collapsed ? 'Documentation' : undefined}
+            className={cn(ROW_BASE, ROW_IDLE)}
           >
             <BookOpen className="size-4 shrink-0" />
-            {!collapsed && <span>Documentation</span>}
+            <span className="flex-1 truncate">Documentation</span>
+            <ExternalLink className="size-3.5 text-muted-foreground ml-auto" />
           </a>
+        )}
 
-          {/* Real User Profile Card */}
-          <div className="pt-1.5 mt-1 border-t border-border/40">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    'w-full flex items-center gap-2.5 p-1 rounded-lg hover:bg-accent/60 transition-colors text-left group',
-                    collapsed && 'justify-center p-1',
-                  )}
-                >
-                  <Avatar className="size-7 rounded-md border border-border/60">
-                    <AvatarFallback className="rounded-md bg-foreground text-background text-xs font-bold">
-                      {initials(currentUser?.name || currentUser?.displayName || currentUser?.email || 'Admin')}
-                    </AvatarFallback>
-                  </Avatar>
+        {/* User Profile Card */}
+        <div className="pt-1 mt-1 border-t border-border/40">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  'group flex w-full items-center gap-2.5 rounded-xl p-1.5 text-left transition-colors hover:bg-accent/70 cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                  isCollapsed && 'justify-center',
+                )}
+                aria-label="Account menu"
+              >
+                <Avatar className="size-8 rounded-xl border border-border/60 shrink-0">
+                  {currentUser?.avatarUrl ? (
+                    <AvatarImage src={currentUser.avatarUrl} alt={displayName} />
+                  ) : null}
+                  <AvatarFallback className="rounded-xl bg-foreground text-background text-xs font-bold">
+                    {initials(displayName)}
+                  </AvatarFallback>
+                </Avatar>
 
-                  {!collapsed && (
-                    <>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-semibold text-foreground truncate leading-tight">
-                          {currentUser?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Platform Operator'}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                          {currentUser?.email || 'operator@onetab.ai'}
-                        </div>
+                {!isCollapsed && (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold leading-tight text-foreground">
+                        {displayName}
                       </div>
-                      <MoreHorizontal className="size-4 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    </>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold leading-none text-foreground truncate max-w-[140px]">
-                        {currentUser?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Platform Operator'}
-                      </p>
-                      <span className="text-[9px] font-mono uppercase px-1 rounded bg-primary/10 text-primary border border-primary/20">
-                        {currentUser?.systemRole || 'SUPERADMIN'}
-                      </span>
+                      <div className="truncate text-xs text-muted-foreground">{displayEmail}</div>
                     </div>
-                    <p className="text-[11px] leading-none text-muted-foreground truncate">
-                      {currentUser?.email || 'operator@onetab.ai'}
+                    <MoreHorizontal className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="start" side="top" className="w-64">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold leading-none text-foreground truncate max-w-[150px]">
+                      {displayName}
                     </p>
+                    <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-semibold">
+                      {currentUser?.systemRole || 'SUPERADMIN'}
+                    </span>
                   </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/analytics/users')} className="gap-2">
-                  <Users className="size-3.5 text-muted-foreground" />
-                  <span>Operator Accounts</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/plans')} className="gap-2">
-                  <Settings className="size-3.5 text-muted-foreground" />
-                  <span>Platform Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="gap-2 text-destructive focus:text-destructive">
-                  <LogOut className="size-3.5" />
-                  <span>Sign out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                  <p className="text-xs leading-none text-muted-foreground truncate">
+                    {displayEmail}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  onCloseMobile?.();
+                  navigate('/analytics/users');
+                }}
+                className="gap-2 text-sm"
+              >
+                <Users className="size-4 text-muted-foreground" />
+                <span>Operator Accounts</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  onCloseMobile?.();
+                  navigate('/plans');
+                }}
+                className="gap-2 text-sm"
+              >
+                <Settings className="size-4 text-muted-foreground" />
+                <span>Platform Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="gap-2 text-sm">
+                <a href="https://github.com" target="_blank" rel="noreferrer">
+                  <BookOpen className="size-4 text-muted-foreground" />
+                  <span>Documentation</span>
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={handleSignOut}
+                className="gap-2 text-sm cursor-pointer"
+              >
+                <LogOut className="size-4" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground antialiased font-sans">
+      {/* Desktop rail: 272px expanded / 68px collapsed, matching AI Agent Studio */}
+      <aside
+        className={cn(
+          'hidden md:flex flex-col border-r border-border/70 bg-card transition-all duration-200 select-none shrink-0 h-dvh',
+          collapsed ? 'w-[68px]' : 'w-[272px]',
+        )}
+      >
+        {renderPanel(collapsed)}
       </aside>
 
-      {/* ====================================================================
-          RIGHT MAIN CONTENT AREA
-          ==================================================================== */}
+      {/* Mobile drawer: Radix Sheet matching AI Agent Studio */}
+      <Sheet open={mobileOpen} onOpenChange={(open) => !open && setMobileOpen(false)}>
+        <SheetContent
+          side="left"
+          hideCloseButton
+          aria-describedby={undefined}
+          className="w-[272px] max-w-[272px] gap-0 border-r border-border/70 bg-card p-0 select-none md:hidden"
+        >
+          <SheetTitle className="sr-only">Admin Navigation</SheetTitle>
+          {renderPanel(false, () => setMobileOpen(false))}
+        </SheetContent>
+      </Sheet>
+
+      {/* Main Content Area */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* TOP BAR: Breadcrumbs (Ref image: Dashboard > Overview) + Controls */}
+        {/* Top Header: Breadcrumbs + Quick Actions */}
         <header className="h-14 border-b border-border/60 bg-background/95 backdrop-blur-xs px-4 sm:px-6 flex shrink-0 items-center justify-between z-30">
           <div className="flex items-center gap-3">
             {/* Sidebar toggle button */}
@@ -1164,20 +1488,20 @@ export function AdminShell() {
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => {
-                  if (window.innerWidth < 768) {
+                  if (typeof window !== 'undefined' && window.innerWidth < 768) {
                     setMobileOpen((prev) => !prev);
                   } else {
                     toggleCollapsed();
                   }
                 }}
-                className="size-8 text-muted-foreground hover:text-foreground"
+                className="size-8 text-muted-foreground hover:text-foreground rounded-lg"
                 aria-label="Toggle navigation"
               >
                 <PanelLeft className="size-4" />
               </Button>
             </Hint>
 
-            {/* Breadcrumb Navigation matching ref image: Dashboard > Section > Page */}
+            {/* Breadcrumb Navigation: Dashboard > Section > Page */}
             <div className="flex items-center gap-1.5 text-xs font-medium">
               <span className="text-muted-foreground">{breadcrumb.section}</span>
               <ChevronRight className="size-3 text-muted-foreground/60" />
@@ -1191,19 +1515,29 @@ export function AdminShell() {
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="hidden sm:flex items-center gap-2 px-2.5 py-1 text-xs text-muted-foreground bg-accent/40 hover:bg-accent hover:text-foreground rounded-md border border-border/50 transition-colors"
+              className="hidden sm:flex items-center gap-2 px-2.5 py-1 text-xs text-muted-foreground bg-accent/40 hover:bg-accent hover:text-foreground rounded-lg border border-border/50 transition-colors cursor-pointer"
             >
               <Search className="size-3.5" />
               <span>Search…</span>
               <kbd className="text-[10px] font-mono bg-background px-1 py-0.2 rounded border">⌘K</kbd>
             </button>
 
+            {/* Cross-App Link to AI Agent Studio */}
+            <a
+              href={STUDIO_APP_URL}
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 rounded-lg transition-colors border border-border/40"
+              title="Open AI Agent Studio"
+            >
+              <Sparkles className="size-3.5 text-primary" />
+              <span>AI Agent Studio</span>
+            </a>
+
             {/* GitHub Link */}
             <a
               href="https://github.com"
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-accent/60"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-accent/60"
             >
               <GithubIcon className="size-3.5" />
               <span className="hidden sm:inline">GitHub</span>
@@ -1211,7 +1545,7 @@ export function AdminShell() {
 
             {/* Live Indicator */}
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border/80 bg-background/50 text-[11px] font-medium text-foreground">
-              <span className="size-1.5 rounded-full bg-success animate-pulse" />
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="hidden sm:inline">Live</span>
             </div>
 
@@ -1220,7 +1554,7 @@ export function AdminShell() {
           </div>
         </header>
 
-        {/* MAIN OUTLET CONTAINER: 100% fluid full-width display */}
+        {/* Main Content View Container */}
         <main className="flex-1 overflow-y-auto w-full min-w-0 bg-background">
           <div className="w-full min-w-0 p-4 sm:p-6 lg:p-8">
             <Suspense
@@ -1236,7 +1570,7 @@ export function AdminShell() {
         </main>
       </div>
 
-      {/* Global Modals */}
+      {/* Global Dialogs */}
       <SearchCommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
       <InviteTeamDialog open={inviteOpen} onOpenChange={setInviteOpen} />
     </div>

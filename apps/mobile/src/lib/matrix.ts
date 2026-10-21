@@ -64,6 +64,7 @@ export interface TimelineItem {
   threadReplyCount?: number;
   threadLatestTs?: number;
   reactions?: Reaction[];
+  replyToId?: string;
 }
 
 export interface MemberProfile {
@@ -546,6 +547,11 @@ export function toTimeline(
     }
 
     const extras: Partial<TimelineItem> = {};
+    const relData = event.content['m.relates_to'] as Record<string, unknown> | undefined;
+    const inReplyTo = (relData?.['m.in_reply_to'] as Record<string, unknown> | undefined)?.['event_id'];
+    if (typeof inReplyTo === 'string') {
+      extras.replyToId = inReplyTo;
+    }
     const pills = reactions.get(event.event_id);
     if (pills) extras.reactions = [...pills.values()];
     const bundled = bundledThread(event);
@@ -615,6 +621,19 @@ export function threadReplyContent(
       event_id: rootId,
       is_falling_back: true,
       'm.in_reply_to': { event_id: latestEventId },
+    },
+  };
+}
+
+/** Content for a direct quoted reply in a conversation. */
+export function replyContent(
+  content: Record<string, unknown>,
+  replyToEventId: string,
+): Record<string, unknown> {
+  return {
+    ...content,
+    'm.relates_to': {
+      'm.in_reply_to': { event_id: replyToEventId },
     },
   };
 }

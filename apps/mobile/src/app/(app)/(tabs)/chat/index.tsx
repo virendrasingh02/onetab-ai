@@ -1,6 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { channelApi, queryKeys } from '@org/api-client';
-import type { ChannelSummary } from '@org/types';
+import {
+  channelApi,
+  coworkersApi,
+  queryKeys,
+} from '@org/api-client';
+import type { ChannelSummary, CoworkerRosterEntry } from '@org/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Stack,
@@ -11,13 +15,17 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
+  Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
 import { Alert } from '../../../../lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { showActionSheet } from '../../../../components/action-sheet';
+import { NotificationsBell } from '../../../../components/navigation';
 import {
   AppRefreshControl,
   AppText,
@@ -25,53 +33,358 @@ import {
   Button,
   Divider,
   EmptyState,
-  ErrorState,
   IconButton,
   ListRow,
   LoadingState,
   TextField,
 } from '../../../../components/ui';
+import { useChatPreferences } from '../../../../lib/chat-preferences';
 import {
   directRoomTitle,
   displayNameOf,
   recordAcceptedInvite,
   type DirectRoom,
 } from '../../../../lib/direct-rooms';
-import { NotificationsBell } from '../../../../components/navigation';
-import { relativeTime } from '../../../../lib/format';
+import { formatChatTime } from '../../../../lib/format';
 import { haptics } from '../../../../lib/haptics';
-import { directRoomsKey, useDirectRooms } from '../../../../lib/use-direct-rooms';
+import {
+  directRoomsKey,
+  useDirectRooms,
+} from '../../../../lib/use-direct-rooms';
 import { useMatrixClient } from '../../../../lib/use-matrix';
 import { useWorkspace } from '../../../../lib/workspace';
 import { useTheme } from '../../../../theme/theme';
 import { maxContentWidth, radius, spacing } from '../../../../theme/tokens';
 
-type Segment = 'channels' | 'dms';
+export type ChatFilterChip = 'all' | 'unread' | 'channels' | 'dms' | 'ai';
 
-/** iOS / Android get the header's native search field; web keeps an inline one. */
+const CHIPS: Array<{ id: ChatFilterChip; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'unread', label: 'Unread' },
+  { id: 'dms', label: 'Direct' },
+  { id: 'channels', label: 'Channels' },
+  { id: 'ai', label: 'AI Agents' },
+];
+
 const nativeSearch = Platform.OS !== 'web';
-
-interface ListProps {
-  filter: string;
-  setFilter: (value: string) => void;
-}
 
 export default function ChatTab() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
-  const [segment, setSegment] = useState<Segment>(
-    tab === 'dms' ? 'dms' : 'channels',
+  const [filterChip, setFilterChip] = useState<ChatFilterChip>(
+    tab === 'dms' ? 'dms' : tab === 'channels' ? 'channels' : 'all',
   );
   useEffect(() => {
-    if (tab === 'dms' || tab === 'channels') setSegment(tab);
+    if (tab === 'dms') setFilterChip('dms');
+    else if (tab === 'channels') setFilterChip('channels');
   }, [tab]);
+
   const { colors } = useTheme();
   const router = useRouter();
-  const [filter, setFilter] = useState('');
+  const queryClient = useQueryClient();
+  const { workspaceId, workspace } = useWorkspace();
+  const [search, setSearch] = useState('');
+  const [newChatModalOpen, setNewChatModalOpen] = useState(false);
 
-  const select = (value: Segment) => {
-    if (value === segment) return;
-    haptics.selection();
-    setSegment(value);
+  // Chat preferences (pin, mute, archive)
+  const chatPrefs = useChatPreferences(workspaceId);
+
+  // 1. Matrix Direct Rooms
+  const matrix = useMatrixClient();
+  const directRoomsQuery = useDirectRooms(matrix.client);
+
+  // 2. Channels
+  const channelsQuery = useQuery({
+    queryKey: queryKeys.channels.list(workspaceId, false),
+    queryFn: () => channelApi.list(workspaceId, false),
+  });
+
+  // 3. AI Coworkers
+  const coworkersQuery = useQuery({
+    queryKey: ['mobile', 'coworkers-roster', workspaceId],
+    queryFn: () => coworkersApi.roster(workspaceId).catch(() => null),
+  });
+
+  const { refetch: refetchDirectRooms } = directRoomsQuery;
+  const { refetch: refetchChannels } = channelsQuery;
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetchDirectRooms();
+      void refetchChannels();
+    }, [refetchDirectRooms, refetchChannels]),
+  );
+
+  const openDirectRoom = useCallback(
+    async (room: DirectRoom) => {
+      const client = matrix.client;
+      if (!client) return;
+      if (room.membership === 'invite') {
+        try {
+          await client.join(room.roomId);
+          await recordAcceptedInvite(client, room);
+          void queryClient.invalidateQueries({
+            queryKey: directRoomsKey(client.userId),
+          });
+        } catch (error) {
+          Alert.alert(
+            'Could not join',
+            error instanceof Error ? error.message : 'Try again.',
+          );
+          return;
+        }
+      }
+      router.push({ pathname: '/dm/[roomId]', params: { roomId: room.roomId } });
+    },
+    [matrix.client, queryClient, router],
+  );
+
+  const openChannel = useCallback(
+    (channel: ChannelSummary) => {
+      router.push({
+        pathname: '/channel/[slug]',
+        params: { slug: channel.slug },
+      });
+    },
+    [router],
+  );
+
+  // Context menu for long-pressing conversation item
+  const handleLongPress = useCallback(
+    (id: string, name: string, isChannel: boolean) => {
+      haptics.medium();
+      const isPinned = chatPrefs.isPinned(id);
+      const isMuted = chatPrefs.isMuted(id);
+      const isArchived = chatPrefs.isArchived(id);
+
+      showActionSheet({
+        title: name,
+        options: [
+          {
+            label: isPinned ? 'Unpin chat' : 'Pin chat to top',
+            icon: isPinned ? 'pin-outline' : 'pin',
+            onPress: () => {
+              void chatPrefs.togglePin(id);
+              haptics.selection();
+            },
+          },
+          {
+            label: isMuted ? 'Unmute notifications' : 'Mute notifications',
+            icon: isMuted ? 'volume-high-outline' : 'volume-mute-outline',
+            onPress: () => {
+              void chatPrefs.toggleMute(id);
+              haptics.selection();
+            },
+          },
+          {
+            label: isArchived ? 'Unarchive chat' : 'Archive chat',
+            icon: isArchived ? 'archive-outline' : 'archive',
+            onPress: () => {
+              void chatPrefs.toggleArchive(id);
+              haptics.selection();
+            },
+          },
+          ...(isChannel
+            ? [
+                {
+                  label: 'Channel details',
+                  icon: 'information-circle-outline' as const,
+                  onPress: () => {
+                    router.push({
+                      pathname: '/channel/[slug]',
+                      params: { slug: id },
+                    });
+                  },
+                },
+              ]
+            : []),
+        ],
+      });
+    },
+    [chatPrefs, router],
+  );
+
+  // Filtered and Sorted Conversation Unified List
+  const conversationItems = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const items: Array<{
+      id: string;
+      title: string;
+      subtitle: string;
+      avatarName: string;
+      avatarUri?: string | null;
+      timestamp: number | string;
+      unread: number;
+      isPinned: boolean;
+      isMuted: boolean;
+      isArchived: boolean;
+      isChannel: boolean;
+      isDirect: boolean;
+      isAI: boolean;
+      onPress: () => void;
+      onLongPress: () => void;
+      deliveryState?: 'sending' | 'sent' | 'read';
+    }> = [];
+
+    // Add Direct Rooms
+    const directRooms = directRoomsQuery.data ?? [];
+    for (const r of directRooms) {
+      const title = directRoomTitle(r);
+      const isPinned = chatPrefs.isPinned(r.roomId);
+      const isMuted = chatPrefs.isMuted(r.roomId);
+      const isArchived = chatPrefs.isArchived(r.roomId);
+      const last = r.lastMessage;
+      const subtitle = last
+        ? `${r.kind === 'group' ? `${displayNameOf(r, last.sender)}: ` : ''}${last.body}`
+        : r.encrypted
+          ? 'End-to-end encrypted'
+          : 'Direct message';
+      const avatarId = r.kind === 'direct' ? r.peers[0] : undefined;
+      const avatarUri = avatarId
+        ? matrix.client?.mediaUrl(r.avatars[avatarId], {
+            width: 72,
+            height: 72,
+          })
+        : null;
+
+      const isMine = last?.sender === matrix.client?.userId;
+      const deliveryState = isMine
+        ? r.unread > 0
+          ? 'sent'
+          : 'read'
+        : undefined;
+
+      items.push({
+        id: r.roomId,
+        title,
+        subtitle,
+        avatarName: title,
+        avatarUri,
+        timestamp: last?.ts || r.lastActivity || 0,
+        unread: r.unread,
+        isPinned,
+        isMuted,
+        isArchived,
+        isChannel: false,
+        isDirect: true,
+        isAI: false,
+        onPress: () => void openDirectRoom(r),
+        onLongPress: () => handleLongPress(r.roomId, title, false),
+        deliveryState,
+      });
+    }
+
+    // Add Channels
+    const channels = channelsQuery.data ?? [];
+    for (const c of channels) {
+      if (c.isArchived) continue;
+      const isPinned = chatPrefs.isPinned(c.slug);
+      const isMuted = chatPrefs.isMuted(c.slug) || Boolean(c.membership?.isMuted);
+      const isArchived = chatPrefs.isArchived(c.slug);
+      const unreadCount = 0;
+      const subtitle = c.topic ?? c.description ?? `${c.memberCount} members`;
+
+      items.push({
+        id: c.slug,
+        title: `# ${c.name}`,
+        subtitle,
+        avatarName: c.name,
+        avatarUri: null,
+        timestamp: c.createdAt || 0,
+        unread: unreadCount,
+        isPinned,
+        isMuted,
+        isArchived,
+        isChannel: true,
+        isDirect: false,
+        isAI: false,
+        onPress: () => openChannel(c),
+        onLongPress: () => handleLongPress(c.slug, `# ${c.name}`, true),
+      });
+    }
+
+    // Add AI Coworkers
+    const coworkers = coworkersQuery.data?.coworkers ?? [];
+    for (const cw of coworkers) {
+      const isPinned = chatPrefs.isPinned(`cw:${cw.id}`);
+      const isMuted = chatPrefs.isMuted(`cw:${cw.id}`);
+      const isArchived = chatPrefs.isArchived(`cw:${cw.id}`);
+
+      items.push({
+        id: `cw:${cw.id}`,
+        title: `${cw.name} 🤖`,
+        subtitle: `${cw.role || 'AI Coworker'} · Tap to message`,
+        avatarName: cw.name,
+        avatarUri: cw.avatarUrl,
+        timestamp: 0,
+        unread: 0,
+        isPinned,
+        isMuted,
+        isArchived,
+        isChannel: false,
+        isDirect: false,
+        isAI: true,
+        onPress: () => {
+          // Open direct coworker session or agent chat
+          router.push({
+            pathname: '/agent/[agentId]/chat',
+            params: { agentId: cw.id },
+          });
+        },
+        onLongPress: () => handleLongPress(`cw:${cw.id}`, cw.name, false),
+      });
+    }
+
+    // Apply Filter Chips
+    let filtered = items;
+    if (filterChip === 'unread') {
+      filtered = filtered.filter((i) => i.unread > 0);
+    } else if (filterChip === 'channels') {
+      filtered = filtered.filter((i) => i.isChannel);
+    } else if (filterChip === 'dms') {
+      filtered = filtered.filter((i) => i.isDirect);
+    } else if (filterChip === 'ai') {
+      filtered = filtered.filter((i) => i.isAI);
+    }
+
+    // Apply Search Query
+    if (q) {
+      filtered = filtered.filter(
+        (i) =>
+          i.title.toLowerCase().includes(q) ||
+          i.subtitle.toLowerCase().includes(q),
+      );
+    }
+
+    // Sort: Pinned first, then by timestamp descending
+    return filtered.sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      return timeB - timeA;
+    });
+  }, [
+    directRoomsQuery.data,
+    channelsQuery.data,
+    coworkersQuery.data,
+    filterChip,
+    search,
+    chatPrefs,
+    matrix.client,
+    openDirectRoom,
+    openChannel,
+    handleLongPress,
+    router,
+  ]);
+
+  const isRefreshing =
+    directRoomsQuery.isRefetching ||
+    channelsQuery.isRefetching ||
+    coworkersQuery.isRefetching;
+
+  const handleRefresh = () => {
+    void refetchDirectRooms();
+    void refetchChannels();
+    void coworkersQuery.refetch();
   };
 
   return (
@@ -81,393 +394,437 @@ export default function ChatTab() {
     >
       <Stack.Screen
         options={{
+          headerTitle: workspace?.name ? `${workspace.name}` : 'Chats',
           headerRight: () => (
             <View style={styles.headerActions}>
               <IconButton
                 icon="create-outline"
                 label="New message"
-                onPress={() => router.push('/dm/new')}
+                onPress={() => setNewChatModalOpen(true)}
               />
               <NotificationsBell />
             </View>
           ),
           headerSearchBarOptions: nativeSearch
             ? {
-                placeholder:
-                  segment === 'channels'
-                    ? 'Find a channel'
-                    : 'Find a conversation',
+                placeholder: 'Search chats & messages',
                 autoCapitalize: 'none',
                 hideWhenScrolling: false,
-                onChangeText: (event) => setFilter(event.nativeEvent.text),
-                onCancelButtonPress: () => setFilter(''),
+                onChangeText: (event) => setSearch(event.nativeEvent.text),
+                onCancelButtonPress: () => setSearch(''),
               }
             : undefined,
         }}
       />
-      <View style={styles.segmentsWrap}>
-        <View
-          style={[styles.segments, { backgroundColor: colors.accent }]}
-          accessibilityRole="tablist"
+
+      {/* WhatsApp Filter Chips Row */}
+      <View style={styles.chipsWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsScroll}
         >
-          {(
-            [
-              ['channels', 'Channels'],
-              ['dms', 'Direct messages'],
-            ] as const
-          ).map(([value, label]) => {
-            const active = segment === value;
+          {CHIPS.map((chip) => {
+            const active = filterChip === chip.id;
             return (
               <Pressable
-                key={value}
-                onPress={() => select(value)}
-                accessibilityRole="tab"
+                key={chip.id}
+                onPress={() => {
+                  haptics.selection();
+                  setFilterChip(chip.id);
+                }}
+                accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 style={[
-                  styles.segment,
-                  active ? { backgroundColor: colors.card } : null,
+                  styles.chip,
+                  {
+                    backgroundColor: active ? colors.primary : colors.card,
+                    borderColor: active ? colors.primary : colors.border,
+                  },
                 ]}
               >
                 <AppText
                   variant="label"
                   style={{
-                    color: active ? colors.foreground : colors.mutedForeground,
+                    color: active
+                      ? colors.primaryForeground
+                      : colors.mutedForeground,
+                    fontSize: 13,
                   }}
                 >
-                  {label}
+                  {chip.label}
                 </AppText>
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
-      {segment === 'channels' ? (
-        <ChannelList filter={filter} setFilter={setFilter} />
-      ) : (
-        <DirectMessageList filter={filter} setFilter={setFilter} />
-      )}
+
+      {/* Inline Search fallback for web */}
+      {!nativeSearch ? (
+        <View style={styles.searchWrap}>
+          <TextField
+            placeholder="Search chats..."
+            value={search}
+            onChangeText={setSearch}
+            autoCapitalize="none"
+          />
+        </View>
+      ) : null}
+
+      {/* Conversation List */}
+      <FlatList
+        data={conversationItems}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        ItemSeparatorComponent={Divider}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentInsetAdjustmentBehavior="automatic"
+        refreshControl={
+          <AppRefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+          />
+        }
+        ListEmptyComponent={
+          directRoomsQuery.isPending && channelsQuery.isPending ? (
+            <LoadingState label="Loading chats…" />
+          ) : (
+            <EmptyState
+              icon="chatbubbles-outline"
+              title={search ? 'No matching conversations' : 'No chats yet'}
+              description={
+                search
+                  ? `Nothing matches "${search.trim()}".`
+                  : 'Start a direct message, talk to an AI coworker, or browse channels.'
+              }
+              action={
+                search ? undefined : (
+                  <Button
+                    label="Start a conversation"
+                    icon="create-outline"
+                    onPress={() => setNewChatModalOpen(true)}
+                  />
+                )
+              }
+            />
+          )
+        }
+        renderItem={({ item }) => {
+          const timeLabel = formatChatTime(item.timestamp);
+          return (
+            <ListRow
+              title={item.title}
+              subtitle={item.subtitle}
+              avatar={{
+                name: item.avatarName,
+                uri: item.avatarUri,
+                headers: matrix.client?.authHeaders,
+              }}
+              onPress={item.onPress}
+              onLongPress={item.onLongPress}
+              right={
+                <View style={styles.rowRight}>
+                  {timeLabel ? (
+                    <AppText
+                      variant="caption"
+                      style={[
+                        styles.timeText,
+                        item.unread > 0
+                          ? { color: colors.primaryText, fontWeight: '600' }
+                          : undefined,
+                      ]}
+                    >
+                      {timeLabel}
+                    </AppText>
+                  ) : null}
+
+                  <View style={styles.badgeRow}>
+                    {item.isPinned ? (
+                      <Ionicons
+                        name="pin"
+                        size={14}
+                        color={colors.subtle}
+                        style={styles.metaIcon}
+                      />
+                    ) : null}
+
+                    {item.isMuted ? (
+                      <Ionicons
+                        name="notifications-off-outline"
+                        size={14}
+                        color={colors.subtle}
+                        style={styles.metaIcon}
+                      />
+                    ) : null}
+
+                    {item.deliveryState === 'sending' ? (
+                      <Ionicons
+                        name="time-outline"
+                        size={13}
+                        color={colors.subtle}
+                      />
+                    ) : item.deliveryState === 'sent' ? (
+                      <Ionicons
+                        name="checkmark"
+                        size={14}
+                        color={colors.subtle}
+                      />
+                    ) : item.deliveryState === 'read' ? (
+                      <Ionicons
+                        name="checkmark-done"
+                        size={15}
+                        color={colors.primaryText}
+                      />
+                    ) : null}
+
+                    {item.unread > 0 ? (
+                      <View
+                        style={[
+                          styles.unreadBadge,
+                          { backgroundColor: colors.primary },
+                        ]}
+                      >
+                        <AppText
+                          variant="caption"
+                          style={{
+                            color: colors.primaryForeground,
+                            fontWeight: '700',
+                            fontSize: 11,
+                          }}
+                        >
+                          {item.unread > 99 ? '99+' : item.unread}
+                        </AppText>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+              }
+            />
+          );
+        }}
+      />
+
+      {/* WhatsApp-style Floating Action Button for New Chat */}
+      <Pressable
+        onPress={() => {
+          haptics.selection();
+          setNewChatModalOpen(true);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="New conversation"
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+            shadowColor: '#000',
+          },
+        ]}
+      >
+        <Ionicons
+          name="chatbubble-ellipses"
+          size={24}
+          color={colors.primaryForeground}
+        />
+      </Pressable>
+
+      {/* New Conversation Modal */}
+      <NewChatSheet
+        visible={newChatModalOpen}
+        onClose={() => setNewChatModalOpen(false)}
+        coworkers={coworkersQuery.data?.coworkers ?? []}
+      />
     </SafeAreaView>
   );
 }
 
-function ChannelList({ filter, setFilter }: ListProps) {
-  const { workspaceId } = useWorkspace();
+function NewChatSheet({
+  visible,
+  onClose,
+  coworkers,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  coworkers: CoworkerRosterEntry[];
+}) {
   const router = useRouter();
   const { colors } = useTheme();
 
-  const query = useQuery({
-    queryKey: queryKeys.channels.list(workspaceId, false),
-    queryFn: () => channelApi.list(workspaceId, false),
-  });
-
-  const channels = useMemo(() => {
-    const needle = filter.trim().toLowerCase();
-    return (query.data ?? [])
-      .filter(
-        (c) =>
-          !c.isArchived && (!needle || c.name.toLowerCase().includes(needle)),
-      )
-      .sort((a, b) => {
-        // Favourites, then channels I am in, then the rest to browse.
-        const rank = (c: ChannelSummary) =>
-          c.membership?.isFavorite ? 0 : c.membership ? 1 : 2;
-        return rank(a) - rank(b) || a.name.localeCompare(b.name);
-      });
-  }, [query.data, filter]);
-
-  if (query.isPending) return <LoadingState label="Loading channels…" />;
-  if (query.error)
-    return (
-      <ErrorState error={query.error} onRetry={() => void query.refetch()} />
-    );
-
   return (
-    <FlatList
-      data={channels}
-      keyExtractor={(c) => c.id}
-      contentContainerStyle={styles.list}
-      ItemSeparatorComponent={Divider}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={
-        <AppRefreshControl
-          refreshing={query.isRefetching}
-          onRefresh={() => void query.refetch()}
-          />
-      }
-      keyboardDismissMode="on-drag"
-      contentInsetAdjustmentBehavior="automatic"
-      ListHeaderComponent={
-        nativeSearch ? (
-          <View style={styles.listTop} />
-        ) : (
-          <View style={styles.search}>
-            <TextField
-              placeholder="Find a channel"
-              value={filter}
-              onChangeText={setFilter}
-              accessibilityLabel="Find a channel"
-              autoCapitalize="none"
-            />
-          </View>
-        )
-      }
-      ListEmptyComponent={
-        <EmptyState
-          icon="chatbubbles-outline"
-          title={filter ? 'No matching channels' : 'No channels'}
-          description={
-            filter
-              ? `Nothing matches "${filter.trim()}".`
-              : 'Channels you can see in this workspace appear here.'
-          }
-        />
-      }
-      renderItem={({ item }) => (
-        <ListRow
-          title={`# ${item.name}`}
-          subtitle={
-            item.topic ?? item.description ?? `${item.memberCount} members`
-          }
-          right={
-            <View style={styles.badges}>
-              {item.visibility === 'PRIVATE' ? (
-                <Ionicons name="lock-closed" size={14} color={colors.subtle} />
-              ) : null}
-              {item.membership?.isMuted ? (
-                <Ionicons
-                  name="notifications-off-outline"
-                  size={14}
-                  color={colors.subtle}
-                />
-              ) : null}
-              {!item.membership ? <Badge label="Join" tone="info" /> : null}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
+        <SafeAreaView edges={['bottom']} style={styles.sheetContent}>
+          <View
+            style={[
+              styles.sheetCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.sheetHeader}>
+              <AppText variant="heading">Start a conversation</AppText>
+              <IconButton icon="close" label="Close" onPress={onClose} />
             </View>
-          }
-          onPress={() =>
-            router.push({
-              pathname: '/channel/[slug]',
-              params: { slug: item.slug },
-            })
-          }
-        />
-      )}
-    />
-  );
-}
 
-function DirectMessageList({ filter, setFilter }: ListProps) {
-  const router = useRouter();
-  const { colors } = useTheme();
-  const queryClient = useQueryClient();
-  const matrix = useMatrixClient();
-  const query = useDirectRooms(matrix.client);
-  const [opening, setOpening] = useState<string | null>(null);
-
-  // No timer: the list refreshes whenever the tab comes back into view.
-  const { refetch } = query;
-  useFocusEffect(
-    useCallback(() => {
-      void refetch();
-    }, [refetch]),
-  );
-
-  const rooms = useMemo(() => {
-    const needle = filter.trim().toLowerCase();
-    return (query.data ?? []).filter(
-      (r) => !needle || directRoomTitle(r).toLowerCase().includes(needle),
-    );
-  }, [query.data, filter]);
-
-  const open = async (room: DirectRoom) => {
-    const client = matrix.client;
-    if (!client) return;
-    if (room.membership === 'invite') {
-      setOpening(room.roomId);
-      try {
-        await client.join(room.roomId);
-        await recordAcceptedInvite(client, room);
-        void queryClient.invalidateQueries({
-          queryKey: directRoomsKey(client.userId),
-        });
-      } catch (error) {
-        Alert.alert(
-          'Could not join',
-          error instanceof Error ? error.message : 'Try again.',
-        );
-        return;
-      } finally {
-        setOpening(null);
-      }
-    }
-    router.push({ pathname: '/dm/[roomId]', params: { roomId: room.roomId } });
-  };
-
-  if (matrix.isPending || (matrix.client && query.isPending))
-    return <LoadingState label="Loading conversations…" />;
-  if (matrix.error || query.error)
-    return (
-      <ErrorState
-        error={matrix.error ?? query.error}
-        onRetry={() => {
-          void matrix.refetch();
-          void query.refetch();
-        }}
-      />
-    );
-  if (!matrix.client)
-    return (
-      <EmptyState
-        icon="chatbubbles-outline"
-        title="Chat isn't set up on this server"
-        description="Ask your workspace admin to enable messaging."
-      />
-    );
-
-  return (
-    <FlatList
-      data={rooms}
-      keyExtractor={(r) => r.roomId}
-      contentContainerStyle={styles.list}
-      ItemSeparatorComponent={Divider}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={
-        <AppRefreshControl
-          refreshing={query.isRefetching}
-          onRefresh={() => void query.refetch()}
-          />
-      }
-      keyboardDismissMode="on-drag"
-      contentInsetAdjustmentBehavior="automatic"
-      ListHeaderComponent={
-        nativeSearch ? (
-          <View style={styles.listTop} />
-        ) : (
-          <View style={styles.search}>
-            <TextField
-              placeholder="Find a conversation"
-              value={filter}
-              onChangeText={setFilter}
-              accessibilityLabel="Find a conversation"
-              autoCapitalize="none"
+            <ListRow
+              icon="person-add-outline"
+              title="New direct message"
+              subtitle="Message any team member"
+              onPress={() => {
+                onClose();
+                router.push('/dm/new');
+              }}
             />
-          </View>
-        )
-      }
-      ListEmptyComponent={
-        <EmptyState
-          icon="chatbubble-outline"
-          title={filter ? 'No matching conversations' : 'No direct messages'}
-          description={
-            filter
-              ? `Nothing matches "${filter.trim()}".`
-              : 'Start a conversation with one person or a small group.'
-          }
-          action={
-            filter ? undefined : (
-              <Button
-                label="New message"
-                icon="create-outline"
-                onPress={() => router.push('/dm/new')}
-              />
-            )
-          }
-        />
-      }
-      renderItem={({ item }) => {
-        const title = directRoomTitle(item);
-        const avatarId = item.kind === 'direct' ? item.peers[0] : undefined;
-        const preview = subtitleFor(item);
-        return (
-          <ListRow
-            title={title}
-            subtitle={preview}
-            avatar={{
-              name: title,
-              uri: avatarId
-                ? matrix.client?.mediaUrl(item.avatars[avatarId], {
-                    width: 72,
-                    height: 72,
-                  })
-                : null,
-              headers: matrix.client?.authHeaders,
-            }}
-            onPress={() => void open(item)}
-            right={
-              <View style={styles.badges}>
-                {item.encrypted ? (
-                  <Ionicons
-                    name="lock-closed"
-                    size={14}
-                    color={colors.subtle}
-                    accessibilityLabel="End-to-end encrypted"
-                  />
-                ) : null}
-                {item.kind === 'group' ? (
-                  <Ionicons
-                    name="people-outline"
-                    size={16}
-                    color={colors.subtle}
-                    accessibilityLabel="Group"
-                  />
-                ) : null}
-                {opening === item.roomId ? (
-                  <Badge label="Joining…" tone="info" />
-                ) : item.membership === 'invite' ? (
-                  <Badge label="Invite" tone="info" />
-                ) : item.unread ? (
-                  <Badge
-                    label={String(item.unread)}
-                    tone={item.highlight ? 'danger' : 'info'}
-                  />
-                ) : null}
-              </View>
-            }
-          />
-        );
-      }}
-    />
-  );
-}
+            <Divider />
+            <ListRow
+              icon="sparkles-outline"
+              title="New custom agent"
+              subtitle="Configure an autonomous task agent"
+              onPress={() => {
+                onClose();
+                router.push('/agent/new');
+              }}
+            />
 
-function subtitleFor(room: DirectRoom): string | null {
-  if (room.membership === 'invite') {
-    return room.inviter
-      ? `${displayNameOf(room, room.inviter)} invited you`
-      : 'Invitation';
-  }
-  const last = room.lastMessage;
-  if (!last) return room.encrypted ? 'Encrypted conversation' : null;
-  const who =
-    room.kind === 'group' ? `${displayNameOf(room, last.sender)}: ` : '';
-  return `${who}${last.body} · ${relativeTime(new Date(last.ts).toISOString())}`;
+            {coworkers.length > 0 ? (
+              <>
+                <Divider />
+                <View style={styles.coworkerHeader}>
+                  <AppText variant="label" style={{ color: colors.mutedForeground }}>
+                    AI COWORKERS
+                  </AppText>
+                </View>
+                {coworkers.slice(0, 4).map((cw) => (
+                  <ListRow
+                    key={cw.id}
+                    avatar={{ name: cw.name, uri: cw.avatarUrl }}
+                    title={cw.name}
+                    subtitle={cw.role || 'Autonomous Coworker'}
+                    right={<Badge label="Online" tone="success" />}
+                    onPress={() => {
+                      onClose();
+                      router.push({
+                        pathname: '/agent/[agentId]/chat',
+                        params: { agentId: cw.id },
+                      });
+                    }}
+                  />
+                ))}
+              </>
+            ) : null}
+          </View>
+        </SafeAreaView>
+      </Pressable>
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  segmentsWrap: {
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  chipsWrap: {
+    paddingVertical: spacing.sm,
     width: '100%',
     maxWidth: maxContentWidth,
     alignSelf: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
   },
-  segments: { flexDirection: 'row', padding: 3, borderRadius: radius.lg },
-  segment: {
-    flex: 1,
-    minHeight: 36,
+  chipsScroll: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+  },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    minHeight: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.md,
+  },
+  searchWrap: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    width: '100%',
+    maxWidth: maxContentWidth,
+    alignSelf: 'center',
   },
   list: {
     width: '100%',
     maxWidth: maxContentWidth,
     alignSelf: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
+    paddingBottom: 80,
   },
-  search: { paddingVertical: spacing.md, gap: spacing.sm },
-  listTop: { height: spacing.sm },
-  headerActions: { flexDirection: 'row', alignItems: 'center' },
-  badges: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  rowRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 4,
+    minWidth: 64,
+  },
+  timeText: {
+    fontSize: 12,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaIcon: {
+    opacity: 0.8,
+  },
+  unreadBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.xl,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheetContent: {
+    width: '100%',
+    maxWidth: maxContentWidth,
+    alignSelf: 'center',
+  },
+  sheetCard: {
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    borderWidth: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: spacing.sm,
+  },
+  coworkerHeader: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
 });

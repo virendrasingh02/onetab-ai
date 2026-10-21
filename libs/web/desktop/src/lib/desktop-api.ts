@@ -172,7 +172,18 @@ export interface DesktopHandoffRequest {
   fallbackUrl?: string;
 }
 
-export type DesktopPathKey = 'userData' | 'logs' | 'crashDumps';
+export type DesktopPathKey =
+  | 'userData'
+  | 'logs'
+  | 'crashDumps'
+  | 'temp'
+  | 'sessionData'
+  | 'downloads'
+  | 'documents'
+  | 'desktop'
+  | 'appData'
+  | 'home'
+  | 'exe';
 
 export interface DesktopStartupState {
   supported: boolean;
@@ -180,11 +191,16 @@ export interface DesktopStartupState {
   openAtLogin: boolean;
   startHidden: boolean;
   launchedAtLogin: boolean;
+  wasOpenedAsHidden?: boolean;
+  restoreState?: boolean;
+  status?: string;
+  executableWillLaunchAtLogin?: boolean;
 }
 
 export interface DesktopStartupRequest {
   openAtLogin?: boolean;
   startHidden?: boolean;
+  openAsHidden?: boolean;
 }
 
 export interface DesktopProcessMetric {
@@ -193,11 +209,33 @@ export interface DesktopProcessMetric {
   name?: string;
   cpuPercent: number;
   workingSetKb: number;
+  peakWorkingSetKb?: number;
 }
 
 export interface DesktopProtocolStatus {
   scheme: string;
   registered: boolean;
+}
+
+export interface DesktopUserTask {
+  program?: string;
+  arguments?: string;
+  title: string;
+  description?: string;
+  iconPath?: string;
+  iconIndex?: number;
+}
+
+export interface DesktopFileOpened {
+  path: string;
+  name: string;
+  mimeType?: string;
+}
+
+export interface DesktopUserActivityPayload {
+  activityType: string;
+  userInfo?: Record<string, unknown>;
+  webpageURL?: string;
 }
 
 /** Mirrors `DesktopDiagnostics` in `apps/desktop/src/shared/ipc.ts`. */
@@ -209,6 +247,8 @@ export interface DesktopDiagnostics {
     isPackaged: boolean;
     isReady: boolean;
     appUserModelId: string | null;
+    desktopName: string | null;
+    appPath: string;
     uptimeSeconds: number;
   };
   runtime: {
@@ -221,8 +261,13 @@ export interface DesktopDiagnostics {
     osVersion: string;
     runningUnderTranslation: boolean;
   };
-  locale: { app: string; system: string; preferred: string[] };
-  paths: Record<DesktopPathKey | 'temp' | 'sessionData', string>;
+  locale: {
+    app: string;
+    system: string;
+    preferred: string[];
+    countryCode: string | null;
+  };
+  paths: Record<DesktopPathKey, string>;
   gpu: {
     hardwareAccelerationEnabled: boolean;
     hardwareAccelerationPreference: boolean;
@@ -233,6 +278,10 @@ export interface DesktopDiagnostics {
   singleInstance: boolean;
   startup: DesktopStartupState;
   protocols: DesktopProtocolStatus[];
+  jumpList?: {
+    supported: boolean;
+    tasksCount: number;
+  };
   metrics: DesktopProcessMetric[];
 }
 
@@ -287,6 +336,18 @@ export interface OneTabDesktopApi {
   };
   handoff: {
     openAppOrWeb: (request: DesktopHandoffRequest) => Promise<boolean>;
+    setUserActivity: (activity: DesktopUserActivityPayload) => Promise<boolean>;
+    invalidateUserActivity: () => Promise<void>;
+    onActivity: (handler: (payload: DesktopUserActivityPayload) => void) => Unsubscribe;
+  };
+  dock?: {
+    bounce: (type?: 'critical' | 'informational') => Promise<number>;
+  };
+  windows?: {
+    setUserTasks: (tasks?: DesktopUserTask[]) => Promise<boolean>;
+  };
+  protocols?: {
+    remove: (scheme: string) => Promise<boolean>;
   };
   files: {
     open: (request?: DesktopOpenFilesRequest) => Promise<DesktopPickedFile[]>;
@@ -316,12 +377,20 @@ export interface OneTabDesktopApi {
   app: {
     relaunch: () => Promise<void>;
     quit: () => Promise<void>;
+    focus?: () => Promise<void>;
+    showAbout?: () => Promise<void>;
     getDiagnostics: () => Promise<DesktopDiagnostics>;
     getStartup: () => Promise<DesktopStartupState>;
     setStartup: (request: DesktopStartupRequest) => Promise<DesktopStartupState>;
     openPath: (key: DesktopPathKey) => Promise<boolean>;
+    getPath?: (key: DesktopPathKey) => Promise<string>;
+    setAccessibility?: (enabled: boolean) => Promise<void>;
+    clearRecentDocuments?: () => Promise<void>;
+    addRecentDocument?: (path: string) => Promise<void>;
+    onAccessibilityChange?: (handler: (enabled: boolean) => void) => Unsubscribe;
   };
   onDeepLink: (handler: (link: DesktopDeepLink) => void) => Unsubscribe;
+  onFileOpened?: (handler: (file: DesktopFileOpened) => void) => Unsubscribe;
   onCommand: (handler: (command: DesktopCommand) => void) => Unsubscribe;
 }
 
@@ -425,6 +494,28 @@ export async function flashFrame(value: boolean): Promise<void> {
   const api = getDesktopApi();
   if (api) {
     await api.notifications.flashFrame(value);
+  }
+}
+
+/**
+ * Triggers native About dialog on desktop.
+ */
+export async function showAboutPanel(): Promise<void> {
+  const api = getDesktopApi();
+  if (api && api.app.showAbout) {
+    await api.app.showAbout();
+  }
+}
+
+/**
+ * Focuses application window on desktop.
+ */
+export async function focusApp(): Promise<void> {
+  const api = getDesktopApi();
+  if (api && api.app.focus) {
+    await api.app.focus();
+  } else if (typeof window !== 'undefined') {
+    window.focus();
   }
 }
 

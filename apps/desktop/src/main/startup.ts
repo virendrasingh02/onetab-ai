@@ -60,12 +60,32 @@ export function getStartupState(): DesktopStartupState {
   }
 
   let openAtLogin = getPreference('launchAtLogin', false);
+  let wasOpenedAsHidden: boolean | undefined;
+  let restoreState: boolean | undefined;
+  let status: string | undefined;
+  let executableWillLaunchAtLogin: boolean | undefined;
+
   try {
-    openAtLogin = app.getLoginItemSettings(loginItemQuery()).openAtLogin;
+    const settings = app.getLoginItemSettings(loginItemQuery());
+    openAtLogin = settings.openAtLogin;
+    wasOpenedAsHidden = settings.wasOpenedAsHidden;
+    restoreState = settings.restoreState;
+    status = settings.status;
+    executableWillLaunchAtLogin = settings.executableWillLaunchAtLogin;
   } catch (error) {
     logger.warn('Startup', 'Could not read the login-item state', error);
   }
-  return { supported: true, openAtLogin, startHidden, launchedAtLogin };
+
+  return {
+    supported: true,
+    openAtLogin,
+    startHidden,
+    launchedAtLogin,
+    wasOpenedAsHidden,
+    restoreState,
+    status,
+    executableWillLaunchAtLogin,
+  };
 }
 
 export function setStartupState(request: DesktopStartupRequest): DesktopStartupState {
@@ -76,7 +96,11 @@ export function setStartupState(request: DesktopStartupRequest): DesktopStartupS
   const openAtLogin =
     typeof request.openAtLogin === 'boolean' ? request.openAtLogin : current.openAtLogin;
   const startHidden =
-    typeof request.startHidden === 'boolean' ? request.startHidden : current.startHidden;
+    typeof request.startHidden === 'boolean'
+      ? request.startHidden
+      : typeof request.openAsHidden === 'boolean'
+        ? request.openAsHidden
+        : current.startHidden;
 
   setPreference('startHidden', startHidden);
   setPreference('launchAtLogin', openAtLogin);

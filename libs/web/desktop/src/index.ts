@@ -9,6 +9,7 @@
 export {
   copyText,
   flashFrame,
+  focusApp,
   getDesktopApi,
   isDesktop,
   notify,
@@ -17,6 +18,7 @@ export {
   pickFiles,
   saveFile,
   setBadgeCount,
+  showAboutPanel,
   type DesktopAppInfo,
   type DesktopAppMetadata,
   type DesktopAuthFlowStatus,
@@ -27,6 +29,7 @@ export {
   type DesktopDeepLink,
   type DesktopDiagnostics,
   type DesktopDistribution,
+  type DesktopFileOpened,
   type DesktopHandoffRequest,
   type DesktopNotificationRequest,
   type DesktopOpenFilesRequest,
@@ -38,6 +41,8 @@ export {
   type DesktopSaveFileRequest,
   type DesktopSaveResult,
   type DesktopUpdateStatus,
+  type DesktopUserActivityPayload,
+  type DesktopUserTask,
   type DesktopWindowState,
   type OneTabDesktopApi,
 } from './lib/desktop-api.js';
@@ -121,4 +126,3 @@ export {
   AppDownloadCard,
   type AppDownloadCardProps,
 } from './lib/app-download-card.js';
-

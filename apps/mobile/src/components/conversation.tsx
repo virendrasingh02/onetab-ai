@@ -27,6 +27,7 @@ import {
   MatrixError,
   mediaMessageContent,
   newTxnId,
+  replyContent,
   threadReplyContent,
   toTimeline,
   type MatrixEvent,
@@ -43,26 +44,25 @@ import { maxContentWidth, radius, spacing } from '../theme/tokens';
 import {
   AppText,
   Avatar,
+  Badge,
+  Divider,
   EmptyState,
   ErrorState,
   IconButton,
   keyboardDismissMode,
   LoadingState,
+  TextField,
 } from './ui';
 
-/** The quick set offered on long-press; the web picker has the full list. */
-const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '👀', '✅'];
+/** The quick set offered on long-press; WhatsApp style. */
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 interface PendingItem extends TimelineItem {
   /** Set once the homeserver accepted it; hidden when sync delivers it. */
   eventId?: string;
+  replyToId?: string;
 }
 
-/**
- * One room's conversation — a channel, a DM, a group DM, or (with
- * `threadRootId`) one thread inside any of those. Kept live by the room-scoped
- * `/sync` loop while the screen is focused.
- */
 export function Conversation({
   client,
   roomId,
@@ -80,22 +80,26 @@ export function Conversation({
   canPost?: boolean;
   readOnlyHint?: string;
   allowFiles?: boolean;
-  /** Extra read bookkeeping (the channel API's own unread state). */
   onRead?: () => void;
   onOpenThread?: (rootId: string) => void;
   onSessionInvalid: () => Promise<void>;
 }) {
-  const { colors } = useTheme();
+  const { colors, dark } = useTheme();
   const keyboardAvoiding = useKeyboardAvoidingProps();
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<PendingItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [actionItem, setActionItem] = useState<TimelineItem | null>(null);
+  const [replyingTo, setReplyingTo] = useState<TimelineItem | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const handleMatrixError = useCallback(
     async (error: unknown) => {
-      if (error instanceof MatrixError && error.isUnknownToken)
+      if (error instanceof MatrixError && error.isUnknownToken) {
         await onSessionInvalid();
+      }
     },
     [onSessionInvalid],
   );
@@ -105,8 +109,6 @@ export function Conversation({
     onFatalError: handleMatrixError,
   });
 
-  // A thread's replies are scattered through the room timeline, so they come
-  // from the relations API; the sync loop then keeps them live.
   const thread = useThread(client, roomId, threadRootId, state.resets);
 
   const members = useQuery({
@@ -116,7 +118,7 @@ export function Conversation({
     queryFn: () => client.joinedMembers(roomId),
   });
 
-  const items = useMemo(() => {
+  const allItems = useMemo(() => {
     const events = threadRootId
       ? [...thread.events, ...state.events]
       : state.events;
@@ -128,28 +130,40 @@ export function Conversation({
     ];
   }, [state.events, thread.events, pending, threadRootId, client.userId]);
 
+  // Apply search filter if active
+  const items = useMemo(() => {
+    if (!searchFilter.trim()) return allItems;
+    const q = searchFilter.trim().toLowerCase();
+    return allItems.filter((item) => item.body.toLowerCase().includes(q));
+  }, [allItems, searchFilter]);
+
   const newestId = useMemo(
     () => [...items].reverse().find((i) => !i.id.startsWith('pending:'))?.id,
     [items],
   );
+
   useEffect(() => {
     if (!newestId) return;
     void client.markRead(roomId, newestId).catch(() => undefined);
     onRead?.();
   }, [newestId, client, roomId, onRead]);
 
-  /** Sends a message, as a thread reply when this is a thread. */
   const sendContent = async (content: Record<string, unknown>) => {
     const txnId = newTxnId();
-    const latestInThread =
-      threadRootId &&
-      ([...items].reverse().find((i) => !i.id.startsWith('pending:'))?.id ??
-        threadRootId);
-    const body =
-      threadRootId && latestInThread
-        ? threadReplyContent(content, threadRootId, latestInThread)
-        : content;
-    return client.send(roomId, body, txnId);
+    if (threadRootId) {
+      const latestInThread =
+        [...items].reverse().find((i) => !i.id.startsWith('pending:'))?.id ??
+        threadRootId;
+      return client.send(
+        roomId,
+        threadReplyContent(content, threadRootId, latestInThread),
+        txnId,
+      );
+    }
+    if (replyingTo) {
+      return client.send(roomId, replyContent(content, replyingTo.id), txnId);
+    }
+    return client.send(roomId, content, txnId);
   };
 
   const submit = async () => {
@@ -157,14 +171,27 @@ export function Conversation({
     if (!text) return;
     setDraft('');
     const id = `pending:${newTxnId()}`;
+    const replyTargetId = replyingTo?.id;
+    setReplyingTo(null);
+
     setPending((prev) => [
       ...prev,
-      { id, sender: client.userId, ts: Date.now(), kind: 'text', body: text },
+      {
+        id,
+        sender: client.userId,
+        ts: Date.now(),
+        kind: 'text',
+        body: text,
+        replyToId: replyTargetId,
+      },
     ]);
+
     try {
-      const { event_id } = await sendContent({ msgtype: 'm.text', body: text });
+      const { event_id } = await sendContent({
+        msgtype: 'm.text',
+        body: text,
+      });
       haptics.light();
-      // Kept until the sync loop delivers the real event, so it never blinks.
       setPending((prev) =>
         prev.map((p) => (p.id === id ? { ...p, eventId: event_id } : p)),
       );
@@ -179,7 +206,6 @@ export function Conversation({
     }
   };
 
-  // Drop confirmed echoes so the pending list does not grow forever.
   useEffect(() => {
     const confirmed = new Set(state.events.map((e) => e.event_id));
     setPending((prev) =>
@@ -255,7 +281,7 @@ export function Conversation({
           onPress: () => void attach('library'),
         },
         {
-          label: 'File',
+          label: 'Document',
           icon: 'document-outline',
           onPress: () => void attach('document'),
         },
@@ -301,76 +327,60 @@ export function Conversation({
     ? thread.loadOlder
     : () => void timeline.loadOlder();
 
-  let composer;
-  if (state.encrypted) {
-    composer = (
-      <AppText variant="muted" style={styles.readOnly}>
-        This conversation is end-to-end encrypted. Send messages from web or
-        desktop.
-      </AppText>
-    );
-  } else if (!canPost) {
-    composer = (
-      <AppText variant="muted" style={styles.readOnly}>
-        {readOnlyHint}
-      </AppText>
-    );
-  } else {
-    composer = (
-      <View style={styles.composer}>
-        {allowFiles ? (
-          uploading ? (
-            <ActivityIndicator
-              style={styles.attachSpinner}
-              color={colors.primaryText}
-            />
-          ) : (
-            <IconButton
-              icon="add-circle-outline"
-              label="Attach a file"
-              onPress={chooseAttachment}
-            />
-          )
-        ) : null}
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          placeholder={threadRootId ? 'Reply in thread' : 'Message'}
-          placeholderTextColor={colors.subtle}
-          selectionColor={colors.ring}
-          cursorColor={colors.primary}
-          underlineColorAndroid="transparent"
-          multiline
-          accessibilityLabel={threadRootId ? 'Reply in thread' : 'Message'}
-          style={[
-            styles.input,
-            {
-              color: colors.foreground,
-              backgroundColor: colors.background,
-              borderColor: colors.input,
-            },
-          ]}
-        />
+  return (
+    <KeyboardAvoidingView style={styles.flex} {...keyboardAvoiding}>
+      {/* Top Header Utilities: Search Toggle & Details Button */}
+      <View
+        style={[
+          styles.toolbar,
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
+        ]}
+      >
         <IconButton
-          icon="send"
-          label="Send message"
-          onPress={() => void submit()}
-          disabled={!draft.trim()}
+          icon={searchOpen ? 'close' : 'search-outline'}
+          label={searchOpen ? 'Close search' : 'Search messages'}
+          onPress={() => {
+            setSearchOpen(!searchOpen);
+            if (searchOpen) setSearchFilter('');
+          }}
+        />
+        <AppText variant="caption" style={styles.flex}>
+          {searchFilter ? `Found ${items.length} matching messages` : ''}
+        </AppText>
+        <IconButton
+          icon="information-circle-outline"
+          label="Conversation details"
+          onPress={() => setDetailsOpen(true)}
         />
       </View>
-    );
-  }
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      {...keyboardAvoiding}
-    >
-      {state.error ? (
-        <View style={[styles.banner, { backgroundColor: colors.accent }]}>
-          <AppText variant="caption">Reconnecting…</AppText>
+      {/* In-Chat Search Bar */}
+      {searchOpen ? (
+        <View
+          style={[
+            styles.searchBar,
+            { backgroundColor: colors.card, borderBottomColor: colors.border },
+          ]}
+        >
+          <TextField
+            placeholder="Search this conversation…"
+            value={searchFilter}
+            onChangeText={setSearchFilter}
+            autoFocus
+            clearButtonMode="always"
+            autoCapitalize="none"
+          />
         </View>
       ) : null}
+
+      {/* Reconnecting Banner */}
+      {state.error ? (
+        <View style={[styles.banner, { backgroundColor: colors.accent }]}>
+          <AppText variant="caption">Reconnecting to chat server…</AppText>
+        </View>
+      ) : null}
+
+      {/* WhatsApp Message Timeline */}
       <FlatList
         inverted
         keyboardDismissMode={keyboardDismissMode}
@@ -381,31 +391,43 @@ export function Conversation({
         onEndReachedThreshold={0.3}
         ListFooterComponent={
           loadingOlder ? (
-            <ActivityIndicator style={styles.spinner} />
+            <ActivityIndicator style={styles.spinner} color={colors.primary} />
           ) : undefined
         }
         ListEmptyComponent={
           <View style={styles.invertFix}>
             <EmptyState
               icon="chatbubble-ellipses-outline"
-              title="No messages yet"
-              description="Say hello 👋"
+              title={searchFilter ? 'No matching messages' : 'No messages yet'}
+              description={
+                searchFilter
+                  ? `No messages matched "${searchFilter}".`
+                  : 'Say hello to start the conversation 👋'
+              }
             />
           </View>
         }
         renderItem={({ item, index }) => {
+          const isMine = item.sender === client.userId;
           const prev = reversed[index + 1];
           const grouped =
             prev &&
             prev.sender === item.sender &&
             item.ts - prev.ts < 5 * 60_000 &&
-            // The root heads a thread on its own.
             !(threadRootId && prev.id === threadRootId);
           const profile = members.data?.[item.sender];
+          const senderName = profile?.displayName ?? localpartOf(item.sender);
+
+          // Find quoted message if replying
+          const replyTarget = item.replyToId
+            ? allItems.find((m) => m.id === item.replyToId)
+            : undefined;
+
           return (
-            <MessageRow
+            <WhatsAppMessageBubble
               item={item}
-              name={profile?.displayName ?? localpartOf(item.sender)}
+              isMine={isMine}
+              name={senderName}
               avatarUrl={client.mediaUrl(profile?.avatarMxc, {
                 width: 64,
                 height: 64,
@@ -418,8 +440,10 @@ export function Conversation({
               }
               grouped={Boolean(grouped)}
               isRoot={item.id === threadRootId}
+              replyTarget={replyTarget}
               onOpenMedia={() => void openMedia(item)}
               onLongPress={() => showActions(item)}
+              onSwipeReply={() => setReplyingTo(item)}
               onToggleReaction={(key) => void toggleReaction(item, key)}
               onOpenThread={
                 !threadRootId && onOpenThread
@@ -433,6 +457,40 @@ export function Conversation({
           );
         }}
       />
+
+      {/* Replying Banner Above Composer */}
+      {replyingTo ? (
+        <View
+          style={[
+            styles.replyBanner,
+            { backgroundColor: colors.card, borderTopColor: colors.border },
+          ]}
+        >
+          <View
+            style={[styles.replyAccent, { backgroundColor: colors.primary }]}
+          />
+          <View style={styles.flex}>
+            <AppText
+              variant="label"
+              style={{ color: colors.primaryText, fontSize: 13 }}
+            >
+              Replying to{' '}
+              {members.data?.[replyingTo.sender]?.displayName ??
+                localpartOf(replyingTo.sender)}
+            </AppText>
+            <AppText variant="caption" numberOfLines={1}>
+              {replyingTo.body}
+            </AppText>
+          </View>
+          <IconButton
+            icon="close-circle"
+            label="Cancel reply"
+            onPress={() => setReplyingTo(null)}
+          />
+        </View>
+      ) : null}
+
+      {/* WhatsApp Multiline Composer */}
       <SafeAreaView
         edges={['bottom']}
         style={[
@@ -440,32 +498,512 @@ export function Conversation({
           { borderTopColor: colors.border, backgroundColor: colors.card },
         ]}
       >
-        {composer}
+        {state.encrypted ? (
+          <AppText variant="muted" style={styles.readOnly}>
+            🔒 This conversation is end-to-end encrypted. Use web/desktop to send.
+          </AppText>
+        ) : !canPost ? (
+          <AppText variant="muted" style={styles.readOnly}>
+            {readOnlyHint}
+          </AppText>
+        ) : (
+          <View style={styles.composer}>
+            {allowFiles ? (
+              uploading ? (
+                <ActivityIndicator
+                  style={styles.attachSpinner}
+                  color={colors.primaryText}
+                />
+              ) : (
+                <IconButton
+                  icon="add-circle"
+                  label="Attach file"
+                  onPress={chooseAttachment}
+                />
+              )
+            ) : null}
+
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={
+                threadRootId
+                  ? 'Reply in thread…'
+                  : replyingTo
+                    ? 'Type a reply…'
+                    : 'Message…'
+              }
+              placeholderTextColor={colors.subtle}
+              selectionColor={colors.ring}
+              cursorColor={colors.primary}
+              underlineColorAndroid="transparent"
+              multiline
+              accessibilityLabel="Message input"
+              style={[
+                styles.input,
+                {
+                  color: colors.foreground,
+                  backgroundColor: dark ? '#1c2421' : '#f0f2f1',
+                  borderColor: 'transparent',
+                },
+              ]}
+            />
+
+            <Pressable
+              onPress={() => void submit()}
+              disabled={!draft.trim()}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              style={({ pressed }) => [
+                styles.sendButton,
+                {
+                  backgroundColor: draft.trim()
+                    ? colors.primary
+                    : colors.disabled,
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+            >
+              <Ionicons
+                name="send"
+                size={18}
+                color={
+                  draft.trim()
+                    ? colors.primaryForeground
+                    : colors.mutedForeground
+                }
+              />
+            </Pressable>
+          </View>
+        )}
       </SafeAreaView>
+
+      {/* Long-Press Action Sheet & Emoji Reaction Bar */}
       <MessageActions
         item={actionItem}
         onClose={() => setActionItem(null)}
         onReact={(item, key) => void toggleReaction(item, key)}
+        onReply={(item) => setReplyingTo(item)}
         onOpenThread={
           !threadRootId && onOpenThread
             ? (item) => onOpenThread(item.id)
             : undefined
         }
       />
+
+      {/* Conversation Details Modal */}
+      <ConversationDetailsModal
+        visible={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        roomId={roomId}
+        isEncrypted={Boolean(state.encrypted)}
+        memberCount={members.data ? Object.keys(members.data).length : 0}
+        members={members.data ?? {}}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-/** Long-press sheet: quick reactions and "Reply in thread". */
+/**
+ * WhatsApp-Inspired Message Bubble
+ */
+function WhatsAppMessageBubble({
+  item,
+  isMine,
+  name,
+  avatarUrl,
+  authHeaders,
+  thumbnailUrl,
+  grouped,
+  isRoot,
+  replyTarget,
+  onOpenMedia,
+  onLongPress,
+  onSwipeReply: _onSwipeReply,
+  onToggleReaction,
+  onOpenThread,
+  memberName,
+}: {
+  item: TimelineItem;
+  isMine: boolean;
+  name: string;
+  avatarUrl: string | null;
+  authHeaders: Record<string, string>;
+  thumbnailUrl: string | null;
+  grouped: boolean;
+  isRoot: boolean;
+  replyTarget?: TimelineItem;
+  onOpenMedia: () => void;
+  onLongPress: () => void;
+  onSwipeReply: () => void;
+  onToggleReaction: (key: string) => void;
+  onOpenThread?: () => void;
+  memberName: (id: string) => string;
+}) {
+  const { colors, dark } = useTheme();
+  const time = new Date(item.ts).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  const pending = item.id.startsWith('pending:');
+
+  // Detect tool executions or AI structured messages
+  const isToolExecution =
+    item.body.startsWith('[Tool execution]') ||
+    item.body.startsWith('[AI Action]') ||
+    item.body.includes('"tool":') ||
+    item.body.includes('"action":');
+
+  return (
+    <View
+      style={[
+        styles.bubbleRow,
+        isMine ? styles.bubbleRowMine : styles.bubbleRowOther,
+        grouped ? styles.bubbleRowGrouped : null,
+      ]}
+    >
+      {!isMine && !grouped ? (
+        <Avatar name={name} uri={avatarUrl} headers={authHeaders} size={28} />
+      ) : !isMine && grouped ? (
+        <View style={styles.avatarSpacer} />
+      ) : null}
+
+      <Pressable
+        onLongPress={onLongPress}
+        delayLongPress={300}
+        accessibilityRole="text"
+        accessibilityHint="Long-press to react, reply or share"
+        style={({ pressed }) => [
+          styles.bubble,
+          isMine
+            ? [
+                styles.bubbleMine,
+                {
+                  backgroundColor: dark ? '#054638' : '#dcf8c6',
+                },
+              ]
+            : [
+                styles.bubbleOther,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
+              ],
+          pending ? styles.pendingBubble : null,
+          isRoot ? styles.rootBubble : null,
+          pressed ? { opacity: 0.92 } : null,
+        ]}
+      >
+        {/* Incoming sender name header for group chats */}
+        {!isMine && !grouped ? (
+          <AppText
+            variant="label"
+            style={[styles.senderHeader, { color: colors.primaryText }]}
+          >
+            {name}
+          </AppText>
+        ) : null}
+
+        {/* Quoted Reply Preview */}
+        {replyTarget ? (
+          <View
+            style={[
+              styles.quotedBox,
+              {
+                borderLeftColor: colors.primary,
+                backgroundColor: isMine
+                  ? dark
+                    ? 'rgba(0,0,0,0.2)'
+                    : 'rgba(0,0,0,0.06)'
+                  : dark
+                    ? 'rgba(255,255,255,0.06)'
+                    : colors.accent,
+              },
+            ]}
+          >
+            <AppText
+              variant="label"
+              style={{ fontSize: 11, color: colors.primaryText }}
+            >
+              {memberName(replyTarget.sender)}
+            </AppText>
+            <AppText variant="caption" numberOfLines={1}>
+              {replyTarget.body}
+            </AppText>
+          </View>
+        ) : null}
+
+        {/* AI Tool Execution Accordion */}
+        {isToolExecution ? (
+          <AIToolExecutionCard body={item.body} />
+        ) : item.kind === 'image' && thumbnailUrl ? (
+          <Pressable
+            onPress={onOpenMedia}
+            onLongPress={onLongPress}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={`Image attachment: ${item.body}`}
+          >
+            <Thumbnail uri={thumbnailUrl} headers={authHeaders} />
+          </Pressable>
+        ) : item.kind === 'file' ||
+          item.kind === 'video' ||
+          item.kind === 'audio' ? (
+          <Pressable
+            onPress={onOpenMedia}
+            onLongPress={onLongPress}
+            accessibilityRole="button"
+            accessibilityLabel={`Download ${item.body}`}
+            style={[
+              styles.fileBox,
+              {
+                backgroundColor: isMine
+                  ? dark
+                    ? 'rgba(0,0,0,0.25)'
+                    : 'rgba(0,0,0,0.05)'
+                  : colors.background,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Ionicons
+              name={
+                item.kind === 'audio'
+                  ? 'musical-notes-outline'
+                  : item.kind === 'video'
+                    ? 'videocam-outline'
+                    : 'document-text-outline'
+              }
+              size={24}
+              color={colors.primaryText}
+            />
+            <View style={styles.flex}>
+              <AppText variant="body" numberOfLines={1}>
+                {item.body}
+              </AppText>
+              {item.size ? (
+                <AppText variant="caption">{formatBytes(item.size)}</AppText>
+              ) : null}
+            </View>
+            <Ionicons name="download-outline" size={18} color={colors.subtle} />
+          </Pressable>
+        ) : (
+          <AppText
+            variant="body"
+            selectable
+            style={[
+              styles.bubbleText,
+              item.kind === 'encrypted' || item.kind === 'notice'
+                ? { color: colors.mutedForeground, fontStyle: 'italic' }
+                : undefined,
+            ]}
+          >
+            {item.body}
+          </AppText>
+        )}
+
+        {/* Bubble Footer: Time + Delivery Status Ticks */}
+        <View style={styles.bubbleFooter}>
+          {item.edited ? (
+            <AppText variant="caption" style={styles.editedText}>
+              edited ·{' '}
+            </AppText>
+          ) : null}
+          <AppText variant="caption" style={styles.footerTime}>
+            {pending ? 'Sending…' : time}
+          </AppText>
+          {isMine ? (
+            pending ? (
+              <Ionicons
+                name="time-outline"
+                size={12}
+                color={colors.subtle}
+                style={styles.tickIcon}
+              />
+            ) : (
+              <Ionicons
+                name="checkmark-done"
+                size={14}
+                color={colors.primaryText}
+                style={styles.tickIcon}
+              />
+            )
+          ) : null}
+        </View>
+
+        {/* Thread Replies Button */}
+        {item.threadReplyCount && onOpenThread ? (
+          <Pressable
+            onPress={onOpenThread}
+            accessibilityRole="button"
+            accessibilityLabel={`Open thread with ${item.threadReplyCount} replies`}
+            style={styles.threadBadge}
+            hitSlop={6}
+          >
+            <Ionicons
+              name="chatbubbles-outline"
+              size={13}
+              color={colors.primaryText}
+            />
+            <AppText
+              variant="caption"
+              style={{ color: colors.primaryText, fontWeight: '600' }}
+            >
+              {item.threadReplyCount}{' '}
+              {item.threadReplyCount === 1 ? 'reply' : 'replies'}
+            </AppText>
+          </Pressable>
+        ) : null}
+
+        {/* Floating Reactions on Bubble Edge */}
+        {item.reactions?.length ? (
+          <View
+            style={[
+              styles.floatingReactions,
+              isMine ? styles.reactionsRight : styles.reactionsLeft,
+            ]}
+          >
+            {item.reactions.map((reaction) => (
+              <ReactionBadge
+                key={reaction.key}
+                reaction={reaction}
+                memberName={memberName}
+                onPress={() => onToggleReaction(reaction.key)}
+              />
+            ))}
+          </View>
+        ) : null}
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * AI Tool Execution Accordion Card
+ */
+function AIToolExecutionCard({ body }: { body: string }) {
+  const { colors, dark } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <View
+      style={[
+        styles.toolCard,
+        {
+          backgroundColor: dark ? '#13211c' : '#f0fbf4',
+          borderColor: 'rgba(96, 198, 134, 0.4)',
+        },
+      ]}
+    >
+      <Pressable
+        onPress={() => setExpanded(!expanded)}
+        style={styles.toolHeader}
+      >
+        <Ionicons name="sparkles" size={16} color={colors.primaryText} />
+        <AppText
+          variant="label"
+          style={{ flex: 1, fontSize: 13, color: colors.primaryText }}
+        >
+          AI Tool Execution
+        </AppText>
+        <Badge label="Completed" tone="success" />
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={16}
+          color={colors.subtle}
+        />
+      </Pressable>
+      {expanded ? (
+        <AppText
+          variant="caption"
+          style={styles.toolPayload}
+          selectable
+        >
+          {body}
+        </AppText>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * Image thumbnail
+ */
+function Thumbnail({
+  uri,
+  headers,
+}: {
+  uri: string;
+  headers: Record<string, string>;
+}) {
+  const { colors } = useTheme();
+  const source = useAuthedImageSource(uri, headers);
+  const style = [styles.image, { backgroundColor: colors.muted }];
+  return source ? (
+    <Image source={source} style={style} resizeMode="cover" />
+  ) : (
+    <View style={style} />
+  );
+}
+
+/**
+ * Floating Reaction Badge
+ */
+function ReactionBadge({
+  reaction,
+  memberName,
+  onPress,
+}: {
+  reaction: Reaction;
+  memberName: (id: string) => string;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+  const mine = Boolean(reaction.mine);
+  const who = reaction.senders.map(memberName).join(', ');
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: mine }}
+      accessibilityLabel={`${reaction.key} ${reaction.count}, ${who}`}
+      style={[
+        styles.reactionBadge,
+        {
+          borderColor: mine ? colors.primaryText : colors.border,
+          backgroundColor: mine ? colors.selected : colors.card,
+        },
+      ]}
+    >
+      <AppText style={{ fontSize: 13 }}>{reaction.key}</AppText>
+      <AppText
+        variant="caption"
+        style={{
+          fontSize: 11,
+          fontWeight: '700',
+          color: mine ? colors.primaryText : colors.foreground,
+        }}
+      >
+        {reaction.count}
+      </AppText>
+    </Pressable>
+  );
+}
+
+/**
+ * Long-Press Message Actions & Quick Reaction Bar
+ */
 function MessageActions({
   item,
   onClose,
   onReact,
+  onReply,
   onOpenThread,
 }: {
   item: TimelineItem | null;
   onClose: () => void;
   onReact: (item: TimelineItem, key: string) => void;
+  onReply: (item: TimelineItem) => void;
   onOpenThread?: (item: TimelineItem) => void;
 }) {
   const { colors } = useTheme();
@@ -476,12 +1014,7 @@ function MessageActions({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable
-        style={styles.backdrop}
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close"
-      >
+      <Pressable style={styles.backdrop} onPress={onClose}>
         <SafeAreaView edges={['bottom']} style={styles.sheetWrap}>
           <View
             style={[
@@ -490,6 +1023,7 @@ function MessageActions({
             ]}
             onStartShouldSetResponder={() => true}
           >
+            {/* Quick emoji reactions */}
             <View style={styles.sheetReactions}>
               {QUICK_REACTIONS.map((key) => {
                 const mine = Boolean(
@@ -502,11 +1036,6 @@ function MessageActions({
                       if (item) onReact(item, key);
                       onClose();
                     }}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: mine }}
-                    accessibilityLabel={
-                      mine ? `Remove ${key} reaction` : `React with ${key}`
-                    }
                     style={({ pressed }) => [
                       styles.sheetEmoji,
                       {
@@ -523,13 +1052,36 @@ function MessageActions({
                 );
               })}
             </View>
+
+            {/* Action 1: Reply */}
+            <Pressable
+              onPress={() => {
+                if (item) onReply(item);
+                onClose();
+              }}
+              style={({ pressed }) => [
+                styles.sheetAction,
+                {
+                  borderTopColor: colors.border,
+                  backgroundColor: pressed ? colors.accent : 'transparent',
+                },
+              ]}
+            >
+              <Ionicons
+                name="arrow-undo-outline"
+                size={20}
+                color={colors.foreground}
+              />
+              <AppText variant="body">Reply</AppText>
+            </Pressable>
+
+            {/* Action 2: Reply in thread */}
             {onOpenThread ? (
               <Pressable
                 onPress={() => {
                   if (item) onOpenThread(item);
                   onClose();
                 }}
-                accessibilityRole="button"
                 style={({ pressed }) => [
                   styles.sheetAction,
                   {
@@ -553,7 +1105,88 @@ function MessageActions({
   );
 }
 
-/** The root and its replies for a thread view, with back-paging. */
+/**
+ * Conversation Details Modal
+ */
+function ConversationDetailsModal({
+  visible,
+  onClose,
+  roomId,
+  isEncrypted,
+  memberCount,
+  members,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  roomId: string;
+  isEncrypted: boolean;
+  memberCount: number;
+  members: Record<string, { displayName: string; avatarMxc?: string | null }>;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <SafeAreaView edges={['bottom']} style={styles.sheetWrap}>
+          <View
+            style={[
+              styles.sheet,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.detailsHeader}>
+              <AppText variant="heading">Conversation Info</AppText>
+              <IconButton icon="close" label="Close" onPress={onClose} />
+            </View>
+
+            <View style={styles.detailsContent}>
+              <View style={styles.detailsRow}>
+                <Ionicons
+                  name={isEncrypted ? 'lock-closed' : 'lock-open-outline'}
+                  size={20}
+                  color={isEncrypted ? colors.primaryText : colors.subtle}
+                />
+                <View style={styles.flex}>
+                  <AppText variant="label">
+                    {isEncrypted ? 'End-to-end encrypted' : 'Standard room'}
+                  </AppText>
+                  <AppText variant="caption">Room: {roomId}</AppText>
+                </View>
+              </View>
+
+              <Divider />
+
+              <View style={styles.detailsRow}>
+                <Ionicons name="people-outline" size={20} color={colors.subtle} />
+                <View style={styles.flex}>
+                  <AppText variant="label">Participants ({memberCount})</AppText>
+                  <AppText variant="caption">
+                    {Object.values(members)
+                      .slice(0, 5)
+                      .map((m) => m.displayName)
+                      .join(', ')}
+                    {memberCount > 5 ? '…' : ''}
+                  </AppText>
+                </View>
+              </View>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Pressable>
+    </Modal>
+  );
+}
+
+/**
+ * Thread relation loader
+ */
 function useThread(
   client: MatrixRestClient,
   roomId: string,
@@ -565,7 +1198,6 @@ function useThread(
   const [loadingOlder, setLoadingOlder] = useState(false);
 
   const query = useQuery({
-    // `resets` refetches after a sync gap, which may have skipped replies.
     queryKey: ['mobile', 'thread', roomId, rootId, resets],
     enabled: Boolean(rootId),
     queryFn: async () => {
@@ -611,298 +1243,245 @@ function useThread(
   };
 }
 
-function MessageRow({
-  item,
-  name,
-  avatarUrl,
-  authHeaders,
-  thumbnailUrl,
-  grouped,
-  isRoot,
-  onOpenMedia,
-  onLongPress,
-  onToggleReaction,
-  onOpenThread,
-  memberName,
-}: {
-  item: TimelineItem;
-  name: string;
-  avatarUrl: string | null;
-  authHeaders: Record<string, string>;
-  thumbnailUrl: string | null;
-  grouped: boolean;
-  isRoot: boolean;
-  onOpenMedia: () => void;
-  onLongPress: () => void;
-  onToggleReaction: (key: string) => void;
-  onOpenThread?: () => void;
-  memberName: (id: string) => string;
-}) {
-  const { colors } = useTheme();
-  const time = new Date(item.ts).toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-  const pending = item.id.startsWith('pending:');
-
-  return (
-    <Pressable
-      onLongPress={onLongPress}
-      delayLongPress={300}
-      accessibilityHint="Long-press to react or reply in a thread"
-      style={[
-        styles.row,
-        grouped ? styles.rowGrouped : null,
-        pending ? styles.pending : null,
-        isRoot ? [styles.rootRow, { borderBottomColor: colors.border }] : null,
-      ]}
-    >
-      <View style={styles.avatarCol}>
-        {grouped ? null : (
-          <Avatar name={name} uri={avatarUrl} headers={authHeaders} size={34} />
-        )}
-      </View>
-      <View style={styles.flex}>
-        {grouped ? null : (
-          <View style={styles.meta}>
-            <AppText variant="label" numberOfLines={1}>
-              {name}
-            </AppText>
-            <AppText variant="caption">{pending ? 'Sending…' : time}</AppText>
-          </View>
-        )}
-        {item.kind === 'image' && thumbnailUrl ? (
-          <Pressable
-            onPress={onOpenMedia}
-            onLongPress={onLongPress}
-            accessibilityRole="imagebutton"
-            accessibilityLabel={`Image ${item.body}`}
-          >
-            <Thumbnail uri={thumbnailUrl} headers={authHeaders} />
-          </Pressable>
-        ) : item.kind === 'file' ||
-          item.kind === 'video' ||
-          item.kind === 'audio' ? (
-          <Pressable
-            onPress={onOpenMedia}
-            onLongPress={onLongPress}
-            accessibilityRole="button"
-            accessibilityLabel={`Download ${item.body}`}
-            style={[
-              styles.file,
-              { borderColor: colors.border, backgroundColor: colors.card },
-            ]}
-          >
-            <Ionicons
-              name="document-attach-outline"
-              size={22}
-              color={colors.primaryText}
-            />
-            <View style={styles.flex}>
-              <AppText variant="body" numberOfLines={1}>
-                {item.body}
-              </AppText>
-              {item.size ? (
-                <AppText variant="caption">{formatBytes(item.size)}</AppText>
-              ) : null}
-            </View>
-            <Ionicons name="download-outline" size={18} color={colors.subtle} />
-          </Pressable>
-        ) : (
-          <AppText
-            variant="body"
-            style={
-              item.kind === 'encrypted' || item.kind === 'notice'
-                ? { color: colors.mutedForeground, fontStyle: 'italic' }
-                : undefined
-            }
-          >
-            {item.body}
-            {item.edited ? (
-              <AppText variant="caption"> (edited)</AppText>
-            ) : null}
-          </AppText>
-        )}
-        {item.reactions?.length ? (
-          <View style={styles.reactions}>
-            {item.reactions.map((reaction) => (
-              <ReactionPill
-                key={reaction.key}
-                reaction={reaction}
-                memberName={memberName}
-                onPress={() => onToggleReaction(reaction.key)}
-              />
-            ))}
-          </View>
-        ) : null}
-        {item.threadReplyCount && onOpenThread ? (
-          <Pressable
-            onPress={onOpenThread}
-            accessibilityRole="button"
-            accessibilityLabel={`Open thread, ${item.threadReplyCount} replies`}
-            style={styles.threadLink}
-            hitSlop={6}
-          >
-            <Ionicons
-              name="chatbubbles-outline"
-              size={14}
-              color={colors.primaryText}
-            />
-            <AppText variant="caption" style={{ color: colors.primaryText }}>
-              {item.threadReplyCount}{' '}
-              {item.threadReplyCount === 1 ? 'reply' : 'replies'}
-            </AppText>
-          </Pressable>
-        ) : null}
-      </View>
-    </Pressable>
-  );
-}
-
-/** An image message; authenticated media, so the source needs the header. */
-function Thumbnail({
-  uri,
-  headers,
-}: {
-  uri: string;
-  headers: Record<string, string>;
-}) {
-  const { colors } = useTheme();
-  const source = useAuthedImageSource(uri, headers);
-  const style = [styles.image, { backgroundColor: colors.muted }];
-  return source ? (
-    <Image source={source} style={style} resizeMode="cover" />
-  ) : (
-    <View style={style} />
-  );
-}
-
-function ReactionPill({
-  reaction,
-  memberName,
-  onPress,
-}: {
-  reaction: Reaction;
-  memberName: (id: string) => string;
-  onPress: () => void;
-}) {
-  const { colors } = useTheme();
-  const mine = Boolean(reaction.mine);
-  const who = reaction.senders.map(memberName).join(', ');
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: mine }}
-      accessibilityLabel={`${reaction.key} ${reaction.count}, ${who}. ${
-        mine ? 'Tap to remove your reaction' : 'Tap to react'
-      }`}
-      style={({ pressed }) => [
-        styles.pill,
-        {
-          borderColor: mine ? colors.primaryText : colors.border,
-          backgroundColor: mine ? colors.selected : colors.card,
-          opacity: pressed ? 0.7 : 1,
-        },
-      ]}
-    >
-      <AppText variant="body">{reaction.key}</AppText>
-      <AppText
-        variant="caption"
-        style={mine ? { color: colors.primaryText } : undefined}
-      >
-        {reaction.count}
-      </AppText>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    width: '100%',
+    maxWidth: maxContentWidth,
+    alignSelf: 'center',
+  },
+  searchBar: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    width: '100%',
+    maxWidth: maxContentWidth,
+    alignSelf: 'center',
+  },
   messages: {
     width: '100%',
     maxWidth: maxContentWidth,
     alignSelf: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
   banner: { alignItems: 'center', paddingVertical: spacing.xs },
   invertFix: { transform: [{ scaleY: -1 }] },
   spinner: { marginVertical: spacing.md },
-  row: { flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.md },
-  rowGrouped: { paddingTop: 2 },
-  rootRow: {
-    paddingBottom: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+
+  // Bubble Row Styles
+  bubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginVertical: 3,
+    gap: 6,
   },
-  pending: { opacity: 0.6 },
-  avatarCol: { width: 34 },
-  meta: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-  image: {
-    width: 220,
-    height: 220,
+  bubbleRowMine: {
+    justifyContent: 'flex-end',
+  },
+  bubbleRowOther: {
+    justifyContent: 'flex-start',
+  },
+  bubbleRowGrouped: {
+    marginTop: 1,
+  },
+  avatarSpacer: {
+    width: 28,
+  },
+
+  // Bubble Container
+  bubble: {
+    maxWidth: '82%',
     borderRadius: radius.lg,
+    paddingHorizontal: 11,
+    paddingTop: 7,
+    paddingBottom: 6,
+  },
+  bubbleMine: {
+    borderBottomRightRadius: 2,
+  },
+  bubbleOther: {
+    borderBottomLeftRadius: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  pendingBubble: { opacity: 0.65 },
+  rootBubble: {
+    borderWidth: 2,
+  },
+
+  senderHeader: {
+    fontWeight: '700',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  bubbleText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+
+  // Quoted Preview
+  quotedBox: {
+    borderLeftWidth: 3,
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginBottom: 4,
+  },
+
+  // Footer & Ticks
+  bubbleFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 3,
+    marginTop: 3,
+  },
+  footerTime: {
+    fontSize: 11,
+    opacity: 0.7,
+  },
+  editedText: {
+    fontSize: 10,
+    fontStyle: 'italic',
+    opacity: 0.6,
+  },
+  tickIcon: {
+    marginLeft: 1,
+  },
+
+  // Media
+  image: {
+    width: 230,
+    height: 230,
+    borderRadius: radius.md,
     marginTop: spacing.xs,
   },
-  file: {
+  fileBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radius.lg,
-    padding: spacing.md,
+    borderRadius: radius.md,
+    padding: spacing.sm,
     marginTop: spacing.xs,
-    maxWidth: 320,
+    maxWidth: 260,
   },
-  reactions: {
+
+  // AI Tool Card
+  toolCard: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginVertical: spacing.xs,
+  },
+  toolHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  toolPayload: {
+    fontFamily: 'monospace',
+    fontSize: 12,
+    marginTop: spacing.xs,
+    opacity: 0.85,
+  },
+
+  // Floating Reactions
+  floatingReactions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
+    gap: 3,
+    marginTop: -4,
+    marginBottom: 2,
   },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    minHeight: 30,
-    paddingHorizontal: spacing.sm,
-    borderWidth: 1,
-    borderRadius: radius.xl,
+  reactionsRight: {
+    alignSelf: 'flex-end',
   },
-  threadLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: spacing.xs,
+  reactionsLeft: {
     alignSelf: 'flex-start',
   },
+  reactionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+
+  threadBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+
+  // Reply Banner
+  replyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    width: '100%',
+    maxWidth: maxContentWidth,
+    alignSelf: 'center',
+  },
+  replyAccent: {
+    width: 3,
+    height: 32,
+    borderRadius: 2,
+  },
+
+  // Composer
   composerWrap: { borderTopWidth: StyleSheet.hairlineWidth },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingVertical: 6,
     width: '100%',
     maxWidth: maxContentWidth,
     alignSelf: 'center',
   },
   input: {
     flex: 1,
-    minHeight: 40,
-    maxHeight: 140,
-    borderWidth: 1,
+    minHeight: 38,
+    maxHeight: 120,
     borderRadius: radius.xl,
     paddingHorizontal: spacing.md,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingTop: 8,
+    paddingBottom: 8,
     fontSize: 16,
   },
-  attachSpinner: { width: 44 },
+  sendButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 1,
+  },
+  attachSpinner: { width: 38 },
+
+  // Sheets
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheetWrap: {
     width: '100%',
@@ -914,27 +1493,44 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
+    paddingBottom: spacing.sm,
   },
   sheetReactions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    padding: spacing.sm,
+    padding: spacing.md,
   },
   sheetEmoji: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetEmojiText: { fontSize: 26, lineHeight: 32 },
+  sheetEmojiText: { fontSize: 24, lineHeight: 30 },
   sheetAction: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    minHeight: 52,
+    minHeight: 48,
     paddingHorizontal: spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  detailsContent: {
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
   readOnly: { textAlign: 'center', padding: spacing.md },
 });

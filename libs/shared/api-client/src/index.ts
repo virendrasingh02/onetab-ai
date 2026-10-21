@@ -40,6 +40,7 @@ export {
   channelEmailApi,
   coworkersApi,
   enterpriseApi,
+  enterpriseIdentityApi,
   gifsApi,
   stickersApi,
   huddleApi,

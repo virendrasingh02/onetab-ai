@@ -143,7 +143,7 @@ export function WorkspaceDetailAnalyticsView() {
           label="Storage Used"
           subtitle="Quota Headroom"
           value={formatBytes(ws.storageBytes)}
-          badgeText={data?.overview?.revenue ? `${data.overview.revenue}` : "Live"}
+          badgeText={data?.files?.uploads ? `${data.files.uploads} files` : "Live"}
           badgeType="positive"
           secondaryText={`Uploads: ${data?.files?.uploads?.toLocaleString() ?? 0} files`}
           sparklineColor="amber"

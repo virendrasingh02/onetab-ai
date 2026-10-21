@@ -62,12 +62,8 @@ export default function TabsLayout() {
       minimizeBehavior="onScrollDown"
       screenListeners={{ tabPress: () => haptics.selection() }}
     >
-      <NativeTabs.Trigger name="(home)">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <TabIcon sf="house" sfSelected="house.fill" ionicon="home-outline" />
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="chat">
-        <NativeTabs.Trigger.Label>Chat</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Chats</NativeTabs.Trigger.Label>
         <TabIcon
           sf="bubble.left.and.bubble.right"
           sfSelected="bubble.left.and.bubble.right.fill"
@@ -77,24 +73,24 @@ export default function TabsLayout() {
       <NativeTabs.Trigger name="agents">
         <NativeTabs.Trigger.Label>Agents</NativeTabs.Trigger.Label>
         <TabIcon sf="sparkles" sfSelected="sparkles" ionicon="sparkles-outline" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="updates">
+        <NativeTabs.Trigger.Label>Updates</NativeTabs.Trigger.Label>
+        <TabIcon
+          sf="flame"
+          sfSelected="flame.fill"
+          ionicon="newspaper-outline"
+        />
         <NativeTabs.Trigger.Badge hidden={pendingApprovals === 0}>
           {pendingApprovals > 99 ? '99+' : String(pendingApprovals)}
         </NativeTabs.Trigger.Badge>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="automations">
-        <NativeTabs.Trigger.Label>Automations</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="settings">
+        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
         <TabIcon
-          sf="point.3.connected.trianglepath.dotted"
-          sfSelected="point.3.filled.connected.trianglepath.dotted"
-          ionicon="git-network-outline"
-        />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="more">
-        <NativeTabs.Trigger.Label>More</NativeTabs.Trigger.Label>
-        <TabIcon
-          sf="square.grid.2x2"
-          sfSelected="square.grid.2x2.fill"
-          ionicon="grid-outline"
+          sf="gearshape"
+          sfSelected="gearshape.fill"
+          ionicon="settings-outline"
         />
       </NativeTabs.Trigger>
     </NativeTabs>

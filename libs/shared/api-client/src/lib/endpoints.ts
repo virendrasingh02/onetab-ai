@@ -354,6 +354,15 @@ import type {
   WidgetDefinition,
   WidgetTemplateItem,
   WidgetVersion,
+  EnterpriseSSOConfigDto,
+  SaveSSOConfigInput,
+  SSOConnectionTestResult,
+  DomainVerificationDto,
+  RotateScimTokenResponse,
+  GenerateRecoveryCodeResponse,
+  SSOGroupRoleMappingDto,
+  SaveGroupRoleMappingInput,
+  SSOLookupResponse,
   WidgetExecutionRecord,
 } from '@org/types';
 
@@ -1898,6 +1907,16 @@ export const marketplaceApi = {
   rotatePluginKey: (slug: string) =>
     request<{ listingSlug: string; apiKey: string; apiKeyPrefix: string }>(
       http.post(`/marketplace/plugins/${slug}/rotate-key`),
+    ),
+
+  setListingStatus: (slug: string, status: string) =>
+    request<{ slug: string; status: string }>(
+      http.patch(`/marketplace/listings/${slug}/status`, { status }),
+    ),
+
+  setPluginStatus: (slug: string, status: "ACTIVE" | "SUSPENDED") =>
+    request<{ slug: string; status: "ACTIVE" | "SUSPENDED" }>(
+      http.patch(`/marketplace/plugins/${slug}/status`, { status }),
     ),
 };
 
@@ -6076,3 +6095,60 @@ export const widgetsApi = {
 
 
 
+
+export const enterpriseIdentityApi = {
+  getConfig: (workspaceId: string) =>
+    request<EnterpriseSSOConfigDto>(
+      http.get('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity'),
+    ),
+
+  saveConfig: (workspaceId: string, data: SaveSSOConfigInput) =>
+    request<EnterpriseSSOConfigDto>(
+      http.put('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity', data),
+    ),
+
+  testConnection: (workspaceId: string) =>
+    request<SSOConnectionTestResult>(
+      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/test-connection'),
+    ),
+
+  verifyDomain: (workspaceId: string, domain: string) =>
+    request<DomainVerificationDto>(
+      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/domains/verify', { domain }),
+    ),
+
+  rotateScimToken: (workspaceId: string) =>
+    request<RotateScimTokenResponse>(
+      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/scim/token/rotate'),
+    ),
+
+  generateRecoveryCode: (workspaceId: string) =>
+    request<GenerateRecoveryCodeResponse>(
+      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/recovery-code'),
+    ),
+
+  listGroupRoleMappings: (workspaceId: string) =>
+    request<SSOGroupRoleMappingDto[]>(
+      http.get('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/group-mappings'),
+    ),
+
+  saveGroupRoleMapping: (workspaceId: string, data: SaveGroupRoleMappingInput) =>
+    request<SSOGroupRoleMappingDto>(
+      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/group-mappings', data),
+    ),
+
+  deleteGroupRoleMapping: (workspaceId: string, mappingId: string) =>
+    request<{ success: boolean }>(
+      http.delete('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/group-mappings/' + encodeURIComponent(mappingId)),
+    ),
+
+  lookupSSO: (email: string) =>
+    request<SSOLookupResponse>(
+      http.post('/auth/sso/lookup', { email }),
+    ),
+
+  recoveryLogin: (data: { email: string; recoveryCode: string; workspaceSlug?: string }) =>
+    request<AuthResponse>(
+      http.post('/auth/sso/recovery', data),
+    ),
+};

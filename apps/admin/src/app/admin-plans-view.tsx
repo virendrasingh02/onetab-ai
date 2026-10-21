@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { adminBillingApi } from '@org/api-client';
+import { adminBillingApi, queryKeys } from '@org/api-client';
 import { cn } from '@org/utils';
 import {
   Badge,
@@ -57,7 +57,7 @@ export function AdminPlansView() {
     refetch: refetchStats,
     isFetching: isStatsFetching,
   } = useQuery({
-    queryKey: ['admin-billing', 'stats'],
+    queryKey: queryKeys.admin.billing.stats(),
     queryFn: () => adminBillingApi.stats(),
     staleTime: 30_000,
   });

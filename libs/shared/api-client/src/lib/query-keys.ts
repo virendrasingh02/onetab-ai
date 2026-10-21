@@ -39,6 +39,10 @@ export const queryKeys = {
      */
     memberPreferences: (workspaceId: string) =>
       ['workspaces', workspaceId, 'member-preferences'] as const,
+    enterpriseIdentity: (workspaceId: string) =>
+      ['workspaces', workspaceId, 'enterprise-identity'] as const,
+    enterpriseGroupMappings: (workspaceId: string) =>
+      ['workspaces', workspaceId, 'enterprise-group-mappings'] as const,
   },
   billing: {
     all: (workspaceId: string) => ['billing', workspaceId] as const,

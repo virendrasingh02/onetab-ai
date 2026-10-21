@@ -1,4 +1,12 @@
 export { EnterpriseModule } from './lib/enterprise.module.js';
 export { EnterpriseService } from './lib/enterprise.service.js';
 export { EnterpriseController } from './lib/enterprise.controller.js';
-export { SCIMService, type SCIMUserPayload } from './lib/scim.service.js';
+export { WorkspaceEnterpriseController } from './lib/workspace-enterprise.controller.js';
+export { SsoAuthController } from './lib/sso-auth.controller.js';
+export { ScimController } from './lib/scim.controller.js';
+export { SCIMService, type SCIMUserPayload, type SCIMGroupPayload } from './lib/scim.service.js';
+export { SamlService, type SamlAssertionClaims } from './lib/saml.service.js';
+export { OidcSsoService, type OidcIdentityClaims } from './lib/oidc-sso.service.js';
+export { DomainVerificationService } from './lib/domain-verification.service.js';
+export { ScimBearerGuard } from './lib/scim-bearer.guard.js';
+export * from './lib/crypto-secrets.js';

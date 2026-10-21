@@ -12,7 +12,7 @@ import {
   Switch,
   toast,
 } from '@org/ui';
-import { Activity, FolderOpen, Power, RefreshCw, RotateCcw } from 'lucide-react';
+import { Activity, FolderOpen, Info, Power, RefreshCw, RotateCcw } from 'lucide-react';
 import { getDesktopApi, type DesktopPathKey } from './desktop-api.js';
 import { useDesktopDiagnostics } from './use-desktop-diagnostics.js';
 import { useDesktopPreference } from './use-desktop-preference.js';
@@ -20,6 +20,7 @@ import { useDesktopPreference } from './use-desktop-preference.js';
 const FOLDERS: Array<{ key: DesktopPathKey; label: string }> = [
   { key: 'logs', label: 'Logs' },
   { key: 'userData', label: 'App data' },
+  { key: 'downloads', label: 'Downloads' },
   { key: 'crashDumps', label: 'Crash reports' },
 ];
 
@@ -76,9 +77,22 @@ export function DesktopDiagnosticsCard() {
     if (ok) await api.app.quit();
   };
 
+  const showAbout = async () => {
+    if (api.app.showAbout) {
+      await api.app.showAbout();
+    }
+  };
+
   const openFolder = async (key: DesktopPathKey, label: string) => {
     const opened = await api.app.openPath(key);
     if (!opened) toast.error(`Could not open the ${label.toLowerCase()} folder.`);
+  };
+
+  const handleAccessibilityToggle = async (enabled: boolean) => {
+    if (api.app.setAccessibility) {
+      await api.app.setAccessibility(enabled);
+      void refresh();
+    }
   };
 
   const totalMemoryMb = diagnostics
@@ -133,11 +147,18 @@ export function DesktopDiagnosticsCard() {
           <div className="min-w-0 space-y-0.5">
             <p className="text-xs font-medium">Application control</p>
             <p className="text-[11px] text-muted-foreground">
-              Restart to recover from a stuck state, or quit fully (closing the window may only
-              hide it).
+              Restart to recover from a stuck state, open native info, or quit fully.
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void showAbout()}
+              leadingIcon={<Info className="size-3.5" />}
+            >
+              About
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -185,11 +206,15 @@ export function DesktopDiagnosticsCard() {
               />
               <Fact
                 label="Language"
-                value={`${diagnostics.locale.app} (system ${diagnostics.locale.system})`}
+                value={`${diagnostics.locale.app}${diagnostics.locale.countryCode ? ` (${diagnostics.locale.countryCode})` : ''} · system ${diagnostics.locale.system}`}
               />
               <Fact
                 label="Graphics"
                 value={`${diagnostics.gpu.renderer ?? 'Unknown GPU'} · ${diagnostics.gpu.hardwareAccelerationEnabled ? 'accelerated' : 'software'}`}
+              />
+              <Fact
+                label="App Identity"
+                value={diagnostics.identity.desktopName || diagnostics.identity.appUserModelId || diagnostics.identity.name}
               />
               <Fact
                 label="Screen reader support"
@@ -199,6 +224,26 @@ export function DesktopDiagnosticsCard() {
               <Fact
                 label="Memory (all processes)"
                 value={`${totalMemoryMb} MB across ${diagnostics.metrics.length} processes`}
+              />
+              <Fact
+                label="App binary path"
+                value={diagnostics.identity.appPath || 'Default location'}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-4 pt-1">
+              <div className="min-w-0 space-y-0.5">
+                <Label htmlFor="desktop-accessibility-toggle" className="text-xs font-medium">
+                  Screen reader accessibility support
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Explicitly enable Assistive Technology integration across Electron windows.
+                </p>
+              </div>
+              <Switch
+                id="desktop-accessibility-toggle"
+                checked={diagnostics.accessibilitySupportEnabled}
+                onCheckedChange={(val) => void handleAccessibilityToggle(val)}
               />
             </div>
 

@@ -57,6 +57,7 @@ import {
 import { DesktopHandoffPanel } from '../components/desktop-handoff-panel.js';
 import { MagicLinkPanel } from '../components/magic-link-panel.js';
 import { SocialAuthButtons } from '../components/social-auth-buttons.js';
+import { SSOLoginPanel } from '../components/sso-login-panel.js';
 import { TwoFactorChallengePanel } from '../components/two-factor-challenge-panel.js';
 import {
   formErrorMessage,
@@ -731,8 +732,15 @@ export function LoginPage() {
                   Email me a sign-in link
                 </Button>
                 ) : null}
+                <div className="mt-2">
+                  <SSOLoginPanel />
+                </div>
               </>
-            ) : null}
+            ) : (
+              <div className="mt-3">
+                <SSOLoginPanel />
+              </div>
+            )}
           </form>
         </Form>
       )}

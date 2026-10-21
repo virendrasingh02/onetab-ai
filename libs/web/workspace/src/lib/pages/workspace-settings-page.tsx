@@ -166,6 +166,7 @@ import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analy
 import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
 import { AIProvidersSettings } from '../components/ai-providers-settings.js';
 import { EnterpriseCustomLLMSettings } from '../components/enterprise-custom-llm-settings.js';
+import { EnterpriseIdentitySettingsPanel } from '../components/enterprise-identity-settings.js';
 import { ChatSettingsPanel } from '../components/chat-settings-panel.js';
 import { NotificationDisplaySettingsPanel } from '../components/notification-display-settings-panel.js';
 import {
@@ -3103,6 +3104,13 @@ export function WorkspaceSettingsPage({
         <WorkspacePermissionsSettings
           workspaceId={workspaceId}
           workspaceRole={workspace?.role}
+        />
+      )}
+      {currentTab === 'enterprise-identity' && (
+        <EnterpriseIdentitySettingsPanel
+          workspace={workspace}
+          isOwner={isOwner}
+          isAdmin={isAdmin}
         />
       )}
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatBytes,
+  formatChatTime,
   formatDuration,
   formatLimit,
   initials,
@@ -25,6 +26,18 @@ describe('format helpers', () => {
     expect(formatDuration(75_000)).toBe('1m 15s');
     expect(formatLimit(3, -1)).toBe('3 / Unlimited');
     expect(formatLimit(3, 10, 'GB')).toBe('3 / 10 GB');
+  });
+
+  it('formats WhatsApp-style chat timestamps', () => {
+    const now = new Date('2026-10-21T15:00:00Z').getTime();
+    // Today
+    const today = new Date('2026-10-21T11:30:00Z');
+    expect(formatChatTime(today, now)).toBeTruthy();
+    // Yesterday
+    const yesterday = new Date('2026-10-20T14:00:00Z');
+    expect(formatChatTime(yesterday, now)).toBe('Yesterday');
+    // Empty
+    expect(formatChatTime(null, now)).toBe('');
   });
 
   it('derives initials and status tones', () => {

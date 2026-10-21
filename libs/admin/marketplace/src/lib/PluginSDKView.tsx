@@ -13,8 +13,11 @@ import { useMemo, useState } from 'react';
 import { Panel, QueryState, ViewHeader, ViewShell } from './marketplace-ui.js';
 import { Storefront } from './storefront-view.js';
 import {
+  usePluginRegistration,
   usePluginSDK,
   useRegisterPlugin,
+  useRotatePluginKey,
+  useSetPluginStatus,
   useValidateManifest,
 } from './use-marketplace.js';
 
@@ -308,6 +311,143 @@ function ManifestConsole() {
   );
 }
 
+function PluginManagementConsole() {
+  const [lookupSlug, setLookupSlug] = useState('');
+  const [activeSlug, setActiveSlug] = useState<string | null>(null);
+  const [newRotatedKey, setNewRotatedKey] = useState<string | null>(null);
+
+  const regQuery = usePluginRegistration(activeSlug);
+  const rotateKey = useRotatePluginKey();
+  const setStatus = useSetPluginStatus();
+
+  const handleLookup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lookupSlug.trim()) return;
+    setActiveSlug(lookupSlug.trim().toLowerCase());
+    setNewRotatedKey(null);
+  };
+
+  const handleRotate = async () => {
+    if (!activeSlug) return;
+    try {
+      const res = await rotateKey.mutateAsync(activeSlug);
+      setNewRotatedKey(res.apiKey);
+    } catch {
+      // handled by mutation state
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    if (!activeSlug || !regQuery.data) return;
+    const nextStatus = regQuery.data.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    await setStatus.mutateAsync({ slug: activeSlug, status: nextStatus });
+    void regQuery.refetch();
+  };
+
+  return (
+    <Panel
+      title="Plugin Key & Registration Management"
+      subtitle="Inspect live registration, rotate production API keys, or manage access status"
+    >
+      <form onSubmit={handleLookup} className="flex gap-2 mb-4">
+        <input
+          value={lookupSlug}
+          onChange={(e) => setLookupSlug(e.target.value)}
+          placeholder="Enter registered plugin slug (e.g. github-sync)"
+          className="px-3 py-1.5 text-xs flex-1 rounded-lg border border-border bg-background text-foreground transition outline-none placeholder:text-muted-foreground focus:border-border"
+        />
+        <button
+          type="submit"
+          disabled={!lookupSlug.trim() || regQuery.isFetching}
+          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-foreground text-background transition hover:bg-foreground/85 disabled:opacity-50"
+        >
+          {regQuery.isFetching ? 'Loading…' : 'Inspect'}
+        </button>
+      </form>
+
+      {regQuery.error ? (
+        <p className="text-xs gap-1.5 flex items-start text-destructive">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          {regQuery.error instanceof Error
+            ? regQuery.error.message
+            : 'Plugin registration not found or error loading.'}
+        </p>
+      ) : regQuery.data ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-border bg-background">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-foreground">
+                  {activeSlug}
+                </span>
+                <span
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                    regQuery.data.status === 'ACTIVE'
+                      ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                      : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                  }`}
+                >
+                  {regQuery.data.status}
+                </span>
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  v{regQuery.data.sdkVersion} · {regQuery.data.runtime}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Key prefix:{' '}
+                <code className="text-foreground font-mono">
+                  {regQuery.data.apiKeyPrefix || 'None'}
+                </code>{' '}
+                · Last updated:{' '}
+                {new Date(regQuery.data.updatedAt).toLocaleDateString()}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleStatus}
+                disabled={setStatus.isPending}
+                className="px-2.5 py-1 text-xs rounded border border-border text-foreground hover:bg-muted transition"
+              >
+                {regQuery.data.status === 'ACTIVE'
+                  ? 'Suspend Plugin'
+                  : 'Activate Plugin'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRotate}
+                disabled={rotateKey.isPending}
+                className="px-2.5 py-1 text-xs rounded bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 transition"
+              >
+                {rotateKey.isPending ? 'Rotating…' : 'Rotate API Key'}
+              </button>
+            </div>
+          </div>
+
+          {newRotatedKey ? (
+            <div className="p-3 rounded-lg border border-warning/40 bg-warning/10 space-y-2">
+              <p className="text-xs font-semibold text-warning flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5" /> New Production API Key Generated
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="px-2 py-1.5 rounded flex-1 border border-border bg-background text-[11px] break-all font-mono text-warning">
+                  {newRotatedKey}
+                </code>
+                <CopyButton value={newRotatedKey} label="Copy Key" />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Copy and store this new key immediately. The old API key has been revoked and can no longer be used.
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </Panel>
+  );
+}
+
 /**
  * Phase 12 — Plugin SDK.
  *
@@ -344,6 +484,7 @@ export function PluginSDKView() {
       <div className="space-y-6">
         <SDKReference />
         <ManifestConsole />
+        <PluginManagementConsole />
       </div>
     </ViewShell>
   );

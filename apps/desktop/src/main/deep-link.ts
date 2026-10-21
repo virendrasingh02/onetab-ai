@@ -117,6 +117,14 @@ export function registerProtocol(): void {
   logger.info('DeepLink', `Registered custom protocols: ${DEEP_LINK_PROTOCOLS.join(', ')}`);
 }
 
+export function removeProtocolHandler(scheme: string): boolean {
+  if (!isSupportedProtocol(`${scheme}://`)) return false;
+  const { path, args } = protocolClientArgs();
+  const success = app.removeAsDefaultProtocolClient(scheme, path, args);
+  logger.info('DeepLink', `Removed default protocol client for ${scheme}://: ${success}`);
+  return success;
+}
+
 /** Whether the OS currently routes each scheme to this app (for Settings). */
 export function listProtocolStatus(): DesktopProtocolStatus[] {
   const { path, args } = protocolClientArgs();

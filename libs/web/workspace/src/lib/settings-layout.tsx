@@ -99,6 +99,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'members', label: 'Members', icon: Users, keywords: 'people roles admins directory' },
       { id: 'invitations', label: 'Invitations & Access', icon: Mail, keywords: 'invite invitations shareable link join pending resend revoke access email' },
       { id: 'permissions', label: 'Permissions & Policies', icon: Shield, keywords: 'policies permissions roles invite create channels apps files who can' },
+      { id: 'enterprise-identity', label: 'Enterprise SSO & SCIM', icon: ShieldCheck, badge: 'ENT', keywords: 'sso saml oidc scim provisioning entra okta identity directory' },
       { id: 'audit-log', label: 'Audit Log', icon: History, keywords: 'audit security activity history log records' },
       { id: 'import-export', label: 'Import & Export', icon: UploadCloud, keywords: 'migrate backup data slack' },
       { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, keywords: 'delete archive transfer' },

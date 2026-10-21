@@ -100,3 +100,45 @@ export function useRegisterPlugin() {
     },
   });
 }
+
+export function usePluginRegistration(slug: string | null) {
+  return useQuery({
+    queryKey: queryKeys.marketplace.registration(slug ?? ""),
+    queryFn: () => marketplaceApi.registration(slug as string),
+    enabled: !!slug,
+  });
+}
+
+export function useRotatePluginKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (slug: string) => marketplaceApi.rotatePluginKey(slug),
+    onSuccess: (_, slug) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.registration(slug) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.all() });
+    },
+  });
+}
+
+export function useSetPluginStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { slug: string; status: "ACTIVE" | "SUSPENDED" }) =>
+      marketplaceApi.setPluginStatus(args.slug, args.status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.all() });
+    },
+  });
+}
+
+export function useSetListingStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { slug: string; status: string }) =>
+      marketplaceApi.setListingStatus(args.slug, args.status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.marketplace.all() });
+    },
+  });
+}
+

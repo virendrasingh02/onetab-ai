@@ -131,6 +131,7 @@ model User {
   callSummaryFeedbacks      CallSummaryFeedback[]       @relation("CallSummaryFeedbackUser")
   widgetDefinitions         WidgetDefinition[]
   agentConversations        AgentConversation[]
+  scimGroupMembers          SCIMGroupMember[]
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -414,8 +415,11 @@ model Workspace {
   agentApiKeys              AgentApiKey[]
   owner                     User                        @relation("WorkspaceOwner", fields: [ownerId], references: [id])
   agentConversations        AgentConversation[]
+  organizationId            String?
+  organization              Organization?               @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   @@index([ownerId])
+  @@index([organizationId])
   @@map("workspaces")
 }
 
@@ -2560,17 +2564,23 @@ model WorkflowExecution {
 }
 
 model Organization {
-  id            String                     @id @default(cuid())
-  name          String
-  domain        String                     @unique
-  logoUrl       String?
-  billingEmail  String?
-  createdAt     DateTime                   @default(now())
-  updatedAt     DateTime                   @updatedAt
-  departments   Department[]
-  auditLogs     EnterpriseAuditLog[]
-  subscriptions OrganizationSubscription[]
-  ssoConfigs    SSOConfig[]
+  id                      String                     @id @default(cuid())
+  name                    String
+  domain                  String                     @unique
+  verifiedDomains         String[]                   @default([])
+  domainVerificationToken String?
+  domainVerifiedAt        DateTime?
+  logoUrl                 String?
+  billingEmail            String?
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  departments             Department[]
+  auditLogs               EnterpriseAuditLog[]
+  subscriptions           OrganizationSubscription[]
+  ssoConfigs              SSOConfig[]
+  workspaces              Workspace[]
+  scimGroups              SCIMGroup[]
+  groupRoleMappings       SSOGroupRoleMapping[]
 
   @@map("organizations")
 }
@@ -2589,20 +2599,95 @@ model Department {
 }
 
 model SSOConfig {
-  id             String       @id @default(cuid())
-  organizationId String
-  providerType   String       @default("SAML")
-  idpEntityId    String?
-  ssoUrl         String?
-  certificate    String?
-  scimToken      String?
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                             String       @id @default(cuid())
+  organizationId                 String       @unique
+  providerType                   String       @default("SAML")
+  idpName                        String?
+  // SAML 2.0 Configuration
+  idpEntityId                    String?
+  ssoUrl                         String?
+  certificate                    String?
+  spEntityId                     String?
+  acsUrl                         String?
+  allowIdpInitiated              Boolean      @default(true)
+  forceAuthn                     Boolean      @default(false)
+  // OIDC Configuration
+  oidcIssuer                     String?
+  oidcClientId                   String?
+  oidcClientSecretCipher         String?
+  oidcAuthorizationEndpoint      String?
+  oidcTokenEndpoint              String?
+  oidcJwksUri                    String?
+  oidcUserInfoEndpoint           String?
+  oidcScopes                     String[]     @default(["openid", "profile", "email"])
+  // SSO Enforcement & Admin Recovery
+  enforceSso                     Boolean      @default(false)
+  allowPasswordFallbackForAdmins Boolean      @default(true)
+  recoveryCodeHash               String?
+  // SCIM 2.0 Provisioning
+  scimEnabled                    Boolean      @default(false)
+  scimToken                      String?
+  scimTokenHash                  String?
+  scimTokenPrefix                String?
+  scimTokenExpiresAt             DateTime?
+  scimLastSyncAt                 DateTime?
+  // Diagnostics
+  lastConnectionTestAt           DateTime?
+  lastConnectionTestStatus       String?
+  lastConnectionTestMessage      String?
+  isActive                       Boolean      @default(true)
+  createdAt                      DateTime     @default(now())
+  updatedAt                      DateTime     @updatedAt
+  organization                   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@map("sso_configs")
+}
+
+model SCIMGroup {
+  id             String                @id @default(cuid())
+  organizationId String
+  displayName    String
+  externalId     String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        SCIMGroupMember[]
+  roleMappings   SSOGroupRoleMapping[]
+
+  @@unique([organizationId, displayName])
+  @@index([organizationId])
+  @@map("scim_groups")
+}
+
+model SCIMGroupMember {
+  id        String    @id @default(cuid())
+  groupId   String
+  userId    String
+  createdAt DateTime  @default(now())
+  group     SCIMGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("scim_group_members")
+}
+
+model SSOGroupRoleMapping {
+  id                String        @id @default(cuid())
+  organizationId    String
+  groupName         String
+  groupId           String?
+  targetWorkspaceId String?
+  targetRole        WorkspaceRole @default(MEMBER)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  group             SCIMGroup?    @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, groupName])
+  @@index([organizationId])
+  @@map("sso_group_role_mappings")
 }
 
 model EnterpriseAuditLog {

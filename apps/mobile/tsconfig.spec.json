@@ -19,7 +19,8 @@
     "src/lib/session-core.ts",
     "src/lib/web-alert.ts",
     "src/lib/web-transfer.ts",
-    "src/lib/blob-url-cache.ts"
+    "src/lib/blob-url-cache.ts",
+    "src/lib/chat-preferences-core.ts"
   ],
   "exclude": []
 }

@@ -47,6 +47,17 @@ export const IPC = {
   openAppOrWeb: 'onetab:shell/open-app-or-web',
   openSystemSettings: 'onetab:shell/open-system-settings',
   agentExecute: 'onetab:agent/execute',
+  showAboutPanel: 'onetab:app/show-about',
+  focus: 'onetab:app/focus',
+  getPath: 'onetab:app/get-path',
+  removeProtocol: 'onetab:protocol/remove',
+  setUserTasks: 'onetab:windows/set-user-tasks',
+  clearRecentDocuments: 'onetab:app/clear-recent-documents',
+  addRecentDocument: 'onetab:app/add-recent-document',
+  setAccessibilitySupport: 'onetab:app/set-accessibility',
+  setUserActivity: 'onetab:handoff/set-user-activity',
+  invalidateUserActivity: 'onetab:handoff/invalidate-user-activity',
+  dockBounce: 'onetab:dock/bounce',
 } as const;
 
 /** Main → renderer, fire and forget. */
@@ -61,10 +72,25 @@ export const IPC_EVENT = {
   authSessionChanged: 'onetab:event/auth-session',
   authFlowStatus: 'onetab:event/auth-flow-status',
   capabilitiesChanged: 'onetab:event/capabilities-changed',
+  fileOpened: 'onetab:event/file-opened',
+  handoffActivity: 'onetab:event/handoff-activity',
+  accessibilitySupportChanged: 'onetab:event/accessibility-changed',
 } as const;
 
-/** Named folders the renderer may ask the OS to reveal. Never a raw path. */
-export const DESKTOP_PATH_KEYS = ['userData', 'logs', 'crashDumps'] as const;
+/** Named folders the renderer may ask the OS to reveal or inspect. Never an arbitrary path. */
+export const DESKTOP_PATH_KEYS = [
+  'userData',
+  'logs',
+  'crashDumps',
+  'temp',
+  'sessionData',
+  'downloads',
+  'documents',
+  'desktop',
+  'appData',
+  'home',
+  'exe',
+] as const;
 export type DesktopPathKey = (typeof DESKTOP_PATH_KEYS)[number];
 
 export interface DesktopStartupState {
@@ -76,11 +102,16 @@ export interface DesktopStartupState {
   startHidden: boolean;
   /** True when this very process was started by the OS at login. */
   launchedAtLogin: boolean;
+  wasOpenedAsHidden?: boolean;
+  restoreState?: boolean;
+  status?: string;
+  executableWillLaunchAtLogin?: boolean;
 }
 
 export interface DesktopStartupRequest {
   openAtLogin?: boolean;
   startHidden?: boolean;
+  openAsHidden?: boolean;
 }
 
 export interface DesktopProcessMetric {
@@ -89,12 +120,34 @@ export interface DesktopProcessMetric {
   name?: string;
   cpuPercent: number;
   workingSetKb: number;
+  peakWorkingSetKb?: number;
 }
 
 export interface DesktopProtocolStatus {
   scheme: string;
   /** Whether the OS currently routes this scheme to this app. */
   registered: boolean;
+}
+
+export interface DesktopUserTask {
+  program?: string;
+  arguments?: string;
+  title: string;
+  description?: string;
+  iconPath?: string;
+  iconIndex?: number;
+}
+
+export interface DesktopFileOpened {
+  path: string;
+  name: string;
+  mimeType?: string;
+}
+
+export interface DesktopUserActivityPayload {
+  activityType: string;
+  userInfo?: Record<string, unknown>;
+  webpageURL?: string;
 }
 
 export interface DesktopDiagnostics {
@@ -105,6 +158,8 @@ export interface DesktopDiagnostics {
     isPackaged: boolean;
     isReady: boolean;
     appUserModelId: string | null;
+    desktopName: string | null;
+    appPath: string;
     uptimeSeconds: number;
   };
   runtime: {
@@ -117,8 +172,13 @@ export interface DesktopDiagnostics {
     osVersion: string;
     runningUnderTranslation: boolean;
   };
-  locale: { app: string; system: string; preferred: string[] };
-  paths: Record<DesktopPathKey | 'temp' | 'sessionData', string>;
+  locale: {
+    app: string;
+    system: string;
+    preferred: string[];
+    countryCode: string | null;
+  };
+  paths: Record<DesktopPathKey, string>;
   gpu: {
     hardwareAccelerationEnabled: boolean;
     /** The saved preference; differs from the above until the next restart. */
@@ -130,6 +190,10 @@ export interface DesktopDiagnostics {
   singleInstance: boolean;
   startup: DesktopStartupState;
   protocols: DesktopProtocolStatus[];
+  jumpList?: {
+    supported: boolean;
+    tasksCount: number;
+  };
   metrics: DesktopProcessMetric[];
 }
 

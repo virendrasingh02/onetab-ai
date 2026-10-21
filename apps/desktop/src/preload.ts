@@ -25,6 +25,9 @@ import type {
   DesktopPathKey,
   DesktopStartupRequest,
   DesktopStartupState,
+  DesktopUserTask,
+  DesktopFileOpened,
+  DesktopUserActivityPayload,
 } from './shared/ipc.js';
 
 /**
@@ -72,6 +75,17 @@ const IPC = {
   openAppOrWeb: 'onetab:shell/open-app-or-web',
   openSystemSettings: 'onetab:shell/open-system-settings',
   agentExecute: 'onetab:agent/execute',
+  showAboutPanel: 'onetab:app/show-about',
+  focus: 'onetab:app/focus',
+  getPath: 'onetab:app/get-path',
+  removeProtocol: 'onetab:protocol/remove',
+  setUserTasks: 'onetab:windows/set-user-tasks',
+  clearRecentDocuments: 'onetab:app/clear-recent-documents',
+  addRecentDocument: 'onetab:app/add-recent-document',
+  setAccessibilitySupport: 'onetab:app/set-accessibility',
+  setUserActivity: 'onetab:handoff/set-user-activity',
+  invalidateUserActivity: 'onetab:handoff/invalidate-user-activity',
+  dockBounce: 'onetab:dock/bounce',
 } as const satisfies typeof IpcContract;
 
 const IPC_EVENT = {
@@ -85,6 +99,9 @@ const IPC_EVENT = {
   authSessionChanged: 'onetab:event/auth-session',
   authFlowStatus: 'onetab:event/auth-flow-status',
   capabilitiesChanged: 'onetab:event/capabilities-changed',
+  fileOpened: 'onetab:event/file-opened',
+  handoffActivity: 'onetab:event/handoff-activity',
+  accessibilitySupportChanged: 'onetab:event/accessibility-changed',
 } as const satisfies typeof IpcEventContract;
 
 type Unsubscribe = () => void;
@@ -154,6 +171,25 @@ const api = {
   handoff: {
     openAppOrWeb: (request: DesktopHandoffRequest): Promise<boolean> =>
       ipcRenderer.invoke(IPC.openAppOrWeb, request),
+    setUserActivity: (activity: DesktopUserActivityPayload): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.setUserActivity, activity),
+    invalidateUserActivity: (): Promise<void> => ipcRenderer.invoke(IPC.invalidateUserActivity),
+    onActivity: (handler: (payload: DesktopUserActivityPayload) => void): Unsubscribe =>
+      subscribe(IPC_EVENT.handoffActivity, handler),
+  },
+
+  dock: {
+    bounce: (type?: 'critical' | 'informational'): Promise<number> =>
+      ipcRenderer.invoke(IPC.dockBounce, type),
+  },
+
+  windows: {
+    setUserTasks: (tasks?: DesktopUserTask[]): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.setUserTasks, tasks),
+  },
+
+  protocols: {
+    remove: (scheme: string): Promise<boolean> => ipcRenderer.invoke(IPC.removeProtocol, scheme),
   },
 
   files: {
@@ -195,11 +231,21 @@ const api = {
   app: {
     relaunch: (): Promise<void> => ipcRenderer.invoke(IPC.relaunch),
     quit: (): Promise<void> => ipcRenderer.invoke(IPC.quit),
+    focus: (): Promise<void> => ipcRenderer.invoke(IPC.focus),
+    showAbout: (): Promise<void> => ipcRenderer.invoke(IPC.showAboutPanel),
     getDiagnostics: (): Promise<DesktopDiagnostics> => ipcRenderer.invoke(IPC.getDiagnostics),
     getStartup: (): Promise<DesktopStartupState> => ipcRenderer.invoke(IPC.getStartup),
     setStartup: (request: DesktopStartupRequest): Promise<DesktopStartupState> =>
       ipcRenderer.invoke(IPC.setStartup, request),
     openPath: (key: DesktopPathKey): Promise<boolean> => ipcRenderer.invoke(IPC.openPath, key),
+    getPath: (key: DesktopPathKey): Promise<string> => ipcRenderer.invoke(IPC.getPath, key),
+    setAccessibility: (enabled: boolean): Promise<void> =>
+      ipcRenderer.invoke(IPC.setAccessibilitySupport, enabled),
+    clearRecentDocuments: (): Promise<void> => ipcRenderer.invoke(IPC.clearRecentDocuments),
+    addRecentDocument: (path: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.addRecentDocument, path),
+    onAccessibilityChange: (handler: (enabled: boolean) => void): Unsubscribe =>
+      subscribe(IPC_EVENT.accessibilitySupportChanged, handler),
   },
 
   agent: {
@@ -209,6 +255,9 @@ const api = {
 
   onDeepLink: (handler: (link: DesktopDeepLink) => void): Unsubscribe =>
     subscribe(IPC_EVENT.deepLink, handler),
+
+  onFileOpened: (handler: (file: DesktopFileOpened) => void): Unsubscribe =>
+    subscribe(IPC_EVENT.fileOpened, handler),
 
   onCommand: (handler: (command: DesktopCommand) => void): Unsubscribe =>
     subscribe(IPC_EVENT.command, handler),

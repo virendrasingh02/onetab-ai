@@ -571,7 +571,7 @@ export class AuthService {
    */
   async signInWithFederatedIdentity(
     userId: string,
-    provider: 'google' | 'apple',
+    provider: 'google' | 'apple' | string,
     context: SessionContext = {},
   ): Promise<SignInResult> {
     const challenge = await this.startTwoFactorChallenge(userId, provider);
@@ -626,7 +626,7 @@ export class AuthService {
    */
   private async startTwoFactorChallenge(
     userId: string,
-    method: 'password' | 'magic_link' | 'google' | 'apple' | 'passkey',
+    method: 'password' | 'magic_link' | 'google' | 'apple' | 'passkey' | 'saml' | 'oidc' | string,
   ): Promise<TwoFactorChallengeResponse | null> {
     const twoFactor = await this.prisma.twoFactorAuth.findUnique({
       where: { userId },

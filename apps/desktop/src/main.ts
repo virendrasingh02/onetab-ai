@@ -16,7 +16,11 @@ import {
   setApiUrlForDeepLinks,
 } from './main/deep-link.js';
 import { setSingleInstanceHeld } from './main/diagnostics.js';
+import { dispatchFileOpened, fileFromArgv, flushPendingFile } from './main/file-handler.js';
+import { dispatchHandoffActivity, flushPendingHandoff } from './main/handoff.js';
 import { registerIpcHandlers } from './main/ipc.js';
+import { setupWindowsJumpList } from './main/jump-list.js';
+import { focusApp } from './main/lifecycle.js';
 import { logger } from './main/logger.js';
 import { installAppMenu } from './main/menu.js';
 import { startStaticServer, type StaticServer } from './main/static-server.js';
@@ -39,12 +43,15 @@ const isDev = !app.isPackaged;
 let staticServer: StaticServer | null = null;
 
 /**
- * A second launch must hand its deep link to the running app instead of opening
+ * A second launch must hand its deep link or file to the running app instead of opening
  * a duplicate window. Acquiring the lock has to happen before anything else.
  * The losing process must also *not* go on to register listeners or open a
  * window: `app.quit()` is asynchronous, so everything below is gated on this.
  */
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const hasSingleInstanceLock = app.requestSingleInstanceLock({
+  pid: process.pid,
+  version: app.getVersion(),
+});
 setSingleInstanceHeld(hasSingleInstanceLock);
 
 if (!hasSingleInstanceLock) {
@@ -61,6 +68,10 @@ if (!hasSingleInstanceLock) {
  */
 app.setAppUserModelId('ai.onetab.desktop');
 app.setName('Onetab AI');
+
+if (process.platform === 'linux') {
+  app.setDesktopName('onetab-ai.desktop');
+}
 
 /**
  * GPU acceleration can only be switched off before `ready`, which is why the
@@ -197,6 +208,7 @@ async function initializeApp(): Promise<string> {
 
   createTray(join(resolveResourcesDir(), 'tray-icon.png'));
   registerGlobalShortcuts();
+  setupWindowsJumpList();
   scheduleUpdateChecks(isDev);
   startBackgroundSync();
   syncLoginItemOnLaunch();
@@ -211,6 +223,8 @@ function openWindow(appUrl: string, startHidden: boolean): void {
   window.webContents.on('did-finish-load', () => {
     if (!isHiddenLaunch()) showMainWindow();
     flushPendingDeepLink();
+    flushPendingFile();
+    flushPendingHandoff();
     window.webContents.send(IPC_EVENT.onlineStatus, true);
 
     // If an authenticated session was previously saved in OS safeStorage, deliver it
@@ -244,13 +258,17 @@ async function bootstrap(): Promise<void> {
     }
     if (!resolvedAppUrl) return;
 
-    // A launch that carries a deep link is the user asking for the app, so it
+    // A launch that carries a deep link or file argument is the user asking for the app, so it
     // is never hidden even when started at login.
     const launchLink = deepLinkFromArgv(process.argv);
-    openWindow(resolvedAppUrl, !launchLink && shouldStartHidden());
+    const launchFile = fileFromArgv(process.argv);
+    openWindow(resolvedAppUrl, !launchLink && !launchFile && shouldStartHidden());
 
     // Launched by clicking a link (Windows/Linux put it in argv).
     void dispatchDeepLink(launchLink);
+    if (launchFile) {
+      dispatchFileOpened(launchFile);
+    }
   } finally {
     windowOpening = false;
   }
@@ -268,14 +286,34 @@ function configureAboutPanel(): void {
 
 function registerAppListeners(): void {
   app.on('second-instance', (_event, argv) => {
-    showMainWindow();
+    focusApp();
     void dispatchDeepLink(deepLinkFromArgv(argv));
+    const openedFile = fileFromArgv(argv);
+    if (openedFile) {
+      dispatchFileOpened(openedFile);
+    }
   });
 
   // macOS delivers deep links as an event, before *and* after `whenReady`.
   app.on('open-url', (event, url) => {
     event.preventDefault();
     void dispatchDeepLink(url);
+  });
+
+  // macOS delivers file opening as an event (e.g. dropped on dock icon or 'Open With')
+  app.on('open-file', (event, filePath) => {
+    event.preventDefault();
+    dispatchFileOpened(filePath);
+  });
+
+  // macOS Apple Handoff continuation from nearby devices
+  app.on('continue-activity', (event, type, userInfo, details) => {
+    event.preventDefault();
+    dispatchHandoffActivity({
+      activityType: type,
+      userInfo: userInfo as Record<string, unknown>,
+      webpageURL: details?.webpageURL,
+    });
   });
 
   app.whenReady().then(() => {
@@ -329,6 +367,7 @@ function registerAppListeners(): void {
 
   app.on('accessibility-support-changed', (_event, enabled) => {
     logger.info('App', `Accessibility support ${enabled ? 'enabled' : 'disabled'}`);
+    getMainWindow()?.webContents.send(IPC_EVENT.accessibilitySupportChanged, enabled);
   });
 }
 

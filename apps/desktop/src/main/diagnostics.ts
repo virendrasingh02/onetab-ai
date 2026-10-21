@@ -5,7 +5,8 @@ import {
   type DesktopPathKey,
   type DesktopPlatform,
 } from '../shared/ipc.js';
-import { listProtocolStatus } from './deep-link.js';
+import { listProtocolStatus, removeProtocolHandler } from './deep-link.js';
+import { getJumpListStatus } from './jump-list.js';
 import { logger } from './logger.js';
 import { getStartupState } from './startup.js';
 import { getPreference } from './store.js';
@@ -43,8 +44,8 @@ async function readGpuRenderer(): Promise<string | null> {
   return device?.deviceString ?? null;
 }
 
-/** Path for a named folder, or null if Electron cannot resolve it on this OS. */
-function safePath(name: Parameters<typeof app.getPath>[0]): string {
+/** Path for a named folder, or empty string if Electron cannot resolve it on this OS. */
+export function safePath(name: Parameters<typeof app.getPath>[0]): string {
   try {
     return app.getPath(name);
   } catch {
@@ -52,9 +53,40 @@ function safePath(name: Parameters<typeof app.getPath>[0]): string {
   }
 }
 
+function safeAppPath(): string {
+  try {
+    return typeof app.getAppPath === 'function' ? app.getAppPath() : '';
+  } catch {
+    return '';
+  }
+}
+
+function safeCountryCode(): string | null {
+  try {
+    return typeof app.getLocaleCountryCode === 'function' ? app.getLocaleCountryCode() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** One read-only snapshot for Settings and the diagnostics screen. */
 export async function collectDiagnostics(): Promise<DesktopDiagnostics> {
   const renderer = await readGpuRenderer();
+
+  const pathsRecord = {} as Record<DesktopPathKey, string>;
+  for (const key of DESKTOP_PATH_KEYS) {
+    pathsRecord[key] = safePath(key as Parameters<typeof app.getPath>[0]);
+  }
+
+  const isLockHeld =
+    typeof app.hasSingleInstanceLock === 'function'
+      ? app.hasSingleInstanceLock()
+      : singleInstance;
+
+  const osVersion =
+    typeof process.getSystemVersion === 'function'
+      ? process.getSystemVersion()
+      : process.env['OS_VERSION'] || process.platform;
 
   return {
     collectedAt: new Date().toISOString(),
@@ -62,8 +94,10 @@ export async function collectDiagnostics(): Promise<DesktopDiagnostics> {
       name: app.getName(),
       version: app.getVersion(),
       isPackaged: app.isPackaged,
-      isReady: app.isReady(),
+      isReady: typeof app.isReady === 'function' ? app.isReady() : true,
       appUserModelId: process.platform === 'win32' ? 'ai.onetab.desktop' : null,
+      desktopName: process.platform === 'linux' ? 'onetab-ai.desktop' : null,
+      appPath: safeAppPath(),
       uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
     },
     runtime: {
@@ -73,21 +107,16 @@ export async function collectDiagnostics(): Promise<DesktopDiagnostics> {
       v8: process.versions.v8,
       platform: process.platform as DesktopPlatform,
       arch: process.arch,
-      osVersion: process.getSystemVersion(),
+      osVersion,
       runningUnderTranslation: Boolean(app.runningUnderARM64Translation),
     },
     locale: {
       app: app.getLocale(),
       system: app.getSystemLocale(),
       preferred: app.getPreferredSystemLanguages(),
+      countryCode: safeCountryCode(),
     },
-    paths: {
-      userData: safePath('userData'),
-      sessionData: safePath('sessionData'),
-      logs: safePath('logs'),
-      crashDumps: safePath('crashDumps'),
-      temp: safePath('temp'),
-    },
+    paths: pathsRecord,
     gpu: {
       hardwareAccelerationEnabled: app.isHardwareAccelerationEnabled(),
       hardwareAccelerationPreference: getPreference('hardwareAcceleration', true),
@@ -97,17 +126,27 @@ export async function collectDiagnostics(): Promise<DesktopDiagnostics> {
       renderer,
     },
     accessibilitySupportEnabled: app.accessibilitySupportEnabled,
-    singleInstance,
+    singleInstance: isLockHeld,
     startup: getStartupState(),
     protocols: listProtocolStatus(),
+    jumpList: getJumpListStatus(),
     metrics: app.getAppMetrics().map((metric) => ({
       pid: metric.pid,
       type: metric.type,
       name: metric.name,
       cpuPercent: Math.round(metric.cpu.percentCPUUsage * 10) / 10,
       workingSetKb: metric.memory.workingSetSize,
+      peakWorkingSetKb: (metric.memory as { peakWorkingSetSize?: number })?.peakWorkingSetSize,
     })),
   };
+}
+
+/** Resolves a named app folder without opening. */
+export function getAppPathValue(key: unknown): string {
+  if (typeof key !== 'string' || !(DESKTOP_PATH_KEYS as readonly string[]).includes(key)) {
+    return '';
+  }
+  return safePath(key as Parameters<typeof app.getPath>[0]);
 }
 
 /** Reveals a named app folder in the file manager. Keys are validated, paths never accepted. */
@@ -116,7 +155,7 @@ export async function openAppPath(key: unknown): Promise<boolean> {
     logger.warn('Diagnostics', 'Rejected openPath with an unknown key');
     return false;
   }
-  const target = safePath(key as DesktopPathKey);
+  const target = safePath(key as Parameters<typeof app.getPath>[0]);
   if (!target) return false;
   const error = await shell.openPath(target);
   if (error) {
@@ -124,4 +163,19 @@ export async function openAppPath(key: unknown): Promise<boolean> {
     return false;
   }
   return true;
+}
+
+export function setAccessibilitySupport(enabled: boolean): void {
+  try {
+    if (typeof app.setAccessibilitySupportEnabled === 'function') {
+      app.setAccessibilitySupportEnabled(enabled);
+      logger.info('Diagnostics', `Accessibility support explicitly set to: ${enabled}`);
+    }
+  } catch (error) {
+    logger.warn('Diagnostics', 'Failed to toggle accessibility support', error);
+  }
+}
+
+export function removeProtocol(scheme: string): boolean {
+  return removeProtocolHandler(scheme);
 }

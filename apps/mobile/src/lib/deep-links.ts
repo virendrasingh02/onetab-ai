@@ -81,7 +81,7 @@ export function routeForDeepLink(link: string | null | undefined): MobileRoute {
       const workflowId = second === 'builder' ? path[2] : second;
       return workflowId
         ? { pathname: '/automation/[workflowId]', params: { workflowId } }
-        : { pathname: '/automations' };
+        : { pathname: '/updates' };
     }
     case 'settings':
       if (second === 'billing') return { pathname: '/billing' };
