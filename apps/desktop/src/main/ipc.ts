@@ -48,7 +48,12 @@ import {
   setAccessibilitySupport,
 } from './diagnostics.js';
 import { invalidateUserActivity, setUserActivity } from './handoff.js';
-import { addRecentDocument, clearRecentDocuments, setupWindowsJumpList } from './jump-list.js';
+import {
+  addRecentDocument,
+  clearRecentDocuments,
+  setJumpListWorkspaces,
+  setupWindowsJumpList,
+} from './jump-list.js';
 import { dockBounce, focusApp, quitApp, restartApp, showAboutPanel } from './lifecycle.js';
 import { logger } from './logger.js';
 import { getStartupState, setStartupState } from './startup.js';
@@ -177,6 +182,8 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
     guard(() => {
       clearSecureSession();
       resetBadgeOnSignOut();
+      // A signed-out taskbar must not keep listing the previous user's workspaces.
+      setJumpListWorkspaces([]);
     }),
   );
 
@@ -450,6 +457,11 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
   ipcMain.handle(
     IPC.setUserTasks,
     guard((_event, tasks?: DesktopUserTask[]) => setupWindowsJumpList(tasks)),
+  );
+
+  ipcMain.handle(
+    IPC.setJumpListWorkspaces,
+    guard((_event, workspaces: unknown) => setJumpListWorkspaces(workspaces)),
   );
 
   ipcMain.handle(

@@ -223,7 +223,7 @@ export function WorkspaceKanbanSettings() {
       {/* ---------------- STATUSES ---------------- */}
       <div className="space-y-3">
         <SectionHeading title={<>Board statuses ({KANBAN_STATUSES.length})</>} />
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
           {KANBAN_STATUSES.map((status) => (
             <div
               key={status.id}
@@ -246,7 +246,7 @@ export function WorkspaceKanbanSettings() {
       {/* ---------------- PRIORITIES ---------------- */}
       <div className="space-y-3">
         <SectionHeading title={<>Task priorities ({KANBAN_PRIORITIES.length})</>} />
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
           {KANBAN_PRIORITIES.map((priority) => (
             <div
               key={priority.id}
@@ -284,7 +284,7 @@ export function WorkspaceKanbanSettings() {
           }
         />
 
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-4">
+        <div className="rounded-xl border border-border bg-surface shadow-xs p-5">
           {labelsQuery.isLoading ? (
             <p className="text-xs text-muted-foreground">Loading labels…</p>
           ) : labelsQuery.isError ? (
@@ -353,7 +353,7 @@ export function WorkspaceKanbanSettings() {
           }
         />
 
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
           {teamsQuery.isLoading ? (
             <p className="p-3 text-xs text-muted-foreground">Loading teams…</p>
           ) : teamsQuery.isError ? (

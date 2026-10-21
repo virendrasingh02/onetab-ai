@@ -208,7 +208,7 @@ export function ProfileSettingsPanel() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
               Cover & Profile Photo
             </h3>
-            <div className="relative rounded-2xl overflow-hidden border border-border bg-surface-raised shadow-xs">
+            <div className="relative rounded-xl overflow-hidden border border-border bg-surface-raised shadow-xs">
               {/* Cover Preview Area */}
               <UserCover src={coverSrc} seed={user.id} className="h-36 sm:h-44">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
@@ -295,7 +295,7 @@ export function ProfileSettingsPanel() {
           </div>
 
           {/* Form Fields Card */}
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
+          <div className="rounded-xl border border-border bg-surface shadow-xs p-5 space-y-6">
             <Form {...form}>
               <form onSubmit={onSubmit} className="space-y-5" noValidate>
                 <FormError error={updateMutation.error ? 'Failed to save changes. Please try again.' : undefined} />
@@ -541,7 +541,7 @@ export function ProfileSettingsPanel() {
 
           {/* Workspace Badge & Info */}
           {workspace && (
-            <div className="p-4 rounded-2xl border border-border bg-surface space-y-2 text-xs">
+            <div className="p-4 rounded-xl border border-border bg-surface space-y-2 text-xs">
               <div className="flex items-center gap-2 font-bold text-foreground">
                 <Sparkles className="size-4 text-primary" />
                 <span>Workspace Membership</span>

@@ -1172,6 +1172,11 @@ export function toCurrentUser(user: {
   coverUrl?: string | null;
   timezone: string;
   preferredLanguage?: string | null;
+  workingHoursStart?: string;
+  workingHoursEnd?: string;
+  workingDays?: number[];
+  timeFormat?: string | null;
+  dateFormat?: string | null;
   systemRole: string;
   presence: string;
   statusText?: string | null;
@@ -1199,6 +1204,11 @@ export function toCurrentUser(user: {
     coverUrl: user.coverUrl ?? null,
     timezone: user.timezone,
     preferredLanguage: user.preferredLanguage ?? 'en',
+    workingHoursStart: user.workingHoursStart,
+    workingHoursEnd: user.workingHoursEnd,
+    workingDays: user.workingDays,
+    timeFormat: (user.timeFormat ?? null) as CurrentUser['timeFormat'],
+    dateFormat: (user.dateFormat ?? null) as CurrentUser['dateFormat'],
     systemRole: user.systemRole as CurrentUser['systemRole'],
     presence: user.presence as CurrentUser['presence'],
     statusText: isExpired ? null : user.statusText ?? null,

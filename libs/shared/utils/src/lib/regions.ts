@@ -125,9 +125,123 @@ export interface WorkingHoursInfo {
   icon: string;
 }
 
+/** A person's weekly schedule: local "HH:MM" bounds and weekdays (0 = Sunday). */
+export interface WorkingSchedule {
+  start: string;
+  end: string;
+  days: readonly number[];
+}
+
+export const DEFAULT_WORKING_SCHEDULE: WorkingSchedule = {
+  start: '09:00',
+  end: '18:00',
+  days: [1, 2, 3, 4, 5],
+};
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+};
+
+function minutesOfDay(hhmm: string, fallback: number): number {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  if (!match) return fallback;
+  return (Number(match[1]) % 24) * 60 + (Number(match[2]) % 60);
+}
+
+/** The schedule stored on a user, with defaults for rows that predate it. */
+export function resolveWorkingSchedule(user?: {
+  workingHoursStart?: string | null;
+  workingHoursEnd?: string | null;
+  workingDays?: readonly number[] | null;
+}): WorkingSchedule {
+  return {
+    start: user?.workingHoursStart || DEFAULT_WORKING_SCHEDULE.start,
+    end: user?.workingHoursEnd || DEFAULT_WORKING_SCHEDULE.end,
+    days: user?.workingDays ?? DEFAULT_WORKING_SCHEDULE.days,
+  };
+}
+
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** "Mon–Fri · 09:00–18:00", "Sun–Thu · …", or an explicit list for gaps. */
+export function formatWorkingSchedule(schedule: WorkingSchedule): string {
+  const days = [...new Set(schedule.days)].sort((a, b) => a - b);
+  let dayLabel: string;
+  if (days.length === 0) dayLabel = 'No working days';
+  else if (days.length === 7) dayLabel = 'Every day';
+  else {
+    const contiguous = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
+    // Sun–Thu style weeks wrap past Saturday when written Monday-first.
+    dayLabel =
+      contiguous && days.length > 2
+        ? `${SHORT_DAYS[days[0]]}–${SHORT_DAYS[days[days.length - 1]]}`
+        : days.map((d) => SHORT_DAYS[d]).join(', ');
+  }
+  return `${dayLabel} · ${schedule.start}–${schedule.end}`;
+}
+
+/**
+ * Whether it is currently working time for someone in `timezone` on
+ * `schedule`: inside their hours on one of their working days. A window may
+ * wrap midnight ("22:00"–"06:00"); it then belongs to the day it starts on.
+ * Outside it, late night (23:00–07:00) reads as sleeping.
+ */
+export function getScheduleStatus(
+  timezone: string,
+  schedule: WorkingSchedule = DEFAULT_WORKING_SCHEDULE,
+  date: Date = new Date(),
+): WorkingHoursInfo {
+  let hour: number;
+  let minute: number;
+  let weekday: number;
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: 'numeric',
+      minute: '2-digit',
+      weekday: 'short',
+      hour12: false,
+    }).formatToParts(date);
+    hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '12') % 24;
+    minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+    weekday = WEEKDAY_INDEX[parts.find((p) => p.type === 'weekday')?.value ?? ''] ?? date.getUTCDay();
+  } catch {
+    hour = date.getUTCHours();
+    minute = date.getUTCMinutes();
+    weekday = date.getUTCDay();
+  }
+
+  const formattedTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const now = hour * 60 + minute;
+  const start = minutesOfDay(schedule.start, 9 * 60);
+  const end = minutesOfDay(schedule.end, 18 * 60);
+  const days = new Set(schedule.days);
+
+  const working =
+    start < end
+      ? days.has(weekday) && now >= start && now < end
+      : start > end &&
+        ((days.has(weekday) && now >= start) ||
+          (days.has((weekday + 6) % 7) && now < end));
+
+  const base = { hourInZone: hour, localTimeFormatted: formattedTime };
+  if (working) {
+    return { ...base, status: 'working', label: 'In working hours', icon: '☀️' };
+  }
+  if (hour >= 23 || hour < 7) {
+    return { ...base, status: 'sleeping', label: 'Sleeping (Late Night)', icon: '💤' };
+  }
+  if (!days.has(weekday)) {
+    return { ...base, status: 'off-hours', label: 'Day off', icon: '🌴' };
+  }
+  return { ...base, status: 'off-hours', label: 'Outside working hours', icon: '🌙' };
+}
+
 /**
  * Calculates whether a given timezone is currently in working hours (default: 9am - 6pm),
- * off-hours (6pm - 11pm, 7am - 9am), or sleeping (11pm - 7am).
+ * off-hours (6pm - 11pm, 7am - 9am), or sleeping (11pm - 7am). Ignores the
+ * weekday; prefer `getScheduleStatus` with the person's own schedule.
  */
 export function getWorkingHoursStatus(
   timezone: string,
@@ -135,53 +249,10 @@ export function getWorkingHoursStatus(
   workStartHour = 9,
   workEndHour = 18,
 ): WorkingHoursInfo {
-  /* No seed values: both the `try` and the `catch` below assign, so a noon
-     placeholder here is dead and only hides which branch produced the hour. */
-  let hour: number;
-  let formattedTime: string;
-
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: false,
-    }).formatToParts(date);
-
-    const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '12');
-    const m = parts.find((p) => p.type === 'minute')?.value ?? '00';
-    hour = h % 24;
-    formattedTime = `${String(hour).padStart(2, '0')}:${m}`;
-  } catch {
-    hour = date.getUTCHours();
-    formattedTime = `${String(hour).padStart(2, '0')}:00`;
-  }
-
-  if (hour >= workStartHour && hour < workEndHour) {
-    return {
-      status: 'working',
-      label: 'In working hours',
-      hourInZone: hour,
-      localTimeFormatted: formattedTime,
-      icon: '☀️',
-    };
-  }
-
-  if (hour >= 23 || hour < 7) {
-    return {
-      status: 'sleeping',
-      label: 'Sleeping (Late Night)',
-      hourInZone: hour,
-      localTimeFormatted: formattedTime,
-      icon: '💤',
-    };
-  }
-
-  return {
-    status: 'off-hours',
-    label: 'Outside working hours',
-    hourInZone: hour,
-    localTimeFormatted: formattedTime,
-    icon: '🌙',
-  };
+  const pad = (h: number) => `${String(h).padStart(2, '0')}:00`;
+  return getScheduleStatus(
+    timezone,
+    { start: pad(workStartHour), end: pad(workEndHour), days: [0, 1, 2, 3, 4, 5, 6] },
+    date,
+  );
 }

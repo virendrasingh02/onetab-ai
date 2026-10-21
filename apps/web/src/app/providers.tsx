@@ -116,6 +116,15 @@ function LanguageSync() {
     }
   }, [user?.preferredLanguage, syncFromUserPreference]);
 
+  // Clock/date display choice from Settings → Language & Region.
+  const setDisplayFormats = useI18nStore((s) => s.setDisplayFormats);
+  useEffect(() => {
+    setDisplayFormats({
+      timeFormat: user?.timeFormat ?? null,
+      dateFormat: user?.dateFormat ?? null,
+    });
+  }, [user?.timeFormat, user?.dateFormat, setDisplayFormats]);
+
   return null;
 }
 

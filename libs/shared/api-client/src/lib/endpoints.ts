@@ -20,6 +20,7 @@ import type {
   AppReleaseView,
   AppReleaseAuditLogView,
   AppVersionsOverview,
+  DesktopDownloadView,
   AppVersionCheckInput,
   AppVersionCheckResult,
   CreateAppReleaseInput,
@@ -5357,6 +5358,12 @@ export const complianceApi = {
     request<AdminPage<ComplianceAuditLogView>>(
       http.get('/admin/compliance/audit-logs', { params }),
     ),
+};
+
+/** Public, unauthenticated release info for the in-app downloads page. */
+export const appDownloadsApi = {
+  desktop: () =>
+    request<DesktopDownloadView[]>(http.get('/app-versions/downloads')),
 };
 
 export const appVersionsApi = {

@@ -21,6 +21,7 @@ import type {
   AppReleaseView,
   AppVersionCheckInput,
   AppVersionCheckResult,
+  DesktopDownloadView,
   AppVersionsOverview,
   ClientUpdateState,
   CreateAppReleaseInput,
@@ -1163,6 +1164,41 @@ export class AppVersionsService {
       rolloutPercentage: release.rolloutPercentage,
       rolloutEligible,
     };
+  }
+
+  /**
+   * The current released stable desktop build per OS that has a download
+   * link — what the in-app "Apps & Downloads" page offers. Draft, scheduled,
+   * deprecated and disabled builds, and builds without a URL, are left out
+   * rather than shown as dead buttons.
+   */
+  async getDesktopDownloads(): Promise<DesktopDownloadView[]> {
+    const rows = await this.prisma.appRelease.findMany({
+      where: {
+        platform: AppPlatform.DESKTOP,
+        releaseChannel: AppReleaseChannel.STABLE,
+        status: AppReleaseStatus.RELEASED,
+        isCurrent: true,
+        downloadUrl: { not: null },
+      },
+      orderBy: { releaseDate: 'desc' },
+    });
+
+    const byOs = new Map<string, DesktopDownloadView>();
+    for (const row of rows) {
+      if (!row.operatingSystem || !row.downloadUrl) continue;
+      const os = row.operatingSystem.toLowerCase() as DesktopDownloadView['os'];
+      if (byOs.has(os)) continue;
+      byOs.set(os, {
+        os,
+        version: row.version,
+        buildNumber: row.buildNumber,
+        releaseDate: row.releaseDate.toISOString(),
+        downloadUrl: row.downloadUrl,
+        releaseNotes: row.releaseNotes,
+      });
+    }
+    return [...byOs.values()];
   }
 
   async getWebMetadata(): Promise<{

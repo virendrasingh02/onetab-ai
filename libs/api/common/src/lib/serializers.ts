@@ -32,6 +32,9 @@ interface UserRow {
   statusExpiresAt?: Date | null;
   lastSeenAt: Date | null;
   timezone: string;
+  workingHoursStart?: string;
+  workingHoursEnd?: string;
+  workingDays?: number[];
   jobTitle?: string | null;
   /** Only selected where a full profile is shown (member roster, profile). */
   bio?: string | null;
@@ -59,6 +62,13 @@ export function toPublicUser(user: UserRow): PublicUser {
       : (user.statusExpiresAt?.toISOString() ?? null),
     lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
     timezone: user.timezone,
+    ...(user.workingHoursStart !== undefined
+      ? {
+          workingHoursStart: user.workingHoursStart,
+          workingHoursEnd: user.workingHoursEnd,
+          workingDays: user.workingDays,
+        }
+      : {}),
     jobTitle: user.jobTitle ?? null,
     // Older readers look at `title`; both mean the same stored column.
     title: user.jobTitle ?? null,
@@ -409,6 +419,9 @@ export const PUBLIC_USER_SELECT = {
   statusExpiresAt: true,
   lastSeenAt: true,
   timezone: true,
+  workingHoursStart: true,
+  workingHoursEnd: true,
+  workingDays: true,
   jobTitle: true,
 } as const;
 

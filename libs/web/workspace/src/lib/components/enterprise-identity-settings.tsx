@@ -27,6 +27,7 @@ import {
   SelectValue,
   Switch,
   Table,
+  SettingsSectionHeader,
   TableBody,
   TableCell,
   TableHead,
@@ -56,7 +57,6 @@ import {
   Plus,
   RefreshCw,
   ShieldAlert,
-  ShieldCheck,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -350,54 +350,49 @@ export function EnterpriseIdentitySettingsPanel({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Top Header Card */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-card">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="size-5 text-primary" />
-            <h2 className="text-base font-bold text-foreground">Enterprise Identity & Provisioning</h2>
-            <Badge variant={config?.isActive ? 'success' : 'neutral'} className="text-[10px]">
-              {config?.isActive ? 'ACTIVE' : 'NOT CONFIGURED'}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Configure SAML 2.0 / OIDC Single Sign-On, SCIM 2.0 automated user provisioning, and domain enforcement for {workspace.name}.
-          </p>
-        </div>
+    <div className="space-y-8">
+      <SettingsSectionHeader
+        title="Enterprise Identity & Provisioning"
+        badge={
+          <Badge variant={config?.isActive ? 'success' : 'neutral'} className="text-[10px]">
+            {config?.isActive ? 'ACTIVE' : 'NOT CONFIGURED'}
+          </Badge>
+        }
+        description={<>Configure SAML 2.0 / OIDC Single Sign-On, SCIM 2.0 automated user provisioning, and domain enforcement for {workspace.name}.</>}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testConnectionMutation}
+              disabled={isTesting || (!ssoUrl && !oidcIssuer)}
+              className="text-xs"
+            >
+              {isTesting ? (
+                <>
+                  <RefreshCw className="size-3.5 mr-1.5 animate-spin" />
+                  Testing...
+          </>
+        ) : (
+          <>
+            <Play className="size-3.5 mr-1.5 fill-current" />
+            Test Connection
+          </>
+        )}
+      </Button>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={testConnectionMutation}
-            disabled={isTesting || (!ssoUrl && !oidcIssuer)}
-            className="text-xs"
-          >
-            {isTesting ? (
-              <>
-                <RefreshCw className="size-3.5 mr-1.5 animate-spin" />
-                Testing...
-              </>
-            ) : (
-              <>
-                <Play className="size-3.5 mr-1.5 fill-current" />
-                Test Connection
-              </>
-            )}
-          </Button>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
-            className="text-xs font-semibold"
-          >
-            {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </div>
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={() => saveMutation.mutate()}
+        disabled={saveMutation.isPending}
+        className="text-xs font-semibold"
+      >
+        {saveMutation.isPending ? 'Saving...' : 'Save Changes'}
+      </Button>
+          </>
+        }
+      />
 
       {/* Connection Test Feedback Banner */}
       {testResult && (

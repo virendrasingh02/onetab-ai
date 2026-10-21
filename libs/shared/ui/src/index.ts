@@ -426,6 +426,19 @@ export {
 export { Panel, type PanelProps } from './lib/components/panel.js';
 
 export {
+  SettingsBadge,
+  SettingsCard,
+  SettingsGroup,
+  SettingsIconTile,
+  SettingsRow,
+  SettingsSectionHeader,
+  type SettingsBadgeProps,
+  type SettingsCardProps,
+  type SettingsGroupProps,
+  type SettingsRowProps,
+} from './lib/components/settings-primitives.js';
+
+export {
   StatCard,
   TrendBadge,
   type StatCardProps,

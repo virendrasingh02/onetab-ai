@@ -282,7 +282,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
   const contrastCheckBody = checkContrast(fgColor, bgColor);
 
   return (
-    <div className={`rounded-2xl border border-border bg-surface text-foreground shadow-xs p-5 sm:p-6 space-y-6 ${className}`}>
+    <div className={`rounded-xl border border-border bg-surface text-foreground shadow-xs p-5 sm:p-6 space-y-6 ${className}`}>
       {/* ---------------- TOP HEADER BAR ---------------- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/60">
         <div>
@@ -690,7 +690,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
       )}
 
       {/* ---------------- LIVE INTERACTIVE PREVIEW SHOWCASE ---------------- */}
-      <div className="p-4 sm:p-5 rounded-2xl border border-border/80 bg-surface-raised space-y-4 shadow-xs">
+      <div className="p-4 sm:p-5 rounded-xl border border-border/80 bg-surface-raised space-y-4 shadow-xs">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
             <Eye className="size-3.5 text-primary" />

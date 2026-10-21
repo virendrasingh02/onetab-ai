@@ -3,13 +3,15 @@ import { resolve } from 'node:path';
 import {
   DEEP_LINK_PROTOCOLS,
   IPC_EVENT,
+  type DesktopCommand,
   type DesktopDeepLink,
   type DesktopProtocolStatus,
 } from '../shared/ipc.js';
 import { handleAuthCallback, handleAuthCallbackError } from './auth.js';
+import { JUMP_LIST_COMMANDS } from './jump-list.js';
 import { triggerBackgroundSyncNow } from './background-sync.js';
 import { logger } from './logger.js';
-import { getMainWindow, showMainWindow } from './window.js';
+import { getMainWindow, moveMainWindowToCurrentDisplay, showMainWindow } from './window.js';
 
 let pending: DesktopDeepLink | null = null;
 let configuredApiUrl = 'http://localhost:3000/api/v1';
@@ -163,8 +165,41 @@ export async function dispatchDeepLink(raw: string | undefined | null): Promise<
     return;
   }
 
+  deliver(link);
+}
+
+/**
+ * `onetab://command/<name>` — the Jump List's way of acting on the running app
+ * (open search, move the window) instead of navigating. Only the allowlisted
+ * names do anything; any other `/command/…` link is dropped.
+ */
+function commandFromRoute(route: string): string | null | undefined {
+  const match = /^\/command\/([a-z-]+)\/?(?:[?#].*)?$/.exec(route);
+  if (!match) return route.startsWith('/command/') ? null : undefined;
+  return (JUMP_LIST_COMMANDS as readonly string[]).includes(match[1]) ? match[1] : null;
+}
+
+function deliver(link: DesktopDeepLink): void {
+  const window = getMainWindow();
+  if (!window || window.isDestroyed()) return;
+
+  const command = commandFromRoute(link.route);
+  if (command === null) {
+    logger.warn('DeepLink', 'Ignored an unknown command link');
+    showMainWindow();
+    return;
+  }
+  if (command === 'move-to-current-display') {
+    moveMainWindowToCurrentDisplay();
+    return;
+  }
+
   showMainWindow();
-  window.webContents.send(IPC_EVENT.deepLink, link);
+  if (command) {
+    window.webContents.send(IPC_EVENT.command, command as DesktopCommand);
+  } else {
+    window.webContents.send(IPC_EVENT.deepLink, link);
+  }
 }
 
 /** Windows and Linux pass deep link in argv. */
@@ -176,8 +211,5 @@ export function flushPendingDeepLink(): void {
   if (!pending) return;
   const link = pending;
   pending = null;
-  const window = getMainWindow();
-  if (window && !window.isDestroyed()) {
-    window.webContents.send(IPC_EVENT.deepLink, link);
-  }
+  deliver(link);
 }

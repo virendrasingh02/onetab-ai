@@ -217,6 +217,12 @@ export interface DesktopProtocolStatus {
   registered: boolean;
 }
 
+/** One entry in the Windows Jump List "Workspaces" category. */
+export interface DesktopJumpListWorkspace {
+  name: string;
+  slug: string;
+}
+
 export interface DesktopUserTask {
   program?: string;
   arguments?: string;
@@ -281,6 +287,7 @@ export interface DesktopDiagnostics {
   jumpList?: {
     supported: boolean;
     tasksCount: number;
+    workspacesCount?: number;
   };
   metrics: DesktopProcessMetric[];
 }
@@ -345,6 +352,7 @@ export interface OneTabDesktopApi {
   };
   windows?: {
     setUserTasks: (tasks?: DesktopUserTask[]) => Promise<boolean>;
+    setJumpListWorkspaces?: (workspaces: DesktopJumpListWorkspace[]) => Promise<boolean>;
   };
   protocols?: {
     remove: (scheme: string) => Promise<boolean>;

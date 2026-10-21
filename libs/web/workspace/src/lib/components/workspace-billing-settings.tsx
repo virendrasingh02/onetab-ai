@@ -249,7 +249,7 @@ export function WorkspaceBillingSettings({
       )}
 
       {/* 1. Header & Active Plan Overview */}
-      <div className="sm:flex-row sm:items-center gap-4 p-6 flex flex-col items-start justify-between rounded-2xl border border-border bg-gradient-to-br from-card via-card to-surface-muted/40 shadow-xs">
+      <div className="sm:flex-row sm:items-center gap-4 p-6 flex flex-col items-start justify-between rounded-xl border border-border bg-gradient-to-br from-card via-card to-surface-muted/40 shadow-xs">
         <div className="space-y-1.5">
           <div className="gap-3 flex items-center">
             <h2 className="text-xl font-bold tracking-tight text-foreground">

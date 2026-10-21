@@ -96,6 +96,23 @@ export const DEFAULT_APP_DOWNLOAD_CONFIG: AppDownloadConfig = {
   webFallbackUrl: getEnv("VITE_WEB_APP_URL", "https://onetab.ai/download"),
 };
 
+const DOWNLOAD_URL_ENV: Record<DownloadPlatform, string> = {
+  ios: "VITE_IOS_APP_URL",
+  android: "VITE_ANDROID_APP_URL",
+  windows: "VITE_DESKTOP_WINDOWS_URL",
+  macos: "VITE_DESKTOP_MACOS_URL",
+  linux: "VITE_DESKTOP_LINUX_URL",
+};
+
+/**
+ * Whether this deployment set a real link for `platform`. The defaults above
+ * are placeholders (the App Store id is not a published app), so a page that
+ * must not offer a dead link checks this instead of trusting `url`.
+ */
+export function hasConfiguredDownloadUrl(platform: DownloadPlatform): boolean {
+  return getEnv(DOWNLOAD_URL_ENV[platform], "").trim() !== "";
+}
+
 export interface DownloadOption {
   platform: DownloadPlatform;
   os: OperatingSystem;

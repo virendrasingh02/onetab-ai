@@ -7,7 +7,43 @@ vi.mock('electron', () => ({
   shell: { openExternal: vi.fn() },
 }));
 
-const { deepLinkFromArgv, parseDeepLink, isSupportedProtocol, isSafeRoute } = await import('./deep-link.js');
+const send = vi.fn();
+const moveMainWindowToCurrentDisplay = vi.fn();
+vi.mock('./window.js', () => ({
+  getMainWindow: () => ({ isDestroyed: () => false, webContents: { isLoading: () => false, send } }),
+  showMainWindow: vi.fn(),
+  moveMainWindowToCurrentDisplay,
+}));
+
+const { deepLinkFromArgv, dispatchDeepLink, parseDeepLink, isSupportedProtocol, isSafeRoute } =
+  await import('./deep-link.js');
+
+describe('dispatchDeepLink command links (Jump List)', () => {
+  it('sends allowlisted commands to the renderer instead of navigating', async () => {
+    send.mockClear();
+    await dispatchDeepLink('onetab://command/open-search');
+    expect(send).toHaveBeenCalledWith('onetab:event/command', 'open-search');
+  });
+
+  it('moves the window for move-to-current-display without telling the renderer', async () => {
+    send.mockClear();
+    await dispatchDeepLink('onetab://command/move-to-current-display');
+    expect(moveMainWindowToCurrentDisplay).toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('drops unknown commands', async () => {
+    send.mockClear();
+    await dispatchDeepLink('onetab://command/quit-everything');
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('still forwards ordinary routes as deep links', async () => {
+    send.mockClear();
+    await dispatchDeepLink('onetab://w/acme');
+    expect(send).toHaveBeenCalledWith('onetab:event/deep-link', expect.objectContaining({ route: '/w/acme' }));
+  });
+});
 
 describe('isSupportedProtocol', () => {
   it('accepts onetab and mie protocols', () => {

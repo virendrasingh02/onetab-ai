@@ -15,15 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
   SkeletonList,
+  SettingsCard,
+  SettingsRow,
+  SettingsSectionHeader,
 } from '@org/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Users, Lock, Bot, AppWindow, MessageSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import {
-  SettingsCard,
-  SettingsRow,
-  SettingsSectionHeader,
-} from './settings-primitives.js';
 
 export interface WorkspacePermissionsSettingsProps {
   workspaceId: string | undefined;

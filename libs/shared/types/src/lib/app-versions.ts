@@ -108,6 +108,19 @@ export interface AppVersionCheckResult {
   rolloutEligible: boolean;
 }
 
+/**
+ * One installable desktop build, as the public downloads list exposes it:
+ * the current released stable build per operating system, with a link.
+ */
+export interface DesktopDownloadView {
+  os: 'windows' | 'macos' | 'linux';
+  version: string;
+  buildNumber: string;
+  releaseDate: string;
+  downloadUrl: string;
+  releaseNotes: string | null;
+}
+
 export interface CreateAppReleaseInput {
   platform: AppPlatform;
   operatingSystem?: AppOperatingSystem | null;

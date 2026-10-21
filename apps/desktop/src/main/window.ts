@@ -283,6 +283,33 @@ export function isHiddenLaunch(): boolean {
   return hiddenLaunch;
 }
 
+/**
+ * Centres the window on the display under the cursor — which, for a Jump List
+ * click, is the display whose taskbar the user just used.
+ */
+export function moveMainWindowToCurrentDisplay(): void {
+  const window = mainWindow;
+  if (!window || window.isDestroyed()) return;
+
+  const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const wasMaximized = window.isMaximized();
+  if (window.isFullScreen()) window.setFullScreen(false);
+  if (wasMaximized) window.unmaximize();
+  if (window.isMinimized()) window.restore();
+
+  const [currentWidth, currentHeight] = window.getSize();
+  const width = Math.min(currentWidth, workArea.width);
+  const height = Math.min(currentHeight, workArea.height);
+  window.setBounds({
+    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    y: Math.round(workArea.y + (workArea.height - height) / 2),
+    width,
+    height,
+  });
+  if (wasMaximized) window.maximize();
+  showMainWindow();
+}
+
 export function showMainWindow(): void {
   const window = mainWindow;
   if (!window || window.isDestroyed()) return;

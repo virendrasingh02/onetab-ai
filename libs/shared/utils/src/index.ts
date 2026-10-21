@@ -35,7 +35,12 @@ export {
   WORLD_REGIONS,
   getRegionForTimezone,
   getWorkingHoursStatus,
+  DEFAULT_WORKING_SCHEDULE,
+  formatWorkingSchedule,
+  getScheduleStatus,
+  resolveWorkingSchedule,
   type RegionInfo,
+  type WorkingSchedule,
   type WorkingHoursInfo,
   type WorkingHoursStatus,
 } from './lib/regions.js';

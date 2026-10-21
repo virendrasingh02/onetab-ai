@@ -11,12 +11,12 @@ import {
   SelectValue,
   SkeletonList,
   UserAvatar,
+  SettingsSectionHeader,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
 import { useQuery } from '@tanstack/react-query';
 import { History, ShieldCheck, Filter } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { SettingsSectionHeader } from './settings-primitives.js';
 
 export interface WorkspaceAuditSettingsProps {
   workspaceId: string | undefined;

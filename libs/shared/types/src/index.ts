@@ -105,6 +105,8 @@ export type {
   ThemeShadowsConfig,
   ThemeConfig,
   PublicUser,
+  TimeFormatPreference,
+  DateFormatPreference,
   UserPresence,
   Upload,
   UploadContext,

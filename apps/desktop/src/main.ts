@@ -19,7 +19,7 @@ import { setSingleInstanceHeld } from './main/diagnostics.js';
 import { dispatchFileOpened, fileFromArgv, flushPendingFile } from './main/file-handler.js';
 import { dispatchHandoffActivity, flushPendingHandoff } from './main/handoff.js';
 import { registerIpcHandlers } from './main/ipc.js';
-import { setupWindowsJumpList } from './main/jump-list.js';
+import { setJumpListIconSource, setupWindowsJumpList } from './main/jump-list.js';
 import { focusApp } from './main/lifecycle.js';
 import { logger } from './main/logger.js';
 import { installAppMenu } from './main/menu.js';
@@ -208,6 +208,7 @@ async function initializeApp(): Promise<string> {
 
   createTray(join(resolveResourcesDir(), 'tray-icon.png'));
   registerGlobalShortcuts();
+  setJumpListIconSource(join(resolveResourcesDir(), 'icon.png'));
   setupWindowsJumpList();
   scheduleUpdateChecks(isDev);
   startBackgroundSync();

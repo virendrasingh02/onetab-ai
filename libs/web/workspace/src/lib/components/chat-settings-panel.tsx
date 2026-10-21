@@ -3,7 +3,7 @@ import {
   useUserPreferences,
 } from '@org/common';
 import type { MessageDensity, OpenChatPosition } from '@org/types';
-import { Badge, Button, Switch } from '@org/ui';
+import { Badge, Button, SettingsRow, Switch } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Activity,
@@ -110,10 +110,10 @@ export function ChatSettingsPanel() {
               }
             }}
             className={cn(
-              'relative p-4 rounded-2xl border transition-all cursor-pointer select-none text-left flex flex-col justify-between gap-3',
+              'relative p-4 rounded-xl border transition-all cursor-pointer select-none text-left flex flex-col justify-between gap-3',
               chat.messageDensity === 'comfy'
                 ? 'border-primary/80 bg-primary/5 ring-2 ring-primary/20 shadow-xs'
-                : 'border-border bg-surface-inset hover:border-border-focus hover:bg-accent/30',
+                : 'border-border bg-surface shadow-xs hover:border-border-focus hover:bg-accent/30',
             )}
           >
             <div className="flex items-start justify-between gap-2">
@@ -173,10 +173,10 @@ export function ChatSettingsPanel() {
               }
             }}
             className={cn(
-              'relative p-4 rounded-2xl border transition-all cursor-pointer select-none text-left flex flex-col justify-between gap-3',
+              'relative p-4 rounded-xl border transition-all cursor-pointer select-none text-left flex flex-col justify-between gap-3',
               chat.messageDensity === 'compact'
                 ? 'border-primary/80 bg-primary/5 ring-2 ring-primary/20 shadow-xs'
-                : 'border-border bg-surface-inset hover:border-border-focus hover:bg-accent/30',
+                : 'border-border bg-surface shadow-xs hover:border-border-focus hover:bg-accent/30',
             )}
           >
             <div className="flex items-start justify-between gap-2">
@@ -245,10 +245,10 @@ export function ChatSettingsPanel() {
               }
             }}
             className={cn(
-              'p-4 rounded-2xl border transition-all cursor-pointer select-none text-left flex items-start justify-between gap-3',
+              'p-4 rounded-xl border transition-all cursor-pointer select-none text-left flex items-start justify-between gap-3',
               chat.openPosition === 'last-read'
                 ? 'border-primary/80 bg-primary/5 ring-2 ring-primary/20 shadow-xs'
-                : 'border-border bg-surface-inset hover:border-border-focus hover:bg-accent/30',
+                : 'border-border bg-surface shadow-xs hover:border-border-focus hover:bg-accent/30',
             )}
           >
             <div className="flex items-start gap-3">
@@ -292,10 +292,10 @@ export function ChatSettingsPanel() {
               }
             }}
             className={cn(
-              'p-4 rounded-2xl border transition-all cursor-pointer select-none text-left flex items-start justify-between gap-3',
+              'p-4 rounded-xl border transition-all cursor-pointer select-none text-left flex items-start justify-between gap-3',
               chat.openPosition === 'newest'
                 ? 'border-primary/80 bg-primary/5 ring-2 ring-primary/20 shadow-xs'
-                : 'border-border bg-surface-inset hover:border-border-focus hover:bg-accent/30',
+                : 'border-border bg-surface shadow-xs hover:border-border-focus hover:bg-accent/30',
             )}
           >
             <div className="flex items-start gap-3">
@@ -330,69 +330,54 @@ export function ChatSettingsPanel() {
         <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
           Privacy & Indicators
         </h3>
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
           {/* Read Receipts */}
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                <Eye className="size-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Send and view read receipts
-                </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Let other participants know when you have viewed their messages in channels and direct messages.
-                </p>
-              </div>
-            </div>
+          <SettingsRow
+            icon={<Eye />}
+            title={<>Send and view read receipts</>}
+            description={
+              <>
+                Let other participants know when you have viewed their messages in channels and direct messages.
+              </>
+            }
+          >
             <Switch
               checked={chat.readReceipts}
               onCheckedChange={handleReadReceiptsToggle}
             />
-          </div>
+          </SettingsRow>
 
           {/* Typing Notifications */}
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                <Activity className="size-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Send typing indicators
-                </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Broadcast when you are actively composing a reply in a channel or thread.
-                </p>
-              </div>
-            </div>
+          <SettingsRow
+            icon={<Activity />}
+            title={<>Send typing indicators</>}
+            description={
+              <>
+                Broadcast when you are actively composing a reply in a channel or thread.
+              </>
+            }
+          >
             <Switch
               checked={chat.sendTypingNotice ?? true}
               onCheckedChange={handleSendTypingNoticeToggle}
             />
-          </div>
+          </SettingsRow>
 
           {/* Show others' typing indicators */}
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                <Activity className="size-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Show typing indicators
-                </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  See when someone else is actively composing a reply.
-                </p>
-              </div>
-            </div>
+          <SettingsRow
+            icon={<Activity />}
+            title={<>Show typing indicators</>}
+            description={
+              <>
+                See when someone else is actively composing a reply.
+              </>
+            }
+          >
             <Switch
               checked={chat.showTypingIndicators ?? true}
               onCheckedChange={handleShowTypingIndicatorsToggle}
             />
-          </div>
+          </SettingsRow>
         </div>
       </div>
 
@@ -401,69 +386,54 @@ export function ChatSettingsPanel() {
         <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
           Composer & Smart Feedback
         </h3>
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
           {/* Enter to Send */}
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                <CornerDownLeft className="size-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Press Enter to send
-                </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Press Enter to send your message, and Shift+Enter to start a new line. When disabled, Enter adds a new line.
-                </p>
-              </div>
-            </div>
+          <SettingsRow
+            icon={<CornerDownLeft />}
+            title={<>Press Enter to send</>}
+            description={
+              <>
+                Press Enter to send your message, and Shift+Enter to start a new line. When disabled, Enter adds a new line.
+              </>
+            }
+          >
             <Switch
               checked={chat.enterToSend ?? true}
               onCheckedChange={handleEnterToSendToggle}
             />
-          </div>
+          </SettingsRow>
 
           {/* Mention Warnings */}
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                <AtSign className="size-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Mention reachability warnings
-                </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  After you mention a teammate, agent, or app who isn't in the conversation, show a private "Only visible to you" notice with a one-click way to add them.
-                </p>
-              </div>
-            </div>
+          <SettingsRow
+            icon={<AtSign />}
+            title={<>Mention reachability warnings</>}
+            description={
+              <>
+                After you mention a teammate, agent, or app who isn't in the conversation, show a private "Only visible to you" notice with a one-click way to add them.
+              </>
+            }
+          >
             <Switch
               checked={chat.mentionWarningsEnabled ?? true}
               onCheckedChange={handleMentionWarningsToggle}
             />
-          </div>
+          </SettingsRow>
 
           {/* Link Previews */}
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                <Link2 className="size-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Show link previews by default
-                </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Display rich preview cards with titles, descriptions, and media for links shared in messages.
-                </p>
-              </div>
-            </div>
+          <SettingsRow
+            icon={<Link2 />}
+            title={<>Show link previews by default</>}
+            description={
+              <>
+                Display rich preview cards with titles, descriptions, and media for links shared in messages.
+              </>
+            }
+          >
             <Switch
               checked={chat.linkPreviewsEnabled ?? true}
               onCheckedChange={handleLinkPreviewsToggle}
             />
-          </div>
+          </SettingsRow>
         </div>
       </div>
 
@@ -512,10 +482,10 @@ export function ChatSettingsPanel() {
                   }
                 }}
                 className={cn(
-                  'p-3.5 rounded-2xl border transition-all cursor-pointer select-none text-left flex flex-col justify-between gap-2',
+                  'p-3.5 rounded-xl border transition-all cursor-pointer select-none text-left flex flex-col justify-between gap-2',
                   isSelected
                     ? 'border-primary/80 bg-primary/5 ring-2 ring-primary/20 shadow-xs'
-                    : 'border-border bg-surface-inset hover:border-border-focus hover:bg-accent/30',
+                    : 'border-border bg-surface shadow-xs hover:border-border-focus hover:bg-accent/30',
                 )}
               >
                 <div className="flex items-start justify-between gap-2">

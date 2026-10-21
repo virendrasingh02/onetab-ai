@@ -52,6 +52,7 @@ export const IPC = {
   getPath: 'onetab:app/get-path',
   removeProtocol: 'onetab:protocol/remove',
   setUserTasks: 'onetab:windows/set-user-tasks',
+  setJumpListWorkspaces: 'onetab:windows/set-jump-list-workspaces',
   clearRecentDocuments: 'onetab:app/clear-recent-documents',
   addRecentDocument: 'onetab:app/add-recent-document',
   setAccessibilitySupport: 'onetab:app/set-accessibility',
@@ -129,6 +130,12 @@ export interface DesktopProtocolStatus {
   registered: boolean;
 }
 
+/** One entry in the Windows Jump List "Workspaces" category. */
+export interface DesktopJumpListWorkspace {
+  name: string;
+  slug: string;
+}
+
 export interface DesktopUserTask {
   program?: string;
   arguments?: string;
@@ -193,6 +200,7 @@ export interface DesktopDiagnostics {
   jumpList?: {
     supported: boolean;
     tasksCount: number;
+    workspacesCount?: number;
   };
   metrics: DesktopProcessMetric[];
 }

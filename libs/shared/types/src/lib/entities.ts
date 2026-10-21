@@ -41,8 +41,17 @@ export interface PublicUser {
    * would be wrong twice a year — the zone id survives DST, an offset does not.
    */
   timezone: string;
+  /** Local "HH:MM" in `timezone`. Absent on rows read before the field existed. */
+  workingHoursStart?: string;
+  workingHoursEnd?: string;
+  /** 0 = Sunday … 6 = Saturday. */
+  workingDays?: number[];
   preferredLanguage?: string;
 }
+
+/** Clock display; null follows the language's convention. */
+export type TimeFormatPreference = '12h' | '24h';
+export type DateFormatPreference = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD';
 
 export interface UserPresence {
   userId: string;
@@ -173,6 +182,8 @@ export interface CurrentUser extends PublicUser {
   systemRole: SystemRole;
   emailVerifiedAt: IsoDateString | null;
   preferredLanguage: string;
+  timeFormat?: TimeFormatPreference | null;
+  dateFormat?: DateFormatPreference | null;
   createdAt: IsoDateString;
 }
 

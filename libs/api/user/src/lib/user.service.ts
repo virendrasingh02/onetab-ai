@@ -241,6 +241,17 @@ export class UserService {
           ? { preferredLanguage: input.preferredLanguage }
           : {}),
         ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+        ...(input.workingHoursStart !== undefined
+          ? { workingHoursStart: input.workingHoursStart }
+          : {}),
+        ...(input.workingHoursEnd !== undefined
+          ? { workingHoursEnd: input.workingHoursEnd }
+          : {}),
+        ...(input.workingDays !== undefined
+          ? { workingDays: input.workingDays }
+          : {}),
+        ...(input.timeFormat !== undefined ? { timeFormat: input.timeFormat } : {}),
+        ...(input.dateFormat !== undefined ? { dateFormat: input.dateFormat } : {}),
         ...(input.statusText !== undefined ? { statusText: input.statusText } : {}),
         ...(input.statusEmoji !== undefined ? { statusEmoji: input.statusEmoji } : {}),
         ...(input.statusExpiresAt !== undefined
@@ -297,6 +308,11 @@ export class UserService {
       bio: user.bio,
       timezone: user.timezone,
       preferredLanguage: user.preferredLanguage ?? 'en',
+      workingHoursStart: user.workingHoursStart,
+      workingHoursEnd: user.workingHoursEnd,
+      workingDays: user.workingDays,
+      timeFormat: (user.timeFormat ?? null) as CurrentUser['timeFormat'],
+      dateFormat: (user.dateFormat ?? null) as CurrentUser['dateFormat'],
       systemRole: user.systemRole as CurrentUser['systemRole'],
       presence: user.presence as CurrentUser['presence'],
       statusText: isExpired ? null : user.statusText ?? null,
@@ -360,6 +376,11 @@ export class UserService {
       coverUrl: user.coverUrl ?? null,
       timezone: user.timezone,
       preferredLanguage: user.preferredLanguage ?? 'en',
+      workingHoursStart: user.workingHoursStart,
+      workingHoursEnd: user.workingHoursEnd,
+      workingDays: user.workingDays,
+      timeFormat: (user.timeFormat ?? null) as CurrentUser['timeFormat'],
+      dateFormat: (user.dateFormat ?? null) as CurrentUser['dateFormat'],
       systemRole: user.systemRole as CurrentUser['systemRole'],
       presence: user.presence as CurrentUser['presence'],
       statusText: isExpired ? null : user.statusText ?? null,
@@ -692,6 +713,11 @@ export class UserService {
       coverUrl: user.coverUrl ?? null,
       timezone: user.timezone,
       preferredLanguage: user.preferredLanguage ?? 'en',
+      workingHoursStart: user.workingHoursStart,
+      workingHoursEnd: user.workingHoursEnd,
+      workingDays: user.workingDays,
+      timeFormat: (user.timeFormat ?? null) as CurrentUser['timeFormat'],
+      dateFormat: (user.dateFormat ?? null) as CurrentUser['dateFormat'],
       systemRole: user.systemRole as CurrentUser['systemRole'],
       presence: user.presence as CurrentUser['presence'],
       statusText: isExpired ? null : user.statusText ?? null,

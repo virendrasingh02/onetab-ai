@@ -27,10 +27,14 @@ export function useTranslation(): UseTranslationResult {
   const direction = useI18nStore((state: I18nState) => state.direction);
   const isRtl = useI18nStore((state: I18nState) => state.isRtl);
   const setLocale = useI18nStore((state: I18nState) => state.setLocale);
+  const displayFormats = useI18nStore((state: I18nState) => state.displayFormats);
 
 
   const t = useMemo(() => createTranslator(locale), [locale]);
-  const formatters = useMemo(() => createFormatters(locale), [locale]);
+  const formatters = useMemo(
+    () => createFormatters(locale, displayFormats),
+    [locale, displayFormats],
+  );
   const language = useMemo(() => getLanguageConfig(locale), [locale]);
 
   return {

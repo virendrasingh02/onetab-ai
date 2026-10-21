@@ -62,6 +62,7 @@ export {
   workspaceApi,
   billingApi,
   complianceApi,
+  appDownloadsApi,
   appVersionsApi,
   intelligenceApi,
   contextLinksApi,

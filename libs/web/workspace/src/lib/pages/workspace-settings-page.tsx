@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  appDownloadsApi,
   authApi,
   channelApi,
   http,
@@ -40,8 +41,6 @@ import {
   Input,
   LanguageSelect,
   LoadingState,
-  LocalTime,
-  RegionSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -49,7 +48,6 @@ import {
   SelectValue,
   Switch,
   Textarea,
-  TimezoneSelect,
   UserAvatar,
   WorkspaceAvatar,
   toast,
@@ -59,16 +57,16 @@ import {
   FOCUS_DURATION_OPTIONS,
   focusAudio,
   type FocusSoundType,
+  SettingsBadge,
+  SettingsCard,
+  SettingsRow,
+  SettingsSectionHeader,
 } from '@org/ui';
 import {
   cn,
-  describeTimezone,
-  getRegionForTimezone,
   getSystemTimezone,
-  getWorkingHoursStatus,
   initials,
   slugify,
-  type RegionInfo,
 } from '@org/utils';
 import {
   PolicySubjectRole,
@@ -95,7 +93,6 @@ import {
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Bell,
   Moon,
   Sun,
   Monitor,
@@ -109,7 +106,6 @@ import {
   VolumeX,
   Play,
   Pause,
-  Inbox,
   Mail,
   Smartphone,
   Copy,
@@ -120,10 +116,8 @@ import {
   Key,
   Shield,
   ShieldCheck,
-  Lock,
   LogOut,
   Globe,
-  Sparkles,
 } from 'lucide-react';
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
@@ -132,9 +126,7 @@ import {
   AppDownloadCard,
   DesktopSettingsCard,
   PlatformDiagnosticsLink,
-  notify,
 } from '@org/web-desktop';
-import { useNotificationPermissionBar } from '@org/notifications';
 import {
   useCurrentWorkspace,
   useDeleteWorkspace,
@@ -170,12 +162,8 @@ import { EnterpriseCustomLLMSettings } from '../components/enterprise-custom-llm
 import { EnterpriseIdentitySettingsPanel } from '../components/enterprise-identity-settings.js';
 import { ChatSettingsPanel } from '../components/chat-settings-panel.js';
 import { NotificationDisplaySettingsPanel } from '../components/notification-display-settings-panel.js';
-import {
-  SettingsBadge,
-  SettingsCard,
-  SettingsRow,
-  SettingsSectionHeader,
-} from '../components/settings-primitives.js';
+import { NotificationDeliverySettings } from '../components/notification-delivery-settings.js';
+import { LanguageRegionSettings } from '../components/language-region-settings.js';
 
 /**
  * Panels this page renders but does not own.
@@ -315,8 +303,7 @@ export function WorkspaceSettingsPage({
 
   const user = useCurrentUser();
   const setUser = useAuthStore((state) => state.setUser);
-  const { t, locale, setLocale, formatters, isRtl, language } =
-    useTranslation();
+  const { t, locale, setLocale } = useTranslation();
 
 
   const handleLanguageChange = async (newLocale: SupportedLanguageCode) => {
@@ -407,28 +394,6 @@ export function WorkspaceSettingsPage({
     'default',
   );
 
-  // AI & Persona Settings
-  // Notifications. Per-category toggles (mentions / invites / agent alerts) now
-  // live in <NotificationDisplaySettingsPanel>, which is backed by the
-  // notification-preferences API.
-  const [notifyDigest, setNotifyDigest] = useWorkspacePreference(
-    workspaceId,
-    'notifyDigest',
-    false,
-  );
-  const [notifyDesktopPush, setNotifyDesktopPush] = useWorkspacePreference(
-    workspaceId,
-    'notifyDesktopPush',
-    true,
-  );
-  const [notifyChannelScope, setNotifyChannelScope] = useWorkspacePreference(
-    workspaceId,
-    'notifyChannelScope',
-    'all',
-  );
-  const [testNotifSending, setTestNotifSending] = useState(false);
-  const [testNotifSent, setTestNotifSent] = useState(false);
-  const notifBarState = useNotificationPermissionBar();
 
 
   const [docAutoSave, setDocAutoSave] = useWorkspacePreference(
@@ -464,6 +429,12 @@ export function WorkspaceSettingsPage({
     'googleCalendarSync',
     false,
   );
+  const desktopReleasesQuery = useQuery({
+    queryKey: [...queryKeys.appVersions.all(), 'desktop-downloads'],
+    queryFn: () => appDownloadsApi.desktop(),
+    enabled: currentTab === 'downloads',
+    staleTime: 5 * 60_000,
+  });
   const integrationsQuery = useQuery({
     queryKey: queryKeys.integrations.list(workspaceId ?? ''),
     queryFn: () => integrationsApi.list(workspaceId as string),
@@ -523,32 +494,6 @@ export function WorkspaceSettingsPage({
   const [testSoundPlaying, setTestSoundPlaying] =
     useState<FocusSoundType | null>(null);
 
-  // Timezone & Regional Preferences
-  const [timeFormatPref, setTimeFormatPref] = useWorkspacePreference(
-    workspaceId,
-    'timeFormatPref',
-    '12h',
-  );
-  const [dateFormatPref, setDateFormatPref] = useWorkspacePreference(
-    workspaceId,
-    'dateFormatPref',
-    'MM/DD/YYYY',
-  );
-  const [workStartHour, setWorkStartHour] = useWorkspacePreference(
-    workspaceId,
-    'workStartHour',
-    '09:00',
-  );
-  const [workEndHour, setWorkEndHour] = useWorkspacePreference(
-    workspaceId,
-    'workEndHour',
-    '18:00',
-  );
-  const [workdays, setWorkdays] = useWorkspacePreference(
-    workspaceId,
-    'workdays',
-    'mon-fri',
-  );
 
   // Profile Update Form & Mutation
   const updateProfile = useMutation({
@@ -1197,419 +1142,7 @@ export function WorkspaceSettingsPage({
       )}
 
       {/* ---------------- SECTION 1.5: LANGUAGE & REGION ---------------- */}
-      {currentTab === 'language' && (
-        <div className="space-y-8">
-          <SettingsSectionHeader
-            title={<>{t('settings.languageAndRegion', 'Language & Region')}</>}
-            description={
-              <>
-                {t(
-                  'settings.language_description',
-                  'Choose your preferred language for the web and desktop applications'
-                )}
-                . Formatting for dates, times, and numbers automatically adapts to your selected locale.
-              </>
-            }
-          />
-
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-              {t('settings.language_title', 'Interface Language')}
-            </h3>
-            <SettingsCard divided>
-              <SettingsRow
-                title={<>{t('settings.language', 'Language')}</>}
-                description={
-                  <div className="space-y-1">
-                    <p>
-                      {t(
-                        'settings.language_description',
-                        'Choose your preferred language for the web and desktop applications'
-                      )}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Your selection is stored independently on your user profile and does not affect other workspace members.
-                    </p>
-                  </div>
-                }
-              >
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                  <div className="w-64">
-                    <LanguageSelect
-                      value={locale}
-                      onChange={handleLanguageChange}
-                    />
-                  </div>
-                </div>
-              </SettingsRow>
-            </SettingsCard>
-          </div>
-
-          {/* Subsection: Region & Timezone */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-              Regional & Timezone Settings
-            </h3>
-            <SettingsCard>
-              <div className="sm:grid-cols-2 gap-5 grid grid-cols-1">
-                {/* Region Selector */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium block text-foreground">
-                    Region & Country
-                  </label>
-                  {(() => {
-                    const currentTz =
-                      profileForm.watch('timezone') || systemTimezone;
-                    const currentRegion = getRegionForTimezone(currentTz);
-
-                    return (
-                      <RegionSelect
-                        value={currentRegion.code}
-                        onChange={(region: RegionInfo) => {
-                          profileForm.setValue(
-                            'timezone',
-                            region.defaultTimezone,
-                            {
-                              shouldDirty: true,
-                            },
-                          );
-                        }}
-                      />
-                    );
-                  })()}
-                  <p className="text-[11px] text-muted-foreground">
-                    Determines country flag and regional default settings.
-                  </p>
-                </div>
-
-                {/* Timezone Selector */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium block text-foreground">
-                    Timezone (IANA)
-                  </label>
-                  {(() => {
-                    const zone =
-                      profileForm.watch('timezone') || systemTimezone;
-                    return (
-                      <TimezoneSelect
-                        value={zone}
-                        onChange={(next) =>
-                          profileForm.setValue('timezone', next, {
-                            shouldDirty: true,
-                          })
-                        }
-                      />
-                    );
-                  })()}
-                  <p className="text-[11px] text-muted-foreground">
-                    Used for schedule coordination and header clock.
-                  </p>
-                </div>
-              </div>
-
-              {/* Live Preview Card */}
-              {(() => {
-                const currentTz =
-                  profileForm.watch('timezone') || systemTimezone;
-                const region = getRegionForTimezone(currentTz);
-                const workStatus = getWorkingHoursStatus(currentTz);
-
-                return (
-                  <div className="p-4 sm:flex-row sm:items-center gap-4 text-xs flex flex-col justify-between rounded-xl border border-border bg-surface">
-                    <div className="gap-3 flex items-center">
-                      <span className="text-3xl leading-none">
-                        {region.flag}
-                      </span>
-                      <div>
-                        <div className="font-semibold gap-2 flex items-center text-foreground">
-                          <span className="text-sm">{region.name}</span>
-                          <span className="font-mono text-[11px] text-muted-foreground">
-                            {describeTimezone(currentTz)}
-                          </span>
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-muted-foreground">
-                          {currentTz === systemTimezone
-                            ? '✓ Synchronized with this computer'
-                            : `Device timezone: ${describeTimezone(systemTimezone)}`}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="gap-3 sm:self-auto flex items-center self-end">
-                      <span
-                        className={cn(
-                          'text-xs font-medium px-2.5 py-1 gap-1.5 flex items-center rounded-full',
-                          workStatus.status === 'working'
-                            ? 'bg-success/15 text-success'
-                            : workStatus.status === 'sleeping'
-                              ? 'bg-muted text-muted-foreground'
-                              : 'bg-warning/15 text-warning',
-                        )}
-                      >
-                        <span>{workStatus.icon}</span>
-                        <span>{workStatus.label}</span>
-                      </span>
-
-                      <div className="text-right">
-                        <LocalTime
-                          timezone={currentTz}
-                          showOffset
-                          className="font-bold text-base font-mono text-foreground"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div className="pt-2 flex items-center justify-between border-t border-border/40">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    profileForm.setValue('timezone', systemTimezone, {
-                      shouldDirty: true,
-                    })
-                  }
-                  className="text-xs"
-                >
-                  Reset to device timezone ({describeTimezone(systemTimezone)}
-                  )
-                </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  loading={updateProfile.isPending}
-                  disabled={!profileForm.formState.isDirty}
-                  onClick={profileForm.handleSubmit((data) =>
-                    updateProfile.mutate(data),
-                  )}
-                  className="text-xs"
-                >
-                  Save timezone changes
-                </Button>
-              </div>
-            </SettingsCard>
-          </div>
-
-          {/* Subsection: Date & Time Formatting */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-              Date & Time Formats
-            </h3>
-            <SettingsCard divided>
-              <SettingsRow
-                title={<>Time display format</>}
-                description={
-                  <>Choose 12-hour AM/PM or 24-hour military clock</>
-                }
-              >
-                <Select
-                  value={timeFormatPref}
-                  onValueChange={setTimeFormatPref}
-                >
-                  <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="12h" className="text-xs">
-                      12-hour (2:30 PM)
-                    </SelectItem>
-                    <SelectItem value="24h" className="text-xs">
-                      24-hour (14:30)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </SettingsRow>
-
-              <SettingsRow
-                title={<>Date display format</>}
-                description={<>Preferred order for calendar dates</>}
-              >
-                <Select
-                  value={dateFormatPref}
-                  onValueChange={setDateFormatPref}
-                >
-                  <SelectTrigger className="w-44 h-8 text-xs border-border bg-surface">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MM/DD/YYYY" className="text-xs">
-                      MM/DD/YYYY (US)
-                    </SelectItem>
-                    <SelectItem value="DD/MM/YYYY" className="text-xs">
-                      DD/MM/YYYY (UK/EU/IN)
-                    </SelectItem>
-                    <SelectItem value="YYYY-MM-DD" className="text-xs">
-                      YYYY-MM-DD (ISO)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </SettingsRow>
-            </SettingsCard>
-          </div>
-
-          {/* Subsection: Working Hours */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-              Working Hours & Schedule
-            </h3>
-            <SettingsCard divided>
-              <SettingsRow
-                title={<>Daily working hours</>}
-                description={
-                  <>Lets teammates know when you are actively at your desk</>
-                }
-              >
-                <div className="gap-2 text-xs flex items-center">
-                  <Select
-                    value={workStartHour}
-                    onValueChange={setWorkStartHour}
-                  >
-                    <SelectTrigger className="w-24 h-8 text-xs border-border bg-surface">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="08:00" className="text-xs">
-                        08:00 AM
-                      </SelectItem>
-                      <SelectItem value="09:00" className="text-xs">
-                        09:00 AM
-                      </SelectItem>
-                      <SelectItem value="10:00" className="text-xs">
-                        10:00 AM
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground">to</span>
-                  <Select value={workEndHour} onValueChange={setWorkEndHour}>
-                    <SelectTrigger className="w-24 h-8 text-xs border-border bg-surface">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="17:00" className="text-xs">
-                        05:00 PM
-                      </SelectItem>
-                      <SelectItem value="18:00" className="text-xs">
-                        06:00 PM
-                      </SelectItem>
-                      <SelectItem value="19:00" className="text-xs">
-                        07:00 PM
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </SettingsRow>
-
-              <SettingsRow
-                title={<>Working days</>}
-                description={<>Active days of the week</>}
-              >
-                <Select value={workdays} onValueChange={setWorkdays}>
-                  <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mon-fri" className="text-xs">
-                      Monday – Friday
-                    </SelectItem>
-                    <SelectItem value="mon-sat" className="text-xs">
-                      Monday – Saturday
-                    </SelectItem>
-                    <SelectItem value="sun-thu" className="text-xs">
-                      Sunday – Thursday
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </SettingsRow>
-            </SettingsCard>
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-              Live Localization & Format Previews
-            </h3>
-            <SettingsCard>
-              <div className="p-4 space-y-4">
-                <p className="text-xs text-muted-foreground">
-                  Below is a live preview of how numbers, currencies, dates, and relative timestamps format for{' '}
-                  <strong className="text-foreground">{language.name} ({language.nativeName})</strong>:
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
-                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-                      Full Date
-                    </span>
-                    <p className="text-xs font-mono font-medium text-foreground">
-                      {formatters.formatDate(new Date(), { dateStyle: 'full' })}
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
-                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-                      Standard Date & Time
-                    </span>
-                    <p className="text-xs font-mono font-medium text-foreground">
-                      {formatters.formatDateTime(new Date())}
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
-                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-                      Relative Time (1 hour ago)
-                    </span>
-                    <p className="text-xs font-mono font-medium text-foreground">
-                      {formatters.formatRelative(new Date(Date.now() - 3600000))}
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
-                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-                      Formatted Number
-                    </span>
-                    <p className="text-xs font-mono font-medium text-foreground">
-                      {formatters.formatNumber(1234567.89)}
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
-                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-                      Currency (USD)
-                    </span>
-                    <p className="text-xs font-mono font-medium text-foreground">
-                      {formatters.formatCurrency(129.99, 'USD')}
-                    </p>
-                  </div>
-
-                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
-                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-                      Percentage
-                    </span>
-                    <p className="text-xs font-mono font-medium text-foreground">
-                      {formatters.formatPercent(0.854)}
-                    </p>
-                  </div>
-                </div>
-
-                {isRtl && (
-                  <div className="p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-xs space-y-1">
-                    <div className="font-semibold flex items-center gap-1.5">
-                      <span>RTL Layout Active</span>
-                    </div>
-                    <p className="text-[11px] leading-relaxed opacity-90">
-                      Arabic language renders the entire platform in right-to-left layout mode. Margins, navigation flows, and reading alignments dynamically mirror for natural readability.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </SettingsCard>
-          </div>
-        </div>
-      )}
-
+      {currentTab === 'language' && <LanguageRegionSettings />}
 
       {/* ---------------- SECTION 2: PROFILE, STATUS & REGION ---------------- */}
       {(currentTab === 'profile' ||
@@ -1882,7 +1415,7 @@ export function WorkspaceSettingsPage({
               <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
                 Slack-Style Status
               </h3>
-              <div className="p-6 space-y-5 rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <div className="p-5 space-y-5 rounded-xl border border-border bg-surface shadow-xs">
                 <div className="sm:flex-row sm:items-center gap-4 p-4 flex flex-col justify-between rounded-xl border border-border bg-surface">
                   <div className="gap-3 flex items-center">
                     <span className="text-3xl">{user.statusEmoji || '💬'}</span>
@@ -2186,180 +1719,16 @@ export function WorkspaceSettingsPage({
       {currentTab === 'notifications' && (
         <div className="space-y-8">
           <SettingsSectionHeader
-            title={<>Notifications & Alerts</>}
-            description={<>Choose how workspace updates reach you.</>}
+            title={<>Notifications</>}
+            description={
+              <>
+                What notifies you in {workspace.name}, and where it reaches
+                you.
+              </>
+            }
           />
 
-          <SettingsCard divided>
-            <SettingsRow
-              icon={<Inbox />}
-              title="Inbox"
-              description="Approvals, handoffs, and follow-ups."
-            >
-              <Select
-                value={notifyChannelScope}
-                onValueChange={setNotifyChannelScope}
-              >
-                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
-                  <SelectValue placeholder="Default" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="text-xs">
-                    Default (All)
-                  </SelectItem>
-                  <SelectItem value="mentions" className="text-xs">
-                    Mentions only
-                  </SelectItem>
-                  <SelectItem value="nothing" className="text-xs">
-                    Off
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsRow>
-
-            <SettingsRow
-              icon={<Mail />}
-              title="Email"
-              description="Digests and direct alerts."
-              badge={
-                <SettingsBadge
-                  tone="success"
-                  disabled={testNotifSending}
-                  onClick={async () => {
-                    setTestNotifSending(true);
-                    await notify({
-                      title: 'Onetab AI Sample Digest',
-                      body: 'Sample email digest: 3 new mentions, 1 task completed.',
-                    });
-                    setTestNotifSending(false);
-                    setTestNotifSent(true);
-                    setTimeout(() => setTestNotifSent(false), 3000);
-                  }}
-                >
-                  {testNotifSent ? 'Sample sent!' : 'Send sample'}
-                </SettingsBadge>
-              }
-            >
-              <Select
-                value={notifyDigest ? 'weekly' : 'default'}
-                onValueChange={(val) => setNotifyDigest(val === 'weekly')}
-              >
-                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
-                  <SelectValue placeholder="Default" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default" className="text-xs">
-                    Default
-                  </SelectItem>
-                  <SelectItem value="weekly" className="text-xs">
-                    Weekly digest
-                  </SelectItem>
-                  <SelectItem value="off" className="text-xs">
-                    Off
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsRow>
-
-            <SettingsRow
-              icon={<Monitor />}
-              title="Browser"
-              description={
-                notifBarState.permission === 'granted'
-                  ? 'Desktop push notifications are enabled and active.'
-                  : notifBarState.permission === 'denied'
-                    ? 'Notifications blocked in browser permissions.'
-                    : 'Desktop banners stay off until enabled.'
-              }
-              badge={
-                notifBarState.permission === 'granted' ? (
-                  <SettingsBadge tone="success">Active</SettingsBadge>
-                ) : notifBarState.permission === 'denied' ? (
-                  <SettingsBadge tone="danger">Blocked</SettingsBadge>
-                ) : null
-              }
-            >
-              {notifBarState.permission === 'granted' ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 px-3 text-xs"
-                  disabled={testNotifSending}
-                  onClick={async () => {
-                    setTestNotifSending(true);
-                    await notify({
-                      title: 'Onetab AI Test Alert',
-                      body: 'Desktop notifications are working seamlessly!',
-                    });
-                    setTestNotifSending(false);
-                  }}
-                >
-                  <Bell className="size-3.5 mr-1 text-muted-foreground" />
-                  <span>Send Test Alert</span>
-                </Button>
-              ) : notifBarState.permission === 'denied' ? (
-                <span className="text-xs text-muted-foreground italic">
-                  Unblock in browser
-                </span>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 px-3 text-xs"
-                  onClick={() => void notifBarState.requestPermission()}
-                >
-                  <span>Enable notifications</span>
-                </Button>
-              )}
-            </SettingsRow>
-
-            <SettingsRow
-              icon={<Smartphone />}
-              title="Mobile"
-              description="Away-from-desk delivery."
-              badge={
-                <SettingsBadge
-                  tone="violet"
-                  onClick={async () => {
-                    await notify({
-                      title: 'Mobile Preview',
-                      body: 'Sarah replied to your thread in #engineering',
-                    });
-                  }}
-                >
-                  Show example
-                </SettingsBadge>
-              }
-            >
-              <Select value="muted" onValueChange={() => undefined}>
-                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
-                  <SelectValue placeholder="Muted" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="muted" className="text-xs">
-                    Muted
-                  </SelectItem>
-                  <SelectItem value="default" className="text-xs">
-                    Default
-                  </SelectItem>
-                  <SelectItem value="all" className="text-xs">
-                    All activity
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsRow>
-
-            <SettingsRow
-              nested
-              title="Smart notifications"
-              description="Pause phone alerts while desktop stays active."
-            >
-              <Switch
-                checked={notifyDesktopPush}
-                onCheckedChange={setNotifyDesktopPush}
-              />
-            </SettingsRow>
-          </SettingsCard>
+          <NotificationDeliverySettings workspaceId={workspaceId} />
 
           {/* Display Preferences & Screen Positioning */}
           <div className="pt-8 border-t border-border">
@@ -2375,13 +1744,17 @@ export function WorkspaceSettingsPage({
             title={<>Apps & Downloads</>}
             description={
               <>
-                Download native Onetab AI applications for desktop and mobile
-                devices.
+                Install OneTab AI on your computer and phone. Versions shown are
+                the builds currently published.
               </>
             }
           />
 
-          <AppDownloadCard workspaceId={workspaceId} />
+          <AppDownloadCard
+            workspaceId={workspaceId}
+            desktopReleases={desktopReleasesQuery.data}
+            releasesLoading={desktopReleasesQuery.isLoading}
+          />
         </div>
       )}
 
@@ -2872,7 +2245,7 @@ export function WorkspaceSettingsPage({
             }
           />
 
-          <div className="p-6 space-y-4 rounded-2xl border border-border bg-surface-inset shadow-xs">
+          <div className="p-5 space-y-4 rounded-xl border border-border bg-surface shadow-xs">
             <div className="text-xs flex items-center justify-between">
               <span className="font-medium text-foreground">
                 Workspace Storage Used
@@ -3073,7 +2446,7 @@ export function WorkspaceSettingsPage({
             }
           />
 
-          <div className="p-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+          <div className="p-5 rounded-xl border border-border bg-surface shadow-xs">
             {importPanel}
           </div>
         </div>
@@ -3596,178 +2969,195 @@ export function WorkspaceSettingsPage({
             }
           />
 
-          {/* 1. SIGN-IN SECURITY CARDS */}
-          <div className="space-y-4">
-            <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-              Sign-In Security
-            </h2>
-            {/* Four sign-in methods: 2×2, so no card is left alone on a row. */}
-            <div className="md:grid-cols-2 gap-4 grid grid-cols-1">
-              {/* Password Card */}
-              <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Lock className="h-4 w-4" />
-                    </div>
-                    <Badge
-                      variant="success"
-                      className="font-semibold text-[10px] uppercase"
-                    >
-                      Strong
-                    </Badge>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground">
-                      Password
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Last changed on{' '}
-                      {securityOverviewQuery.data?.password.lastChangedAt
-                        ? new Date(
-                            securityOverviewQuery.data.password.lastChangedAt,
-                          ).toLocaleDateString()
-                        : 'Recently'}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setChangePasswordModalOpen(true)}
-                  className="text-xs h-8 w-full"
-                >
-                  Change password
-                </Button>
-              </div>
-
-              {/* Magic Link Card */}
-              <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 bg-info/10 text-info-text flex items-center justify-center rounded-lg">
-                      <Sparkles className="h-4 w-4" />
-                    </div>
-                    <Badge
-                      variant="success"
-                      className="font-semibold text-[10px] uppercase"
-                    >
-                      Available
-                    </Badge>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground">
-                      Magic link
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {securityOverviewQuery.data?.magicLink?.lastUsedAt
-                        ? `Last signed in with a link on ${new Date(
-                            securityOverviewQuery.data.magicLink.lastUsedAt,
-                          ).toLocaleDateString()}`
-                        : 'Passwordless sign-in with a single-use email link'}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-[11px] text-muted-foreground bg-surface rounded-lg px-3 py-2 border border-border">
-                  On the sign-in page, choose “Email me a sign-in link”.
-                </p>
-              </div>
-
-              {/* Single Sign-On (SSO) Card */}
-              <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 bg-accent-violet-soft text-accent-violet flex items-center justify-center rounded-lg">
-                      <Globe className="h-4 w-4" />
-                    </div>
-                    <Badge
-                      variant={
-                        securityOverviewQuery.data?.sso.isConnected
-                          ? 'success'
-                          : 'neutral'
-                      }
-                      className="font-semibold text-[10px] uppercase"
-                    >
-                      {securityOverviewQuery.data?.sso.isConnected
-                        ? 'Connected'
-                        : 'Not Connected'}
-                    </Badge>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground">
-                      Single Sign-On (SSO)
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {securityOverviewQuery.data?.sso.isConnected
-                        ? `Connected via ${securityOverviewQuery.data.sso.providerType || 'Enterprise SAML/OIDC'}`
-                        : 'Organization identity provider sign-in'}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTabChange('members')}
-                  className="text-xs h-8 w-full text-muted-foreground"
-                >
-                  Manage SSO in Enterprise
-                </Button>
-              </div>
-
-              {/* 2FA Status Card */}
-              <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 bg-warning/12 text-warning-text flex items-center justify-center rounded-lg">
-                      <Shield className="h-4 w-4" />
-                    </div>
-                    <Badge
-                      variant={
-                        securityOverviewQuery.data?.twoFactor.isEnabled
-                          ? 'success'
-                          : 'warning'
-                      }
-                      className="font-semibold text-[10px] uppercase"
-                    >
-                      {securityOverviewQuery.data?.twoFactor.isEnabled
-                        ? 'Enabled'
-                        : 'Disabled'}
-                    </Badge>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground">
-                      Two-Factor Authentication
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {securityOverviewQuery.data?.twoFactor.isEnabled
-                        ? 'Enforced with authenticator app'
-                        : 'Add a second layer of defense'}
-                    </p>
-                  </div>
-                </div>
-                {securityOverviewQuery.data?.twoFactor.isEnabled ? (
+          {/* SECURITY CHECKUP — every line is derived from the real
+              security overview; nothing here is decorative. */}
+          {(() => {
+            const overview = securityOverviewQuery.data;
+            if (!overview) {
+              return (
+                <SettingsCard>
+                  <LoadingState />
+                </SettingsCard>
+              );
+            }
+            const passkeys = webAuthnQuery.data?.length ?? overview.passkeysCount;
+            const checks: Array<{
+              key: string;
+              ok: boolean;
+              title: string;
+              detail: string;
+              action?: ReactNode;
+            }> = [
+              {
+                key: 'password',
+                ok: overview.password.hasPassword || passkeys > 0,
+                title: overview.password.hasPassword
+                  ? 'Password set'
+                  : 'No password',
+                detail: overview.password.hasPassword
+                  ? overview.password.lastChangedAt
+                    ? `Last changed ${new Date(overview.password.lastChangedAt).toLocaleDateString()}`
+                    : 'Not changed since you created it'
+                  : 'You sign in with an email link, Google/Apple or a passkey.',
+                action: (
                   <Button
-                    variant="outline"
                     size="sm"
-                    onClick={() => setDisableTotpModalOpen(true)}
-                    className="text-xs h-8 w-full text-destructive hover:text-destructive"
-                  >
-                    Disable 2FA
-                  </Button>
-                ) : (
-                  <Button
                     variant="outline"
+                    onClick={() => setChangePasswordModalOpen(true)}
+                  >
+                    {overview.password.hasPassword ? 'Change' : 'Set password'}
+                  </Button>
+                ),
+              },
+              {
+                key: '2fa',
+                ok: overview.twoFactor.isEnabled,
+                title: overview.twoFactor.isEnabled
+                  ? 'Two-factor authentication on'
+                  : 'Two-factor authentication off',
+                detail: overview.twoFactor.isEnabled
+                  ? overview.twoFactor.isEnforced
+                    ? 'Required by your workspace.'
+                    : 'A code from your authenticator app is required at sign-in.'
+                  : 'Add a second step so a stolen password is not enough.',
+                action: overview.twoFactor.isEnabled ? undefined : (
+                  <Button
                     size="sm"
                     onClick={handleStartTotpSetup}
                     loading={setupTotpMutation.isPending}
-                    className="text-xs h-8 w-full"
                   >
-                    Set up 2FA
+                    Turn on
                   </Button>
-                )}
+                ),
+              },
+              ...(overview.twoFactor.isEnabled
+                ? [
+                    {
+                      key: 'recovery',
+                      ok: overview.twoFactor.hasBackupCodes,
+                      title: overview.twoFactor.hasBackupCodes
+                        ? 'Recovery codes saved'
+                        : 'No recovery codes',
+                      detail:
+                        'One-time codes that get you in if you lose your phone.',
+                      action: overview.twoFactor.hasBackupCodes ? undefined : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleGenerateRecoveryCodes}
+                          loading={regenerateRecoveryMutation.isPending}
+                        >
+                          Generate
+                        </Button>
+                      ),
+                    },
+                  ]
+                : []),
+              {
+                key: 'passkeys',
+                ok: passkeys > 0,
+                title:
+                  passkeys > 0
+                    ? `${passkeys} passkey${passkeys === 1 ? '' : 's'}`
+                    : 'No passkeys',
+                detail:
+                  'Sign in with Face ID, Touch ID, Windows Hello or a security key.',
+                action:
+                  passkeys > 0 || !browserSupportsPasskeys() ? undefined : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAddPasskeyModalOpen(true)}
+                    >
+                      Add
+                    </Button>
+                  ),
+              },
+            ];
+            const passed = checks.filter((c) => c.ok).length;
+            const allGood = passed === checks.length;
+            const sessions = overview.activeSessionsCount;
+
+            return (
+              <div className="space-y-3">
+                <div className="gap-3 px-1 flex flex-wrap items-end justify-between">
+                  <div>
+                    <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                      Security checkup
+                    </h3>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {allGood
+                        ? 'Your account is well protected.'
+                        : `${passed} of ${checks.length} protections in place.`}
+                      {sessions > 0 &&
+                        ` Signed in on ${sessions} device${sessions === 1 ? '' : 's'}.`}
+                    </p>
+                  </div>
+                  <div
+                    className="h-1.5 w-40 overflow-hidden rounded-full bg-surface-inset"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={checks.length}
+                    aria-valuenow={passed}
+                    aria-label="Security checkup progress"
+                  >
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all',
+                        allGood ? 'bg-success' : 'bg-warning',
+                      )}
+                      style={{ width: `${(passed / checks.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <SettingsCard divided>
+                  {checks.map((check) => (
+                    <SettingsRow
+                      key={check.key}
+                      icon={
+                        check.ok ? (
+                          <CheckCircle2 className="text-success" />
+                        ) : (
+                          <Shield className="text-warning-text" />
+                        )
+                      }
+                      title={check.title}
+                      description={check.detail}
+                    >
+                      {check.action}
+                    </SettingsRow>
+                  ))}
+                  {(overview.sso.isConnected ||
+                    overview.sso.isOrganizationManaged) && (
+                    <SettingsRow
+                      icon={<Globe />}
+                      title="Single sign-on"
+                      description={
+                        overview.sso.isConnected
+                          ? `Connected via ${overview.sso.providerType || 'your identity provider'}`
+                          : 'Your organization manages sign-in for this account.'
+                      }
+                      badge={
+                        overview.sso.isConnected ? (
+                          <SettingsBadge tone="success">Connected</SettingsBadge>
+                        ) : null
+                      }
+                    >
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleTabChange('enterprise-identity')}
+                        >
+                          Manage
+                        </Button>
+                      )}
+                    </SettingsRow>
+                  )}
+                </SettingsCard>
               </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* SIGN-IN METHODS SECTION */}
           <div className="space-y-4">

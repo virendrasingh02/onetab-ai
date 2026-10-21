@@ -5,7 +5,9 @@ import {
   formatZoneDifference,
   getRegionForTimezone,
   getSystemTimezone,
-  getWorkingHoursStatus,
+  formatWorkingSchedule,
+  getScheduleStatus,
+  resolveWorkingSchedule,
 } from '@org/utils';
 import {
   Briefcase,
@@ -27,7 +29,8 @@ export function ProfileDetails({ user, workspaceRole = 'Member' }: ProfileDetail
   const region = getRegionForTimezone(userTimezone);
   const viewerZone = getSystemTimezone();
   const diff = formatZoneDifference(userTimezone, viewerZone);
-  const workStatus = getWorkingHoursStatus(userTimezone);
+  const schedule = resolveWorkingSchedule(user);
+  const workStatus = getScheduleStatus(userTimezone, schedule);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-foreground">
@@ -131,7 +134,8 @@ export function ProfileDetails({ user, workspaceRole = 'Member' }: ProfileDetail
           </h3>
           <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
             <span>{workStatus.icon}</span>
-            <span>{workStatus.status === 'working' ? 'Working' : 'Off-hours'}</span>
+            <span>{workStatus.status === 'working' ? 'Working' : workStatus.label === 'Day off' ? 'Day off' : 'Off-hours'}</span>
+            <span className="text-muted-foreground/70">· {formatWorkingSchedule(schedule)}</span>
           </div>
         </div>
 

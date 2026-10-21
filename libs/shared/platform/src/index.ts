@@ -62,6 +62,7 @@ export {
   getAllDesktopDownloadOptions,
   getAllMobileDownloadOptions,
   getDownloadOptionForOS,
+  hasConfiguredDownloadUrl,
   isDownloadAvailableForOS,
   type AppDownloadConfig,
   type DesktopInstallerConfig,

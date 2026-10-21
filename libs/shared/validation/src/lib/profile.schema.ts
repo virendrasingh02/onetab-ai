@@ -50,6 +50,9 @@ export function normalizeProfileWebsite(value: string): string | null {
  * scheme check they must not contain quotes, parentheses, backslashes or
  * whitespace that could break out of it.
  */
+/** 24-hour local clock time, "00:00"–"23:59". */
+const HH_MM = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
 const COVER_URL_PATTERN =
   /^(?:data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+|https?:\/\/[^\s"'()\\]+|\/users\/[A-Za-z0-9_-]+\/cover\?v=\d+)$/;
 
@@ -88,6 +91,15 @@ export const updateProfileSchema = z.object({
   statusText: z.string().trim().max(100).nullable().optional(),
   statusEmoji: z.string().trim().max(32).nullable().optional(),
   statusExpiresAt: z.string().datetime().nullable().optional(),
+  workingHoursStart: z.string().regex(HH_MM, 'Use HH:MM').optional(),
+  workingHoursEnd: z.string().regex(HH_MM, 'Use HH:MM').optional(),
+  workingDays: z
+    .array(z.number().int().min(0).max(6))
+    .max(7)
+    .transform((days) => [...new Set(days)].sort((a, b) => a - b))
+    .optional(),
+  timeFormat: z.enum(['12h', '24h']).nullable().optional(),
+  dateFormat: z.enum(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']).nullable().optional(),
 });
 
 export const updateStatusSchema = z.object({

@@ -26,6 +26,7 @@ import type {
   DesktopStartupRequest,
   DesktopStartupState,
   DesktopUserTask,
+  DesktopJumpListWorkspace,
   DesktopFileOpened,
   DesktopUserActivityPayload,
 } from './shared/ipc.js';
@@ -80,6 +81,7 @@ const IPC = {
   getPath: 'onetab:app/get-path',
   removeProtocol: 'onetab:protocol/remove',
   setUserTasks: 'onetab:windows/set-user-tasks',
+  setJumpListWorkspaces: 'onetab:windows/set-jump-list-workspaces',
   clearRecentDocuments: 'onetab:app/clear-recent-documents',
   addRecentDocument: 'onetab:app/add-recent-document',
   setAccessibilitySupport: 'onetab:app/set-accessibility',
@@ -186,6 +188,8 @@ const api = {
   windows: {
     setUserTasks: (tasks?: DesktopUserTask[]): Promise<boolean> =>
       ipcRenderer.invoke(IPC.setUserTasks, tasks),
+    setJumpListWorkspaces: (workspaces: DesktopJumpListWorkspace[]): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.setJumpListWorkspaces, workspaces),
   },
 
   protocols: {

@@ -4,12 +4,11 @@ import {
   Button,
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
-  CardHeader,
-  CardTitle,
   Input,
   PlanBadge,
+  SettingsCard,
+  SettingsSectionHeader,
   Select,
   SelectContent,
   SelectItem,
@@ -24,8 +23,6 @@ import {
   AlertCircle,
   Check,
   CheckCircle2,
-  Cpu,
-  Crown,
   Eye,
   EyeOff,
   Play,
@@ -139,239 +136,229 @@ export function EnterpriseCustomLLMSettings({ workspaceId }: EnterpriseCustomLLM
 
   if (!isEnterprise) {
     return (
-      <Card className="border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-card to-card">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Crown className="size-5 text-amber-500" />
-              <CardTitle className="text-base font-bold">Enterprise Custom LLM Integration</CardTitle>
+      <div className="space-y-8">
+        <SettingsSectionHeader
+          title="Enterprise Custom LLM Provider"
+          badge={<PlanBadge plan="enterprise" size="sm" variant="gradient" />}
+          description="Connect private self-hosted models, vLLM clusters, Azure OpenAI, or custom private VPC inference endpoints."
+        />
+        <Card className="rounded-xl border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-card to-card">
+          <CardContent className="pt-5 space-y-4">
+            <div className="rounded-xl border border-border bg-surface-muted/50 p-4 text-xs space-y-2">
+              <p className="font-medium text-foreground">Custom LLM Capabilities Include:</p>
+              <ul className="space-y-1.5 text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <Check className="size-3.5 text-amber-500" />
+                  <span>Zero-retention private inference through your own endpoints</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="size-3.5 text-amber-500" />
+                  <span>Support for custom fine-tuned weights, vLLM, Ollama, and Azure OpenAI</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="size-3.5 text-amber-500" />
+                  <span>Encrypted credential storage with server-side proxy isolation</span>
+                </li>
+              </ul>
             </div>
-            <PlanBadge plan="enterprise" size="sm" variant="gradient" />
-          </div>
-          <CardDescription className="text-xs">
-            Connect private self-hosted models, vLLM clusters, Azure OpenAI, or custom private VPC inference endpoints.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-xl border border-border bg-surface-muted/50 p-4 text-xs space-y-2">
-            <p className="font-medium text-foreground">Custom LLM Capabilities Include:</p>
-            <ul className="space-y-1.5 text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <Check className="size-3.5 text-amber-500" />
-                <span>Zero-retention private inference through your own endpoints</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="size-3.5 text-amber-500" />
-                <span>Support for custom fine-tuned weights, vLLM, Ollama, and Azure OpenAI</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="size-3.5 text-amber-500" />
-                <span>Encrypted credential storage with server-side proxy isolation</span>
-              </li>
-            </ul>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              window.location.hash = '#billing';
-            }}
-            className="text-xs"
-          >
-            Upgrade to Enterprise
-          </Button>
-        </CardFooter>
-      </Card>
+          </CardContent>
+          <CardFooter>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                window.location.hash = '#billing';
+              }}
+              className="text-xs"
+            >
+              Upgrade to Enterprise
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Cpu className="size-5 text-primary" />
-            <h3 className="text-base font-bold text-foreground">Enterprise Custom LLM Provider</h3>
+    <div className="space-y-8">
+      <SettingsSectionHeader
+        title="Enterprise Custom LLM Provider"
+        badge={<PlanBadge plan="enterprise" size="sm" variant="gradient" />}
+        description="Configure a dedicated private model endpoint for this workspace. All AI chats and automations will route through your private infrastructure."
+      />
+
+      <SettingsCard>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Provider Type */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">Provider Protocol</label>
+            <Select value={provider} onValueChange={(val: any) => setProvider(val)}>
+              <SelectTrigger className="text-xs h-9">
+                <SelectValue placeholder="Select provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="custom" className="text-xs">OpenAI Compatible (Generic / vLLM / LocalAI)</SelectItem>
+                <SelectItem value="vllm" className="text-xs">vLLM Inference Server</SelectItem>
+                <SelectItem value="azure_openai" className="text-xs">Azure OpenAI Service</SelectItem>
+                <SelectItem value="ollama_remote" className="text-xs">Ollama Remote Host</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <PlanBadge plan="enterprise" size="sm" variant="gradient" />
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Configure a dedicated private model endpoint for this workspace. All AI chats and automations will route through your private infrastructure.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Provider Type */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">Provider Protocol</label>
-          <Select value={provider} onValueChange={(val: any) => setProvider(val)}>
-            <SelectTrigger className="text-xs h-9">
-              <SelectValue placeholder="Select provider" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="custom" className="text-xs">OpenAI Compatible (Generic / vLLM / LocalAI)</SelectItem>
-              <SelectItem value="vllm" className="text-xs">vLLM Inference Server</SelectItem>
-              <SelectItem value="azure_openai" className="text-xs">Azure OpenAI Service</SelectItem>
-              <SelectItem value="ollama_remote" className="text-xs">Ollama Remote Host</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Endpoint URL */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">Inference Endpoint Base URL</label>
-          <Input
-            value={endpointUrl}
-            onChange={(e) => setEndpointUrl(e.target.value)}
-            placeholder="https://vllm.internal.yourorg.com/v1"
-            className="text-xs h-9"
-          />
-        </div>
-
-        {/* Model Identifier */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">Model Identifier</label>
-          <Input
-            value={modelIdentifier}
-            onChange={(e) => setModelIdentifier(e.target.value)}
-            placeholder="e.g. meta-llama/Llama-3.3-70B-Instruct"
-            className="text-xs h-9"
-          />
-        </div>
-
-        {/* API Key */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">
-            API Secret / Bearer Token {config?.hasApiKey ? '(Key configured)' : ''}
-          </label>
-          <div className="relative">
+  
+          {/* Endpoint URL */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">Inference Endpoint Base URL</label>
             <Input
-              type={showApiKey ? 'text' : 'password'}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={config?.maskedApiKey || 'Enter API Key if required'}
-              className="text-xs h-9 pr-8"
+              value={endpointUrl}
+              onChange={(e) => setEndpointUrl(e.target.value)}
+              placeholder="https://vllm.internal.yourorg.com/v1"
+              className="text-xs h-9"
             />
-            <button
-              type="button"
-              onClick={() => setShowApiKey(!showApiKey)}
-              className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
-            >
-              {showApiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-            </button>
+          </div>
+  
+          {/* Model Identifier */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">Model Identifier</label>
+            <Input
+              value={modelIdentifier}
+              onChange={(e) => setModelIdentifier(e.target.value)}
+              placeholder="e.g. meta-llama/Llama-3.3-70B-Instruct"
+              className="text-xs h-9"
+            />
+          </div>
+  
+          {/* API Key */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">
+              API Secret / Bearer Token {config?.hasApiKey ? '(Key configured)' : ''}
+            </label>
+            <div className="relative">
+              <Input
+                type={showApiKey ? 'text' : 'password'}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={config?.maskedApiKey || 'Enter API Key if required'}
+                className="text-xs h-9 pr-8"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+              >
+                {showApiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </button>
+            </div>
+          </div>
+  
+          {/* Temperature */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">Default Temperature ({temperature})</label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0"
+              max="2"
+              value={temperature}
+              onChange={(e) => setTemperature(parseFloat(e.target.value) || 0.7)}
+              className="text-xs h-9"
+            />
+          </div>
+  
+          {/* Max Tokens */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-foreground">Max Generation Tokens</label>
+            <Input
+              type="number"
+              step="512"
+              min="256"
+              max="131072"
+              value={maxTokens}
+              onChange={(e) => setMaxTokens(parseInt(e.target.value, 10) || 4096)}
+              className="text-xs h-9"
+            />
           </div>
         </div>
-
-        {/* Temperature */}
+  
+        {/* System Prompt Override */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">Default Temperature ({temperature})</label>
+          <label className="text-xs font-semibold text-foreground">Organization System Prompt / Guardrail (Optional)</label>
           <Input
-            type="number"
-            step="0.1"
-            min="0"
-            max="2"
-            value={temperature}
-            onChange={(e) => setTemperature(parseFloat(e.target.value) || 0.7)}
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+            placeholder="You are an enterprise AI assistant tuned for internal enterprise documentation and operations."
             className="text-xs h-9"
           />
         </div>
-
-        {/* Max Tokens */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">Max Generation Tokens</label>
-          <Input
-            type="number"
-            step="512"
-            min="256"
-            max="131072"
-            value={maxTokens}
-            onChange={(e) => setMaxTokens(parseInt(e.target.value, 10) || 4096)}
-            className="text-xs h-9"
-          />
+  
+        {/* Toggles */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-surface-muted/30">
+          <div className="space-y-0.5">
+            <div className="text-xs font-semibold text-foreground">Enable Custom LLM Routing</div>
+            <p className="text-[11px] text-muted-foreground">
+              When enabled, workspace requests will prioritize this custom endpoint.
+            </p>
+          </div>
+          <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
         </div>
-      </div>
-
-      {/* System Prompt Override */}
-      <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-foreground">Organization System Prompt / Guardrail (Optional)</label>
-        <Input
-          value={systemPrompt}
-          onChange={(e) => setSystemPrompt(e.target.value)}
-          placeholder="You are an enterprise AI assistant tuned for internal enterprise documentation and operations."
-          className="text-xs h-9"
-        />
-      </div>
-
-      {/* Toggles */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-surface-muted/30">
-        <div className="space-y-0.5">
-          <div className="text-xs font-semibold text-foreground">Enable Custom LLM Routing</div>
-          <p className="text-[11px] text-muted-foreground">
-            When enabled, workspace requests will prioritize this custom endpoint.
-          </p>
-        </div>
-        <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
-      </div>
-
-      {/* Connection Test Box */}
-      {testResult ? (
-        <div
-          className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
-            testResult.success
-              ? 'border-success/30 bg-success/10 text-success-text'
-              : 'border-destructive/30 bg-destructive/10 text-destructive'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {testResult.success ? (
-              <CheckCircle2 className="size-4 shrink-0 text-success-text" />
+  
+        {/* Connection Test Box */}
+        {testResult ? (
+          <div
+            className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+              testResult.success
+                ? 'border-success/30 bg-success/10 text-success-text'
+                : 'border-destructive/30 bg-destructive/10 text-destructive'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {testResult.success ? (
+                <CheckCircle2 className="size-4 shrink-0 text-success-text" />
+              ) : (
+                <AlertCircle className="size-4 shrink-0 text-destructive" />
+              )}
+              <span>{testResult.message}</span>
+            </div>
+            {testResult.latencyMs > 0 ? (
+              <Badge variant="neutral" className="text-[10px]">
+                {testResult.latencyMs}ms
+              </Badge>
+            ) : null}
+          </div>
+        ) : null}
+  
+        {/* Action Footer */}
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTestConnection}
+            disabled={isTesting}
+            className="text-xs"
+          >
+            {isTesting ? (
+              <>
+                <RefreshCw className="size-3.5 mr-1.5 animate-spin" />
+                Testing...
+              </>
             ) : (
-              <AlertCircle className="size-4 shrink-0 text-destructive" />
+              <>
+                <Play className="size-3.5 mr-1.5 fill-current" />
+                Test Connection
+              </>
             )}
-            <span>{testResult.message}</span>
-          </div>
-          {testResult.latencyMs > 0 ? (
-            <Badge variant="neutral" className="text-[10px]">
-              {testResult.latencyMs}ms
-            </Badge>
-          ) : null}
+          </Button>
+  
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+            className="text-xs font-semibold px-4"
+          >
+            {saveMutation.isPending ? 'Saving...' : 'Save Configuration'}
+          </Button>
         </div>
-      ) : null}
-
-      {/* Action Footer */}
-      <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleTestConnection}
-          disabled={isTesting}
-          className="text-xs"
-        >
-          {isTesting ? (
-            <>
-              <RefreshCw className="size-3.5 mr-1.5 animate-spin" />
-              Testing...
-            </>
-          ) : (
-            <>
-              <Play className="size-3.5 mr-1.5 fill-current" />
-              Test Connection
-            </>
-          )}
-        </Button>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-          className="text-xs font-semibold px-4"
-        >
-          {saveMutation.isPending ? 'Saving...' : 'Save Configuration'}
-        </Button>
-      </div>
+      </SettingsCard>
     </div>
   );
 }

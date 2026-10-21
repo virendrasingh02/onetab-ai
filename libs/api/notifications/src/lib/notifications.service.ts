@@ -76,7 +76,9 @@ export class NotificationsService {
         userId,
         workspaceId,
         pushEnabled: true,
-        emailEnabled: false,
+        // No row means the mail pipeline's gate lets workspace email through
+        // (see NotificationPreferenceManager), so report it as on.
+        emailEnabled: true,
         mentionsOnly: false,
         mutedChannelIds: [] as string[],
         quietHoursStart: null,
@@ -123,7 +125,9 @@ export class NotificationsService {
 
     const saved = await this.prisma.notificationPreference.upsert({
       where: { userId_workspaceId: { userId, workspaceId } },
-      create: { userId, workspaceId, ...data },
+      // The column defaults email to off, but before this row existed email
+      // was being sent; muting a channel must not silently switch it off too.
+      create: { userId, workspaceId, emailEnabled: true, ...data },
       update: data,
     });
 

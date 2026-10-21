@@ -13,19 +13,75 @@ import type { ComponentProps, MouseEventHandler, ReactNode } from 'react';
 export function SettingsSectionHeader({
   title,
   description,
+  badge,
+  actions,
 }: {
   title: ReactNode;
   description?: ReactNode;
+  /** Pill(s) shown beside the title (plan tier, status…). */
+  badge?: ReactNode;
+  /** Section-level buttons aligned to the right of the title. */
+  actions?: ReactNode;
 }) {
   return (
-    <div>
-      <h1 className="text-xl font-bold tracking-tight text-foreground">
-        {title}
-      </h1>
-      {description ? (
-        <p className="text-xs mt-1 text-muted-foreground">{description}</p>
+    <div className="gap-4 flex flex-wrap items-start justify-between">
+      <div className="min-w-0 flex-1 basis-72">
+        <div className="gap-2 flex flex-wrap items-center">
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            {title}
+          </h1>
+          {badge}
+        </div>
+        {description ? (
+          <p className="text-xs mt-1 text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      {actions ? (
+        <div className="gap-2 flex shrink-0 items-center">{actions}</div>
       ) : null}
     </div>
+  );
+}
+
+export interface SettingsGroupProps extends Omit<ComponentProps<'section'>, 'title'> {
+  /** Small uppercase label above the group (e.g. 'Color mode'). */
+  title?: ReactNode;
+  /** Optional one-line hint under the label. */
+  description?: ReactNode;
+  /** Control aligned to the right of the label (segmented toggle, reset…). */
+  action?: ReactNode;
+}
+
+/** A labelled group of settings: uppercase label (+ optional action) over its card(s). */
+export function SettingsGroup({
+  title,
+  description,
+  action,
+  className,
+  children,
+  ...props
+}: SettingsGroupProps) {
+  return (
+    <section className={cn('space-y-3', className)} {...props}>
+      {title || action ? (
+        <div className="gap-3 px-1 flex flex-wrap items-end justify-between">
+          <div className="min-w-0">
+            {title ? (
+              <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                {title}
+              </h3>
+            ) : null}
+            {description ? (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {description}
+              </p>
+            ) : null}
+          </div>
+          {action ? <div className="shrink-0">{action}</div> : null}
+        </div>
+      ) : null}
+      {children}
+    </section>
   );
 }
 
@@ -140,13 +196,13 @@ export function SettingsRow({
   return (
     <div
       className={cn(
-        'gap-4 flex items-center justify-between transition-colors hover:bg-accent/40',
+        'gap-x-4 gap-y-3 flex flex-wrap items-center justify-between transition-colors hover:bg-accent/40',
         nested ? 'py-3 pr-4 pl-[4.25rem]' : 'p-4 sm:p-5',
         className,
       )}
       {...props}
     >
-      <div className="gap-3.5 min-w-0 flex items-center">
+      <div className="gap-3.5 min-w-0 flex flex-1 basis-60 items-center">
         {icon ? <SettingsIconTile>{icon}</SettingsIconTile> : null}
         <div className="min-w-0">
           <div className="gap-2 flex items-center">

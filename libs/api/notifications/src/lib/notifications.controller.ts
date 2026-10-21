@@ -21,6 +21,22 @@ import {
   type PushRegistrationInput,
 } from './notifications.service.js';
 
+/** Quiet hours are local "HH:MM"; null clears that end of the window. */
+const quietHourSchema = z
+  .string()
+  .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM')
+  .nullable()
+  .optional();
+
+const notificationPreferenceSchema = z.object({
+  pushEnabled: z.boolean().optional(),
+  emailEnabled: z.boolean().optional(),
+  mentionsOnly: z.boolean().optional(),
+  mutedChannelIds: z.array(z.string().min(1).max(64)).max(1000).optional(),
+  quietHoursStart: quietHourSchema,
+  quietHoursEnd: quietHourSchema,
+});
+
 /**
  * Notification settings and the activity feed for one workspace.
  *
@@ -102,7 +118,7 @@ export class NotificationsController {
   updatePreferences(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: NotificationPreferenceInput,
+    @Body(zodBody(notificationPreferenceSchema)) body: NotificationPreferenceInput,
   ) {
     return this.notifications.updatePreferences(workspaceId, userId, body);
   }

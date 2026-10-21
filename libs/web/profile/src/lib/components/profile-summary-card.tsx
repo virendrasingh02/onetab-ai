@@ -6,7 +6,9 @@ import {
   formatZoneDifference,
   getRegionForTimezone,
   getSystemTimezone,
-  getWorkingHoursStatus,
+  formatWorkingSchedule,
+  getScheduleStatus,
+  resolveWorkingSchedule,
 } from '@org/utils';
 import { Calendar, Clock, Globe, Shield } from 'lucide-react';
 
@@ -27,7 +29,8 @@ export function ProfileSummaryCard({
   const region = getRegionForTimezone(userTimezone);
   const viewerZone = getSystemTimezone();
   const diff = formatZoneDifference(userTimezone, viewerZone);
-  const workStatus = getWorkingHoursStatus(userTimezone);
+  const schedule = resolveWorkingSchedule(user);
+  const workStatus = getScheduleStatus(userTimezone, schedule);
 
   const formattedJoinedDate = user.createdAt
     ? new Date(user.createdAt).toLocaleDateString('en-US', {
@@ -104,9 +107,14 @@ export function ProfileSummaryCard({
               <Clock className="size-3.5 text-muted-foreground" />
               <span>Working Hours</span>
             </div>
-            <div className="flex items-center gap-1 font-medium text-foreground">
-              <span>{workStatus.icon}</span>
-              <span>{workStatus.status === 'working' ? 'Active Work Hours' : 'Off-Hours'}</span>
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-1 font-medium text-foreground">
+                <span>{workStatus.icon}</span>
+                <span>{workStatus.status === 'working' ? 'Working now' : workStatus.label === 'Day off' ? 'Day off' : 'Off-Hours'}</span>
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {formatWorkingSchedule(schedule)}
+              </div>
             </div>
           </div>
 

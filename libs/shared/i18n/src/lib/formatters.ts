@@ -155,16 +155,57 @@ export function formatPercentLocale(
 }
 
 /**
- * Creates all formatters bound to a given locale.
+ * The user's own clock and date display choice. `null` follows the locale's
+ * convention, which is what everyone gets until they pick otherwise.
  */
-export function createFormatters(locale: SupportedLanguageCode) {
+export interface DisplayFormats {
+  timeFormat: '12h' | '24h' | null;
+  dateFormat: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | null;
+}
+
+const NO_DISPLAY_FORMATS: DisplayFormats = { timeFormat: null, dateFormat: null };
+
+/** A numeric date in the chosen field order, e.g. 21/10/2026. */
+export function formatNumericDate(
+  date: Date | string | number,
+  dateFormat: NonNullable<DisplayFormats['dateFormat']>,
+): string {
+  const d = toDate(date);
+  if (Number.isNaN(d.getTime())) return String(date);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = String(d.getFullYear());
+  if (dateFormat === 'YYYY-MM-DD') return `${yyyy}-${mm}-${dd}`;
+  return dateFormat === 'DD/MM/YYYY' ? `${dd}/${mm}/${yyyy}` : `${mm}/${dd}/${yyyy}`;
+}
+
+/**
+ * Creates all formatters bound to a given locale. A 12h/24h choice overrides
+ * the locale's hour cycle; a date-order choice applies when no explicit
+ * `dateStyle`/field options are passed (the short numeric form).
+ */
+export function createFormatters(
+  locale: SupportedLanguageCode,
+  formats: DisplayFormats = NO_DISPLAY_FORMATS,
+) {
+  const hourCycle: Intl.DateTimeFormatOptions =
+    formats.timeFormat === null ? {} : { hour12: formats.timeFormat === '12h' };
+  const numericDate = (date: Date | string | number, options?: Intl.DateTimeFormatOptions) =>
+    formats.dateFormat && (!options || Object.keys(options).length === 0)
+      ? formatNumericDate(date, formats.dateFormat)
+      : null;
+
   return {
     formatDate: (date: Date | string | number, options?: Intl.DateTimeFormatOptions) =>
-      formatDateLocale(date, locale, options),
+      numericDate(date, options) ?? formatDateLocale(date, locale, options),
     formatTime: (date: Date | string | number, options?: Intl.DateTimeFormatOptions) =>
-      formatTimeLocale(date, locale, options),
-    formatDateTime: (date: Date | string | number, options?: Intl.DateTimeFormatOptions) =>
-      formatDateTimeLocale(date, locale, options),
+      formatTimeLocale(date, locale, { ...hourCycle, ...options }),
+    formatDateTime: (date: Date | string | number, options?: Intl.DateTimeFormatOptions) => {
+      const datePart = numericDate(date, options);
+      return datePart
+        ? `${datePart}, ${formatTimeLocale(date, locale, hourCycle)}`
+        : formatDateTimeLocale(date, locale, { ...hourCycle, ...options });
+    },
     formatRelative: (date: Date | string | number, baseDate?: Date) =>
       formatRelativeLocale(date, locale, baseDate),
     formatNumber: (value: number, options?: Intl.NumberFormatOptions) =>

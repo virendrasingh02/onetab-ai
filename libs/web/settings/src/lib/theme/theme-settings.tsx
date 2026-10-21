@@ -7,10 +7,60 @@ import {
   type RadiusPreset,
   type ThemePreset,
 } from '@org/design-system';
-import { toast, AppSelect } from '@org/ui';
+import {
+  toast,
+  AppSelect,
+  SettingsCard,
+  SettingsGroup,
+  SettingsRow,
+} from '@org/ui';
+import { cn } from '@org/utils';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ThemeCustomizer } from './theme-customizer.js';
+
+/** Pill toggle shared by the color-mode and custom/presets switches. */
+function PillToggle<T extends string>({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: ReadonlyArray<{ value: T; label: string; icon?: ReactNode }>;
+  label: string;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="gap-1 p-1 flex items-center rounded-lg border border-border bg-surface-inset"
+    >
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              'gap-1.5 px-2.5 py-1 flex items-center rounded-md text-xs font-medium transition-colors cursor-pointer [&_svg]:size-3.5',
+              active
+                ? 'bg-background font-semibold text-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {option.icon}
+            <span>{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function ThemeSettings() {
   const {
@@ -39,115 +89,50 @@ export function ThemeSettings() {
   };
 
   return (
-    <div className="space-y-8 text-foreground">
-      {/* Header Section */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground">Theme &amp; Appearance</h1>
-        <p className="text-xs text-muted-foreground mt-1">
-          Select or customize your interface color scheme, presets, and control density.
-        </p>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          This is <span className="font-semibold">your</span> appearance for the{' '}
-          <span className="font-semibold">current workspace</span> — it does not
-          change other members&apos; view or your other workspaces. A workspace
-          admin sets the shared default under Workspace Settings ▸ Appearance &amp;
-          Branding.
-        </p>
-      </div>
+    <>
+      <SettingsGroup
+        title="Color mode"
+        description={
+          <>
+            Applies to <span className="font-semibold">you</span> in this
+            workspace only. A workspace admin sets the shared default under
+            Workspace Settings ▸ Appearance &amp; Branding.
+          </>
+        }
+      >
+        <SettingsCard divided>
+          <SettingsRow
+            title="Interface mode"
+            description="Choose between light, dark, or automatic system sync"
+          >
+            <PillToggle
+              label="Interface mode"
+              value={theme}
+              onChange={setTheme}
+              options={[
+                { value: 'light', label: 'Light', icon: <Sun className="text-warning-text" /> },
+                { value: 'dark', label: 'Dark', icon: <Moon className="text-info-text" /> },
+                { value: 'system', label: 'System', icon: <Monitor /> },
+              ]}
+            />
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsGroup>
 
-      {/* ---------------- SECTION 1: COLOR MODE SELECTOR ---------------- */}
-      <div className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-          Color Mode
-        </h3>
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h4 className="text-xs font-semibold text-foreground">Interface Mode</h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Choose between light, dark, or automatic system sync
-              </p>
-            </div>
-
-            <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border/50 self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setTheme('light')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  theme === 'light'
-                    ? 'bg-background text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Sun className="size-3.5 text-warning-text" />
-                <span>Light</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTheme('dark')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  theme === 'dark'
-                    ? 'bg-background text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Moon className="size-3.5 text-info-text" />
-                <span>Dark</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTheme('system')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  theme === 'system'
-                    ? 'bg-background text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Monitor className="size-3.5 text-muted-foreground" />
-                <span>System</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------- SECTION 2: THEME PRESETS VS CUSTOM EDITOR ---------------- */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-            Theme Customization &amp; Presets
-          </h3>
-
-          {/* Sub-tab toggle */}
-          <div className="flex items-center gap-1 bg-surface-raised p-1 rounded-lg border border-border text-xs">
-            <button
-              type="button"
-              onClick={() => setActiveTab('custom')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                activeTab === 'custom'
-                  ? 'bg-background text-foreground shadow-2xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Custom Theme
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('presets')}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                activeTab === 'presets'
-                  ? 'bg-background text-foreground shadow-2xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Curated Presets
-            </button>
-          </div>
-        </div>
-
+      <SettingsGroup
+        title="Theme"
+        action={
+          <PillToggle
+            label="Theme source"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              { value: 'custom', label: 'Custom theme' },
+              { value: 'presets', label: 'Curated presets' },
+            ]}
+          />
+        }
+      >
         {activeTab === 'custom' ? (
           <ThemeCustomizer />
         ) : (
@@ -161,12 +146,12 @@ export function ThemeSettings() {
                 <div
                   key={preset.id}
                   onClick={() => handleSelectPreset(preset)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 bg-surface hover:border-border-strong ${
+                  className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 bg-surface hover:border-border-strong ${
                     isSelected ? 'border-primary ring-2 ring-primary/20 shadow-md' : 'border-border shadow-xs'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-foreground">{preset.name}</h4>
+                    <h4 className="text-sm font-semibold text-foreground">{preset.name}</h4>
                     {isSelected && (
                       <span className="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                         <Check className="size-3" />
@@ -175,7 +160,7 @@ export function ThemeSettings() {
                     )}
                   </div>
 
-                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                     {preset.description}
                   </p>
 
@@ -197,21 +182,14 @@ export function ThemeSettings() {
             })}
           </div>
         )}
-      </div>
+      </SettingsGroup>
 
-      {/* ---------------- SECTION 3: INTERFACE DENSITY & RADIUS ---------------- */}
-      <div className="space-y-3 pt-2">
-        <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-          Density &amp; Geometry
-        </h3>
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div>
-              <h4 className="text-xs font-semibold text-foreground">Control Density</h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Adjust the spacing, padding, and height of buttons and inputs
-              </p>
-            </div>
+      <SettingsGroup title="Density & geometry">
+        <SettingsCard divided>
+          <SettingsRow
+            title="Control density"
+            description="Adjust the spacing, padding, and height of buttons and inputs"
+          >
             <AppSelect
               value={density}
               onValueChange={(v) => setDensity(v as Density)}
@@ -219,15 +197,12 @@ export function ThemeSettings() {
               className="w-36"
               aria-label="Control density"
             />
-          </div>
+          </SettingsRow>
 
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div>
-              <h4 className="text-xs font-semibold text-foreground">Corner Radius</h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Customize the rounded curve on cards, popups, and buttons
-              </p>
-            </div>
+          <SettingsRow
+            title="Corner radius"
+            description="Customize the rounded curve on cards, popups, and buttons"
+          >
             <AppSelect
               value={radius}
               onValueChange={(v) => setRadius(v as RadiusPreset)}
@@ -235,9 +210,9 @@ export function ThemeSettings() {
               className="w-36"
               aria-label="Corner radius"
             />
-          </div>
-        </div>
-      </div>
-    </div>
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsGroup>
+    </>
   );
 }

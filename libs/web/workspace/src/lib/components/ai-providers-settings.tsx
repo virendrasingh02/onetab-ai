@@ -277,7 +277,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
             <div
               key={provider.id}
               className={cn(
-                'relative flex flex-col justify-between rounded-2xl border bg-surface-inset p-5 transition-all shadow-2xs hover:shadow-xs',
+                'relative flex flex-col justify-between rounded-xl border bg-surface p-5 transition-all shadow-2xs hover:shadow-xs',
                 provider.configured
                   ? 'border-border'
                   : 'border-dashed border-border/70 bg-surface-inset/40'
@@ -390,7 +390,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-surface-inset divide-y divide-border/40 overflow-hidden">
+        <div className="rounded-xl border border-border bg-surface shadow-xs divide-y divide-border/60 overflow-hidden">
           {providers.flatMap((p) => p.models).map((model: AIModelMetadata) => {
             const capabilities = Array.isArray(model.capabilities)
               ? model.capabilities

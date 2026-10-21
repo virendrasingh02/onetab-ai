@@ -234,7 +234,7 @@ export function EncryptionSecurityPanel() {
 
   if (configStatus === 'disabled') {
     return (
-      <div className="p-6 rounded-2xl border border-border bg-surface-inset shadow-xs space-y-3">
+      <div className="p-5 rounded-xl border border-border bg-surface shadow-xs space-y-3">
         <div className="flex items-center gap-2 text-muted-foreground">
           <ShieldAlert className="size-5" />
           <h3 className="text-sm font-semibold text-foreground">
@@ -267,7 +267,7 @@ export function EncryptionSecurityPanel() {
       </div>
 
       {/* 1. CURRENT SESSION & DEVICE CARD */}
-      <div className="rounded-2xl border border-border bg-surface-inset shadow-xs p-5 space-y-4">
+      <div className="rounded-xl border border-border bg-surface shadow-xs p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div
@@ -362,7 +362,7 @@ export function EncryptionSecurityPanel() {
 
       {/* 2. SAS VERIFICATION ACTIVE MODAL / CARD */}
       {activeVerification ? (
-        <div className="rounded-2xl border-2 border-primary/40 bg-primary/5 shadow-xs p-5 space-y-4 animate-in fade-in">
+        <div className="rounded-xl border-2 border-primary/40 bg-primary/5 shadow-xs p-5 space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Shield className="size-4 text-primary" />
@@ -492,7 +492,7 @@ export function EncryptionSecurityPanel() {
       ) : null}
 
       {/* 3. KEY BACKUP & 4S RECOVERY CARD */}
-      <div className="rounded-2xl border border-border bg-surface-inset shadow-xs p-5 space-y-4">
+      <div className="rounded-xl border border-border bg-surface shadow-xs p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div className="size-10 rounded-xl flex items-center justify-center shrink-0 border border-border bg-surface-raised text-foreground">
@@ -558,7 +558,7 @@ export function EncryptionSecurityPanel() {
       </div>
 
       {/* 4. OTHER KNOWN DEVICES LIST */}
-      <div className="rounded-2xl border border-border bg-surface-inset shadow-xs p-5 space-y-4">
+      <div className="rounded-xl border border-border bg-surface shadow-xs p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-foreground">
             Registered Devices ({devices.length})

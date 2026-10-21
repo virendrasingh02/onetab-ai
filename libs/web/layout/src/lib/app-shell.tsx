@@ -20,7 +20,12 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { CreateChannelDialog, useChannels } from '@org/web-channels';
-import { AppDownloadBanner, useDesktopBadge, useDesktopCommand } from '@org/web-desktop';
+import {
+  AppDownloadBanner,
+  useDesktopBadge,
+  useDesktopCommand,
+  useDesktopJumpList,
+} from '@org/web-desktop';
 import { useMembers } from '@org/web-members';
 import {
   NotificationEnableBar,
@@ -185,6 +190,8 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   );
 
   const workspacesQuery = useWorkspaces();
+  // Windows taskbar right-click → "Workspaces" (Slack-style Jump List).
+  useDesktopJumpList(workspacesQuery.data);
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const splitChannel = useSplitViewChannel(workspaceId);
   const split = useSplitViewWidth();

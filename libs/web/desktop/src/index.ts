@@ -43,6 +43,7 @@ export {
   type DesktopUpdateStatus,
   type DesktopUserActivityPayload,
   type DesktopUserTask,
+  type DesktopJumpListWorkspace,
   type DesktopWindowState,
   type OneTabDesktopApi,
 } from './lib/desktop-api.js';
@@ -80,6 +81,7 @@ export {
 } from './lib/use-browser-sign-in.js';
 export { useDesktopCommand } from './lib/use-desktop-command.js';
 export { useDesktopBadge } from './lib/use-desktop-badge.js';
+export { useDesktopJumpList } from './lib/use-desktop-jump-list.js';
 export { useDesktopPreference } from './lib/use-desktop-preference.js';
 
 export { DesktopChrome } from './lib/desktop-chrome.js';

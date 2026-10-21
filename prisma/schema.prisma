@@ -28,6 +28,16 @@ model User {
   coverUrl                  String?
   timezone                  String                      @default("UTC")
   preferredLanguage         String                      @default("en")
+  /// Working hours as local "HH:MM" in `timezone`; public so teammates' profile
+  /// cards and the world clock show when this person is actually at their desk.
+  workingHoursStart         String                      @default("09:00")
+  workingHoursEnd           String                      @default("18:00")
+  /// Working weekdays, 0 = Sunday … 6 = Saturday.
+  workingDays               Int[]                       @default([1, 2, 3, 4, 5])
+  /// "12h" | "24h"; null follows the language's convention.
+  timeFormat                String?
+  /// "MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD"; null follows the language.
+  dateFormat                String?
   systemRole                SystemRole                  @default(USER)
   presence                  PresenceStatus              @default(OFFLINE)
   statusText                String?

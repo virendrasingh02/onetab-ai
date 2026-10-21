@@ -6,7 +6,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { Public } from '@org/api-common';
-import type { AppVersionCheckInput, AppVersionCheckResult } from '@org/types';
+import type {
+  AppVersionCheckInput,
+  AppVersionCheckResult,
+  DesktopDownloadView,
+} from '@org/types';
 import { AppVersionsService } from './app-versions.service.js';
 
 @Controller({ path: 'app-versions', version: '1' })
@@ -45,6 +49,13 @@ export class AppVersionsPublicController {
     @Body() body: AppVersionCheckInput,
   ): Promise<AppVersionCheckResult> {
     return this.appVersions.checkUpdate(body);
+  }
+
+  /** Current published desktop installers, one per operating system. */
+  @Public()
+  @Get('downloads')
+  getDownloads(): Promise<DesktopDownloadView[]> {
+    return this.appVersions.getDesktopDownloads();
   }
 
   /**
