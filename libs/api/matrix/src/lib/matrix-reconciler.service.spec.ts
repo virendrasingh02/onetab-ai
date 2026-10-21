@@ -113,3 +113,61 @@ describe('MatrixReconcilerService.reconcileSpaces', () => {
     expect(prisma.workspace.findMany).not.toHaveBeenCalled();
   });
 });
+
+describe('MatrixReconcilerService.reconcile (channel rooms)', () => {
+  let prisma: any;
+  let admin: any;
+  let auth: any;
+  let service: MatrixReconcilerService;
+
+  beforeEach(() => {
+    prisma = {
+      channel: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'c1',
+            name: 'general',
+            workspaceId: 'w1',
+            matrixRoomId: '!general:hs',
+            mode: 'NORMAL',
+            members: [
+              { user: { matrixUserId: '@joined:hs' } },
+              { user: { matrixUserId: '@invited:hs' } },
+              { user: { matrixUserId: '@absent:hs' } },
+              { user: { matrixUserId: null } },
+            ],
+          },
+        ]),
+      },
+      workspaceMember: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+    admin = {
+      isEnabled: true,
+      // The joined set only — an unaccepted invite is not in it.
+      getRoomMembers: vi.fn().mockResolvedValue(['@joined:hs']),
+      ensureJoined: vi.fn().mockResolvedValue(undefined),
+      inviteToRoom: vi.fn().mockResolvedValue(undefined),
+      kickFromRoom: vi.fn().mockResolvedValue(undefined),
+    };
+    auth = { applyChannelPostingPolicy: vi.fn().mockResolvedValue(undefined) };
+    service = new MatrixReconcilerService(prisma, admin, {} as any, auth);
+  });
+
+  it('joins channel members who are invited-only or missing, not just invites them', async () => {
+    await service.reconcile();
+
+    expect(admin.ensureJoined).toHaveBeenCalledWith('!general:hs', '@invited:hs');
+    expect(admin.ensureJoined).toHaveBeenCalledWith('!general:hs', '@absent:hs');
+    expect(admin.ensureJoined).toHaveBeenCalledTimes(2);
+    expect(admin.inviteToRoom).not.toHaveBeenCalled();
+  });
+
+  it('keeps going when one member cannot be joined', async () => {
+    admin.ensureJoined.mockRejectedValueOnce(new Error('M_FORBIDDEN'));
+
+    await service.reconcile();
+
+    expect(admin.ensureJoined).toHaveBeenCalledTimes(2);
+    expect(auth.applyChannelPostingPolicy).toHaveBeenCalledWith('c1');
+  });
+});

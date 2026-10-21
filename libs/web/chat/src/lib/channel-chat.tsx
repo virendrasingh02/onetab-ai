@@ -4,6 +4,7 @@ import type { ComposerContext } from '@org/types';
 import { ChatPanel } from './chat-panel.js';
 import type { ChatSurfaceWelcome } from './chat-surface.js';
 import { useMatrix } from './matrix-provider.js';
+import { useChannelMembership } from './use-channel-membership.js';
 import { useChannelRoom } from './use-channel-room.js';
 
 export interface ChannelChatProps {
@@ -100,6 +101,29 @@ export function ChannelChat({
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, error } = useChannelRoom(channelId, matrixRoomId);
+  const membership = useChannelMembership(channelId, roomId);
+
+  // A channel member who is not joined to the room cannot post — say so
+  // rather than offering a composer whose every send bounces. The host's own
+  // read-only reason (announcement channel) still wins when it has one.
+  const membershipNotice =
+    membership.state === 'joining' ? (
+      'Connecting you to this channel’s chat…'
+    ) : membership.state === 'failed' ? (
+      <>
+        You’re a member of this channel but not connected to its chat room, so
+        you can’t post yet.{' '}
+        <button
+          type="button"
+          className="font-medium text-foreground underline underline-offset-2"
+          onClick={membership.retry}
+        >
+          Try again
+        </button>
+      </>
+    ) : null;
+  // The thread composer falls back to this too (see `ChatSurface`).
+  const readOnlyMessage = composerReadOnlyMessage ?? membershipNotice;
 
   const composerContext = useMemo<ComposerContext>(
     () => ({
@@ -161,7 +185,7 @@ export function ChannelChat({
       huddleRequest={huddleRequest}
       huddlesEnabled={huddlesEnabled}
       huddleLink={huddleLink}
-      composerReadOnlyMessage={composerReadOnlyMessage}
+      composerReadOnlyMessage={readOnlyMessage}
       threadComposerReadOnlyMessage={threadComposerReadOnlyMessage}
       anonymousPosting={anonymousPosting}
       canManageConversation={canManageConversation}

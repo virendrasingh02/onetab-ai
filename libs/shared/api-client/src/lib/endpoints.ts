@@ -1500,6 +1500,16 @@ export const matrixApi = {
     ),
 
   /**
+   * Joins the caller to a channel's room when they are a channel member but
+   * not a joined member of the room — the client-side self-heal for a missed
+   * membership mirror. 404 for a non-member.
+   */
+  joinChannelRoom: (channelId: string) =>
+    request<{ joined: true }>(
+      http.post(`/matrix/channels/${channelId}/join`),
+    ),
+
+  /**
    * A teammate's Matrix id, so the browser can open a direct message with them.
    *
    * The mapping is not derivable client-side — the localpart is hashed from our

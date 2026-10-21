@@ -957,6 +957,7 @@ export function toRoom(client: SdkClient, room: SdkRoom): Room {
     canPin: myUserId
       ? room.currentState.maySendStateEvent(PINNED_EVENTS_EVENT, myUserId)
       : false,
+    myMembership: room.getMyMembership() as Room['myMembership'],
   };
 }
 

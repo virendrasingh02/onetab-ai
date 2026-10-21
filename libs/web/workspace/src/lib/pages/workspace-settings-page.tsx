@@ -565,20 +565,27 @@ export function WorkspaceSettingsPage({
     },
   });
 
-  // Workspace Update Form
+  // Workspace Update Form. The logo is not a form field: it is staged in
+  // `logoFile` and goes through its own upload route. Keeping `avatarUrl` out
+  // also matters for validation — the resolved logo URL is API-relative
+  // (`/api/v1/workspaces/:id/logo`), which `z.string().url()` rejects, and with
+  // no visible field to show that error the Save button silently did nothing.
   const workspaceForm = useForm<UpdateWorkspaceInput>({
     resolver: zodResolver(updateWorkspaceSchema),
     values: {
       name: workspace?.name ?? '',
       slug: workspace?.slug ?? '',
       description: workspace?.description ?? '',
-      avatarUrl: workspace?.avatarUrl ?? '',
       supportEmail: workspace?.supportEmail ?? '',
-      accentColor: workspace?.accentColor ?? 'indigo',
-      defaultLandingView: (workspace?.defaultLandingView as any) ?? 'home',
+      defaultLandingView:
+        (workspace?.defaultLandingView as UpdateWorkspaceInput['defaultLandingView']) ??
+        'home',
       allowExternalSharing: workspace?.allowExternalSharing ?? true,
       aiProjectRecaps: workspace?.aiProjectRecaps ?? true,
     },
+    // A background refetch (sync poll, another tab's save) must not wipe what
+    // the admin is in the middle of typing.
+    resetOptions: { keepDirtyValues: true },
   });
 
   // Security & Sessions Hooks & Queries
@@ -721,10 +728,43 @@ export function WorkspaceSettingsPage({
   const isLogoChanged =
     logoFile !== null || (isLogoRemoved && Boolean(workspace?.avatarUrl));
   const isWorkspaceDirty = workspaceForm.formState.isDirty || isLogoChanged;
+  const isSavingWorkspace =
+    updateWorkspace.isPending || uploadLogo.isPending || removeLogo.isPending;
 
   const onWorkspaceSubmit = workspaceForm.handleSubmit(async (values) => {
+    if (!workspace) return;
+    const { dirtyFields } = workspaceForm.formState;
+
+    // Only the fields the admin actually touched are sent, so the audit log's
+    // `changedKeys` is honest and an unrelated save cannot clobber a value
+    // another admin changed meanwhile.
+    const patch: UpdateWorkspaceInput = {};
+    if (dirtyFields.name) patch.name = values.name;
+    if (dirtyFields.description) patch.description = values.description || null;
+    if (dirtyFields.supportEmail)
+      patch.supportEmail = values.supportEmail || null;
+    if (dirtyFields.defaultLandingView)
+      patch.defaultLandingView = values.defaultLandingView;
+    if (dirtyFields.allowExternalSharing)
+      patch.allowExternalSharing = values.allowExternalSharing;
+    if (dirtyFields.aiProjectRecaps)
+      patch.aiProjectRecaps = values.aiProjectRecaps;
+
+    const nextSlug = values.slug?.trim().toLowerCase();
+    const slugChanged = Boolean(nextSlug) && nextSlug !== workspace.slug;
+    if (slugChanged) {
+      const ok = await confirm({
+        title: 'Change the workspace URL?',
+        description: `Links to /w/${workspace.slug} will stop working. Members will need to use /w/${nextSlug} from now on.`,
+        confirmLabel: 'Change URL',
+      });
+      if (!ok) return;
+      patch.slug = nextSlug;
+    }
+
+    let stage: 'logo' | 'details' = 'logo';
     try {
-      if (isLogoRemoved && workspace?.avatarUrl) {
+      if (isLogoRemoved && workspace.avatarUrl) {
         await removeLogo.mutateAsync();
         setIsLogoRemoved(false);
       } else if (logoFile) {
@@ -732,24 +772,51 @@ export function WorkspaceSettingsPage({
         setLogoFile(null);
       }
 
-      if (workspaceForm.formState.isDirty) {
-        await updateWorkspace.mutateAsync({
-          name: values.name,
-          slug: values.slug || undefined,
-          description: values.description || null,
-          supportEmail: values.supportEmail || null,
-          accentColor: values.accentColor || null,
-          defaultLandingView: values.defaultLandingView || 'home',
-          allowExternalSharing: values.allowExternalSharing,
-          aiProjectRecaps: values.aiProjectRecaps,
+      stage = 'details';
+      if (Object.keys(patch).length > 0) {
+        const saved = await updateWorkspace.mutateAsync(patch);
+        // Re-baseline on the server's copy so the form is clean right away
+        // rather than after the list refetch lands.
+        workspaceForm.reset({
+          name: saved.name,
+          slug: saved.slug,
+          description: saved.description ?? '',
+          supportEmail: saved.supportEmail ?? '',
+          defaultLandingView:
+            saved.defaultLandingView as UpdateWorkspaceInput['defaultLandingView'],
+          allowExternalSharing: saved.allowExternalSharing,
+          aiProjectRecaps: saved.aiProjectRecaps,
         });
+        if (saved.slug !== workspace.slug) {
+          // Every query under this page is keyed on the slug in the URL, which
+          // now 404s — move to the new address in place.
+          navigate(`/w/${saved.slug}/settings/general`, { replace: true });
+        }
       }
 
-      toast.success('Workspace settings updated successfully');
-    } catch {
-      // Rendered by <FormError>.
+      toast.success('Workspace settings saved');
+    } catch (err) {
+      const apiError = toApiError(err);
+      if (slugChanged && apiError.status === 409) {
+        workspaceForm.setError('slug', { message: apiError.message });
+        return;
+      }
+      // Field/request errors from the PATCH render in <FormError>; logo
+      // failures have no inline slot, so they toast.
+      if (stage === 'logo') {
+        toast.error(apiError.message || 'Could not update the workspace logo.');
+      }
     }
   });
+
+  const discardWorkspaceChanges = () => {
+    workspaceForm.reset();
+    setLogoFile(null);
+    setLogoError(null);
+    setIsLogoRemoved(false);
+    updateWorkspace.reset();
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
 
   /*
    * Register the two real forms with the unsaved-changes guard, so leaving the
@@ -768,12 +835,7 @@ export function WorkspaceSettingsPage({
     'settings.workspace',
     isWorkspaceDirty,
     () => onWorkspaceSubmit(),
-    () => {
-      workspaceForm.reset();
-      setLogoFile(null);
-      setLogoError(null);
-      setIsLogoRemoved(false);
-    },
+    discardWorkspaceChanges,
   );
 
   if (isLoading || !workspace) return <LoadingState fullPage />;
@@ -3213,29 +3275,49 @@ export function WorkspaceSettingsPage({
                     )}
                   />
 
-                  {/* Workspace URL Slug */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium block text-foreground">
-                      Workspace URL
-                    </label>
-                    <div className="relative">
-                      <Input
-                        value={workspace.slug}
-                        readOnly
-                        disabled
-                        className="pl-3 pr-24 text-xs border-border bg-background/50 font-mono text-foreground select-all"
-                      />
-                      <span className="right-3 px-2 py-0.5 rounded absolute top-1/2 -translate-y-1/2 border border-border-strong bg-surface-raised font-mono text-[11px] text-muted-foreground">
-                        .onetab.ai
-                      </span>
-                    </div>
-                    <div className="text-xs gap-2 pt-1 flex items-center justify-between text-muted-foreground">
-                      <span className="gap-1.5 flex items-center">
+                  {/* Workspace URL Slug — routing is path-based (`/w/:slug`),
+                      so the field shows the real host as a prefix. */}
+                  <FormField
+                    control={workspaceForm.control}
+                    name="slug"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-medium">
+                          Workspace URL
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(event) =>
+                              field.onChange(
+                                event.target.value
+                                  .toLowerCase()
+                                  .replace(/[^a-z0-9-]/g, '-'),
+                              )
+                            }
+                            prefix={`${window.location.host}/w/`}
+                            spellCheck={false}
+                            autoComplete="off"
+                            maxLength={40}
+                            disabled={!isAdmin}
+                            className="h-9 text-xs font-mono"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="-mt-3 space-y-1.5">
+                    <div className="text-xs gap-2 flex items-center justify-between text-muted-foreground">
+                      <span className="gap-1.5 flex min-w-0 items-center">
                         <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
-                        Your workspace is hosted at:{' '}
-                        <code className="font-mono text-primary">
-                          onetab.ai/w/{workspace.slug}
-                        </code>
+                        <span className="truncate">
+                          Live at{' '}
+                          <code className="font-mono text-primary">
+                            {window.location.host}/w/{workspace.slug}
+                          </code>
+                        </span>
                       </span>
                       <Button
                         type="button"
@@ -3421,24 +3503,42 @@ export function WorkspaceSettingsPage({
                   </div>
                 </div>
 
-                {isAdmin ? (
-                  <div className="pt-2">
+              </SettingsCard>
+
+              {isAdmin ? (
+                <div className="bottom-4 z-10 gap-3 px-4 py-3 sticky flex items-center justify-between rounded-xl border border-border bg-background/95 shadow-sm backdrop-blur">
+                  <p className="text-xs text-muted-foreground">
+                    {isWorkspaceDirty
+                      ? 'You have unsaved changes.'
+                      : 'All changes saved.'}
+                  </p>
+                  <div className="gap-2 flex items-center">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={discardWorkspaceChanges}
+                      disabled={!isWorkspaceDirty || isSavingWorkspace}
+                      className="text-xs"
+                    >
+                      Discard
+                    </Button>
                     <Button
                       type="submit"
                       size="sm"
-                      loading={
-                        updateWorkspace.isPending ||
-                        uploadLogo.isPending ||
-                        removeLogo.isPending
-                      }
+                      loading={isSavingWorkspace}
                       disabled={!isWorkspaceDirty}
                       className="text-xs font-medium"
                     >
                       Save changes
                     </Button>
                   </div>
-                ) : null}
-              </SettingsCard>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Only workspace admins can change these settings.
+                </p>
+              )}
             </form>
           </Form>
         </div>

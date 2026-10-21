@@ -82,6 +82,12 @@ export interface Room {
   pinnedEventIds?: EventId[];
   /** Whether this user's power level lets them pin and unpin messages. */
   canPin?: boolean;
+  /**
+   * The signed-in user's own membership. Only `join` can post — an `invite`
+   * that was never accepted is how a channel member ends up with a composer
+   * whose every send bounces "not in room".
+   */
+  myMembership?: 'join' | 'invite' | 'leave' | 'ban' | 'knock';
 }
 
 export interface RoomMember {
