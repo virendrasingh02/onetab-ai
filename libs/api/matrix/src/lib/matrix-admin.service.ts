@@ -825,6 +825,31 @@ export class MatrixAdminService {
     );
   }
 
+  /**
+   * Makes `matrixUserId` a *joined* member of a room — not merely invited.
+   *
+   * An invite alone is not membership: Matrix refuses every send from an
+   * invited user ("User … not in room"), and nothing in the web client ever
+   * accepts a channel invite. Our database is the authority on channel
+   * membership, so the bridge accepts on the member's behalf: invite as the
+   * room's creator (needed for invite-only rooms), then join as the user.
+   *
+   * The invite is allowed to fail — a user who is already invited or joined,
+   * or a public room that needs no invite — because the join that follows is
+   * what decides the outcome, and it is idempotent for a joined member.
+   */
+  async ensureJoined(roomId: string, matrixUserId: string): Promise<void> {
+    this.assertEnabled();
+    try {
+      await this.inviteToRoom(roomId, matrixUserId);
+    } catch (error) {
+      this.logger.debug(
+        `Invite of ${matrixUserId} to ${roomId} skipped: ${String(error)}`,
+      );
+    }
+    await this.joinRoomAs(matrixUserId, roomId);
+  }
+
   async kickFromRoom(
     roomId: string,
     matrixUserId: string,

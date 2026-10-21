@@ -205,8 +205,66 @@ export class MatrixAuthService {
     // members may pin), not just on the next reconcile pass.
     void this.applyChannelPostingPolicy(channelId).catch(() => undefined);
 
+    // Everyone already in the channel joins the new room too — the creator
+    // is in it by construction, but the rest of the roster would otherwise
+    // wait for the reconciler, unable to post until it ran.
+    void this.joinExistingMembers(channelId, roomId, creatorMatrixId).catch(
+      () => undefined,
+    );
+
     this.logger.log(`Linked channel ${channel.name} to room ${roomId}`);
     return roomId;
+  }
+
+  private async joinExistingMembers(
+    channelId: string,
+    roomId: string,
+    creatorMatrixId: string,
+  ): Promise<void> {
+    const members = await this.prisma.channelMember.findMany({
+      where: { channelId },
+      select: { userId: true },
+    });
+    for (const { userId } of members) {
+      const matrixUserId = await this.ensureIdentity(userId);
+      if (!matrixUserId || matrixUserId === creatorMatrixId) continue;
+      try {
+        await this.admin.ensureJoined(roomId, matrixUserId);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to join ${matrixUserId} to new room ${roomId}: ${String(error)}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Self-heal for a channel member the browser finds missing from the room.
+   *
+   * Joins the caller to the channel's room only if our database already says
+   * they are a member — Postgres stays the authority, so this can never be
+   * used to get into a channel the caller was not added to. Returns `false`
+   * for a non-member or an unlinked channel (the controller turns that into a
+   * 404, so it cannot probe channel ids).
+   */
+  async ensureChannelRoomJoined(
+    channelId: string,
+    userId: string,
+  ): Promise<boolean> {
+    if (!this.admin.isEnabled) return false;
+
+    const membership = await this.prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+      select: { channel: { select: { matrixRoomId: true } } },
+    });
+    const roomId = membership?.channel.matrixRoomId;
+    if (!roomId) return false;
+
+    const matrixUserId = await this.ensureIdentity(userId);
+    if (!matrixUserId) return false;
+
+    await this.admin.ensureJoined(roomId, matrixUserId);
+    return true;
   }
 
   /**
@@ -437,7 +495,9 @@ export class MatrixAuthService {
 
     try {
       if (action === 'join') {
-        await this.admin.inviteToRoom(channel.matrixRoomId, matrixUserId);
+        // Joined, not just invited — an invite cannot post and nothing in
+        // the client accepts one (see `MatrixAdminService.ensureJoined`).
+        await this.admin.ensureJoined(channel.matrixRoomId, matrixUserId);
       } else {
         await this.admin.kickFromRoom(channel.matrixRoomId, matrixUserId);
       }

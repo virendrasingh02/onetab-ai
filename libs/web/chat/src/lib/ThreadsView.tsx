@@ -2,12 +2,14 @@ import { channelApi, queryKeys } from '@org/api-client';
 import { useMessageDensity, useChatPreferences } from '@org/common';
 import { normalizeAvatarSeed } from '@org/design-system';
 import {
+  AttachmentGrid,
   AttachmentRenderer,
   Composer,
   DEFAULT_AI_AGENT_MENTIONS,
   DEFAULT_COWORKER_MENTIONS,
   DEFAULT_APP_MENTIONS,
   MessageRenderer,
+  PendingUploadMessage,
   useMentionNotices,
 } from '@org/chat-ui';
 import type { ComposerContext } from '@org/types';
@@ -23,6 +25,7 @@ import {
   Badge,
   Button,
   Card,
+  confirm,
   EmptyState,
   LoadingState,
   Tabs,
@@ -57,6 +60,13 @@ import {
 } from 'react';
 import { Link } from 'react-router-dom';
 import { useMatrix } from './matrix-provider.js';
+import { deriveAttachmentBursts } from './derive-attachment-bursts.js';
+import {
+  retryUpload,
+  usePendingBatchIds,
+  usePendingUploads,
+  usePendingUploadsStore,
+} from './pending-uploads.js';
 import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
 import { useRoomActions, useRoomSummary } from './use-chat.js';
 import { useThreadConversation } from './use-thread-conversation.js';
@@ -143,12 +153,39 @@ function groupThreadsByRoom(items: CrossRoomThread[]): RoomThreadGroup[] {
   return [...byRoom.values()].sort((a, b) => b.lastActivity - a.lastActivity);
 }
 
-/** Renders a message's file attachment the same way a channel timeline does. */
+/**
+ * Renders a message's file attachment the same way a channel timeline does —
+ * and, for the head of a grouped multi-file upload (`burst`), every file of it
+ * as one grid.
+ */
 function useAttachmentSlot() {
   const { openPreview } = useMediaPreview();
 
   return useCallback(
-    (message: Message): ReactNode => {
+    (message: Message, burst?: Message[]): ReactNode => {
+      if (burst && burst.length > 1) {
+        const files = burst.filter(
+          (item): item is Message & { attachment: NonNullable<Message['attachment']> } =>
+            !!item.attachment,
+        );
+        const items = files.map((file) =>
+          attachmentToMediaItem(file.attachment, file.kind, file.id, {
+            senderId: file.senderId,
+            senderName: file.senderName,
+            senderAvatarUrl: file.senderAvatarUrl,
+            timestamp: file.timestamp,
+          }),
+        );
+        return (
+          <AttachmentGrid
+            items={files.map((file, index) => ({
+              attachment: file.attachment,
+              kind: file.kind,
+              onOpen: () => openPreview(items, index),
+            }))}
+          />
+        );
+      }
       const attachment = message.attachment;
       if (!attachment) return undefined;
       return (
@@ -200,7 +237,7 @@ function ThreadDetail({
   myUserId: string | undefined;
   editing: Message | null;
   setEditing: (message: Message | null) => void;
-  attachmentSlot: (message: Message) => ReactNode;
+  attachmentSlot: (message: Message, burst?: Message[]) => ReactNode;
   density: 'comfy' | 'compact';
 }) {
   const { messages, isLoading, send, markRead } = useThreadConversation(
@@ -254,6 +291,42 @@ function ThreadDetail({
     [messages, thread.id],
   );
 
+  /*
+   * A multi-file upload is one reply: its files fold into the first file's
+   * row as a grid. Files of an upload still going out stay hidden behind its
+   * uploading row, so that row turns into the finished reply in one step.
+   */
+  const { client } = useMatrix();
+  const uploads = usePendingUploads(thread.roomId, thread.id);
+  const pendingBatchIds = usePendingBatchIds(thread.roomId);
+  const bursts = useMemo(() => deriveAttachmentBursts(replies), [replies]);
+  const visibleReplies = useMemo(
+    () =>
+      replies.filter(
+        (reply) =>
+          !bursts.hidden.has(reply.id) &&
+          !(reply.batchId && pendingBatchIds.has(reply.batchId)),
+      ),
+    [replies, bursts, pendingBatchIds],
+  );
+  const me = myUserId ? members.find((member) => member.userId === myUserId) : undefined;
+
+  const deleteReply = useCallback(
+    async (reply: Message) => {
+      const ids = (bursts.membersByHead.get(reply.id) ?? [reply]).map((m) => m.id);
+      const ok = await confirm({
+        title: ids.length > 1 ? `Delete these ${ids.length} files?` : 'Delete this message?',
+        description:
+          'It is removed for everyone in the conversation. This cannot be undone.',
+        confirmLabel: 'Delete',
+        destructive: true,
+      });
+      if (!ok) return;
+      for (const id of ids) await actions.remove(id);
+    },
+    [actions, bursts],
+  );
+
   // Same rule as the channel timeline: only the latest of my replies that
   // someone has seen carries the "Seen" receipt.
   const readReceiptsEnabled = useReadReceiptsEnabled();
@@ -265,8 +338,14 @@ function ThreadDetail({
         id = reply.id;
       }
     }
+    // A file folded into a grouped upload shows its receipt on the group's row.
+    if (id && bursts.hidden.has(id)) {
+      for (const [head, members] of bursts.membersByHead) {
+        if (members.some((member) => member.id === id)) return head;
+      }
+    }
     return id;
-  }, [replies, myUserId, readReceiptsEnabled]);
+  }, [replies, myUserId, readReceiptsEnabled, bursts]);
 
   const isChannel = thread.roomKind === 'channel';
   const roomLabel = isChannel
@@ -326,21 +405,21 @@ function ThreadDetail({
         <span>
           {isLoading
             ? 'Loading replies…'
-            : replies.length === 0
+            : visibleReplies.length === 0
               ? 'No replies yet'
-              : `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}`}
+              : `${visibleReplies.length} ${visibleReplies.length === 1 ? 'reply' : 'replies'}`}
         </span>
         <span className="h-px flex-1 bg-border" aria-hidden />
       </div>
 
-      {!isLoading && replies.length === 0 ? (
+      {!isLoading && visibleReplies.length === 0 && uploads.length === 0 ? (
         <p className="px-4 pb-3 text-xs text-subtle">
           Be the first to reply — your message stays in this thread.
         </p>
       ) : (
         <ul>
           {interleaveMentionNotices(
-            replies,
+            visibleReplies,
             notices,
             (reply) => (
               <li>
@@ -372,7 +451,7 @@ function ThreadDetail({
                   }
                   onDelete={
                     reply.senderId === myUserId || canModerateMessages
-                      ? () => void actions.remove(reply.id)
+                      ? () => void deleteReply(reply)
                       : undefined
                   }
                   canModerateMessages={canModerateMessages}
@@ -390,7 +469,10 @@ function ThreadDetail({
                   onCopyLink={() =>
                     copyThreadMessageLink(channelLink, reply.id)
                   }
-                  attachmentSlot={attachmentSlot(reply)}
+                  attachmentSlot={attachmentSlot(
+                    reply,
+                    bursts.membersByHead.get(reply.id),
+                  )}
                 />
               </li>
             ),
@@ -403,6 +485,21 @@ function ThreadDetail({
               </li>
             ),
           )}
+          {uploads.map((upload) => (
+            <li key={upload.id}>
+              <PendingUploadMessage
+                senderId={myUserId ?? ''}
+                senderName={me?.displayName ?? 'You'}
+                senderAvatarUrl={me?.avatarUrl}
+                files={upload.files}
+                status={upload.status}
+                error={upload.error}
+                compact={density === 'compact'}
+                onRetry={client ? () => void retryUpload(client, upload.id) : undefined}
+                onDismiss={() => usePendingUploadsStore.getState().remove(upload.id)}
+              />
+            </li>
+          ))}
         </ul>
       )}
 

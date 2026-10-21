@@ -27,7 +27,8 @@ const SPACE_BATCH = 20;
  * reconciling (audit B8: "no scheduler, no queue"). This is that reconciler.
  *
  * Each tick, for a batch of channels that have a room:
- *   - invite every channel member whose Matrix id is missing from the room;
+ *   - join every channel member whose Matrix id is not a *joined* member of
+ *     the room (missing entirely, or stuck at an invite nobody accepted);
  *   - kick every room member who is a *known human* in this workspace but is no
  *     longer in the channel.
  *
@@ -77,7 +78,7 @@ export class MatrixReconcilerService {
       this.offset += BATCH;
     }
 
-    let invited = 0;
+    let joined = 0;
     let kicked = 0;
 
     for (const channel of channels) {
@@ -92,10 +93,21 @@ export class MatrixReconcilerService {
             .filter((id): id is string => !!id),
         );
 
+        // `roomMembers` is the *joined* set, so a member stuck at an
+        // unaccepted invite is missing here too — and is joined, not
+        // re-invited, since an invite cannot post. One member failing (a
+        // deactivated account, a ban) must not stop the rest of the room.
         for (const id of desired) {
-          if (!roomMembers.has(id)) {
-            await this.admin.inviteToRoom(roomId, id);
-            invited++;
+          if (roomMembers.has(id)) continue;
+          try {
+            await this.admin.ensureJoined(roomId, id);
+            joined++;
+          } catch (err) {
+            this.logger.warn(
+              `Reconcile could not join ${id} to ${channel.name} (${roomId}): ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
           }
         }
 
@@ -140,9 +152,9 @@ export class MatrixReconcilerService {
       }
     }
 
-    if (invited || kicked) {
+    if (joined || kicked) {
       this.logger.log(
-        `Matrix membership reconcile: +${invited} invited, -${kicked} kicked across ${channels.length} channel(s).`,
+        `Matrix membership reconcile: +${joined} joined, -${kicked} kicked across ${channels.length} channel(s).`,
       );
     }
   }

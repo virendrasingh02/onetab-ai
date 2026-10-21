@@ -96,6 +96,22 @@ export class MatrixController {
   }
 
   /**
+   * Joins the caller to a channel's room when the browser finds them a channel
+   * member in our database but not a joined member of the room (an invite
+   * that was never accepted, a missed mirror). Non-members get a 404.
+   */
+  @Post('channels/:channelId/join')
+  @HttpCode(HttpStatus.OK)
+  async joinChannelRoom(
+    @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    const joined = await this.auth.ensureChannelRoomJoined(channelId, userId);
+    if (!joined) throw new NotFoundException('Channel not found.');
+    return { joined: true };
+  }
+
+  /**
    * The Matrix identity of a DM peer, so the browser can open a room with
    * them — a teammate, an AI agent (`agent-<id>`), or a connected app
    * (`app-<id>`); see `MatrixAuthService.resolvePeerIdentity` for the prefix
