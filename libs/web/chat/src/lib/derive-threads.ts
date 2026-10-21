@@ -46,6 +46,40 @@ export function groupReplies(messages: Message[]): Map<string, Message[]> {
 }
 
 /**
+ * Puts each "also send to channel" thread reply where it belongs in time.
+ *
+ * Thread replies are kept apart from the room's main timeline and merged into
+ * the message list after it, so a broadcast copy would otherwise stick to the
+ * bottom of the channel under every newer message. The main timeline's own
+ * order is left untouched; each broadcast reply goes in front of the first
+ * main-timeline message newer than it.
+ */
+export function placeBroadcastReplies(messages: Message[]): Message[] {
+  const isBroadcast = (message: Message) =>
+    !!message.threadRootId && !!message.alsoSentToChannel;
+  if (!messages.some(isBroadcast)) return messages;
+
+  const main = messages.filter((message) => !isBroadcast(message));
+  const broadcasts = messages
+    .filter(isBroadcast)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const placed: Message[] = [];
+  let next = 0;
+  for (const message of main) {
+    while (
+      next < broadcasts.length &&
+      broadcasts[next].timestamp < message.timestamp
+    ) {
+      placed.push(broadcasts[next++]);
+    }
+    placed.push(message);
+  }
+  while (next < broadcasts.length) placed.push(broadcasts[next++]);
+  return placed;
+}
+
+/**
  * Rolls a timeline up into one summary per thread.
  *
  * Threads are a view over the timeline rather than a separate resource, so

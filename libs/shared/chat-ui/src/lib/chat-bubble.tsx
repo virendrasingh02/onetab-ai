@@ -84,7 +84,7 @@ import { type MediaItem, useMediaPreview } from '@org/media-preview';
 import { MarkdownMessage } from './markdown-message.js';
 import { ReactionBar, reactionAddButtonClass } from './reaction-bar.js';
 import { ForwardedMessageCard } from './forwarded-message-card.js';
-import { ReplyQuote, type ReplyPreview } from './reply-quote.js';
+import { ReplyQuote, ReplySnippet, type ReplyPreview } from './reply-quote.js';
 import { reminderPresets } from './reminder-presets.js';
 import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
 import { UserProfileCard } from './user-profile-card.js';
@@ -105,6 +105,11 @@ export interface ChatBubbleProps {
   replyTo?: ReplyPreview | null;
   /** Scrolls to and highlights the replied-to message. */
   onJumpToReply?: () => void;
+  /**
+   * For a thread reply also sent to the channel: the thread's root, shown as
+   * "replied to a thread: …". `null` means the root is not loaded yet.
+   */
+  threadRoot?: ReplyPreview | null;
   onEdit?: () => void;
   /** When set, replaces the message body in place — the inline edit box. */
   editSlot?: ReactNode;
@@ -487,6 +492,7 @@ export function ChatBubble({
   onReply,
   replyTo,
   onJumpToReply,
+  threadRoot,
   onEdit,
   editSlot,
   onDelete,
@@ -1189,10 +1195,22 @@ export function ChatBubble({
           <button
             type="button"
             onClick={onOpenThread}
-            className="gap-1 mb-0.5 -ml-1 px-1 py-0.5 flex w-fit items-center rounded-md text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="gap-1 mb-0.5 -ml-1 px-1 py-0.5 flex w-fit max-w-full min-w-0 items-center rounded-md text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            <MessageSquare className="size-3" aria-hidden />
-            Replied to a thread
+            <MessageSquare className="size-3 shrink-0" aria-hidden />
+            <span className="shrink-0">
+              Replied to a thread{threadRoot ? ':' : ''}
+            </span>
+            {threadRoot ? (
+              <>
+                <span className="shrink-0 font-semibold text-foreground">
+                  {threadRoot.senderName}
+                </span>
+                <span className="min-w-0 truncate">
+                  <ReplySnippet preview={threadRoot} />
+                </span>
+              </>
+            ) : null}
           </button>
         ) : null}
 

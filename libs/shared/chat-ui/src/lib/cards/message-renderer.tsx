@@ -51,6 +51,8 @@ export interface MessageRendererProps {
   /** The quoted original of an inline reply — see `ChatBubble`. */
   replyTo?: ReplyPreview | null;
   onJumpToReply?: () => void;
+  /** The thread root of a reply also sent to the channel — see `ChatBubble`. */
+  threadRoot?: ReplyPreview | null;
   onEdit?: () => void;
   /** Inline edit box that replaces the body — see `ChatBubble`. */
   editSlot?: ReactNode;

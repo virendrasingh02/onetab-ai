@@ -102,7 +102,12 @@ import {
   usePendingUploadsStore,
   type PendingUpload,
 } from './pending-uploads.js';
-import { deriveThreads, groupReplies, threadReplyCount } from './derive-threads.js';
+import {
+  deriveThreads,
+  groupReplies,
+  placeBroadcastReplies,
+  threadReplyCount,
+} from './derive-threads.js';
 import { useHuddleSession } from './use-huddle.js';
 import { ConversationCallControl } from './conversation-call-control.js';
 import { useMentionNavigation } from './use-mention-navigation.js';
@@ -656,15 +661,14 @@ export function ChatSurface({
    * deleted." row. The one exception is a thread root that still has replies:
    * it stays as a slim marker, or those replies would have no way in.
    */
-  const rootMessages = useMemo(
-    () =>
-      messages.filter(
-        (message) =>
-          (!message.threadRootId || message.alsoSentToChannel) &&
-          (!message.isRedacted || repliesByRoot.has(message.id)),
-      ),
-    [messages, repliesByRoot],
-  );
+  const rootMessages = useMemo(() => {
+    const visible = messages.filter(
+      (message) =>
+        (!message.threadRootId || message.alsoSentToChannel) &&
+        (!message.isRedacted || repliesByRoot.has(message.id)),
+    );
+    return placeBroadcastReplies(visible);
+  }, [messages, repliesByRoot]);
 
   /**
    * Multi-file uploads still arrive as one Matrix event per file — this
@@ -1402,7 +1406,17 @@ export function ChatSurface({
           roomKind={roomKind}
           isOwn={message.senderId === myUserId}
           showReadReceipt={receiptMessageIds.has(message.id)}
-          isGrouped={grouped}
+          // A thread reply also sent to the channel always shows its own
+          // header there — it is a different conversation from the message
+          // above it, even when the same person wrote both.
+          isGrouped={grouped && !(message.alsoSentToChannel && !inThread)}
+          threadRoot={(() => {
+            if (inThread || !message.alsoSentToChannel || !message.threadRootId) {
+              return undefined;
+            }
+            const root = byId.get(message.threadRootId);
+            return root ? toReplyPreview(root) : null;
+          })()}
           density={messageDensity}
           linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
           isHighlighted={message.id === highlightId}

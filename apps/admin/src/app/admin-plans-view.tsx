@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { adminBillingApi } from '@org/api-client';
+import { cn } from '@org/utils';
 import {
   Badge,
   Button,
@@ -8,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -21,23 +25,55 @@ import {
   type PlanTier,
 } from '@org/types';
 import {
+  AlertTriangle,
   Bot,
   Check,
   Coins,
   Cpu,
   Database,
+  DollarSign,
   Layers,
   Minus,
+  RefreshCw,
   Shield,
   Sparkles,
   Tag,
+  TrendingUp,
+  Users,
   Zap,
 } from 'lucide-react';
+
+const formatCurrency = (cents: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
+    cents / 100,
+  );
 
 export function AdminPlansView() {
   const [selectedTier, setSelectedTier] = useState<PlanTier>('free');
 
+  const {
+    data: stats,
+    isLoading: isStatsLoading,
+    refetch: refetchStats,
+    isFetching: isStatsFetching,
+  } = useQuery({
+    queryKey: ['admin-billing', 'stats'],
+    queryFn: () => adminBillingApi.stats(),
+    staleTime: 30_000,
+  });
+
   const selectedPlan = PLANS_CONFIG[selectedTier];
+
+  const planSubscribersMap = new Map<string, number>();
+  if (stats?.subscriptionsByPlan) {
+    for (const item of stats.subscriptionsByPlan) {
+      planSubscribersMap.set(item.plan.toLowerCase(), item.count);
+    }
+  }
+
+  const totalSubscribers = stats?.subscriptionsByPlan
+    ? stats.subscriptionsByPlan.reduce((acc, p) => acc + p.count, 0)
+    : 0;
 
   return (
     <div className="space-y-8 w-full">
@@ -51,11 +87,99 @@ export function AdminPlansView() {
             <Badge variant="primary" className="text-xs uppercase font-mono">
               Live Config
             </Badge>
+            {isStatsFetching && (
+              <RefreshCw className="size-3.5 text-primary animate-spin" />
+            )}
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
             Platform-wide subscription tiers, machine resource quotas, promotional codes, and micro-agent allocations.
           </p>
         </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchStats()}
+            disabled={isStatsFetching}
+            className="text-xs"
+          >
+            <RefreshCw className={cn('size-3.5 mr-1.5', isStatsFetching && 'animate-spin')} />
+            Refresh Telemetry
+          </Button>
+          <Button asChild size="sm" className="text-xs">
+            <Link to="/billing">Manage Subscriptions</Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Real Live Billing & Subscription Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4 rounded-xl border border-border bg-card/80 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Paid Revenue (30d)</span>
+            <div className="size-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <DollarSign className="size-3.5" />
+            </div>
+          </div>
+          <div className="text-xl font-bold text-foreground mt-2">
+            {isStatsLoading ? <Skeleton className="h-7 w-24" /> : formatCurrency(stats?.paidRevenueCents ?? 0)}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {stats?.paidInvoiceCount ?? 0} settled invoices
+          </p>
+        </Card>
+
+        <Card className="p-4 rounded-xl border border-border bg-card/80 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Estimated Platform MRR</span>
+            <div className="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <TrendingUp className="size-3.5" />
+            </div>
+          </div>
+          <div className="text-xl font-bold text-foreground mt-2">
+            {isStatsLoading ? <Skeleton className="h-7 w-24" /> : formatCurrency(stats?.estimatedMrrCents ?? 0)}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1 truncate">
+            {stats?.estimatedMrrNote || 'Recurring monthly revenue'}
+          </p>
+        </Card>
+
+        <Card className="p-4 rounded-xl border border-border bg-card/80 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Active Workspaces</span>
+            <div className="size-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
+              <Users className="size-3.5" />
+            </div>
+          </div>
+          <div className="text-xl font-bold text-foreground mt-2">
+            {isStatsLoading ? <Skeleton className="h-7 w-16" /> : totalSubscribers.toLocaleString()}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Across {PLAN_TIERS.length} plan tiers
+          </p>
+        </Card>
+
+        <Card className="p-4 rounded-xl border border-border bg-card/80 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Payment Health</span>
+            <div className="size-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+              <AlertTriangle className="size-3.5" />
+            </div>
+          </div>
+          <div className="text-xl font-bold text-foreground mt-2">
+            {isStatsLoading ? (
+              <Skeleton className="h-7 w-12" />
+            ) : (
+              `${stats?.failedPaymentSubscriptions ?? 0} At Risk`
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {stats?.trialConversionRate != null
+              ? `${(stats.trialConversionRate * 100).toFixed(0)}% trial conversion`
+              : 'Past due or unpaid invoices'}
+          </p>
+        </Card>
       </div>
 
       {/* Coupons moved to the persisted, audited billing console */}
@@ -83,6 +207,7 @@ export function AdminPlansView() {
         {PLAN_TIERS.map((tier) => {
           const plan = PLANS_CONFIG[tier];
           const isSelected = selectedTier === tier;
+          const subscriberCount = planSubscribersMap.get(tier.toLowerCase()) ?? 0;
 
           return (
             <Card
@@ -122,6 +247,14 @@ export function AdminPlansView() {
                   </p>
                 </div>
 
+                {/* Real Live Subscribers count */}
+                <div className="p-2 rounded-lg bg-surface-muted/50 border border-border/40 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">Active Tenants:</span>
+                  <span className="font-mono font-bold text-foreground">
+                    {isStatsLoading ? '…' : `${subscriberCount} ${subscriberCount === 1 ? 'workspace' : 'workspaces'}`}
+                  </span>
+                </div>
+
                 <div className="pt-2 border-t border-border/60 space-y-1.5 text-xs text-muted-foreground">
                   <div className="flex justify-between items-center">
                     <span>Micro Agents:</span>
@@ -148,7 +281,7 @@ export function AdminPlansView() {
                   size="xs"
                   className="w-full text-xs"
                 >
-                  {isSelected ? 'Viewing Config' : 'View Details'}
+                  {isSelected ? 'Viewing Specification' : 'Inspect Entitlements'}
                 </Button>
               </div>
             </Card>

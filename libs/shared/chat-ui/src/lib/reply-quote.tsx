@@ -44,7 +44,7 @@ export function toReplyPreview(message: Message): ReplyPreview {
   };
 }
 
-function Snippet({ preview }: { preview: ReplyPreview }) {
+export function ReplySnippet({ preview }: { preview: ReplyPreview }) {
   if (preview.isRedacted) {
     return <span className="italic">Original message was deleted</span>;
   }
@@ -102,7 +102,7 @@ export function ReplyQuote({
             {preview.senderName}
           </span>
           <span className="min-w-0 truncate">
-            <Snippet preview={preview} />
+            <ReplySnippet preview={preview} />
           </span>
         </>
       ) : (
@@ -138,7 +138,7 @@ export function ReplyingToBar({
           {preview.senderName}
         </span>
         <span className="min-w-0 truncate">
-          <Snippet preview={preview} />
+          <ReplySnippet preview={preview} />
         </span>
       </button>
       <button

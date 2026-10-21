@@ -1,6 +1,11 @@
 import type { Message } from '@org/matrix-client';
 import { describe, expect, it } from 'vitest';
-import { deriveThreads, groupReplies, threadReplyCount } from './derive-threads.js';
+import {
+  deriveThreads,
+  groupReplies,
+  placeBroadcastReplies,
+  threadReplyCount,
+} from './derive-threads.js';
 
 function message(overrides: Partial<Message>): Message {
   return {
@@ -100,5 +105,34 @@ describe('threadReplyCount', () => {
       summaries: new Map([['$root', summary(42, true)]]),
     });
     expect(thread.replyCount).toBe(42);
+  });
+});
+
+describe('placeBroadcastReplies', () => {
+  const at = (id: string, timestamp: number, extra: Partial<Message> = {}) =>
+    message({ id: id as any, timestamp, ...extra });
+
+  it('moves a broadcast thread reply from the bottom to its place in time', () => {
+    const broadcast = at('$b', 20, {
+      threadRootId: '$a' as any,
+      alsoSentToChannel: true,
+    });
+    const ordered = placeBroadcastReplies([
+      at('$a', 10),
+      at('$c', 30),
+      at('$d', 40),
+      broadcast,
+    ]);
+    expect(ordered.map((m) => m.id)).toEqual(['$a', '$b', '$c', '$d']);
+  });
+
+  it('keeps a newest broadcast reply last and leaves other lists alone', () => {
+    const plain = [at('$a', 10), at('$c', 30)];
+    expect(placeBroadcastReplies(plain)).toBe(plain);
+    const ordered = placeBroadcastReplies([
+      ...plain,
+      at('$b', 50, { threadRootId: '$a' as any, alsoSentToChannel: true }),
+    ]);
+    expect(ordered.map((m) => m.id)).toEqual(['$a', '$c', '$b']);
   });
 });
