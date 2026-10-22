@@ -17,7 +17,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useWorkspaceStore } from './workspace.store.js';
 
@@ -356,6 +356,23 @@ export function useSlugSuggestion(name: string) {
     enabled: name.trim().length >= 2,
     staleTime: 5_000,
   });
+}
+
+/** Debounced server check of whether a typed slug is still free. */
+export function useSlugAvailability(slug: string) {
+  const [debounced, setDebounced] = useState(slug);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(slug), 350);
+    return () => clearTimeout(timer);
+  }, [slug]);
+
+  const query = useQuery({
+    queryKey: ['workspaces', 'slug-availability', debounced],
+    queryFn: () => workspaceApi.checkSlug(debounced),
+    enabled: debounced.length >= 2,
+    staleTime: 5_000,
+  });
+  return { ...query, settled: debounced === slug };
 }
 
 /* --- Security & Session Hooks ------------------------------------------- */

@@ -435,6 +435,14 @@ export class WorkspaceService {
   }
 
   /** Suggests an unused slug, for the create-workspace form. */
+  async isSlugAvailable(slug: string): Promise<boolean> {
+    const existing = await this.prisma.workspace.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
+    return !existing;
+  }
+
   async suggestSlug(base: string): Promise<string> {
     const candidates = [base, ...Array.from({ length: 20 }, (_, i) => `${base}-${i + 2}`)];
     const taken = await this.prisma.workspace.findMany({

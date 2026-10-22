@@ -6,6 +6,7 @@ export {
   useDeleteWorkspace,
   useSetWorkspaceArchived,
   useSlugSuggestion,
+  useSlugAvailability,
   useTransferOwnership,
   useUpdateWorkspace,
   useWorkspace,

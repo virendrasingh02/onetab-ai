@@ -38,6 +38,7 @@ import {
   ChevronRight,
   FileSpreadsheet,
   ImagePlus,
+  Loader2,
   Plus,
   Sparkles,
   Trash2,
@@ -51,6 +52,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   useCreateWorkspaceFlow,
+  useSlugAvailability,
   useSlugSuggestion,
 } from '../use-workspaces.js';
 
@@ -137,6 +139,13 @@ export function CreateWorkspacePage() {
   const name = form.watch('name');
   const slug = form.watch('slug');
   const suggestion = useSlugSuggestion(name);
+  const availability = useSlugAvailability(slug);
+  const slugChecking =
+    slug.length >= 2 && (!availability.settled || availability.isFetching);
+  const slugTaken =
+    availability.settled &&
+    !availability.isFetching &&
+    availability.data?.available === false;
 
   // Keep the slug in step with the name until the user edits it manually
   const slugTouched = form.formState.dirtyFields.slug;
@@ -288,7 +297,14 @@ export function CreateWorkspacePage() {
 
   const handleContinue = async () => {
     const isValid = await form.trigger(['name', 'slug']);
-    if (isValid) setCurrentStep(2);
+    if (!isValid || slugChecking) return;
+    if (slugTaken) {
+      form.setError('slug', {
+        message: 'That workspace URL is already taken.',
+      });
+      return;
+    }
+    setCurrentStep(2);
   };
 
   /** `withInvites: false` is the Skip path — same creation, no invitations. */
@@ -300,8 +316,14 @@ export function CreateWorkspacePage() {
           logo: logoFile,
           invites: withInvites ? invitedEmails : [],
         });
-      } catch {
-        // Surfaced by <FormError> below.
+      } catch (error) {
+        // A slug lost to a race since step 1: send the user back to fix it.
+        // Anything else is surfaced by <FormError> below.
+        const message = formErrorMessage(error);
+        if (/already taken|already exists/i.test(message ?? '')) {
+          form.setError('slug', { message: 'That workspace URL is already taken.' });
+          setCurrentStep(1);
+        }
       }
     });
 
@@ -525,12 +547,46 @@ export function CreateWorkspacePage() {
                                   </span>
                                 </div>
                               </FormControl>
-                              <FormDescription className="text-xs gap-1.5 pt-1 flex items-center text-muted-foreground">
-                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
-                                Your workspace will be hosted at:{' '}
-                                <code className="font-mono text-primary">
-                                  onetab.ai/w/{field.value || 'your-slug'}
-                                </code>
+                              <FormDescription className="text-xs gap-1.5 pt-1 flex flex-wrap items-center text-muted-foreground">
+                                {slugChecking ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                                    Checking availability…
+                                  </>
+                                ) : slugTaken ? (
+                                  <>
+                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />
+                                    <span className="text-destructive">
+                                      onetab.ai/w/{field.value} is taken.
+                                    </span>
+                                    {availability.data?.suggestion && (
+                                      <button
+                                        type="button"
+                                        className="font-mono text-primary underline-offset-2 hover:underline"
+                                        onClick={() =>
+                                          form.setValue(
+                                            'slug',
+                                            availability.data?.suggestion ?? '',
+                                            {
+                                              shouldValidate: true,
+                                              shouldDirty: true,
+                                            },
+                                          )
+                                        }
+                                      >
+                                        Use {availability.data.suggestion}
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
+                                    Available — hosted at:{' '}
+                                    <code className="font-mono text-primary">
+                                      onetab.ai/w/{field.value || 'your-slug'}
+                                    </code>
+                                  </>
+                                )}
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -731,6 +787,7 @@ export function CreateWorkspacePage() {
                       {currentStep === 1 ? (
                         <Button
                           type="submit"
+                          disabled={slugChecking || slugTaken}
                           className="font-medium shadow-lg shadow-primary/30"
                         >
                           Continue <ChevronRight className="h-4 w-4 ml-1" />
@@ -814,7 +871,11 @@ export function CreateWorkspacePage() {
                   <div className="gap-2 flex flex-wrap items-center">
                     <Avatar className="h-7 w-7 border border-primary">
                       <AvatarFallback className="text-primary-foreground text-xs font-bold bg-primary">
-                        YOU
+                        {initials(
+                          currentUser?.displayName ||
+                            currentUser?.name ||
+                            'You',
+                        )}
                       </AvatarFallback>
                     </Avatar>
                     {invitedEmails.slice(0, 4).map((email) => (

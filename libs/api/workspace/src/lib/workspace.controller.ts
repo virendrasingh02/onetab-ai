@@ -62,6 +62,19 @@ export class WorkspaceController {
     return { slug: await this.workspaces.suggestSlug(slugify(name) || 'workspace') };
   }
 
+  /** Live availability of a typed slug; suggests the next free one when taken. */
+  @Get('slug-availability')
+  async slugAvailability(@Query('slug') raw = '') {
+    const slug = slugify(raw);
+    if (!slug) return { slug, available: false, suggestion: null };
+    const available = await this.workspaces.isSlugAvailable(slug);
+    return {
+      slug,
+      available,
+      suggestion: available ? null : await this.workspaces.suggestSlug(slug),
+    };
+  }
+
   /**
    * Uploads (or replaces) the workspace logo.
    *

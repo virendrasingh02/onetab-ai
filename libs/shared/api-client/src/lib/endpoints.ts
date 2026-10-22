@@ -767,6 +767,11 @@ export const workspaceApi = {
       withResolvedAvatar,
     ),
 
+  checkSlug: (slug: string) =>
+    request<{ slug: string; available: boolean; suggestion: string | null }>(
+      http.get('/workspaces/slug-availability', { params: { slug } }),
+    ),
+
   suggestSlug: (name: string) =>
     request<{ slug: string }>(
       http.get('/workspaces/slug-suggestion', { params: { name } }),
