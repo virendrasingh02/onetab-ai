@@ -1,20 +1,15 @@
 import type { CoworkerStatus } from '@org/types';
-import { cn } from '@org/utils';
 import {
-  Bot,
-  Brain,
-  Code2,
-  Globe,
-  Layers,
-  Loader2,
-  MessageSquare,
-  Rocket,
-  Search,
-  Shield,
-  Sparkles,
-  Zap,
-} from 'lucide-react';
-import { useState, type FC } from 'react';
+  AI_ENTITY_PRESET_ICONS,
+  AiEntityAvatar,
+  getAiEntityGlyph,
+  getAiEntityGradient,
+  getAiEntityInitial,
+  getAiEntityPresetIcon,
+} from '@org/ui';
+import { cn } from '@org/utils';
+import { Loader2 } from 'lucide-react';
+import type { FC } from 'react';
 
 export interface CoworkerAvatarProps {
   name: string;
@@ -25,101 +20,20 @@ export interface CoworkerAvatarProps {
   className?: string;
 }
 
-/** Fully round at every size, matching DM user avatars and the sidebar `NavEntityTile`. */
-const SIZE_MAP = {
-  xs: {
-    container: 'h-6 w-6 text-[10px] rounded-full',
-    icon: 'h-3.5 w-3.5',
-    dotSize: 'xs' as const,
-    dotOffset: '-bottom-0.5 -right-0.5',
-  },
-  sm: {
-    container: 'h-7 w-7 text-xs rounded-full',
-    icon: 'h-3.5 w-3.5',
-    dotSize: 'xs' as const,
-    dotOffset: '-bottom-0.5 -right-0.5',
-  },
-  md: {
-    container: 'h-10 w-10 text-sm rounded-full',
-    icon: 'h-5 w-5',
-    dotSize: 'sm' as const,
-    dotOffset: '-bottom-1 -right-1',
-  },
-  lg: {
-    container: 'h-12 w-12 text-base rounded-full',
-    icon: 'h-6 w-6',
-    dotSize: 'md' as const,
-    dotOffset: '-bottom-1 -right-1',
-  },
-  xl: {
-    container: 'h-16 w-16 text-xl rounded-full',
-    icon: 'h-8 w-8',
-    dotSize: 'lg' as const,
-    dotOffset: '-bottom-1.5 -right-1.5',
-  },
+const DOT_OFFSET = {
+  xs: '-bottom-0.5 -right-0.5',
+  sm: '-bottom-0.5 -right-0.5',
+  md: '-bottom-1 -right-1',
+  lg: '-bottom-1 -right-1',
+  xl: '-bottom-1.5 -right-1.5',
 };
 
-/** Coworker `icon:*` avatar presets — the single source for every surface that draws one. */
-export const COWORKER_PRESET_ICONS: Record<string, typeof Bot> = {
-  'icon:bot': Bot,
-  'icon:brain': Brain,
-  'icon:code': Code2,
-  'icon:spark': Sparkles,
-  'icon:shield': Shield,
-  'icon:search': Search,
-  'icon:chat': MessageSquare,
-  'icon:rocket': Rocket,
-  'icon:globe': Globe,
-  'icon:layers': Layers,
-  'icon:zap': Zap,
-};
-
-/** The preset glyph for a coworker `avatarUrl`, or `undefined` when it's a photo/empty. */
-export function getCoworkerPresetIcon(avatarUrl?: string | null): typeof Bot | undefined {
-  return avatarUrl ? COWORKER_PRESET_ICONS[avatarUrl] : undefined;
-}
-
-const isPhotoSource = (avatarUrl?: string | null) =>
-  !!avatarUrl && !avatarUrl.startsWith('icon:');
-
-/**
- * The glyph a coworker shows when it has no photo: its chosen preset, else the
- * default `Bot` — so every coworker reads as the same kind of entity everywhere
- * (sidebar, chat header, lists) instead of mixing icons and initials.
- */
-export function getCoworkerGlyph(avatarUrl?: string | null): typeof Bot | undefined {
-  return isPhotoSource(avatarUrl) ? undefined : (getCoworkerPresetIcon(avatarUrl) ?? Bot);
-}
-
-/**
- * The single letter shown for any AI entity (coworker, agent, app) that has no
- * uploaded image or icon. One letter keeps every avatar visually consistent.
- */
-export function getEntityInitial(name?: string | null): string {
-  const first = Array.from((name ?? '').trim())[0];
-  return (first ?? 'A').toUpperCase();
-}
-
-/**
- * Deterministic gradient based on coworker name string. Exported so a
- * coworker's cover banner can use the same gradient as their avatar.
- */
-export function getGradientByName(name: string): string {
-  const gradients = [
-    'from-violet-500/20 to-purple-600/20 text-violet-600 dark:text-violet-300 border-violet-500/30',
-    'from-indigo-500/20 to-blue-600/20 text-indigo-600 dark:text-indigo-300 border-indigo-500/30',
-    'from-teal-500/20 to-emerald-600/20 text-teal-600 dark:text-teal-300 border-teal-500/30',
-    'from-amber-500/20 to-orange-600/20 text-amber-600 dark:text-amber-300 border-amber-500/30',
-    'from-rose-500/20 to-pink-600/20 text-rose-600 dark:text-rose-300 border-rose-500/30',
-    'from-cyan-500/20 to-sky-600/20 text-cyan-600 dark:text-cyan-300 border-cyan-500/30',
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % gradients.length;
-  return gradients[index];
-}
+/** Re-exports of the shared AI-entity visuals (now owned by `@org/ui`). */
+export const COWORKER_PRESET_ICONS = AI_ENTITY_PRESET_ICONS;
+export const getCoworkerPresetIcon = getAiEntityPresetIcon;
+export const getCoworkerGlyph = getAiEntityGlyph;
+export const getEntityInitial = getAiEntityInitial;
+export const getGradientByName = getAiEntityGradient;
 
 export const CoworkerAvatar: FC<CoworkerAvatarProps> = ({
   name,
@@ -128,52 +42,27 @@ export const CoworkerAvatar: FC<CoworkerAvatarProps> = ({
   size = 'md',
   showStatusDot = true,
   className,
-}) => {
-  const [imageFailed, setImageFailed] = useState(false);
-  const sizeConfig = SIZE_MAP[size] ?? SIZE_MAP.md;
-  const gradientClass = getGradientByName(name);
-
-  const PresetComponent = getCoworkerGlyph(avatarUrl);
-  // An unknown `icon:*` preset is never a loadable image — fall to the default glyph.
-  const isPresetIcon = !!avatarUrl?.startsWith('icon:');
-
-  return (
-    <div className={cn('relative inline-flex shrink-0 items-center justify-center', className)}>
-      <div
+}) => (
+  <div className={cn('relative inline-flex shrink-0 items-center justify-center', className)}>
+    <AiEntityAvatar
+      name={name}
+      kind="coworker"
+      avatarUrl={avatarUrl}
+      size={size}
+      className="transition-all duration-150"
+    />
+    {showStatusDot && (status === 'WORKING' || status === 'RUNNING_TASK') && (
+      <span
+        role="status"
+        aria-label="Working"
         className={cn(
-          'flex items-center justify-center font-semibold border shadow-xs overflow-hidden transition-all duration-150',
-          'bg-gradient-to-br',
-          sizeConfig.container,
-          gradientClass,
+          'absolute z-10 flex items-center justify-center rounded-full bg-background shadow-xs',
+          size === 'xs' || size === 'sm' ? 'size-3' : 'size-4',
+          DOT_OFFSET[size],
         )}
       >
-        {avatarUrl && !isPresetIcon && !imageFailed ? (
-          <img
-            src={avatarUrl}
-            alt={name}
-            className="h-full w-full object-cover"
-            onError={() => setImageFailed(true)}
-          />
-        ) : PresetComponent ? (
-          <PresetComponent className={sizeConfig.icon} />
-        ) : (
-          <span aria-hidden>{getEntityInitial(name)}</span>
-        )}
-      </div>
-
-      {showStatusDot && (status === 'WORKING' || status === 'RUNNING_TASK') && (
-        <span
-          role="status"
-          aria-label="Working"
-          className={cn(
-            'absolute z-10 flex items-center justify-center rounded-full bg-background shadow-xs',
-            size === 'xs' || size === 'sm' ? 'size-3' : 'size-4',
-            sizeConfig.dotOffset,
-          )}
-        >
-          <Loader2 className="size-full animate-spin p-px text-primary" />
-        </span>
-      )}
-    </div>
-  );
-};
+        <Loader2 className="size-full animate-spin p-px text-primary" />
+      </span>
+    )}
+  </div>
+);

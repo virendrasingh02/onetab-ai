@@ -1,5 +1,7 @@
 import {
+  agentsApi,
   ApiError,
+  coworkersApi,
   gifsApi,
   memberApi,
   resolveMediaUrl,
@@ -34,12 +36,12 @@ import {
 } from '@org/web-chat';
 import {
   AgentAvatarProvider,
+  type AiEntityResolver,
   MemberProfileProvider,
   type MemberProfileResolver,
 } from '@org/chat-ui';
 import { toPlatformUserId } from '@org/types';
 import { SyncProvider } from '@org/sync';
-import { useAgents } from '@org/web-agents';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import {
   MutationCache,
@@ -157,8 +159,9 @@ function RealtimeAppBridge({ children }: { children: ReactNode }) {
 }
 
 /**
- * Gives agent reply cards the agent's current uploaded avatar (the event only
- * carries whatever it was when sent). Shares the sidebar's cached agent list.
+ * Gives every message the live identity (kind + current avatar) of the AI
+ * coworker/agent that sent it, by id or by display name, so a coworker is the
+ * same tile in chat as in the sidebar. Shares the sidebar's cached lists.
  */
 function AgentAvatarBridge({
   workspaceId,
@@ -167,11 +170,33 @@ function AgentAvatarBridge({
   workspaceId: string | undefined;
   children: ReactNode;
 }) {
-  const { data: agents } = useAgents(workspaceId, { includeDrafts: true });
-  const resolve = useCallback(
-    (agentId: string) =>
-      agents?.find((a) => a.id === agentId)?.avatarUrl ?? undefined,
-    [agents],
+  // Real lists from the API, on the same query keys the sidebar uses (shared cache).
+  const { data: agents } = useQuery({
+    queryKey: queryKeys.agents.list(workspaceId ?? ''),
+    queryFn: () => agentsApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+  const { data: coworkers } = useQuery({
+    queryKey: queryKeys.coworkers.list(workspaceId ?? ''),
+    queryFn: () => coworkersApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+  const resolve = useCallback<AiEntityResolver>(
+    ({ id, name }) => {
+      const lower = name?.trim().toLowerCase();
+      const find = <T extends { id: string; name: string; avatarUrl?: string | null }>(
+        list: T[] | undefined,
+      ) =>
+        list?.find((e) => (id && e.id === id) || (lower && e.name.toLowerCase() === lower));
+      const cw = find(coworkers);
+      if (cw) return { kind: 'coworker', name: cw.name, avatarUrl: cw.avatarUrl ?? undefined };
+      const ag = find(agents);
+      if (ag) return { kind: 'agent', name: ag.name, avatarUrl: ag.avatarUrl ?? undefined };
+      return undefined;
+    },
+    [agents, coworkers],
   );
   return <AgentAvatarProvider value={resolve}>{children}</AgentAvatarProvider>;
 }

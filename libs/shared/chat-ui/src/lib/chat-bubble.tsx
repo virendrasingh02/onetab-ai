@@ -9,9 +9,11 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  AiEntityAvatar,
   UserAvatar,
   type RightPanelProfile,
 } from '@org/ui';
+import { useAiEntity } from './cards/agent-avatar-context.js';
 import { cn } from '@org/utils';
 import { countEmojiOnly } from './emoji-only.js';
 import { EntityKindBadge } from './entity-kind-badge.js';
@@ -662,6 +664,11 @@ export function ChatBubble({
    * the root of a thread that still has replies, so it stays a slim marker —
    * aligned with message text — that keeps the way into those replies.
    */
+  const liveEntity = useAiEntity(
+    message.senderId.replace(/^(agent|coworker)-/, ''),
+    message.senderName,
+  );
+
   if (message.isRedacted) {
     return (
       <div
@@ -721,6 +728,17 @@ export function ChatBubble({
     /\b(copilot|assistant|reviewer|standup|triage|bot|agent)\b/i.test(
       message.senderName,
     ));
+
+  // Coworkers/agents render as the same tile as the sidebar, never a person's initial gradient.
+  const aiEntity =
+    liveEntity ??
+    (isCoworker || isAgent
+      ? {
+          kind: (isCoworker ? 'coworker' : 'agent') as 'coworker' | 'agent',
+          name: message.senderName,
+          avatarUrl: undefined,
+        }
+      : undefined);
 
   const isDoc =
     entityKind === 'doc' ||
@@ -1104,20 +1122,33 @@ export function ChatBubble({
             entityKind={profileEntityKind}
             entityId={profileEntityId}
           >
-            <UserAvatar
-              name={message.senderName}
-              src={message.senderAvatarUrl}
-              seed={message.senderId}
-              size={isCompact ? 'sm' : 'md'}
-              className={cn(
-                isCompact ? 'size-8' : 'size-10',
-                'cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
-                isAgent && 'ring-2 ring-primary/40',
-                isApp && 'ring-2 ring-accent-violet/40',
-                isDoc && 'ring-2 ring-info-text/40',
-                (isTask || isKanban) && 'ring-2 ring-success/40',
-              )}
-            />
+            {aiEntity ? (
+              <AiEntityAvatar
+                name={aiEntity.name}
+                kind={aiEntity.kind}
+                avatarUrl={aiEntity.avatarUrl ?? message.senderAvatarUrl}
+                size={isCompact ? 'sm' : 'md'}
+                className={cn(
+                  isCompact ? 'size-8' : 'size-10',
+                  'cursor-pointer transition-transform hover:scale-105 hover:opacity-90',
+                )}
+              />
+            ) : (
+              <UserAvatar
+                name={message.senderName}
+                src={message.senderAvatarUrl}
+                seed={message.senderId}
+                size={isCompact ? 'sm' : 'md'}
+                className={cn(
+                  isCompact ? 'size-8' : 'size-10',
+                  'cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
+                  isAgent && 'ring-2 ring-primary/40',
+                  isApp && 'ring-2 ring-accent-violet/40',
+                  isDoc && 'ring-2 ring-info-text/40',
+                  (isTask || isKanban) && 'ring-2 ring-success/40',
+                )}
+              />
+            )}
           </UserProfileCard>
         )}
       </div>

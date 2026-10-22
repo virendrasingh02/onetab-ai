@@ -18,7 +18,7 @@ import {
   type EntityAction,
   Hint,
   toast,
-  UserAvatar,
+  AiEntityAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { EntityKindBadge } from '../entity-kind-badge.js';
@@ -27,7 +27,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bookmark,
-  Bot,
   Check,
   CheckCircle2,
   CornerDownRight,
@@ -65,7 +64,7 @@ import { MessageActionToolbar, ThreadRepliesButton, ReactionPicker } from '../ch
 import { ReactionBar, reactionAddButtonClass } from '../reaction-bar.js';
 import { SavedForLaterLabel } from '../saved-for-later-label.js';
 import { executeStructuredAction } from './action-handler.js';
-import { useAgentAvatar } from './agent-avatar-context.js';
+import { useAiEntity } from './agent-avatar-context.js';
 import { useAICardPreferencesStore } from './card-preferences-store.js';
 import { CardSettingsDialog } from './card-settings-dialog.js';
 
@@ -183,9 +182,10 @@ export function AgentMessageCard({
   const [followUpSent, setFollowUpSent] = useState(false);
   const [expandedToolIds, setExpandedToolIds] = useState<Set<string>>(new Set());
 
-  const liveAvatarUrl = useAgentAvatar(event.agentId);
+  const liveEntity = useAiEntity(event.agentId, event.agentName || message.senderName);
   const avatarSrc =
-    liveAvatarUrl || event.agentAvatarUrl || message.senderAvatarUrl;
+    liveEntity?.avatarUrl || event.agentAvatarUrl || message.senderAvatarUrl;
+  const entityKind = liveEntity?.kind ?? 'agent';
   const density = prefs.density;
   const isRunning = event.status === 'running' || event.status === 'starting';
   const isPending = isRunning || event.status === 'queued';
@@ -491,10 +491,10 @@ export function AgentMessageCard({
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <UserAvatar
+            <AiEntityAvatar
               name={event.agentName || message.senderName}
-              seed={event.agentAvatarSeed || event.agentId}
-              src={avatarSrc}
+              kind={entityKind}
+              avatarUrl={avatarSrc}
               size="sm"
             />
             <div className="min-w-0">
@@ -570,24 +570,12 @@ export function AgentMessageCard({
 
       <div className="relative w-10 shrink-0">
         {profileCard(
-          avatarSrc ? (
-            <UserAvatar
-              name={event.agentName || message.senderName}
-              seed={event.agentAvatarSeed || event.agentId}
-              src={avatarSrc}
-              size="md"
-              indicator={false}
-              className="size-10 rounded-full shadow-xs"
-            />
-          ) : (
-            // No uploaded photo: the same Bot tile the sidebar shows for agents.
-            <span
-              aria-hidden
-              className="flex size-10 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-xs"
-            >
-              <Bot className="size-5" />
-            </span>
-          ),
+          <AiEntityAvatar
+            name={event.agentName || message.senderName}
+            kind={entityKind}
+            avatarUrl={avatarSrc}
+            size="md"
+          />,
         )}
       </div>
 

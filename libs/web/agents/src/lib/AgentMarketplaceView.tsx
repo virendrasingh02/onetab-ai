@@ -8,8 +8,7 @@ import type {
   MarketplaceListingDetail,
   MarketplaceInstallation,
 } from '@org/types';
-import { accentClasses, confirm, toast } from '@org/ui';
-import { cn } from '@org/utils';
+import { AiEntityAvatar, confirm, toast } from '@org/ui';
 import { studioWorkspacePath } from '@org/platform';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -83,54 +82,8 @@ export function AgentAvatar({
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }) {
-  const sizeClasses = {
-    sm: 'size-7 text-xs',
-    md: 'size-9 text-sm',
-    lg: 'size-12 text-base',
-  };
-
-  const iconSizes = {
-    sm: 'size-3.5',
-    md: 'size-4.5',
-    lg: 'size-6',
-  };
-
-  if (
-    avatarUrl &&
-    (avatarUrl.startsWith('data:image/') ||
-      avatarUrl.startsWith('http://') ||
-      avatarUrl.startsWith('https://'))
-  ) {
-    return (
-      <div
-        className={cn(
-          'relative shrink-0 overflow-hidden rounded-lg border border-border/80 bg-surface shadow-xs',
-          sizeClasses[size],
-          className,
-        )}
-      >
-        <img src={avatarUrl} alt={name} className="size-full object-cover" />
-      </div>
-    );
-  }
-
-  const preset =
-    PRESET_ICONS.find((p) => p.id === avatarUrl) || PRESET_ICONS[0];
-  const IconComponent = preset.icon;
-
-  return (
-    <div
-      className={cn(
-        'flex shrink-0 items-center justify-center rounded-lg border shadow-xs transition-transform',
-        accentClasses[preset.accent].soft,
-        accentClasses[preset.accent].border,
-        sizeClasses[size],
-        className,
-      )}
-    >
-      <IconComponent className={iconSizes[size]} aria-hidden />
-    </div>
-  );
+  // Same tile as the sidebar and chat: one round, primary-toned agent identity.
+  return <AiEntityAvatar kind="agent" name={name} avatarUrl={avatarUrl} size={size} className={className} />;
 }
 
 /* ------------------------------------------------------------- main view ---- */

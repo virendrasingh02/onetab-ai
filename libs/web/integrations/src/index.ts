@@ -30,6 +30,7 @@ export { SlackNotionImportView } from './lib/SlackNotionImportView.js';
 export { MigrationCenterView } from './lib/migration-center-view.js';
 export { MigrationWizardDialog } from './lib/migration-wizard-dialog.js';
 export * from './lib/use-migrations.js';
+export { useAppLogos } from './lib/use-app-logos.js';
 export {
   AppChatView,
   DEFAULT_WORKSPACE_APPS,

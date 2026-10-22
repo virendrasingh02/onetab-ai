@@ -1,19 +1,39 @@
+import type { AiEntityKind } from '@org/ui';
 import { createContext, useContext } from 'react';
 
+/** What the live workspace knows about an AI coworker/agent. */
+export interface AiEntityIdentity {
+  kind: AiEntityKind;
+  name: string;
+  avatarUrl?: string;
+}
+
 /**
- * Resolves an agent's *current* uploaded avatar by id.
+ * Resolves an AI entity's *current* identity by id or, for bot-posted Matrix
+ * messages that only carry a display name, by name.
  *
  * Structured agent events freeze `agentAvatarUrl` at send time, so an avatar
  * uploaded later (or missing when the reply was sent) never reached old
- * messages. The app feeds this from its live agent list instead.
+ * messages. The app feeds this from its live coworker/agent lists instead, so a
+ * coworker looks the same in the sidebar, headers and every message.
  */
-export type AgentAvatarResolver = (agentId: string) => string | undefined;
+export type AiEntityResolver = (ref: {
+  id?: string;
+  name?: string;
+}) => AiEntityIdentity | undefined;
 
-const AgentAvatarContext = createContext<AgentAvatarResolver | null>(null);
+/** @deprecated use {@link AiEntityResolver}. */
+export type AgentAvatarResolver = AiEntityResolver;
 
-export const AgentAvatarProvider = AgentAvatarContext.Provider;
+const AiEntityContext = createContext<AiEntityResolver | null>(null);
+
+export const AgentAvatarProvider = AiEntityContext.Provider;
+
+export function useAiEntity(id?: string, name?: string): AiEntityIdentity | undefined {
+  const resolve = useContext(AiEntityContext);
+  return resolve && (id || name) ? resolve({ id, name }) : undefined;
+}
 
 export function useAgentAvatar(agentId?: string): string | undefined {
-  const resolve = useContext(AgentAvatarContext);
-  return agentId && resolve ? resolve(agentId) : undefined;
+  return useAiEntity(agentId)?.avatarUrl;
 }

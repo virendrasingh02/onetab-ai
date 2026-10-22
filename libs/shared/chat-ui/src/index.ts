@@ -251,7 +251,10 @@ export {
 export {
   AgentAvatarProvider,
   useAgentAvatar,
+  useAiEntity,
   type AgentAvatarResolver,
+  type AiEntityIdentity,
+  type AiEntityResolver,
 } from './lib/cards/agent-avatar-context.js';
 export {
   AgentMessageCard,

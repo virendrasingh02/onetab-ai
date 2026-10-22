@@ -31,6 +31,7 @@ import {
   useMatrix,
 } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
+import { useAppLogos } from './use-app-logos.js';
 import {
   Bell,
   BellOff,
@@ -159,6 +160,7 @@ export interface AppModelItem {
 
 export const APP_LOGOS: Record<string, string> = {
   gmail: 'https://cdn.simpleicons.org/gmail',
+  asana: 'https://cdn.simpleicons.org/asana',
   github: 'https://cdn.simpleicons.org/github',
   gitlab: 'https://cdn.simpleicons.org/gitlab',
   jira: 'https://cdn.simpleicons.org/jira',
@@ -394,12 +396,16 @@ export function AppAvatar({
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }) {
+  const { workspaceId } = useCurrentWorkspace();
+  const resolveLogo = useAppLogos(workspaceId);
   const logoUrl =
-    APP_LOGOS[provider.toLowerCase()] || APP_LOGOS[name.toLowerCase()];
+    APP_LOGOS[provider.toLowerCase()] ||
+    APP_LOGOS[name.toLowerCase()] ||
+    resolveLogo(provider, name);
   const sizeClasses = {
-    sm: 'size-7 p-1 rounded-lg text-xs',
-    md: 'size-10 p-1.5 rounded-xl text-sm',
-    lg: 'size-14 p-2 rounded-2xl text-base',
+    sm: 'size-7 p-1.5 rounded-full text-xs',
+    md: 'size-10 p-2 rounded-full text-sm',
+    lg: 'size-14 p-2.5 rounded-full text-base',
   }[size];
 
   return (

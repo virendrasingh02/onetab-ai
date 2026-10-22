@@ -1245,6 +1245,7 @@ export function ChannelNav({
               id: agent.id,
               name: agent.name,
               icon: 'Bot',
+              avatarUrl: agent.avatarUrl,
               detail: agent.role,
             }}
             workspaceSlug={workspaceSlug}

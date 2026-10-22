@@ -24,8 +24,10 @@ import {
   useIntegrationMutations,
   useIntegrations,
 } from '@org/web-integrations';
+import { useAppLogos } from '@org/web-integrations';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
+  Blocks,
   Bot,
   Link2,
   Loader2,
@@ -92,6 +94,8 @@ export interface ResourceItemData {
   id: string;
   name: string;
   icon?: string;
+  /** AI coworkers/agents: the photo or `icon:*` preset chosen for them. */
+  avatarUrl?: string | null;
   detail?: string;
   /**
    * The record's real backend id, when it differs from `id`. Apps route on
@@ -130,6 +134,9 @@ export const APP_LOGOS: Record<string, string> = {
   discord: 'https://cdn.simpleicons.org/discord',
   slack: 'https://cdn.simpleicons.org/slack',
   notion: 'https://cdn.simpleicons.org/notion',
+  asana: 'https://cdn.simpleicons.org/asana',
+  todoist: 'https://cdn.simpleicons.org/todoist',
+  zoom: 'https://cdn.simpleicons.org/zoom',
   webhooks: 'https://cdn.simpleicons.org/webhooks',
 };
 
@@ -267,7 +274,7 @@ export function AppLogo({
   providerId,
   name,
   size = 'md',
-  fallbackIcon,
+  fallbackIcon: _fallbackIcon,
 }: {
   providerId: string;
   name?: string;
@@ -275,14 +282,20 @@ export function AppLogo({
   fallbackIcon?: string;
 }) {
   const normalizedKey = providerId.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const { workspaceId } = useCurrentWorkspace();
+  const resolveLogo = useAppLogos(workspaceId);
   const logoUrl =
-    APP_LOGOS[normalizedKey] ?? APP_LOGOS[providerId.toLowerCase()];
+    APP_LOGOS[normalizedKey] ??
+    APP_LOGOS[providerId.toLowerCase()] ??
+    resolveLogo(providerId, name);
 
   return (
     <NavEntityTile
       label={name ?? providerId}
       image={logoUrl}
-      icon={fallbackIcon ?? PROVIDER_ICON[providerId.toUpperCase()] ?? 'Plug'}
+      // No brand logo: the same violet blocks glyph the app chat header shows.
+      glyph={logoUrl ? undefined : Blocks}
+      toneClassName={logoUrl ? undefined : 'border-accent-violet/30 bg-accent-violet/10 text-accent-violet'}
       fit="contain"
       size={size}
     />
@@ -531,7 +544,8 @@ export function AgentNavRow({
     >
       <NavEntityTile
         label={agent.name}
-        icon={agent.icon}
+        image={agent.avatarUrl}
+        glyph={getCoworkerGlyph(agent.avatarUrl)}
         tone="primary"
       />
       <span className="flex-1 truncate">{agent.name}</span>
@@ -1167,6 +1181,7 @@ export function AgentsSection({
         id: agent.id,
         name: agent.name,
         icon: 'Bot',
+        avatarUrl: agent.avatarUrl,
         detail: agent.role,
       })),
     [activeAgents],
@@ -1213,7 +1228,8 @@ export function AgentsSection({
         icon: (
           <NavEntityTile
             label={agent.name}
-            icon="Bot"
+            image={agent.avatarUrl}
+            glyph={getCoworkerGlyph(agent.avatarUrl)}
             size="sm"
             tone="primary"
           />

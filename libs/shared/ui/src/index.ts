@@ -60,6 +60,18 @@ export {
 } from './lib/components/avatar.js';
 
 export {
+  AI_ENTITY_PRESET_ICONS,
+  AiEntityAvatar,
+  getAiEntityGlyph,
+  getAiEntityGradient,
+  getAiEntityInitial,
+  getAiEntityPresetIcon,
+  getAiEntityTone,
+  type AiEntityAvatarProps,
+  type AiEntityKind,
+} from './lib/components/ai-entity-avatar.js';
+
+export {
   UserAvatarGroup,
   type AvatarGroupUser,
   type UserAvatarGroupProps,
