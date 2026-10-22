@@ -47,6 +47,7 @@ function makeEngine(
       findUnique: vi.fn().mockResolvedValue(workflow),
     },
     user: { findUnique: vi.fn().mockResolvedValue({ timezone: 'UTC' }) },
+    workspaceSettings: { findUnique: vi.fn().mockResolvedValue(null) },
     workspaceSubscription: { findUnique: vi.fn().mockResolvedValue({ planTier: 'business' }) },
     creditAccount: { findUnique: vi.fn().mockResolvedValue(null) },
     workflowExecution: {
@@ -358,6 +359,18 @@ describe('WorkflowEngineService', () => {
     const ran = steps.map((s) => s.stepId);
     expect(ran).toContain('ok');
     expect(ran).not.toContain('fallback');
+  });
+
+  it('does not run a tool step the workspace admin turned off', async () => {
+    const { engine, registry, prisma, steps } = makeEngine(
+      [node('start', 'START'), node('read', 'TOOL', { toolName: 'find_tasks', input: '{}' })],
+      [edge('start', 'read')],
+      { tools: ['find_tasks'] },
+    );
+    prisma.workspaceSettings.findUnique.mockResolvedValue({ policies: { toolPolicy: { tools: { find_tasks: 'disabled' } } } });
+    await engine.executeWorkflow('wf_1', {});
+    expect(registry.executeTool).not.toHaveBeenCalled();
+    expect(steps.find((x) => x.stepId === 'read')?.status).toBe('FAILED');
   });
 
   it('refuses a tool outside the agent’s granted permissions, without retrying', async () => {

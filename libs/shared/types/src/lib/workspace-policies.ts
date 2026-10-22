@@ -1,5 +1,6 @@
 import { WorkspaceRole } from './enums.js';
 import type { TieredFeaturePolicy } from './feature-settings.js';
+import { resolveWorkspaceToolPolicy, type WorkspaceToolPolicy } from './workspace-tool-policy.js';
 
 export const PolicySubjectRole = {
   OWNER_ONLY: 'OWNER_ONLY',
@@ -43,6 +44,8 @@ export interface WorkspacePolicy {
   maxUploadSizeMb?: number | null;
   /** Archive a channel after this many days with no new messages. `null`/unset = never (today's behavior). */
   autoArchiveInactiveDays?: number | null;
+  /** Which tools and connected apps agents may use: allowed, approval-only or disabled. Empty = every agent's own rules decide (today's behavior). */
+  toolPolicy?: WorkspaceToolPolicy;
 }
 
 export const DEFAULT_WORKSPACE_POLICY: Readonly<WorkspacePolicy> = {
@@ -62,6 +65,7 @@ export const DEFAULT_WORKSPACE_POLICY: Readonly<WorkspacePolicy> = {
   messageEditWindowMinutes: null,
   maxUploadSizeMb: null,
   autoArchiveInactiveDays: null,
+  toolPolicy: { connectors: {}, tools: {} },
 };
 
 /**
@@ -107,6 +111,7 @@ export function resolveWorkspacePolicy(
     | 'messageEditWindowMinutes'
     | 'maxUploadSizeMb'
     | 'autoArchiveInactiveDays'
+    | 'toolPolicy'
   >;
   const raw = rawJson as Partial<Record<keyof WorkspacePolicy, unknown>>;
   const resolveSetting = (key: SubjectRoleKey): PolicySubjectRole => {
@@ -166,5 +171,6 @@ export function resolveWorkspacePolicy(
     messageEditWindowMinutes: resolveNullableInt('messageEditWindowMinutes', 1, 10080),
     maxUploadSizeMb: resolveNullableInt('maxUploadSizeMb', 5, 25),
     autoArchiveInactiveDays: resolveNullableInt('autoArchiveInactiveDays', 7, 365),
+    toolPolicy: resolveWorkspaceToolPolicy(raw.toolPolicy),
   };
 }

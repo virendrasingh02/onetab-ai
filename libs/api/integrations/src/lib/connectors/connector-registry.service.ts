@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit, Optional } from '@nestjs/common';
+import { withOutputSchemas } from './output-schemas.js';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@org/database';
 import {
@@ -316,7 +317,7 @@ export class ConnectorRegistryService implements OnModuleInit {
     } catch {
       configured = false;
     }
-    return buildConnectorManifest(caps, adapter.getActions?.() ?? [], adapter.getTriggers?.() ?? [], {
+    return buildConnectorManifest(caps, withOutputSchemas(caps.provider, adapter.getActions?.() ?? []), adapter.getTriggers?.() ?? [], {
       configured,
       ...(configured
         ? {}
@@ -402,14 +403,18 @@ export class ConnectorRegistryService implements OnModuleInit {
 
   /** The address an app pushes events to, only for connectors that verify pushes. */
   private webhookUrl(row: { id: string; provider: string }): string | null {
-    let verifies: boolean;
+    let perConnection: boolean;
+    let shared: boolean;
     try {
-      verifies = !!this.findAdapter(row.provider).verifyWebhook;
+      const adapter = this.findAdapter(row.provider);
+      perConnection = !!adapter.verifyWebhook;
+      shared = !!adapter.verifySharedWebhook;
     } catch {
       return null;
     }
-    if (!verifies) return null;
+    if (!perConnection && !shared) return null;
     const base = (this.config?.get<string>('API_URL') || 'http://localhost:3000/api/v1').replace(/\/+$/, '');
-    return `${base}/webhooks/connectors/${row.id}`;
+    // An app with one events url for every workspace (Slack) shows that url; the rest, this connection's own.
+    return shared ? `${base}/webhooks/connectors/shared/${row.provider.toLowerCase()}` : `${base}/webhooks/connectors/${row.id}`;
   }
 }

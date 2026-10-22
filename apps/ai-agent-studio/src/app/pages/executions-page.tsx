@@ -21,6 +21,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery } from '@tanstack/react-query';
@@ -117,7 +118,7 @@ export function ExecutionsPage() {
           }));
         }
       } catch {
-        // detail not found on aiExecutionsApi, keep log as is
+        toast.error('Could not load the steps for this run');
       } finally {
         setIsLoadingSteps(false);
       }

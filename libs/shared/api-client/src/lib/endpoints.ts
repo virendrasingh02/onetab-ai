@@ -53,13 +53,6 @@ import type {
   AdminSubscriptionAnalytics,
   AdminEngagementAnalytics,
   AdminLiveActivityItem,
-  AgentPlan,
-  AgentSpec,
-  IntentClassification,
-  DynamicQuestion,
-  PlanStep,
-  AgentBuilderRunEvent,
-  AgentIterationDiff,
   AgentExecutionLog,
   AgentTestRunResult,
   AgentVersion,
@@ -5554,82 +5547,6 @@ export const aiStudioApi = {
   quickCreate: (workspaceId: string, data: { name: string; type: string; description?: string }) =>
     request<{ id: string; type: string }>(
       http.post(`/workspaces/${workspaceId}/ai-studio/quick-create`, data),
-    ),
-};
-
-export const agentStudioAiModeApi = {
-  classifyIntent: (workspaceId: string, prompt: string) =>
-    request<IntentClassification>(
-      http.post(`/workspaces/${workspaceId}/ai-studio/ai-mode/classify-intent`, { prompt }),
-    ),
-
-  generateRequirements: (
-    workspaceId: string,
-    prompt: string,
-    classification: IntentClassification,
-  ) =>
-    request<{ questions: DynamicQuestion[]; defaultAnswers: Record<string, unknown> }>(
-      http.post(`/workspaces/${workspaceId}/ai-studio/ai-mode/requirements`, {
-        prompt,
-        classification,
-      }),
-    ),
-
-  generatePlan: (
-    workspaceId: string,
-    prompt: string,
-    classification: IntentClassification,
-    answers: Record<string, unknown>,
-  ) =>
-    request<AgentPlan>(
-      http.post(`/workspaces/${workspaceId}/ai-studio/ai-mode/plan`, {
-        prompt,
-        classification,
-        answers,
-      }),
-    ),
-
-  compileSpec: (
-    workspaceId: string,
-    prompt: string,
-    classification: IntentClassification,
-    answers: Record<string, unknown>,
-    plan: AgentPlan,
-  ) =>
-    request<AgentSpec>(
-      http.post(`/workspaces/${workspaceId}/ai-studio/ai-mode/compile-spec`, {
-        prompt,
-        classification,
-        answers,
-        plan,
-      }),
-    ),
-
-  executeStep: (
-    workspaceId: string,
-    stepId: string,
-    plan: AgentPlan,
-    agentSpec: AgentSpec,
-  ) =>
-    request<{ step: PlanStep; agentSpec: AgentSpec; event: AgentBuilderRunEvent }>(
-      http.post(`/workspaces/${workspaceId}/ai-studio/ai-mode/execute-step`, {
-        stepId,
-        plan,
-        agentSpec,
-      }),
-    ),
-
-  publish: (workspaceId: string, agentSpec: AgentSpec) =>
-    request<{ agentId: string; appSlug: string; success: boolean }>(
-      http.post(`/workspaces/${workspaceId}/ai-studio/ai-mode/publish`, { agentSpec }),
-    ),
-
-  iterate: (workspaceId: string, agentId: string, instruction: string) =>
-    request<AgentIterationDiff>(
-      http.post(`/workspaces/${workspaceId}/ai-studio/ai-mode/iterate`, {
-        agentId,
-        instruction,
-      }),
     ),
 };
 

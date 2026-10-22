@@ -1,6 +1,7 @@
-import { Variable } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { useStudioSession } from '../../session-guard.js';
 import { SecretsVaultPanel } from '../secrets-vault-panel.js';
+import { AgentTabPage } from './agent-tab-page.js';
 
 /**
  * Agents read configuration through the workspace secrets vault — tools look a
@@ -12,21 +13,17 @@ export function VariablesTab() {
   const { activeWorkspace } = useStudioSession();
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6 max-w-4xl mx-auto">
-      <div>
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
-            <Variable className="size-4" />
-          </div>
-          <h2 className="text-lg font-bold text-foreground">Secrets & Configuration</h2>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
+    <AgentTabPage
+      title="Secrets & Configuration"
+      description={
+        <>
           Shared by every agent in {activeWorkspace.name}. Built-in tools read the secret they need by key — for
           example, web search uses <span className="font-mono">FIRECRAWL_API_KEY</span>.
-        </p>
-      </div>
-
+        </>
+      }
+      icon={<KeyRound />}
+    >
       <SecretsVaultPanel workspaceId={activeWorkspace.id} title="Workspace secrets" />
-    </div>
+    </AgentTabPage>
   );
 }

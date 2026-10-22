@@ -3,6 +3,7 @@ import {
   AppSelect,
   Badge,
   Button,
+  Card,
   CodeBlock,
   confirm,
   Dialog,
@@ -21,6 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
+  EmptyState,
   Field,
   Input,
   Label,
@@ -147,6 +149,7 @@ import { VariablesTab } from '../components/agent-detail/variables-tab.jsx';
 import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
 import { AgentDeploymentTab } from '../components/agent-detail/agent-deployment-tab.js';
 import { AgentMarketplaceTab } from '../components/agent-detail/agent-marketplace-tab.js';
+import { AgentTabPage, AgentTabSection } from '../components/agent-detail/agent-tab-page.js';
 import { agentService } from '../services/agentService.js';
 import { analyticsService } from '../services/analyticsService.js';
 import {
@@ -4208,38 +4211,29 @@ export function AgentDetailPage() {
 
         {/* TAB 3: EXECUTIONS */}
         {activeTab === 'executions' && (
-          <div className="h-full space-y-4 p-6 overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-foreground">Execution History for {agent.name}</h2>
-                <p className="text-xs text-muted-foreground">
-                  History of workflow runs, token counts, and execution step breakdowns.
-                </p>
-              </div>
-            </div>
-
+          <AgentTabPage
+            title="Execution History"
+            description={`History of ${agent.name}’s workflow runs, token counts, and execution step breakdowns.`}
+            icon={<Activity />}
+          >
             {executions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
-                <Bot className="h-10 w-10 text-muted-foreground mb-3" />
-                <h3 className="text-sm font-semibold text-foreground">No executions yet</h3>
-                <p className="text-xs text-muted-foreground max-w-xs mt-1">
-                  Run a test execution from the canvas or trigger via API to see traces here.
-                </p>
-                <Button
-                  size="sm"
-                  onClick={() => setIsTestDrawerOpen(true)}
-                  className="mt-4 gap-1.5 text-xs"
-                >
-                  <Play className="h-3.5 w-3.5" />
-                  Run First Test
-                </Button>
-              </div>
+              <EmptyState
+                icon={<Bot />}
+                title="No executions yet"
+                description="Run a test execution from the canvas or trigger via API to see traces here."
+                action={
+                  <Button size="sm" onClick={() => setIsTestDrawerOpen(true)} className="gap-1.5 text-xs">
+                    <Play className="h-3.5 w-3.5" />
+                    Run First Test
+                  </Button>
+                }
+              />
             ) : (
-              <div className="space-y-2">
+              <Card className="divide-y divide-border overflow-hidden">
                 {executions.map((exec) => (
                   <div
                     key={exec.id}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-3.5 hover:border-border-strong transition-colors"
+                    className="flex items-center justify-between gap-4 p-3.5 transition-colors hover:bg-surface-raised"
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
@@ -4278,9 +4272,9 @@ export function AgentDetailPage() {
                     </div>
                   </div>
                 ))}
-              </div>
+              </Card>
             )}
-          </div>
+          </AgentTabPage>
         )}
 
         {/* TAB: EVALUATION & BENCHMARKS */}
@@ -4304,14 +4298,11 @@ export function AgentDetailPage() {
 
         {/* TAB 4: VERSIONS */}
         {activeTab === 'versions' && (
-          <div className="h-full space-y-4 overflow-y-auto py-6 px-[max(1.5rem,calc((100%-56rem)/2))]">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-foreground">Version Snapshots & Rollback</h2>
-                <p className="text-xs text-muted-foreground">
-                  Create immutable snapshots of the workflow graph and rollback anytime.
-                </p>
-              </div>
+          <AgentTabPage
+            title="Version Snapshots & Rollback"
+            description="Create immutable snapshots of the workflow graph and rollback anytime."
+            icon={<Clock />}
+            actions={
               <Button
                 size="sm"
                 onClick={() => setIsSnapshotDialogOpen(true)}
@@ -4320,22 +4311,20 @@ export function AgentDetailPage() {
                 <Clock className="h-3.5 w-3.5" />
                 Create Snapshot
               </Button>
-            </div>
-
+            }
+          >
             {versions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
-                <Clock className="h-10 w-10 text-muted-foreground mb-3" />
-                <h3 className="text-sm font-semibold text-foreground">No snapshots created</h3>
-                <p className="text-xs text-muted-foreground max-w-xs mt-1">
-                  Tag your current workflow graph as a version to easily revert changes later.
-                </p>
-              </div>
+              <EmptyState
+                icon={<Clock />}
+                title="No snapshots created"
+                description="Tag your current workflow graph as a version to easily revert changes later."
+              />
             ) : (
-              <div className="space-y-3">
+              <Card className="divide-y divide-border overflow-hidden">
                 {versions.map((ver) => (
                   <div
                     key={ver.version}
-                    className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition-all hover:border-border-strong"
+                    className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-surface-raised"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -4384,9 +4373,9 @@ export function AgentDetailPage() {
                     </div>
                   </div>
                 ))}
-              </div>
+              </Card>
             )}
-          </div>
+          </AgentTabPage>
         )}
 
         {/* TAB: DEPLOY */}
@@ -4399,20 +4388,19 @@ export function AgentDetailPage() {
 
         {/* TAB 5: SETTINGS */}
         {activeTab === 'settings' && (
-          <div className="h-full space-y-6 overflow-y-auto py-6 px-[max(1.5rem,calc((100%-56rem)/2))]">
-            <div>
-              <h2 className="text-base font-bold text-foreground">Agent Configuration, Intelligence & Guardrails</h2>
-              <p className="text-xs text-muted-foreground">
-                Fine-tune identity, model reasoning parameters, dynamic task planning, execution limits, and API integration.
-              </p>
-            </div>
-
+          <AgentTabPage
+            title="Agent Configuration, Intelligence & Guardrails"
+            description="Fine-tune identity, model reasoning parameters, dynamic task planning, execution limits, and API integration."
+            icon={<Settings />}
+            actions={
+              <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="gap-1.5 text-xs font-semibold">
+                <Save className="h-3.5 w-3.5" />
+                {saveMutation.isPending ? 'Saving...' : 'Save Agent Settings'}
+              </Button>
+            }
+          >
             {/* 1. Identity & Persona (Module 5.1) */}
-            <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
-              <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Bot className="size-4 text-primary" />
-                Agent Identity & Behavior
-              </h3>
+            <AgentTabSection title="Agent Identity & Behavior" icon={<Bot />}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Agent Name">
                   <Input
@@ -4435,14 +4423,10 @@ export function AgentDetailPage() {
                   onChange={(e) => updateSettings({ description: e.target.value })}
                 />
               </Field>
-            </div>
+            </AgentTabSection>
 
             {/* Visual Branding & Appearance */}
-            <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
-              <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Palette className="size-4 text-success" />
-                Icon, Custom Avatar & Theme
-              </h3>
+            <AgentTabSection title="Icon, Custom Avatar & Theme" icon={<Palette />}>
 
               {/* Live Preview */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 rounded-lg bg-surface-raised border border-border">
@@ -4511,7 +4495,7 @@ export function AgentDetailPage() {
                 {avatarMode === 'icon' && (
                   <div className="space-y-2">
                     <p className="text-[11px] text-muted-foreground">Select an icon from the built-in library:</p>
-                    <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {AGENT_ICONS.map((item) => {
                         const IconComponent = item.icon;
                         const isSelected = settingsDraft?.icon === item.name && !settingsDraft?.avatar;
@@ -4592,14 +4576,10 @@ export function AgentDetailPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </AgentTabSection>
 
             {/* Categorization, Tags & Ownership */}
-            <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
-              <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Tag className="size-4 text-accent-blue" />
-                Category, Tags & Ownership
-              </h3>
+            <AgentTabSection title="Category, Tags & Ownership" icon={<Tag />}>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 {/* Category with create custom */}
@@ -4748,7 +4728,7 @@ export function AgentDetailPage() {
                   />
                 </div>
               </div>
-            </div>
+            </AgentTabSection>
 
             {/* 2-4. Model, run limits and guardrails — all read and write real agent state */}
             <AgentRuntimeSettings
@@ -4772,17 +4752,13 @@ export function AgentDetailPage() {
             />
 
             {/* 5. API Trigger Snippet (Module 14.2 & 21.1) */}
-            <div className="rounded-xl border border-border bg-surface p-5 space-y-3">
-              <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <Code2 className="h-4 w-4 text-primary" />
-                REST API Execution Endpoint
-              </h3>
+            <AgentTabSection title="REST API Execution Endpoint" icon={<Code2 />} className="gap-3">
               <CodeBlock
                 language="bash"
                 filename="curl-execute.sh"
                 code={apiCurlSnippet('Research AI developments and summarize')}
               />
-            </div>
+            </AgentTabSection>
 
             {/* Save Settings Bar */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
@@ -4801,7 +4777,7 @@ export function AgentDetailPage() {
                 {saveMutation.isPending ? 'Saving...' : 'Save Agent Settings'}
               </Button>
             </div>
-          </div>
+          </AgentTabPage>
         )}
       </div>
 

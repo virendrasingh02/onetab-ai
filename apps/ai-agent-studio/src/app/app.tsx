@@ -13,6 +13,7 @@ import { KnowledgePage } from './pages/knowledge-page.js';
 import { McpPage } from './pages/mcp-page.js';
 import { SettingsPage } from './pages/settings-page.js';
 import { TemplatesPage } from './pages/templates-page.js';
+import { ToolAccessPage } from './pages/tool-access-page.js';
 import { ToolsPage } from './pages/tools-page.js';
 import { ConnectorsPage } from './pages/connectors-page.js';
 import { CoworkersPage } from './pages/coworkers-page.js';
@@ -169,6 +170,7 @@ function StudioShell() {
                   <Route path="widgets/new" element={<WidgetBuilderPage />} />
                   <Route path="widgets/:widgetId" element={<WidgetBuilderPage />} />
                   <Route path="tools" element={<ToolsPage />} />
+                  <Route path="tool-access" element={<ToolAccessPage />} />
                   <Route path="mcp" element={<McpPage />} />
                   <Route path="knowledge" element={<KnowledgePage />} />
                   <Route path="analytics" element={<AnalyticsPage />} />

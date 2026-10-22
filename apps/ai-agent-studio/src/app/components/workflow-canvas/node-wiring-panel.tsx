@@ -26,16 +26,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { AGENT_SLOTS } from './agent-slots.js';
+import { useBuiltinTools } from './agent-config/use-agent-config-data.js';
 import { CATALOG_NODES } from './node-library.js';
-
-/** Tools an agent node can have attached (ids stored in `config.tools`). */
-export const AGENT_TOOLS: { id: string; name: string }[] = [
-  { id: 'search_docs', name: 'Knowledge / Document Search' },
-  { id: 'firecrawl_search', name: 'Firecrawl Web Search' },
-  { id: 'firecrawl_scrape', name: 'Firecrawl Scrape' },
-  { id: 'create_task', name: 'Kanban Task Creator' },
-  { id: 'send_channel_message', name: 'Chat Channel Post' },
-];
 
 /** Icon for a node type: the catalog's own icon, else a family fallback. */
 export function getNodeIcon(type: string | undefined): LucideIcon {
@@ -257,6 +249,13 @@ export function NodeWiringPanel({
   const nodeType = (node.type || '').toUpperCase();
   const isAgent = nodeType.includes('AGENT') || nodeType.startsWith('AI_') || nodeType.includes('LLM');
   const tools = (((node.data as any)?.config?.tools as string[]) || []).filter(Boolean);
+  const builtinTools = useBuiltinTools();
+  // Live registry, plus anything already attached that the registry no longer lists (so it can be removed).
+  const registry = builtinTools.data ?? [];
+  const toolChoices = [
+    ...registry.map((t) => ({ id: t.name, name: t.name })),
+    ...tools.filter((id) => !registry.some((t) => t.name === id)).map((id) => ({ id, name: id })),
+  ];
 
   const badgeFor = (edge: Edge, other: Node | undefined) => {
     const handle = edge.sourceHandle ? HANDLE_LABELS[edge.sourceHandle] : undefined;
@@ -337,7 +336,7 @@ export function NodeWiringPanel({
         />
         {isAgent && (
           <div className="flex flex-wrap gap-1.5">
-            {AGENT_TOOLS.map((tool) => {
+            {toolChoices.map((tool) => {
               const attached = tools.includes(tool.id);
               return (
                 <button

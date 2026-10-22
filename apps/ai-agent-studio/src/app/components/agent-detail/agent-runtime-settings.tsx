@@ -15,6 +15,7 @@ import { useMemo } from 'react';
 import { isSlotHost, supervisorOf } from '../workflow-canvas/agent-slots.js';
 import { readAgentModules, type AgentModuleId } from '../workflow-canvas/agent-config/agent-module-model.js';
 import { useModelOptions } from '../workflow-canvas/agent-config/use-agent-config-data.js';
+import { AgentTabSection } from './agent-tab-page.js';
 
 /** What the agent's saved runtime enforces on every answer and tool call. */
 export interface AgentRuntimeDraft {
@@ -140,19 +141,18 @@ export function AgentRuntimeSettings({
 
   return (
     <>
-      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
-            <Cpu className="size-4 text-accent-violet" />
-            Model & Behaviour
-          </h3>
-          {leadId && (
-            <Button type="button" variant="ghost" size="xs" onClick={() => onOpenModule(leadId, 'llm')}>
-              <ExternalLink className="size-3" />
+      <AgentTabSection
+        title="Model & Behaviour"
+        icon={<Cpu />}
+        actions={
+          leadId ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenModule(leadId, 'llm')} className="gap-1.5 text-xs">
+              <ExternalLink className="size-3.5" />
               Open model drawer
             </Button>
-          )}
-        </div>
+          ) : undefined
+        }
+      >
 
         {!view && (
           <p className="rounded-lg bg-surface-raised px-3 py-2 text-[11px] text-muted-foreground">
@@ -244,16 +244,13 @@ export function AgentRuntimeSettings({
             options={PROMPT_TONES.map((t) => ({ value: t.value, label: t.label, description: t.instruction || undefined }))}
           />
         </Field>
-      </section>
+      </AgentTabSection>
 
-      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
-        <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
-          <Network className="size-4 text-success" />
-          Run Limits
-        </h3>
-        <p className="text-[11px] text-muted-foreground">
-          Hard ceilings on one run of the whole agent team, so a run can never loop or spend without end.
-        </p>
+      <AgentTabSection
+        title="Run Limits"
+        description="Hard ceilings on one run of the whole agent team, so a run can never loop or spend without end."
+        icon={<Network />}
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="Max steps" hint="Workflow steps the engine may run.">
             <OptionalNumber
@@ -293,13 +290,9 @@ export function AgentRuntimeSettings({
             {limits.maxTokens ? `, ${limits.maxTokens.toLocaleString()} tokens` : ''} per run.
           </p>
         )}
-      </section>
+      </AgentTabSection>
 
-      <section className="space-y-3 rounded-xl border border-border bg-card p-5">
-        <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
-          <ShieldCheck className="size-4 text-accent-blue" />
-          Safety & Guardrails
-        </h3>
+      <AgentTabSection title="Safety & Guardrails" icon={<ShieldCheck />} className="gap-3">
         <div className="space-y-2 text-xs">
           <Field
             label="Personal data in answers"
@@ -342,7 +335,7 @@ export function AgentRuntimeSettings({
             />
           </Field>
         </div>
-      </section>
+      </AgentTabSection>
     </>
   );
 }

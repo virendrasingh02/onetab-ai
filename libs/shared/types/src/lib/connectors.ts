@@ -198,6 +198,8 @@ export interface ConnectorCapability {
   permissionLevel: AppActionDefinition['permissionLevel'];
   requiresConfirmation: boolean;
   inputSchema: Record<string, unknown>;
+  /** JSON Schema of the `data` the action returns, when the adapter declares it. */
+  outputSchema?: Record<string, unknown>;
   /** The function name the agent runtime offers the model. */
   toolName: string;
   /** The `PROVIDER.action` reference a workflow step runs. */
@@ -323,6 +325,7 @@ export function buildConnectorManifest(
     permissionLevel: a.permissionLevel,
     requiresConfirmation: a.requiresConfirmation,
     inputSchema: a.inputSchema ?? { type: 'object', properties: {} },
+    ...(a.outputSchema ? { outputSchema: a.outputSchema } : {}),
     toolName: connectorToolName(provider, a.id),
     actionRef: connectorActionRef(provider, a.id),
   }));

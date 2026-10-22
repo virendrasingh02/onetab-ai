@@ -5,12 +5,15 @@ import { aiMemoryApi } from '@org/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Brain,
+  Database,
+  Layers,
   Plus,
   RefreshCw,
   Search,
   Trash2,
 } from 'lucide-react';
 import { useStudioSession } from '../../session-guard.js';
+import { AgentTabPage, AgentTabSection } from './agent-tab-page.js';
 
 /**
  * @param {{ agent: any; onUpdate?: (patch: Record<string, any>) => void | Promise<void> }} props
@@ -122,27 +125,18 @@ export function MemoryTab({ agent, onUpdate }) {
   };
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
-            <Brain className="size-4" />
-          </div>
-          <h2 className="text-lg font-bold text-foreground">Agent Memory & Context Retention</h2>
-          <Badge variant="outline" className="text-xs text-primary border-primary/30">
-            Vector + Episodic
-          </Badge>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Control how this agent retains context across multi-turn user conversations, vector semantic recall, and long-term workspace memory.
-        </p>
-      </div>
-
+    <AgentTabPage
+      title="Agent Memory & Context Retention"
+      description="Control how this agent retains context across multi-turn user conversations, vector semantic recall, and long-term workspace memory."
+      icon={<Brain />}
+      actions={
+        <Badge variant="outline" className="text-xs text-primary border-primary/30">
+          Vector + Episodic
+        </Badge>
+      }
+    >
       {/* Memory Architecture Config */}
-      <div className="rounded-xl border border-border bg-surface p-5 shadow-2xs space-y-4">
-        <h3 className="text-sm font-semibold text-foreground">Memory Architecture</h3>
-
+      <AgentTabSection title="Memory Architecture" icon={<Layers />}>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
             {
@@ -220,45 +214,46 @@ export function MemoryTab({ agent, onUpdate }) {
             Save Memory Policy
           </Button>
         </div>
-      </div>
+      </AgentTabSection>
 
       {/* Memory Search & Explorer */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Stored Episodic & Semantic Memories</h3>
-            <p className="text-xs text-muted-foreground">Inspect, search, and prune stored facts from agent turns</p>
-          </div>
-          <div className="flex items-center gap-2">
+      <AgentTabSection
+        title="Stored Episodic & Semantic Memories"
+        description="Inspect, search, and prune stored facts from agent turns"
+        icon={<Database />}
+        actions={
+          <>
+            <Input
+              placeholder="Search memories..."
+              value={memorySearch}
+              onChange={(e) => setMemorySearch(e.target.value)}
+              aria-label="Search memories"
+              prefix={<Search className="size-3.5 text-muted-foreground" aria-hidden="true" />}
+              inputSize="sm"
+              wrapperClassName="w-56"
+            />
             <Button
               variant="outline"
-              size="xs"
+              size="icon-sm"
+              onClick={() => void refetch()}
+              loading={isRefetching}
+              title="Refresh memories"
+              aria-label="Refresh memories"
+            >
+              <RefreshCw className="size-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setIsAddingMemory(!isAddingMemory)}
               className="gap-1.5"
             >
               <Plus className="size-3.5" />
               <span>Add Memory</span>
             </Button>
-            <Button
-              variant="outline"
-              size="icon-xs"
-              onClick={() => void refetch()}
-              loading={isRefetching}
-              title="Refresh memories"
-            >
-              <RefreshCw className="size-3.5" />
-            </Button>
-            <div className="relative w-56">
-              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search memories..."
-                value={memorySearch}
-                onChange={(e) => setMemorySearch(e.target.value)}
-                className="pl-8 text-xs h-8"
-              />
-            </div>
-          </div>
-        </div>
+          </>
+        }
+      >
 
         {/* Scope Filter Tabs */}
         <SegmentedControl
@@ -379,7 +374,7 @@ export function MemoryTab({ agent, onUpdate }) {
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </AgentTabSection>
+    </AgentTabPage>
   );
 }

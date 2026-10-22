@@ -63,6 +63,7 @@ import { UserProfileCard } from '../user-profile-card.js';
 import { MarkdownMessage } from '../markdown-message.js';
 import { MessageActionToolbar, ThreadRepliesButton, ReactionPicker } from '../chat-bubble.js';
 import { ReactionBar, reactionAddButtonClass } from '../reaction-bar.js';
+import { SavedForLaterLabel } from '../saved-for-later-label.js';
 import { executeStructuredAction } from './action-handler.js';
 import { useAgentAvatar } from './agent-avatar-context.js';
 import { useAICardPreferencesStore } from './card-preferences-store.js';
@@ -556,14 +557,17 @@ export function AgentMessageCard({
       data-message-id={message.id}
       ref={articleRef}
       className={cn(
-        // Same row rhythm as a normal message (ChatBubble comfy density).
-        'group/message relative -mx-4 flex gap-4 px-4 pt-2.5 pb-1 transition-colors hover:bg-foreground/[0.035]',
+        // Same row rhythm as a normal message (ChatBubble comfy density);
+        // wraps only to put the "Saved for later" row above the avatar.
+        'group/message relative -mx-4 flex flex-wrap gap-x-4 px-4 pt-2.5 pb-1 transition-colors hover:bg-foreground/[0.035]',
         actionsPinned && 'bg-foreground/[0.035]',
-        isSaved && 'bg-primary/[0.05]',
-        isPinned && 'bg-warning/[0.05]',
+        isSaved && 'bg-primary/[0.05] hover:bg-primary/[0.08]',
+        isPinned && 'bg-warning/[0.05] hover:bg-warning/[0.08]',
         isHighlighted && 'border-l-2 border-l-primary bg-primary/5',
       )}
     >
+      {isSaved ? <SavedForLaterLabel /> : null}
+
       <div className="relative w-10 shrink-0">
         {profileCard(
           avatarSrc ? (

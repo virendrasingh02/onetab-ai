@@ -548,6 +548,7 @@ export function DocumentEditor() {
                         key={currentDoc.id}
                         blocks={blocks}
                         onUpdateBlocks={handleBlocksChange}
+                        workspaceId={workspaceId}
                       />
                     </div>
 

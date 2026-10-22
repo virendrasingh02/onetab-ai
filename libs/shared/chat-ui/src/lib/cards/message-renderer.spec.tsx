@@ -97,6 +97,38 @@ describe('MessageRenderer', () => {
     expect(screen.getByText('Collect Sources')).toBeInTheDocument();
   });
 
+  it('marks a saved message "Saved for later" — AI agent answers included', () => {
+    const agentMsg = createMockMessage({
+      senderName: 'Tracker',
+      structuredEvent: {
+        type: 'mie.ai.agent',
+        agentId: 'agent-tracker',
+        agentName: 'Tracker',
+        status: 'completed',
+        responseText: 'What would you like me to keep an eye on?',
+      },
+    });
+
+    const { rerender } = renderWithProviders(
+      <MessageRenderer message={agentMsg} isOwn={false} isSaved />,
+    );
+    expect(screen.getByText('Saved for later')).toBeInTheDocument();
+
+    rerender(
+      <TooltipProvider>
+        <MessageRenderer message={agentMsg} isOwn={false} />
+      </TooltipProvider>,
+    );
+    expect(screen.queryByText('Saved for later')).not.toBeInTheDocument();
+
+    rerender(
+      <TooltipProvider>
+        <MessageRenderer message={createMockMessage()} isOwn={false} isSaved />
+      </TooltipProvider>,
+    );
+    expect(screen.getByText('Saved for later')).toBeInTheDocument();
+  });
+
   it('renders App Response Card with structured fields', () => {
     const msg = createMockMessage({
       senderName: 'CRM Bot',

@@ -86,6 +86,7 @@ import { ReactionBar, reactionAddButtonClass } from './reaction-bar.js';
 import { ForwardedMessageCard } from './forwarded-message-card.js';
 import { ReplyQuote, ReplySnippet, type ReplyPreview } from './reply-quote.js';
 import { reminderPresets } from './reminder-presets.js';
+import { SavedForLaterLabel } from './saved-for-later-label.js';
 import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
 import { UserProfileCard } from './user-profile-card.js';
 
@@ -1049,8 +1050,9 @@ export function ChatBubble({
               'chat-density-comfy gap-x-4 px-4',
               isGrouped && !isSaved ? 'py-0.5' : 'pt-2.5 pb-0.5',
             ),
-        isSaved && 'bg-primary/[0.05]',
-        isPinned && 'bg-warning/[0.05]',
+        // Keep the tint on hover — the neutral hover wash used to wipe it.
+        isSaved && 'bg-primary/[0.05] hover:bg-primary/[0.08]',
+        isPinned && 'bg-warning/[0.05] hover:bg-warning/[0.08]',
         isHighlighted && 'message-flash',
         showSending && 'opacity-70',
         message.sendState === 'failed' && 'bg-destructive/5',
@@ -1065,26 +1067,8 @@ export function ChatBubble({
         />
       ) : null}
 
-      {/* Slack-style "Saved for later" label — a full-width row above the
-          message (shown for grouped messages too), icon in the avatar gutter. */}
-      {isSaved ? (
-        <div
-          className={cn(
-            'mb-0.5 flex basis-full items-center text-xs font-medium text-primary-text',
-            isCompact ? 'gap-x-2.5' : 'gap-x-4',
-          )}
-        >
-          <span
-            className={cn(
-              isCompact ? 'w-8' : 'w-10',
-              'flex shrink-0 justify-end',
-            )}
-          >
-            <Bookmark className="size-3.5 fill-current" aria-hidden />
-          </span>
-          <span>Saved for later</span>
-        </div>
-      ) : null}
+      {/* Shown for grouped messages too — saving is per message. */}
+      {isSaved ? <SavedForLaterLabel density={density} /> : null}
 
       <div
         ref={avatarRef}

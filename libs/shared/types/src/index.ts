@@ -60,6 +60,19 @@ export {
   type WorkspacePolicy,
 } from './lib/workspace-policies.js';
 
+export { outputSchemaFields, out as outputSchema, type OutputField } from './lib/output-schema.js';
+
+export {
+  WORKSPACE_TOOL_MODES,
+  EMPTY_WORKSPACE_TOOL_POLICY,
+  resolveWorkspaceToolPolicy,
+  workspaceToolMode,
+  applyWorkspaceToolPolicy,
+  type WorkspaceToolMode,
+  type WorkspaceToolPolicy,
+  type PolicyTool,
+} from './lib/workspace-tool-policy.js';
+
 export {
   can,
   type PermissionAction,

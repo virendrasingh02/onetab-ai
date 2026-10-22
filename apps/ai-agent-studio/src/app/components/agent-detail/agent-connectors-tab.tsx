@@ -16,7 +16,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { CONNECTOR_CATEGORIES } from '@org/types';
-import { Bot, Check, ExternalLink, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Bot, Check, ExternalLink, Plug, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from '../../router.js';
 import {
@@ -31,6 +31,7 @@ import { useStudioSession } from '../../session-guard.js';
 import { AppConnectorIcon } from '../common/app-connector-icon.jsx';
 import { AddToAgentDialog } from '../connectors/add-to-agent-dialog.js';
 import { AgentGroupsMenu } from '../connectors/agent-groups-menu.js';
+import { AgentTabPage } from './agent-tab-page.js';
 
 const CATEGORY_LABEL = new Map<string, string>(CONNECTOR_CATEGORIES.map((c) => [c.id, c.label]));
 const ENABLED_TAB = '__enabled';
@@ -135,30 +136,22 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
   ];
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-8 sm:px-6">
-        <header className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Apps</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {agent.name} acts through each connection with its owner’s permissions. Write actions follow its approval rules.
-            </p>
-          </div>
+    <AgentTabPage
+      title="Apps"
+      description={`${agent.name} acts through each connection with its owner’s permissions. Write actions follow its approval rules.`}
+      icon={<Plug />}
+      actions={
+        <>
           <AgentGroupsMenu agent={agent} onChanged={onChanged} />
-          <Button
-            variant="link"
-            size="xs"
-            type="button"
-            onClick={() => navigate('/connectors')}
-            className="h-auto shrink-0 gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            All connectors <ExternalLink className="size-3" aria-hidden="true" />
+          <Button type="button" variant="outline" size="sm" onClick={() => navigate('/connectors')} className="gap-1.5">
+            All connectors <ExternalLink className="size-3.5" aria-hidden="true" />
           </Button>
-        </header>
-
+        </>
+      }
+    >
         {/* Suggested next apps */}
         {suggested.length > 0 && !query && tab === ALL_TAB && (
-          <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
+          <div className="-mx-6 flex snap-x gap-3 overflow-x-auto px-6 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
             {suggested.map(({ connector: c }) => (
               <button
                 key={c.provider}
@@ -173,26 +166,28 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
           </div>
         )}
 
-        {/* Search */}
-        <Input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search apps"
-          aria-label="Search apps"
-          prefix={<Search className="size-4 text-muted-foreground" aria-hidden="true" />}
-          className="h-10 text-sm"
-        />
-
-        {/* Category pills */}
-        <ResponsiveTabs
-          aria-label="App categories"
-          variant="pill"
-          size="sm"
-          value={tab}
-          onValueChange={setTab}
-          items={tabs.map((t) => ({ value: t.id, label: t.label }))}
-        />
+        {/* Search + category pills */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search apps"
+            aria-label="Search apps"
+            prefix={<Search className="size-4 text-muted-foreground" aria-hidden="true" />}
+            wrapperClassName="lg:w-80 lg:shrink-0"
+            className="text-sm"
+          />
+          <ResponsiveTabs
+            aria-label="App categories"
+            variant="pill"
+            size="sm"
+            value={tab}
+            onValueChange={setTab}
+            items={tabs.map((t) => ({ value: t.id, label: t.label }))}
+            className="flex-1"
+          />
+        </div>
 
         {/* Catalog */}
         {visible.length === 0 ? (
@@ -202,7 +197,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
             description={query ? 'Try another name, or look in All.' : 'Give this agent an app from All, and it can read from it and act in it.'}
           />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {visible.map(({ connector: c, actions }) => {
               const enabled = actions.length > 0;
               const unavailable = c.status === 'unavailable';
@@ -316,7 +311,6 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
         <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Bot className="size-3.5" aria-hidden="true" /> Canvas agents get apps by plugging an app action into the agent’s Tools slot.
         </p>
-      </div>
 
       <AddToAgentDialog
         connector={adding}
@@ -329,7 +323,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
           }
         }}
       />
-    </div>
+    </AgentTabPage>
   );
 }
 

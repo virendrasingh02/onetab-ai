@@ -25,19 +25,10 @@ import {
   type ModuleDraft,
 } from './agent-config/agent-module-model.js';
 import { AgentModulesOverview } from './agent-config/agent-modules-overview.js';
+import { useConnectors } from '../../services/connectors.js';
+import { variableOptions } from './variable-options.js';
 import { ModuleDrawer, type ModuleActions } from './agent-config/module-drawer.js';
 import { useBuiltinTools, useKnowledgeBases, useMediaQuery, useModelOptions } from './agent-config/use-agent-config-data.js';
-
-const COMMON_VARIABLES = [
-  '{{input.message}}',
-  '{{input.query}}',
-  '{{agent.output}}',
-  '{{firecrawl.markdown}}',
-  '{{firecrawl.searchResults}}',
-  '{{user.name}}',
-  '{{workspace.name}}',
-  '{{customer.email}}',
-];
 
 /** A node's data plus every edge touching it — what Cancel puts back. */
 export interface NodeSnapshot {
@@ -129,6 +120,7 @@ export function NodeInspector({
   moduleActions,
   onModuleDirtyChange,
 }: NodeInspectorProps) {
+  const connectors = useConnectors();
   const isPhone = useMediaQuery('(max-width: 767px)');
   // Resizable width (desktop and tablet), remembered across sessions.
   const [width, setWidth] = useState(readStoredWidth);
@@ -231,6 +223,8 @@ export function NodeInspector({
       },
     });
   };
+
+  const pickerVariables = variableOptions(selectedNode, nodes, edges, connectors.data ?? []);
 
   const insertVariable = (variableStr: string) => {
     if (!targetField) return;
@@ -471,16 +465,17 @@ export function NodeInspector({
               </Button>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {COMMON_VARIABLES.map((v) => (
+              {pickerVariables.map((v) => (
                 <Button
-                  key={v}
+                  key={v.token}
                   type="button"
                   variant="outline"
                   size="xs"
-                  onClick={() => insertVariable(v)}
+                  title={v.hint}
+                  onClick={() => insertVariable(v.token)}
                   className="h-5 px-1.5 font-mono text-[10px]"
                 >
-                  {v}
+                  {v.token}
                 </Button>
               ))}
             </div>

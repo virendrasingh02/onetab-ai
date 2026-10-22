@@ -72,6 +72,62 @@ export class ConnectorWebhookService {
     return { received, duplicates };
   }
 
+  /**
+   * A push to the app-wide url (Slack Events). Verified with the app's own
+   * signing secret; each event then goes to every connected account of that
+   * app that belongs to the account named in the payload, de-duplicated per
+   * connection like any other push.
+   */
+  async receiveShared(
+    provider: string,
+    rawBody: string | undefined,
+    payload: unknown,
+    headers: Record<string, string>,
+  ): Promise<{ challenge: string } | { received: number; duplicates: number; connections: number }> {
+    const key = provider.toUpperCase();
+    const adapter = this.manager.getAdapter(key);
+    if (!adapter.verifySharedWebhook || !adapter.parseSharedWebhook) throw new NotFoundException();
+    const lowered = normalizeHeaders(headers);
+    if (!rawBody || !adapter.verifySharedWebhook(rawBody, lowered)) {
+      this.logger.warn(`Rejected an unverified shared ${key} webhook.`);
+      throw new UnauthorizedException('The signature could not be verified.');
+    }
+    const parsed = adapter.parseSharedWebhook(payload, lowered);
+    if (parsed.challenge !== undefined) return { challenge: parsed.challenge };
+
+    // The account id is opaque text from a verified sender, but it still goes
+    // into a query, so only plain ids are looked up.
+    const accountId = parsed.accountId && /^[A-Za-z0-9_-]{1,64}$/.test(parsed.accountId) ? parsed.accountId : null;
+    if (!accountId || parsed.events.length === 0) return { received: 0, duplicates: 0, connections: 0 };
+    const integrations = await this.prisma.externalIntegration.findMany({
+      where: { provider: key, status: 'CONNECTED', metadata: { contains: `"teamId":"${accountId}"` } },
+      select: { id: true, provider: true, workspaceId: true, scopeType: true, userId: true },
+    });
+
+    let received = 0;
+    let duplicates = 0;
+    for (const integration of integrations) {
+      for (const event of parsed.events) {
+        if (!(await this.recordOnce(integration.provider, integration.id, event.eventId, event.triggerId, event.item))) {
+          duplicates += 1;
+          continue;
+        }
+        received += 1;
+        const emitted: ConnectorEventReceivedEvent = {
+          workspaceId: integration.workspaceId,
+          integrationId: integration.id,
+          provider: integration.provider,
+          triggerId: event.triggerId,
+          eventId: event.eventId,
+          item: event.item,
+          ownerUserId: integration.scopeType === 'USER' ? integration.userId : null,
+        };
+        this.events.emit(AppEvent.ConnectorEventReceived, emitted);
+      }
+    }
+    return { received, duplicates, connections: integrations.length };
+  }
+
   /** The app's subscription handshake (WhatsApp's `hub.challenge`). */
   async challenge(integrationId: string, query: Record<string, string>): Promise<string> {
     const { adapter, credential } = await this.open(integrationId);

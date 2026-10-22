@@ -36,11 +36,11 @@ export function AgentGroupsMenu({ agent, onChanged }: { agent: AgentWithApps; on
   const [mode, setMode] = useState<'use' | 'save' | null>(null);
   return (
     <>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <Button size="xs" variant="outline" onClick={() => setMode('use')} leadingIcon={<Layers />}>
+      <div className="flex shrink-0 items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => setMode('use')} leadingIcon={<Layers />}>
           Use a group
         </Button>
-        <Button size="xs" variant="outline" onClick={() => setMode('save')} leadingIcon={<Save />}>
+        <Button size="sm" variant="outline" onClick={() => setMode('save')} leadingIcon={<Save />}>
           Save as group
         </Button>
       </div>

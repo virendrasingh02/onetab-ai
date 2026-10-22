@@ -206,6 +206,19 @@ export interface ProviderAdapter {
     headers: Record<string, string>,
   ): ConnectorInboundEvent[];
 
+  /**
+   * Apps that deliver every workspace's events to ONE url they were given once
+   * (Slack's Events API). No per-connection secret exists, so the app's own
+   * signing secret authenticates the push and the payload says whose it is.
+   */
+  verifySharedWebhook?(rawBody: string, headers: Record<string, string>): boolean;
+
+  /** Reads a verified shared push: a handshake challenge to echo, or the account it belongs to and its events. */
+  parseSharedWebhook?(
+    payload: unknown,
+    headers: Record<string, string>,
+  ): { challenge?: string; accountId?: string; events: ConnectorInboundEvent[] };
+
   /** Answers an app's subscription handshake (a GET with a challenge), or null to refuse it. */
   webhookChallenge?(credential: ResolvedCredential, query: Record<string, string>): string | null;
 

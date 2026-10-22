@@ -102,7 +102,14 @@ export default defineConfig(() => ({
   },
   resolve: {
     preserveSymlinks: true,
-    alias: {
+    alias: [
+      // Specs only: `@lobehub/icons` (including deep `/es/<Brand>/components/*.js` imports)
+      // needs the uninstalled `antd` peer, so specs get an empty-icon stub. A regex, because a
+      // string alias would swap only the package prefix and leave a dead deep path.
+      ...(process.env['VITEST']
+        ? [{ find: /^@lobehub\/icons(\/.*)?$/, replacement: path.resolve(import.meta.dirname, 'src/test-lobehub-icons-stub.js') }]
+        : []),
+      ...Object.entries({
       '@lobehub/ui/base-ui': path.resolve(
         import.meta.dirname,
         '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
@@ -119,7 +126,8 @@ export default defineConfig(() => ({
         import.meta.dirname,
         '../../libs/shared/ui/src/lib/ai/lobe-ui-shim.js',
       ),
-    },
+      }).map(([find, replacement]) => ({ find, replacement })),
+    ],
   },
   optimizeDeps: {
     // @org/* libs are served as live source (excluded below), so the deps
@@ -166,9 +174,6 @@ export default defineConfig(() => ({
     environment: 'jsdom',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
-    alias: {
-      '@lobehub/icons': path.resolve(import.meta.dirname, 'src/test-lobehub-icons-stub.js'),
-    },
     coverage: {
       reportsDirectory: './test-output/vitest/coverage',
       provider: 'v8' as const,

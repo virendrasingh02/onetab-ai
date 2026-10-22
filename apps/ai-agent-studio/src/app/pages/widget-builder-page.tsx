@@ -71,7 +71,7 @@ export function WidgetBuilderPage() {
               toast.success(`Loaded template: ${found.name}`);
             }
           })
-          .catch(console.error);
+          .catch(() => toast.error('Could not load the widget templates'));
       }
     }
   }, [isNew, widgetId, activeWorkspace.id, searchParams]);

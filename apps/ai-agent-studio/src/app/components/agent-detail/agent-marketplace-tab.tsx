@@ -1,11 +1,13 @@
 import { agentsApi, queryKeys } from '@org/api-client';
 import type { AIAgentDetail, MarketplaceListing, MarketplaceVisibility } from '@org/types';
 import { Badge, Button, Card, confirm, ErrorState, Field, Input, LoadingState, SegmentedControl, Textarea, toast } from '@org/ui';
+import { cn } from '@org/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Globe, Lock, Rocket, Store } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { WEB_APP_URL } from '../../auth-redirect.js';
 import { useStudioSession } from '../../session-guard.js';
+import { AgentTabPage, AgentTabSection } from './agent-tab-page.js';
 import { errorMessage } from './deployment/use-deployment.js';
 
 const VISIBILITY_OPTIONS = [
@@ -106,22 +108,58 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
   const behind = live && version !== null && Number(listing?.version.split('.')[0]) < version;
 
   return (
-    <div className="h-full overflow-y-auto bg-background">
-      <div className="mx-auto w-full max-w-3xl space-y-5 p-6">
-        <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Store className="size-5" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-base font-bold text-foreground">Marketplace</h2>
-            <p className="text-xs text-muted-foreground">
-              Publish {agent.name} to the marketplace. Members add it to their sidebar from there; each install is an independent copy of the version you publish.
-            </p>
-          </div>
-        </div>
+    <AgentTabPage
+      title="Marketplace"
+      description={`Publish ${agent.name} to the marketplace. Members add it to their sidebar from there; each install is an independent copy of the version you publish.`}
+      icon={<Store />}
+      actions={
+        <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs">
+          <a href={marketplaceHref} target="_blank" rel="noreferrer">
+            <ExternalLink className="size-3.5" /> View in marketplace
+          </a>
+        </Button>
+      }
+    >
+      <div className={cn('grid items-start gap-6', listing && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]')}>
+        {version === null ? (
+          <Card className="p-5 text-sm text-muted-foreground">
+            Publish this agent first (the Draft chip in the header). Only a published version can be shared — the draft on your canvas never is.
+          </Card>
+        ) : (
+          <AgentTabSection title={live ? 'Update the listing' : 'Listing details'} icon={<Rocket />}>
+            <div className="space-y-1.5">
+              <span className="block text-xs font-medium text-foreground">Who can install it</span>
+              <SegmentedControl
+                aria-label="Who can install it"
+                options={VISIBILITY_OPTIONS}
+                value={visibility}
+                onChange={(next) => setVisibility(next as MarketplaceVisibility)}
+                size="sm"
+              />
+              <p className="text-[11px] text-muted-foreground">{VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.hint}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Tagline" hint="One line shown on the listing card.">
+                <Input value={tagline} maxLength={160} onChange={(e) => setTagline(e.target.value)} placeholder="What does it do for the team?" />
+              </Field>
+              <Field label="Category">
+                <Input value={category} maxLength={60} onChange={(e) => setCategory(e.target.value)} placeholder="Productivity, Support, Engineering…" />
+              </Field>
+            </div>
+            <Field label="What's new" optional>
+              <Textarea value={changeNotes} maxLength={500} rows={2} onChange={(e) => setChangeNotes(e.target.value)} placeholder="Shown in the listing's changelog" />
+            </Field>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
+              <p className="text-[11px] text-muted-foreground">Publishes v{version}. Tools that need credentials must be reconnected by whoever installs it.</p>
+              <Button size="sm" className="gap-1.5 text-xs font-semibold" onClick={() => publish.mutate()} loading={publish.isPending}>
+                <Rocket className="size-3.5" /> {live ? 'Update listing' : 'Publish to marketplace'}
+              </Button>
+            </div>
+          </AgentTabSection>
+        )}
 
         {listing && (
-          <Card className="space-y-3 p-4 shadow-2xs">
+          <AgentTabSection title="Current listing" icon={<Store />} className="gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-foreground">{listing.name}</span>
               <Badge variant={live ? 'success' : 'outline'} className="text-[10px] font-semibold uppercase tracking-wider">
@@ -144,56 +182,16 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
                 Studio is on v{version}; the listing still serves v{listing.version}. Update the listing to ship the newer version.
               </p>
             )}
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs">
-                <a href={marketplaceHref} target="_blank" rel="noreferrer">
-                  <ExternalLink className="size-3.5" /> View in marketplace
-                </a>
-              </Button>
-              {live && (
+            {live && (
+              <div>
                 <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => void onUnpublish()} loading={unpublish.isPending}>
                   Remove from marketplace
                 </Button>
-              )}
-            </div>
-          </Card>
-        )}
-
-        {version === null ? (
-          <Card className="p-4 text-sm text-muted-foreground shadow-2xs">
-            Publish this agent first (the Draft chip in the header). Only a published version can be shared — the draft on your canvas never is.
-          </Card>
-        ) : (
-          <Card className="space-y-4 p-4 shadow-2xs">
-            <div className="space-y-1.5">
-              <span className="block text-xs font-medium text-foreground">Who can install it</span>
-              <SegmentedControl
-                aria-label="Who can install it"
-                options={VISIBILITY_OPTIONS}
-                value={visibility}
-                onChange={(next) => setVisibility(next as MarketplaceVisibility)}
-                size="sm"
-              />
-              <p className="text-[11px] text-muted-foreground">{VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.hint}</p>
-            </div>
-            <Field label="Tagline" hint="One line shown on the listing card.">
-              <Input value={tagline} maxLength={160} onChange={(e) => setTagline(e.target.value)} placeholder="What does it do for the team?" />
-            </Field>
-            <Field label="Category">
-              <Input value={category} maxLength={60} onChange={(e) => setCategory(e.target.value)} placeholder="Productivity, Support, Engineering…" />
-            </Field>
-            <Field label="What's new" optional>
-              <Textarea value={changeNotes} maxLength={500} rows={2} onChange={(e) => setChangeNotes(e.target.value)} placeholder="Shown in the listing's changelog" />
-            </Field>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px] text-muted-foreground">Publishes v{version}. Tools that need credentials must be reconnected by whoever installs it.</p>
-              <Button size="sm" className="gap-1.5 text-xs font-semibold" onClick={() => publish.mutate()} loading={publish.isPending}>
-                <Rocket className="size-3.5" /> {live ? 'Update listing' : 'Publish to marketplace'}
-              </Button>
-            </div>
-          </Card>
+              </div>
+            )}
+          </AgentTabSection>
         )}
       </div>
-    </div>
+    </AgentTabPage>
   );
 }

@@ -42,6 +42,7 @@ import {
   ShieldAlert,
   UserPlus,
   Wand2,
+  ShieldCheck,
   Wrench,
   LogOut,
 } from 'lucide-react';
@@ -147,6 +148,11 @@ function buildNavGroups(slug: string): NavGroup[] {
         to: '/tools',
         label: 'Tools & Integrations',
         icon: Wrench,
+      },
+      {
+        to: '/tool-access',
+        label: 'Tool Access',
+        icon: ShieldCheck,
       },
       {
         to: '/mcp',

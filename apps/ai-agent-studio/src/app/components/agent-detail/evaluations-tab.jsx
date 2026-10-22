@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Badge,
   Button,
+  Card,
   CodeBlock,
   Dialog,
   DialogBody,
@@ -13,6 +14,7 @@ import {
   confirm,
   toast,
   Label,
+  StatCard,
   Textarea,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -20,6 +22,7 @@ import { agentsApi } from '@org/api-client';
 import { Award, CheckCircle2, Clock, Eye, Play, Plus, RefreshCw, Trash2, Zap } from 'lucide-react';
 import { errorText } from '../agent-architect/architect-ui.js';
 import { useStudioSession } from '../../session-guard.js';
+import { AgentTabPage } from './agent-tab-page.js';
 
 const STATUS_VARIANT = {
   SUCCESS: 'success',
@@ -142,22 +145,12 @@ export function EvaluationsTab({ agent, onUpdate }) {
   };
 
   return (
-    <div className="flex-1 space-y-6 overflow-y-auto p-6 max-w-5xl mx-auto">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-success/15 text-success">
-              <Award className="size-4" />
-            </div>
-            <h2 className="text-lg font-bold text-foreground">Test Cases</h2>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Re-run saved inputs against {agent.name} in Test mode and compare what it produced with what you expected.
-            Test runs read real data but don't send or change anything.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+    <AgentTabPage
+      title="Test Cases"
+      description={`Re-run saved inputs against ${agent.name} in Test mode and compare what it produced with what you expected. Test runs read real data but don't send or change anything.`}
+      icon={<Award />}
+      actions={
+        <>
           <Button variant="outline" size="sm" onClick={() => setIsAddOpen(true)} className="gap-1.5 text-xs">
             <Plus className="size-3.5" />
             Add Test Case
@@ -172,11 +165,11 @@ export function EvaluationsTab({ agent, onUpdate }) {
             <Play className="size-3.5" />
             Run All
           </Button>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       {isRunning && (
-        <div className="rounded-xl border border-border bg-surface p-4 space-y-2">
+        <Card className="gap-2 p-4">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-foreground flex items-center gap-1.5">
               <RefreshCw className="size-3.5 text-primary animate-spin" />
@@ -192,34 +185,14 @@ export function EvaluationsTab({ agent, onUpdate }) {
               style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
             />
           </div>
-        </div>
+        </Card>
       )}
 
       {ranCases.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Completed runs</span>
-              <CheckCircle2 className="size-4 text-success" />
-            </div>
-            <div className="mt-2 text-2xl font-bold text-foreground">
-              {succeeded}/{ranCases.length}
-            </div>
-          </div>
-          <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Avg duration</span>
-              <Clock className="size-4 text-primary" />
-            </div>
-            <div className="mt-2 text-2xl font-bold text-foreground">{avgLatency}ms</div>
-          </div>
-          <div className="rounded-xl border border-border bg-surface p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Tokens used</span>
-              <Zap className="size-4 text-warning" />
-            </div>
-            <div className="mt-2 text-2xl font-bold text-foreground">{totalTokens.toLocaleString()}</div>
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label="Completed runs" value={`${succeeded}/${ranCases.length}`} icon={CheckCircle2} accent="green" />
+          <StatCard label="Avg duration" value={`${avgLatency}ms`} icon={Clock} accent="blue" />
+          <StatCard label="Tokens used" value={totalTokens.toLocaleString()} icon={Zap} accent="amber" />
         </div>
       )}
 
@@ -235,7 +208,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
           }
         />
       ) : (
-        <div className="rounded-xl border border-border bg-surface overflow-hidden divide-y divide-border">
+        <Card className="overflow-hidden divide-y divide-border">
           {testCases.map((tc) => (
             <div key={tc.id} className="p-4 text-xs space-y-2">
               <div className="flex items-start justify-between gap-3">
@@ -281,7 +254,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
               )}
             </div>
           ))}
-        </div>
+        </Card>
       )}
 
       {/* Add test case */}
@@ -349,6 +322,6 @@ export function EvaluationsTab({ agent, onUpdate }) {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </AgentTabPage>
   );
 }

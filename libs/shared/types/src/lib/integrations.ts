@@ -55,6 +55,11 @@ export interface AppActionDefinition {
   description: string;
   /** JSON Schema for the action's input. */
   inputSchema: Record<string, unknown>;
+  /**
+   * JSON Schema of the `data` the action returns. Optional: an action without
+   * one still works, its fields just can't be picked from a list.
+   */
+  outputSchema?: Record<string, unknown>;
   permissionLevel: 'read' | 'write' | 'destructive';
   requiresConfirmation: boolean;
 }

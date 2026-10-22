@@ -11,6 +11,8 @@ import {
   DialogTitle,
   DialogFooter,
   DialogBody,
+  ErrorState,
+  LoadingState,
   Input,
   Page,
   PageHeader,
@@ -54,7 +56,6 @@ export function WorkflowsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isAiCreateOpen, setIsAiCreateOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
-  const isGeneratingAi = false;
 
   // New workflow form state
   const [newTitle, setNewTitle] = useState('');
@@ -62,7 +63,7 @@ export function WorkflowsPage() {
   const [newTrigger, setNewTrigger] = useState('MANUAL');
 
   // Load agents / workflows
-  const { data: agents = [], isLoading } = useQuery({
+  const { data: agents = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['agents', activeWorkspace.id],
     queryFn: () => agentService.getAgents(activeWorkspace.id),
   });
@@ -196,18 +197,22 @@ export function WorkflowsPage() {
       </div>
 
       {/* Grid View */}
-      {viewMode === 'grid' ? (
+      {isLoading ? (
+        <LoadingState label="Loading workflows..." />
+      ) : isError ? (
+        <ErrorState title="Couldn’t load workflows" description="The platform didn’t answer. Try again in a moment." onRetry={() => void refetch()} />
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredWorkflows.map((workflow) => {
             const isPub = workflow.status === 'published';
-            let nodeCount = 3;
+            let nodeCount = 0;
             try {
               if (workflow.graphJson) {
                 const parsed = JSON.parse(workflow.graphJson);
-                nodeCount = parsed.nodes?.length || 3;
+                nodeCount = parsed.nodes?.length ?? 0;
               }
             } catch {
-              // fallback
+              // An unreadable graph shows as empty rather than with an invented count.
             }
 
             return (
@@ -468,7 +473,7 @@ export function WorkflowsPage() {
               <Button type="button" variant="outline" size="sm" onClick={() => setIsAiCreateOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" size="sm" loading={isGeneratingAi} className="gap-1.5 font-semibold">
+              <Button type="submit" size="sm" className="gap-1.5 font-semibold">
                 <Sparkles className="size-3.5" />
                 Generate Workflow
               </Button>

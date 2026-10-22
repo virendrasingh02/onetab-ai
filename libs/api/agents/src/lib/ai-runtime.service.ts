@@ -35,6 +35,8 @@ import type {
 import {
   agentToolGate,
   agentToolNeedsApproval,
+  applyWorkspaceToolPolicy,
+  resolveWorkspacePolicy,
   isAIEntityType,
   OWNER_PRIVATE_AGENT_TOOLS,
   DEFAULT_AGENT_RUN_LIMITS,
@@ -722,6 +724,28 @@ export class AIRuntimeService {
 
   /** The most recently updated workspace memory facts, rendered for a system
    *  prompt — or '' when there are none, so callers can splice it in freely. */
+  /**
+   * Lays the workspace admin's tool rules (Settings → Policies) over an
+   * agent's runtime. Read fresh each turn, so a rule change takes effect on
+   * the very next run.
+   */
+  private async applyWorkspaceTools(
+    workspaceId: string,
+    runtime: AgentRuntimeConfig,
+    offered: { builtin: string[]; integration: Array<{ name: string; provider: string }>; mcp: string[] },
+  ): Promise<{ runtime: AgentRuntimeConfig; disabled: Set<string> }> {
+    const row = await this.prisma.workspaceSettings.findUnique({
+      where: { workspaceId },
+      select: { policies: true },
+    });
+    const { toolPolicy } = resolveWorkspacePolicy(row?.policies);
+    return applyWorkspaceToolPolicy(runtime, toolPolicy, [
+      ...offered.builtin.map((name) => ({ name })),
+      ...offered.mcp.map((name) => ({ name })),
+      ...offered.integration.map((t) => ({ name: t.name, connector: t.provider })),
+    ]);
+  }
+
   private async buildMemoryContext(workspaceId: string): Promise<string> {
     const rows = await this.prisma.aIMemory.findMany({
       where: { workspaceId },
@@ -1110,7 +1134,7 @@ export class AIRuntimeService {
   ): Promise<AIEntityRunResult> {
     this.logger.log(`Executing Agent '${entity.name}' (${entity.id})`);
 
-    const runtime = readAgentRuntime(entity.configuration);
+    const baseRuntime = readAgentRuntime(entity.configuration);
     const allowedToolNames = parseToolNames(entity.tools);
     const readOnly = context.readOnly === true;
     // A canvas agent has exactly the tools drawn on it — none means none,
@@ -1138,11 +1162,11 @@ export class AIRuntimeService {
       context.requesterId,
       inline?.connectors ?? [],
     );
-    const integrationSchemas = toolSelection.integrationTools.filter(
+    const allIntegrationSchemas = toolSelection.integrationTools.filter(
       (t) => !readOnly || t.definition.permissionLevel === 'read',
     );
-    const mcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
-    const builtinSchemas = (
+    const allMcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
+    const allBuiltinSchemas = (
       !toolSelection.useDefaultBuiltins
         ? this.mcpRegistry.getToolSchemasFor(toolSelection.builtinNames)
         : inline
@@ -1150,6 +1174,17 @@ export class AIRuntimeService {
           : // With no explicit list, every tool — except the owner-private reads.
             this.mcpRegistry.getToolSchemas().filter((s) => !OWNER_PRIVATE_AGENT_TOOLS.includes(schemaName(s)))
     ).filter((s) => !readOnly || READ_ONLY_AGENT_TOOLS.includes(schemaName(s)));
+
+    // The workspace admin's tool rules sit over the agent's own: a disabled tool is never offered.
+    const governed = await this.applyWorkspaceTools(workspaceId, baseRuntime, {
+      builtin: allBuiltinSchemas.map(schemaName),
+      integration: allIntegrationSchemas,
+      mcp: [...allMcpTools.keys()],
+    });
+    const runtime = governed.runtime;
+    const builtinSchemas = allBuiltinSchemas.filter((s) => !governed.disabled.has(schemaName(s)));
+    const integrationSchemas = allIntegrationSchemas.filter((t) => !governed.disabled.has(t.name));
+    const mcpTools = new Map([...allMcpTools].filter(([name]) => !governed.disabled.has(name)));
 
     const memoryContext = runtime.useWorkspaceMemory ? await this.buildMemoryContext(workspaceId) : '';
     const knowledgeContext = await this.buildKnowledgeContext(workspaceId, runtime, promptText);
@@ -1278,7 +1313,7 @@ export class AIRuntimeService {
       workspaceId,
     });
 
-    const runtime = readAgentRuntime(entity.configuration);
+    const baseRuntime = readAgentRuntime(entity.configuration);
     const permissions = parsePermissions(entity.permissions);
     const scopedContext = await this.scopeContext(entity.id, context);
     // "Workspace knowledge access" off means no document search — the toggle
@@ -1345,15 +1380,24 @@ export class AIRuntimeService {
       },
     }));
 
-    const integrationSchemas = selectAgentTools(
+    const allIntegrationSchemas = selectAgentTools(
       allowedToolNames,
       await this.integrationTools.getToolsForEntity(workspaceId, entity.id, entity.creatorId),
       (name) => this.mcpRegistry.hasTool(name),
     ).integrationTools.filter((t) => !readOnly || t.definition.permissionLevel === 'read');
-    const mcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
-    const builtinSchemas = this.mcpRegistry
+    const allMcpTools = readOnly ? new Map<string, MCPToolBinding>() : await this.mcpToolsFor(workspaceId, allowedToolNames);
+    const allBuiltinSchemas = this.mcpRegistry
       .getToolSchemasFor(allowedToolNames)
       .filter((s) => !readOnly || READ_ONLY_AGENT_TOOLS.includes(schemaName(s)));
+    const governed = await this.applyWorkspaceTools(workspaceId, baseRuntime, {
+      builtin: allBuiltinSchemas.map(schemaName),
+      integration: allIntegrationSchemas,
+      mcp: [...allMcpTools.keys()],
+    });
+    const runtime = governed.runtime;
+    const builtinSchemas = allBuiltinSchemas.filter((s) => !governed.disabled.has(schemaName(s)));
+    const integrationSchemas = allIntegrationSchemas.filter((t) => !governed.disabled.has(t.name));
+    const mcpTools = new Map([...allMcpTools].filter(([name]) => !governed.disabled.has(name)));
     const memoryContext = runtime.useWorkspaceMemory ? await this.buildMemoryContext(workspaceId) : '';
 
     const rulesAndAutonomy = buildRulesAndAutonomyPrompt(runtime);

@@ -74,6 +74,8 @@ export interface KanbanCard {
   startDate?: string;
   /** From `Task.customFields.checklist`. */
   checklist: TaskChecklistItem[];
+  /** Set when a Studio agent created the task (`Task.customFields.createdByAgent`). */
+  createdByAgent?: { name: string; workflowId?: string; runId?: string };
 }
 
 export interface KanbanList {

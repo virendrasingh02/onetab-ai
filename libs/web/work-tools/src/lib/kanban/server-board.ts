@@ -144,6 +144,21 @@ const isChecklistItem = (value: unknown): value is TaskChecklistItem =>
   typeof (value as TaskChecklistItem).done === 'boolean';
 
 /** `Task.customFields.checklist`, tolerating anything malformed in the JSON. */
+/** `Task.customFields.createdByAgent`, when a Studio agent made the task. */
+export function createdByAgentOf(
+  task: Pick<Task, 'customFields'>,
+): KanbanCard['createdByAgent'] {
+  const raw = task.customFields?.['createdByAgent'];
+  if (!raw || typeof raw !== 'object') return undefined;
+  const { name, workflowId, runId } = raw as Record<string, unknown>;
+  if (typeof name !== 'string' || !name) return undefined;
+  return {
+    name,
+    ...(typeof workflowId === 'string' ? { workflowId } : {}),
+    ...(typeof runId === 'string' ? { runId } : {}),
+  };
+}
+
 export function checklistOf(task: Pick<Task, 'customFields'>): TaskChecklistItem[] {
   const raw = task.customFields?.['checklist'];
   return Array.isArray(raw) ? raw.filter(isChecklistItem) : [];
@@ -186,6 +201,7 @@ export function taskToCard(
     labels: task.labels ?? [],
     startDate: isoToDay(task.startDate ?? null),
     checklist: checklistOf(task),
+    createdByAgent: createdByAgentOf(task),
   };
 }
 

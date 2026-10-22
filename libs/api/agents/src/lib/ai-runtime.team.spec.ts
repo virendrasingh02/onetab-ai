@@ -53,6 +53,7 @@ describe('AIRuntimeService — canvas agents and teams', () => {
         update: vi.fn(),
       },
       agentExecutionLog: { create: vi.fn().mockResolvedValue({ id: 'log_1' }) },
+      workspaceSettings: { findUnique: vi.fn().mockResolvedValue(null) },
       creditAccount: { findUnique: vi.fn().mockResolvedValue(null) },
       aIMemory: { findMany: vi.fn().mockResolvedValue([]) },
       aIExecution: {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
+  ErrorState,
   LoadingState,
   Page,
   PageHeader,
@@ -96,6 +97,7 @@ export function AnalyticsPage() {
   const {
     data: overviewData,
     isLoading: isLoadingOverview,
+    isError: isErrorOverview,
     refetch: refetchOverview,
     isRefetching: isRefetchingOverview,
   } = useQuery({
@@ -108,6 +110,7 @@ export function AnalyticsPage() {
   const {
     data: agentsData = [],
     isLoading: isLoadingAgents,
+    isError: isErrorAgents,
     refetch: refetchAgents,
   } = useQuery({
     queryKey: ['deep-ai-agents', activeWorkspace.id, dateRange],
@@ -119,6 +122,7 @@ export function AnalyticsPage() {
   const {
     data: workflowsData = [],
     isLoading: isLoadingWorkflows,
+    isError: isErrorWorkflows,
     refetch: refetchWorkflows,
   } = useQuery({
     queryKey: ['deep-ai-workflows', activeWorkspace.id, dateRange],
@@ -130,6 +134,7 @@ export function AnalyticsPage() {
   const {
     data: executionsData = [],
     isLoading: isLoadingExecutions,
+    isError: isErrorExecutions,
     refetch: refetchExecutions,
   } = useQuery({
     queryKey: ['workspace-ai-executions', activeWorkspace.id],
@@ -144,6 +149,7 @@ export function AnalyticsPage() {
   const {
     data: nodesData = [],
     isLoading: isLoadingNodes,
+    isError: isErrorNodes,
     refetch: refetchNodes,
   } = useQuery({
     queryKey: ['deep-ai-nodes', activeWorkspace.id, dateRange],
@@ -155,6 +161,7 @@ export function AnalyticsPage() {
   const {
     data: toolsConnectorsData = { tools: [], connectors: [] },
     isLoading: isLoadingTools,
+    isError: isErrorTools,
     refetch: refetchTools,
   } = useQuery({
     queryKey: ['deep-ai-tools', activeWorkspace.id, dateRange],
@@ -166,6 +173,7 @@ export function AnalyticsPage() {
   const {
     data: modelsData = [],
     isLoading: isLoadingModels,
+    isError: isErrorModels,
     refetch: refetchModels,
   } = useQuery({
     queryKey: ['deep-ai-models', activeWorkspace.id, dateRange],
@@ -177,6 +185,7 @@ export function AnalyticsPage() {
   const {
     data: costData,
     isLoading: isLoadingCost,
+    isError: isErrorCost,
     refetch: refetchCost,
   } = useQuery({
     queryKey: ['deep-ai-cost', activeWorkspace.id, dateRange],
@@ -188,6 +197,7 @@ export function AnalyticsPage() {
   const {
     data: errorsData = [],
     isLoading: isLoadingErrors,
+    isError: isErrorErrors,
     refetch: refetchErrors,
   } = useQuery({
     queryKey: ['deep-ai-errors', activeWorkspace.id, dateRange],
@@ -199,6 +209,7 @@ export function AnalyticsPage() {
   const {
     data: evaluationsData,
     isLoading: isLoadingEvaluations,
+    isError: isErrorEvaluations,
     refetch: refetchEvaluations,
   } = useQuery({
     queryKey: ['deep-ai-evaluations', activeWorkspace.id, dateRange],
@@ -210,6 +221,7 @@ export function AnalyticsPage() {
   const {
     data: alertsData = { rules: [] },
     isLoading: isLoadingAlerts,
+    isError: isErrorAlerts,
     refetch: refetchAlerts,
   } = useQuery({
     queryKey: ['deep-ai-alerts', activeWorkspace.id],
@@ -221,12 +233,30 @@ export function AnalyticsPage() {
   const {
     data: settingsData,
     isLoading: isLoadingSettings,
+    isError: isErrorSettings,
     refetch: refetchSettings,
   } = useQuery({
     queryKey: ['deep-ai-settings', activeWorkspace.id],
     queryFn: () => analyticsService.getSettings(activeWorkspace.id),
     enabled: activeTab === 'settings' && Boolean(activeWorkspace?.id),
   });
+
+  // A failed query must say so: without this the spinner (or an empty chart) stays up forever.
+  const tabQueries: Partial<Record<AnalyticsTabId, { failed: boolean; retry: () => void }>> = {
+    overview: { failed: isErrorOverview, retry: () => void refetchOverview() },
+    agents: { failed: isErrorAgents, retry: () => void refetchAgents() },
+    workflows: { failed: isErrorWorkflows, retry: () => void refetchWorkflows() },
+    executions: { failed: isErrorExecutions, retry: () => void refetchExecutions() },
+    nodes: { failed: isErrorNodes, retry: () => void refetchNodes() },
+    tools: { failed: isErrorTools, retry: () => void refetchTools() },
+    models: { failed: isErrorModels, retry: () => void refetchModels() },
+    cost: { failed: isErrorCost, retry: () => void refetchCost() },
+    errors: { failed: isErrorErrors, retry: () => void refetchErrors() },
+    evaluations: { failed: isErrorEvaluations, retry: () => void refetchEvaluations() },
+    alerts: { failed: isErrorAlerts, retry: () => void refetchAlerts() },
+    settings: { failed: isErrorSettings, retry: () => void refetchSettings() },
+  };
+  const activeQuery = tabQueries[activeTab];
 
   const handleRefreshAll = () => {
     void refetchOverview();
@@ -301,6 +331,14 @@ export function AnalyticsPage() {
 
       {/* View Content Rendering */}
       <div>
+        {activeQuery?.failed && (
+          <ErrorState
+            title="Couldn’t load analytics"
+            description="The platform didn’t answer. Try again in a moment."
+            onRetry={activeQuery.retry}
+          />
+        )}
+        {!activeQuery?.failed && (<>
         {activeTab === 'overview' && (
           isLoadingOverview || !overviewData ? (
             <LoadingState label="Computing live workspace telemetry and KPIs..." />
@@ -424,6 +462,7 @@ export function AnalyticsPage() {
             />
           )
         )}
+        </>)}
       </div>
     </Page>
   );

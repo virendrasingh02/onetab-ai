@@ -22,6 +22,20 @@ export class WebhooksController {
     private readonly connectorWebhooks: ConnectorWebhookService,
   ) {}
 
+  /** An app that pushes every workspace's events to one url (Slack Events); verified with the app's signing secret. */
+  @Public()
+  @Post('webhooks/connectors/shared/:provider')
+  @HttpCode(HttpStatus.OK)
+  async handleSharedWebhook(
+    @Param('provider') provider: string,
+    @Body() body: unknown,
+    @Headers() headers: Record<string, string>,
+    @Req() req: Request,
+  ) {
+    const raw = (req as Request & { rawBody?: Buffer }).rawBody;
+    return this.connectorWebhooks.receiveShared(provider, raw?.toString('utf8'), body, headers);
+  }
+
   /** A connected app's push (verified against that connection's own secret). */
   @Public()
   @Post('webhooks/connectors/:integrationId')

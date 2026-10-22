@@ -155,15 +155,20 @@ Nothing in the UI is special-cased per app.
 - **No fake saves.** The page's mock fallbacks were removed: get, versions, rename, publish and unpublish no longer "succeed" through localStorage. `agentService.updateAgent` is server-only and merges partial configuration.
 - **Agent card.** The Prompt row shows the prompt's first real line, not "Prompt". The minimap uses calmer colours.
 
+## Done since (2026-10-22)
+
+- **Workspace tool access** (`/tool-access`, admin only): per-app and per-tool Allowed / Needs approval / Disabled, stored in `WorkspaceSettings.policies.toolPolicy` (no migration), saved through the existing `PUT /workspaces/:id/settings/policies`. Enforced in the agent runtime for chat and canvas agents (a disabled tool is never offered, an approval-only tool queues an approval) and for canvas tool steps (disabled fails the step). "Needs approval" does not gate a step a person placed on the canvas; use an approval step for that.
+- **Typed output schemas** (`outputSchema` on `AppActionDefinition` / `ConnectorCapability`): declared for Gmail, Google Calendar, GitHub (issues, pull requests) and Slack reads/sends in `connectors/output-schemas.ts`. The canvas variable picker lists `{{step.messages.0.subject}}`-style fields for upstream connector steps. Other connectors still list only `{{step}}`.
+- **Instant Slack triggers** (`message_posted`, `mention`): Slack's Events API has one request URL per app, so pushes arrive at `/webhooks/connectors/shared/slack`, are verified with `SLACK_SIGNING_SECRET` (HMAC + 5-minute replay window), and fan out to each connected Slack workspace by `team_id`, de-duplicated per connection. GitHub, Shopify and WhatsApp already used the per-connection route. Not exercised against real Slack in this pass.
+
 ## Still open (most valuable first)
 
-1. **Finish merging the mock-strip worktree** (`.claude/worktrees/blissful-chatelet-7885b8`). The agent page, Evaluation, Secrets and `updateAgent` are now merged. Still in main: the agents list and templates `agentService` fallbacks, `integrationService` / `knowledgeService` / `mockData`, and the Developer page.
-2. Push triggers: route provider webhooks (Slack Events, GitHub, Graph subscriptions) to workspaces, as a faster alternative to polling.
-3. `outputSchema` on adapter actions, and a typed variable picker (§17).
-4. Prompt-to-agent emitting `APP_CONNECTOR_*` cards and suggesting triggers from the manifest.
-5. Workspace admin policy: allowed connectors and per-tool Allowed / Approval / Disabled.
-6. Chat invoking agents (§32), and agents and connectors in global search (§54).
-7. Encryption key: `IntegrationEncryptionService` falls back to a hard-coded default when neither `ENCRYPTION_KEY` nor `JWT_ACCESS_SECRET` is set. Production must set one.
+1. Output schemas for the remaining ~40 connectors, and the Prompt-to-agent builder using them.
+2. Push triggers for Microsoft Graph subscriptions (Teams, Outlook) and Stripe, which need subscription renewal.
+3. Prompt-to-agent emitting `APP_CONNECTOR_*` cards and suggesting triggers from the manifest.
+4. Tool access: a "Needs approval" mode for canvas connector steps, and per-role rules.
+5. Chat invoking agents (§32), and agents and connectors in global search (§54).
+6. Encryption key: `IntegrationEncryptionService` falls back to a hard-coded default when neither `ENCRYPTION_KEY` nor `JWT_ACCESS_SECRET` is set. Production must set one.
 
 ## Gotchas
 

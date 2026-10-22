@@ -109,7 +109,7 @@ export function AgentsListPage() {
   const [avatarMode, setAvatarMode] = useState<'icon' | 'upload' | 'url'>('icon');
   const [newTags, setNewTags] = useState('support, autonomous');
   const [newOwnerName, setNewOwnerName] = useState(user?.name || 'Workspace Owner');
-  const [newOwnerEmail, setNewOwnerEmail] = useState(user?.email || 'owner@onetab.ai');
+  const [newOwnerEmail, setNewOwnerEmail] = useState(user?.email || '');
 
   // Rename Modal
   const [renameAgentTarget, setRenameAgentTarget] = useState<any | null>(null);
@@ -142,36 +142,29 @@ export function AgentsListPage() {
 
   // Rename Mutation
   const renameMutation = useMutation({
-    mutationFn: async ({ agentId, name }: { agentId: string; name: string }) => {
-      try {
-        return await agentsApi.update(activeWorkspace.id, agentId, { name });
-      } catch {
-        return agentService.renameAgent(activeWorkspace.id, agentId, name);
-      }
-    },
+    mutationFn: ({ agentId, name }: { agentId: string; name: string }) =>
+      agentService.renameAgent(activeWorkspace.id, agentId, name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
       setRenameAgentTarget(null);
       toast.success('Agent renamed');
     },
+    onError: (err: any) => {
+      toast.error('Could not rename agent', { description: err?.message });
+    },
   });
 
   // Status Change Mutation (Draft, Testing, Published, Paused, Archived)
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ agentId, status }: { agentId: string; status: AgentStatus }) => {
-      try {
-        return await agentsApi.update(activeWorkspace.id, agentId, {
-          configuration: { status },
-        });
-      } catch {
-        return agentService.updateAgent(activeWorkspace.id, agentId, {
-          configuration: { status },
-        });
-      }
-    },
+    // `agentService` merges onto the saved configuration; the API replaces it wholesale.
+    mutationFn: ({ agentId, status }: { agentId: string; status: AgentStatus }) =>
+      agentService.updateAgent(activeWorkspace.id, agentId, { configuration: { status } }),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
       toast.success(`Status updated to "${vars.status}"`);
+    },
+    onError: (err: any) => {
+      toast.error('Could not update status', { description: err?.message });
     },
   });
 
@@ -183,6 +176,9 @@ export function AgentsListPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
       toast.success('Agent moved to Trash');
+    },
+    onError: (err: any) => {
+      toast.error('Could not move agent to Trash', { description: err?.message });
     },
   });
 
@@ -230,7 +226,7 @@ export function AgentsListPage() {
     setAvatarMode('icon');
     setNewTags('support, autonomous');
     setNewOwnerName(user?.name || 'Workspace Owner');
-    setNewOwnerEmail(user?.email || 'owner@onetab.ai');
+    setNewOwnerEmail(user?.email || '');
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
@@ -238,7 +234,7 @@ export function AgentsListPage() {
 
     const ownerObj = {
       name: newOwnerName.trim() || user?.name || 'Workspace Owner',
-      email: newOwnerEmail.trim() || user?.email || 'owner@onetab.ai',
+      email: newOwnerEmail.trim() || user?.email || '',
     };
 
     if (!newName.trim()) return;
@@ -1230,7 +1226,7 @@ export function AgentsListPage() {
                   <Input
                     value={newOwnerEmail}
                     onChange={(e) => setNewOwnerEmail(e.target.value)}
-                    placeholder="owner@onetab.ai"
+                    placeholder="owner@company.com"
                     className="h-9 text-xs bg-background border-border text-foreground"
                   />
                 </div>

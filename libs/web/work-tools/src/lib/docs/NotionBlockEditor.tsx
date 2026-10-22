@@ -12,6 +12,7 @@ import {
   PopoverTrigger,
   ScrollArea,
   Textarea,
+  toast,
 } from '@org/ui';
 import { cn, generateId } from '@org/utils';
 import {
@@ -31,13 +32,23 @@ import {
   Table as TableIcon,
   Type,
 } from 'lucide-react';
+import { aiApi } from '@org/api-client';
 import React, { useState } from 'react';
 import type { BlockType, NotionBlock } from './doc-types.js';
 
 interface NotionBlockEditorProps {
   blocks: NotionBlock[];
   onUpdateBlocks: (blocks: NotionBlock[]) => void;
+  /** Needed for the AI actions; without it they report that no workspace is open. */
+  workspaceId?: string;
 }
+
+const AI_ACTION_PROMPTS = {
+  summarize: "Summarize the user's text in one or two concise sentences. Reply with the summary only.",
+  expand: "Expand the user's text with relevant detail, keeping its meaning and tone. Reply with the expanded text only.",
+  formal: "Rewrite the user's text in a professional tone without changing its meaning. Reply with the rewritten text only.",
+  action_items: "Extract the action items from the user's text as a short list, one per line, each starting with '• '. If there are none, reply 'No action items found.'",
+} as const;
 
 const BLOCK_TYPES_CONFIG: {
   type: BlockType;
@@ -125,7 +136,7 @@ const BLOCK_TYPES_CONFIG: {
   },
 ];
 
-export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorProps) {
+export function NotionBlockEditor({ blocks, onUpdateBlocks, workspaceId }: NotionBlockEditorProps) {
   const [slashMenuIndex, setSlashMenuIndex] = useState<number | null>(null);
   const [slashSearch, setSlashSearch] = useState('');
 
@@ -174,22 +185,40 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
   };
 
   // AI Assistant Action Handlers
-  const handleAiAction = (id: string, actionType: 'summarize' | 'expand' | 'formal' | 'action_items') => {
+  const [aiBusyId, setAiBusyId] = useState<string | null>(null);
+
+  const handleAiAction = async (
+    id: string,
+    actionType: 'summarize' | 'expand' | 'formal' | 'action_items',
+  ) => {
     const targetBlock = blocks.find((b) => b.id === id);
-    if (!targetBlock) return;
-
-    let aiResult = '';
-    if (actionType === 'summarize') {
-      aiResult = '✨ AI Summary: High priority workspace architectural guidelines standardizing HSL design tokens, decoupled monorepo packages, and Notion-like interactive document blocks.';
-    } else if (actionType === 'expand') {
-      aiResult = targetBlock.content + ' Furthermore, all components integrate seamless keyboard navigation, accessible ARIA announcements, and instant offline client persistence.';
-    } else if (actionType === 'formal') {
-      aiResult = 'Professional Revision: ' + targetBlock.content.replace(/good|cool|nice/g, 'exceptional');
-    } else if (actionType === 'action_items') {
-      aiResult = '📋 Action Items Extracted:\n• Complete Notion block type suite\n• Connect HSL color tokens\n• Verify test coverage across monorepo';
+    if (!targetBlock || aiBusyId) return;
+    const source = targetBlock.content.trim();
+    if (!source) {
+      toast.error('Write something in this block first');
+      return;
     }
-
-    handleBlockChange(id, { content: aiResult });
+    if (!workspaceId) {
+      toast.error('Open a workspace to use AI actions');
+      return;
+    }
+    setAiBusyId(id);
+    try {
+      const res = await aiApi.chat(workspaceId, {
+        messages: [
+          { role: 'system', content: AI_ACTION_PROMPTS[actionType] },
+          { role: 'user', content: source },
+        ],
+        temperature: 0.4,
+      });
+      const result = res.message.content.trim();
+      if (!result) throw new Error('Empty response');
+      handleBlockChange(id, { content: result });
+    } catch {
+      toast.error('AI action failed. Your text was not changed.');
+    } finally {
+      setAiBusyId(null);
+    }
   };
 
   const filteredBlockTypes = BLOCK_TYPES_CONFIG.filter(
@@ -583,6 +612,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                       variant="ghost"
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'summarize')}
+                      disabled={aiBusyId !== null}
                       className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Summarize Doc
@@ -591,6 +621,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                       variant="ghost"
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'expand')}
+                      disabled={aiBusyId !== null}
                       className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Expand Content
@@ -599,6 +630,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                       variant="ghost"
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'formal')}
+                      disabled={aiBusyId !== null}
                       className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Make Professional
@@ -607,6 +639,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                       variant="ghost"
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'action_items')}
+                      disabled={aiBusyId !== null}
                       className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Extract Action Items

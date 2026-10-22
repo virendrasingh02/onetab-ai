@@ -26,7 +26,10 @@ import {
   MAX_LOOP_ITERATIONS,
   PLANS_CONFIG,
   normalizePlanTier,
+  connectorToolName,
   resolvePromptVariables,
+  resolveWorkspacePolicy,
+  workspaceToolMode,
   type AgentProfile,
   type AgentRunLimits,
   type AgentScope,
@@ -1386,6 +1389,20 @@ export class WorkflowEngineService {
    * The permission and test-mode gate every step passes before it acts.
    * Returns a result to use instead of running the step, or null to run it.
    */
+  /**
+   * A tool step the workspace admin disabled (Settings → Policies) fails the
+   * run with a clear reason. "Approval" rules apply to what an agent decides
+   * to call; a step placed on the canvas by a person is already their
+   * explicit choice, and an approval gate is a HUMAN_APPROVAL node.
+   */
+  private async assertToolEnabled(workspaceId: string, toolName: string, connector?: string): Promise<void> {
+    const row = await this.prisma.workspaceSettings.findUnique({ where: { workspaceId }, select: { policies: true } });
+    const { toolPolicy } = resolveWorkspacePolicy(row?.policies);
+    if (workspaceToolMode(toolPolicy, toolName, connector) === 'disabled') {
+      throw new Error(`'${toolName}' is turned off for this workspace by an admin (Settings → Policies).`);
+    }
+  }
+
   private gateStep(node: WorkflowNode, env: RunEnv, appAccess?: 'read' | 'write' | 'destructive'): WorkflowStepResult | null {
     const scope = scopeForNode(node.type, node.config ?? {}, appAccess);
     if (scope && env.scopes && !env.scopes.has(scope)) {
@@ -2286,6 +2303,7 @@ export class WorkflowEngineService {
     }
 
     if (this.mcpRegistry.getToolDefinitions().some((t) => t.name === toolName)) {
+      await this.assertToolEnabled(workspaceId, toolName);
       const gated = this.gateStep(node, env);
       if (gated) return { ...gated, output: { ...(gated.output as object), input } };
       const output = await this.mcpRegistry.executeTool(toolName, input, {
@@ -2339,6 +2357,7 @@ export class WorkflowEngineService {
           (a) => a.id.toLowerCase().replace(/[^a-z0-9]/g, '') === actionKey,
         );
         if (match) {
+          await this.assertToolEnabled(workspaceId, connectorToolName(providerKey, match.id), providerKey);
           const gated = this.gateStep(node, env, match.permissionLevel as 'read' | 'write' | 'destructive');
           if (gated) return { ...gated, output: { ...(gated.output as object), input } };
           // Workflows gate sensitive steps with an explicit `HUMAN_APPROVAL`

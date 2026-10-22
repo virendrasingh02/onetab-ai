@@ -26,6 +26,9 @@ describe('AIRuntimeService', () => {
       coworkerAgent: {
         findFirst: vi.fn(),
       },
+      workspaceSettings: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
       agentExecutionLog: {
         create: vi.fn().mockResolvedValue({ id: 'log_1' }),
       },
@@ -543,6 +546,36 @@ describe('AIRuntimeService', () => {
         { title: 'Book venue' },
         expect.objectContaining({ actingUserId: 'user_1' }),
       );
+    });
+
+    describe('workspace tool policy', () => {
+      const withPolicy = (toolPolicy: unknown) =>
+        prisma.workspaceSettings.findUnique.mockResolvedValue({ policies: { toolPolicy } });
+
+      it('never offers a tool the workspace disabled', async () => {
+        prisma.aIAgent.findFirst.mockResolvedValue(scheduler);
+        withPolicy({ tools: { create_task: 'disabled' } });
+        mcpRegistry.getToolSchemasFor.mockReturnValue([
+          { type: 'function', function: { name: 'create_task' } },
+          { type: 'function', function: { name: 'search_docs' } },
+        ]);
+        await service.executeTurn('ws_1', 'sched_1', 'Add a task', { requesterId: 'user_1' });
+        const offered = aiService.chat.mock.calls[0][0].tools.map((t: any) => t.function.name);
+        expect(offered).toContain('search_docs');
+        expect(offered).not.toContain('create_task');
+      });
+
+      it('holds an approval-only tool for a person instead of running it', async () => {
+        prisma.aIAgent.findFirst.mockResolvedValue(scheduler);
+        withPolicy({ tools: { create_task: 'approval' } });
+        mcpRegistry.getToolSchemasFor.mockReturnValue([{ type: 'function', function: { name: 'create_task' } }]);
+        aiService.chat
+          .mockResolvedValueOnce(toolCall('create_task', { title: 'Book venue' }))
+          .mockResolvedValue({ message: { content: 'Waiting for approval', toolCalls: [] }, usage: { totalTokens: 1 } });
+        await service.executeTurn('ws_1', 'sched_1', 'Add a task', { requesterId: 'user_1' });
+        expect(mcpRegistry.executeTool).not.toHaveBeenCalled();
+        expect(approvals.createForEntityAction).toHaveBeenCalled();
+      });
     });
 
     it('offers a handoff only to template collaborators, and runs the other coworker for the same person', async () => {

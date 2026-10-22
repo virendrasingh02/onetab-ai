@@ -608,6 +608,21 @@ function CardDetailsBody({
               <span className="capitalize">{card.type ? card.type.toLowerCase() : 'Task'}</span>
             </div>
 
+            {card.createdByAgent ? (
+              <button
+                type="button"
+                disabled={!card.createdByAgent.workflowId}
+                onClick={() =>
+                  navigate(`/w/${workspaceSlug}/ai/studio/${card.createdByAgent?.workflowId}`)
+                }
+                title={`Created by the agent ${card.createdByAgent.name}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-violet-soft border border-border/60 text-accent-violet text-[11px] font-medium disabled:cursor-default enabled:hover:underline"
+              >
+                <Sparkles className="size-3" />
+                <span className="max-w-[140px] truncate">{card.createdByAgent.name}</span>
+              </button>
+            ) : null}
+
             <div
               className={cn(
                 'items-center gap-2.5 text-muted-foreground text-[11px]',

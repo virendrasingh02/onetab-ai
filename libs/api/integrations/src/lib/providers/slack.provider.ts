@@ -16,6 +16,7 @@ import type {
   WebhookProcessResult,
 } from '../core/provider-adapter.interface.js';
 import { oauthEnv } from '../core/oauth-app-context.js';
+import { parseSlackPush, verifySlackSignature } from './slack-events.js';
 
 export const USER_SCOPES = [
   'channels:read',
@@ -259,6 +260,19 @@ export class SlackProvider implements ProviderAdapter {
     return { success: true, eventType: `slack.${type}`, data: payload };
   }
 
+  /**
+   * Slack gives an app one Events request URL for every workspace that installs
+   * it, so pushes are authenticated with the app's signing secret
+   * (`SLACK_SIGNING_SECRET`) rather than a per-connection one.
+   */
+  verifySharedWebhook(rawBody: string, headers: Record<string, string>): boolean {
+    return verifySlackSignature(this.config.get<string>('SLACK_SIGNING_SECRET'), rawBody, headers);
+  }
+
+  parseSharedWebhook(payload: unknown) {
+    return parseSlackPush(payload);
+  }
+
   isServerConfigured(): boolean {
     return Boolean(oauthEnv(this.config, 'SLACK_CLIENT_ID') && oauthEnv(this.config, 'SLACK_CLIENT_SECRET'));
   }
@@ -271,6 +285,22 @@ export class SlackProvider implements ProviderAdapter {
         description: 'Starts the agent for each new message in a Slack channel.',
         pollActionId: 'list_messages',
         defaultInput: { maxResults: 20 },
+        itemsPath: 'messages',
+        idField: 'ts',
+      },
+      {
+        id: 'message_posted',
+        label: 'New message (instant)',
+        description: 'Starts the agent the moment a person posts in a channel the app can see. Needs Slack Events pointed at this platform.',
+        delivery: 'webhook',
+        itemsPath: 'messages',
+        idField: 'ts',
+      },
+      {
+        id: 'mention',
+        label: 'Mentioned (instant)',
+        description: 'Starts the agent the moment someone @mentions the app in Slack. Needs Slack Events pointed at this platform.',
+        delivery: 'webhook',
         itemsPath: 'messages',
         idField: 'ts',
       },

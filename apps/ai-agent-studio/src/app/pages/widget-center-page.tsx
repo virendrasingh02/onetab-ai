@@ -29,6 +29,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  ErrorState,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { widgetsApi } from '@org/api-client';
@@ -83,7 +84,7 @@ export function WidgetCenterPage() {
   const [selectedWidgetForVersions, setSelectedWidgetForVersions] = useState<string | null>(null);
 
   // Queries
-  const { data: widgetsData, isLoading: loadingWidgets } = useQuery({
+  const { data: widgetsData, isLoading: loadingWidgets, isError: widgetsFailed, refetch: refetchWidgets } = useQuery({
     queryKey: ['widgets', activeWorkspace.id, selectedCategory, search],
     queryFn: () =>
       widgetsApi.list(activeWorkspace.id, {
@@ -263,6 +264,8 @@ export function WidgetCenterPage() {
               <Loader2 className="size-8 animate-spin text-primary" />
               <span className="ml-3 text-sm text-muted-foreground">Loading widgets…</span>
             </div>
+          ) : widgetsFailed ? (
+            <ErrorState title="Couldn’t load widgets" description="The platform didn’t answer. Try again in a moment." onRetry={() => void refetchWidgets()} />
           ) : widgets.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl border border-dashed border-border bg-surface/40 space-y-3">
               <div className="p-3 rounded-full bg-primary/10 text-primary">

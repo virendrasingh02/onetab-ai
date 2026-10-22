@@ -27,6 +27,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  ErrorState,
 } from '@org/ui';
 import { StudioHome, useAgentFavorites } from '@org/web-automations';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -182,12 +183,12 @@ function StudioInsights() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importJsonText, setImportJsonText] = useState('');
 
-  const { data: agents = [], isLoading: isLoadingAgents } = useQuery({
+  const { data: agents = [], isLoading: isLoadingAgents, isError: agentsFailed, refetch: refetchAgents } = useQuery({
     queryKey: ['agents', activeWorkspace.id],
     queryFn: () => agentsApi.list(activeWorkspace.id),
   });
 
-  const { data: logs = [], isLoading: isLoadingLogs } = useQuery({
+  const { data: logs = [], isLoading: isLoadingLogs, isError: logsFailed, refetch: refetchLogs } = useQuery({
     queryKey: ['workspace-logs', activeWorkspace.id],
     queryFn: () => agentsApi.workspaceLogs(activeWorkspace.id),
   });
@@ -308,7 +309,10 @@ function StudioInsights() {
 
   return (
     <div className="space-y-8">
-      {!isLoadingAgents && <GettingStarted steps={journey} />}
+      {agentsFailed && (
+        <ErrorState title="Couldn’t load your agents" description="The platform didn’t answer. Try again in a moment." onRetry={() => void refetchAgents()} />
+      )}
+      {!isLoadingAgents && !agentsFailed && <GettingStarted steps={journey} />}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <PageSection
@@ -557,6 +561,8 @@ function StudioInsights() {
             <div className="space-y-1.5 rounded-xl border border-border bg-surface p-3">
               {isLoadingLogs ? (
                 <div className="py-6 text-center text-xs text-muted-foreground">Loading recent executions…</div>
+              ) : logsFailed ? (
+                <ErrorState title="Couldn’t load recent executions" onRetry={() => void refetchLogs()} />
               ) : logs.length === 0 ? (
                 <div className="py-6 text-center text-xs text-muted-foreground">
                   No execution logs recorded yet. Run a test turn to populate telemetry.

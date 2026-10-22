@@ -92,7 +92,9 @@ export function PageHeader({
       {eyebrow ? <div className="mb-2">{eyebrow}</div> : null}
 
       <div className="gap-x-4 gap-y-3 flex flex-wrap items-start justify-between">
-        <div className="min-w-0 gap-3 flex items-start">
+        {/* Grows from a 20rem basis, so a long description wraps beside the
+            actions instead of pushing them onto a row of their own. */}
+        <div className="min-w-0 gap-3 flex flex-[1_1_20rem] items-start">
           {icon ? (
             <span
               aria-hidden
