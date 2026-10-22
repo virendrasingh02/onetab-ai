@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
@@ -273,6 +274,7 @@ export class InvitationAcceptController {
   constructor(private readonly members: MemberService) {}
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Get('preview/:token')
   preview(@Param('token') token: string) {
     return this.members.getInvitationPreview(token);
@@ -288,6 +290,7 @@ export class InvitationAcceptController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('decline')
   @HttpCode(HttpStatus.NO_CONTENT)
   decline(@Body(zodBody(declineInvitationSchema)) body: DeclineInvitationInput) {

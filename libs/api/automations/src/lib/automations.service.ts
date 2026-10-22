@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, Optional, UnauthorizedException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AppEvent, type AgentChangeAction } from '@org/api-common';
+import { AppEvent, secretsEqual, type AgentChangeAction } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
   CANVAS_AGENT_TRIGGER,
@@ -565,7 +565,7 @@ export class AutomationsService {
     const trigger = normalizeWorkflowNodes(raw).find((n) => n.type === 'TRIGGER' || n.type === 'START');
     const configuredSecret = trigger?.config['secret'] ?? trigger?.config['webhookSecret'];
     if (typeof configuredSecret === 'string' && configuredSecret.trim()) {
-      if (!secretHeader || secretHeader.trim() !== configuredSecret.trim()) {
+      if (!secretsEqual(secretHeader?.trim(), configuredSecret.trim())) {
         throw new UnauthorizedException('Invalid or missing webhook secret header.');
       }
     }

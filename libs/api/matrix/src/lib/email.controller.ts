@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -69,9 +70,15 @@ export class InboundEmailController {
   @Public()
   @HttpCode(HttpStatus.OK)
   inbound(
-    @Query('secret') secret: string | undefined,
+    @Query('secret') querySecret: string | undefined,
+    @Headers('x-inbound-secret') headerSecret: string | undefined,
+    @Headers('authorization') authorization: string | undefined,
     @Body(zodBody(inboundEmailSchema)) body: InboundEmailInput,
   ) {
+    // Header/Bearer is preferred (URLs end up in logs); `?secret=` remains for
+    // providers that can only configure a URL.
+    const secret =
+      headerSecret ?? authorization?.replace(/^Bearer\s+/i, '') ?? querySecret;
     return this.email.handleInbound(secret, body);
   }
 }

@@ -1,5 +1,7 @@
 export { ZodValidationPipe, zodBody } from './lib/zod-validation.pipe.js';
 export { HttpExceptionFilter } from './lib/http-exception.filter.js';
+export { buildHelmetOptions, httpsRedirect } from './lib/http-security.js';
+export { CAPTCHA_HEADER, CaptchaGuard } from './lib/captcha.guard.js';
 
 export {
   AppEvent,
@@ -126,6 +128,7 @@ export {
   generateToken,
   hashToken,
   parseDuration,
+  secretsEqual,
   tokensMatch,
 } from './lib/tokens.js';
 

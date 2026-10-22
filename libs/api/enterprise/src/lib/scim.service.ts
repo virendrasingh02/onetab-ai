@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -172,8 +173,11 @@ export class SCIMService {
     });
 
     const primaryWorkspace = org.workspaces[0];
+    this.assertOrgOwnsEmailDomain(org, email);
 
-    // Find or create user
+    // Find or create user. An existing global account is attached, never
+    // rewritten: its name belongs to its owner, not to whichever tenant's SCIM
+    // client names it.
     const user = await this.prisma.user.upsert({
       where: { email },
       create: {
@@ -183,10 +187,7 @@ export class SCIMService {
         emailVerifiedAt: new Date(),
         presence: active ? PresenceStatus.ONLINE : PresenceStatus.OFFLINE,
       },
-      update: {
-        name: displayName,
-        ...(active ? {} : { presence: PresenceStatus.OFFLINE }),
-      },
+      update: {},
     });
 
     // Wire up workspace membership in org workspaces
@@ -223,6 +224,19 @@ export class SCIMService {
     return this.getUser(orgId, user.id, baseUrl);
   }
 
+  private assertOrgOwnsEmailDomain(
+    org: { domain: string | null; verifiedDomains?: string[] | null },
+    email: string,
+  ): void {
+    const domain = email.split('@')[1]?.toLowerCase() ?? '';
+    const owned = [org.domain, ...(org.verifiedDomains ?? [])]
+      .filter((d): d is string => !!d)
+      .map((d) => d.toLowerCase());
+    if (!domain || !owned.includes(domain)) {
+      throw new ForbiddenException('Email domain is not verified for this organization.');
+    }
+  }
+
   async updateUser(
     orgId: string,
     userId: string,
@@ -238,6 +252,17 @@ export class SCIMService {
       existing.displayName;
 
     const active = payload.active !== undefined ? payload.active : existing.active;
+
+    // An email is an identity: a tenant may not repoint a user at an address
+    // outside its verified domains, or at one another account already holds.
+    if (email !== existing.userName.toLowerCase()) {
+      const org = await this.prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
+      this.assertOrgOwnsEmailDomain(org, email);
+      const taken = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+      if (taken && taken.id !== userId) {
+        throw new ConflictException('That email is already in use.');
+      }
+    }
 
     await this.prisma.user.update({
       where: { id: userId },

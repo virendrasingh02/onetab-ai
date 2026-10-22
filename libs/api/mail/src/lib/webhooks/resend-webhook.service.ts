@@ -46,13 +46,15 @@ export class ResendWebhookService {
     headers: Record<string, string | string[] | undefined>,
   ): boolean {
     const secret = this.config.get<string>('RESEND_WEBHOOK_SECRET');
-    // In dev / test environments with no secret set, allow with warning
+    // Fail closed. Only an explicit opt-in lets unsigned events through, for
+    // local testing; staging with NODE_ENV unset must not be forgeable.
     if (!secret) {
-      if (this.config.get<string>('NODE_ENV') === 'production') {
-        this.logger.warn('RESEND_WEBHOOK_SECRET is not configured in production.');
-        return false;
+      if (this.config.get<string>('RESEND_WEBHOOK_INSECURE') === 'true') {
+        this.logger.warn('RESEND_WEBHOOK_INSECURE is set: accepting unsigned webhooks.');
+        return true;
       }
-      return true;
+      this.logger.warn('RESEND_WEBHOOK_SECRET is not configured; rejecting webhook.');
+      return false;
     }
 
     const svixId = (headers['svix-id'] as string) || '';

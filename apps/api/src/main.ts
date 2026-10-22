@@ -1,6 +1,7 @@
 import { Logger, type INestApplication, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { buildHelmetOptions, httpsRedirect } from '@org/api-common';
 import { parseCorsOrigins } from '@org/config';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
@@ -94,6 +95,16 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   const isProduction = config.get('NODE_ENV') === 'production';
 
+  // Behind nginx/an LB the socket peer is the proxy; without this every client
+  // shares one rate-limit bucket and `req.secure` is always false.
+  const trustProxyHops = config.get<number>('TRUST_PROXY_HOPS', 0);
+  if (trustProxyHops > 0) {
+    app.getHttpAdapter().getInstance().set('trust proxy', trustProxyHops);
+  }
+  if (isProduction && config.get<string>('ENFORCE_HTTPS', 'true') === 'true') {
+    app.use(httpsRedirect());
+  }
+
   app.setGlobalPrefix('api');
   // URI versioning keeps old clients working when a contract has to change.
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
@@ -102,21 +113,22 @@ async function bootstrap() {
   app.use(compression({ threshold: 1024 }));
 
   // Request body parsing limits
+  const bodyLimit = `${config.get<number>('BODY_LIMIT_MB', 10)}mb`;
   app.use(
     json({
-      limit: '50mb',
+      limit: bodyLimit,
       // Signed webhooks (Resend/Svix) must be verified against the exact bytes
       // received; re-serialising the parsed body does not reproduce them.
       verify: (req, _res, buf) => {
-        if (req.url?.includes('/webhooks/')) {
+        if (/\/(webhooks?|inbound)(\/|\?|$)/.test(req.url ?? '')) {
           (req as typeof req & { rawBody?: Buffer }).rawBody = buf;
         }
       },
     }),
   );
-  app.use(urlencoded({ extended: true, limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: bodyLimit }));
 
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  app.use(helmet(buildHelmetOptions()));
   // Refresh tokens travel as httpOnly cookies, so the parser is required.
   app.use(cookieParser());
 
@@ -130,6 +142,7 @@ async function bootstrap() {
     origin: origins.length > 0 ? origins : false,
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    maxAge: 600,
   });
 
   // Lets Nest run onModuleDestroy hooks (closing DB pool & Redis) on SIGTERM.

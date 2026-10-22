@@ -57,6 +57,22 @@ import { AppService } from './app.service';
             ttl: Number(process.env['THROTTLE_TTL_MS'] ?? 60_000),
             limit: Number(process.env['THROTTLE_LIMIT'] ?? 120),
           },
+          {
+            // Credential-stuffing guard: per-IP limits are useless against a
+            // botnet hammering one account, so sign-in is also limited per
+            // identifier, whichever address it comes from.
+            name: 'account',
+            ttl: 15 * 60_000,
+            limit: Number(process.env['LOGIN_ACCOUNT_LIMIT'] ?? 20),
+            getTracker: (req) => {
+              const id = (req['body'] as { email?: unknown } | undefined)?.email;
+              return `acct:${typeof id === 'string' ? id.trim().toLowerCase() : 'none'}`;
+            },
+            skipIf: (ctx) => {
+              const path: string = ctx.switchToHttp().getRequest().path ?? '';
+              return !/\/auth\/login(\/2fa)?\/?$/.test(path);
+            },
+          },
         ],
         storage,
         // Rate limiting is an abuse control for production. Outside it — local

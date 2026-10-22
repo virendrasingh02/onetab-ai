@@ -1,4 +1,5 @@
 import { ApiErrorCode, type ApiErrorBody, type AuthTokens } from '@org/types';
+import { getCaptchaToken, isCaptchaProtectedPath } from './captcha.js';
 import axios, {
   type AxiosError,
   type AxiosInstance,
@@ -211,6 +212,10 @@ http.interceptors.request.use(async (config) => {
   // reads another account's data with that account's token, not the active one.
   if (accessToken && !config.headers.has('Authorization')) {
     config.headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+  if (isCaptchaProtectedPath(config.url) && !config.headers.has('X-Captcha-Token')) {
+    const token = await getCaptchaToken();
+    if (token) config.headers.set('X-Captcha-Token', token);
   }
   return config;
 });

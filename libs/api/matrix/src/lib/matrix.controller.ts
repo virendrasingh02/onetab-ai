@@ -13,7 +13,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CurrentUser, Public } from '@org/api-common';
+import { CurrentUser, Public, secretsEqual } from '@org/api-common';
 import { MatrixAdminService } from './matrix-admin.service.js';
 import { MatrixAuthService } from './matrix-auth.service.js';
 import { MatrixSpaceService } from './matrix-space.service.js';
@@ -161,7 +161,7 @@ export class MatrixAppserviceController {
     const expected = this.config.get<string>('MATRIX_HS_TOKEN');
     const provided = authorization?.replace(/^Bearer\s+/i, '');
 
-    if (!expected || !provided || provided !== expected) {
+    if (!secretsEqual(expected, provided)) {
       throw new ForbiddenException('Invalid homeserver token.');
     }
   }

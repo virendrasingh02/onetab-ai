@@ -161,10 +161,12 @@ export class ChannelController {
   // --- membership ---------------------------------------------------------
 
   @Get(':channelId/members')
-  listMembers(
+  async listMembers(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
   ) {
+    await this.channels.assertReadable(workspaceId, channelId, userId);
     return this.channels.listMembers(workspaceId, channelId);
   }
 
@@ -251,40 +253,47 @@ export class ChannelController {
   // --- pins & files -------------------------------------------------------
 
   @Get(':channelId/pins')
-  listPins(
+  async listPins(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
   ) {
+    await this.channels.assertReadable(workspaceId, channelId, userId);
     return this.channels.listPins(workspaceId, channelId);
   }
 
   @Post(':channelId/pins')
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
-  createPin(
+  async createPin(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
     @CurrentUser('id') userId: string,
     @Body(zodBody(createPinSchema)) body: CreatePinInput,
   ) {
+    await this.channels.assertReadable(workspaceId, channelId, userId);
     return this.channels.createPin(workspaceId, channelId, userId, body);
   }
 
   @Delete(':channelId/pins/:pinId')
   @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
-  removePin(
+  async removePin(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
     @Param('pinId') pinId: string,
+    @CurrentUser('id') userId: string,
   ): Promise<void> {
+    await this.channels.assertReadable(workspaceId, channelId, userId);
     return this.channels.removePin(workspaceId, channelId, pinId);
   }
 
   @Get(':channelId/files')
-  listFiles(
+  async listFiles(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
   ) {
+    await this.channels.assertReadable(workspaceId, channelId, userId);
     return this.channels.listUploads(workspaceId, channelId);
   }
 }

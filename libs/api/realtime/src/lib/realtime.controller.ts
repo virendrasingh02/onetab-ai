@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
@@ -303,6 +304,19 @@ export class RealtimeController {
     return { pending: await this.deliveries.countPending(user.id) };
   }
 
+  /** A client may only announce presence into workspaces it belongs to. */
+  private async assertActiveMember(
+    userId: string,
+    workspaceId: string | null | undefined,
+  ): Promise<void> {
+    if (!workspaceId) return;
+    const member = await this.prisma.workspaceMember.findFirst({
+      where: { workspaceId, userId, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (!member) throw new ForbiddenException('Not a member of this workspace.');
+  }
+
   /**
    * Heartbeat / activity ping from active clients.
    */
@@ -317,6 +331,7 @@ export class RealtimeController {
       statusEmoji?: string | null;
     },
   ): Promise<{ ok: boolean; presence: UserPresence }> {
+    await this.assertActiveMember(user.id, body.workspaceId);
     const presence = await this.presence.recordHeartbeat(
       user.id,
       body.workspaceId,
@@ -339,6 +354,7 @@ export class RealtimeController {
       workspaceId?: string | null;
     },
   ): Promise<{ ok: boolean; presence: UserPresence }> {
+    await this.assertActiveMember(user.id, body.workspaceId);
     const presence = await this.presence.setExplicitPresence(
       user.id,
       body.presence,

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  GoneException,
   Header,
   Headers,
   HttpCode,
@@ -14,12 +15,10 @@ import {
 import { Public } from '@org/api-common';
 import type { Request } from 'express';
 import { ConnectorWebhookService } from './connectors/connector-webhook.service.js';
-import { WebhookService } from './core/webhook.service.js';
 
 @Controller({ version: '1' })
 export class WebhooksController {
   constructor(
-    private readonly webhookService: WebhookService,
     private readonly connectorWebhooks: ConnectorWebhookService,
   ) {}
 
@@ -54,8 +53,13 @@ export class WebhooksController {
     @Headers() headers: Record<string, string>,
     @Req() req: Request,
   ) {
-    const rawBody = typeof req.body === 'string' ? req.body : undefined;
-    return this.webhookService.processWebhook(provider, body, headers, rawBody);
+    void provider; void body; void headers; void req;
+    // Provider-level webhooks carry no per-connection secret, so nothing here
+    // can authenticate the caller. Signed delivery lives on
+    // `webhooks/connectors/:integrationId`.
+    throw new GoneException(
+      'Unsigned provider webhooks are disabled. Use the connection-specific webhook URL.',
+    );
   }
 
   @Public()
@@ -67,7 +71,12 @@ export class WebhooksController {
     @Headers() headers: Record<string, string>,
     @Req() req: Request,
   ) {
-    const rawBody = typeof req.body === 'string' ? req.body : undefined;
-    return this.webhookService.processWebhook(provider, body, headers, rawBody);
+    void provider; void body; void headers; void req;
+    // Provider-level webhooks carry no per-connection secret, so nothing here
+    // can authenticate the caller. Signed delivery lives on
+    // `webhooks/connectors/:integrationId`.
+    throw new GoneException(
+      'Unsigned provider webhooks are disabled. Use the connection-specific webhook URL.',
+    );
   }
 }

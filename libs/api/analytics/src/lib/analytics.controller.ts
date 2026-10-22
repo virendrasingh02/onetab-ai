@@ -12,8 +12,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { SystemRoleGuard, WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, Public, SystemRoles } from '@org/api-common';
-import { SystemRole } from '@org/types';
+import { CurrentUser, RequireWorkspacePermissions, SystemRoles } from '@org/api-common';
+import { SystemRole, WorkspacePermission } from '@org/types';
 import type { Response } from 'express';
 import { AnalyticsService } from './analytics.service.js';
 import { normaliseHours } from './analytics.util.js';
@@ -46,9 +46,10 @@ export class AnalyticsController {
   // from every tenant — so they are gated on the platform role, not merely on
   // being signed in.
 
-  /** Public so container orchestrators and uptime probes can read it. */
+  /** Probes use `/health`; this one fans out to every dependency, so it is operator-only. */
   @Get('health')
-  @Public()
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN, SystemRole.SUPPORT)
   getHealth() {
     return this.health.getHealth();
   }
@@ -78,6 +79,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/dashboard')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getDashboard(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -89,6 +91,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getWorkspaceAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -100,6 +103,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/users')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getUserAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -111,6 +115,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/activity')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getUserActivity(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -122,6 +127,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-usage')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getAIUsage(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -133,6 +139,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-deep')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getDeepAIOverview(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -144,6 +151,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-agents')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getAgentAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -155,6 +163,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-agents/:agentId')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getSingleAgentAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Param('agentId') agentId: string,
@@ -167,6 +176,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-workflows')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getWorkflowAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -178,6 +188,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-workflows/:workflowId')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getSingleWorkflowAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Param('workflowId') workflowId: string,
@@ -190,6 +201,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-nodes')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getNodeAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -201,6 +213,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-tools')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getToolConnectorAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -212,6 +225,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-models')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getModelAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -223,6 +237,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-costs')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getCostAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -234,6 +249,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-errors')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getErrorAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -245,6 +261,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-traces/:executionId')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   getExecutionTraces(
     @Param('workspaceId') workspaceId: string,
     @Param('executionId') executionId: string,
@@ -254,6 +271,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-evaluations')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getEvaluationsAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -265,6 +283,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-versions/compare')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   compareVersions(
     @Param('workspaceId') workspaceId: string,
     @Query('entityType') entityType: 'AGENT' | 'WORKFLOW',
@@ -283,12 +302,14 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-alerts')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getAlerts(@Param('workspaceId') workspaceId: string) {
     return this.analytics.getAlerts(workspaceId);
   }
 
   @Post('workspace/:workspaceId/ai-alerts')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   createAlertRule(
     @Param('workspaceId') workspaceId: string,
     @Body() body: any,
@@ -298,6 +319,7 @@ export class AnalyticsController {
 
   @Patch('workspace/:workspaceId/ai-alerts/:alertId')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   updateAlertStatus(
     @Param('workspaceId') workspaceId: string,
     @Param('alertId') alertId: string,
@@ -308,12 +330,14 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/ai-settings')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   getAnalyticsSettings(@Param('workspaceId') workspaceId: string) {
     return this.analytics.getAnalyticsSettings(workspaceId);
   }
 
   @Put('workspace/:workspaceId/ai-settings')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   updateAnalyticsSettings(
     @Param('workspaceId') workspaceId: string,
     @Body() body: any,
@@ -323,6 +347,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/storage')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getStorageAnalytics(
     @Param('workspaceId') workspaceId: string,
     @Query('days') days?: string,
@@ -334,6 +359,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/errors')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   getWorkspaceErrors(
     @Param('workspaceId') workspaceId: string,
     @Query('hours') hours?: string,
@@ -345,6 +371,7 @@ export class AnalyticsController {
 
   @Get('workspace/:workspaceId/reports')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   listReports() {
     return this.reports.listDefinitions();
   }
@@ -355,6 +382,7 @@ export class AnalyticsController {
    */
   @Get('workspace/:workspaceId/reports/:type')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   async generateReport(
     @Param('workspaceId') workspaceId: string,
     @Param('type') type: string,
@@ -386,6 +414,7 @@ export class AnalyticsController {
 
   @Post('workspace/:workspaceId/events')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   trackEvent(
     @Param('workspaceId') workspaceId: string,
     @CurrentUser('id') userId: string,

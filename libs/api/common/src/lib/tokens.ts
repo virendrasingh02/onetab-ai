@@ -26,6 +26,21 @@ export function tokensMatch(token: string, expectedHash: string): boolean {
   return timingSafeEqual(actual, expected);
 }
 
+/**
+ * Constant-time equality for two secrets of any length. Both sides are hashed
+ * first so neither the comparison nor the length leaks through timing.
+ */
+export function secretsEqual(
+  a: string | undefined | null,
+  b: string | undefined | null,
+): boolean {
+  if (!a || !b) return false;
+  return timingSafeEqual(
+    createHash('sha256').update(a).digest(),
+    createHash('sha256').update(b).digest(),
+  );
+}
+
 /** Milliseconds for a duration string such as `15m`, `7d`, `30s`, `12h`. */
 export function parseDuration(value: string): number {
   const match = /^(\d+)\s*(ms|s|m|h|d)$/.exec(value.trim());

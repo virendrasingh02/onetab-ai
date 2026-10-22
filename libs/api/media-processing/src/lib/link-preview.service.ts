@@ -623,6 +623,7 @@ export class LinkPreviewService {
     messageId: string,
     visibility: LinkPreviewVisibility,
   ): Promise<void> {
+    assertMatrixEventId(messageId);
     const key = `link-preview:visibility:${messageId}`;
     await this.cache.set(key, visibility, VISIBILITY_CACHE_TTL_MS);
   }
@@ -633,7 +634,15 @@ export class LinkPreviewService {
   async getMessageVisibility(
     messageId: string,
   ): Promise<LinkPreviewVisibility | null> {
+    assertMatrixEventId(messageId);
     const key = `link-preview:visibility:${messageId}`;
     return this.cache.get<LinkPreviewVisibility>(key);
+  }
+}
+
+/** Keeps arbitrary strings out of cache keys: only real Matrix event ids pass. */
+function assertMatrixEventId(id: string): void {
+  if (!/^\$[A-Za-z0-9_+/=:.-]{1,255}$/.test(id)) {
+    throw new BadRequestException('Invalid message id.');
   }
 }

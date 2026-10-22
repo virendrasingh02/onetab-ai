@@ -138,7 +138,22 @@ export function buildRows(
     }
   };
 
-  for (const message of messages) {
+  /*
+   * Timelines can hand messages back out of time order (late-arriving bot or
+   * agent posts, backfilled history). Day separators are derived from
+   * neighbours, so an out-of-order message produced "Today / Yesterday /
+   * Today". Order by time first (stable, so equal timestamps keep their
+   * original order) — one separator per calendar day.
+   */
+  let ordered = messages;
+  for (let i = 1; i < messages.length; i++) {
+    if (messages[i].timestamp < messages[i - 1].timestamp) {
+      ordered = [...messages].sort((a, b) => a.timestamp - b.timestamp);
+      break;
+    }
+  }
+
+  for (const message of ordered) {
     while (
       nextFloating < floating.length &&
       floating[nextFloating].timestamp < message.timestamp

@@ -33,6 +33,20 @@ export const apiEnvSchema = z.object({
   /** Comma-separated allowlist. Empty means "same origin only". */
   CORS_ORIGINS: z.string().default(''),
 
+  /**
+   * Reverse-proxy hops in front of the API (nginx/ALB = 1). Express then reads
+   * the client IP from X-Forwarded-For, which per-IP rate limits depend on.
+   * Leave 0 when the API is exposed directly: the header is client-controlled.
+   */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+  /** Bot protection for public auth routes; unset = disabled. */
+  CAPTCHA_SECRET_KEY: z.string().optional(),
+  CAPTCHA_PROVIDER: z.enum(['turnstile', 'hcaptcha', 'recaptcha']).default('turnstile'),
+  /** Redirect plain-HTTP requests (per X-Forwarded-Proto) in production. */
+  ENFORCE_HTTPS: z.enum(['true', 'false']).default('true'),
+  /** Largest JSON/urlencoded request body, in MB. */
+  BODY_LIMIT_MB: z.coerce.number().min(1).max(50).default(10),
+
   // Matrix bridge. Optional: the API runs without a homeserver.
   MATRIX_ENABLED: z.enum(['true', 'false']).default('false'),
   MATRIX_ENCRYPTION: z.enum(['true', 'false']).default('true'),

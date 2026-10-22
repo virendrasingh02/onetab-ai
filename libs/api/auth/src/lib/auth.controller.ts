@@ -10,10 +10,11 @@ import {
   Query,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
-import { CurrentUser, Public, zodBody } from '@org/api-common';
+import { CaptchaGuard, CurrentUser, Public, zodBody } from '@org/api-common';
 import type { AuthenticatedUser } from '@org/api-common';
 import {
   approveDeviceAuthSchema,
@@ -124,6 +125,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(CaptchaGuard)
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -145,6 +147,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(CaptchaGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -242,6 +245,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(CaptchaGuard)
   @Post(['forgot-password', 'password-reset/request'])
   @HttpCode(HttpStatus.ACCEPTED)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -277,6 +281,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(CaptchaGuard)
   @Post(['magic-link', 'magic-link/request'])
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -308,6 +313,7 @@ export class AuthController {
 
   /** Same as `request`, behind a tighter per-IP throttle for the resend button. */
   @Public()
+  @UseGuards(CaptchaGuard)
   @Post('magic-link/resend')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
@@ -319,6 +325,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(CaptchaGuard)
   @Post('email-verification/send')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -547,6 +554,7 @@ export class AuthController {
    * Public endpoint to get sanitized device info by requestId or userCode.
    */
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Get('device/info')
   @HttpCode(HttpStatus.OK)
   async getDeviceInfo(
@@ -573,6 +581,7 @@ export class AuthController {
    * Mobile user rejects/cancels the device authorization request.
    */
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('device/reject')
   @HttpCode(HttpStatus.OK)
   async rejectDevice(

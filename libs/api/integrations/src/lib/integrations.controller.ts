@@ -52,16 +52,23 @@ export class IntegrationsController {
     @Query('realmId') realmId: string | undefined,
     @Res() res: Response,
   ) {
+    // The path segment is attacker-controlled and ends up in HTML and script.
+    const safeProvider = /^[a-z0-9_-]{1,40}$/i.test(provider) ? provider : 'integration';
     // QuickBooks names the company the person picked in the callback, not the token.
     const result = await this.integrationsService.handleOAuthCallback(code, state, realmId ? { realmId: String(realmId) } : {});
 
     if (result.redirectUrl) {
       return res.redirect(
-        `${result.redirectUrl}?integration_connected=${provider.toLowerCase()}&status=success`,
+        `${result.redirectUrl}?integration_connected=${encodeURIComponent(safeProvider)}&status=success`,
       );
     }
 
-    // Default HTML response with script to communicate with opener or redirect
+    // Default HTML response with script to communicate with opener or redirect.
+    // Inline script is needed, so lock everything else down.
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors 'none'",
+    );
     return res.send(`
       <!DOCTYPE html>
       <html>
@@ -69,12 +76,12 @@ export class IntegrationsController {
         <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: #f8fafc;">
           <div style="text-align: center; padding: 2rem; background: #1e293b; border-radius: 1rem; border: 1px solid #334155;">
             <h2 style="color: #22c55e; margin-bottom: 0.5rem;">Connection Successful!</h2>
-            <p style="color: #94a3b8; font-size: 0.875rem;">You have connected ${provider.toUpperCase()} to Onetab AI.</p>
+            <p style="color: #94a3b8; font-size: 0.875rem;">You have connected ${safeProvider.toUpperCase()} to Onetab AI.</p>
             <p style="color: #64748b; font-size: 0.75rem; margin-top: 1rem;">This window will close automatically...</p>
           </div>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'INTEGRATION_CONNECTED', provider: '${provider}' }, '*');
+              window.opener.postMessage({ type: 'INTEGRATION_CONNECTED', provider: '${safeProvider}' }, '*');
               setTimeout(() => window.close(), 1200);
             } else {
               setTimeout(() => { window.location.href = '/integrations'; }, 1500);

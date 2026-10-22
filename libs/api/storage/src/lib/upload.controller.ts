@@ -32,6 +32,7 @@ import {
   type UpdateUploadInput,
 } from '@org/validation';
 import type { Response } from 'express';
+import { resolveServeHeaders, SANDBOX_CSP } from './upload-safety.js';
 import {
   MAX_UPLOAD_BYTES,
   UploadService,
@@ -53,6 +54,7 @@ export class UploadController {
   @Get()
   list(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') viewerId: string,
     @Query('channelId') channelId?: string,
     @Query('contextType') contextType?: string,
     @Query('contextId') contextId?: string,
@@ -60,6 +62,7 @@ export class UploadController {
     @Query('limit') limit?: string,
   ) {
     return this.uploads.list(workspaceId, {
+      viewerId,
       channelId,
       contextType,
       contextId,
@@ -145,12 +148,17 @@ export class UploadController {
   @Header('X-Content-Type-Options', 'nosniff')
   async download(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') viewerId: string,
     @Param('uploadId') uploadId: string,
     @Query('variant') variant: string | undefined,
     @Res() response: Response,
   ): Promise<void> {
-    const file = await this.uploads.read(workspaceId, uploadId, variant);
-    response.setHeader('Content-Type', file.mimeType);
+    const file = await this.uploads.read(workspaceId, uploadId, variant, viewerId);
+    response.setHeader(
+      'Content-Type',
+      resolveServeHeaders(file.mimeType, true).contentType,
+    );
+    response.setHeader('Content-Security-Policy', SANDBOX_CSP);
     response.setHeader(
       'Content-Disposition',
       `attachment; filename="${encodeURIComponent(file.filename)}"`,
@@ -219,12 +227,12 @@ export class PublicFileController {
     @Res() response: Response,
   ): Promise<void> {
     const file = await this.uploads.readByToken(token, queryVariant);
-    response.setHeader('Content-Type', file.mimeType);
+    const served = resolveServeHeaders(file.mimeType, file.download);
+    response.setHeader('Content-Type', served.contentType);
+    response.setHeader('Content-Security-Policy', SANDBOX_CSP);
     response.setHeader(
       'Content-Disposition',
-      `${file.download ? 'attachment' : 'inline'}; filename="${encodeURIComponent(
-        file.filename,
-      )}"`,
+      `${served.disposition}; filename="${encodeURIComponent(file.filename)}"`,
     );
     response.send(file.content);
   }

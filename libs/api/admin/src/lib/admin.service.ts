@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
@@ -34,6 +35,40 @@ function paging(page?: number, pageSize?: number) {
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Records a platform-operator action. Best effort on purpose: a failed audit
+   * write must not leave a half-applied admin action, but it is logged loudly.
+   */
+  private async audit(
+    actorId: string,
+    action: string,
+    targetType: string,
+    targetId: string,
+    detail?: { previousValue?: string; newValue?: string; reason?: string },
+  ): Promise<void> {
+    try {
+      const actor = await this.prisma.user.findUnique({
+        where: { id: actorId },
+        select: { email: true },
+      });
+      await this.prisma.complianceAuditLog.create({
+        data: {
+          actorId,
+          actorEmail: actor?.email ?? 'unknown',
+          action,
+          targetType,
+          targetId,
+          platform: 'admin',
+          ...detail,
+        },
+      });
+    } catch (error) {
+      new Logger(AdminService.name).error(
+        `Failed to write admin audit entry ${action}: ${(error as Error).message}`,
+      );
+    }
+  }
 
   // --- overview -------------------------------------------------------------
 
@@ -183,11 +218,16 @@ export class AdminService {
       );
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { systemRole: role },
       select: { id: true, email: true, systemRole: true },
     });
+    await this.audit(actorId, 'USER_ROLE_CHANGED', 'User', userId, {
+      previousValue: target.systemRole,
+      newValue: role,
+    });
+    return updated;
   }
 
   /**
@@ -236,6 +276,9 @@ export class AdminService {
     }
 
     await this.prisma.user.delete({ where: { id: userId } });
+    await this.audit(actorId, 'USER_DELETED', 'User', userId, {
+      previousValue: user.systemRole,
+    });
   }
 
   private countSuperAdmins(): Promise<number> {
@@ -305,7 +348,7 @@ export class AdminService {
   }
 
   /** Hard delete. Channels, members, tasks and uploads cascade from the schema. */
-  async deleteWorkspace(workspaceId: string): Promise<void> {
+  async deleteWorkspace(actorId: string, workspaceId: string): Promise<void> {
     const workspace = await this.prisma.workspace.findUnique({
       where: { id: workspaceId },
       select: { id: true },
@@ -313,6 +356,7 @@ export class AdminService {
     if (!workspace) throw new NotFoundException('Workspace not found.');
 
     await this.prisma.workspace.delete({ where: { id: workspaceId } });
+    await this.audit(actorId, 'WORKSPACE_DELETED', 'Workspace', workspaceId);
   }
 
   // --- organisations --------------------------------------------------------

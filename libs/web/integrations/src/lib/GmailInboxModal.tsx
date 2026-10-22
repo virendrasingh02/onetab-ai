@@ -370,9 +370,14 @@ export function GmailInboxModal({
                 {/* Email Body */}
                 <div className="py-2">
                   {selectedMessage.bodyHtml ? (
-                    <div
-                      className="prose prose-sm dark:prose-invert max-w-none text-xs"
-                      dangerouslySetInnerHTML={{ __html: selectedMessage.bodyHtml }}
+                    // Email HTML is attacker-controlled: render it in a script-less,
+                    // origin-less sandbox with a locked-down CSP, never in our DOM.
+                    <iframe
+                      title="Email body"
+                      sandbox=""
+                      referrerPolicy="no-referrer"
+                      className="h-80 w-full rounded-md border bg-white"
+                      srcDoc={`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data:; style-src 'unsafe-inline'"><base target="_blank">${selectedMessage.bodyHtml}`}
                     />
                   ) : (
                     <pre className="whitespace-pre-wrap font-sans text-xs text-foreground leading-relaxed">

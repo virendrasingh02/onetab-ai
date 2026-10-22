@@ -1,9 +1,9 @@
 import {
   createPublicKey,
   randomBytes,
-  verify as cryptoVerify,
 } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
+import { SignedXml } from 'xml-crypto';
 import { DOMParser } from '@xmldom/xmldom';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { normalizeCertificatePem } from './crypto-secrets.js';
@@ -155,14 +155,10 @@ export class SamlService {
     // 1. Status Code Verification
     this.assertSuccessStatus(doc);
 
-    // 2. Locate Assertion
-    const assertion = this.findFirstElement(doc, ['Assertion', 'saml:Assertion', 'saml2:Assertion']);
-    if (!assertion) {
-      throw new BadRequestException('SAML Response contains no assertion.');
-    }
-
-    // 3. Digital Signature Verification
-    this.verifySignature(doc, assertion, options.certificatePem);
+    // 2-3. Verify the signature and take the assertion from the *signed*
+    // bytes only. Reading it from the unsigned document would let an attacker
+    // graft a valid signature onto a forged assertion (XML signature wrapping).
+    const assertion = this.verifySignedAssertion(rawXml, doc, options.certificatePem, parser);
 
     // 4. Conditions and Audience Validation
     this.verifyConditions(assertion, options.expectedAudience, options.clockSkewSeconds ?? 120);
@@ -192,61 +188,68 @@ export class SamlService {
     }
   }
 
-  private verifySignature(doc: Document, assertion: Element, certificatePem: string): void {
-    const signature = this.findFirstElement(assertion, ['Signature', 'ds:Signature']) ||
-      this.findFirstElement(doc, ['Signature', 'ds:Signature']);
-
-    if (!signature) {
+  /**
+   * Verifies the XML signature (digest and RSA) with xml-crypto and returns the
+   * Assertion element parsed from the signed reference. SHA-1 is refused.
+   */
+  private verifySignedAssertion(
+    rawXml: string,
+    doc: Document,
+    certificatePem: string,
+    parser: DOMParser,
+  ): Element {
+    const signatures = Array.from(
+      doc.getElementsByTagNameNS('http://www.w3.org/2000/09/xmldsig#', 'Signature'),
+    );
+    if (signatures.length === 0) {
       throw new BadRequestException('SAML response or assertion is unsigned. A signed response is required.');
     }
 
-    const signedInfo = this.findFirstElement(signature, ['SignedInfo', 'ds:SignedInfo']);
-    const signatureValue = this.findFirstElement(signature, ['SignatureValue', 'ds:SignatureValue'])?.textContent?.replace(/\s+/g, '');
-
-    if (!signedInfo || !signatureValue) {
-      throw new BadRequestException('SAML Signature is incomplete (missing SignedInfo or SignatureValue).');
-    }
-
-    const signatureMethod = this.findFirstElement(signedInfo, ['SignatureMethod', 'ds:SignatureMethod'])?.getAttribute('Algorithm') ?? '';
-    const algorithm = signatureMethod.includes('rsa-sha256')
-      ? 'RSA-SHA256'
-      : signatureMethod.includes('rsa-sha1')
-      ? 'RSA-SHA1'
-      : 'RSA-SHA256';
-
     const normalizedPem = normalizeCertificatePem(certificatePem);
-    let publicKey;
     try {
-      publicKey = createPublicKey(normalizedPem);
+      createPublicKey(normalizedPem);
     } catch (err) {
       throw new BadRequestException(`Configured IdP certificate is invalid: ${(err as Error).message}`);
     }
 
-    // Canonicalize SignedInfo for signature verification
-    const c14nSignedInfo = this.canonicalizeNode(signedInfo);
-    const signatureBuffer = Buffer.from(signatureValue, 'base64');
+    for (const signature of signatures) {
+      // Only signatures that sit directly on the Response or an Assertion count.
+      const parent = signature.parentNode as Element | null;
+      if (!parent || !['Response', 'Assertion'].includes(parent.localName)) continue;
 
-    const isValid = cryptoVerify(
-      algorithm,
-      Buffer.from(c14nSignedInfo, 'utf8'),
-      publicKey,
-      signatureBuffer,
-    );
+      const sigMethod = this.findFirstElement(signature, ['SignatureMethod', 'ds:SignatureMethod'])?.getAttribute('Algorithm') ?? '';
+      const digestMethods = this.findElements(signature, ['DigestMethod', 'ds:DigestMethod']).map((e) => e.getAttribute('Algorithm') ?? '');
+      if (/sha1/i.test(sigMethod) || digestMethods.some((d) => /sha1/i.test(d))) {
+        throw new BadRequestException('SAML signature uses SHA-1, which is not accepted.');
+      }
 
-    if (!isValid) {
-      // Fallback: check if raw text canonicalization matches
-      const rawTextSignedInfo = signedInfo.toString();
-      const isValidFallback = cryptoVerify(
-        algorithm,
-        Buffer.from(rawTextSignedInfo, 'utf8'),
-        publicKey,
-        signatureBuffer,
-      );
+      const verifier = new SignedXml({
+        publicCert: normalizedPem,
+        getCertFromKeyInfo: () => null,
+      });
+      let valid = false;
+      try {
+        verifier.loadSignature(signature as unknown as Node);
+        valid = verifier.checkSignature(rawXml);
+      } catch (err) {
+        this.logger.warn(`SAML signature check failed: ${(err as Error).message}`);
+      }
+      if (!valid) continue;
 
-      if (!isValidFallback) {
-        throw new BadRequestException('SAML digital signature verification failed. Check the IdP signing certificate.');
+      for (const signedXml of verifier.getSignedReferences()) {
+        const signedDoc = parser.parseFromString(signedXml, 'text/xml');
+        const root = signedDoc.documentElement;
+        if (!root) continue;
+        if (root.localName === 'Assertion') return root;
+        if (root.localName === 'Response') {
+          const inner = this.findElements(root, ['Assertion', 'saml:Assertion', 'saml2:Assertion']);
+          // Exactly one assertion, so there is no second, unexamined one.
+          if (inner.length === 1) return inner[0];
+        }
       }
     }
+
+    throw new BadRequestException('SAML digital signature verification failed. Check the IdP signing certificate.');
   }
 
   private verifyConditions(assertion: Element, expectedAudience: string, clockSkewSeconds: number): void {
@@ -271,20 +274,15 @@ export class SamlService {
         }
       }
 
-      // Check Audience
+      // Audience must be present and match exactly.
       const audienceElements = this.findElements(conditions, ['Audience', 'saml:Audience', 'saml2:Audience']);
-      if (audienceElements.length > 0) {
-        const audiences = audienceElements.map((el) => el.textContent?.trim()).filter(Boolean);
-        const matches = audiences.some((aud) => aud === expectedAudience);
-        if (!matches && !audiences.includes(expectedAudience)) {
-          this.logger.warn(`SAML Audience mismatch: received [${audiences.join(', ')}], expected "${expectedAudience}"`);
-          // If expected audience ends with the orgId or starts with expected prefix, accept
-          const lenientMatch = audiences.some((aud) => aud?.includes(expectedAudience) || expectedAudience.includes(aud ?? ''));
-          if (!lenientMatch) {
-            throw new BadRequestException(`SAML audience mismatch. Expected "${expectedAudience}", received "${audiences.join(', ')}".`);
-          }
-        }
+      const audiences = audienceElements.map((el) => el.textContent?.trim()).filter(Boolean);
+      if (!audiences.includes(expectedAudience)) {
+        this.logger.warn(`SAML Audience mismatch: received [${audiences.join(', ')}], expected "${expectedAudience}"`);
+        throw new BadRequestException('SAML audience mismatch.');
       }
+    } else {
+      throw new BadRequestException('SAML assertion has no Conditions.');
     }
   }
 
@@ -398,9 +396,6 @@ export class SamlService {
     };
   }
 
-  private canonicalizeNode(node: Node): string {
-    return node.toString();
-  }
 
   private findFirstElement(parent: Document | Element, tagNames: string[]): Element | null {
     for (const tag of tagNames) {

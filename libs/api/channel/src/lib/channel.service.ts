@@ -996,6 +996,31 @@ export class ChannelService {
    * does not exist: confirming that a channel id is real is itself a
    * disclosure.
    */
+  /**
+   * Like `assertChannel`, but for reads on behalf of a person: a private
+   * channel is invisible (404) to anyone who is not a member, whatever their
+   * workspace role. Without it the member list, pins and files of a private
+   * channel were readable by every workspace member.
+   */
+  async assertReadable(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ): Promise<void> {
+    const channel = await this.prisma.channel.findFirst({
+      where: {
+        id: channelId,
+        workspaceId,
+        OR: [
+          { visibility: ChannelVisibility.PUBLIC },
+          { members: { some: { userId } } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!channel) throw new NotFoundException('Channel not found.');
+  }
+
   private async assertChannel(
     workspaceId: string,
     channelId: string,

@@ -18,8 +18,8 @@ export class IntegrationEncryptionService {
   constructor(private readonly config: ConfigService) {
     const rawSecret =
       this.config.get<string>('ENCRYPTION_KEY') ||
-      this.config.get<string>('JWT_ACCESS_SECRET') ||
-      'onetab-ai-secret-default-key-for-credentials-32b';
+      // Required (>= 32 chars) by env validation, so there is no public fallback.
+      this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
 
     // Derive a fixed 32-byte key using SHA-256
     this.key = createHash('sha256').update(rawSecret).digest();

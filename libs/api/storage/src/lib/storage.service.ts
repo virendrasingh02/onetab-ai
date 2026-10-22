@@ -1,7 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
-import { extname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
+import { safeExtension } from './upload-safety.js';
 import { S3StorageDriver } from './s3-driver.js';
 import { LocalStorageDriver, type StorageDriver } from './storage-driver.js';
 
@@ -65,7 +66,7 @@ export class StorageService implements OnModuleInit {
   /** Sharded by prefix so no directory accumulates every object. */
   buildKey(workspaceId: string, filename: string): string {
     const id = randomUUID();
-    const extension = extname(filename).slice(0, 16);
+    const extension = safeExtension(filename);
     return join(workspaceId, id.slice(0, 2), `${id}${extension}`).replace(
       /\\/g,
       '/',
@@ -118,12 +119,14 @@ export class StorageService implements OnModuleInit {
   // URL does. The signature *is* the authorization, so the public route does
   // no workspace check; it is worthless once `exp` passes.
 
+  /**
+   * Dedicated signing key, derived from the JWT secret with a label so a file
+   * token can never double as (or be forged from) any other HMAC under it.
+   * Fails closed: there is no built-in fallback secret.
+   */
   private get urlSecret(): string {
-    return (
-      this.config.get<string>('JWT_ACCESS_SECRET') ??
-      this.config.get<string>('JWT_SECRET') ??
-      'insecure-dev-upload-secret'
-    );
+    const base = this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
+    return createHmac('sha256', base).update('file-url-v1').digest('hex');
   }
 
   buildVariantKey(storageKey: string, variant: string, format = 'webp'): string {

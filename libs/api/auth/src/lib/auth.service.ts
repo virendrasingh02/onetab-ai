@@ -116,6 +116,34 @@ export class AuthService {
     @Optional() private readonly events?: EventEmitter2,
   ) {}
 
+  /**
+   * Security-event trail (sign-in failures, password changes). Fire and forget:
+   * auditing must never block or fail authentication.
+   */
+  private recordSecurityEvent(
+    action: string,
+    user: { id: string; email: string },
+    context: SessionContext = {},
+  ): void {
+    try {
+      void this.prisma.complianceAuditLog
+        .create({
+          data: {
+            actorId: user.id,
+            actorEmail: user.email,
+            action,
+            targetType: 'User',
+            targetId: user.id,
+            platform: 'auth',
+            reason: context.ipAddress ?? undefined,
+          },
+        })
+        .catch(() => undefined);
+    } catch {
+      // never let auditing break authentication
+    }
+  }
+
   async register(
     input: RegisterInput,
     context: SessionContext = {},
@@ -169,6 +197,7 @@ export class AuthService {
     );
 
     if (!user || !valid) {
+      if (user) this.recordSecurityEvent('LOGIN_FAILED', user, context);
       throw new UnauthorizedException({
         code: ApiErrorCode.INVALID_CREDENTIALS,
         message: 'Incorrect email or password.',
@@ -184,6 +213,7 @@ export class AuthService {
     });
 
     const session = await this.tokens.issueSession(signedIn, context);
+    this.recordSecurityEvent('LOGIN_SUCCEEDED', signedIn, context);
     return { user: toCurrentUser(signedIn), session };
   }
 
@@ -786,10 +816,11 @@ export class AuthService {
   ): Promise<void> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { passwordHash: true },
+      select: { id: true, email: true, passwordHash: true },
     });
 
     if (!user.passwordHash || !(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
+      this.recordSecurityEvent('PASSWORD_CHANGE_FAILED', user);
       throw new UnauthorizedException({
         code: ApiErrorCode.INVALID_CREDENTIALS,
         message: 'Your current password is incorrect.',
@@ -802,6 +833,7 @@ export class AuthService {
       data: { passwordHash: await bcrypt.hash(input.password, BCRYPT_ROUNDS) },
     });
     await this.tokens.revokeAllForUser(userId);
+    this.recordSecurityEvent('PASSWORD_CHANGED', user);
   }
 
   async getSessions(

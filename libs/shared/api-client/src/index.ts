@@ -5,6 +5,8 @@ export {
   scheduleRunCacheRefresh,
 } from './lib/agent-cache.js';
 
+export { configureCaptcha } from './lib/captcha.js';
+
 export {
   ApiError,
   getAccessToken,

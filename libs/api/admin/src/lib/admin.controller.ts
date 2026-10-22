@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -72,6 +73,9 @@ export class AdminController {
     @Param('userId') userId: string,
     @Body() body: { role: SystemRole },
   ) {
+    if (!Object.values(SystemRole).includes(body?.role)) {
+      throw new BadRequestException('Unknown role.');
+    }
     return this.admin.setUserRole(actorId, userId, body.role);
   }
 
@@ -107,9 +111,10 @@ export class AdminController {
   @Delete('workspaces/:workspaceId')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteWorkspace(
+    @CurrentUser('id') actorId: string,
     @Param('workspaceId') workspaceId: string,
   ): Promise<void> {
-    return this.admin.deleteWorkspace(workspaceId);
+    return this.admin.deleteWorkspace(actorId, workspaceId);
   }
 
   // --- organisations --------------------------------------------------------

@@ -16,6 +16,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from '@org/api-auth';
 import { Public } from '@org/api-common';
 import { PrismaService } from '@org/database';
@@ -85,6 +86,7 @@ export class SsoAuthController {
   /* SSO Email Lookup                                                           */
   /* -------------------------------------------------------------------------- */
 
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Get('lookup')
   async lookupSSO(@Query('email') email?: string): Promise<SSOLookupResponse> {
     if (!email || !email.includes('@')) {
@@ -422,6 +424,7 @@ export class SsoAuthController {
   /* Emergency Break-Glass Recovery Login                                       */
   /* -------------------------------------------------------------------------- */
 
+  @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })
   @Post('recovery-login')
   async recoveryLogin(
     @Body() body: unknown,
@@ -534,6 +537,23 @@ export class SsoAuthController {
         });
       }
     } else {
+      // The IdP is asserted by the tenant, so its email claim is only trusted
+      // for domains that tenant has verified. Otherwise a tenant could mint a
+      // login for any other tenant's (or consumer) account.
+      const org = await this.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { domain: true, verifiedDomains: true },
+      });
+      const emailDomain = cleanEmail.split('@')[1] ?? '';
+      const owned = [org?.domain, ...(org?.verifiedDomains ?? [])]
+        .filter((d): d is string => !!d)
+        .map((d) => d.toLowerCase());
+      if (!emailDomain || !owned.includes(emailDomain)) {
+        throw new ForbiddenException(
+          'This email domain is not verified for your organization.',
+        );
+      }
+
       // 2. Safe account linking: find existing user by email
       let user = await this.prisma.user.findUnique({
         where: { email: cleanEmail },

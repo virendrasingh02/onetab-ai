@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
@@ -143,6 +144,49 @@ function workspaceLiveSourcePlugin() {
   };
 }
 
+/**
+ * Content-Security-Policy for production builds, injected as a <meta> tag so it
+ * travels with the bundle whatever static host serves it. Dev is left alone:
+ * Vite's HMR needs inline scripts and websockets to arbitrary localhost ports.
+ * `frame-ancestors` cannot be set from a <meta>; the host must send
+ * `X-Frame-Options: DENY` / `frame-ancestors 'none'` as a response header.
+ */
+function cspPlugin() {
+  const policyFor = (inlineScriptHashes: string[]) =>
+    [
+      "default-src 'self'",
+      // Inline scripts (the pre-paint theme bootstrap) are allowed by hash only.
+      `script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com ${inlineScriptHashes.join(' ')}`.trim(),
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' blob: https:",
+      // The API, Matrix homeserver and realtime stream are configured per environment.
+      "connect-src 'self' https: wss:",
+      'frame-src https:',
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ');
+  return {
+    name: 'onetab-csp',
+    apply: 'build' as const,
+    transformIndexHtml: {
+      order: 'post' as const,
+      handler(html: string) {
+        const hashes = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
+          (m) =>
+            `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`,
+        );
+        const meta = `<meta http-equiv="Content-Security-Policy" content="${policyFor(hashes)}" />`;
+        return html.replace('<head>', `<head>
+    ${meta}`);
+      },
+    },
+  };
+}
+
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/web',
@@ -212,6 +256,7 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     tailwindcss(),
+    cspPlugin(),
     syncEmojibasePlugin(),
     workspaceLiveSourcePlugin(),
     /**

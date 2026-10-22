@@ -251,9 +251,9 @@ describe('LinkPreviewService', () => {
     });
 
     it('stores message visibility override in cache', async () => {
-      await service.setMessageVisibility('msg_456', 'hidden');
+      await service.setMessageVisibility('$msg_456', 'hidden');
       expect(mockCache.set).toHaveBeenCalledWith(
-        'link-preview:visibility:msg_456',
+        'link-preview:visibility:$msg_456',
         'hidden',
         expect.any(Number),
       );

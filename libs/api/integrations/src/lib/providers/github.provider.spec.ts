@@ -47,9 +47,12 @@ describe('GitHubProvider', () => {
   });
 
   describe('webhooks', () => {
+    beforeEach(() => {
+      mockConfig = { JWT_ACCESS_SECRET: 'test-secret-test-secret-test-secret-12' };
+    });
     const credential = { id: 'int_1' } as ResolvedCredential;
     const sign = (body: string, id = 'int_1') => {
-      const config = { get: (k: string) => mockConfig[k] };
+      const config = { get: (k: string) => mockConfig[k] ?? (k === 'JWT_ACCESS_SECRET' ? 'test-secret-test-secret-test-secret-12' : undefined) };
       return `sha256=${createHmac('sha256', deriveWebhookSecret(config, id)).update(body).digest('hex')}`;
     };
 

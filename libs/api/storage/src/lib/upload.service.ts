@@ -52,6 +52,8 @@ const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
 
 /** Signed content URLs last this long — long enough for a page's lifetime. */
+import { isActiveContent, normalizeMime } from './upload-safety.js';
+
 const SIGNED_URL_TTL_SECONDS = 3600;
 
 const ALLOWED_MIME_EXACT = new Set<string>([
@@ -81,8 +83,8 @@ function isAllowedUpload(filename: string, mimeType: string): boolean {
   const ext = dot >= 0 ? filename.slice(dot).toLowerCase() : '';
   if (ext && BLOCKED_EXTENSIONS.has(ext)) return false;
 
-  const type = (mimeType || 'application/octet-stream').toLowerCase();
-  if (type === 'image/svg+xml') return false;
+  const type = normalizeMime(mimeType);
+  if (isActiveContent(type)) return false;
   if (ALLOWED_MIME_EXACT.has(type)) return true;
   return ALLOWED_MIME_PREFIXES.some((prefix) => type.startsWith(prefix));
 }
@@ -120,6 +122,34 @@ export interface UploadContextInput {
 export interface UploadListQuery extends UploadContextInput {
   cursor?: string;
   limit?: number;
+  /** The caller; files in private channels / other people's DMs are hidden from them. */
+  viewerId?: string;
+}
+
+/**
+ * Row filter for what `viewerId` may see: nothing filed under a private channel
+ * they are not in, and DM files only for the uploader or the peer.
+ */
+function visibleTo(viewerId: string | undefined) {
+  if (!viewerId) return {};
+  return {
+    AND: [
+      {
+        OR: [
+          { channelId: null },
+          { channel: { is: { visibility: 'PUBLIC' as const } } },
+          { channel: { is: { members: { some: { userId: viewerId } } } } },
+        ],
+      },
+      {
+        OR: [
+          { contextType: { not: 'DIRECT' as const } },
+          { uploaderId: viewerId },
+          { contextId: viewerId },
+        ],
+      },
+    ],
+  };
 }
 
 function looksLikeRoomId(value: string): boolean {
@@ -315,6 +345,7 @@ export class UploadService implements OnModuleInit {
       where: {
         workspaceId,
         isCurrent: true,
+        ...visibleTo(query.viewerId),
         ...(query.channelId ? { channelId: query.channelId } : {}),
         ...(context && context.type !== 'WORKSPACE'
           ? { contextType: context.type }
@@ -718,11 +749,18 @@ export class UploadService implements OnModuleInit {
     workspaceId: string | null,
     uploadId: string,
     variant?: string | null,
+    viewerId?: string,
   ): Promise<{ filename: string; mimeType: string; content: Buffer }> {
     const row = await this.prisma.upload.findFirst({
-      where: workspaceId ? { id: uploadId, workspaceId } : { id: uploadId },
+      where: workspaceId
+        ? { id: uploadId, workspaceId, ...visibleTo(viewerId) }
+        : { id: uploadId },
     });
     if (!row) throw new NotFoundException('File not found.');
+    // The variant is spliced into a storage key; only known preset names pass.
+    if (variant && !Object.hasOwn(STANDARD_IMAGE_PRESETS, variant)) {
+      throw new NotFoundException('File not found.');
+    }
 
     let targetKey = row.storageKey;
     let targetMime = row.mimeType;

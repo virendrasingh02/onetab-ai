@@ -129,7 +129,10 @@ export class WorkspaceEnterpriseController {
     return this.enterpriseService.toggleScim(orgId, Boolean(enabled), user.email);
   }
 
+  // A recovery code signs in as an administrator, so only the owner may mint
+  // one; otherwise an admin could use it to become the owner.
   @Post('recovery-code')
+  @WorkspaceRoles(WorkspaceRole.OWNER)
   async generateRecoveryCode(
     @Param('workspaceId') workspaceId: string,
     @CurrentUser() user: AuthenticatedUser,

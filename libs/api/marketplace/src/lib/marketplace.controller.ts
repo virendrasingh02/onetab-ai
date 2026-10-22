@@ -12,10 +12,11 @@ import {
 import { SystemRoleGuard, WorkspaceRoleGuard } from '@org/api-auth';
 import {
   CurrentUser,
+  RequireWorkspacePermissions,
   SystemRoles,
   type AuthenticatedUser,
 } from '@org/api-common';
-import { SystemRole } from '@org/types';
+import { SystemRole, WorkspacePermission } from '@org/types';
 import {
   CATEGORIES_BY_KIND,
   LISTING_KINDS,
@@ -142,6 +143,7 @@ export class MarketplaceController {
 
   @Post('workspaces/:workspaceId/installations')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   install(
     @Param('workspaceId') workspaceId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -163,6 +165,7 @@ export class MarketplaceController {
 
   @Patch('workspaces/:workspaceId/installations/:slug')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   updateInstallation(
     @Param('workspaceId') workspaceId: string,
     @Param('slug') slug: string,
@@ -184,6 +187,7 @@ export class MarketplaceController {
 
   @Delete('workspaces/:workspaceId/installations/:slug')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   uninstall(
     @Param('workspaceId') workspaceId: string,
     @Param('slug') slug: string,
@@ -216,6 +220,7 @@ export class MarketplaceController {
 
   @Post('workspaces/:workspaceId/approvals/:slug/resolve')
   @UseGuards(WorkspaceRoleGuard)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   resolveApproval(
     @Param('workspaceId') workspaceId: string,
     @Param('slug') slug: string,
@@ -231,7 +236,11 @@ export class MarketplaceController {
     );
   }
 
+  // Writes into the global catalogue, so it is operator-only: any member could
+  // otherwise overwrite another publisher's community listing.
   @Post('listings/custom')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   publishCustom(
     @Body()
     body: {

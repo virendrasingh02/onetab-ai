@@ -2003,10 +2003,10 @@ export class AnalyticsService {
 
     let name = 'Entity';
     if (entityType === 'AGENT') {
-      const ag = await this.prisma.aIAgent.findUnique({ where: { id: entityId }, select: { name: true } });
+      const ag = await this.prisma.aIAgent.findFirst({ where: { id: entityId, workspaceId }, select: { name: true } });
       if (ag) name = ag.name;
     } else {
-      const wf = await this.prisma.automationWorkflow.findUnique({ where: { id: entityId }, select: { name: true } });
+      const wf = await this.prisma.automationWorkflow.findFirst({ where: { id: entityId, workspaceId }, select: { name: true } });
       if (wf) name = wf.name;
     }
 

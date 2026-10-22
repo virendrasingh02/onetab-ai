@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AppEvent } from '@org/api-common';
+import { AppEvent, assertPublicHttpUrl, UnsafeUrlError } from '@org/api-common';
 import { Prisma, PrismaService } from '@org/database';
 import {
   CANVAS_AGENT_TRIGGER,
@@ -673,6 +673,8 @@ export class BillingService {
       );
     }
 
+    await this.assertSafeEndpoint(input.endpointUrl);
+
     let existingApiKey = '';
     if (sub?.customLlmConfig) {
       try {
@@ -727,12 +729,31 @@ export class BillingService {
   }
 
   /**
+   * The API sends this endpoint a request carrying the customer's key, so it
+   * must not point into the server's own network. Self-hosted model servers on
+   * a private address opt in with `AI_ALLOW_PRIVATE_NETWORK=true`.
+   */
+  private async assertSafeEndpoint(endpointUrl: string): Promise<void> {
+    if (this.config.get<string>('AI_ALLOW_PRIVATE_NETWORK') === 'true') return;
+    try {
+      await assertPublicHttpUrl(endpointUrl);
+    } catch (err) {
+      if (err instanceof UnsafeUrlError) {
+        throw new BadRequestException(`That endpoint can't be used: ${err.message}`);
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Tests custom LLM connectivity with given endpoint & credentials.
    */
   async testCustomLLMConnection(input: TestCustomLLMInput): Promise<TestCustomLLMResponse> {
     if (!input.endpointUrl || !input.modelIdentifier) {
       throw new BadRequestException('Endpoint URL and Model Identifier are required.');
     }
+
+    await this.assertSafeEndpoint(input.endpointUrl);
 
     const startTime = Date.now();
     try {
@@ -753,6 +774,7 @@ export class BillingService {
       const res = await fetch(modelsEndpoint, {
         method: 'GET',
         headers,
+        redirect: 'manual',
         signal: controller.signal,
       }).finally(() => clearTimeout(timeout));
 
@@ -772,6 +794,7 @@ export class BillingService {
       const chatRes = await fetch(chatEndpoint, {
         method: 'POST',
         headers,
+        redirect: 'manual',
         body: JSON.stringify({
           model: input.modelIdentifier,
           messages: [{ role: 'user', content: 'ping' }],

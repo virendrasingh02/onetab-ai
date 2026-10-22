@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { secretsEqual } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
   EMAIL_EVENT_KEY,
@@ -206,7 +207,7 @@ export class InboundEmailService {
     body: InboundEmailInput,
   ): Promise<{ ok: true; ignored?: string }> {
     const expected = this.config.get<string>('INBOUND_EMAIL_SECRET');
-    if (!expected || secret !== expected) {
+    if (!secretsEqual(expected, secret)) {
       throw new ForbiddenException('Invalid inbound-email secret.');
     }
 
