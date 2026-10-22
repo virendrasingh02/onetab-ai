@@ -30,14 +30,24 @@ export interface CommandPaletteProps {
    * this library stays presentational and never fetches.
    */
   renderResults?: (query: string) => ReactNode;
+  /**
+   * Replaces the built-in navigation commands. The caller owns the data
+   * (real channels, people, permitted pages) and is responsible for closing
+   * the palette from each `action`.
+   */
+  commands?: CommandItem[];
+  /** Right-hand footer slot; nothing is shown when omitted. */
+  footer?: ReactNode;
 }
 
-interface CommandItem {
+export interface CommandItem {
   id: string;
   category: string;
   label: string;
   icon: ReactNode;
   shortcut?: string;
+  /** Extra text matched by the filter but not displayed. */
+  keywords?: string;
   action: () => void;
 }
 
@@ -47,6 +57,8 @@ export function CommandPalette({
   placeholder = 'Type a command or search…',
   children,
   renderResults,
+  commands,
+  footer,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -150,28 +162,6 @@ export function CommandPalette({
       },
     },
     {
-      id: 'invitations',
-      category: 'Team',
-      label: 'Invite People & Shareable Links',
-      icon: <Users className="size-4 text-primary" />,
-      shortcut: 'I',
-      action: () => {
-        onOpenChange(false);
-        navigate('invitations');
-      },
-    },
-    {
-      id: 'design-system',
-      category: 'Design System',
-      label: 'Open Design System Studio & Component Explorer',
-      icon: <Sparkles className="size-4 text-primary" />,
-      shortcut: 'G S',
-      action: () => {
-        onOpenChange(false);
-        navigate('design-system');
-      },
-    },
-    {
       id: 'new-channel',
       category: 'Create',
       label: 'Create New Channel',
@@ -194,10 +184,12 @@ export function CommandPalette({
     },
   ];
 
-  const filtered = defaultCommands.filter(
+  const needle = query.trim().toLowerCase();
+  const filtered = (commands ?? defaultCommands).filter(
     (cmd) =>
-      cmd.label.toLowerCase().includes(query.toLowerCase()) ||
-      cmd.category.toLowerCase().includes(query.toLowerCase()),
+      cmd.label.toLowerCase().includes(needle) ||
+      cmd.category.toLowerCase().includes(needle) ||
+      (cmd.keywords?.toLowerCase().includes(needle) ?? false),
   );
 
   useEffect(() => {
@@ -273,38 +265,43 @@ export function CommandPalette({
               </div>
             )
           ) : (
-            <div className="gap-0.5 flex flex-col">
+            <div className="flex flex-col">
               {filtered.map((item, idx) => {
                 const isSelected = idx === selectedIndex;
+                const showHeading =
+                  idx === 0 || filtered[idx - 1].category !== item.category;
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => item.action()}
-                    onMouseEnter={() => setSelectedIndex(idx)}
-                    className={cn(
-                      'px-3 py-2 text-xs flex w-full items-center justify-between rounded-btn',
-                      'transition-colors duration-(--duration-fast) ease-standard',
-                      isSelected
-                        ? 'bg-accent text-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                    )}
-                  >
-                    <div className="gap-2.5 flex items-center">
-                      {item.icon}
-                      <span className="font-medium">{item.label}</span>
-                      <span className="font-mono text-[10px] text-subtle">
-                        · {item.category}
-                      </span>
-                    </div>
-                    <div className="gap-2 flex items-center">
-                      {item.shortcut ? (
-                        <KbdShortcut shortcut={item.shortcut} size="xs" variant="muted" />
-                      ) : null}
-                      {isSelected ? (
-                        <ArrowRight className="size-3 text-primary" />
-                      ) : null}
-                    </div>
-                  </button>
+                  <div key={item.id}>
+                    {showHeading ? (
+                      <p className="px-3 pt-2 pb-1 text-[10px] font-medium tracking-wide uppercase text-subtle">
+                        {item.category}
+                      </p>
+                    ) : null}
+                    <button
+                      onClick={() => item.action()}
+                      onMouseEnter={() => setSelectedIndex(idx)}
+                      className={cn(
+                        'px-3 py-2 text-xs flex w-full items-center justify-between rounded-btn',
+                        'transition-colors duration-(--duration-fast) ease-standard',
+                        isSelected
+                          ? 'bg-accent text-foreground'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                      )}
+                    >
+                      <div className="gap-2.5 min-w-0 flex items-center">
+                        {item.icon}
+                        <span className="truncate font-medium">{item.label}</span>
+                      </div>
+                      <div className="gap-2 flex items-center">
+                        {item.shortcut ? (
+                          <KbdShortcut shortcut={item.shortcut} size="xs" variant="muted" />
+                        ) : null}
+                        {isSelected ? (
+                          <ArrowRight className="size-3 text-primary" />
+                        ) : null}
+                      </div>
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -326,9 +323,7 @@ export function CommandPalette({
               navigate
             </span>
           </div>
-          <span className="gap-1 flex items-center text-primary-text">
-            <Sparkles className="size-3" /> Linear AI enabled
-          </span>
+          {footer}
         </div>
       </DialogContent>
     </Dialog>

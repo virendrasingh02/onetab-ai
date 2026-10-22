@@ -369,6 +369,7 @@ export {
   CommandPalette,
   useCommandPalette,
   type CommandPaletteProps,
+  type CommandItem,
 } from './lib/components/command-palette.js';
 
 /* --- design-token helpers ------------------------------------------------ */

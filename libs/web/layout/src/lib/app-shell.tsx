@@ -3,6 +3,7 @@ import { useAccountStore, useAuthStore, useCurrentUser } from '@org/auth';
 import {
   Button,
   CommandPalette,
+  type CommandItem,
   EmptyState,
   ErrorBoundary,
   FocusModeWidget,
@@ -69,7 +70,21 @@ import {
   type WorkspaceState,
 } from '@org/web-workspace';
 import { ScheduledStatusDialog } from '@org/web-profile';
-import { Building2 } from 'lucide-react';
+import {
+  AtSign,
+  Building2,
+  Calendar,
+  CheckSquare,
+  FileText,
+  Hash,
+  LayoutDashboard,
+  Plus,
+  Settings,
+  Sparkles,
+  UserPlus,
+  Users,
+  Zap,
+} from 'lucide-react';
 import {
   Suspense,
   useCallback,
@@ -410,6 +425,82 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
   useDesktopCommand('open-settings', () => {
     if (slug) navigate(`/w/${slug}/settings`);
   });
+
+  /*
+   * Palette commands come from live workspace data — the user's channels and
+   * teammates plus the pages that actually exist — so nothing listed is a
+   * placeholder. Search results (typed queries) are layered on top.
+   */
+  const paletteCommands = useMemo<CommandItem[]>(() => {
+    if (!slug) return [];
+    const go = (path: string) => () => {
+      palette.setOpen(false);
+      navigate(`/w/${slug}/${path}`);
+    };
+    const icon = 'size-4 text-muted-foreground';
+    const pages: CommandItem[] = [
+      { id: 'p-dashboard', category: 'Go to', label: 'Dashboard', icon: <LayoutDashboard className={icon} />, action: go('dashboard') },
+      { id: 'p-tasks', category: 'Go to', label: 'Tasks & projects', icon: <CheckSquare className={icon} />, shortcut: 'G T', action: go('tasks') },
+      { id: 'p-docs', category: 'Go to', label: 'Docs & notes', icon: <FileText className={icon} />, shortcut: 'G D', action: go('docs') },
+      { id: 'p-meetings', category: 'Go to', label: 'Meetings', icon: <Calendar className={icon} />, shortcut: 'G M', action: go('meetings') },
+      { id: 'p-schedule', category: 'Go to', label: 'Schedule', icon: <Calendar className={icon} />, shortcut: 'G C', action: go('schedule') },
+      { id: 'p-ai', category: 'Go to', label: 'AI assistant', icon: <Sparkles className={icon} />, shortcut: 'G A', action: go('ai-chat') },
+      { id: 'p-automations', category: 'Go to', label: 'Automations', icon: <Zap className={icon} />, shortcut: 'G W', action: go('automations') },
+      { id: 'p-marketplace', category: 'Go to', label: 'Apps & integrations', keywords: 'marketplace agents integrations', icon: <Sparkles className={icon} />, action: go('marketplace') },
+      { id: 'p-members', category: 'Go to', label: 'Team directory', keywords: 'members people', icon: <Users className={icon} />, action: go('members') },
+      { id: 'p-settings', category: 'Go to', label: 'Workspace settings', icon: <Settings className={icon} />, action: go('settings') },
+    ];
+    const create: CommandItem[] = [
+      {
+        id: 'c-channel',
+        category: 'Create',
+        label: 'New channel',
+        icon: <Plus className={icon} />,
+        shortcut: 'N C',
+        action: () => {
+          palette.setOpen(false);
+          setCreateChannelOpen(true);
+        },
+      },
+      {
+        id: 'c-invite',
+        category: 'Create',
+        label: 'Invite people',
+        icon: <UserPlus className={icon} />,
+        shortcut: 'I',
+        action: () => {
+          palette.setOpen(false);
+          setInviteMembersOpen(true);
+        },
+      },
+    ];
+    const channels: CommandItem[] = (channelsQuery.data ?? []).map((channel) => ({
+      id: `ch-${channel.id}`,
+      category: 'Channels',
+      label: channel.name,
+      icon: <Hash className={icon} />,
+      action: go(`c/${channel.slug}`),
+    }));
+    const people: CommandItem[] = (membersQuery.data ?? [])
+      .filter((member) => member.user.id !== user?.id)
+      .map((member) => ({
+        id: `dm-${member.user.id}`,
+        category: 'People',
+        label: member.user.displayName ?? member.user.name,
+        keywords: 'message dm',
+        icon: <AtSign className={icon} />,
+        action: go(`dms/${member.user.id}`),
+      }));
+    return [...create, ...pages, ...channels, ...people];
+  }, [
+    slug,
+    navigate,
+    palette,
+    channelsQuery.data,
+    membersQuery.data,
+    user?.id,
+    setInviteMembersOpen,
+  ]);
 
   /*
    * One loader for the whole boot path. The user, the workspace list and the
@@ -778,6 +869,7 @@ export function AppShell({ splitPages }: AppShellProps = {}) {
           open={palette.open}
           onOpenChange={palette.setOpen}
           placeholder="Search channels, people, docs…"
+          commands={paletteCommands}
           renderResults={(query) => (
             <WorkspaceSearchPanel
               workspaceId={workspaceId}

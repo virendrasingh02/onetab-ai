@@ -23,6 +23,7 @@ import type { WorkspaceRole } from '@org/types';
 import {
   Bot,
   Check,
+  Copy,
   Hash,
   LayoutTemplate,
   Megaphone,
@@ -45,6 +46,7 @@ import {
   useChannelEmailMutations,
   useChannelEmailSettings,
   useChannelMemberMutations,
+  useChannelMembers,
   useUpdateChannel,
 } from '../use-channels.js';
 
@@ -865,7 +867,7 @@ function EmailIntegrationSection({
             {copied ? (
               <Check className="size-3 text-success-text" />
             ) : (
-              <Plus className="size-3 rotate-45" />
+              <Copy className="size-3" />
             )}
             {copied ? 'Copied' : 'Copy'}
           </Button>
@@ -939,17 +941,43 @@ export function ChannelPostingDialog({
     queryFn: () => memberApi.list(workspaceId as string),
     enabled: open && !!workspaceId && mode === 'ANNOUNCEMENT',
   });
+  const channelMembers = useChannelMembers(
+    open && mode === 'ANNOUNCEMENT' ? workspaceId : undefined,
+    channel.id,
+  );
 
   const posterSet = useMemo(() => new Set(posterIds), [posterIds]);
-  const memberRows = useMemo(() => {
+
+  /** Everyone who can already post, so they are counted rather than offered. */
+  const alwaysPostIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (channel.createdById) ids.add(channel.createdById);
+    for (const m of membersQuery.data ?? []) {
+      if (m.role === 'OWNER' || m.role === 'ADMIN') ids.add(m.user.id);
+    }
+    for (const m of channelMembers.data ?? []) {
+      if (m.role === 'ADMIN') ids.add(m.user.id);
+    }
+    return ids;
+  }, [membersQuery.data, channelMembers.data, channel.createdById]);
+
+  /** Channel members (the only people who can post there) that can be named. */
+  const candidates = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    return (membersQuery.data ?? []).filter((m) => {
-      if (m.role === 'OWNER' || m.role === 'ADMIN') return false; // already post
+    return (channelMembers.data ?? []).filter((m) => {
+      if (alwaysPostIds.has(m.user.id) || posterSet.has(m.user.id)) return false;
       if (!needle) return true;
-      const name = m.user.displayName ?? m.user.name;
-      return name.toLowerCase().includes(needle);
+      return (m.user.displayName ?? m.user.name).toLowerCase().includes(needle);
     });
-  }, [membersQuery.data, search]);
+  }, [channelMembers.data, alwaysPostIds, posterSet, search]);
+
+  /** Named posters resolved to people (the workspace roster covers non-members). */
+  const selectedPosters = useMemo(() => {
+    const byId = new Map<string, PublicUser>();
+    for (const m of membersQuery.data ?? []) byId.set(m.user.id, m.user);
+    for (const m of channelMembers.data ?? []) byId.set(m.user.id, m.user);
+    return posterIds.map((id) => ({ id, user: byId.get(id) }));
+  }, [posterIds, membersQuery.data, channelMembers.data]);
 
   const togglePoster = (userId: string) =>
     setPosterIds((prev) =>
@@ -957,6 +985,22 @@ export function ChannelPostingDialog({
         ? prev.filter((id) => id !== userId)
         : [...prev, userId],
     );
+
+  const dirty = useMemo(() => {
+    if (mode !== channel.mode) return true;
+    if (mode === 'STANDARD') return false;
+    if (
+      toggles.allowReplies !== channel.allowReplies ||
+      toggles.allowReactions !== channel.allowReactions ||
+      toggles.allowFileUploads !== channel.allowFileUploads
+    ) {
+      return true;
+    }
+    const saved = new Set(channel.announcementPosterIds ?? []);
+    return (
+      saved.size !== posterIds.length || posterIds.some((id) => !saved.has(id))
+    );
+  }, [mode, toggles, posterIds, channel]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -1078,62 +1122,88 @@ export function ChannelPostingDialog({
                   ))}
                 </div>
 
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-foreground">
-                    People who can post
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Channel admins and workspace admins can always post.
-                  </p>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">
+                      People who can post
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Channel admins, workspace admins and the creator
+                      {alwaysPostIds.size > 0 ? ` (${alwaysPostIds.size})` : ''}{' '}
+                      can always post.
+                    </p>
+                  </div>
+
+                  {selectedPosters.length > 0 && (
+                    <ul className="flex flex-wrap gap-1.5">
+                      {selectedPosters.map(({ id, user }) => (
+                        <li key={id}>
+                          <button
+                            type="button"
+                            onClick={() => togglePoster(id)}
+                            aria-label={`Remove ${user?.displayName ?? user?.name ?? 'person'}`}
+                            className="gap-1.5 flex items-center rounded-full border border-border bg-surface-raised py-0.5 pl-0.5 pr-2 text-[11px] transition-colors hover:bg-accent"
+                          >
+                            <UserAvatar
+                              name={user?.displayName ?? user?.name ?? '?'}
+                              src={user?.avatarUrl ?? undefined}
+                              seed={id}
+                              size="xs"
+                              indicator={false}
+                            />
+                            <span className="max-w-32 truncate">
+                              {user?.displayName ?? user?.name ?? 'Unknown'}
+                            </span>
+                            <X className="size-3 text-muted-foreground" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search members…"
+                      placeholder="Add a channel member…"
                       className="h-8 pl-8 text-xs"
                     />
                   </div>
                   <ScrollArea className="max-h-40 rounded-lg border border-border">
-                    {membersQuery.isLoading ? (
+                    {channelMembers.isLoading ? (
                       <p className="px-3 py-4 text-center text-[11px] text-muted-foreground">
                         Loading members…
                       </p>
-                    ) : memberRows.length === 0 ? (
+                    ) : candidates.length === 0 ? (
                       <p className="px-3 py-4 text-center text-[11px] text-muted-foreground">
-                        No matching members.
+                        {search
+                          ? 'No matching members.'
+                          : 'Everyone else in this channel is already listed.'}
                       </p>
                     ) : (
                       <ul className="p-1">
-                        {memberRows.map((m) => {
-                          const selected = posterSet.has(m.user.id);
-                          return (
-                            <li key={m.user.id}>
-                              <button
-                                type="button"
-                                onClick={() => togglePoster(m.user.id)}
-                                className={cn(
-                                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent',
-                                  selected && 'bg-primary/5',
-                                )}
-                              >
-                                <UserAvatar
-                                  name={m.user.displayName ?? m.user.name}
-                                  src={m.user.avatarUrl ?? undefined}
-                                  seed={m.user.id}
-                                  size="xs"
-                                  indicator={false}
-                                />
-                                <span className="flex-1 truncate">
-                                  {m.user.displayName ?? m.user.name}
-                                </span>
-                                {selected && (
-                                  <Check className="size-3.5 text-success-text" />
-                                )}
-                              </button>
-                            </li>
-                          );
-                        })}
+                        {candidates.map((m) => (
+                          <li key={m.user.id}>
+                            <button
+                              type="button"
+                              onClick={() => togglePoster(m.user.id)}
+                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
+                            >
+                              <UserAvatar
+                                name={m.user.displayName ?? m.user.name}
+                                src={m.user.avatarUrl ?? undefined}
+                                seed={m.user.id}
+                                size="xs"
+                                indicator={false}
+                              />
+                              <span className="flex-1 truncate">
+                                {m.user.displayName ?? m.user.name}
+                              </span>
+                              <Plus className="size-3.5 text-muted-foreground" />
+                            </button>
+                          </li>
+                        ))}
                       </ul>
                     )}
                   </ScrollArea>
@@ -1141,6 +1211,9 @@ export function ChannelPostingDialog({
               </>
             )}
 
+            <p className="pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Applied instantly
+            </p>
             <AnonymousPostingSection
               workspaceId={workspaceId}
               channelId={channel.id}
@@ -1159,8 +1232,8 @@ export function ChannelPostingDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={update.isPending}>
-              Save
+            <Button type="submit" disabled={update.isPending || !dirty}>
+              {update.isPending ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
         </form>
