@@ -163,6 +163,7 @@ function applyCustomThemeVariables(config: ThemeConfig | null, resolved: Resolve
       Boolean(config.brandColor) ||
       Boolean(config.neutralColor) ||
       (config.colors && Object.keys(config.colors).length > 0) ||
+      Boolean(config.modeColors?.light || config.modeColors?.dark) ||
       (config.gradients && Object.keys(config.gradients).length > 0) ||
       (config.typography && Object.keys(config.typography).length > 0) ||
       (config.shape && Object.keys(config.shape).length > 0) ||

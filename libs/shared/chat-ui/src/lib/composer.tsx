@@ -7,6 +7,7 @@ import {
   type DetectedMention,
   type ComposerSurfaceKind,
   type ComposerMessageMeta,
+  type ComposerMentionMeta,
 } from '@org/types';
 
 import {
@@ -399,6 +400,15 @@ export interface ComposerProps {
   showFormatting?: boolean;
 
   slashCommands?: SlashCommand[];
+  /**
+   * Runs a typed `/command`. Resolve `true` when it was handled — nothing is
+   * posted — or `false` to let the composer send it as a normal message.
+   */
+  onSlashCommand?: (command: {
+    name: string;
+    args: string;
+    mentions: ComposerMentionMeta[];
+  }) => boolean | Promise<boolean>;
   onStartHuddle?: () => void;
   /**
    * Presence of this prop is what shows the mic button (in addition to the
@@ -461,7 +471,7 @@ export function Composer({
   enterToSend = true,
   onMentionsChange,
   slashCommands = DEFAULT_SLASH_COMMANDS,
-
+  onSlashCommand,
   onStartHuddle,
   onSendVoice,
   linkPreviewsEnabled = true,
@@ -888,6 +898,21 @@ export function Composer({
         });
       }
 
+      // A host that owns slash commands runs them for real; anything it
+      // declines (agent/app actions, unknown `/text`) is sent as a message.
+      const slash = /^\/([a-z][\w-]*)(?:\s+([\s\S]*))?$/i.exec(body);
+      if (onSlashCommand && slash && slash[1].toLowerCase() !== 'shrug') {
+        return Promise.resolve(
+          onSlashCommand({
+            name: slash[1].toLowerCase(),
+            args: (slash[2] ?? '').trim(),
+            mentions,
+          }),
+        ).then((handled) => (handled ? undefined : sendAsMessage()));
+      }
+      return sendAsMessage();
+
+      function sendAsMessage() {
       let finalBody = body;
       let detectedCommand: string | undefined;
       let commandArgs: string | undefined;
@@ -949,9 +974,11 @@ export function Composer({
         return anonymousPosting.onSendAnonymously(finalBody);
       }
       return onSend(finalBody, meta);
+      }
     },
     [
       flushAttachments,
+      onSlashCommand,
       onSend,
       conversationId,
       clearDraft,

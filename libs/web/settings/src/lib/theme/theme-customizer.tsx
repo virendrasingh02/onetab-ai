@@ -1,30 +1,149 @@
+import { queryKeys, workspaceApi } from '@org/api-client';
 import {
+  ACTIVE_WORKSPACE_STORAGE_KEY,
   checkContrast,
   downloadThemeConfigFile,
+  generateThemeVariables,
   isValidHexColor,
   THEME_PRESETS,
   type ThemePreset,
   useTheme,
   validateAndParseThemeConfig,
 } from '@org/design-system';
-import type { GradientConfig, ThemeConfig } from '@org/types';
-import { Button, Input, toast } from '@org/ui';
+import type { GradientConfig, ThemeColorsConfig, ThemeConfig } from '@org/types';
+import { Button, toast } from '@org/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Check,
   Download,
   Eye,
+  Loader2,
   Moon,
   Palette,
   RotateCcw,
   Sparkles,
   Sun,
+  Undo2,
   Upload,
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { GradientEditor } from './gradient-editor.js';
+import { HexInput } from './hex-input.js';
 
-/** Mirrors `--success` in design-system theme.css, so a reset lands on the real default. */
-const successDefault = (dark: boolean) => (dark ? '#37b06f' : '#037152');
+type EditMode = 'light' | 'dark';
+type ColorKey =
+  | 'primary'
+  | 'secondary'
+  | 'accent'
+  | 'background'
+  | 'foreground'
+  | 'ring'
+  | 'card'
+  | 'muted'
+  | 'border'
+  | 'input'
+  | 'success'
+  | 'warning'
+  | 'destructive'
+  | 'info';
+
+interface ColorField {
+  key: ColorKey;
+  label: string;
+}
+
+const COLOR_GROUPS: ReadonlyArray<{ title: string; columns: string; fields: ColorField[] }> = [
+  {
+    title: 'Brand & canvas',
+    columns: 'lg:grid-cols-3',
+    fields: [
+      { key: 'primary', label: 'Primary brand' },
+      { key: 'secondary', label: 'Secondary surface' },
+      { key: 'accent', label: 'Accent & hover' },
+      { key: 'background', label: 'Background canvas' },
+      { key: 'foreground', label: 'Text / foreground' },
+      { key: 'ring', label: 'Focus ring' },
+    ],
+  },
+  {
+    title: 'Surfaces, muted & borders',
+    columns: 'lg:grid-cols-4',
+    fields: [
+      { key: 'card', label: 'Card & panel' },
+      { key: 'muted', label: 'Muted elements' },
+      { key: 'border', label: 'Border hairline' },
+      { key: 'input', label: 'Input background' },
+    ],
+  },
+  {
+    title: 'Status & notification',
+    columns: 'lg:grid-cols-4',
+    fields: [
+      { key: 'success', label: 'Success' },
+      { key: 'warning', label: 'Warning' },
+      { key: 'destructive', label: 'Destructive' },
+      { key: 'info', label: 'Info' },
+    ],
+  },
+];
+
+const GRADIENT_SLOTS = [
+  { slot: 'primary', label: 'Primary gradient (--gradient-primary)' },
+  { slot: 'accent', label: 'Accent gradient (--gradient-accent)' },
+  { slot: 'background', label: 'Background gradient (--gradient-background)' },
+  { slot: 'hero', label: 'Hero gradient (--gradient-hero)' },
+  { slot: 'button', label: 'Button gradient (--gradient-button)' },
+] as const;
+
+/** Keys that older builds stored as one palette shared by both modes. */
+const LEGACY_SURFACE_KEYS: ColorKey[] = [
+  'secondary',
+  'accent',
+  'background',
+  'foreground',
+  'card',
+  'muted',
+  'border',
+  'input',
+];
+
+function blankConfig(mode: ThemeConfig['mode']): ThemeConfig {
+  return { mode, type: 'default' };
+}
+
+/**
+ * Older saves kept surface colours in `colors`, which paints in *both* modes —
+ * a light `foreground` over a generated dark surface is how the customizer ended
+ * up dark-on-dark. Move those into the per-mode palette they were authored for.
+ */
+function migrateLegacyPalette(config: ThemeConfig): ThemeConfig {
+  const colors = config.colors;
+  if (config.modeColors || !colors) return config;
+  const moved: Partial<ThemeColorsConfig> = {};
+  const kept: Partial<ThemeColorsConfig> = { ...colors };
+  for (const key of LEGACY_SURFACE_KEYS) {
+    if (colors[key]) {
+      moved[key] = colors[key];
+      delete kept[key];
+    }
+  }
+  if (Object.keys(moved).length === 0) return config;
+  const target: EditMode = config.mode === 'dark' ? 'dark' : 'light';
+  return { ...config, colors: kept, modeColors: { [target]: moved } };
+}
+
+/** Comparison key — the painted mode is the user's Color Mode, not part of the palette. */
+function fingerprint(config: ThemeConfig): string {
+  return JSON.stringify({ ...config, mode: undefined });
+}
+
+function readActiveWorkspaceId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export interface ThemeCustomizerProps {
   onSaved?: () => void;
@@ -32,335 +151,262 @@ export interface ThemeCustomizerProps {
 }
 
 export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProps) {
-  const {
-    resolvedTheme,
-    customTheme,
-    setCustomTheme,
-    setDraftTheme,
-    resetTheme,
-  } = useTheme();
+  const { theme, resolvedTheme, customTheme, setCustomTheme, setDraftTheme } = useTheme();
+  const queryClient = useQueryClient();
+  const workspaceId = useMemo(readActiveWorkspaceId, []);
 
-  // Active section tab: Presets | Flat Colors | Gradients
-  const [activeTab, setActiveTab] = useState<'flat' | 'gradients' | 'presets'>('flat');
-
-  // Working state copy of ThemeConfig
-  const [themeState, setThemeState] = useState<ThemeConfig>(() => {
-    if (customTheme) return { ...customTheme };
-    return {
-      mode: resolvedTheme === 'dark' ? 'dark' : 'light',
-      type: 'custom',
-      brandColor: '#60c686',
-      neutralColor: resolvedTheme === 'dark' ? '#0a0a0a' : '#fcfbf8',
-      colors: {
-        primary: '#60c686',
-        secondary: resolvedTheme === 'dark' ? '#071812' : '#f5f5f5',
-        accent: resolvedTheme === 'dark' ? '#262626' : '#f1f0ec',
-        background: resolvedTheme === 'dark' ? '#0a0a0a' : '#fcfbf8',
-        foreground: resolvedTheme === 'dark' ? '#ffffff' : '#09090b',
-        card: resolvedTheme === 'dark' ? '#171717' : '#ffffff',
-        muted: resolvedTheme === 'dark' ? '#1f1f1f' : '#f4f4f5',
-        border: resolvedTheme === 'dark' ? '#2e2e2e' : '#eeece6',
-        input: resolvedTheme === 'dark' ? '#262626' : '#f4f4f5',
-        ring: resolvedTheme === 'dark' ? '#60c686' : '#037152',
-        success: successDefault(resolvedTheme === 'dark'),
-        warning: '#f59e0b',
-        destructive: '#ef4444',
-        info: '#3b82f6',
-      },
-      gradients: {
-        primary: {
-          type: 'linear',
-          angle: 135,
-          stops: [
-            { color: '#60c686', position: 0 },
-            { color: '#37b06f', position: 100 },
-          ],
-        },
-        accent: {
-          type: 'linear',
-          angle: 135,
-          stops: [
-            { color: '#3b82f6', position: 0 },
-            { color: '#8b5cf6', position: 100 },
-          ],
-        },
-        background: {
-          type: 'linear',
-          angle: 180,
-          stops: [
-            { color: '#0a0a0a', position: 0 },
-            { color: '#171717', position: 100 },
-          ],
-        },
-        hero: {
-          type: 'linear',
-          angle: 135,
-          stops: [
-            { color: '#60c686', position: 0 },
-            { color: '#06b6d4', position: 100 },
-          ],
-        },
-        button: {
-          type: 'linear',
-          angle: 135,
-          stops: [
-            { color: '#60c686', position: 0 },
-            { color: '#37b06f', position: 100 },
-          ],
-        },
-      },
-    };
-  });
-
-  const [hasChanges, setHasChanges] = useState(false);
+  const saved = useMemo(() => customTheme ?? blankConfig(theme), [customTheme, theme]);
+  const [draft, setDraft] = useState<ThemeConfig>(() => migrateLegacyPalette(saved));
+  const [activeTab, setActiveTab] = useState<'flat' | 'gradients'>('flat');
+  const [editMode, setEditMode] = useState<EditMode>(resolvedTheme);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Sync draft live to document variables on any change
-  useEffect(() => {
-    setDraftTheme(themeState);
-    setHasChanges(true);
-  }, [themeState, setDraftTheme]);
+  const dirty = fingerprint(draft) !== fingerprint(saved);
 
-  // Clean up draft on unmount if not committed
+  // Paint the draft app-wide while it differs from what's saved; otherwise let
+  // the saved theme show. Cleared on unmount so abandoned edits never stick.
   useEffect(() => {
-    return () => {
-      setDraftTheme(null);
-    };
-  }, [setDraftTheme]);
+    setDraftTheme(dirty ? { ...draft, mode: theme } : null);
+  }, [dirty, draft, theme, setDraftTheme]);
+  useEffect(() => () => setDraftTheme(null), [setDraftTheme]);
 
-  const updateColor = (key: string, value: string) => {
-    setThemeState((prev) => ({
+  // Whether the caller may also publish this as the workspace default. Shares
+  // its cache entry with the appearance sync, so no extra request in practice.
+  const appearance = useQuery({
+    queryKey: queryKeys.workspaces.appearance(workspaceId ?? ''),
+    queryFn: () => workspaceApi.appearance(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+  const canManageDefault = appearance.data?.canManageDefault === true;
+
+  const overrides = draft.modeColors?.[editMode] ?? {};
+
+  // What each token resolves to with this mode's overrides removed — the real
+  // generated defaults, so "reset" lands on exactly what the app would paint.
+  const defaults = useMemo(
+    () =>
+      generateThemeVariables(
+        { ...draft, modeColors: { ...draft.modeColors, [editMode]: undefined } },
+        undefined,
+        editMode,
+      ),
+    [draft, editMode],
+  );
+
+  const valueOf = (key: ColorKey): string => overrides[key] ?? defaults[`--color-${key}`] ?? '#000000';
+
+  const setColor = (key: ColorKey, hex: string) => {
+    setDraft((prev) => ({
       ...prev,
       type: 'custom',
       presetId: undefined,
-      brandColor: key === 'primary' ? value : prev.brandColor,
-      neutralColor: key === 'background' ? value : prev.neutralColor,
-      colors: {
-        ...prev.colors,
-        [key]: value,
+      modeColors: {
+        ...prev.modeColors,
+        [editMode]: { ...prev.modeColors?.[editMode], [key]: hex },
       },
     }));
   };
 
-  const resetSingleColor = (key: string, fallback: string) => {
-    updateColor(key, fallback);
-    toast.success(`Reset ${key} color`);
-  };
-
-  const updateGradient = (slot: string, grad: GradientConfig) => {
-    setThemeState((prev) => ({
-      ...prev,
-      type: 'custom',
-      presetId: undefined,
-      gradients: {
-        ...prev.gradients,
-        [slot]: grad,
-      },
-    }));
-  };
-
-  const resetSingleGradient = (slot: string) => {
-    setThemeState((prev) => {
-      const nextGradients = { ...prev.gradients };
-      delete nextGradients[slot as keyof typeof nextGradients];
+  const resetColor = (key: ColorKey) => {
+    setDraft((prev) => {
+      const next = { ...prev.modeColors?.[editMode] };
+      delete next[key];
       return {
         ...prev,
-        gradients: nextGradients,
+        modeColors: { ...prev.modeColors, [editMode]: Object.keys(next).length ? next : undefined },
       };
     });
-    toast.success(`Reset ${slot} gradient`);
   };
 
-  const handleApplyPreset = (preset: ThemePreset) => {
-    // Keep whatever Color Mode the user is on — a preset is a brand identity,
-    // not a light/dark choice. Surfaces are synthesized for the active mode.
-    setThemeState((prev) => ({ ...preset.config, mode: prev.mode }));
-    toast.success(`Applied ${preset.name} preset`);
+  const resetPalette = () => {
+    setDraft((prev) => ({ ...prev, modeColors: { ...prev.modeColors, [editMode]: undefined } }));
+    toast.success(`${editMode === 'dark' ? 'Dark' : 'Light'} colors reset to defaults`);
   };
 
-  const handleModeChange = (mode: 'light' | 'dark') => {
-    setThemeState((prev) => ({
+  const setGradient = (slot: string, grad: GradientConfig) => {
+    setDraft((prev) => ({
       ...prev,
-      mode,
+      type: 'custom',
+      presetId: undefined,
+      gradients: { ...prev.gradients, [slot]: grad },
     }));
   };
 
-  const handleSaveTheme = () => {
-    setCustomTheme(themeState);
-    setHasChanges(false);
-    toast.success('Theme colors and gradients saved successfully!');
-    onSaved?.();
-  };
-
-  const handleResetColors = () => {
-    const isDark = themeState.mode === 'dark';
-    setThemeState((prev) => ({
-      ...prev,
-      brandColor: '#60c686',
-      neutralColor: isDark ? '#0a0a0a' : '#fcfbf8',
-      colors: {
-        primary: '#60c686',
-        secondary: isDark ? '#071812' : '#f5f5f5',
-        accent: isDark ? '#262626' : '#f1f0ec',
-        background: isDark ? '#0a0a0a' : '#fcfbf8',
-        foreground: isDark ? '#ffffff' : '#09090b',
-        card: isDark ? '#171717' : '#ffffff',
-        muted: isDark ? '#1f1f1f' : '#f4f4f5',
-        border: isDark ? '#2e2e2e' : '#eeece6',
-        input: isDark ? '#262626' : '#f4f4f5',
-        ring: isDark ? '#60c686' : '#037152',
-        success: successDefault(isDark),
-        warning: '#f59e0b',
-        destructive: '#ef4444',
-        info: '#3b82f6',
-      },
-    }));
-    toast.success('Flat colors reset to defaults.');
-  };
-
-  const handleResetGradients = () => {
-    setThemeState((prev) => ({
-      ...prev,
-      gradients: {
-        primary: {
-          type: 'linear',
-          angle: 135,
-          stops: [
-            { color: '#60c686', position: 0 },
-            { color: '#37b06f', position: 100 },
-          ],
-        },
-      },
-    }));
-    toast.success('Gradients reset to defaults.');
-  };
-
-  const handleResetAll = () => {
-    resetTheme();
-    setThemeState({
-      mode: 'dark',
-      type: 'default',
-      brandColor: '#60c686',
-      neutralColor: '#0a0a0a',
+  const resetGradient = (slot: string) => {
+    setDraft((prev) => {
+      const next = { ...prev.gradients };
+      delete next[slot as keyof typeof next];
+      return { ...prev, gradients: Object.keys(next).length ? next : undefined };
     });
-    setHasChanges(false);
-    toast.success('All colors & gradients reset to platform default.');
   };
 
-  const handleDownloadConfig = () => {
-    downloadThemeConfigFile(themeState, 'platform-color-theme.json');
+  const applyPreset = (preset: ThemePreset) => {
+    // A preset is a brand identity: it replaces colours and gradients but keeps
+    // the user's Color Mode, and surfaces are derived for whichever mode paints.
+    setDraft({ ...preset.config, mode: theme });
+    toast.success(`${preset.name} preset loaded — save to apply`);
+  };
+
+  const resetAll = () => {
+    setDraft(blankConfig(theme));
+    toast.success('Back to the platform default — save to apply');
+  };
+
+  const discard = () => setDraft(migrateLegacyPalette(saved));
+
+  const saveMine = useMutation({
+    mutationFn: async (next: ThemeConfig | null) => {
+      if (workspaceId) {
+        await workspaceApi.saveMyWorkspaceAppearance(workspaceId, { customTheme: next });
+      }
+      return next;
+    },
+    onSuccess: async (next) => {
+      setCustomTheme(next);
+      if (workspaceId) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.workspaces.appearance(workspaceId),
+        });
+      }
+      toast.success('Theme saved');
+      onSaved?.();
+    },
+    onError: () => toast.error('Could not save your theme. Your changes are still here — try again.'),
+  });
+
+  const saveDefault = useMutation({
+    mutationFn: async (next: ThemeConfig | null) => {
+      await workspaceApi.saveWorkspaceAppearance(workspaceId as string, { customTheme: next });
+      // The admin's own view follows what they just published.
+      await workspaceApi.saveMyWorkspaceAppearance(workspaceId as string, { customTheme: next });
+      return next;
+    },
+    onSuccess: async (next) => {
+      setCustomTheme(next);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.workspaces.appearance(workspaceId as string),
+      });
+      toast.success('Workspace default updated. Members with their own theme keep theirs.');
+      onSaved?.();
+    },
+    onError: () => toast.error('Could not update the workspace default.'),
+  });
+
+  const buildSaveTarget = (): ThemeConfig | null => {
+    const isBlank = fingerprint(draft) === fingerprint(blankConfig(theme));
+    return isBlank ? null : { ...draft, mode: theme };
+  };
+
+  const saving = saveMine.isPending || saveDefault.isPending;
+
+  const handleExport = () => {
+    downloadThemeConfigFile({ ...draft, mode: theme }, 'platform-color-theme.json');
     toast.success('Exported platform-color-theme.json');
   };
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
-      const content = event.target?.result as string;
-      const result = validateAndParseThemeConfig(content);
+      const result = validateAndParseThemeConfig(String(event.target?.result ?? ''));
       if (result.success && result.config) {
-        setThemeState(result.config);
-        toast.success('Color configuration imported! Click "Save Changes" to commit.');
+        setDraft(migrateLegacyPalette({ ...result.config, mode: theme }));
+        toast.success('Imported — review the preview, then save.');
       } else {
         toast.error(result.error || 'Failed to import theme configuration.');
       }
     };
-    reader.onerror = () => {
-      toast.error('Could not read uploaded JSON file.');
-    };
+    reader.onerror = () => toast.error('Could not read the uploaded file.');
     reader.readAsText(file);
-    e.target.value = '';
   };
 
-  // WCAG Contrast Checks
-  const primaryColor = themeState.colors?.primary || themeState.brandColor || '#60c686';
-  const bgColor = themeState.colors?.background || themeState.neutralColor || '#0a0a0a';
-  const fgColor = themeState.colors?.foreground || (themeState.mode === 'dark' ? '#ffffff' : '#09090b');
-  const contrastCheckButton = checkContrast('#ffffff', primaryColor);
-  const contrastCheckBody = checkContrast(fgColor, bgColor);
+  // WCAG checks for the palette being edited.
+  const primary = valueOf('primary');
+  const background = valueOf('background');
+  const foreground = valueOf('foreground');
+  const buttonContrast = checkContrast(
+    defaults['--color-primary-foreground'] ?? '#ffffff',
+    isValidHexColor(primary) ? primary : '#000000',
+  );
+  const bodyContrast = checkContrast(
+    isValidHexColor(foreground) ? foreground : '#000000',
+    isValidHexColor(background) ? background : '#ffffff',
+  );
+
+  // The preview always renders in the mode being edited, even when the app is
+  // painted in the other one.
+  const previewVars = useMemo(
+    () => generateThemeVariables({ ...draft, mode: editMode }, undefined, editMode) as CSSProperties,
+    [draft, editMode],
+  );
 
   return (
-    <div className={`rounded-xl border border-border bg-surface text-foreground shadow-xs p-5 sm:p-6 space-y-6 ${className}`}>
-      {/* ---------------- TOP HEADER BAR ---------------- */}
+    <div
+      className={`rounded-xl border border-border bg-surface text-foreground shadow-xs p-5 sm:p-6 space-y-6 ${className}`}
+    >
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/60">
         <div>
-          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <h3 className="text-sm font-bold flex items-center gap-2">
             <Palette className="size-4 text-primary" />
-            <span>Platform Color &amp; Gradient Customizer</span>
+            <span>Platform color &amp; gradient customizer</span>
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Centralized management for platform flat colors, gradients, and theme tokens with real-time live preview.
+            Tune colors per mode and see the result live. Nothing is saved until you press Save.
           </p>
         </div>
-
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={() => importInputRef.current?.click()}
-            className="text-xs gap-1.5 border-border bg-surface hover:bg-accent cursor-pointer"
-          >
+          <Button type="button" variant="outline" size="xs" onClick={() => importInputRef.current?.click()}>
             <Upload className="size-3.5" />
             <span>Import JSON</span>
           </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            onClick={handleDownloadConfig}
-            className="text-xs gap-1.5 border-border bg-surface hover:bg-accent cursor-pointer"
-          >
+          <Button type="button" variant="outline" size="xs" onClick={handleExport}>
             <Download className="size-3.5" />
             <span>Export JSON</span>
           </Button>
-
           <input
             ref={importInputRef}
             type="file"
             accept=".json,application/json"
             className="hidden"
-            onChange={handleImportFile}
+            onChange={handleImport}
           />
         </div>
       </div>
 
-      {/* ---------------- PRESET THEMES SWATCH BAR ---------------- */}
+      {/* Presets */}
       <div className="space-y-2 p-3.5 rounded-xl border border-border bg-surface-raised">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-bold flex items-center gap-1.5">
             <Sparkles className="size-3.5 text-primary" />
-            <span>Predefined Color Themes</span>
+            <span>Predefined color themes</span>
           </span>
-          <span className="text-[11px] text-muted-foreground">Select a preset to update all semantic tokens</span>
+          <span className="text-[11px] text-muted-foreground">Replaces your colors with the preset</span>
         </div>
-
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-1">
           {THEME_PRESETS.map((preset) => {
-            const isActive =
-              (preset.id === 'default' && (!themeState.presetId || themeState.type === 'default')) ||
-              themeState.presetId === preset.id;
-
+            const active =
+              draft.presetId === preset.id || (preset.id === 'default' && draft.type === 'default');
             return (
               <button
                 key={preset.id}
                 type="button"
-                onClick={() => handleApplyPreset(preset)}
-                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
-                  isActive
-                    ? 'border-primary ring-2 ring-primary/30 bg-primary/10 shadow-xs'
+                onClick={() => applyPreset(preset)}
+                title={preset.description}
+                aria-pressed={active}
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col space-y-2 ${
+                  active
+                    ? 'border-primary ring-2 ring-primary/30 bg-primary/10'
                     : 'border-border/70 bg-surface hover:border-border hover:bg-surface-raised'
                 }`}
-                title={preset.description}
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-[11px] font-bold text-foreground truncate">{preset.name}</span>
-                  {isActive && <Check className="size-3 text-primary shrink-0" />}
+                  <span className="text-[11px] font-bold truncate">{preset.name}</span>
+                  {active && <Check className="size-3 text-primary shrink-0" />}
                 </div>
-
                 <div className="flex items-center gap-1">
                   {preset.previewColors.slice(0, 3).map((col, idx) => (
                     <span
@@ -376,366 +422,199 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
         </div>
       </div>
 
-      {/* ---------------- SECTION TABS ---------------- */}
-      <div className="flex items-center gap-1.5 border-b border-border/60 pb-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab('flat')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === 'flat'
-              ? 'bg-primary/10 text-primary border border-primary/30'
-              : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised'
-          }`}
-        >
-          <Palette className="size-3.5" />
-          <span>Flat Colors</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('gradients')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-            activeTab === 'gradients'
-              ? 'bg-primary/10 text-primary border border-primary/30'
-              : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised'
-          }`}
-        >
-          <Sparkles className="size-3.5" />
-          <span>Gradients</span>
-        </button>
-
-        {/* Mode Switcher */}
-        <div className="ml-auto flex items-center gap-1 bg-surface-raised p-1 rounded-lg border border-border">
+      {/* Section tabs + the mode being edited */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-border/60 pb-2">
+        {(
+          [
+            { id: 'flat', label: 'Flat colors', icon: Palette },
+            { id: 'gradients', label: 'Gradients', icon: Sparkles },
+          ] as const
+        ).map(({ id, label, icon: Icon }) => (
           <button
+            key={id}
             type="button"
-            onClick={() => handleModeChange('light')}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
-              themeState.mode === 'light'
-                ? 'bg-background text-foreground shadow-2xs font-bold'
-                : 'text-muted-foreground'
+            onClick={() => setActiveTab(id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer border ${
+              activeTab === id
+                ? 'bg-primary/10 text-primary border-primary/30'
+                : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-surface-raised'
             }`}
           >
-            <Sun className="size-3 text-warning-text" />
-            <span>Light</span>
+            <Icon className="size-3.5" />
+            <span>{label}</span>
           </button>
+        ))}
 
-          <button
-            type="button"
-            onClick={() => handleModeChange('dark')}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
-              themeState.mode === 'dark'
-                ? 'bg-background text-foreground shadow-2xs font-bold'
-                : 'text-muted-foreground'
-            }`}
+        {activeTab === 'flat' && (
+          <div
+            role="radiogroup"
+            aria-label="Palette being edited"
+            className="ml-auto flex items-center gap-1 bg-surface-inset p-1 rounded-lg border border-border"
           >
-            <Moon className="size-3 text-info-text" />
-            <span>Dark</span>
-          </button>
-        </div>
+            {(
+              [
+                { id: 'light', label: 'Light', icon: Sun },
+                { id: 'dark', label: 'Dark', icon: Moon },
+              ] as const
+            ).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={editMode === id}
+                onClick={() => setEditMode(id)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                  editMode === id
+                    ? 'bg-background text-foreground shadow-2xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Icon className="size-3" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ---------------- FLAT COLORS SECTION ---------------- */}
       {activeTab === 'flat' && (
         <div className="space-y-6">
-          {/* Brand & Canvas Group */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] text-muted-foreground">
+              Editing the <strong className="text-foreground">{editMode}</strong> palette
+              {editMode !== resolvedTheme && ' — switch Interface mode above to see it across the app'}.
+              Untouched colors are generated from your brand color.
+            </p>
+            <button
+              type="button"
+              onClick={resetPalette}
+              disabled={Object.keys(overrides).length === 0}
+              className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer transition-colors"
+            >
+              <RotateCcw className="size-3" />
+              <span>Reset {editMode} colors</span>
+            </button>
+          </div>
+
+          {COLOR_GROUPS.map((group) => (
+            <div key={group.title} className="space-y-3">
               <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Brand &amp; Canvas Palette
+                {group.title}
               </h4>
-              <button
-                type="button"
-                onClick={handleResetColors}
-                className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer transition-colors"
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${group.columns} gap-3.5`}>
+                {group.fields.map((field) => (
+                  <ColorFieldItem
+                    key={`${editMode}-${field.key}`}
+                    label={field.label}
+                    token={`--color-${field.key}`}
+                    value={valueOf(field.key)}
+                    overridden={overrides[field.key] !== undefined}
+                    onChange={(hex) => setColor(field.key, hex)}
+                    onReset={() => resetColor(field.key)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <div className="p-3.5 rounded-xl border border-border bg-surface-raised text-xs space-y-1">
+            <span className="font-bold flex items-center gap-2">
+              <span>Accessibility &amp; contrast</span>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                  buttonContrast.passesAA && bodyContrast.passesAA
+                    ? 'bg-success/15 text-success'
+                    : 'bg-destructive/15 text-destructive'
+                }`}
               >
-                <RotateCcw className="size-3" />
-                <span>Reset Flat Colors</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {/* Primary */}
-              <ColorFieldItem
-                label="Primary Brand"
-                token="--color-primary"
-                value={primaryColor}
-                fallback={themeState.mode === 'dark' ? '#60c686' : '#037152'}
-                onChange={(val) => updateColor('primary', val)}
-                onReset={(fb) => resetSingleColor('primary', fb)}
-              />
-
-              {/* Secondary */}
-              <ColorFieldItem
-                label="Secondary Surface"
-                token="--color-secondary"
-                value={themeState.colors?.secondary || (themeState.mode === 'dark' ? '#071812' : '#f5f5f5')}
-                fallback={themeState.mode === 'dark' ? '#071812' : '#f5f5f5'}
-                onChange={(val) => updateColor('secondary', val)}
-                onReset={(fb) => resetSingleColor('secondary', fb)}
-              />
-
-              {/* Accent */}
-              <ColorFieldItem
-                label="Accent &amp; Hover"
-                token="--color-accent"
-                value={themeState.colors?.accent || (themeState.mode === 'dark' ? '#262626' : '#f1f0ec')}
-                fallback={themeState.mode === 'dark' ? '#262626' : '#f1f0ec'}
-                onChange={(val) => updateColor('accent', val)}
-                onReset={(fb) => resetSingleColor('accent', fb)}
-              />
-
-              {/* Background */}
-              <ColorFieldItem
-                label="Background Canvas"
-                token="--color-background"
-                value={bgColor}
-                fallback={themeState.mode === 'dark' ? '#0a0a0a' : '#fcfbf8'}
-                onChange={(val) => updateColor('background', val)}
-                onReset={(fb) => resetSingleColor('background', fb)}
-              />
-
-              {/* Foreground / Text */}
-              <ColorFieldItem
-                label="Text / Foreground"
-                token="--color-foreground"
-                value={fgColor}
-                fallback={themeState.mode === 'dark' ? '#ffffff' : '#09090b'}
-                onChange={(val) => updateColor('foreground', val)}
-                onReset={(fb) => resetSingleColor('foreground', fb)}
-              />
-
-              {/* Focus Ring */}
-              <ColorFieldItem
-                label="Focus Ring"
-                token="--color-ring"
-                value={themeState.colors?.ring || primaryColor}
-                fallback={primaryColor}
-                onChange={(val) => updateColor('ring', val)}
-                onReset={(fb) => resetSingleColor('ring', fb)}
-              />
-            </div>
-          </div>
-
-          {/* Surfaces & Borders Group */}
-          <div className="space-y-3 pt-2">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Surfaces, Muted &amp; Borders
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {/* Card */}
-              <ColorFieldItem
-                label="Card &amp; Panel Surface"
-                token="--color-card"
-                value={themeState.colors?.card || (themeState.mode === 'dark' ? '#171717' : '#ffffff')}
-                fallback={themeState.mode === 'dark' ? '#171717' : '#ffffff'}
-                onChange={(val) => updateColor('card', val)}
-                onReset={(fb) => resetSingleColor('card', fb)}
-              />
-
-              {/* Muted */}
-              <ColorFieldItem
-                label="Muted Elements"
-                token="--color-muted"
-                value={themeState.colors?.muted || (themeState.mode === 'dark' ? '#1f1f1f' : '#f4f4f5')}
-                fallback={themeState.mode === 'dark' ? '#1f1f1f' : '#f4f4f5'}
-                onChange={(val) => updateColor('muted', val)}
-                onReset={(fb) => resetSingleColor('muted', fb)}
-              />
-
-              {/* Border */}
-              <ColorFieldItem
-                label="Border Hairline"
-                token="--color-border"
-                value={themeState.colors?.border || (themeState.mode === 'dark' ? '#2e2e2e' : '#eeece6')}
-                fallback={themeState.mode === 'dark' ? '#2e2e2e' : '#eeece6'}
-                onChange={(val) => updateColor('border', val)}
-                onReset={(fb) => resetSingleColor('border', fb)}
-              />
-
-              {/* Input */}
-              <ColorFieldItem
-                label="Input Background"
-                token="--color-input"
-                value={themeState.colors?.input || (themeState.mode === 'dark' ? '#262626' : '#f4f4f5')}
-                fallback={themeState.mode === 'dark' ? '#262626' : '#f4f4f5'}
-                onChange={(val) => updateColor('input', val)}
-                onReset={(fb) => resetSingleColor('input', fb)}
-              />
-            </div>
-          </div>
-
-          {/* Status Colors Group */}
-          <div className="space-y-3 pt-2">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Status &amp; Notification Colors
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-              {/* Success */}
-              <ColorFieldItem
-                label="Success"
-                token="--color-success"
-                value={themeState.colors?.success || successDefault(themeState.mode === 'dark')}
-                fallback={successDefault(themeState.mode === 'dark')}
-                onChange={(val) => updateColor('success', val)}
-                onReset={(fb) => resetSingleColor('success', fb)}
-              />
-
-              {/* Warning */}
-              <ColorFieldItem
-                label="Warning"
-                token="--color-warning"
-                value={themeState.colors?.warning || '#f59e0b'}
-                fallback="#f59e0b"
-                onChange={(val) => updateColor('warning', val)}
-                onReset={(fb) => resetSingleColor('warning', fb)}
-              />
-
-              {/* Destructive / Error */}
-              <ColorFieldItem
-                label="Destructive / Error"
-                token="--color-destructive"
-                value={themeState.colors?.destructive || '#ef4444'}
-                fallback="#ef4444"
-                onChange={(val) => updateColor('destructive', val)}
-                onReset={(fb) => resetSingleColor('destructive', fb)}
-              />
-
-              {/* Info */}
-              <ColorFieldItem
-                label="Info"
-                token="--color-info"
-                value={themeState.colors?.info || '#3b82f6'}
-                fallback="#3b82f6"
-                onChange={(val) => updateColor('info', val)}
-                onReset={(fb) => resetSingleColor('info', fb)}
-              />
-            </div>
-          </div>
-
-          {/* WCAG Contrast Health Check Badge */}
-          <div className="p-3.5 rounded-xl border border-border bg-surface-raised flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="space-y-0.5">
-              <span className="font-bold text-foreground flex items-center gap-2">
-                <span>Accessibility &amp; Contrast Evaluation</span>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                    contrastCheckButton.passesAA ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'
-                  }`}
-                >
-                  {contrastCheckButton.level} Compliance
-                </span>
+                {buttonContrast.passesAA && bodyContrast.passesAA ? 'AA pass' : 'Needs attention'}
               </span>
-              <p className="text-[11px] text-muted-foreground">
-                Primary Button Label Contrast: <strong className="text-foreground">{contrastCheckButton.formattedRatio}</strong> | Body Text on Canvas: <strong className="text-foreground">{contrastCheckBody.formattedRatio}</strong>
-              </p>
-            </div>
+            </span>
+            <p className="text-[11px] text-muted-foreground">
+              Primary button label: <strong className="text-foreground">{buttonContrast.formattedRatio}</strong>
+              {' · '}
+              Body text on canvas: <strong className="text-foreground">{bodyContrast.formattedRatio}</strong>
+            </p>
           </div>
         </div>
       )}
 
-      {/* ---------------- GRADIENTS SECTION ---------------- */}
       {activeTab === 'gradients' && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Platform Gradients
+              Platform gradients
             </h4>
             <button
               type="button"
-              onClick={handleResetGradients}
-              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer transition-colors"
+              onClick={() => setDraft((prev) => ({ ...prev, gradients: undefined }))}
+              disabled={!draft.gradients}
+              className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer transition-colors"
             >
               <RotateCcw className="size-3" />
-              <span>Reset Gradients</span>
+              <span>Reset gradients</span>
             </button>
           </div>
-
-          <GradientEditor
-            label="Primary Gradient (--gradient-primary)"
-            value={themeState.gradients?.primary}
-            onChange={(grad) => updateGradient('primary', grad)}
-            onReset={() => resetSingleGradient('primary')}
-          />
-
-          <GradientEditor
-            label="Accent Gradient (--gradient-accent)"
-            value={themeState.gradients?.accent}
-            onChange={(grad) => updateGradient('accent', grad)}
-            onReset={() => resetSingleGradient('accent')}
-          />
-
-          <GradientEditor
-            label="Background Gradient (--gradient-background)"
-            value={themeState.gradients?.background}
-            onChange={(grad) => updateGradient('background', grad)}
-            onReset={() => resetSingleGradient('background')}
-          />
-
-          <GradientEditor
-            label="Hero Gradient (--gradient-hero)"
-            value={themeState.gradients?.hero}
-            onChange={(grad) => updateGradient('hero', grad)}
-            onReset={() => resetSingleGradient('hero')}
-          />
-
-          <GradientEditor
-            label="Button Gradient (--gradient-button)"
-            value={themeState.gradients?.button}
-            onChange={(grad) => updateGradient('button', grad)}
-            onReset={() => resetSingleGradient('button')}
-          />
+          {GRADIENT_SLOTS.map(({ slot, label }) => (
+            <GradientEditor
+              key={slot}
+              label={label}
+              value={draft.gradients?.[slot]}
+              onChange={(grad) => setGradient(slot, grad)}
+              onReset={() => resetGradient(slot)}
+            />
+          ))}
         </div>
       )}
 
-      {/* ---------------- LIVE INTERACTIVE PREVIEW SHOWCASE ---------------- */}
-      <div className="p-4 sm:p-5 rounded-xl border border-border/80 bg-surface-raised space-y-4 shadow-xs">
+      {/* Live preview, rendered in the mode being edited */}
+      <div className="p-4 sm:p-5 rounded-xl border border-border/80 bg-surface-raised space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+          <span className="text-xs font-bold flex items-center gap-1.5">
             <Eye className="size-3.5 text-primary" />
-            <span>Live Interactive Preview</span>
+            <span>Preview · {editMode}</span>
           </span>
           <span className="text-[10px] font-mono text-primary font-bold uppercase tracking-wider bg-primary/10 px-2 py-0.5 rounded-full">
-            {hasChanges ? 'Live Preview Active' : 'Saved Theme'}
+            {dirty ? 'Unsaved' : 'Saved'}
           </span>
         </div>
-
-        {/* Live Mock UI Components Test Bench */}
-        <div className="p-4 sm:p-5 rounded-xl border border-border bg-surface space-y-4 shadow-sm">
+        <div
+          style={previewVars}
+          className={`${editMode === 'dark' ? 'dark' : ''} p-4 sm:p-5 rounded-xl border border-border bg-background text-foreground space-y-4`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div
-                className="size-9 rounded-lg flex items-center justify-center font-bold text-xs shadow-xs"
-                style={{ background: 'var(--gradient-primary, var(--primary))', color: 'var(--primary-foreground, #ffffff)' }}
+                className="size-9 rounded-lg flex items-center justify-center font-bold text-xs"
+                style={{ background: 'var(--gradient-primary, var(--primary))', color: 'var(--primary-foreground)' }}
               >
                 AI
               </div>
               <div>
-                <h4 className="text-xs font-bold text-foreground">Onetab Color Engine</h4>
-                <p className="text-[11px] text-muted-foreground">Tokens live rendering</p>
+                <h4 className="text-xs font-bold">OneTab color engine</h4>
+                <p className="text-[11px] text-muted-foreground">Tokens rendered live</p>
               </div>
             </div>
-
             <div className="flex items-center gap-2">
-              <Button size="xs" variant="outline" className="text-xs">
-                Outline
-              </Button>
-              <Button size="xs" variant="primary" className="text-xs shadow-xs">
-                Primary Button
-              </Button>
-              <Button
-                size="xs"
-                className="text-xs shadow-xs text-primary-foreground border-0"
-                style={{ background: 'var(--gradient-button, var(--gradient-primary, var(--primary)))' }}
+              <span className="px-2.5 py-1 rounded-md border border-border bg-card text-xs">Outline</span>
+              <span className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium">
+                Primary
+              </span>
+              <span
+                className="px-2.5 py-1 rounded-md text-xs font-medium"
+                style={{
+                  background: 'var(--gradient-button, var(--gradient-primary, var(--primary)))',
+                  color: 'var(--primary-foreground)',
+                }}
               >
-                Gradient Button
-              </Button>
+                Gradient
+              </span>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border/50">
-            <Input placeholder="Type to test focus ring..." className="h-8 text-xs" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-border">
+            <div className="h-8 rounded-md border border-input bg-card px-2.5 flex items-center text-xs text-muted-foreground">
+              Input field
+            </div>
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] font-semibold text-success bg-success/15 px-2 py-0.5 rounded-full">
                 ✓ Success
@@ -754,51 +633,50 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
         </div>
       </div>
 
-      {/* ---------------- BOTTOM ACTION BAR ---------------- */}
+      {/* Actions */}
       <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-border/60">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleResetAll}
-            className="text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
-          >
-            <RotateCcw className="size-3.5" />
-            <span>Reset All Colors</span>
-          </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={resetAll}
+          disabled={saving}
+          className="text-xs text-muted-foreground hover:text-foreground gap-1.5 self-start"
+        >
+          <RotateCcw className="size-3.5" />
+          <span>Reset everything</span>
+        </Button>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleResetColors}
-            className="text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
-          >
-            <span>Reset Flat</span>
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleResetGradients}
-            className="text-xs text-muted-foreground hover:text-foreground gap-1.5 cursor-pointer"
-          >
-            <span>Reset Gradients</span>
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          {dirty && (
+            <Button type="button" variant="ghost" size="sm" onClick={discard} disabled={saving} className="text-xs gap-1.5">
+              <Undo2 className="size-3.5" />
+              <span>Discard</span>
+            </Button>
+          )}
+          {canManageDefault && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={saving || !dirty}
+              onClick={() => saveDefault.mutate(buildSaveTarget())}
+              className="text-xs gap-1.5"
+            >
+              {saveDefault.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              <span>Save as workspace default</span>
+            </Button>
+          )}
           <Button
             type="button"
             variant="primary"
             size="sm"
-            onClick={handleSaveTheme}
-            className="text-xs font-semibold px-5 shadow-sm gap-1.5 cursor-pointer"
+            disabled={saving || !dirty}
+            onClick={() => saveMine.mutate(buildSaveTarget())}
+            className="text-xs font-semibold px-5 gap-1.5"
           >
-            <Check className="size-3.5" />
-            <span>Save Changes</span>
+            {saveMine.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+            <span>{canManageDefault ? 'Save for me' : 'Save changes'}</span>
           </Button>
         </div>
       </div>
@@ -806,60 +684,58 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
   );
 }
 
-/** Individual color swatch & text input component with reset capability. */
+/** One colour token: swatch + validated hex field, with reset when overridden. */
 function ColorFieldItem({
   label,
   token,
   value,
-  fallback,
+  overridden,
   onChange,
   onReset,
 }: {
   label: string;
   token: string;
   value: string;
-  fallback: string;
-  onChange: (val: string) => void;
-  onReset?: (fallback: string) => void;
+  overridden: boolean;
+  onChange: (hex: string) => void;
+  onReset: () => void;
 }) {
   return (
     <div className="space-y-1.5 p-3 rounded-xl border border-border bg-surface-raised">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-foreground">{label}</span>
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold truncate flex items-center gap-1.5">
+          {label}
+          {overridden && <span className="size-1.5 rounded-full bg-primary shrink-0" title="Customized" />}
+        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
           <span className="text-[10px] text-muted-foreground font-mono">{token}</span>
-          {onReset && (
-            <button
-              type="button"
-              onClick={() => onReset(fallback)}
-              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              title="Reset color"
-            >
-              <RotateCcw className="size-2.5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onReset}
+            disabled={!overridden}
+            aria-label={`Reset ${label}`}
+            title="Reset to generated default"
+            className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            <RotateCcw className="size-2.5" />
+          </button>
         </div>
       </div>
-
       <div className="flex items-center gap-2">
         <div
-          className="relative size-7 rounded-lg cursor-pointer shrink-0 border border-black/20 shadow-xs overflow-hidden flex items-center justify-center"
+          className="relative size-7 rounded-lg cursor-pointer shrink-0 border border-black/20 shadow-xs overflow-hidden"
           style={{ backgroundColor: value }}
         >
           <input
             type="color"
             tabIndex={-1}
             aria-label={`Pick ${label} color`}
-            value={isValidHexColor(value) ? value : fallback}
+            value={isValidHexColor(value) ? value : '#808080'}
             onChange={(e) => onChange(e.target.value)}
             className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
           />
         </div>
-        <Input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-8 text-xs font-mono"
-        />
+        <HexInput value={value} onCommit={onChange} aria-label={`${label} hex`} className="h-8 text-xs font-mono" />
       </div>
     </div>
   );

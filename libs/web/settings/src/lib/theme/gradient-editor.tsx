@@ -5,9 +5,10 @@ import {
   type GradientPreset,
 } from '@org/design-system';
 import type { GradientConfig, GradientStop } from '@org/types';
-import { Button, Input } from '@org/ui';
+import { Button } from '@org/ui';
 import { Plus, RotateCcw, RotateCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { HexInput } from './hex-input.js';
 
 export interface GradientEditorProps {
   value?: GradientConfig | string;
@@ -231,9 +232,10 @@ export function GradientEditor({
                 className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
               />
             </div>
-            <Input
+            <HexInput
               value={activeStop.color}
-              onChange={(e) => handleUpdateStopColor(e.target.value)}
+              onCommit={handleUpdateStopColor}
+              aria-label={`Stop ${activeStopIndex + 1} hex color`}
               className="h-7 text-xs font-mono"
             />
           </div>

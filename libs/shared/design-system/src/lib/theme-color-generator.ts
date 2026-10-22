@@ -233,7 +233,7 @@ export function generateThemeVariables(
     };
   }
 
-  const customColors = config.colors || {};
+  const customColors = { ...config.colors, ...config.modeColors?.[mode] };
   const customGradients = config.gradients || {};
   const customTypography = config.typography || {};
   const customShape = config.shape || {};

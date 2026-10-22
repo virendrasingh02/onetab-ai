@@ -168,6 +168,12 @@ export interface ThemeConfig {
   brandColor?: string; // Legacy / quick shortcut
   neutralColor?: string; // Legacy / quick shortcut
   colors?: Partial<ThemeColorsConfig>;
+  /**
+   * Per-mode colour overrides. A palette tuned for light is wrong in dark, so
+   * the customizer writes here; whichever mode is painted layers its entry over
+   * `colors` (which stays as the mode-agnostic / legacy base).
+   */
+  modeColors?: { light?: Partial<ThemeColorsConfig>; dark?: Partial<ThemeColorsConfig> };
   gradients?: Partial<ThemeGradientsConfig>;
   backgrounds?: Partial<ThemeBackgroundsConfig>;
   typography?: Partial<ThemeTypographyConfig>;

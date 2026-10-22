@@ -102,13 +102,6 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
     icon: 'message-square',
   },
   {
-    name: '/poll',
-    args: '[question]',
-    description: 'Start a quick poll in this conversation',
-    icon: 'bar-chart',
-    allowedSurfaces: ['channel', 'group-dm'],
-  },
-  {
     name: '/away',
     description: 'Toggle your away status',
     icon: 'moon',
@@ -143,31 +136,6 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
     description: 'Assign a task to someone',
     icon: 'user-check',
     allowedSurfaces: ['channel', 'dm', 'group-dm', 'thread'],
-  },
-  {
-    name: '/github',
-    args: '<issue | pr | repo>',
-    description: 'Query GitHub pull requests or issues',
-    icon: 'git-pull-request',
-  },
-  {
-    name: '/linear',
-    args: '<issue-id | create>',
-    description: 'Lookup or create Linear issues',
-    icon: 'check-square',
-  },
-  {
-    name: '/jira',
-    args: '<issue-key>',
-    description: 'Lookup Jira tickets and status',
-    icon: 'file-text',
-  },
-  {
-    name: '/agent',
-    args: '<review | triage | query>',
-    description: 'Invoke an autonomous AI agent',
-    icon: 'bot',
-    allowedSurfaces: ['channel', 'agent', 'thread'],
   },
 ];
 

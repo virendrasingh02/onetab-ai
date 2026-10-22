@@ -50,6 +50,7 @@ import type {
 import { toPlatformUserId, type ComposerContext } from '@org/types';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useComposerControl } from './use-composer-control.js';
+import { useSlashCommands } from './use-slash-commands.js';
 import { useMentionAddActions } from './use-mention-add-actions.js';
 import {
   MentionNoticeRow,
@@ -1083,6 +1084,30 @@ export function ChatSurface({
   }, [composerContext, threadRoot?.id]);
 
   const threadControl = useComposerControl(threadComposerContext, members);
+
+  // Typed `/commands` run against the real APIs instead of being posted as
+  // text; the thread reply box shares the handler but posts into the thread.
+  const huddleAvailable =
+    huddlesEnabled &&
+    welcome?.kind !== 'self' &&
+    welcome?.peer?.kind !== 'agent' &&
+    welcome?.peer?.kind !== 'app';
+  const runMainSlashCommand = useSlashCommands({
+    context: composerContext,
+    roomId: effectiveRoomId,
+    slashCommands: mainControl.slashCommands,
+    startHuddle: huddleAvailable ? startOrJoinHuddle : undefined,
+    sendText: (body) => onSend(body),
+    canMentionGroups: mainControl.canMentionGroups,
+  });
+  const runThreadSlashCommand = useSlashCommands({
+    context: threadComposerContext,
+    roomId: effectiveRoomId,
+    slashCommands: threadControl.slashCommands,
+    startHuddle: huddleAvailable ? startOrJoinHuddle : undefined,
+    sendText: (body) => (threadRoot ? onSend(body, threadRoot.id) : undefined),
+    canMentionGroups: threadControl.canMentionGroups,
+  });
 
   /** Wording inputs every notice raised from this surface shares. */
   const noticePlacement = useMemo(
@@ -2180,6 +2205,8 @@ export function ChatSurface({
                       }}
                       onTyping={effectiveOnTyping}
                       enterToSend={chat?.enterToSend ?? true}
+                      slashCommands={threadControl.slashCommands}
+                      onSlashCommand={runThreadSlashCommand}
                       surfaceKind={threadComposerContext?.surfaceKind}
                       viewerCanManage={threadControl.viewerCanManage}
                       isGuest={threadControl.isGuest}
@@ -2314,6 +2341,8 @@ export function ChatSurface({
             onCancelScheduled={handleCancelScheduled}
             onTyping={effectiveOnTyping}
             enterToSend={chat?.enterToSend ?? true}
+            slashCommands={mainControl.slashCommands}
+            onSlashCommand={runMainSlashCommand}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
             onSendVoice={onSendVoice}
             readOnlyMessage={composerReadOnlyMessage}

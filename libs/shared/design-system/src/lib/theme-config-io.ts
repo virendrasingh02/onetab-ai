@@ -12,6 +12,7 @@ export interface ThemeConfigExport {
   neutralColor?: string;
   presetId?: string;
   colors?: ThemeConfig['colors'];
+  modeColors?: ThemeConfig['modeColors'];
   gradients?: ThemeConfig['gradients'];
   backgrounds?: ThemeConfig['backgrounds'];
   typography?: ThemeConfig['typography'];
@@ -60,6 +61,14 @@ export function validateAndParseThemeConfig(jsonString: string): {
       }
     }
 
+    for (const palette of Object.values(parsed.modeColors ?? {})) {
+      for (const [key, val] of Object.entries((palette ?? {}) as Record<string, unknown>)) {
+        if (typeof val === 'string' && val.startsWith('#') && !isValidHexColor(val)) {
+          return { success: false, error: `Invalid color value for "${key}": "${val}" is not a valid hex color.` };
+        }
+      }
+    }
+
     // Validate gradients if provided
     if (parsed.gradients && typeof parsed.gradients === 'object') {
       for (const [key, val] of Object.entries(parsed.gradients)) {
@@ -77,6 +86,7 @@ export function validateAndParseThemeConfig(jsonString: string): {
       neutralColor: parsed.neutralColor || undefined,
       presetId: parsed.presetId || undefined,
       colors: parsed.colors || undefined,
+      modeColors: parsed.modeColors || undefined,
       gradients: parsed.gradients || undefined,
       backgrounds: parsed.backgrounds || undefined,
       typography: parsed.typography || undefined,
@@ -105,6 +115,7 @@ export function downloadThemeConfigFile(
     neutralColor: config.neutralColor,
     presetId: config.presetId,
     colors: config.colors,
+    modeColors: config.modeColors,
     gradients: config.gradients,
     backgrounds: config.backgrounds,
     typography: config.typography,

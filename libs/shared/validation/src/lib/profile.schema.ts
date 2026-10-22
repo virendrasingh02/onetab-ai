@@ -332,6 +332,12 @@ export const themeConfigSchema = z.object({
   neutralColor: z.string().regex(hexColorRegex, 'Invalid hex color').optional(),
   presetId: z.string().optional(),
   colors: themeColorsConfigSchema.partial().optional(),
+  modeColors: z
+    .object({
+      light: themeColorsConfigSchema.partial().optional(),
+      dark: themeColorsConfigSchema.partial().optional(),
+    })
+    .optional(),
   gradients: themeGradientsConfigSchema.partial().optional(),
   backgrounds: themeBackgroundsConfigSchema.partial().optional(),
   typography: themeTypographyConfigSchema.partial().optional(),
