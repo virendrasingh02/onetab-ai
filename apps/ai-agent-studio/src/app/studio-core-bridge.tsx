@@ -1,6 +1,6 @@
 import { useAuthStore } from '@org/auth';
 import { RealtimeProvider } from '@org/realtime';
-import { LoadingState } from '@org/ui';
+import { LoadingState, Page } from '@org/ui';
 import { WorkflowCanvasView } from '@org/web-automations';
 import { AgentCreatePage, AgentDetailPage, AgentLibrary } from '@org/web-automations';
 import { AIApprovalsSection, AIRunsSection } from '@org/web-ai';
@@ -80,6 +80,15 @@ function AgentRedirect() {
   return <Navigate to={`/agents/${agentId}`} replace />;
 }
 
+/** The shared list sections ship unpadded (their host layout pads them), so pad them here. */
+function SectionFrame({ children }: { children: ReactNode }) {
+  return (
+    <Page padding="none" className="p-3 sm:p-6">
+      {children}
+    </Page>
+  );
+}
+
 /** Canvas for an automation workflow, opened from a plan-first agent's "Open the canvas". */
 function CanvasRoute() {
   return <WorkflowCanvasView />;
@@ -94,9 +103,9 @@ export function studioCoreRoutes(children?: ReactNode) {
     <>
     <Route path={STUDIO_CORE_PATH} element={<StudioCoreRoute />}>
       <Route index element={<StudioHomePage />} />
-      <Route path="agents" element={<AgentLibrary />} />
-      <Route path="runs" element={<AIRunsSection />} />
-      <Route path="approvals" element={<AIApprovalsSection />} />
+      <Route path="agents" element={<SectionFrame><AgentLibrary /></SectionFrame>} />
+      <Route path="runs" element={<SectionFrame><AIRunsSection /></SectionFrame>} />
+      <Route path="approvals" element={<SectionFrame><AIApprovalsSection /></SectionFrame>} />
       <Route path="studio/new" element={<AgentCreatePage />} />
       <Route path="studio/:workflowId" element={<AgentDetailPage />} />
       <Route path="workflows/:workflowId" element={<CanvasRoute />} />
