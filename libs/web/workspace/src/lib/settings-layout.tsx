@@ -14,6 +14,22 @@ import {
 import { cn } from '@org/utils';
 import { NotificationEnableBar } from '@org/notifications';
 import {
+  channelApi,
+  integrationsApi,
+  invitationApi,
+  marketplaceApi,
+  memberApi,
+  queryKeys,
+} from '@org/api-client';
+import {
+  InvitationStatus,
+  PLANS_CONFIG,
+  WorkspaceRole,
+  hasWorkspaceRole,
+  type PlanFeature,
+} from '@org/types';
+import { useQuery } from '@tanstack/react-query';
+import {
   AlertTriangle,
   ArrowLeft,
   BarChart3,
@@ -30,6 +46,7 @@ import {
   Globe,
   Kanban,
   Key,
+  Lock,
   Mail,
   MessageSquare,
   Palette,
@@ -55,6 +72,7 @@ import {
   WorkspaceMemberPreferencesSync,
   WorkspacePreferencesEffects,
 } from './settings-preferences.store.js';
+import { usePlanEntitlements } from './hooks/use-plan-entitlements.js';
 import { useCurrentWorkspace } from './use-workspaces.js';
 
 export interface NavItem {
@@ -65,6 +83,12 @@ export interface NavItem {
   href?: string;
   /** Extra words matched by the search box beyond the label. */
   keywords?: string;
+  /** Hidden below this workspace role — the panel is unusable without it. */
+  minRole?: WorkspaceRole;
+  /** Plan feature the panel needs; the item shows a lock when the plan lacks it. */
+  feature?: PlanFeature;
+  /** Set at render time when the current plan doesn't include `feature`. */
+  locked?: boolean;
 }
 
 export interface NavGroup {
@@ -99,10 +123,10 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'members', label: 'Members', icon: Users, keywords: 'people roles admins directory' },
       { id: 'invitations', label: 'Invitations & Access', icon: Mail, keywords: 'invite invitations shareable link join pending resend revoke access email' },
       { id: 'permissions', label: 'Permissions & Policies', icon: Shield, keywords: 'policies permissions roles invite create channels apps files who can' },
-      { id: 'enterprise-identity', label: 'Enterprise SSO & SCIM', icon: ShieldCheck, badge: 'ENT', keywords: 'sso saml oidc scim provisioning entra okta identity directory' },
-      { id: 'audit-log', label: 'Audit Log', icon: History, keywords: 'audit security activity history log records' },
+      { id: 'enterprise-identity', label: 'Enterprise SSO & SCIM', icon: ShieldCheck, minRole: WorkspaceRole.ADMIN, feature: 'sso_saml', keywords: 'sso saml oidc scim provisioning entra okta identity directory' },
+      { id: 'audit-log', label: 'Audit Log', icon: History, minRole: WorkspaceRole.ADMIN, feature: 'audit_logs', keywords: 'audit security activity history log records' },
       { id: 'import-export', label: 'Import & Export', icon: UploadCloud, keywords: 'migrate backup data slack' },
-      { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, keywords: 'delete archive transfer' },
+      { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, minRole: WorkspaceRole.OWNER, keywords: 'delete archive transfer' },
     ],
   },
   {
@@ -127,9 +151,9 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'ai-automation',
     title: 'AI & Automation',
     items: [
-      { id: 'ai-providers', label: 'AI Providers & Keys', icon: Key, badge: 'NEW', keywords: 'openai anthropic api key' },
-      { id: 'ai-persona', label: 'AI Models & Persona', icon: Sparkles, badge: 'AI', keywords: 'model prompt temperature context' },
-      { id: 'enterprise-custom-llm', label: 'Custom LLM (Enterprise)', icon: Cpu, badge: 'ENT', keywords: 'self-hosted endpoint' },
+      { id: 'ai-providers', label: 'AI Providers & Keys', icon: Key, keywords: 'openai anthropic api key' },
+      { id: 'ai-persona', label: 'AI Models & Persona', icon: Sparkles, keywords: 'model prompt temperature context' },
+      { id: 'enterprise-custom-llm', label: 'Custom LLM (Enterprise)', icon: Cpu, minRole: WorkspaceRole.ADMIN, feature: 'custom_llm', keywords: 'self-hosted endpoint' },
       { id: 'agent-marketplace', label: 'Agent Marketplace', icon: Bot, keywords: 'agents install bots' },
       { id: 'automations', label: 'Workflow Automations', icon: Workflow, keywords: 'triggers webhooks runs retries' },
     ],
@@ -138,12 +162,76 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'plan-data',
     title: 'Plan & Data',
     items: [
-      { id: 'billing', label: 'Plans & Billing', icon: CreditCard, badge: 'PRO', keywords: 'subscription invoice upgrade seats' },
+      { id: 'billing', label: 'Plans & Billing', icon: CreditCard, keywords: 'subscription invoice upgrade seats' },
       { id: 'analytics', label: 'Company Analytics & Usage', icon: BarChart3, keywords: 'usage metrics reports' },
       { id: 'integrations', label: 'Integration Hub', icon: Plug, keywords: 'connect apps github linear jira' },
     ],
   },
 ];
+
+/**
+ * Live facts the nav displays — member count, pending invites, the plan — read
+ * from the same queries the panels use, so the badges can never disagree with
+ * the page they lead to and opening a panel finds a warm cache.
+ */
+function useSettingsNavLive(workspaceId: string | undefined, role: WorkspaceRole | undefined) {
+  const isAdmin = !!role && hasWorkspaceRole(role, WorkspaceRole.ADMIN);
+  const entitlements = usePlanEntitlements(workspaceId);
+
+  const members = useQuery({
+    queryKey: queryKeys.members.list(workspaceId ?? ''),
+    queryFn: () => memberApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+  const pending = useQuery({
+    queryKey: queryKeys.invitations.list(workspaceId ?? '', {
+      status: InvitationStatus.PENDING,
+    }),
+    queryFn: () =>
+      invitationApi.list(workspaceId as string, {
+        status: InvitationStatus.PENDING,
+      }),
+    enabled: !!workspaceId && isAdmin,
+    staleTime: 30_000,
+  });
+
+  const integrations = useQuery({
+    queryKey: queryKeys.integrations.list(workspaceId ?? ''),
+    queryFn: () => integrationsApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+  const connected = integrations.data?.filter((i) => i.status === 'CONNECTED').length;
+  const broken = integrations.data?.filter(
+    (i) => i.status === 'ERROR' || i.status === 'EXPIRED',
+  ).length;
+
+  const channels = useQuery({
+    queryKey: queryKeys.channels.list(workspaceId ?? '', false),
+    queryFn: () => channelApi.list(workspaceId as string, false),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+  const installs = useQuery({
+    queryKey: queryKeys.marketplace.installations(workspaceId ?? '', 'ALL'),
+    queryFn: () => marketplaceApi.installations(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+
+  return {
+    channelCount: channels.data?.length,
+    installedCount: installs.data?.length,
+    connectedIntegrations: connected,
+    brokenIntegrations: broken,
+    memberCount: members.data?.length,
+    pendingInvites: isAdmin ? pending.data?.length : undefined,
+    planName: PLANS_CONFIG[entitlements.plan].name,
+    planLoaded: !entitlements.isLoading,
+    hasFeature: entitlements.hasFeature,
+  };
+}
 
 const COLLAPSE_STORAGE_KEY = 'onetab_settings_nav_collapsed';
 
@@ -258,7 +346,50 @@ export function SettingsLayout({
     }
   }, [collapsed]);
 
-  const navGroups = NAV_GROUPS;
+  const live = useSettingsNavLive(workspaceId, workspace?.role);
+
+  // Drop items the user's role can't use, and attach live badges.
+  const navGroups = useMemo<NavGroup[]>(
+    () =>
+      NAV_GROUPS.map((group) => ({
+        ...group,
+        items: group.items
+          .filter(
+            (item) =>
+              !item.minRole ||
+              (!!workspace?.role && hasWorkspaceRole(workspace.role, item.minRole)) ||
+              item.id === activeTab,
+          )
+          .map((item): NavItem => {
+            if (item.id === 'members' && live.memberCount !== undefined) {
+              return { ...item, badge: String(live.memberCount) };
+            }
+            if (item.id === 'invitations' && live.pendingInvites) {
+              return { ...item, badge: `${live.pendingInvites} pending` };
+            }
+            if (item.id === 'channels' && live.channelCount) {
+              return { ...item, badge: String(live.channelCount) };
+            }
+            if (item.id === 'agent-marketplace' && live.installedCount) {
+              return { ...item, badge: `${live.installedCount} installed` };
+            }
+            if (item.id === 'integrations') {
+              if (live.brokenIntegrations)
+                return { ...item, badge: `${live.brokenIntegrations} need attention` };
+              if (live.connectedIntegrations)
+                return { ...item, badge: `${live.connectedIntegrations} connected` };
+            }
+            if (item.id === 'billing' && live.planLoaded) {
+              return { ...item, badge: live.planName };
+            }
+            if (item.feature && live.planLoaded && !live.hasFeature(item.feature)) {
+              return { ...item, badge: 'Upgrade', locked: true };
+            }
+            return item;
+          }),
+      })).filter((group) => group.items.length > 0),
+    [workspace?.role, activeTab, live],
+  );
 
   const activeGroupId = useMemo(
     () =>
@@ -455,13 +586,20 @@ export function SettingsLayout({
                                   />
                                   <span className="truncate">{item.label}</span>
                                 </div>
-                                {item.badge ? (
-                                  <Badge
-                                    variant="neutral"
-                                    className="px-1.5 py-0 font-semibold text-[10px]"
-                                  >
-                                    {item.badge}
-                                  </Badge>
+                                {item.locked || item.badge ? (
+                                  <div className="gap-1.5 flex shrink-0 items-center">
+                                    {item.locked ? (
+                                      <Lock className="size-3 text-muted-foreground/70" />
+                                    ) : null}
+                                    {item.badge ? (
+                                      <Badge
+                                        variant="neutral"
+                                        className="px-1.5 py-0 font-semibold text-[10px]"
+                                      >
+                                        {item.badge}
+                                      </Badge>
+                                    ) : null}
+                                  </div>
                                 ) : null}
                               </button>
                             );

@@ -1155,7 +1155,12 @@ export function MessageList({
     }
 
     if (diff > 0) {
-      if (stickToBottom.current) {
+      // A message the reader just sent (locally echoed) always jumps to the
+      // bottom, even when they had scrolled up.
+      const sentByReader = !!messages[messages.length - 1]?.sendState;
+      if (stickToBottom.current || sentByReader) {
+        stickToBottom.current = true;
+        setNewMessagesCount(0);
         pinBottom();
       } else {
         setNewMessagesCount((previous) => previous + diff);
