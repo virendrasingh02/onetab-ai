@@ -417,6 +417,135 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // --- Hash Operations (per-field atomic keyed sets, e.g. pending deliveries) ---
+
+  private getMemoryHash(fullKey: string, create: boolean): Map<string, string> | null {
+    const entry = this.inMemoryStore.get(fullKey);
+    if (entry && (!entry.expiresAt || Date.now() <= entry.expiresAt)) {
+      return entry.value as Map<string, string>;
+    }
+    if (entry) this.inMemoryStore.delete(fullKey);
+    if (!create) return null;
+    const hash = new Map<string, string>();
+    this.inMemoryStore.set(fullKey, { value: hash });
+    return hash;
+  }
+
+  private touchMemoryHash(fullKey: string, ttlMs?: number): void {
+    const entry = this.inMemoryStore.get(fullKey);
+    if (entry && ttlMs && ttlMs > 0) entry.expiresAt = Date.now() + ttlMs;
+  }
+
+  /**
+   * Sets one field of a hash. With `onlyIfExists` the write is skipped (and
+   * `false` returned) when the field is gone — so a concurrent delete is never
+   * resurrected by a late update. `ttlMs` refreshes the whole hash's expiry.
+   */
+  async hashSet(
+    key: string,
+    field: string,
+    value: unknown,
+    options: { ttlMs?: number; onlyIfExists?: boolean } = {},
+  ): Promise<boolean> {
+    const fullKey = this.formatKey(key);
+    const serialized = JSON.stringify(value);
+    const ttlMs = options.ttlMs && options.ttlMs > 0 ? Math.ceil(options.ttlMs) : 0;
+
+    if (this.isConnected && this.redisClient) {
+      try {
+        const luaScript = `
+          if ARGV[3] == "1" and redis.call("hexists", KEYS[1], ARGV[1]) == 0 then
+            return 0
+          end
+          redis.call("hset", KEYS[1], ARGV[1], ARGV[2])
+          if tonumber(ARGV[4]) > 0 then
+            redis.call("pexpire", KEYS[1], ARGV[4])
+          end
+          return 1
+        `;
+        const result = await this.redisClient.eval(
+          luaScript,
+          1,
+          fullKey,
+          field,
+          serialized,
+          options.onlyIfExists ? '1' : '0',
+          String(ttlMs),
+        );
+        return result === 1;
+      } catch (err) {
+        this.logger.warn(`Redis HSET failed for key "${fullKey}", writing to fallback store.`, err);
+      }
+    }
+
+    const existing = this.getMemoryHash(fullKey, false);
+    if (options.onlyIfExists && !existing?.has(field)) return false;
+    const hash = existing ?? (this.getMemoryHash(fullKey, true) as Map<string, string>);
+    hash.set(field, serialized);
+    this.touchMemoryHash(fullKey, ttlMs);
+    return true;
+  }
+
+  async hashGetAll<T>(key: string): Promise<Record<string, T>> {
+    const fullKey = this.formatKey(key);
+    let raw: Record<string, string> | null = null;
+
+    if (this.isConnected && this.redisClient) {
+      try {
+        raw = await this.redisClient.hgetall(fullKey);
+      } catch (err) {
+        this.logger.warn(`Redis HGETALL failed for key "${fullKey}", checking fallback store.`, err);
+      }
+    }
+    if (!raw) {
+      const hash = this.getMemoryHash(fullKey, false);
+      raw = hash ? Object.fromEntries(hash) : {};
+    }
+
+    const out: Record<string, T> = {};
+    for (const [field, value] of Object.entries(raw)) {
+      try {
+        out[field] = JSON.parse(value) as T;
+      } catch {
+        // A corrupt field is skipped rather than failing the whole read.
+      }
+    }
+    return out;
+  }
+
+  /** Deletes one hash field; `true` only if it existed (the delete "won"). */
+  async hashDel(key: string, field: string): Promise<boolean> {
+    const fullKey = this.formatKey(key);
+
+    if (this.isConnected && this.redisClient) {
+      try {
+        return (await this.redisClient.hdel(fullKey, field)) > 0;
+      } catch (err) {
+        this.logger.warn(`Redis HDEL failed for key "${fullKey}".`, err);
+      }
+    }
+
+    const hash = this.getMemoryHash(fullKey, false);
+    if (!hash) return false;
+    const removed = hash.delete(field);
+    if (hash.size === 0) this.inMemoryStore.delete(fullKey);
+    return removed;
+  }
+
+  async hashLen(key: string): Promise<number> {
+    const fullKey = this.formatKey(key);
+
+    if (this.isConnected && this.redisClient) {
+      try {
+        return await this.redisClient.hlen(fullKey);
+      } catch (err) {
+        this.logger.warn(`Redis HLEN failed for key "${fullKey}".`, err);
+      }
+    }
+
+    return this.getMemoryHash(fullKey, false)?.size ?? 0;
+  }
+
   // --- Distributed Locks (e.g. for cluster-wide cron jobs / migrations) ---
 
   async acquireLock(resource: string, ttlMs = 10_000): Promise<string | null> {

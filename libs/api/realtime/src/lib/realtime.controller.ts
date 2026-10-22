@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -38,6 +39,12 @@ import {
   type SseMessageEvent,
 } from './realtime-gateway.service.js';
 import { RealtimeTicketService } from './realtime-ticket.service.js';
+import {
+  MAX_ACK_BATCH,
+  PendingDeliveryService,
+  isValidDeliveryId,
+  type DeliveryStatus,
+} from './pending-delivery.service.js';
 import { generateId } from '@org/utils';
 
 interface StreamQuery {
@@ -70,6 +77,7 @@ export class RealtimeController {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly deliveries: PendingDeliveryService,
   ) {}
 
   /**
@@ -98,8 +106,11 @@ export class RealtimeController {
     @Query() query: StreamQuery,
     @Headers('authorization') authHeader: string | undefined,
     @Headers('last-event-id') lastEventIdHeader: string | undefined,
-    @Req() _req: Request,
+    @Req() req: Request,
   ): Promise<Observable<MessageEvent>> {
+    // Refuse before doing any auth/DB work when this node is full.
+    this.gateway.assertCapacity();
+
     let userId: string;
 
     if (query.ticket) {
@@ -165,17 +176,28 @@ export class RealtimeController {
     const eventSubject = new Subject<SseMessageEvent>();
 
     // Register with gateway & presence services
+    const socket = req.socket;
     this.gateway.registerClient(
       clientId,
       userId,
       requestedWorkspaceId,
       eventSubject,
+      {
+        bufferedBytes: () => socket?.writableLength ?? 0,
+        close: () => socket?.destroy(),
+      },
     );
-    await this.presence.recordConnection(
-      clientId,
-      userId,
-      requestedWorkspaceId,
-    );
+    try {
+      await this.presence.recordConnection(
+        clientId,
+        userId,
+        requestedWorkspaceId,
+      );
+    } catch (err) {
+      // Don't leave a registered client behind for a stream never opened.
+      this.gateway.unregisterClient(clientId);
+      throw err;
+    }
 
     // Initial connected event, then a replay of anything the client missed
     // while it was disconnected (if it told us where it left off).
@@ -207,6 +229,10 @@ export class RealtimeController {
           eventSubject.next(evt);
         }
       }
+
+      // Reliable user deliveries still awaiting this user's ack (missed
+      // while offline, or unacked before a reconnect).
+      void this.gateway.flushPendingToClient(clientId);
     }, 10);
 
     // Keepalive ping every 20 seconds
@@ -221,13 +247,60 @@ export class RealtimeController {
     );
 
     const mergedStream$ = merge(eventSubject.asObservable(), keepalive$).pipe(
-      finalize(async () => {
+      finalize(() => {
         this.gateway.unregisterClient(clientId);
-        await this.presence.removeConnection(clientId);
+        // Must not reject unhandled: a DB error marking one user offline
+        // would otherwise crash the process and every other connection.
+        this.presence.removeConnection(clientId).catch(() => undefined);
       }),
     );
 
     return mergedStream$;
+  }
+
+  /**
+   * The client confirms it processed these reliable deliveries; they are then
+   * deleted from pending storage. Only the caller's own pending deliveries can
+   * be acked — unknown or foreign ids are ignored, never an error, so a retry
+   * of the same ack is harmless.
+   */
+  @Post('realtime/ack')
+  @HttpCode(HttpStatus.OK)
+  async ack(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { ids?: unknown },
+  ): Promise<{ acked: string[] }> {
+    const ids = body?.ids;
+    if (
+      !Array.isArray(ids) ||
+      ids.length === 0 ||
+      ids.length > MAX_ACK_BATCH ||
+      !ids.every(isValidDeliveryId)
+    ) {
+      throw new BadRequestException(
+        `ids must be 1–${MAX_ACK_BATCH} delivery ids.`,
+      );
+    }
+    return { acked: await this.deliveries.ack(user.id, ids) };
+  }
+
+  /** Delivery status of one of the caller's own reliable deliveries. */
+  @Get('realtime/deliveries/:id')
+  async deliveryStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<{ id: string; status: DeliveryStatus; type: string; updatedAt: number; reason?: string }> {
+    const status = await this.deliveries.getStatus(user.id, id);
+    if (!status) throw new NotFoundException('Delivery not found.');
+    return status;
+  }
+
+  /** How many reliable deliveries are still pending for the caller. */
+  @Get('realtime/deliveries')
+  async pendingCount(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ pending: number }> {
+    return { pending: await this.deliveries.countPending(user.id) };
   }
 
   /**

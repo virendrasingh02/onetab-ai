@@ -93,6 +93,11 @@ export interface RealtimeEvent<T = unknown> {
   workspaceId?: string | null;
   actorId?: string | null;
   payload: T;
+  /**
+   * Reliable (deliver-then-delete) delivery: the server keeps it pending until
+   * the client acks it; `RealtimeClient` does that automatically.
+   */
+  requiresAck?: boolean;
 }
 
 // --- Payload interfaces -----------------------------------------------------

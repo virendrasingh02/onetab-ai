@@ -52,11 +52,18 @@ export class RealtimeClient {
    * the stream does not silently drop updates. Cleared on a workspace switch. */
   private lastEventId: string | null = null;
   private stateListeners = new Set<ConnectionStateListener>();
+  /** Reliable-delivery ids processed but not yet acked to the server. */
+  private readonly pendingAcks = new Set<string>();
+  private ackTimer: ReturnType<typeof setTimeout> | null = null;
+  private ackFailures = 0;
   private broadcastChannel: BroadcastChannel | null = null;
 
   private readonly maxReconnectDelay = 30_000;
   private readonly baseReconnectDelay = 1_000;
   private readonly heartbeatTimeoutMs = 45_000;
+  private readonly ackDebounceMs = 150;
+  private readonly maxAckBatch = 200;
+  private readonly maxPendingAcks = 1_000;
 
   constructor(options: RealtimeClientOptions = {}) {
     this.bus = options.bus ?? new RealtimeEventBus();
@@ -244,9 +251,55 @@ export class RealtimeClient {
         }
         this.bus.emit(parsed);
         this.broadcastToSiblingTabs(parsed);
+        // Reliable deliveries stay pending server-side until acked. Ack once
+        // the handlers ran — including for a duplicate the bus dropped, since
+        // that one was already processed.
+        if (parsed.requiresAck && parsed.id) this.queueAck(parsed.id);
       }
     } catch {
       // Ignored malformed payload or keepalive string
+    }
+  }
+
+  private queueAck(id: string): void {
+    if (this.pendingAcks.size >= this.maxPendingAcks) return;
+    this.pendingAcks.add(id);
+    this.scheduleAckFlush(this.ackDebounceMs);
+  }
+
+  private scheduleAckFlush(delay: number): void {
+    if (this.ackTimer || this.isDisposed) return;
+    this.ackTimer = setTimeout(() => {
+      this.ackTimer = null;
+      void this.flushAcks();
+    }, delay);
+  }
+
+  /**
+   * Sends queued acks in batches. A failed ack is retried with backoff; if it
+   * never lands the server simply re-delivers, and the bus de-duplicates.
+   */
+  private async flushAcks(): Promise<void> {
+    if (this.pendingAcks.size === 0 || !this.getToken()) return;
+    const ids = Array.from(this.pendingAcks).slice(0, this.maxAckBatch);
+    for (const id of ids) this.pendingAcks.delete(id);
+    try {
+      await http.post('/realtime/ack', { ids });
+      this.ackFailures = 0;
+    } catch {
+      this.ackFailures += 1;
+      if (this.ackFailures <= 5) {
+        for (const id of ids) this.pendingAcks.add(id);
+      }
+    }
+    if (this.pendingAcks.size > 0) {
+      const delay =
+        this.ackFailures > 0
+          ? Math.min(1_000 * 2 ** (this.ackFailures - 1), 30_000)
+          : this.ackDebounceMs;
+      this.scheduleAckFlush(delay);
+    } else {
+      this.ackFailures = 0;
     }
   }
 
@@ -396,6 +449,11 @@ export class RealtimeClient {
 
   public dispose(): void {
     this.isDisposed = true;
+    if (this.ackTimer) {
+      clearTimeout(this.ackTimer);
+      this.ackTimer = null;
+    }
+    this.pendingAcks.clear();
     this.disconnect();
     this.bus.clear();
     this.stateListeners.clear();

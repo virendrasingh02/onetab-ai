@@ -443,7 +443,13 @@ export class RealtimeDomainBridgeListener {
     notification: unknown;
     unreadCount?: number;
   }): Promise<void> {
-    this.gateway.broadcastToUser(e.recipientId, {
+    // Reliable: parked until the recipient's client acks it, so a user who is
+    // offline or mid-reconnect still gets the live notification. The
+    // notification id is the idempotency key — a re-emitted event updates the
+    // one pending delivery instead of notifying twice.
+    const notificationId = (e.notification as { id?: unknown } | null)?.id;
+    await this.gateway.deliverToUser(e.recipientId, {
+      id: typeof notificationId === 'string' ? `ntf_${notificationId}` : undefined,
       type: 'notification.created',
       workspaceId: e.workspaceId,
       payload: e,
@@ -474,13 +480,17 @@ export class RealtimeDomainBridgeListener {
     contextLabel: string;
     deepLink: string;
   }): Promise<void> {
-    for (const recipientId of e.mentionedUserIds) {
-      this.gateway.broadcastToUser(recipientId, {
-        type: 'mention.created',
-        workspaceId: e.workspaceId,
-        payload: e,
-      });
-    }
+    // Each recipient in isolation: one recipient's store failure must not
+    // stop the others from being notified.
+    await Promise.allSettled(
+      e.mentionedUserIds.map((recipientId) =>
+        this.gateway.deliverToUser(recipientId, {
+          type: 'mention.created',
+          workspaceId: e.workspaceId,
+          payload: e,
+        }),
+      ),
+    );
   }
 
   /**

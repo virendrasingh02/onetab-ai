@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { CacheModule } from '@org/api-cache';
 import { PrismaModule } from '@org/database';
+import { PendingDeliveryService } from './pending-delivery.service.js';
 import { PresenceService } from './presence.service.js';
 import { RealtimeDomainBridgeListener } from './realtime-domain-bridge.listener.js';
 import { RealtimeGatewayService } from './realtime-gateway.service.js';
@@ -14,10 +15,11 @@ import { RealtimeController } from './realtime.controller.js';
   controllers: [RealtimeController],
   providers: [
     RealtimeGatewayService,
+    PendingDeliveryService,
     PresenceService,
     RealtimeTicketService,
     RealtimeDomainBridgeListener,
   ],
-  exports: [RealtimeGatewayService, PresenceService],
+  exports: [RealtimeGatewayService, PendingDeliveryService, PresenceService],
 })
 export class RealtimeModule {}

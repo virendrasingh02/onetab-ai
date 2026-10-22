@@ -125,4 +125,80 @@ describe('RealtimeClient', () => {
 
     client.dispose();
   });
+
+  it('acks reliable deliveries after handling them, batched and de-duplicated', async () => {
+    vi.useFakeTimers();
+    try {
+      const bus = new RealtimeEventBus();
+      const received: any[] = [];
+      bus.on('notification.created', (e) => received.push(e));
+      const client = new RealtimeClient({
+        bus,
+        getToken: () => 'token',
+        baseUrl: 'http://localhost:3000/api/v1',
+        autoConnect: true,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const es = mockEventSourceInstances[0];
+      es.onopen();
+      vi.mocked(http.post).mockClear();
+      vi.mocked(http.post).mockResolvedValue({ data: { acked: [] } } as any);
+
+      const frame = (id: string, requiresAck = true) => ({
+        data: JSON.stringify({
+          id,
+          type: 'notification.created',
+          timestamp: new Date().toISOString(),
+          payload: {},
+          ...(requiresAck ? { requiresAck: true } : {}),
+        }),
+      });
+      es.onmessage(frame('dlv_1'));
+      es.onmessage(frame('dlv_2'));
+      es.onmessage(frame('dlv_1')); // redelivered duplicate: not re-handled
+      es.onmessage(frame('evt_plain', false)); // best-effort: never acked
+
+      expect(received.map((e) => e.id)).toEqual(['dlv_1', 'dlv_2', 'evt_plain']);
+      expect(http.post).not.toHaveBeenCalled(); // debounced
+
+      await vi.advanceTimersByTimeAsync(200);
+      expect(http.post).toHaveBeenCalledTimes(1);
+      expect(http.post).toHaveBeenCalledWith('/realtime/ack', { ids: ['dlv_1', 'dlv_2'] });
+
+      client.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries a failed ack', async () => {
+    vi.useFakeTimers();
+    try {
+      const client = new RealtimeClient({
+        bus: new RealtimeEventBus(),
+        getToken: () => 'token',
+        baseUrl: 'http://localhost:3000/api/v1',
+        autoConnect: true,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const es = mockEventSourceInstances[0];
+      es.onopen();
+      vi.mocked(http.post).mockReset();
+      vi.mocked(http.post)
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValue({ data: { acked: ['dlv_9'] } } as any);
+
+      es.onmessage({
+        data: JSON.stringify({ id: 'dlv_9', type: 'x', timestamp: '', payload: {}, requiresAck: true }),
+      });
+      await vi.advanceTimersByTimeAsync(200);
+      expect(http.post).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1_100);
+      expect(http.post).toHaveBeenCalledTimes(2);
+      expect(http.post).toHaveBeenLastCalledWith('/realtime/ack', { ids: ['dlv_9'] });
+      client.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
