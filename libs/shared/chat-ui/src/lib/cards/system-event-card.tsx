@@ -4,6 +4,8 @@ import type {
   SystemEventEntity,
 } from '@org/types';
 import {
+  ActionDropdownMenu,
+  type EntityAction,
   Hint,
   UserAvatar,
   toast,
@@ -17,11 +19,13 @@ import {
   Copy,
   Hash,
   type LucideIcon,
+  MoreHorizontal,
   Pencil,
   Plug,
   PlugZap,
   ShieldCheck,
   Smile,
+  Trash2,
   UserMinus,
   UserPlus,
   UserRoundCheck,
@@ -29,7 +33,14 @@ import {
   Users,
 } from 'lucide-react';
 import { useState } from 'react';
-import { ReactionPicker, formatFullTimestamp, formatShortTimestamp } from '../chat-bubble.js';
+import {
+  MessageToolbarShell,
+  ReactionPicker,
+  TOOLBAR_BTN,
+  TOOLBAR_ICON,
+  formatFullTimestamp,
+  formatShortTimestamp,
+} from '../chat-bubble.js';
 import { ReactionBar } from '../reaction-bar.js';
 
 export interface SystemEventCardProps {
@@ -385,45 +396,67 @@ export function SystemEventTimestamp({ timestamp }: { timestamp: number }) {
 
 // --- actions -------------------------------------------------------------------
 
-/** The hover toolbar — reactions (when the event type allows them) plus a
- * one-click Copy. Reuses the exact reaction infrastructure every other message
- * uses (`onReact` → the same backend/Matrix reaction path `ChatBubble` calls),
- * never a second implementation (brief §13). Copy is the only extra action, so
- * it is a direct button rather than a one-item menu. */
+/** The hover toolbar — reactions (when the event type allows them) plus the
+ * same "⋯" menu every message row has. Reuses the exact reaction infrastructure
+ * every other message uses (`onReact` → the same backend/Matrix reaction path
+ * `ChatBubble` calls), never a second implementation (brief §13). */
 function SystemEventActions({
+  message,
   event,
   onReact,
   onCopy,
+  onDelete,
 }: {
+  message: Message;
   event: SystemActivityEventContent;
   onReact?: (key: string) => void;
   onCopy: () => void;
+  onDelete?: () => void;
 }) {
   const [isReactionOpen, setIsReactionOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const showReact = event.capabilities.reactions && onReact;
-  const buttonClass =
-    'size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground';
+
+  const buildActions = (): EntityAction[] => [
+    { id: 'copy-text', group: 'share', label: 'Copy event', icon: Copy, run: onCopy },
+    {
+      id: 'delete',
+      group: 'danger',
+      label: 'Delete event…',
+      icon: Trash2,
+      destructive: true,
+      hidden: !onDelete,
+      run: onDelete,
+    },
+  ];
 
   return (
-    <div
-      className={cn(
-        '-top-3.5 right-4 p-0.5 absolute z-20 items-center rounded-lg border border-border bg-surface-raised shadow-lg',
-        isReactionOpen ? 'flex' : 'hidden group-focus-within/message:flex group-hover/message:flex',
-      )}
-    >
+    <MessageToolbarShell visible={isReactionOpen || isMenuOpen}>
       {showReact ? (
         <ReactionPicker onSelect={onReact} open={isReactionOpen} onOpenChange={setIsReactionOpen}>
-          <button aria-label="Add a reaction" className={buttonClass}>
-            <Smile className="size-4" />
+          <button aria-label="Add a reaction" className={TOOLBAR_BTN}>
+            <Smile className={cn(TOOLBAR_ICON, 'group-hover/btn:rotate-12')} />
           </button>
         </ReactionPicker>
       ) : null}
-      <Hint label="Copy event">
-        <button type="button" aria-label="Copy event" onClick={onCopy} className={buttonClass}>
-          <Copy className="size-4" />
-        </button>
-      </Hint>
-    </div>
+      <ActionDropdownMenu
+        open={isMenuOpen}
+        onOpenChange={setIsMenuOpen}
+        actions={buildActions}
+        entityType="message"
+        entity={message}
+        scope={`message:${message.id}`}
+        contentClassName="w-56"
+        trigger={
+          <button
+            aria-label="More actions"
+            className={cn(TOOLBAR_BTN, isMenuOpen && 'bg-foreground/[0.06] text-foreground')}
+          >
+            <MoreHorizontal className={TOOLBAR_ICON} />
+          </button>
+        }
+      />
+    </MessageToolbarShell>
   );
 }
 
@@ -441,8 +474,10 @@ export function SystemEventCard({
   message,
   event,
   isHighlighted = false,
+  canManage = false,
   onReact,
   onViewEntity,
+  onDelete,
 }: SystemEventCardProps) {
   const primaryEntity = event.target ?? event.actor;
 
@@ -499,7 +534,13 @@ export function SystemEventCard({
         ) : null}
       </div>
 
-      <SystemEventActions event={event} onReact={onReact} onCopy={handleCopyEvent} />
+      <SystemEventActions
+        message={message}
+        event={event}
+        onReact={onReact}
+        onCopy={handleCopyEvent}
+        onDelete={canManage ? onDelete : undefined}
+      />
     </article>
   );
 }

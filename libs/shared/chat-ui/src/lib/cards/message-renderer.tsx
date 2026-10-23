@@ -116,6 +116,7 @@ export const MessageRenderer = memo(function MessageRenderer(
     onReact,
     onDelete,
     canManageConversation,
+    canModerateMessages,
     onViewSystemEventEntity,
   } = props;
   const structured = message.structuredEvent;
@@ -244,7 +245,7 @@ export const MessageRenderer = memo(function MessageRenderer(
             message={message}
             event={structured}
             isHighlighted={isHighlighted}
-            canManage={canManageConversation}
+            canManage={canManageConversation || canModerateMessages}
             onReact={onReact}
             onViewEntity={onViewSystemEventEntity}
             onDelete={onDelete}

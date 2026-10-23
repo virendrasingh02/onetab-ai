@@ -1736,8 +1736,43 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
   );
 }
 
-const TOOLBAR_BTN =
+/** Button chrome shared by every message-row hover toolbar. */
+export const TOOLBAR_BTN =
   'group/btn size-8 touch-target flex items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:bg-foreground/[0.06] hover:text-foreground hover:scale-105 active:scale-95';
+
+/** Icon class shared by every message-row hover toolbar button. */
+export const TOOLBAR_ICON =
+  'size-4.5 transition-transform duration-200 ease-out group-hover/btn:scale-110';
+
+/**
+ * The floating container of the hover toolbar. Rows with a smaller action set
+ * (system events) render their own buttons inside this same shell so the
+ * position, size, border and animation match the full message toolbar.
+ */
+export function MessageToolbarShell({
+  visible,
+  className,
+  children,
+}: {
+  /** Keep the toolbar open (menu/picker open or pinned) regardless of hover. */
+  visible: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      role="toolbar"
+      aria-label="Message actions"
+      className={cn(
+        '-top-4.5 right-4 p-1 gap-1 absolute z-20 items-center rounded-xl border border-border/80 bg-white dark:bg-surface-raised shadow-md transition-all duration-200 ease-out hover:shadow-lg animate-in fade-in-0 zoom-in-95',
+        visible ? 'flex' : 'hidden group-focus-within/message:flex group-hover/message:flex',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 /**
  * The floating hover/focus toolbar every message row shares — a plain message
@@ -1779,16 +1814,7 @@ export function MessageActionToolbar({
   entity: Message;
 }) {
   return (
-    <div
-      role="toolbar"
-      aria-label="Message actions"
-      className={cn(
-        '-top-4.5 right-4 p-1 gap-1 absolute z-20 items-center rounded-xl border border-border/80 bg-white dark:bg-surface-raised shadow-md transition-all duration-200 ease-out hover:shadow-lg animate-in fade-in-0 zoom-in-95',
-        isMenuOpen || isReactionOpen || actionsPinned
-          ? 'flex'
-          : 'hidden group-focus-within/message:flex group-hover/message:flex',
-      )}
-    >
+    <MessageToolbarShell visible={isMenuOpen || isReactionOpen || actionsPinned}>
       {onReact ? (
         <ReactionPicker
           onSelect={onReact}
@@ -1887,6 +1913,6 @@ export function MessageActionToolbar({
           </button>
         }
       />
-    </div>
+    </MessageToolbarShell>
   );
 }
