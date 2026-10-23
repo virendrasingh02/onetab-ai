@@ -97,4 +97,23 @@ export class AISecretsService {
     if (!secret) return null;
     return this.encryption.decrypt(secret.encryptedValue);
   }
+
+  /**
+   * Fills `{{secrets.KEY}}` references in author-written config (never in run
+   * data) with decrypted values, so a workflow can call an API without the key
+   * living in the workflow definition. Throws on an unknown key rather than
+   * sending a request with an empty credential.
+   */
+  async resolveSecretRefs(workspaceId: string, template: string): Promise<string> {
+    const pattern = /\{\{\s*secrets\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
+    const keys = [...new Set([...template.matchAll(pattern)].map((m) => (m[1] as string).toUpperCase()))];
+    if (keys.length === 0) return template;
+    const values = new Map<string, string>();
+    for (const key of keys) {
+      const value = await this.getDecryptedSecret(workspaceId, key);
+      if (value === null) throw new Error(`Secret '${key}' is not defined in this workspace. Add it under Setup → Secrets.`);
+      values.set(key, value);
+    }
+    return template.replace(pattern, (_, key: string) => values.get(key.toUpperCase()) ?? '');
+  }
 }

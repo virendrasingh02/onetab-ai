@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AIRuntimeService } from './ai-runtime.service.js';
+import { AIRuntimeService, windowHistory } from './ai-runtime.service.js';
 
 describe('AIRuntimeService', () => {
   let service: AIRuntimeService;
@@ -623,5 +623,28 @@ describe('AIRuntimeService', () => {
       expect(result.tools[0].status).toBe('failed');
       expect(result.tools[0].error).toMatch(/does not work with that coworker/);
     });
+  });
+});
+
+describe('windowHistory', () => {
+  const history = Array.from({ length: 6 }, (_, i) => ({
+    role: (i % 2 ? 'assistant' : 'user') as 'user' | 'assistant',
+    content: `message ${i}`,
+  }));
+
+  it('sends everything when no window is set', () => {
+    expect(windowHistory(history, { contextWindowSize: null, autoSummarize: false })).toEqual({ recent: history, digest: '' });
+  });
+
+  it('drops turns past the window', () => {
+    const out = windowHistory(history, { contextWindowSize: 2, autoSummarize: false });
+    expect(out.recent.map((m) => m.content)).toEqual(['message 4', 'message 5']);
+    expect(out.digest).toBe('');
+  });
+
+  it('condenses dropped turns when asked', () => {
+    const out = windowHistory(history, { contextWindowSize: 2, autoSummarize: true });
+    expect(out.digest).toContain('User: message 0');
+    expect(out.digest).not.toContain('message 4');
   });
 });

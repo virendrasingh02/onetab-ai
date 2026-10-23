@@ -281,7 +281,7 @@ export class CohereAdapter extends BaseProviderAdapter {
    * on it returns confident nonsense. Callers must get an error they can
    * surface, not silent garbage.
    */
-  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+  async generateEmbeddings(texts: string[], model?: string): Promise<number[][]> {
     if (!this.apiKey) {
       throw this.normalizeHttpError(401, {
         message: 'COHERE_API_KEY is not configured; cannot generate embeddings.',
@@ -299,7 +299,7 @@ export class CohereAdapter extends BaseProviderAdapter {
         },
         body: JSON.stringify({
           texts,
-          model: 'embed-multilingual-v3.0',
+          model: model || 'embed-multilingual-v3.0',
           input_type: 'search_document',
           embedding_types: ['float'],
         }),

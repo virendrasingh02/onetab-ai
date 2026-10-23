@@ -1,5 +1,5 @@
-import { agentsApi, ApiError } from '@org/api-client';
-import { READ_ONLY_AGENT_TOOLS } from '@org/types';
+import { agentsApi, ApiError, mcpApi } from '@org/api-client';
+import { mcpToolFunctionName, READ_ONLY_AGENT_TOOLS } from '@org/types';
 import {
   AppSelect,
   Badge,
@@ -18,9 +18,10 @@ import {
   toast,
 } from '@org/ui';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { AppWindow, ArrowRight, Flame, Loader2, Play, Plug, Search, Wrench } from 'lucide-react';
+import { AppWindow, ArrowRight, Braces, Flame, Loader2, Play, Plug, Plus, Search, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link } from '../router.js';
+import { Link, useNavigate } from '../router.js';
+import { useConnectors } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
 
 /** These mutations report their own errors, so the app-wide error toast stays quiet. */
@@ -30,6 +31,48 @@ type ToolDef = Awaited<ReturnType<typeof agentsApi.listMcpTools>>[number];
 type ParamDef = ToolDef['parameters'][string];
 
 const isReadOnly = (name: string) => READ_ONLY_AGENT_TOOLS.includes(name);
+
+type ToolSource = 'builtin' | 'app' | 'custom' | 'mcp';
+
+/** One row of the catalog, whichever real source it came from. */
+interface CatalogTool {
+  key: string;
+  name: string;
+  description: string;
+  source: ToolSource;
+  readOnly: boolean;
+  /** Where it is managed; built-in tools have none and open the sandbox instead. */
+  href?: string;
+  origin?: string;
+}
+
+const SOURCE_LABEL: Record<ToolSource, string> = {
+  builtin: 'Built-in',
+  app: 'Apps',
+  custom: 'Custom API',
+  mcp: 'MCP servers',
+};
+
+const ADD_OPTIONS = [
+  {
+    to: '/connectors/new',
+    icon: Braces,
+    title: 'Custom API tool',
+    description: 'Point at any REST API, name the actions, and agents can call them. Test each one before saving.',
+  },
+  {
+    to: '/mcp',
+    icon: Plug,
+    title: 'MCP server',
+    description: 'Connect a Model Context Protocol server. Its tools are discovered automatically and kept in sync.',
+  },
+  {
+    to: '/connectors',
+    icon: AppWindow,
+    title: 'App connector',
+    description: 'Slack, GitHub, Google and more: connect once, and every action becomes a tool.',
+  },
+] as const;
 
 /** The form value for a parameter as the API expects it; throws a readable error when it can't be. */
 function coerce(name: string, def: ParamDef, raw: string | boolean | undefined): unknown {
@@ -58,7 +101,9 @@ export function ToolsPage() {
   const { activeWorkspace } = useStudioSession();
   const workspaceId = activeWorkspace.id;
 
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [source, setSource] = useState<ToolSource | 'all'>('all');
   const [selectedName, setSelectedName] = useState<string>('');
   const [values, setValues] = useState<Record<string, string | boolean>>({});
 
@@ -66,13 +111,69 @@ export function ToolsPage() {
     queryKey: ['studio-tools', workspaceId],
     queryFn: () => agentsApi.listMcpTools(workspaceId),
   });
+  const connectorsQuery = useConnectors();
+  const mcpQuery = useQuery({
+    queryKey: ['studio-tools', 'mcp-connections', workspaceId],
+    queryFn: () => mcpApi.listConnections(workspaceId),
+  });
   const tools = toolsQuery.data ?? [];
   const selected = tools.find((t) => t.name === selectedName) ?? tools[0];
 
+  // Everything an agent can call in this workspace, from the real APIs: the
+  // built-ins, connected apps, the workspace's own API connectors, and MCP servers.
+  const catalog = useMemo<CatalogTool[]>(() => {
+    const items: CatalogTool[] = tools.map((t) => ({
+      key: `builtin:${t.name}`,
+      name: t.name,
+      description: t.description,
+      source: 'builtin',
+      readOnly: isReadOnly(t.name),
+    }));
+    for (const c of connectorsQuery.data ?? []) {
+      if (!c.custom && c.status !== 'connected') continue;
+      for (const cap of c.capabilities) {
+        items.push({
+          key: `${c.custom ? 'custom' : 'app'}:${cap.toolName}`,
+          name: cap.toolName,
+          description: cap.description || cap.label,
+          source: c.custom ? 'custom' : 'app',
+          readOnly: cap.permissionLevel === 'read',
+          href: c.custom ? `/connectors/${c.slug}/edit` : `/connectors/${c.slug}`,
+          origin: c.name,
+        });
+      }
+    }
+    for (const conn of mcpQuery.data ?? []) {
+      if (conn.status !== 'CONNECTED' || !conn.isEnabled) continue;
+      for (const t of conn.discoveredToolsJson) {
+        items.push({
+          key: `mcp:${conn.id}:${t.name}`,
+          name: mcpToolFunctionName(conn.id, t.name),
+          description: t.description ?? t.name,
+          source: 'mcp',
+          readOnly: t.annotations?.readOnlyHint === true,
+          href: '/mcp',
+          origin: conn.name,
+        });
+      }
+    }
+    return items;
+  }, [tools, connectorsQuery.data, mcpQuery.data]);
+
+  const counts = useMemo(() => {
+    const out: Record<ToolSource | 'all', number> = { all: catalog.length, builtin: 0, app: 0, custom: 0, mcp: 0 };
+    for (const t of catalog) out[t.source] += 1;
+    return out;
+  }, [catalog]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return q ? tools.filter((t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)) : tools;
-  }, [tools, search]);
+    return catalog.filter(
+      (t) =>
+        (source === 'all' || t.source === source) &&
+        (!q || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.origin?.toLowerCase().includes(q)),
+    );
+  }, [catalog, search, source]);
 
   const runMutation = useMutation({
     meta: QUIET,
@@ -104,39 +205,45 @@ export function ToolsPage() {
     <Page className="space-y-6">
       <PageHeader
         title="Tools & Integrations"
-        description="The built-in capabilities agents can call, with a sandbox to try them. Connect apps and your own tool servers from their own pages."
+        description="Everything agents can call in this workspace: built-in tools, connected apps, your own APIs and MCP servers. Try the built-in ones in the sandbox."
         icon={<Wrench className="size-5" />}
         accent="amber"
       />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          to="/connectors"
-          className="group flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border-strong"
-        >
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <AppWindow className="size-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-foreground">App Connectors</div>
-            <p className="text-xs text-muted-foreground">Slack, GitHub, Google and more: connect once, give agents their actions.</p>
-          </div>
-          <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-        </Link>
-        <Link
-          to="/mcp"
-          className="group flex items-center gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border-strong"
-        >
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Plug className="size-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-foreground">MCP Registry</div>
-            <p className="text-xs text-muted-foreground">Add your own tools by connecting a Model Context Protocol server.</p>
-          </div>
-          <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      </div>
+      <section className="space-y-3" aria-labelledby="add-tool">
+        <div className="flex items-center gap-2">
+          <Plus className="size-4 text-muted-foreground" />
+          <h2 id="add-tool" className="text-sm font-bold text-foreground">
+            Add a tool
+          </h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {ADD_OPTIONS.map(({ to, icon: Icon, title, description }) => (
+            <Link
+              key={to}
+              to={to}
+              className="group flex items-start gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+            >
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-foreground">{title}</div>
+                <p className="text-xs text-muted-foreground">{description}</p>
+              </div>
+              <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Built-in tools ship with the platform. Anything you add here appears in the catalog below and can be given to an agent
+          from its Tools slot;{' '}
+          <Link to="/tool-access" className="underline underline-offset-2 hover:text-foreground">
+            Tool access
+          </Link>{' '}
+          decides who may use it.
+        </p>
+      </section>
 
       {toolsQuery.isLoading ? (
         <LoadingState label="Loading tools…" />
@@ -247,7 +354,7 @@ export function ToolsPage() {
           {/* Catalog */}
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-bold text-foreground">Built-in tools ({tools.length})</h2>
+              <h2 className="text-sm font-bold text-foreground">All tools ({counts.all})</h2>
               <Input
                 type="search"
                 leadingIcon={<Search className="size-3.5" />}
@@ -259,21 +366,39 @@ export function ToolsPage() {
                 className="text-xs"
               />
             </div>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by source">
+              {(['all', 'builtin', 'app', 'custom', 'mcp'] as const).map((id) => (
+                <Button
+                  key={id}
+                  size="sm"
+                  variant={source === id ? 'primary' : 'outline'}
+                  onClick={() => setSource(id)}
+                  className="h-7 text-xs"
+                >
+                  {id === 'all' ? 'All' : SOURCE_LABEL[id]} ({counts[id]})
+                </Button>
+              ))}
+            </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
               {filtered.map((t) => {
                 const firecrawl = t.name.startsWith('firecrawl');
+                const builtin = t.source === 'builtin';
                 return (
                   <button
-                    key={t.name}
+                    key={t.key}
                     type="button"
                     onClick={() => {
+                      if (!builtin) {
+                        if (t.href) navigate(t.href);
+                        return;
+                      }
                       setSelectedName(t.name);
                       setValues({});
                       runMutation.reset();
                       document.getElementById('tool-sandbox')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }}
                     className={`space-y-2 rounded-xl border bg-surface p-4 text-left shadow-2xs transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
-                      selected?.name === t.name ? 'border-foreground/40' : 'border-border'
+                      builtin && selected?.name === t.name ? 'border-foreground/40' : 'border-border'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -287,16 +412,23 @@ export function ToolsPage() {
                         </span>
                         <span className="truncate font-mono text-xs font-bold text-foreground">{t.name}</span>
                       </span>
-                      <Badge variant={isReadOnly(t.name) ? 'outline' : 'warning'} className="shrink-0 text-[9px]">
-                        {isReadOnly(t.name) ? 'Read' : 'Write'}
+                      <Badge variant={t.readOnly ? 'outline' : 'warning'} className="shrink-0 text-[9px]">
+                        {t.readOnly ? 'Read' : 'Write'}
                       </Badge>
                     </div>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">{t.description}</p>
+                    <p className="line-clamp-3 text-[11px] leading-relaxed text-muted-foreground">{t.description}</p>
+                    {!builtin ? (
+                      <p className="text-[10px] font-medium text-muted-foreground">
+                        {SOURCE_LABEL[t.source]} · {t.origin}
+                      </p>
+                    ) : null}
                   </button>
                 );
               })}
               {filtered.length === 0 && (
-                <p className="col-span-full py-6 text-center text-xs text-muted-foreground">No tool matches “{search}”.</p>
+                <p className="col-span-full py-6 text-center text-xs text-muted-foreground">
+                  {search ? `No tool matches “${search}”.` : 'Nothing here yet. Add one above.'}
+                </p>
               )}
             </div>
           </section>

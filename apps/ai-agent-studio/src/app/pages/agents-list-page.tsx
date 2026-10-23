@@ -57,7 +57,7 @@ import {
   THEME_COLORS,
 } from '../data/agent-metadata.js';
 import { useStudioSession } from '../session-guard.js';
-import { useModelOptions } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
+import { useAiModels, useModelOptions } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
 
 /** Platform default (NVIDIA Nemotron 3 Super) — matches AI_DEFAULT_MODEL. */
 const DEFAULT_AGENT_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
@@ -102,6 +102,11 @@ export function AgentsListPage() {
   const [newPrompt, setNewPrompt] = useState('You are an intelligent autonomous AI employee.');
   const [newModel, setNewModel] = useState(DEFAULT_AGENT_MODEL);
   const modelOptions = useModelOptions(newModel);
+  const modelCatalog = useAiModels();
+  /** Provider that owns the chosen model, so the agent isn't saved under the wrong one. */
+  const providerForModel = (model: string): string | undefined =>
+    modelCatalog.data?.find((m) => m.model === model || m.id === model)?.provider ??
+    (model.startsWith('nvidia/') ? 'nvidia' : undefined);
   const [newEnvironment, setNewEnvironment] = useState<AgentEnvironment>('development');
   const [newTheme, setNewTheme] = useState('emerald');
   const [newIcon, setNewIcon] = useState('Bot');
@@ -280,7 +285,7 @@ export function AgentsListPage() {
       description: newDesc.trim() || undefined,
       systemPrompt: newPrompt,
       model: newModel,
-      provider: 'openai',
+      provider: providerForModel(newModel),
       avatarUrl: newAvatarUrl || null,
       tools: ['firecrawl_search', 'kb_search'],
       graphJson: JSON.stringify(initialGraph),
@@ -627,14 +632,14 @@ export function AgentsListPage() {
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex min-w-0 items-center gap-3">
                       {/* Avatar & Icon with custom theme styling */}
-                      <AgentAvatar agent={agent} size="md" />
-                      <div>
+                      <AgentAvatar agent={agent} size="lg" />
+                      <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <div
                             onClick={() => !isDeleted && navigate(`/agents/${agent.id}`)}
-                            className={`text-xs font-bold text-foreground transition-colors line-clamp-1 ${
+                            className={`text-base font-semibold leading-tight text-foreground transition-colors line-clamp-1 ${
                               !isDeleted ? 'cursor-pointer hover:text-foreground' : ''
                             }`}
                           >
@@ -657,7 +662,7 @@ export function AgentsListPage() {
                             </Button>
                           )}
                         </div>
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
                           <span>{agent.role || 'Assistant'}</span>
                           <span>•</span>
                           <span className="font-mono text-[10px] uppercase text-muted-foreground/80">

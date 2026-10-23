@@ -109,6 +109,7 @@ function makeEngine(
     { resolve: vi.fn().mockReturnValue({ provider: 'openai', model: 'gpt-4o' }) } as any,
     { resolveCredential: vi.fn().mockResolvedValue({ apiKey: 'k', baseUrl: undefined }) } as any,
     { callTool: vi.fn() } as any,
+    { resolveSecretRefs: vi.fn(async (_ws: string, raw: string) => raw) } as any,
     undefined,
     events as any,
   );

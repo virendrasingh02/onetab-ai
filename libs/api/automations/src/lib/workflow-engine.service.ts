@@ -11,6 +11,7 @@ import {
 import {
   AICredentialService,
   AIInfrastructureService,
+  AISecretsService,
   KnowledgeService,
   MCPService,
   ModelResolverService,
@@ -306,6 +307,7 @@ export class WorkflowEngineService {
     private readonly modelResolver: ModelResolverService,
     private readonly credentials: AICredentialService,
     private readonly mcpServers: MCPService,
+    private readonly secrets: AISecretsService,
     @Optional() private readonly realtime?: RealtimeGatewayService,
     @Optional() private readonly events?: EventEmitter2,
     @Optional() private readonly providers?: ProviderRegistryService,
@@ -1854,16 +1856,23 @@ export class WorkflowEngineService {
       case 'WEBHOOK': {
         const gated = this.gateStep(node, env);
         if (gated) return gated;
-        const rawUrl = String(cfg['url'] ?? '');
+        // `{{secrets.KEY}}` is resolved from the author's config only, before
+        // run data is interpolated, so a trigger payload can't request a secret.
+        const withSecrets = (raw: string) => this.secrets.resolveSecretRefs(workspaceId, raw);
+        const rawUrl = await withSecrets(String(cfg['url'] ?? ''));
         const url = interpolateVariables(rawUrl, context);
         const method = String(cfg['method'] ?? 'GET').toUpperCase();
 
-        const headers: Record<string, string> = {
-          'user-agent': 'OneTab-AI-Workflow/1',
-          ...((cfg['headers'] as Record<string, string>) ?? {}),
-        };
+        const configuredHeaders = (cfg['headers'] as Record<string, string>) ?? {};
+        const headers: Record<string, string> = { 'user-agent': 'OneTab-AI-Workflow/1' };
+        for (const [name, value] of Object.entries(configuredHeaders)) {
+          headers[name] = await withSecrets(String(value));
+        }
         const hasBody = method !== 'GET' && method !== 'HEAD';
-        const body = hasBody && cfg['body'] ? interpolateVariables(String(cfg['body']), context) : undefined;
+        const body =
+          hasBody && cfg['body']
+            ? interpolateVariables(await withSecrets(String(cfg['body'])), context)
+            : undefined;
         if (body && !headers['content-type']) {
           headers['content-type'] = 'application/json';
         }

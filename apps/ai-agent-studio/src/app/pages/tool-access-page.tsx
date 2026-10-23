@@ -10,6 +10,7 @@ import {
   AppSelect,
   Badge,
   Button,
+  Card,
   EmptyState,
   ErrorState,
   Input,
@@ -20,7 +21,7 @@ import {
 } from '@org/ui';
 import { useWorkspacePermission } from '@org/web-workspace';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Search, ShieldCheck } from 'lucide-react';
+import { ChevronDown, ChevronRight, Info, Search, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useConnectors } from '../services/connectors.js';
 import { useStudioSession } from '../session-guard.js';
@@ -143,7 +144,7 @@ export function ToolAccessPage() {
   if (policies.isLoading || builtin.isLoading || connectors.isLoading) return <LoadingState label="Loading tool access…" />;
   if (policies.isError || builtin.isError || connectors.isError) {
     return (
-      <Page>
+      <Page className="space-y-6">
         <ErrorState
           title="Couldn’t load tool access"
           description="The platform didn’t answer. Try again in a moment."
@@ -159,8 +160,11 @@ export function ToolAccessPage() {
 
   const appMode = (c: ConnectorSummary): WorkspaceToolMode => policy.connectors[c.provider] ?? 'allow';
 
+  const connectedCount = (connectors.data ?? []).filter((c) => c.status === 'connected').length;
+  const restrictedApps = (connectors.data ?? []).filter((c) => appMode(c) !== 'allow').length;
+
   return (
-    <Page>
+    <Page className="space-y-6">
       <PageHeader
         title="Tool access"
         description="Decide which tools and connected apps agents may use in this workspace. These rules sit over every agent’s own settings and apply on its next run."
@@ -174,7 +178,14 @@ export function ToolAccessPage() {
                   Discard
                 </Button>
               ) : null}
-              <Button size="sm" onClick={() => save.mutate()} disabled={!dirty} loading={save.isPending}>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => save.mutate()}
+                disabled={!dirty}
+                loading={save.isPending}
+                className="text-xs font-semibold"
+              >
                 Save changes
               </Button>
             </div>
@@ -183,16 +194,35 @@ export function ToolAccessPage() {
       />
 
       {!canEdit ? (
-        <p role="status" className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <p role="status" className="rounded-lg border border-border bg-surface-raised px-3 py-2 text-xs text-muted-foreground">
           Only workspace admins can change these rules. You can see what is currently set.
         </p>
       ) : null}
 
-      <p className="text-xs text-muted-foreground">
-        <strong className="font-semibold text-foreground">Needs approval</strong> applies to what an agent decides to call.
-        A step you place on a canvas yourself runs unless it is <strong className="font-semibold text-foreground">Disabled</strong>;
-        use an approval step on the canvas to gate it. {ruleCount === 0 ? 'No rules are set, so every agent’s own settings decide.' : `${ruleCount} rule${ruleCount === 1 ? '' : 's'} set.`}
-      </p>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Connected apps', value: `${connectedCount}/${connectors.data?.length ?? 0}` },
+          { label: 'Built-in tools', value: builtin.data?.length ?? 0 },
+          { label: 'Active rules', value: ruleCount },
+        ].map((s) => (
+          <Card key={s.label} className="p-3 shadow-2xs">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{s.label}</div>
+            <div className="mt-1 text-lg font-bold tabular-nums text-foreground">{s.value}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="flex items-start gap-2.5 p-3 shadow-2xs">
+        <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          <strong className="font-semibold text-foreground">Needs approval</strong> applies to what an agent decides to call.
+          A step you place on a canvas yourself runs unless it is <strong className="font-semibold text-foreground">Disabled</strong>;
+          use an approval step on the canvas to gate it.{' '}
+          {ruleCount === 0
+            ? 'No rules are set, so every agent’s own settings decide.'
+            : `${ruleCount} rule${ruleCount === 1 ? '' : 's'} set${restrictedApps ? `, ${restrictedApps} app${restrictedApps === 1 ? '' : 's'} restricted` : ''}.`}
+        </p>
+      </Card>
 
       <Input
         prefix={<Search className="size-4" />}
@@ -203,92 +233,109 @@ export function ToolAccessPage() {
         className="max-w-sm"
       />
 
-      <section className="space-y-2" aria-labelledby="tool-access-apps">
-        <h2 id="tool-access-apps" className="text-sm font-semibold text-foreground">Connected apps</h2>
+      <section className="space-y-3" aria-labelledby="tool-access-apps">
+        <h2 id="tool-access-apps" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Apps ({apps.length})
+        </h2>
         {apps.length === 0 ? (
           <EmptyState title="No apps match" description="Try a different search." />
         ) : (
-          <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
-            {apps.map((c) => {
-              const expanded = open.has(c.provider);
-              const overrides = c.capabilities.filter((cap) => policy.tools[cap.toolName]).length;
-              return (
-                <li key={c.provider}>
-                  <div className="flex items-center gap-3 px-3 py-2.5">
-                    <button
-                      type="button"
-                      onClick={() => toggle(c.provider)}
-                      aria-expanded={expanded}
-                      aria-label={`${expanded ? 'Hide' : 'Show'} ${c.name} tools`}
-                      className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                    >
-                      {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">{c.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {c.capabilities.length} action{c.capabilities.length === 1 ? '' : 's'}
-                        {c.status === 'connected' ? ' · connected' : ' · not connected'}
-                        {overrides ? ` · ${overrides} tool rule${overrides === 1 ? '' : 's'}` : ''}
-                      </p>
+          <Card className="overflow-hidden p-0 shadow-2xs">
+            <ul className="divide-y divide-border">
+              {apps.map((c) => {
+                const expanded = open.has(c.provider);
+                const overrides = c.capabilities.filter((cap) => policy.tools[cap.toolName]).length;
+                const connected = c.status === 'connected';
+                return (
+                  <li key={c.provider}>
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => toggle(c.provider)}
+                        aria-expanded={expanded}
+                        aria-label={`${expanded ? 'Hide' : 'Show'} ${c.name} tools`}
+                        className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                      >
+                        {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-xs font-bold text-foreground">{c.name}</p>
+                          <Badge variant={connected ? 'success' : 'neutral'} className="text-[9px]">
+                            {connected ? 'Connected' : 'Not connected'}
+                          </Badge>
+                          {appMode(c) !== 'allow' ? (
+                            <Badge variant={MODE_BADGE[appMode(c)]} className="text-[9px]">
+                              {MODE_OPTIONS.find((m) => m.value === appMode(c))?.label}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          {c.capabilities.length} action{c.capabilities.length === 1 ? '' : 's'}
+                          {overrides ? ` · ${overrides} tool rule${overrides === 1 ? '' : 's'}` : ''}
+                        </p>
+                      </div>
+                      <ModeSelect
+                        label={`${c.name} access`}
+                        value={appMode(c)}
+                        disabled={!canEdit}
+                        onChange={(mode) => setApp(c.provider, mode === 'inherit' ? 'allow' : mode)}
+                      />
                     </div>
-                    {appMode(c) !== 'allow' ? <Badge variant={MODE_BADGE[appMode(c)]}>{MODE_OPTIONS.find((m) => m.value === appMode(c))?.label}</Badge> : null}
-                    <ModeSelect
-                      label={`${c.name} access`}
-                      value={appMode(c)}
-                      disabled={!canEdit}
-                      onChange={(mode) => setApp(c.provider, mode === 'inherit' ? 'allow' : mode)}
-                    />
-                  </div>
-                  {expanded ? (
-                    <ul className="space-y-1 border-t border-border bg-muted/30 px-3 py-2 pl-10">
-                      {c.capabilities.map((cap) => (
-                        <li key={cap.id} className="flex items-center gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-medium text-foreground">{cap.label}</p>
-                            <p className="truncate font-mono text-[10px] text-muted-foreground">
-                              {cap.toolName} · {cap.permissionLevel}
-                            </p>
-                          </div>
-                          <ModeSelect
-                            label={`${cap.label} access`}
-                            value={policy.tools[cap.toolName] ?? 'inherit'}
-                            disabled={!canEdit}
-                            inheritLabel={`Same as app (${MODE_OPTIONS.find((m) => m.value === appMode(c))?.label})`}
-                            onChange={(mode) => setTool(cap.toolName, mode)}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
+                    {expanded ? (
+                      <ul className="space-y-1.5 border-t border-border bg-surface-raised px-4 py-2.5 pl-11">
+                        {c.capabilities.map((cap) => (
+                          <li key={cap.id} className="flex items-center gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-medium text-foreground">{cap.label}</p>
+                              <p className="truncate font-mono text-[10px] text-muted-foreground">
+                                {cap.toolName} · {cap.permissionLevel}
+                              </p>
+                            </div>
+                            <ModeSelect
+                              label={`${cap.label} access`}
+                              value={policy.tools[cap.toolName] ?? 'inherit'}
+                              disabled={!canEdit}
+                              inheritLabel={`Same as app (${MODE_OPTIONS.find((m) => m.value === appMode(c))?.label})`}
+                              onChange={(mode) => setTool(cap.toolName, mode)}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
         )}
       </section>
 
-      <section className="space-y-2" aria-labelledby="tool-access-builtin">
-        <h2 id="tool-access-builtin" className="text-sm font-semibold text-foreground">Built-in tools</h2>
+      <section className="space-y-3" aria-labelledby="tool-access-builtin">
+        <h2 id="tool-access-builtin" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Built-in tools ({builtinTools.length})
+        </h2>
         {builtinTools.length === 0 ? (
           <EmptyState title="No tools match" description="Try a different search." />
         ) : (
-          <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
-            {builtinTools.map((tool) => (
-              <li key={tool.name} className="flex items-center gap-3 px-3 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-xs font-medium text-foreground">{tool.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{tool.description}</p>
-                </div>
-                <ModeSelect
-                  label={`${tool.name} access`}
-                  value={policy.tools[tool.name] ?? 'allow'}
-                  disabled={!canEdit}
-                  onChange={(mode) => setTool(tool.name, mode)}
-                />
-              </li>
-            ))}
-          </ul>
+          <Card className="overflow-hidden p-0 shadow-2xs">
+            <ul className="divide-y divide-border">
+              {builtinTools.map((tool) => (
+                <li key={tool.name} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-mono text-xs font-bold text-foreground">{tool.name}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{tool.description}</p>
+                  </div>
+                  <ModeSelect
+                    label={`${tool.name} access`}
+                    value={policy.tools[tool.name] ?? 'allow'}
+                    disabled={!canEdit}
+                    onChange={(mode) => setTool(tool.name, mode)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
     </Page>

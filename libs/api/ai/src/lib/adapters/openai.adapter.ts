@@ -464,7 +464,7 @@ export class OpenAIAdapter extends BaseProviderAdapter {
    * on it returns confident nonsense. Callers must get an error they can
    * surface, not silent garbage.
    */
-  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+  async generateEmbeddings(texts: string[], model?: string): Promise<number[][]> {
     if (!this.apiKey) {
       throw this.normalizeHttpError(401, {
         message: 'OPENAI_API_KEY is not configured; cannot generate embeddings.',
@@ -482,7 +482,7 @@ export class OpenAIAdapter extends BaseProviderAdapter {
         },
         body: JSON.stringify({
           input: texts,
-          model: 'text-embedding-3-small',
+          model: model || 'text-embedding-3-small',
         }),
       });
     } catch (err) {

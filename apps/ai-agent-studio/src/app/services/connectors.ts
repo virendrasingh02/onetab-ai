@@ -457,6 +457,11 @@ export function deleteCustomConnector(workspaceId: string, integrationId: string
   return connectorsApi.custom.remove(workspaceId, integrationId);
 }
 
+/** Checks the (possibly unsaved) connection settings against the real API. */
+export function testCustomConnection(workspaceId: string, body: { connector: CustomConnectorInput; integrationId?: string }) {
+  return connectorsApi.custom.testConnection(workspaceId, body);
+}
+
 /** Runs one action of the (possibly unsaved) definition against the real API. */
 export function testCustomAction(
   workspaceId: string,

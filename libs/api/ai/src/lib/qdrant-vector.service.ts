@@ -159,7 +159,11 @@ export class QdrantVectorService implements OnModuleInit {
     vector: number[],
     workspaceId: string,
     limit = 10,
+    documentIds?: string[],
   ): Promise<VectorSearchHit[]> {
+    // Narrowing to a document set lets several knowledge bases share one
+    // workspace collection without seeing each other's chunks.
+    if (documentIds && documentIds.length === 0) return [];
     if (!this.ensured.has(collection)) {
       // A search before anything was ever ingested for this collection: no
       // collection yet, so nothing to find. That is a legitimate empty result,
@@ -176,7 +180,12 @@ export class QdrantVectorService implements OnModuleInit {
         limit,
         with_payload: true,
         filter: {
-          must: [{ key: 'workspaceId', match: { value: workspaceId } }],
+          must: [
+            { key: 'workspaceId', match: { value: workspaceId } },
+            ...(documentIds
+              ? [{ key: 'documentId', match: { any: documentIds } }]
+              : []),
+          ],
         },
       });
       return res.points.map((hit) => ({

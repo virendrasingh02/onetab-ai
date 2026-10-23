@@ -64,7 +64,6 @@ import {
   Star,
   UserMinus,
   UserPlus,
-  Users,
   Workflow,
   X,
   type LucideIcon,
@@ -270,7 +269,6 @@ export function ChannelDetailsPanel({
             createdByName={createdByName}
             canManage={canManage}
             onEditDetails={onEditDetails}
-            onNavigateToTab={setActiveTab}
           />
         </TabsContent>
 
@@ -710,7 +708,6 @@ function AboutTab({
   createdByName,
   canManage,
   onEditDetails,
-  onNavigateToTab,
 }: {
   channel: ChannelSummary;
   workspaceId: string | undefined;
@@ -718,35 +715,13 @@ function AboutTab({
   createdByName?: string;
   canManage: boolean;
   onEditDetails: () => void;
-  onNavigateToTab: (tab: ChannelDetailsTab) => void;
 }) {
-  const isPrivate = channel.visibility === 'PRIVATE';
-
   return (
     <ScrollArea className="min-h-0 flex-1" contentClassName="space-y-3 p-3">
-      {/* The facts the header above doesn't already show: who can see the
-          channel, whether it's archived, and how many people are in it. */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Badge variant={isPrivate ? 'neutral' : 'outline'} className="gap-1">
-          {isPrivate ? (
-            <Lock className="size-3" aria-hidden />
-          ) : (
-            <Hash className="size-3" aria-hidden />
-          )}
-          {isPrivate ? 'Private channel' : 'Public channel'}
-        </Badge>
-        {channel.isArchived ? (
-          <Badge variant="destructive">Archived</Badge>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => onNavigateToTab('members')}
-          className="gap-1 px-2 py-0.5 text-xs flex items-center rounded-full border border-border bg-surface text-muted-foreground outline-none transition-colors hover:border-border-strong hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <Users className="size-3" aria-hidden />
-          {channel.memberCount} {channel.memberCount === 1 ? 'member' : 'members'}
-        </button>
-      </div>
+      {/* Visibility and member count already live in the header and tabs. */}
+      {channel.isArchived ? (
+        <Badge variant="destructive">Archived</Badge>
+      ) : null}
 
       {/* One bordered card of divided rows, so the fields read as one object
           rather than five loose paragraphs in a narrow column. */}
@@ -802,13 +777,15 @@ function AboutTab({
           {formatDate(channel.createdAt)}
         </DetailRow>
 
-        <div className="p-3">
-          <LeaveChannelButton
-            channel={channel}
-            workspaceId={workspaceId}
-            currentUserId={currentUserId}
-          />
-        </div>
+        {channel.membership && !isGeneralChannel(channel) ? (
+          <div className="p-3">
+            <LeaveChannelButton
+              channel={channel}
+              workspaceId={workspaceId}
+              currentUserId={currentUserId}
+            />
+          </div>
+        ) : null}
       </div>
     </ScrollArea>
   );

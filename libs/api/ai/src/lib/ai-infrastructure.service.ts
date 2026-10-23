@@ -378,9 +378,9 @@ export class AIInfrastructureService implements OnModuleInit {
    */
   async generateEmbedding(
     text: string,
-    _model = 'nomic-embed-text',
+    model?: string,
   ): Promise<number[]> {
-    const [vector] = await this.generateEmbeddings([text]);
+    const [vector] = await this.generateEmbeddings([text], model, 'query');
     if (!vector || vector.length === 0) {
       throw new ServiceUnavailableException(
         'Embedding provider returned an empty vector.',
@@ -389,17 +389,33 @@ export class AIInfrastructureService implements OnModuleInit {
     return vector;
   }
 
+  /** Which provider serves a known embedding model, by its naming convention. */
+  private embeddingProviderFor(model: string): AIProvider | undefined {
+    if (/^text-embedding-/i.test(model)) return 'openai';
+    if (/^embed-/i.test(model)) return 'cohere';
+    if (/^nvidia\//i.test(model)) return 'nvidia';
+    if (/^(nomic-embed|mxbai-embed|all-minilm|snowflake-arctic-embed|bge-)/i.test(model)) return 'ollama';
+    return undefined;
+  }
+
   /**
    * Batch embedding. Tries the configured providers in order — a hosted key
    * beats the local model on quality — and only falls through to the next on a
    * hard failure. Throws when none can produce a vector rather than returning
    * anything a caller could mistake for a real embedding.
    */
-  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+  async generateEmbeddings(
+    texts: string[],
+    model?: string,
+    kind: 'document' | 'query' = 'document',
+  ): Promise<number[][]> {
     if (texts.length === 0) return [];
     this.logger.log(`Generating ${texts.length} embedding(s)`);
 
-    const order: AIProvider[] = ['openai', 'cohere', 'ollama'];
+    // A named model pins its own provider: vectors from different models are
+    // not comparable (and differ in dimension), so no cross-provider fallback.
+    const pinned = model ? this.embeddingProviderFor(model) : undefined;
+    const order: AIProvider[] = pinned ? [pinned] : ['openai', 'cohere', 'nvidia', 'ollama'];
     const errors: string[] = [];
 
     for (const provider of order) {
@@ -412,7 +428,7 @@ export class AIInfrastructureService implements OnModuleInit {
         continue;
       }
       try {
-        const vectors = await adapter.generateEmbeddings(texts);
+        const vectors = await adapter.generateEmbeddings(texts, pinned ? model : undefined, kind);
         if (
           vectors.length === texts.length &&
           vectors.every((v) => v.length > 0)

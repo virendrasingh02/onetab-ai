@@ -35,5 +35,5 @@ export interface IProviderAdapter {
   chat(options: ChatExecutionOptions): Promise<AIChatResponse>;
   stream(options: ChatExecutionOptions): AsyncGenerator<AIStreamEvent, void, unknown>;
   healthCheck(): Promise<ProviderConnectionTestResult>;
-  generateEmbeddings?(texts: string[]): Promise<number[][]>;
+  generateEmbeddings?(texts: string[], model?: string, kind?: 'document' | 'query'): Promise<number[][]>;
 }

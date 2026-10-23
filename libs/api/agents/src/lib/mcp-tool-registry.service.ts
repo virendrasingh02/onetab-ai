@@ -26,6 +26,10 @@ export interface MCPToolContext {
    * tools then refuse rather than posting as nobody.
    */
   agentMatrixUserId?: string | null;
+  /** The agent running the tool — its `agent`-scoped memories are keyed to it. */
+  agentId?: string | null;
+  /** The person the agent is answering, whose `user`-scoped memories are theirs alone. */
+  requesterId?: string | null;
   /** The zone "today" means for date-ranged tools; the owner's profile zone when absent. */
   timezone?: string | null;
 }
@@ -347,7 +351,7 @@ export class MCPToolRegistryService {
         scope: { type: 'string', description: `Optional scope: ${MEMORY_SCOPES.join(', ')} (default workspace)` },
       },
       optional: ['scope'],
-      handler: async (params: { key?: string; value?: string; scope?: string }, { workspaceId }) => {
+      handler: async (params: { key?: string; value?: string; scope?: string }, { workspaceId, agentId, requesterId }) => {
         let key = params.key?.trim();
         const value = params.value?.trim();
         if (!key || !value) {
@@ -355,7 +359,9 @@ export class MCPToolRegistryService {
         }
         const scope = memoryScope(params.scope);
         if (scope && scope !== 'workspace' && !key.startsWith('[')) {
-          key = `[${scope}] ${key}`;
+          // `agent` and `user` facts carry whose they are, so recall can keep them apart.
+          const owner = scope === 'agent' ? agentId : scope === 'user' ? requesterId : null;
+          key = owner ? `[${scope}:${owner}] ${key}` : `[${scope}] ${key}`;
         }
         await this.prisma.aIMemory.upsert({
           where: { workspaceId_key: { workspaceId, key } },

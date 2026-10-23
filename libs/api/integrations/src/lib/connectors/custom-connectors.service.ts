@@ -156,6 +156,42 @@ export class CustomConnectorsService {
     return this.provider.run(credential, action, body.values ?? {});
   }
 
+  /**
+   * "Does this base URL answer, and does it accept this sign-in?" — against the
+   * real API with the builder's unsaved connection settings. Never throws for an
+   * unreachable API; the result says what happened so the form can show it.
+   */
+  async testConnection(
+    workspaceId: string,
+    userId: string,
+    body: { connector: CustomConnectorInput; integrationId?: string },
+    canInstall: boolean,
+  ): Promise<{ ok: boolean; status?: number; latencyMs?: number; message: string }> {
+    if (!body.integrationId && body.connector?.scopeType !== 'USER') this.assertCanInstall(canInstall);
+    const clean = this.normalize(body.connector);
+    const problem = validateCustomConnector(clean).find(
+      (p) => p.startsWith('Enter the API') || p.startsWith('The base URL') || p.startsWith('Name the header') || p.startsWith('Enter the username'),
+    );
+    if (problem) return { ok: false, message: problem };
+    let existingMetadata: Record<string, unknown> | undefined;
+    if (body.integrationId) {
+      existingMetadata = this.parse((await this.ownedRow(workspaceId, userId, body.integrationId, canInstall)).metadata);
+    }
+    const metadata = this.metadataFor(clean, existingMetadata);
+    const started = Date.now();
+    try {
+      const { status } = await this.provider.probe(this.credential(body.integrationId ?? 'preview', 'CUSTOM_PREVIEW', metadata));
+      const latencyMs = Date.now() - started;
+      if (status === 401 || status === 403) {
+        return { ok: false, status, latencyMs, message: `The API refused these credentials (HTTP ${status}). Check the key, token or password.` };
+      }
+      if (status >= 500) return { ok: false, status, latencyMs, message: `The API answered with HTTP ${status}.` };
+      return { ok: true, status, latencyMs, message: `Connected — the API answered HTTP ${status} in ${latencyMs} ms.` };
+    } catch (error) {
+      return { ok: false, message: `Couldn’t reach ${clean.baseUrl}: ${error instanceof Error ? error.message : String(error)}` };
+    }
+  }
+
   // ---------------------------------------------------------------------------
 
   private async ownedRow(workspaceId: string, userId: string, integrationId: string, canInstall: boolean) {

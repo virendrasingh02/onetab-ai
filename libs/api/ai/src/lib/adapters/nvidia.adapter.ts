@@ -19,6 +19,7 @@ export const NVIDIA_FALLBACK_MODELS = [
   'nvidia/nemotron-3-ultra-550b-a55b',
   'nvidia/nemotron-3.5-lightning-30b-a3b',
 ];
+export const NVIDIA_EMBEDDING_MODEL = 'nvidia/nemotron-3.5-embed-1b';
 export const NVIDIA_BASE_URL_DEFAULT = 'https://integrate.api.nvidia.com/v1';
 
 export class NvidiaAdapter extends BaseProviderAdapter {
@@ -135,6 +136,33 @@ export class NvidiaAdapter extends BaseProviderAdapter {
         },
         contextWindow: 4096,
         maxTokens: 4096,
+        pricingType: 'free',
+      },
+      {
+        id: 'nvidia-nemotron-embed',
+        provider: 'nvidia',
+        model: NVIDIA_EMBEDDING_MODEL,
+        name: 'Nemotron 3.5 Embed 1B (NVIDIA)',
+        type: 'embedding',
+        enabled: true,
+        default: false,
+        capabilities: {
+          chat: false,
+          reasoning: false,
+          coding: false,
+          toolCalling: false,
+          streaming: false,
+          structuredOutput: false,
+          vision: false,
+          imageGeneration: false,
+          audioInput: false,
+          audioOutput: false,
+          embeddings: true,
+          longContext: false,
+          agents: false,
+        },
+        contextWindow: 8192,
+        maxTokens: 0,
         pricingType: 'free',
       },
     ];
@@ -510,5 +538,63 @@ export class NvidiaAdapter extends BaseProviderAdapter {
         },
       };
     }
+  }
+
+  /**
+   * Real NVIDIA embeddings (OpenAI-compatible `/embeddings`). The retrieval
+   * models are asymmetric, so passages and queries use different
+   * `input_type`s. Never fabricates a vector on failure.
+   */
+  async generateEmbeddings(
+    texts: string[],
+    model?: string,
+    kind: 'document' | 'query' = 'document',
+  ): Promise<number[][]> {
+    if (!this.apiKey) {
+      throw this.normalizeHttpError(401, {
+        message: 'NVIDIA_API_KEY is not configured; cannot generate embeddings.',
+      });
+    }
+    let res!: globalThis.Response;
+    // The hosted endpoint intermittently answers 5xx/429; retry briefly.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        res = await fetch(`${this.baseUrl}/embeddings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify({
+            input: texts,
+            model: model || NVIDIA_EMBEDDING_MODEL,
+            input_type: kind === 'query' ? 'query' : 'passage',
+            encoding_format: 'float',
+            truncate: 'END',
+          }),
+        });
+      } catch (err) {
+        throw this.handleCatchError(err);
+      }
+      if (res.ok || (res.status < 500 && res.status !== 429)) break;
+      await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+    }
+    if (!res.ok) {
+      let errBody: Record<string, unknown> = {};
+      try {
+        errBody = (await res.json()) as Record<string, unknown>;
+      } catch {
+        // ignore
+      }
+      throw this.normalizeHttpError(res.status, errBody);
+    }
+    const data = (await res.json()) as { data?: Array<{ embedding?: number[] }> };
+    const vectors = data.data?.map((d) => d.embedding ?? []) ?? [];
+    if (vectors.length !== texts.length || vectors.some((v) => v.length === 0)) {
+      throw this.normalizeHttpError(502, {
+        message: 'NVIDIA returned no embeddings for the requested texts.',
+      });
+    }
+    return vectors;
   }
 }

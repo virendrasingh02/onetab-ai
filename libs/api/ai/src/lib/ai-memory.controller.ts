@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { RequireWorkspacePermissions, WorkspaceId } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
@@ -35,6 +35,15 @@ export class AIMemoryController {
     @Param('agentId') agentId: string,
   ) {
     return this.memoryService.forgetAgentMemories(workspaceId, agentId);
+  }
+
+  /** Keys hold `[`, `/` and spaces, so the client sends them as a query value, not a path segment. */
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
+  deleteByKey(@WorkspaceId() workspaceId: string, @Query('key') key?: string) {
+    if (!key?.trim()) throw new BadRequestException('A key is required.');
+    return this.memoryService.delete(workspaceId, key);
   }
 
   @Delete(':key')

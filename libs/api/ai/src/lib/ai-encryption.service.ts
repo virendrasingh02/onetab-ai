@@ -9,10 +9,15 @@ export class AIEncryptionService {
   private readonly key: Buffer;
 
   constructor(private readonly config: ConfigService) {
-    const rawSecret =
-      this.config.get<string>('ENCRYPTION_KEY') ||
-      this.config.get<string>('JWT_SECRET') ||
-      'onetab-ai-secret-default-key-for-credentials-32b';
+    const configured = this.config.get<string>('ENCRYPTION_KEY') || this.config.get<string>('JWT_SECRET');
+    if (!configured && process.env['NODE_ENV'] === 'production') {
+      // A publicly-known fallback would make every stored credential decryptable.
+      throw new Error('ENCRYPTION_KEY (or JWT_SECRET) must be set to store AI credentials');
+    }
+    if (!configured) {
+      this.logger.warn('ENCRYPTION_KEY is not set; using an insecure development key for AI credentials');
+    }
+    const rawSecret = configured || 'onetab-ai-secret-default-key-for-credentials-32b';
 
     // Derive a fixed 32-byte key using SHA-256
     this.key = createHash('sha256').update(rawSecret).digest();

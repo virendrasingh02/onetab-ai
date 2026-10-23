@@ -211,7 +211,7 @@ export function DesktopSettingsCard() {
                 <div className="min-w-0 space-y-0.5">
                   <p className="text-xs font-medium">Windows Jump List &amp; Tasks</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Right-click the taskbar icon to launch quick actions (New Channel, Search, AI Copilot, Settings).
+                    Right-click the taskbar icon to jump to any of your workspaces, or to Search and the AI Assistant.
                   </p>
                 </div>
                 <Button

@@ -16,6 +16,7 @@ import {
   coworkerTemplateKey,
   getCoworkerTemplate,
   deriveAgentFromGraph,
+  keepSavedMemoryPolicy,
   isAIEntityType,
   normalizePlanTier,
   resolveEffectivePlanTier,
@@ -396,7 +397,12 @@ export class AIEntitiesService {
         ...(derived.systemPrompt !== undefined ? { systemPrompt: derived.systemPrompt } : {}),
         ...(derived.tools !== undefined ? { tools: JSON.stringify(derived.tools) } : {}),
         ...(graph && dto.configuration === undefined
-          ? { configuration: { ...existingConfiguration, runtime: graph.runtime } as any }
+          ? {
+              configuration: {
+                ...existingConfiguration,
+                runtime: keepSavedMemoryPolicy(existingConfiguration['runtime'], graph.runtime),
+              } as any,
+            }
           : {}),
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.role !== undefined ? { role: dto.role } : {}),

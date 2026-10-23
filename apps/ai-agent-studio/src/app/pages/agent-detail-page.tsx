@@ -1,4 +1,4 @@
-import { agentsApi, http } from '@org/api-client';
+import { agentsApi } from '@org/api-client';
 import {
   AppSelect,
   Badge,
@@ -81,6 +81,7 @@ import {
   Clock,
   Code2,
   Copy,
+  Cpu,
   Edit2,
   Eye,
   GitBranch,
@@ -150,6 +151,8 @@ import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
 import { AgentDeploymentTab } from '../components/agent-detail/agent-deployment-tab.js';
 import { AgentMarketplaceTab } from '../components/agent-detail/agent-marketplace-tab.js';
 import { AgentTabPage, AgentTabSection } from '../components/agent-detail/agent-tab-page.js';
+import { apiBase as deploymentApiBase } from '../components/agent-detail/deployment/use-deployment.js';
+import { AgentSettingsLayout, type SettingsNavItem } from '../components/agent-detail/agent-settings-layout.js';
 import { agentService } from '../services/agentService.js';
 import { analyticsService } from '../services/analyticsService.js';
 import {
@@ -409,6 +412,16 @@ const isAgentTab = (value: string | null): value is AgentTab =>
   AGENT_TABS.some((t) => t.id === value);
 
 type AlignType = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
+
+const SETTINGS_NAV: readonly SettingsNavItem[] = [
+  { id: 'settings-identity', label: 'Identity', icon: <Bot /> },
+  { id: 'settings-appearance', label: 'Appearance', icon: <Palette /> },
+  { id: 'settings-category', label: 'Category & owner', icon: <Tag /> },
+  { id: 'settings-model', label: 'Model', icon: <Cpu /> },
+  { id: 'settings-limits', label: 'Run limits', icon: <Network /> },
+  { id: 'settings-safety', label: 'Safety', icon: <ShieldCheck /> },
+  { id: 'settings-api', label: 'API endpoint', icon: <Code2 /> },
+];
 
 const SELECTION_ALIGN_ACTIONS: { type: AlignType; label: string; icon: typeof AlignStartVertical }[] = [
   { type: 'left', label: 'Align left edges', icon: AlignStartVertical },
@@ -1898,11 +1911,12 @@ export function AgentDetailPage() {
 
   // `curl` for the execute endpoint, built from the API base URL the app is really using
   const apiCurlSnippet = (promptText: string) => {
-    const apiBase = String(http.defaults.baseURL ?? '').replace(/\/$/, '');
-    return `curl -X POST "${apiBase}/workspaces/${activeWorkspace.id}/agents/${agentId}/execute" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+    // Same route and body the Deploy tab documents; the key is created there.
+    const prompt = JSON.stringify(promptText).replace(/'/g, "'\\''");
+    return `curl -X POST "${deploymentApiBase()}/agents/${agentId}/execute" \\
+  -H "Authorization: Bearer YOUR_AGENT_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"promptText": "${promptText}"}'`;
+  -d '{"prompt": ${prompt}}'`;
   };
 
   // Hydrate the canvas and the settings form whenever the stored agent changes.
@@ -2352,10 +2366,42 @@ export function AgentDetailPage() {
     },
   });
 
+  // What the live environment lacks for what is on the canvas — an app that isn't connected,
+  // a tool the platform doesn't have, a model with no key. Re-checked shortly after edits
+  // settle and when the tab is refocused (e.g. after connecting an app in Integrations).
+  const readinessGraph = useMemo(
+    () =>
+      JSON.stringify({
+        nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: { x: 0, y: 0 }, data: { label: (n.data as any)?.label, config: (n.data as any)?.config ?? {} } })),
+        edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null })),
+      }),
+    [nodes, edges],
+  );
+  const [settledGraph, setSettledGraph] = useState(readinessGraph);
+  useEffect(() => {
+    const t = setTimeout(() => setSettledGraph(readinessGraph), 1200);
+    return () => clearTimeout(t);
+  }, [readinessGraph]);
+  const { data: readiness } = useQuery({
+    queryKey: ['agent-readiness', activeWorkspace.id, agentId, settledGraph],
+    queryFn: async () => (await agentsApi.validate(activeWorkspace.id, agentId as string, settledGraph)).checks ?? [],
+    enabled: !!agentId && nodes.length > 0,
+    refetchOnWindowFocus: true,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+  const readinessIssues = useMemo<StudioGraphIssue[]>(
+    () => (readiness ?? []).map((c) => ({ nodeId: c.nodeId, level: c.level, message: c.message })),
+    [readiness],
+  );
+
   // Live problems per step, from the same compiler the server runs before a run —
   // so "pick a knowledge base" shows on the card, not only after pressing Validate.
   const issuesByNode = useMemo(() => {
     const out = new Map<string, StudioGraphIssue[]>();
+    for (const issue of readinessIssues) {
+      if (issue.nodeId) out.set(issue.nodeId, [...(out.get(issue.nodeId) ?? []), issue]);
+    }
     try {
       const compiled = compileStudioGraph({
         nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: { label: (n.data as any)?.label, config: (n.data as any)?.config ?? {} } })),
@@ -2369,7 +2415,7 @@ export function AgentDetailPage() {
       // A graph the compiler can't read yet (mid-edit) simply shows no badges.
     }
     return out;
-  }, [nodes, edges]);
+  }, [nodes, edges, readinessIssues]);
 
   // Unified issues for header WorkflowHealthBadge
   const allWorkflowIssues = useMemo<WorkflowIssue[]>(() => {
@@ -2378,7 +2424,7 @@ export function AgentDetailPage() {
         nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: { label: (n.data as any)?.label, config: (n.data as any)?.config ?? {} } })),
         edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null })),
       } as unknown as Record<string, unknown>);
-      return compiled.issues.map((iss) => ({
+      return [...compiled.issues, ...readinessIssues].map((iss) => ({
         level: iss.level === 'error' ? 'error' : 'warning',
         message: iss.message,
         nodeId: iss.nodeId,
@@ -2386,7 +2432,7 @@ export function AgentDetailPage() {
     } catch {
       return [];
     }
-  }, [nodes, edges]);
+  }, [nodes, edges, readinessIssues]);
 
   useEffect(() => {
     if (saveRequest === 0 || saveMutation.isPending) return;
@@ -2436,6 +2482,7 @@ export function AgentDetailPage() {
 
   // What's plugged into each agent slot: agents get per-slot summaries for their
   // rows, attached nodes get an "LLM · Agent 1" chip.
+  const hostModel = (agent as { model?: string | null } | undefined)?.model || undefined;
   const slotDecorations = useMemo(() => {
     const out = new Map<string, Record<string, unknown>>();
     for (const host of nodes) {
@@ -2473,12 +2520,13 @@ export function AgentDetailPage() {
         team: {
           role: leads && supervised ? 'lead' : leads ? 'supervisor' : supervised ? 'member' : 'solo',
           issues: agentIssues(host, nodes, edges),
-          model: resolveAgentModel(host.id, nodes, edges),
+          // A step with no model runs on the saved agent's own, so show that rather than "Choose a model".
+          model: resolveAgentModel(host.id, nodes, edges) ?? (hostModel ? { model: hostModel, inherited: true } : null),
         },
       });
     }
     return out;
-  }, [nodes, edges, graphSettings, issuesByNode, stepIds]);
+  }, [nodes, edges, graphSettings, issuesByNode, stepIds, hostModel]);
 
   // Connection labels and the "flowing" animation are saved on the edge's data
   const [editingEdgeLabelId, setEditingEdgeLabelId] = useState<string | null>(null);
@@ -4190,16 +4238,16 @@ export function AgentDetailPage() {
           <MemoryTab
             agent={agent}
             onUpdate={async (patch) => {
-              if (!agentId) return;
+              if (!agentId) return false;
               // agentService merges partial configuration patches onto the saved one.
               try {
                 await agentService.updateAgent(activeWorkspace.id, agentId, patch);
               } catch (err) {
                 toast.error(errorMessage(err, 'Could not save changes'));
-                return;
+                return false;
               }
-              queryClient.invalidateQueries({ queryKey: agentQueryKey });
-              toast.success('Memory policies updated');
+              await queryClient.invalidateQueries({ queryKey: agentQueryKey });
+              return true;
             }}
           />
         )}
@@ -4389,18 +4437,18 @@ export function AgentDetailPage() {
         {/* TAB 5: SETTINGS */}
         {activeTab === 'settings' && (
           <AgentTabPage
-            title="Agent Configuration, Intelligence & Guardrails"
-            description="Fine-tune identity, model reasoning parameters, dynamic task planning, execution limits, and API integration."
+            title="Agent Settings"
+            description="Identity, appearance, model, run limits and guardrails."
             icon={<Settings />}
-            actions={
-              <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="gap-1.5 text-xs font-semibold">
-                <Save className="h-3.5 w-3.5" />
-                {saveMutation.isPending ? 'Saving...' : 'Save Agent Settings'}
-              </Button>
-            }
           >
+            <AgentSettingsLayout
+              items={SETTINGS_NAV}
+              isDirty={isDirty}
+              isSaving={saveMutation.isPending}
+              onSave={() => saveMutation.mutate()}
+            >
             {/* 1. Identity & Persona (Module 5.1) */}
-            <AgentTabSection title="Agent Identity & Behavior" icon={<Bot />}>
+            <AgentTabSection id="settings-identity" title="Agent Identity & Behavior" icon={<Bot />}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Agent Name">
                   <Input
@@ -4426,7 +4474,7 @@ export function AgentDetailPage() {
             </AgentTabSection>
 
             {/* Visual Branding & Appearance */}
-            <AgentTabSection title="Icon, Custom Avatar & Theme" icon={<Palette />}>
+            <AgentTabSection id="settings-appearance" title="Icon, Custom Avatar & Theme" icon={<Palette />}>
 
               {/* Live Preview */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 rounded-lg bg-surface-raised border border-border">
@@ -4579,7 +4627,7 @@ export function AgentDetailPage() {
             </AgentTabSection>
 
             {/* Categorization, Tags & Ownership */}
-            <AgentTabSection title="Category, Tags & Ownership" icon={<Tag />}>
+            <AgentTabSection id="settings-category" title="Category, Tags & Ownership" icon={<Tag />}>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 {/* Category with create custom */}
@@ -4752,7 +4800,19 @@ export function AgentDetailPage() {
             />
 
             {/* 5. API Trigger Snippet (Module 14.2 & 21.1) */}
-            <AgentTabSection title="REST API Execution Endpoint" icon={<Code2 />} className="gap-3">
+            <AgentTabSection
+              id="settings-api"
+              title="REST API Execution Endpoint"
+              description="Call this agent from your own code. Create and manage API keys in Deploy."
+              icon={<Code2 />}
+              className="gap-3"
+              actions={
+                <Button type="button" variant="outline" size="sm" onClick={() => setActiveTab('deploy')} className="gap-1.5 text-xs">
+                  <KeyRound className="size-3.5" />
+                  Manage API keys
+                </Button>
+              }
+            >
               <CodeBlock
                 language="bash"
                 filename="curl-execute.sh"
@@ -4760,23 +4820,7 @@ export function AgentDetailPage() {
               />
             </AgentTabSection>
 
-            {/* Save Settings Bar */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <div>
-                <h4 className="text-xs font-bold text-foreground">Save Configuration Changes</h4>
-                <p className="text-[11px] text-muted-foreground">
-                  Persist all identity, visual styling, category, owner, and model parameter changes to the workspace.
-                </p>
-              </div>
-              <Button
-                onClick={() => saveMutation.mutate()}
-                disabled={saveMutation.isPending}
-                className="gap-1.5 shrink-0"
-              >
-                <Save className="h-4 w-4" />
-                {saveMutation.isPending ? 'Saving...' : 'Save Agent Settings'}
-              </Button>
-            </div>
+            </AgentSettingsLayout>
           </AgentTabPage>
         )}
       </div>

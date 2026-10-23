@@ -24,6 +24,7 @@ export { PromptTemplateService } from './lib/prompt-template.service.js';
 export { AICredentialService } from './lib/ai-credential.service.js';
 export { AIEncryptionService } from './lib/ai-encryption.service.js';
 export { KnowledgeService } from './lib/knowledge.service.js';
+export { UnsupportedDocumentError, extractTextFromFile } from './lib/knowledge-extract.js';
 export { AIStudioService } from './lib/ai-studio.service.js';
 export { AIAppsService } from './lib/ai-apps.service.js';
 export { ApprovalsService } from './lib/approvals.service.js';

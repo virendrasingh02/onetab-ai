@@ -1,9 +1,16 @@
-import { ApiError } from '@org/api-client';
-import type { KnowledgeBase, KnowledgeDocument, KnowledgeRetrievalMode, KnowledgeRetrievalResult } from '@org/types';
+import { ApiError, integrationsApi } from '@org/api-client';
+import type {
+  KnowledgeAnswer,
+  KnowledgeBase,
+  KnowledgeDocument,
+  KnowledgeRetrievalMode,
+  KnowledgeRetrievalResult,
+} from '@org/types';
 import {
   AppSelect,
   Badge,
   Button,
+  Checkbox,
   confirm,
   Dialog,
   DialogBody,
@@ -21,17 +28,20 @@ import {
   PageHeader,
   SegmentedControl,
   Slider,
+  Switch,
   Textarea,
   toast,
 } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, FileText, Globe, Plus, RefreshCw, Search, Sparkles, Trash2, Upload } from 'lucide-react';
+import { BookOpen, DatabaseZap, Eye, FileText, Globe, MessageSquareQuote, Plus, RefreshCw, Search, Sparkles, Trash2, Upload } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
-import { useAiModels } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
+import { useAiModels, useAiProviders } from '../components/workflow-canvas/agent-config/use-agent-config-data.js';
 import { knowledgeService, type NewSource } from '../services/knowledgeService.js';
 import { useStudioSession } from '../session-guard.js';
 
 type SourceKind = NewSource['kind'];
+
+const PLATFORM_EMBEDDING_MODEL = 'nvidia/nemotron-3.5-embed-1b';
 
 const errorText = (err: unknown): string =>
   err instanceof ApiError || err instanceof Error ? err.message : 'Something went wrong.';
@@ -57,12 +67,23 @@ export function KnowledgePage() {
   const [topK, setTopK] = useState(3);
   const [minScore, setMinScore] = useState(0);
   const [testResults, setTestResults] = useState<KnowledgeRetrievalResult[] | null>(null);
+  const [rerank, setRerank] = useState(true);
+  const [rerankStrategy, setRerankStrategy] = useState<'LEXICAL' | 'MODEL'>('LEXICAL');
+  const [answerResult, setAnswerResult] = useState<KnowledgeAnswer | null>(null);
+  const [previewDocId, setPreviewDocId] = useState<string | null>(null);
+  const [sourceSitemap, setSourceSitemap] = useState(false);
+  const [appIntegrationId, setAppIntegrationId] = useState('');
+  const [appQuery, setAppQuery] = useState('');
+  const [appPicked, setAppPicked] = useState<Record<string, string>>({});
 
   // Dialogs
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newEmbeddingModel, setNewEmbeddingModel] = useState('');
+
+  const [isReindexOpen, setIsReindexOpen] = useState(false);
+  const [reindexModel, setReindexModel] = useState('');
 
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
   const [sourceKind, setSourceKind] = useState<SourceKind>('file');
@@ -85,18 +106,82 @@ export function KnowledgePage() {
     queryKey: [...listKey, activeKb?.id, 'documents'],
     queryFn: () => knowledgeService.getDocuments(workspaceId, activeKb!.id),
     enabled: !!activeKb,
+    // Uploads and imports index in the background: follow them until they settle.
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((d) => d.status === 'QUEUED' || d.status === 'PROCESSING') ? 2_000 : false,
+  });
+
+  const usageQuery = useQuery({
+    queryKey: [...listKey, activeKb?.id, 'usage'],
+    queryFn: () => knowledgeService.usage(workspaceId, activeKb!.id, 7),
+    enabled: !!activeKb,
+  });
+  const usage = usageQuery.data;
+
+  const appsQuery = useQuery({
+    queryKey: ['knowledge-apps', workspaceId],
+    queryFn: async () =>
+      (await integrationsApi.list(workspaceId)).filter(
+        (i) => (i.provider === 'GOOGLE_DRIVE' || i.provider === 'NOTION') && i.status === 'CONNECTED',
+      ),
+    enabled: isAddSourceOpen && sourceKind === 'app',
+  });
+  const activeApp = (appsQuery.data ?? []).find((i) => i.id === appIntegrationId) ?? appsQuery.data?.[0];
+  const appItemsQuery = useQuery({
+    queryKey: ['knowledge-app-items', workspaceId, activeApp?.id, appQuery],
+    queryFn: () => knowledgeService.browseApp(workspaceId, activeApp!.id, appQuery.trim() || undefined),
+    enabled: isAddSourceOpen && sourceKind === 'app' && !!activeApp,
+  });
+
+  const previewQuery = useQuery({
+    queryKey: [...listKey, activeKb?.id, 'document', previewDocId],
+    queryFn: () => knowledgeService.getDocument(workspaceId, activeKb!.id, previewDocId!),
+    enabled: !!activeKb && !!previewDocId,
   });
   const documents = documentsQuery.data ?? [];
   const totalChunks = documents.reduce((sum, d) => sum + (d.chunkCount ?? 0), 0);
 
   const models = useAiModels();
-  const embeddingOptions = useMemo(
-    () =>
-      (models.data ?? [])
-        .filter((m) => m.type === 'embedding' && m.enabled !== false)
-        .map((m) => ({ value: m.model, label: m.name || m.model })),
-    [models.data],
-  );
+  const providers = useAiProviders();
+  // Embedding models grouped by provider, connected providers first, so the
+  // default is one that can actually embed (e.g. NVIDIA when only Nemotron is set up).
+  const embeddingGroups = useMemo(() => {
+    const byProvider = new Map<string, NonNullable<typeof models.data>>();
+    for (const m of (models.data ?? []).filter((x) => x.type === 'embedding' && x.enabled !== false)) {
+      byProvider.set(m.provider, [...(byProvider.get(m.provider) ?? []), m]);
+    }
+    const groups = [...byProvider.entries()]
+      .map(([provider, ms]) => {
+        const p = providers.data?.find((x) => x.id === provider);
+        const connected = !p || p.status === 'CONNECTED' || !p.requiresApiKey;
+        return {
+          connected,
+          label: `${p?.name ?? provider}${connected ? '' : ' — not connected'}`,
+          options: ms.map((m) => ({
+            value: m.model,
+            label: (m.name || m.model).replace(/\s*\(NVIDIA\)$/, ''),
+            description: connected ? m.model : 'Connect the provider to use it',
+          })),
+        };
+      })
+      .sort((a, b) => Number(b.connected) - Number(a.connected) || a.label.localeCompare(b.label));
+    // The catalog can lag the platform (or fail to load); never leave the
+    // picker empty: the platform's own NVIDIA model is always offered.
+    if (!groups.some((g) => g.options.some((o) => o.value === PLATFORM_EMBEDDING_MODEL))) {
+      groups.unshift({
+        connected: true,
+        label: 'NVIDIA',
+        options: [{ value: PLATFORM_EMBEDDING_MODEL, label: 'Nemotron 3.5 Embed 1B', description: 'Platform default' }],
+      });
+    }
+    return groups;
+  }, [models.data, providers.data]);
+  const withCurrent = (current?: string) =>
+    current && !embeddingGroups.some((g) => g.options.some((o) => o.value === current))
+      ? [{ label: 'Current', options: [{ value: current, label: current, description: 'Not in this workspace’s model list' }] }, ...embeddingGroups]
+      : embeddingGroups;
+  const defaultEmbedding = (embeddingGroups.find((g) => g.connected) ?? embeddingGroups[0])?.options[0]?.value;
+  const embeddingOptions = embeddingGroups.flatMap((g) => g.options);
 
   const refreshAll = () => queryClient.invalidateQueries({ queryKey: listKey });
 
@@ -105,7 +190,7 @@ export function KnowledgePage() {
       knowledgeService.createKnowledgeBase(workspaceId, {
         name: newName.trim(),
         description: newDescription.trim() || undefined,
-        embeddingModel: newEmbeddingModel || embeddingOptions[0]?.value,
+        embeddingModel: newEmbeddingModel || defaultEmbedding,
       }),
     onSuccess: (kb) => {
       void refreshAll();
@@ -114,6 +199,16 @@ export function KnowledgePage() {
       setNewDescription('');
       setSelectedKbId(kb.id);
       toast.success(`Knowledge base “${kb.name}” created`);
+    },
+  });
+
+  const reindexMutation = useMutation({
+    mutationFn: () => knowledgeService.reindex(workspaceId, activeKb!.id, reindexModel || activeKb!.embeddingModel),
+    onSuccess: (res) => {
+      void refreshAll();
+      setIsReindexOpen(false);
+      if (res.failed > 0) toast.warning(`Re-indexed ${res.documents - res.failed} of ${res.documents} documents. See the notes on the rest.`);
+      else toast.success(`Re-indexed ${res.documents} document${res.documents === 1 ? '' : 's'} with ${res.knowledgeBase.embeddingModel}`);
     },
   });
 
@@ -128,14 +223,43 @@ export function KnowledgePage() {
 
   const addSourceMutation = useMutation({
     mutationFn: (source: NewSource) => knowledgeService.addSource(workspaceId, activeKb!.id, source),
-    onSuccess: (doc) => {
+    onSuccess: ({ documents: added, failed }) => {
       void refreshAll();
       setIsAddSourceOpen(false);
       setSourceFile(null);
       setSourceUrl('');
+      setSourceSitemap(false);
       setNoteName('');
       setNoteText('');
-      toast.success(`Indexed “${doc.name}” into ${doc.chunkCount} chunks`);
+      const duplicates = added.filter((d) => d.deduplicated).length;
+      const fresh = added.length - duplicates;
+      if (fresh > 0) toast.success(`Added ${fresh} document${fresh === 1 ? '' : 's'}. Indexing in the background.`);
+      if (duplicates > 0) toast.info(`${duplicates} already in this knowledge base (identical content), skipped.`);
+      setAppPicked({});
+      if (failed.length > 0) toast.warning(`${failed.length} item${failed.length === 1 ? '' : 's'} couldn’t be read: ${failed[0]!.error}`);
+    },
+  });
+
+  const reindexDocumentMutation = useMutation({
+    mutationFn: (documentId: string) => knowledgeService.reindexDocument(workspaceId, activeKb!.id, documentId),
+    onSuccess: () => {
+      void refreshAll();
+      toast.success('Re-indexing queued');
+    },
+  });
+
+  const answerMutation = useMutation({
+    mutationFn: () =>
+      knowledgeService.answer(workspaceId, activeKb!.id, testQuery.trim(), {
+        topK,
+        mode: searchMode,
+        scoreThreshold: minScore || undefined,
+        rerank,
+        rerankStrategy,
+      }),
+    onSuccess: (res) => {
+      setAnswerResult(res);
+      void usageQuery.refetch();
     },
   });
 
@@ -153,6 +277,8 @@ export function KnowledgePage() {
         topK,
         mode: searchMode,
         scoreThreshold: minScore || undefined,
+        rerank,
+        rerankStrategy,
       }),
     onSuccess: (results) => {
       setTestResults(results);
@@ -163,15 +289,24 @@ export function KnowledgePage() {
   const submitSource = () => {
     if (sourceKind === 'file') {
       if (sourceFile) addSourceMutation.mutate({ kind: 'file', file: sourceFile });
+    } else if (sourceKind === 'app') {
+      if (activeApp)
+        addSourceMutation.mutate({
+          kind: 'app',
+          integrationId: activeApp.id,
+          items: Object.entries(appPicked).map(([id, name]) => ({ id, name })),
+        });
     } else if (sourceKind === 'url') {
-      addSourceMutation.mutate({ kind: 'url', url: sourceUrl });
+      addSourceMutation.mutate({ kind: 'url', url: sourceUrl, sitemap: sourceSitemap });
     } else {
       addSourceMutation.mutate({ kind: 'text', name: noteName, text: noteText });
     }
   };
 
   const canSubmitSource =
-    sourceKind === 'file' ? !!sourceFile : sourceKind === 'url' ? /^https?:\/\//i.test(sourceUrl.trim()) : noteText.trim().length > 0;
+    sourceKind === 'app'
+      ? Object.keys(appPicked).length > 0
+      : sourceKind === 'file' ? !!sourceFile : sourceKind === 'url' ? /^https?:\/\//i.test(sourceUrl.trim()) : noteText.trim().length > 0;
 
   const confirmDeleteKb = async (kb: KnowledgeBase) => {
     const ok = await confirm({
@@ -331,9 +466,23 @@ export function KnowledgePage() {
                         <p className="mt-0.5 text-xs text-muted-foreground">{activeKb.description}</p>
                       ) : null}
                     </div>
-                    <Button size="xs" onClick={() => setIsAddSourceOpen(true)} className="gap-1 text-xs font-semibold">
-                      <Upload className="size-3" /> Add Source
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => {
+                          setReindexModel(activeKb.embeddingModel);
+                          setIsReindexOpen(true);
+                        }}
+                        disabled={documents.length === 0}
+                        className="gap-1 text-xs font-semibold"
+                      >
+                        <DatabaseZap className="size-3" /> Re-index
+                      </Button>
+                      <Button size="xs" onClick={() => setIsAddSourceOpen(true)} className="gap-1 text-xs font-semibold">
+                        <Upload className="size-3" /> Add Source
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2 border-t border-border pt-2">
@@ -351,7 +500,7 @@ export function KnowledgePage() {
                       />
                     ) : documents.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
-                        No documents yet. Click “Add Source” to upload a text file, read a web page, or write a note.
+                        No documents yet. Click “Add Source” to upload a PDF, DOCX, Markdown, text or CSV file, import a web page or sitemap, or write a note.
                       </div>
                     ) : (
                       <ul className="space-y-1.5">
@@ -367,7 +516,12 @@ export function KnowledgePage() {
                                 <FileText className="size-4 shrink-0 text-primary" />
                               )}
                               <div className="min-w-0">
-                                <div className="truncate font-semibold text-foreground">{doc.name}</div>
+                                <div className="truncate font-semibold text-foreground">
+                                  {doc.name}
+                                  {(doc.version ?? 1) > 1 ? (
+                                    <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground">v{doc.version}</span>
+                                  ) : null}
+                                </div>
                                 {doc.errorMessage ? (
                                   <div className="truncate text-[10px] text-destructive">{doc.errorMessage}</div>
                                 ) : null}
@@ -378,6 +532,25 @@ export function KnowledgePage() {
                               <Badge variant={STATUS_VARIANT[doc.status] ?? 'outline'} className="text-[9px]">
                                 {doc.status}
                               </Badge>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                aria-label={`Preview ${doc.name}`}
+                                onClick={() => setPreviewDocId(doc.id)}
+                                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                              >
+                                <Eye className="size-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                aria-label={`Re-index ${doc.name}`}
+                                onClick={() => reindexDocumentMutation.mutate(doc.id)}
+                                disabled={reindexDocumentMutation.isPending || doc.status === 'PROCESSING'}
+                                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                              >
+                                <DatabaseZap className="size-3.5" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon-xs"
@@ -447,7 +620,43 @@ export function KnowledgePage() {
                     >
                       <Search className="size-3.5" /> Test Search
                     </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      loading={answerMutation.isPending}
+                      disabled={!testQuery.trim() || documents.length === 0}
+                      onClick={() => answerMutation.mutate()}
+                      className="shrink-0 gap-1.5"
+                    >
+                      <MessageSquareQuote className="size-3.5" /> Ask
+                    </Button>
                   </form>
+
+                  <label className="flex items-center gap-2 text-[11px] font-semibold text-foreground">
+                    <Switch checked={rerank} onCheckedChange={setRerank} aria-label="Rerank results" />
+                    Rerank results
+                  </label>
+                  {rerank ? (
+                    <SegmentedControl
+                      aria-label="Rerank strategy"
+                      size="sm"
+                      value={rerankStrategy}
+                      onChange={setRerankStrategy}
+                      options={[
+                        { value: 'LEXICAL', label: 'Query coverage' },
+                        { value: 'MODEL', label: 'AI grader' },
+                      ]}
+                    />
+                  ) : null}
+                  {usage && usage.queries > 0 ? (
+                    <p className="font-mono text-[10px] text-muted-foreground">
+                      Last {usage.windowDays} days: {usage.queries} searches · {usage.answers} answers
+                      {usage.ungrounded ? ` (${usage.ungrounded} unanswerable)` : ''} · avg {usage.avgLatencyMs} ms · p95{' '}
+                      {usage.p95LatencyMs} ms · {(usage.promptTokens + usage.completionTokens).toLocaleString()} tokens
+                      {usage.costUsd > 0 ? ` · ~$${usage.costUsd.toFixed(4)}` : ' · $0 (free model)'}
+                    </p>
+                  ) : null}
 
                   <div className="grid grid-cols-1 gap-4 rounded-lg bg-surface-raised/40 p-3 text-xs sm:grid-cols-2">
                     <div className="space-y-1">
@@ -468,6 +677,53 @@ export function KnowledgePage() {
                       />
                     </div>
                   </div>
+
+                  {answerMutation.isError ? (
+                    <p className="text-xs text-destructive" role="alert">
+                      {errorText(answerMutation.error)}
+                    </p>
+                  ) : null}
+
+                  {answerResult && (
+                    <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5 text-xs">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span className="font-bold uppercase tracking-wider text-foreground">Answer</span>
+                        <span className="font-mono">
+                          {answerResult.latencyMs} ms{answerResult.model ? ` · ${answerResult.model}` : ''}
+                        </span>
+                      </div>
+                      <p className="whitespace-pre-wrap leading-relaxed text-foreground">{answerResult.answer}</p>
+                      {!answerResult.grounded ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          Nothing in this knowledge base supports an answer, so none was generated.
+                        </p>
+                      ) : null}
+                      {answerResult.sources.length > 0 ? (
+                        <ol className="space-y-1.5 border-t border-border/50 pt-2">
+                          {answerResult.sources.map((src) => (
+                            <li key={src.chunkId} className="flex gap-2">
+                              <span
+                                className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded font-mono text-[10px] font-bold ${
+                                  src.cited ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                                }`}
+                              >
+                                {src.sourceNumber}
+                              </span>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-foreground">
+                                  {src.documentName}{' '}
+                                  <span className="font-mono text-[10px] font-normal text-muted-foreground">
+                                    {(src.score * 100).toFixed(0)}%{src.cited ? '' : ' · not cited'}
+                                  </span>
+                                </div>
+                                <p className="line-clamp-3 text-muted-foreground">{src.content}</p>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : null}
+                    </div>
+                  )}
 
                   {searchMutation.isError ? (
                     <p className="text-xs text-destructive" role="alert">
@@ -556,15 +812,18 @@ export function KnowledgePage() {
               <div className="space-y-1">
                 <Label className="text-[11px] font-semibold text-foreground">Embedding model</Label>
                 <AppSelect
-                  value={newEmbeddingModel || embeddingOptions[0]?.value}
-                  loading={models.isLoading}
+                  value={newEmbeddingModel || defaultEmbedding}
+                  loading={models.isLoading || providers.isLoading}
                   placeholder="Workspace default"
                   onValueChange={setNewEmbeddingModel}
-                  options={embeddingOptions}
+                  options={embeddingGroups}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Fixed once documents are indexed: vectors from different models can’t be compared.
+                </p>
                 {embeddingOptions.length === 0 && !models.isLoading ? (
                   <p className="text-[11px] text-muted-foreground">
-                    No embedding model is listed for this workspace; the platform default is used.
+                    No embedding model is listed for this workspace; the platform default (NVIDIA Nemotron Embed) is used.
                   </p>
                 ) : null}
               </div>
@@ -579,6 +838,71 @@ export function KnowledgePage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Re-index */}
+      <Dialog open={isReindexOpen} onOpenChange={setIsReindexOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <DatabaseZap className="size-4 text-primary" /> Re-index {activeKb?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Re-embeds every chunk. Use it after switching the embedding model, or to enable semantic search on documents added earlier.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-2 py-4 text-xs">
+            <Label className="text-[11px] font-semibold text-foreground">Embedding model</Label>
+            <AppSelect
+              value={reindexModel}
+              loading={models.isLoading || providers.isLoading}
+              onValueChange={setReindexModel}
+              options={withCurrent(activeKb?.embeddingModel)}
+            />
+            {reindexMutation.isError ? (
+              <p className="text-xs text-destructive" role="alert">
+                {errorText(reindexMutation.error)}
+              </p>
+            ) : null}
+          </DialogBody>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsReindexOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" loading={reindexMutation.isPending} onClick={() => reindexMutation.mutate()}>
+              Re-index now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document preview */}
+      <Dialog open={!!previewDocId} onOpenChange={(open) => !open && setPreviewDocId(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <FileText className="size-4 text-primary" /> {previewQuery.data?.name ?? 'Document'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {previewQuery.data
+                ? `${previewQuery.data.chunkCount} chunks · ${previewQuery.data.tokenCount.toLocaleString()} tokens · v${previewQuery.data.version ?? 1}${previewQuery.data.sourceUri ? ` · ${previewQuery.data.sourceUri}` : ''}`
+                : 'Extracted text'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="py-4">
+            {previewQuery.isLoading ? (
+              <LoadingState label="Loading preview…" />
+            ) : previewQuery.isError ? (
+              <p className="text-xs text-destructive" role="alert">
+                {errorText(previewQuery.error)}
+              </p>
+            ) : (
+              <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-lg bg-surface-raised/60 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                {previewQuery.data?.rawText || 'No text stored for this document.'}
+              </pre>
+            )}
+          </DialogBody>
         </DialogContent>
       </Dialog>
 
@@ -602,8 +926,9 @@ export function KnowledgePage() {
                 value={sourceKind}
                 onChange={setSourceKind}
                 options={[
-                  { value: 'file', label: 'Text file' },
+                  { value: 'file', label: 'File' },
                   { value: 'url', label: 'Web page' },
+                  { value: 'app', label: 'Drive / Notion' },
                   { value: 'text', label: 'Note' },
                 ]}
               />
@@ -616,7 +941,7 @@ export function KnowledgePage() {
                     ref={fileInputRef}
                     type="file"
                     className="sr-only"
-                    accept=".txt,.md,.markdown,.csv,.tsv,.json,.html,.htm,.xml,.yaml,.yml,.log,text/*"
+                    accept=".pdf,.docx,.txt,.md,.markdown,.csv,.tsv,.png,.jpg,.jpeg,.bmp"
                     onChange={(e) => setSourceFile(e.target.files?.[0] ?? null)}
                   />
                   <Button type="button" variant="outline" className="w-full border-dashed" onClick={() => fileInputRef.current?.click()}>
@@ -624,8 +949,7 @@ export function KnowledgePage() {
                     {sourceFile ? sourceFile.name : 'Choose a file'}
                   </Button>
                   <p className="text-[11px] text-muted-foreground">
-                    Text, Markdown, CSV, JSON and HTML up to 2 MB. PDF and Office files can’t be read yet: export them as text
-                    or paste the content as a note.
+                    PDF, DOCX, TXT, Markdown, CSV or a PNG/JPG/BMP image, up to 20 MB. Scans and images are read with OCR (English), which is slower.
                   </p>
                 </div>
               )}
@@ -645,8 +969,87 @@ export function KnowledgePage() {
                     className="font-mono text-xs"
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    The page is fetched once and converted to markdown. It isn’t re-crawled; add it again to refresh.
+                    The page is fetched once and converted to text. Add it again to refresh: changed content becomes a new
+                    version, identical content is skipped.
                   </p>
+                  <label className="flex items-center gap-2 pt-1 text-[11px] font-semibold text-foreground">
+                    <Switch checked={sourceSitemap} onCheckedChange={setSourceSitemap} aria-label="URL is a sitemap" />
+                    This URL is a sitemap (import up to 20 pages from the same site)
+                  </label>
+                </div>
+              )}
+
+              {sourceKind === 'app' && (
+                <div className="space-y-2">
+                  {appsQuery.isLoading ? (
+                    <LoadingState label="Loading connected apps…" />
+                  ) : (appsQuery.data ?? []).length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-border p-3 text-[11px] text-muted-foreground">
+                      No Google Drive or Notion account is connected to this workspace. Connect one in Integrations first.
+                    </p>
+                  ) : (
+                    <>
+                      <AppSelect
+                        value={activeApp?.id}
+                        onValueChange={(v) => {
+                          setAppIntegrationId(v);
+                          setAppPicked({});
+                        }}
+                        options={(appsQuery.data ?? []).map((i) => ({
+                          value: i.id,
+                          label: `${i.provider === 'NOTION' ? 'Notion' : 'Google Drive'}${i.displayName ? ` · ${i.displayName}` : ''}`,
+                        }))}
+                      />
+                      <Input
+                        type="search"
+                        value={appQuery}
+                        onChange={(e) => setAppQuery(e.target.value)}
+                        placeholder="Search files or pages…"
+                        aria-label="Search the connected app"
+                        className="text-xs"
+                      />
+                      {appItemsQuery.isLoading ? (
+                        <LoadingState label="Loading…" />
+                      ) : appItemsQuery.isError ? (
+                        <p className="text-xs text-destructive" role="alert">
+                          {errorText(appItemsQuery.error)}
+                        </p>
+                      ) : (
+                        <ul className="max-h-56 space-y-1 overflow-auto rounded-lg border border-border p-1.5">
+                          {(appItemsQuery.data ?? []).length === 0 ? (
+                            <li className="p-2 text-center text-[11px] text-muted-foreground">Nothing found.</li>
+                          ) : (
+                            (appItemsQuery.data ?? []).map((item) => (
+                              <li key={item.id}>
+                                <label className="flex cursor-pointer items-center gap-2 rounded-md p-1.5 hover:bg-surface-raised/60">
+                                  <Checkbox
+                                    checked={item.id in appPicked}
+                                    onCheckedChange={(on) =>
+                                      setAppPicked((prev) => {
+                                        const next = { ...prev };
+                                        if (on) next[item.id] = item.name;
+                                        else delete next[item.id];
+                                        return next;
+                                      })
+                                    }
+                                    aria-label={`Select ${item.name}`}
+                                  />
+                                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">{item.name}</span>
+                                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                                    {item.kind.replace('application/vnd.google-apps.', '')}
+                                  </span>
+                                </label>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      )}
+                      <p className="text-[11px] text-muted-foreground">
+                        {Object.keys(appPicked).length} selected (up to 25). Importing again later updates the document as a new
+                        version when the content changed.
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 

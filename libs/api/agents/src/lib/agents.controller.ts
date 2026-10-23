@@ -194,12 +194,18 @@ export class AgentsController {
   // --- AI Agent Studio Endpoints ---
 
   @Post(':agentId/validate')
-  validateAgent(
+  async validateAgent(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
+    @CurrentUser('id') userId: string,
     @Body(zodBody(validateAgentGraphSchema)) body: { graphJson?: string },
   ) {
-    return this.agentsService.validateGraph(body.graphJson);
+    const structural = this.agentsService.validateGraph(body.graphJson);
+    // Also check the live environment: tools, connected apps, model keys.
+    const checks = await this.agentsService.checkReadiness(workspaceId, agentId, userId, body.graphJson);
+    const errors = [...structural.errors, ...checks.filter((c) => c.level === 'error').map((c) => c.message)];
+    const warnings = [...structural.warnings, ...checks.filter((c) => c.level === 'warning').map((c) => c.message)];
+    return { valid: errors.length === 0, errors, warnings, checks };
   }
 
   @Post(':agentId/publish')

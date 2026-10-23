@@ -443,6 +443,37 @@ export class AgentStudioService {
     ]);
 
     const byId = new Map(agents.map((a) => [a.id, a]));
+    // Canvas agents are excluded from list() but their runs still show here — look their names up too.
+    const unknownIds = [
+      ...new Set(
+        [...runsToday, ...activeRuns, ...approvals].map((r) => r.entityId).filter((id) => !byId.has(id)),
+      ),
+    ];
+    const extraNames = new Map<string, string>();
+    if (unknownIds.length) {
+      const rows = await this.prisma.automationWorkflow.findMany({
+        where: { workspaceId, id: { in: unknownIds } },
+        select: { id: true, name: true },
+      });
+      for (const row of rows) extraNames.set(row.id, row.name);
+    }
+    const nameOf = (id: string) => byId.get(id)?.name ?? extraNames.get(id) ?? null;
+
+    // Last 7 days of live runs, oldest first — drives the real stat-card sparklines.
+    const weekStart = new Date(today.getTime() - 6 * 24 * 60 * 60_000);
+    const weekRuns = await this.prisma.aIExecution.findMany({
+      where: { workspaceId, startedAt: { gte: weekStart }, status: { in: ['COMPLETED', 'FAILED'] } },
+      select: { status: true, startedAt: true, stateJson: true },
+      take: 5000,
+    });
+    const completedSeries = new Array<number>(7).fill(0);
+    const failedSeries = new Array<number>(7).fill(0);
+    for (const r of weekRuns) {
+      if ((r.stateJson as Record<string, unknown> | null)?.['__mode'] === 'test') continue;
+      const idx = Math.min(6, Math.max(0, Math.floor((r.startedAt.getTime() - weekStart.getTime()) / (24 * 60 * 60_000))));
+      (r.status === 'COMPLETED' ? completedSeries : failedSeries)[idx] += 1;
+    }
+
     const live = runsToday.filter((r) => (r.stateJson as Record<string, unknown> | null)?.['__mode'] !== 'test');
     const completedToday = live.filter((r) => r.status === 'COMPLETED');
     const failedToday = live.filter((r) => r.status === 'FAILED');
@@ -462,6 +493,7 @@ export class AgentStudioService {
           ...agents.filter((a) => a.state === 'active' && a.lastRun?.status === 'FAILED').map((a) => a.id),
         ]).size,
         activeAgents: agents.filter((a) => a.state === 'active').length,
+        history: { completed: completedSeries, failed: failedSeries },
       },
       runningNow: activeRuns.map((r) => ({
         id: r.id,
@@ -469,7 +501,7 @@ export class AgentStudioService {
         startedAt: r.startedAt.toISOString(),
         entityType: r.entityType,
         entityId: r.entityId,
-        name: byId.get(r.entityId)?.name ?? null,
+        name: nameOf(r.entityId),
         currentStep: r.steps[0] ? { stepId: r.steps[0].stepId, status: r.steps[0].status, nodeType: r.steps[0].nodeType } : null,
       })),
       approvals: approvals.map((a) => ({
@@ -477,18 +509,18 @@ export class AgentStudioService {
         runId: a.executionId,
         action: a.actionType,
         createdAt: a.createdAt.toISOString(),
-        agentName: byId.get(a.entityId)?.name ?? null,
+        agentName: nameOf(a.entityId),
       })),
       recentlyCompleted: completedToday.slice(0, 8).map((r) => ({
         id: r.id,
         entityId: r.entityId,
-        name: byId.get(r.entityId)?.name ?? null,
+        name: nameOf(r.entityId),
         finishedAt: r.finishedAt?.toISOString() ?? null,
       })),
       failed: failedToday.slice(0, 8).map((r) => ({
         id: r.id,
         entityId: r.entityId,
-        name: byId.get(r.entityId)?.name ?? null,
+        name: nameOf(r.entityId),
         startedAt: r.startedAt.toISOString(),
       })),
       scheduled: agents

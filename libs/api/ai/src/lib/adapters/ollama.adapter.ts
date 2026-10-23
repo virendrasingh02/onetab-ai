@@ -174,7 +174,7 @@ export class OllamaAdapter extends BaseProviderAdapter {
    * RAG built on it returns confident nonsense. A failure here (Ollama not
    * running, model not pulled) must surface as an error.
    */
-  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+  async generateEmbeddings(texts: string[], model?: string): Promise<number[][]> {
     const results: number[][] = [];
     for (const text of texts) {
       let res: globalThis.Response;
@@ -183,7 +183,7 @@ export class OllamaAdapter extends BaseProviderAdapter {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'nomic-embed-text',
+            model: model || 'nomic-embed-text',
             prompt: text,
           }),
         });

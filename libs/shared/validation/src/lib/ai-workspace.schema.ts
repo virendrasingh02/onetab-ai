@@ -292,13 +292,15 @@ export const createKnowledgeBaseSchema = z.object({
   description: text(2_000).optional(),
   icon: text(60).optional(),
   embeddingModel: text(120).optional(),
+  chunkSize: z.number().int().min(200).max(4_000).optional(),
+  chunkOverlap: z.number().int().min(0).max(1_000).optional(),
 });
 
 export const updateKnowledgeBaseSchema = createKnowledgeBaseSchema.partial();
 
 export const ingestKnowledgeDocumentSchema = z.object({
   name: text(200).min(1),
-  sourceType: z.enum(['FILE', 'URL', 'WORKSPACE', 'MANUAL']),
+  sourceType: z.enum(['FILE', 'URL', 'WORKSPACE', 'MANUAL', 'APP']),
   sourceUri: z.string().trim().max(2_000).optional(),
   rawText: z.string().max(2_000_000).optional(),
   mimeType: text(120).optional(),
@@ -314,7 +316,34 @@ export const knowledgeRetrievalSchema = z.object({
   topK: z.number().int().min(1).max(50).optional(),
   mode: z.enum(['SEMANTIC', 'KEYWORD', 'HYBRID']).optional(),
   scoreThreshold: z.number().min(0).max(1).optional(),
+  rerank: z.boolean().optional(),
+  rerankStrategy: z.enum(['LEXICAL', 'MODEL']).optional(),
   filters: record.optional(),
+});
+
+export const knowledgeAnswerSchema = knowledgeRetrievalSchema
+  .omit({ query: true })
+  .extend({
+    question: z.string().trim().min(1).max(4_000),
+    model: text(200).optional(),
+  });
+
+export const importKnowledgeUrlSchema = z.object({
+  url: z.string().trim().url().max(2_000),
+  sitemap: z.boolean().optional(),
+  maxPages: z.number().int().min(1).max(50).optional(),
+  tags: z.array(text(60)).max(20).optional(),
+});
+
+export const importKnowledgeFromAppSchema = z.object({
+  knowledgeBaseId: text(64).min(1),
+  items: z.array(z.object({ id: text(300).min(1), name: text(300).optional() })).min(1).max(25),
+  tags: z.array(text(60)).max(20).optional(),
+});
+
+export const updateKnowledgeDocumentSchema = z.object({
+  name: text(200).min(1).optional(),
+  tags: z.array(text(60)).max(20).optional(),
 });
 
 /* -------------------------------------------------------------- AI apps ---- */

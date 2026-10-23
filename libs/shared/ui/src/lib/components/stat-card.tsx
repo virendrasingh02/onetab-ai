@@ -170,6 +170,8 @@ export interface StatCardProps extends Omit<ComponentProps<'div'>, 'title'> {
   hint?: ReactNode;
   sparklineData?: number[];
   sparklineColor?: StatSparklineColor;
+  /** Set false to hide the wave when there is no real series to draw. */
+  showSparkline?: boolean;
   format?: (value: number) => string;
 }
 
@@ -194,6 +196,7 @@ export function StatCard({
   hint,
   sparklineData,
   sparklineColor,
+  showSparkline = true,
   format,
   className,
   ...props
@@ -291,12 +294,14 @@ export function StatCard({
         </div>
 
         {/* Sparkline Wave */}
-        <div className="shrink-0 pb-1">
-          <StatSparkline
-            data={sparklineData}
-            color={resolvedColor}
-          />
-        </div>
+        {showSparkline ? (
+          <div className="shrink-0 pb-1">
+            <StatSparkline
+              data={sparklineData}
+              color={resolvedColor}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

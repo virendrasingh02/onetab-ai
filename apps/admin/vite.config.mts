@@ -5,31 +5,9 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 /**
- * Hostnames allowed to reach the dev server and the preview server through the
- * Host header — mirrors apps/web/vite.config.mts so the console can be shared
- * the same way the web app is. `.trycloudflare.com` covers `cloudflared
- * tunnel --url http://localhost:4201` (random subdomain per run);
- * `.cfargotunnel.com` covers a named tunnel addressed by its UUID. A tunnel
- * routed at your own domain also needs that domain added here.
- */
-const TUNNEL_HOSTS = [
-  'my-custom-domain.local',
-  'host.docker.internal',
-  '.ngrok-free.app',
-  '.trycloudflare.com',
-  '.cfargotunnel.com',
-];
-
-/**
- * A tunnel forwards exactly one local port, so the API has to be reachable
- * through that same port for a single tunnel URL to work end to end. This
- * proxies `/api/*` server-side to the locally running Nest API, which also
- * sidesteps CORS entirely — the browser only ever sees the tunnel origin.
- *
- * Pairs with `VITE_API_URL=/api/v1` in `apps/admin/.env.local`: the client
- * calls a same-origin relative path instead of `http://localhost:3000`,
- * which would resolve to the *visitor's* machine over a shared tunnel. See
- * apps/web/vite.config.mts for the full writeup.
+ * Proxies `/api/*` server-side to the locally running Nest API, so the browser
+ * can call a same-origin relative path (`VITE_API_URL=/api/v1`) and CORS is
+ * sidestepped entirely.
  */
 const API_PROXY_TARGET =
   process.env['API_URL'] ||
@@ -110,7 +88,6 @@ export default defineConfig(() => ({
     port: 4201,
     strictPort: true,
     host: 'localhost',
-    allowedHosts: TUNNEL_HOSTS,
     proxy: API_PROXY,
     watch: {
       ignored: ['!**/node_modules/@org/**', '!**/libs/**', '!**/packages/**'],
@@ -120,9 +97,6 @@ export default defineConfig(() => ({
     port: 4201,
     strictPort: true,
     host: 'localhost',
-    // A shared preview build is reached through the same tunnel hostnames the
-    // dev server uses, and preview enforces `allowedHosts` just as strictly.
-    allowedHosts: TUNNEL_HOSTS,
     proxy: API_PROXY,
   },
   resolve: {

@@ -69,7 +69,20 @@ export interface AgentModelsConfig {
   embeddingModel?: string;
 }
 
+/** How an agent remembers: this conversation only, plus recall, or across conversations. */
+export type AgentMemoryMode = 'buffer' | 'hybrid' | 'persistent';
+
 export interface AgentMemoryConfig {
+  /** `buffer` keeps only the conversation; `hybrid`/`persistent` also recall saved facts. */
+  mode?: AgentMemoryMode;
+  /** Facts older than this many days are no longer recalled; unset = never expire. */
+  retentionDays?: number;
+  /** Most recent messages sent with each turn; unset = the whole conversation. */
+  contextWindowSize?: number;
+  /** Fold turns past the window into a short digest instead of dropping them. */
+  autoSummarize?: boolean;
+  /** Recall only the asking person's own `user` facts, never another person's. */
+  userSpecific?: boolean;
   enabled?: boolean;
   scopes?: Array<'user' | 'workspace' | 'agent' | 'project' | 'conversation' | 'task'>;
   types?: Array<
@@ -260,6 +273,48 @@ export function agentToolGate(runtime: AgentRuntimeConfig, toolName: string, rea
 /** Whether a built-in tool call must wait for a person under `runtime`. */
 export function agentToolNeedsApproval(runtime: AgentRuntimeConfig, toolName: string): boolean {
   return agentToolGate(runtime, toolName, READ_ONLY_AGENT_TOOLS.includes(toolName)) !== 'allow';
+}
+
+export interface ResolvedAgentMemoryPolicy {
+  mode: AgentMemoryMode;
+  /** Whether saved facts are recalled into each turn. */
+  recall: boolean;
+  retentionDays: number | null;
+  contextWindowSize: number | null;
+  autoSummarize: boolean;
+  userSpecific: boolean;
+}
+
+const positiveInt = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.floor(v) : null;
+
+/** What `runtime.memory` means for a turn, with the defaults older agents keep. */
+export function resolveAgentMemoryPolicy(runtime: AgentRuntimeConfig): ResolvedAgentMemoryPolicy {
+  const m = runtime.memory ?? {};
+  const mode: AgentMemoryMode = m.mode === 'buffer' || m.mode === 'persistent' ? m.mode : 'hybrid';
+  return {
+    mode,
+    recall: mode !== 'buffer' && runtime.useWorkspaceMemory && m.enabled !== false,
+    retentionDays: positiveInt(m.retentionDays),
+    contextWindowSize: positiveInt(m.contextWindowSize),
+    autoSummarize: m.autoSummarize === true,
+    userSpecific: m.userSpecific !== false,
+  };
+}
+
+/**
+ * A graph save re-derives `runtime` from the canvas, which knows nothing of the
+ * Memory tab. When the tab has chosen a memory mode, that choice (and the recall
+ * switch it implies) is carried over onto the re-derived runtime.
+ */
+export function keepSavedMemoryPolicy(saved: unknown, next: AgentRuntimeConfig): AgentRuntimeConfig {
+  const prev = (saved && typeof saved === 'object' ? (saved as Partial<AgentRuntimeConfig>) : undefined)?.memory;
+  if (!prev?.mode) return next;
+  return {
+    ...next,
+    useWorkspaceMemory: prev.mode !== 'buffer',
+    memory: { ...next.memory, ...prev },
+  };
 }
 
 const isAutonomyLevel = (v: unknown): v is AutonomyLevel => v === 0 || v === 1 || v === 2 || v === 3 || v === 4;

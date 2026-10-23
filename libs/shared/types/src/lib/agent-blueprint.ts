@@ -140,6 +140,16 @@ export interface AgentConnectionStatus {
   shared: boolean;
 }
 
+/** One thing the live environment lacks for an agent's step to run (checked on Validate). */
+export interface AgentReadinessCheck {
+  nodeId?: string;
+  code: 'UNKNOWN_TOOL' | 'NOT_CONNECTED' | 'MODEL_UNAVAILABLE';
+  level: 'error' | 'warning';
+  message: string;
+  /** The app to connect, when that's the fix. */
+  connect?: string;
+}
+
 /** A scope in words, including `app:<provider>:<access>` scopes. */
 export function describeAgentScope(scope: string): AgentScopeInfo {
   const known = AGENT_SCOPES[scope];

@@ -6,7 +6,9 @@ import {
   DEFAULT_AGENT_RUNTIME,
   deriveAgentFromGraph,
   isAgentBuilderGraph,
+  keepSavedMemoryPolicy,
   readAgentRuntime,
+  resolveAgentMemoryPolicy,
 } from './agent-config.js';
 
 const node = (id: string, kind: string, config: Record<string, unknown>) => ({
@@ -213,5 +215,31 @@ describe('agentToolGate', () => {
 
   it('lets an explicit per-tool allow win over the autonomy gate', () => {
     expect(agentToolNeedsApproval(rt({ autonomy: 'semi', rules: { policies: { create_task: 'auto_allow' } } }), 'create_task')).toBe(false);
+  });
+});
+
+describe('agent memory policy', () => {
+  it('keeps recall on and everything unbounded for agents saved before the policy existed', () => {
+    expect(resolveAgentMemoryPolicy(readAgentRuntime({ runtime: {} }))).toEqual({
+      mode: 'hybrid',
+      recall: true,
+      retentionDays: null,
+      contextWindowSize: null,
+      autoSummarize: false,
+      userSpecific: true,
+    });
+  });
+
+  it('turns recall off for conversation-only memory', () => {
+    const runtime = readAgentRuntime({ runtime: { useWorkspaceMemory: true, memory: { mode: 'buffer' } } });
+    expect(resolveAgentMemoryPolicy(runtime).recall).toBe(false);
+  });
+
+  it('carries the saved policy over a graph re-derive', () => {
+    const next = readAgentRuntime({ runtime: { useWorkspaceMemory: false } });
+    const kept = keepSavedMemoryPolicy({ memory: { mode: 'persistent', retentionDays: 90 } }, next);
+    expect(kept.useWorkspaceMemory).toBe(true);
+    expect(kept.memory).toMatchObject({ mode: 'persistent', retentionDays: 90 });
+    expect(keepSavedMemoryPolicy(undefined, next)).toBe(next);
   });
 });

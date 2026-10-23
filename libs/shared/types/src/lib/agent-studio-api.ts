@@ -125,6 +125,8 @@ export interface StudioHome {
     approvalsWaiting: number;
     issues: number;
     activeAgents: number;
+    /** Live runs per day over the last 7 days, oldest first. */
+    history: { completed: number[]; failed: number[] };
   };
   runningNow: Array<{
     id: string;

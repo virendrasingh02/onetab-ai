@@ -1,6 +1,7 @@
-import { agentsApi, knowledgeApi } from '@org/api-client';
+import { knowledgeApi } from '@org/api-client';
 import type {
   CreateKnowledgeBaseInput,
+  KnowledgeAnswer,
   KnowledgeBase,
   KnowledgeDocument,
   KnowledgeRetrievalMode,
@@ -13,44 +14,14 @@ import type {
  * workspace's own indexed documents matched.
  */
 
-/** Largest file read into the browser to index. */
-const MAX_FILE_BYTES = 2 * 1024 * 1024;
-
-const TEXT_EXTENSIONS = new Set(['txt', 'md', 'markdown', 'csv', 'tsv', 'json', 'html', 'htm', 'xml', 'yaml', 'yml', 'log']);
-
 export type NewSource =
   | { kind: 'text'; name: string; text: string }
-  | { kind: 'url'; url: string }
-  | { kind: 'file'; file: File };
+  | { kind: 'url'; url: string; sitemap?: boolean }
+  | { kind: 'file'; file: File }
+  | { kind: 'app'; integrationId: string; items: Array<{ id: string; name?: string }> };
 
-function extensionOf(name: string): string {
-  const dot = name.lastIndexOf('.');
-  return dot < 0 ? '' : name.slice(dot + 1).toLowerCase();
-}
-
-/** The text of an uploaded file, or an error that says what can be indexed. */
-async function readFileText(file: File): Promise<string> {
-  if (file.size > MAX_FILE_BYTES) {
-    throw new Error(`${file.name} is larger than ${MAX_FILE_BYTES / 1024 / 1024} MB. Split it or paste the relevant text.`);
-  }
-  const isText = file.type.startsWith('text/') || TEXT_EXTENSIONS.has(extensionOf(file.name));
-  if (!isText) {
-    throw new Error(
-      `${file.name} can’t be indexed yet: only text files (.txt, .md, .csv, .json, .html) are read. Export it as text, or paste the content as a note.`,
-    );
-  }
-  return file.text();
-}
-
-/** A web page as markdown, using the platform's scraper. */
-async function scrapeUrl(workspaceId: string, url: string): Promise<{ title: string; markdown: string }> {
-  const res = await agentsApi.testMcpTool(workspaceId, 'firecrawl_scrape', { url });
-  const data = res?.data as { title?: string; markdown?: string } | undefined;
-  if (!res?.success || !data?.markdown) {
-    throw new Error(typeof res?.error === 'string' ? res.error : `Couldn’t read ${url}.`);
-  }
-  return { title: data.title || url, markdown: data.markdown };
-}
+/** Largest upload the platform accepts (it re-validates server-side). */
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
 export const knowledgeService = {
   getKnowledgeBases(workspaceId: string): Promise<KnowledgeBase[]> {
@@ -69,6 +40,10 @@ export const knowledgeService = {
     await knowledgeApi.delete(workspaceId, id);
   },
 
+  reindex(workspaceId: string, id: string, embeddingModel?: string) {
+    return knowledgeApi.reindex(workspaceId, id, embeddingModel);
+  },
+
   getDocuments(workspaceId: string, knowledgeBaseId: string): Promise<KnowledgeDocument[]> {
     return knowledgeApi.listDocuments(workspaceId, knowledgeBaseId);
   },
@@ -77,51 +52,84 @@ export const knowledgeService = {
     await knowledgeApi.deleteDocument(workspaceId, knowledgeBaseId, documentId);
   },
 
-  /** Reads the source, then has the platform chunk, embed and index it. */
-  async addSource(workspaceId: string, knowledgeBaseId: string, source: NewSource): Promise<KnowledgeDocument> {
+  /**
+   * Hands the source to the platform, which extracts the text (PDF, DOCX, CSV,
+   * web pages), de-duplicates it and queues chunking + embedding. Files and
+   * pages come back QUEUED; the document list polls until they are INDEXED.
+   */
+  async addSource(
+    workspaceId: string,
+    knowledgeBaseId: string,
+    source: NewSource,
+  ): Promise<{ documents: KnowledgeDocument[]; failed: Array<{ url?: string; id?: string; error: string }> }> {
     if (source.kind === 'text') {
       if (!source.text.trim()) throw new Error('Write or paste some text to index.');
-      return knowledgeApi.ingestDocument(workspaceId, knowledgeBaseId, {
+      const doc = await knowledgeApi.ingestDocument(workspaceId, knowledgeBaseId, {
         name: source.name.trim() || 'Note',
         sourceType: 'MANUAL',
         rawText: source.text,
         mimeType: 'text/markdown',
       });
+      return { documents: [doc], failed: [] };
+    }
+
+    if (source.kind === 'app') {
+      return knowledgeApi.importApp(workspaceId, source.integrationId, { knowledgeBaseId, items: source.items });
     }
 
     if (source.kind === 'url') {
-      const url = source.url.trim();
-      const { title, markdown } = await scrapeUrl(workspaceId, url);
-      return knowledgeApi.ingestDocument(workspaceId, knowledgeBaseId, {
-        name: title,
-        sourceType: 'URL',
-        sourceUri: url,
-        rawText: markdown,
-        mimeType: 'text/markdown',
+      return knowledgeApi.importUrl(workspaceId, knowledgeBaseId, {
+        url: source.url.trim(),
+        sitemap: source.sitemap || undefined,
       });
     }
 
-    const text = await readFileText(source.file);
-    if (!text.trim()) throw new Error(`${source.file.name} is empty.`);
-    return knowledgeApi.ingestDocument(workspaceId, knowledgeBaseId, {
-      name: source.file.name,
-      sourceType: 'FILE',
-      rawText: text,
-      mimeType: source.file.type || 'text/plain',
-    });
+    if (source.file.size > MAX_FILE_BYTES) {
+      throw new Error(`${source.file.name} is larger than ${MAX_FILE_BYTES / 1024 / 1024} MB.`);
+    }
+    const doc = await knowledgeApi.uploadDocument(workspaceId, knowledgeBaseId, source.file);
+    return { documents: [doc], failed: [] };
+  },
+
+  browseApp(workspaceId: string, integrationId: string, q?: string) {
+    return knowledgeApi.browseApp(workspaceId, integrationId, q);
+  },
+
+  usage(workspaceId: string, knowledgeBaseId: string, days = 7) {
+    return knowledgeApi.usage(workspaceId, knowledgeBaseId, days);
+  },
+
+  reindexDocument(workspaceId: string, knowledgeBaseId: string, documentId: string) {
+    return knowledgeApi.reindexDocument(workspaceId, knowledgeBaseId, documentId);
+  },
+
+  getDocument(workspaceId: string, knowledgeBaseId: string, documentId: string): Promise<KnowledgeDocument> {
+    return knowledgeApi.getDocument(workspaceId, knowledgeBaseId, documentId);
+  },
+
+  /** Retrieval + reranking + a generated answer that cites only the passages it was given. */
+  answer(
+    workspaceId: string,
+    knowledgeBaseId: string,
+    question: string,
+    options: { topK?: number; scoreThreshold?: number; mode?: KnowledgeRetrievalMode; rerank?: boolean; rerankStrategy?: 'LEXICAL' | 'MODEL' } = {},
+  ): Promise<KnowledgeAnswer> {
+    return knowledgeApi.answer(workspaceId, knowledgeBaseId, { question, ...options });
   },
 
   search(
     workspaceId: string,
     knowledgeBaseId: string,
     query: string,
-    options: { topK?: number; scoreThreshold?: number; mode?: KnowledgeRetrievalMode } = {},
+    options: { topK?: number; scoreThreshold?: number; mode?: KnowledgeRetrievalMode; rerank?: boolean; rerankStrategy?: 'LEXICAL' | 'MODEL' } = {},
   ): Promise<KnowledgeRetrievalResult[]> {
     return knowledgeApi.testRetrieval(workspaceId, knowledgeBaseId, {
       query,
       topK: options.topK,
       scoreThreshold: options.scoreThreshold,
       mode: options.mode,
+      rerank: options.rerank,
+      rerankStrategy: options.rerankStrategy,
     });
   },
 };

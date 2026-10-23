@@ -9,6 +9,7 @@ import {
   deriveAgentFromGraph,
   isStudioGraph,
   type AgentConnectionStatus,
+  type AgentReadinessCheck,
   type AgentToolExecution,
   type InlineAgentSpec,
 } from '@org/types';
@@ -74,6 +75,82 @@ export class AgentsService {
       providers = connectorsOf(compileStudioGraph(JSON.parse(agent.graphJson as string)).agents);
     }
     return this.integrationTools.getConnectionStatus(workspaceId, agent.id, userId, providers);
+  }
+
+  /**
+   * What the structural check can't see: whether the things the canvas names
+   * exist *here* — a tool the platform has, an app `userId` has connected, a
+   * model the workspace has a key for. Each problem is tied to its step.
+   */
+  async checkReadiness(workspaceId: string, agentId: string, userId: string, graphJson?: string | null): Promise<AgentReadinessCheck[]> {
+    const agent = await this.prisma.aIAgent.findFirst({
+      where: { id: agentId, workspaceId, type: 'agent' },
+      select: { id: true, graphJson: true, provider: true, model: true },
+    });
+    if (!agent) throw new NotFoundException('Agent not found.');
+    const source = graphJson ?? agent.graphJson;
+    if (!isStudioGraph(source)) return [];
+    let compiled: ReturnType<typeof compileStudioGraph>;
+    try {
+      compiled = compileStudioGraph(JSON.parse(source as string) as Record<string, unknown>);
+    } catch {
+      return [];
+    }
+
+    const checks: AgentReadinessCheck[] = [];
+    const builtin = new Set(this.mcpRegistry.getToolDefinitions().map((t) => t.name));
+    // provider → the steps that need it
+    const needs = new Map<string, Set<string>>();
+    const need = (provider: string, nodeId: string) => {
+      const key = provider.toUpperCase();
+      needs.set(key, (needs.get(key) ?? new Set()).add(nodeId));
+    };
+
+    for (const node of compiled.nodes) {
+      const cfg = node.config ?? {};
+      if (node.type === 'TRIGGER') {
+        const provider = (cfg['connector'] as { provider?: unknown } | undefined)?.provider;
+        if (typeof provider === 'string') need(provider, node.id);
+        continue;
+      }
+      if (!['TOOL', 'MCP', 'MCP_TOOL'].includes(node.type) || cfg['mcpConnectionId']) continue;
+      const toolName = String(cfg['toolName'] || cfg['tool'] || '').trim();
+      if (!toolName || builtin.has(toolName)) continue;
+      const dot = toolName.indexOf('.');
+      if (dot > 0) need(toolName.slice(0, dot), node.id);
+      else checks.push({ nodeId: node.id, code: 'UNKNOWN_TOOL', level: 'error', message: `“${toolName}” isn’t a tool this platform has, so this step will fail.` });
+    }
+
+    const walk = async (spec: InlineAgentSpec): Promise<void> => {
+      for (const provider of spec.connectors ?? []) need(provider, spec.key);
+      const prefixes = (spec.connectors ?? []).map((p) => `${p.toLowerCase()}_`);
+      for (const tool of spec.tools) {
+        if (builtin.has(tool) || prefixes.some((p) => tool.startsWith(p)) || tool.startsWith('mcp')) continue;
+        checks.push({ nodeId: spec.key, code: 'UNKNOWN_TOOL', level: 'warning', message: `${spec.name} has “${tool}”, which this platform doesn’t offer, so it won’t have it.` });
+      }
+      const model = await this.runtimeService.modelReadiness(workspaceId, agent, spec.model);
+      if (!model.ok) {
+        checks.push({
+          nodeId: spec.key,
+          code: 'MODEL_UNAVAILABLE',
+          level: 'error',
+          message: `${spec.name} uses ${model.model || model.provider}, but ${model.provider} has no API key in this workspace. Add one in Settings → AI providers or pick another model.`,
+        });
+      }
+      for (const member of spec.members) await walk(member);
+    };
+    for (const spec of compiled.agents) await walk(spec);
+
+    if (needs.size > 0) {
+      const status = await this.integrationTools.getConnectionStatus(workspaceId, agent.id, userId, [...needs.keys()]);
+      for (const s of status) {
+        if (s.connected) continue;
+        for (const nodeId of needs.get(s.provider.toUpperCase()) ?? []) {
+          checks.push({ nodeId, code: 'NOT_CONNECTED', level: 'error', message: `${s.label} isn’t connected. Connect it in Integrations, then run again.`, connect: s.provider });
+        }
+      }
+    }
+    return checks;
   }
 
   private emitChange(workspaceId: string, agentId: string, action: AgentChangeAction) {

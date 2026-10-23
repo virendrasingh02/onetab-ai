@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { CacheModule } from '@org/api-cache';
 import { AuthModule } from '@org/api-auth';
 import { PrismaModule } from '@org/database';
 import { AIEncryptionService } from './ai-encryption.service.js';
@@ -33,7 +34,7 @@ import { AIMemoryService } from './ai-memory.service.js';
 import { AIMemoryController } from './ai-memory.controller.js';
 
 @Module({
-  imports: [ConfigModule, AuthModule, PrismaModule],
+  imports: [ConfigModule, AuthModule, PrismaModule, CacheModule],
   controllers: [
     AIPlatformController,
     PromptTemplateController,

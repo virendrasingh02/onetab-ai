@@ -1,380 +1,546 @@
-import { useState } from 'react';
-import { Badge, Button, confirm, ErrorState, Input, toast, LoadingState, AppSelect, Label, Checkbox, SegmentedControl } from '@org/ui';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AppSelect,
+  Badge,
+  Button,
+  confirm,
+  EmptyState,
+  ErrorState,
+  Input,
+  Label,
+  LoadingState,
+  SegmentedControl,
+  Switch,
+  Textarea,
+  toast,
+} from '@org/ui';
 import { cn } from '@org/utils';
 import { aiMemoryApi } from '@org/api-client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Brain,
   Database,
+  History,
   Layers,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
+  Sparkles,
   Trash2,
+  Zap,
 } from 'lucide-react';
 import { useStudioSession } from '../../session-guard.js';
 import { AgentTabPage, AgentTabSection } from './agent-tab-page.js';
 
+const MODES = [
+  {
+    id: 'buffer',
+    icon: Zap,
+    title: 'Conversation only',
+    desc: 'Remembers the current chat and nothing else. Fastest; nothing is recalled across chats.',
+  },
+  {
+    id: 'hybrid',
+    icon: Sparkles,
+    title: 'Conversation + recall',
+    desc: 'The current chat plus the most recent saved facts, brought into every turn.',
+  },
+  {
+    id: 'persistent',
+    icon: Database,
+    title: 'Long-term',
+    desc: 'Builds up facts and preferences across chats and keeps recalling them.',
+  },
+];
+
+const WINDOW_OPTIONS = [6, 12, 20, 50, 100];
+const RETENTION_OPTIONS = [7, 30, 90, 365];
+const SCOPE_OPTIONS = [
+  { value: 'agent', label: 'This agent' },
+  { value: 'workspace', label: 'Whole workspace' },
+  { value: 'user', label: 'Per person' },
+];
+const MAX_VALUE = 4000;
+
+const asKey = (n) => (n == null ? 'none' : String(n));
+const fromKey = (v) => (v === 'none' ? null : Number(v));
+
+/** Scoped keys are stored `[scope] name` or `[scope:id] name`; unprefixed is workspace-wide. */
+function parseKey(key) {
+  const m = /^\[([a-z_]+)(?::([^\]]+))?\]\s*(.*)$/is.exec(key || '');
+  return m ? { scope: m[1].toLowerCase(), owner: m[2] || null, name: m[3] || key } : { scope: 'workspace', owner: null, name: key };
+}
+
+function timeAgo(date) {
+  const t = new Date(date).getTime();
+  if (!Number.isFinite(t)) return '';
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 86400 * 30) return `${Math.floor(s / 86400)}d ago`;
+  return new Date(t).toLocaleDateString();
+}
+
+/** The memory policy the agent's runtime enforces, with the defaults older agents keep. */
+function readPolicy(agent) {
+  const runtime = agent?.configuration?.runtime ?? {};
+  const m = runtime.memory ?? {};
+  const mode =
+    m.mode === 'buffer' || m.mode === 'persistent' || m.mode === 'hybrid'
+      ? m.mode
+      : runtime.useWorkspaceMemory === false
+        ? 'buffer'
+        : 'hybrid';
+  return {
+    mode,
+    retentionDays: Number.isFinite(m.retentionDays) && m.retentionDays >= 1 ? m.retentionDays : null,
+    contextWindowSize: Number.isFinite(m.contextWindowSize) && m.contextWindowSize >= 1 ? m.contextWindowSize : null,
+    autoSummarize: m.autoSummarize === true,
+    userSpecific: m.userSpecific !== false,
+  };
+}
+
+const samePolicy = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+function withCurrent(options, current, suffix) {
+  const list = current != null && !options.includes(current) ? [...options, current].sort((a, b) => a - b) : options;
+  return list.map((n) => ({ value: String(n), label: `${n} ${suffix}` }));
+}
+
 /**
- * @param {{ agent: any; onUpdate?: (patch: Record<string, any>) => void | Promise<void> }} props
+ * @param {{ agent: any; onUpdate?: (patch: Record<string, any>) => boolean | void | Promise<boolean | void> }} props
  */
 export function MemoryTab({ agent, onUpdate }) {
   const { activeWorkspace } = useStudioSession();
   const queryClient = useQueryClient();
+  const workspaceId = activeWorkspace?.id;
 
-  const [memoryType, setMemoryType] = useState(agent?.memoryConfig?.memoryType || 'hybrid');
-  const [retentionDays, setRetentionDays] = useState(agent?.memoryConfig?.retentionDays || 30);
-  const [contextWindowSize, setContextWindowSize] = useState(agent?.memoryConfig?.contextWindowSize || 12);
-  const [autoSummarize, setAutoSummarize] = useState(agent?.memoryConfig?.autoSummarize ?? true);
-  const [userSpecific, setUserSpecific] = useState(agent?.memoryConfig?.userSpecific ?? true);
-  const [memorySearch, setMemorySearch] = useState('');
+  const saved = useMemo(() => readPolicy(agent), [agent]);
+  const [draft, setDraft] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  const dirty = !samePolicy(draft, saved);
+  const patch = (p) => setDraft((d) => ({ ...d, ...p }));
+
+  // Follow the saved policy (a save, a reload) unless there are unsaved edits.
+  const savedKey = JSON.stringify(saved);
+  useEffect(() => {
+    setDraft(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
+
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
   const [scopeFilter, setScopeFilter] = useState('all');
 
-  // New Memory creation form state
-  const [isAddingMemory, setIsAddingMemory] = useState(false);
-  const [newKey, setNewKey] = useState('');
-  const [newValue, setNewValue] = useState('');
-  const [newScope, setNewScope] = useState('agent');
+  const [form, setForm] = useState(null); // { key, value, scope, editing }
 
-  const memoriesKey = ['workspace-ai-memories', activeWorkspace?.id];
-
+  const params = {
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    ...(scopeFilter === 'agent' ? { agentId: agent?.id } : scopeFilter !== 'all' ? { scope: scopeFilter } : {}),
+  };
+  const memoriesKey = ['workspace-ai-memories', workspaceId, params];
   const {
     data: memories = [],
-    isLoading: isLoadingMemories,
-    isError: memoriesFailed,
-    error: memoriesError,
+    isLoading,
+    isError,
+    error,
     isRefetching,
     refetch,
   } = useQuery({
     queryKey: memoriesKey,
-    queryFn: () => aiMemoryApi.list(activeWorkspace.id),
-    enabled: Boolean(activeWorkspace?.id),
+    queryFn: () => aiMemoryApi.list(workspaceId, params),
+    enabled: Boolean(workspaceId),
   });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['workspace-ai-memories', workspaceId] });
 
-  const addMutation = useMutation({
-    mutationFn: ({ key, value, scope }) =>
-      aiMemoryApi.set(activeWorkspace.id, {
+  const saveMutation = useMutation({
+    mutationFn: ({ key, value, scope, editing }) =>
+      aiMemoryApi.set(workspaceId, {
         key,
         value,
-        scope,
-        agentId: scope === 'agent' ? agent?.id : undefined,
+        ...(editing ? {} : { scope, agentId: scope === 'agent' ? agent?.id : undefined }),
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: memoriesKey });
-      setIsAddingMemory(false);
-      setNewKey('');
-      setNewValue('');
-      toast.success('Memory fact stored');
+    onSuccess: (_r, vars) => {
+      refresh();
+      setForm(null);
+      toast.success(vars.editing ? 'Memory updated' : 'Memory saved');
     },
-    onError: (err) => {
-      toast.error('Failed to store memory fact', { description: err?.message });
-    },
+    onError: (err) => toast.error('Could not save the memory', { description: err?.message }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (mem) => aiMemoryApi.delete(activeWorkspace.id, mem.key),
+    mutationFn: (mem) => aiMemoryApi.delete(workspaceId, mem.key),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: memoriesKey });
-      toast.success('Memory fact pruned');
+      refresh();
+      toast.success('Memory removed');
     },
-    onError: (err) => {
-      toast.error('Failed to prune memory fact', { description: err?.message });
-    },
+    onError: (err) => toast.error('Could not remove the memory', { description: err?.message }),
   });
 
-  // Scoped keys are stored as `[scope] key` or `[scope:id] key`; anything
-  // unprefixed is workspace-wide (matches the API's scope filter).
-  const scopeOf = (key) => /^\[([a-z_]+)[\]:]/i.exec(key || '')?.[1]?.toLowerCase() ?? 'workspace';
-
-  const filteredMemories = memories.filter((m) => {
-    if (scopeFilter === 'agent') {
-      // This agent's own facts plus unattributed agent-scoped ones.
-      const key = m.key || '';
-      if (!(key.startsWith(`[agent:${agent?.id}]`) || key.startsWith('[agent]'))) return false;
-    } else if (scopeFilter !== 'all' && scopeOf(m.key) !== scopeFilter) {
-      return false;
-    }
-
-    if (!memorySearch.trim()) return true;
-    const q = memorySearch.toLowerCase();
-    return [m.key, m.value, m.source].some((f) => (f || '').toLowerCase().includes(q));
+  const forgetMutation = useMutation({
+    mutationFn: () => aiMemoryApi.forgetAgent(workspaceId, agent.id),
+    onSuccess: (r) => {
+      refresh();
+      toast.success(`Forgot ${r?.count ?? 0} memories`);
+    },
+    onError: (err) => toast.error('Could not clear memories', { description: err?.message }),
   });
 
-  const handleSaveSettings = () => {
-    const memoryConfig = {
-      memoryType,
-      retentionDays,
-      contextWindowSize,
-      autoSummarize,
-      userSpecific,
-    };
-    if (onUpdate) {
-      onUpdate({ memoryConfig });
+  const handleSave = async () => {
+    if (!onUpdate) return;
+    setSaving(true);
+    try {
+      const savedRuntime = agent?.configuration?.runtime ?? {};
+      const ok = await onUpdate({
+        configuration: {
+          runtime: {
+            ...savedRuntime,
+            // Recall is the runtime's switch; the rest rides in `memory`.
+            useWorkspaceMemory: draft.mode !== 'buffer',
+            memory: {
+              ...(savedRuntime.memory ?? {}),
+              mode: draft.mode,
+              retentionDays: draft.retentionDays ?? undefined,
+              contextWindowSize: draft.contextWindowSize ?? undefined,
+              autoSummarize: draft.autoSummarize,
+              userSpecific: draft.userSpecific,
+            },
+          },
+        },
+      });
+      if (ok !== false) toast.success('Memory policy saved', { description: 'It applies from the next run.' });
+    } finally {
+      setSaving(false);
     }
-    toast.success('Agent memory policies updated and applied');
   };
 
-  const handleAddSubmit = (e) => {
+  const submitForm = (e) => {
     e.preventDefault();
-    if (!activeWorkspace?.id) return;
-    if (!newKey.trim() || !newValue.trim()) {
-      toast.error('Please enter both key and value');
+    const key = form.key.trim();
+    const value = form.value.trim();
+    if (!key || !value) {
+      toast.error('Add both a subject and what to remember');
       return;
     }
-    addMutation.mutate({ key: newKey.trim(), value: newValue.trim(), scope: newScope });
+    saveMutation.mutate({ ...form, key, value });
   };
+
+  const confirmDelete = async (mem) => {
+    const ok = await confirm({
+      title: 'Remove this memory?',
+      description: 'Agents will no longer recall it. This can’t be undone.',
+      confirmLabel: 'Remove',
+      destructive: true,
+    });
+    if (ok) deleteMutation.mutate(mem);
+  };
+
+  const confirmForget = async () => {
+    const ok = await confirm({
+      title: `Clear everything ${agent?.name ?? 'this agent'} remembers?`,
+      description: 'Deletes every fact saved to this agent’s own scope. Workspace and person facts are kept.',
+      confirmLabel: 'Clear memories',
+      destructive: true,
+    });
+    if (ok) forgetMutation.mutate();
+  };
+
+  const totalTokens = memories.reduce((n, m) => n + Math.ceil((m.value || '').length / 4), 0);
+  const recalls = draft.mode !== 'buffer';
 
   return (
     <AgentTabPage
-      title="Agent Memory & Context Retention"
-      description="Control how this agent retains context across multi-turn user conversations, vector semantic recall, and long-term workspace memory."
+      title="Memory"
+      description="What this agent keeps in mind during a chat, what it recalls from earlier ones, and the facts it has saved."
       icon={<Brain />}
       actions={
-        <Badge variant="outline" className="text-xs text-primary border-primary/30">
-          Vector + Episodic
+        <Badge variant="outline" className="text-xs">
+          {MODES.find((m) => m.id === saved.mode)?.title}
         </Badge>
       }
     >
-      {/* Memory Architecture Config */}
-      <AgentTabSection title="Memory Architecture" icon={<Layers />}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {[
-            {
-              id: 'buffer',
-              title: 'Short-Term Buffer',
-              desc: 'Retains recent sliding window of messages. Lowest latency, reset per session.',
-            },
-            {
-              id: 'hybrid',
-              title: 'Hybrid Semantic Memory',
-              desc: 'Combines sliding conversation buffer with vector similarity retrieval.',
-            },
-            {
-              id: 'persistent',
-              title: 'Long-Term Persistent',
-              desc: 'Cross-session memory storing user facts, preferences, and action history.',
-            },
-          ].map((type) => (
-            <button
-              key={type.id}
-              type="button"
-              onClick={() => setMemoryType(type.id)}
-              className={cn(
-                'rounded-xl border p-4 text-left transition-all',
-                memoryType === type.id
-                  ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                  : 'border-border bg-surface-raised hover:border-primary/50',
-              )}
-            >
-              <div className="text-xs font-bold text-foreground">{type.title}</div>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{type.desc}</p>
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2 border-t border-border/80 text-xs">
-          <div>
-            <Label className="text-[11px] font-semibold text-foreground">Context Window Size (Messages)</Label>
-            <Input
-              type="number"
-              min={2}
-              max={50}
-              value={contextWindowSize}
-              onChange={(e) => setContextWindowSize(parseInt(e.target.value) || 12)}
-              className="mt-1 text-xs"
-            />
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+        {/* Policy */}
+        <AgentTabSection
+          title="Memory policy"
+          description="Enforced on every run, in chat and on schedule."
+          icon={<Layers />}
+          className="xl:sticky xl:top-0"
+        >
+          <div className="grid gap-2" role="radiogroup" aria-label="Memory mode">
+            {MODES.map(({ id, icon: Icon, title, desc }) => {
+              const active = draft.mode === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => patch({ mode: id })}
+                  className={cn(
+                    'flex items-start gap-3 rounded-xl border p-3 text-left transition-colors',
+                    active ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-surface-raised hover:border-primary/50',
+                  )}
+                >
+                  <Icon className={cn('mt-0.5 size-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} aria-hidden />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">{title}</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{desc}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <div>
-            <Label className="text-[11px] font-semibold text-foreground">Retention Policy (Days)</Label>
-            <Input
-              type="number"
-              min={1}
-              max={365}
-              value={retentionDays}
-              onChange={(e) => setRetentionDays(parseInt(e.target.value) || 30)}
-              className="mt-1 text-xs"
-            />
+          <div className="grid gap-4 border-t border-border pt-4">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-medium">Messages kept in the chat</Label>
+              <AppSelect
+                value={asKey(draft.contextWindowSize)}
+                onValueChange={(v) => patch({ contextWindowSize: fromKey(v) })}
+                options={[
+                  ...withCurrent(WINDOW_OPTIONS, draft.contextWindowSize, 'messages'),
+                  { value: 'none', label: 'Whole conversation' },
+                ]}
+              />
+              <p className="text-xs text-muted-foreground">Older messages are dropped from each turn to save tokens.</p>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className={cn('text-xs font-medium', !recalls && 'text-muted-foreground')}>Forget saved facts after</Label>
+              <AppSelect
+                value={asKey(draft.retentionDays)}
+                disabled={!recalls}
+                onValueChange={(v) => patch({ retentionDays: fromKey(v) })}
+                options={[
+                  ...withCurrent(RETENTION_OPTIONS, draft.retentionDays, 'days'),
+                  { value: 'none', label: 'Never' },
+                ]}
+              />
+              <p className="text-xs text-muted-foreground">
+                {recalls ? 'Older facts stay stored but are no longer recalled.' : 'Not used when only the conversation is kept.'}
+              </p>
+            </div>
+
+            <label className="flex items-start justify-between gap-4">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-foreground">Condense older messages</span>
+                <span className="block text-xs text-muted-foreground">
+                  Messages past the limit become a short digest instead of disappearing.
+                </span>
+              </span>
+              <Switch
+                checked={draft.autoSummarize && draft.contextWindowSize != null}
+                disabled={draft.contextWindowSize == null}
+                onCheckedChange={(c) => patch({ autoSummarize: c === true })}
+                aria-label="Condense older messages"
+              />
+            </label>
+
+            <label className="flex items-start justify-between gap-4">
+              <span className="min-w-0">
+                <span className={cn('block text-sm font-medium', recalls ? 'text-foreground' : 'text-muted-foreground')}>
+                  Keep each person’s facts private
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Facts saved for one person are never recalled while talking to someone else.
+                </span>
+              </span>
+              <Switch
+                checked={draft.userSpecific}
+                disabled={!recalls}
+                onCheckedChange={(c) => patch({ userSpecific: c === true })}
+                aria-label="Keep each person’s facts private"
+              />
+            </label>
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-border/60 text-xs">
-          <Label className="flex items-center gap-2 cursor-pointer">
-            <Checkbox checked={autoSummarize} onCheckedChange={(c) => setAutoSummarize(c === true)} />
-            <span className="text-foreground">Auto-summarize long conversations</span>
-          </Label>
-          <Label className="flex items-center gap-2 cursor-pointer">
-            <Checkbox checked={userSpecific} onCheckedChange={(c) => setUserSpecific(c === true)} />
-            <span className="text-foreground">Isolate memories per individual user</span>
-          </Label>
-        </div>
+          <div className="flex items-center justify-between gap-2 border-t border-border pt-4">
+            <span className="text-xs text-muted-foreground">{dirty ? 'Unsaved changes' : 'Up to date'}</span>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" disabled={!dirty || saving} onClick={() => setDraft(saved)}>
+                Reset
+              </Button>
+              <Button size="sm" disabled={!dirty || !onUpdate} loading={saving} onClick={handleSave}>
+                Save policy
+              </Button>
+            </div>
+          </div>
+        </AgentTabSection>
 
-        <div className="pt-2 flex justify-end">
-          <Button size="sm" onClick={handleSaveSettings}>
-            Save Memory Policy
-          </Button>
-        </div>
-      </AgentTabSection>
-
-      {/* Memory Search & Explorer */}
-      <AgentTabSection
-        title="Stored Episodic & Semantic Memories"
-        description="Inspect, search, and prune stored facts from agent turns"
-        icon={<Database />}
-        actions={
-          <>
+        {/* Explorer */}
+        <AgentTabSection
+          title="Saved memories"
+          description={
+            recalls
+              ? 'Facts agents saved or you added. The most recent ones are recalled into every turn.'
+              : 'Recall is off for this agent — these facts are stored but not used.'
+          }
+          icon={<History />}
+          actions={
+            <>
+              <Button variant="outline" size="icon-sm" onClick={() => void refetch()} loading={isRefetching} aria-label="Refresh memories" title="Refresh">
+                <RefreshCw className="size-3.5" />
+              </Button>
+              <Button size="sm" className="gap-1.5" onClick={() => setForm({ key: '', value: '', scope: 'agent', editing: false })}>
+                <Plus className="size-3.5" />
+                Add memory
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-wrap items-center gap-3">
             <Input
-              placeholder="Search memories..."
-              value={memorySearch}
-              onChange={(e) => setMemorySearch(e.target.value)}
+              placeholder="Search memories"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               aria-label="Search memories"
               prefix={<Search className="size-3.5 text-muted-foreground" aria-hidden="true" />}
               inputSize="sm"
-              wrapperClassName="w-56"
+              wrapperClassName="w-full sm:w-60"
             />
-            <Button
-              variant="outline"
-              size="icon-sm"
-              onClick={() => void refetch()}
-              loading={isRefetching}
-              title="Refresh memories"
-              aria-label="Refresh memories"
-            >
-              <RefreshCw className="size-3.5" />
-            </Button>
-            <Button
-              variant="outline"
+            <SegmentedControl
+              aria-label="Memory scope"
               size="sm"
-              onClick={() => setIsAddingMemory(!isAddingMemory)}
-              className="gap-1.5"
-            >
-              <Plus className="size-3.5" />
-              <span>Add Memory</span>
-            </Button>
-          </>
-        }
-      >
+              value={scopeFilter}
+              onChange={setScopeFilter}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'agent', label: 'This agent' },
+                { value: 'workspace', label: 'Workspace' },
+                { value: 'user', label: 'People' },
+              ]}
+            />
+            <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+              {memories.length} {memories.length === 1 ? 'fact' : 'facts'} · ~{totalTokens.toLocaleString()} tokens
+            </span>
+          </div>
 
-        {/* Scope Filter Tabs */}
-        <SegmentedControl
-          aria-label="Memory scope"
-          size="sm"
-          value={scopeFilter}
-          onChange={setScopeFilter}
-          options={[
-            { value: 'all', label: 'All Scopes' },
-            { value: 'agent', label: 'Agent Scope' },
-            { value: 'workspace', label: 'Workspace Scope' },
-            { value: 'user', label: 'User Scope' },
-          ]}
-        />
-
-        {/* Add Memory Card */}
-        {isAddingMemory && (
-          <form
-            onSubmit={handleAddSubmit}
-            className="rounded-xl border border-primary/40 bg-surface p-4 space-y-3"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-foreground">Remember New Fact / Preference</span>
-              <button
-                type="button"
-                onClick={() => setIsAddingMemory(false)}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Cancel
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <Input
-                placeholder="Key / Subject (e.g. Preferred Tone)"
-                value={newKey}
-                onChange={(e) => setNewKey(e.target.value)}
-                className="text-xs h-8"
-              />
-              <Input
-                placeholder="Value / Procedure"
-                value={newValue}
-                onChange={(e) => setNewValue(e.target.value)}
-                className="text-xs h-8 sm:col-span-2"
-              />
-            </div>
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-muted-foreground">Scope:</span>
-                <AppSelect
-                  value={newScope}
-                  onValueChange={(v) => setNewScope(v)}
-                  options={[
-                    { value: 'agent', label: 'Agent Scope' },
-                    { value: 'workspace', label: 'Workspace Scope' },
-                    { value: 'user', label: 'User Scope' },
-                  ]}
+          {form && (
+            <form onSubmit={submitForm} className="grid gap-3 rounded-xl border border-primary/40 bg-surface p-4">
+              <div className="text-sm font-medium text-foreground">{form.editing ? 'Edit memory' : 'Add a memory'}</div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs">Subject</Label>
+                <Input
+                  value={form.editing ? parseKey(form.key).name : form.key}
+                  disabled={form.editing}
+                  maxLength={200}
+                  placeholder="e.g. Preferred tone"
+                  onChange={(e) => setForm({ ...form, key: e.target.value })}
                 />
               </div>
-              <Button size="xs" type="submit" loading={addMutation.isPending}>
-                Save Fact
-              </Button>
-            </div>
-          </form>
-        )}
-
-        {isLoadingMemories ? (
-          <LoadingState label="Loading agent memories..." />
-        ) : memoriesFailed ? (
-          <ErrorState
-            title="Couldn't load memories"
-            description={memoriesError?.message}
-            onRetry={() => refetch()}
-          />
-        ) : filteredMemories.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center text-xs text-muted-foreground">
-            No memories match your query. Run agent turns with memory enabled or click &ldquo;Add Memory&rdquo; to store episodic facts.
-          </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-surface overflow-hidden divide-y divide-border">
-            {filteredMemories.map((mem) => (
-              <div key={mem.id || mem.key} className="p-3 text-xs flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground">{mem.key}</span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {mem.source || 'agent'}
-                    </Badge>
-                  </div>
-                  <p className="text-muted-foreground leading-relaxed font-mono text-[11px]">
-                    {mem.value}
-                  </p>
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-2">
-                    <span>{new Date(mem.updatedAt || mem.createdAt || Date.now()).toLocaleString()}</span>
-                    <span>•</span>
-                    <span>~{Math.max(12, Math.round((mem.value || '').length / 4))} tokens</span>
-                  </div>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={async () => {
-                    const ok = await confirm({
-                      title: 'Prune this memory?',
-                      description: 'The agent will forget this fact. This can’t be undone.',
-                      confirmLabel: 'Prune',
-                      destructive: true,
-                    });
-                    if (ok) deleteMutation.mutate(mem);
-                  }}
-                  disabled={deleteMutation.isPending}
-                  className="text-muted-foreground hover:text-destructive shrink-0"
-                  title="Prune memory fact"
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+              <div className="grid gap-1.5">
+                <Label className="text-xs">What to remember</Label>
+                <Textarea
+                  rows={3}
+                  value={form.value}
+                  maxLength={MAX_VALUE}
+                  placeholder="e.g. Writes short, friendly replies and signs off with the team name."
+                  onChange={(e) => setForm({ ...form, value: e.target.value })}
+                />
+                <span className="text-right text-[11px] tabular-nums text-muted-foreground">
+                  {form.value.length}/{MAX_VALUE}
+                </span>
               </div>
-            ))}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                {form.editing ? (
+                  <span className="text-xs text-muted-foreground">Scope can’t change — add a new memory instead.</span>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground">Remember for</span>
+                    <AppSelect value={form.scope} onValueChange={(v) => setForm({ ...form, scope: v })} options={SCOPE_OPTIONS} />
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setForm(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" loading={saveMutation.isPending}>
+                    {form.editing ? 'Update' : 'Save memory'}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {isLoading ? (
+            <LoadingState label="Loading memories…" />
+          ) : isError ? (
+            <ErrorState title="Couldn't load memories" description={error?.message} onRetry={() => refetch()} />
+          ) : memories.length === 0 ? (
+            <EmptyState
+              icon={<Brain />}
+              title={debouncedSearch || scopeFilter !== 'all' ? 'No memories match' : 'Nothing remembered yet'}
+              description={
+                debouncedSearch || scopeFilter !== 'all'
+                  ? 'Try another search or scope.'
+                  : 'Agents save facts here as they work, or you can add one yourself.'
+              }
+              hideGraphic
+            />
+          ) : (
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+              {memories.map((mem) => {
+                const { scope, owner, name } = parseKey(mem.key);
+                const otherAgent = scope === 'agent' && owner && owner !== agent?.id;
+                return (
+                  <li key={mem.id || mem.key} className="group flex items-start justify-between gap-4 p-3">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">{name}</span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {otherAgent ? 'Another agent' : scope === 'agent' ? 'This agent' : scope === 'user' ? 'Person' : scope}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          {mem.source === 'manual' ? 'Added by you' : 'Saved by agent'}
+                        </Badge>
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">{mem.value}</p>
+                      <div className="text-[11px] text-muted-foreground">
+                        Updated {timeAgo(mem.updatedAt || mem.createdAt)} · ~{Math.ceil((mem.value || '').length / 4)} tokens
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-1 opacity-70 transition-opacity group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`Edit ${name}`}
+                        title="Edit"
+                        onClick={() => setForm({ key: mem.key, value: mem.value, scope, editing: true })}
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`Remove ${name}`}
+                        title="Remove"
+                        disabled={deleteMutation.isPending}
+                        className="hover:text-destructive"
+                        onClick={() => confirmDelete(mem)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <div className="flex justify-end">
+            <Button variant="ghost" size="sm" className="text-destructive" loading={forgetMutation.isPending} onClick={confirmForget}>
+              Clear this agent’s memories
+            </Button>
           </div>
-        )}
-      </AgentTabSection>
+        </AgentTabSection>
+      </div>
     </AgentTabPage>
   );
 }

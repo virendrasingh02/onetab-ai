@@ -39,6 +39,7 @@ import {
   resolveWorkspacePolicy,
   isAIEntityType,
   OWNER_PRIVATE_AGENT_TOOLS,
+  resolveAgentMemoryPolicy,
   DEFAULT_AGENT_RUN_LIMITS,
   MAX_AGENT_TOOL_ROUNDS,
   readAgentRuntime,
@@ -176,6 +177,26 @@ const MAX_DELEGATION_DEPTH = 3;
  *  `AIExecution.totalCost`, so agent and workflow runs price consistently
  *  against the shared credit ledger. */
 const ESTIMATED_COST_PER_TOKEN_USD = 0.000002;
+
+/**
+ * The part of a conversation a turn carries: the last `contextWindowSize`
+ * messages, with the turns before them folded into a short digest when the
+ * agent asked for that (extractive — one clipped line per turn, no model call).
+ */
+export function windowHistory(
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  policy: { contextWindowSize: number | null; autoSummarize: boolean },
+): { recent: typeof history; digest: string } {
+  const size = policy.contextWindowSize;
+  if (!size || history.length <= size) return { recent: history, digest: '' };
+  const older = history.slice(0, history.length - size);
+  const recent = history.slice(history.length - size);
+  if (!policy.autoSummarize) return { recent, digest: '' };
+  const lines = older
+    .slice(-30)
+    .map((m) => `- ${m.role === 'user' ? 'User' : 'You'}: ${m.content.replace(/\s+/g, ' ').trim().slice(0, 160)}`);
+  return { recent, digest: `Earlier in this conversation (condensed):\n${lines.join('\n')}` };
+}
 
 /** How many recent workspace memory facts to surface to every turn. */
 const MEMORY_CONTEXT_LIMIT = 20;
@@ -746,9 +767,32 @@ export class AIRuntimeService {
     ]);
   }
 
-  private async buildMemoryContext(workspaceId: string): Promise<string> {
+  private async buildMemoryContext(
+    workspaceId: string,
+    runtime: AgentRuntimeConfig,
+    who: { agentId?: string; requesterId?: string | null },
+  ): Promise<string> {
+    const policy = resolveAgentMemoryPolicy(runtime);
+    if (!policy.recall) return '';
+    const and: Record<string, unknown>[] = [];
+    // Another agent's private facts are never this agent's to recall.
+    if (who.agentId) {
+      and.push({ OR: [{ NOT: { key: { startsWith: '[agent:' } } }, { key: { startsWith: `[agent:${who.agentId}]` } }] });
+    }
+    // With per-person isolation, only the asking person's own `user` facts.
+    if (policy.userSpecific) {
+      and.push({
+        OR: [
+          { NOT: { key: { startsWith: '[user:' } } },
+          ...(who.requesterId ? [{ key: { startsWith: `[user:${who.requesterId}]` } }] : []),
+        ],
+      });
+    }
+    if (policy.retentionDays) {
+      and.push({ updatedAt: { gte: new Date(Date.now() - policy.retentionDays * 86_400_000) } });
+    }
     const rows = await this.prisma.aIMemory.findMany({
-      where: { workspaceId },
+      where: { workspaceId, ...(and.length ? { AND: and } : {}) },
       select: { key: true, value: true },
       orderBy: { updatedAt: 'desc' },
       take: MEMORY_CONTEXT_LIMIT,
@@ -888,6 +932,8 @@ export class AIRuntimeService {
       workspaceId,
       actingUserId: ((entity.creatorId as string | null) ?? context.requesterId ?? null) as string | null,
       agentMatrixUserId: entity.matrixUserId as string | null,
+      agentId: entity.id as string,
+      requesterId: context.requesterId ?? null,
     };
 
     try {
@@ -1045,9 +1091,10 @@ export class AIRuntimeService {
   ): Promise<{ content: string; tokensUsed: number }> {
     const provider = (entity.provider || 'nvidia') as AIProvider;
     const cred = await this.credentialService.resolveCredential(provider, { workspaceId });
+    const { recent, digest } = windowHistory(context.history ?? [], resolveAgentMemoryPolicy(plan.runtime));
     const messages: AIChatMessage[] = [
-      { role: 'system', content: plan.systemPrompt },
-      ...(context.history ?? []).map((m): AIChatMessage => ({ role: m.role, content: m.content })),
+      { role: 'system', content: digest ? `${plan.systemPrompt}\n\n${digest}` : plan.systemPrompt },
+      ...recent.map((m): AIChatMessage => ({ role: m.role, content: m.content })),
       { role: 'user', content: promptText },
     ];
     const tools = plan.toolSchemas.length > 0 ? plan.toolSchemas : undefined;
@@ -1186,7 +1233,10 @@ export class AIRuntimeService {
     const integrationSchemas = allIntegrationSchemas.filter((t) => !governed.disabled.has(t.name));
     const mcpTools = new Map([...allMcpTools].filter(([name]) => !governed.disabled.has(name)));
 
-    const memoryContext = runtime.useWorkspaceMemory ? await this.buildMemoryContext(workspaceId) : '';
+    const memoryContext = await this.buildMemoryContext(workspaceId, runtime, {
+      agentId: entity.id as string,
+      requesterId: context.requesterId,
+    });
     const knowledgeContext = await this.buildKnowledgeContext(workspaceId, runtime, promptText);
     const format = runtime.responseFormat ? `\n\n${RESPONSE_FORMAT_INSTRUCTION[runtime.responseFormat] ?? ''}` : '';
 
@@ -1398,7 +1448,10 @@ export class AIRuntimeService {
     const builtinSchemas = allBuiltinSchemas.filter((s) => !governed.disabled.has(schemaName(s)));
     const integrationSchemas = allIntegrationSchemas.filter((t) => !governed.disabled.has(t.name));
     const mcpTools = new Map([...allMcpTools].filter(([name]) => !governed.disabled.has(name)));
-    const memoryContext = runtime.useWorkspaceMemory ? await this.buildMemoryContext(workspaceId) : '';
+    const memoryContext = await this.buildMemoryContext(workspaceId, runtime, {
+      agentId: entity.id as string,
+      requesterId: context.requesterId,
+    });
 
     const rulesAndAutonomy = buildRulesAndAutonomyPrompt(runtime);
     const plan: TurnPlan = {
@@ -1540,6 +1593,27 @@ export class AIRuntimeService {
       });
       await this.finishExecution(state, startedAt, promptText, agent.model, undefined, err);
       throw err;
+    }
+  }
+
+  /**
+   * Whether a run could really call a model: the one a canvas agent asks for
+   * (or, when it names none, its host agent's own) must have a key in this
+   * workspace — the same rule `withInlineAgent` applies when a run starts.
+   */
+  async modelReadiness(
+    workspaceId: string,
+    host: { provider?: string | null; model?: string | null },
+    requested?: string,
+  ): Promise<{ ok: boolean; provider: string; model: string }> {
+    const resolved = requested && this.modelResolver ? this.modelResolver.resolve({ requestedModel: requested }) : null;
+    const provider = (resolved?.provider ?? host.provider ?? 'nvidia') as string;
+    const model = resolved?.model ?? host.model ?? '';
+    try {
+      const cred = await this.credentialService.resolveCredential(provider as AIProvider, { workspaceId });
+      return { ok: !!cred.apiKey || (provider === 'ollama' && !!cred.baseUrl), provider, model };
+    } catch {
+      return { ok: false, provider, model };
     }
   }
 

@@ -204,6 +204,19 @@ export class GoogleDriveProvider implements ProviderAdapter {
         requiresConfirmation: false,
       },
       {
+        id: 'read_file',
+        label: 'Read file content',
+        description:
+          'Fetch the content of a file: Google Docs/Slides as text, Sheets as CSV, text files as text, other files as base64 (max 20 MB).',
+        inputSchema: {
+          type: 'object',
+          properties: { fileId: { type: 'string' } },
+          required: ['fileId'],
+        },
+        permissionLevel: 'read',
+        requiresConfirmation: false,
+      },
+      {
         id: 'list_recent',
         label: 'Recent files',
         description: 'Files ordered by most recently modified.',
@@ -279,6 +292,12 @@ export class GoogleDriveProvider implements ProviderAdapter {
         );
         return { success: true, message: `Fetched "${file.data.name}".`, data: { file: file.data } };
       }
+      case 'read_file': {
+        const data = await this.executeWithAuth(credential, (token) =>
+          this.readFile(token, String(input['fileId'] ?? '')),
+        );
+        return { success: true, message: `Read "${data.name}".`, data };
+      }
       case 'list_recent': {
         const result = await this.executeWithAuth(credential, (token) =>
           listGoogleDriveFiles(token, { orderBy: 'viewedByMeTime desc', pageSize: num(input['maxResults']) ?? 25 }),
@@ -298,6 +317,42 @@ export class GoogleDriveProvider implements ProviderAdapter {
       default:
         throw new BadRequestException(`Unknown Google Drive action '${actionId}'.`);
     }
+  }
+
+  private async readFile(token: string, fileId: string) {
+    if (!fileId) throw new BadRequestException('fileId is required.');
+    const headers = { Authorization: `Bearer ${token}` };
+    const base = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`;
+    const meta = (await axios.get(base, { headers, params: { fields: 'id,name,mimeType,size' } })).data as {
+      name: string;
+      mimeType: string;
+      size?: string;
+    };
+    const MAX = 20 * 1024 * 1024;
+    const google = meta.mimeType.startsWith('application/vnd.google-apps.');
+    if (google) {
+      const exportAs = meta.mimeType.endsWith('spreadsheet') ? 'text/csv' : 'text/plain';
+      if (!/document|presentation|spreadsheet/.test(meta.mimeType)) {
+        throw new BadRequestException(`"${meta.name}" is a ${meta.mimeType.split('.').pop()}, which can't be read as text.`);
+      }
+      const res = await axios.get(`${base}/export`, {
+        headers,
+        params: { mimeType: exportAs },
+        responseType: 'text',
+        maxContentLength: MAX,
+      });
+      return { name: meta.name, mimeType: exportAs, text: String(res.data) };
+    }
+    if (Number(meta.size ?? 0) > MAX) throw new BadRequestException(`"${meta.name}" is larger than 20 MB.`);
+    const res = await axios.get(base, {
+      headers,
+      params: { alt: 'media' },
+      responseType: 'arraybuffer',
+      maxContentLength: MAX,
+    });
+    const buffer = Buffer.from(res.data as ArrayBuffer);
+    if (meta.mimeType.startsWith('text/')) return { name: meta.name, mimeType: meta.mimeType, text: buffer.toString('utf8') };
+    return { name: meta.name, mimeType: meta.mimeType, contentBase64: buffer.toString('base64') };
   }
 
   private async uploadFile(token: string, input: Record<string, unknown>) {

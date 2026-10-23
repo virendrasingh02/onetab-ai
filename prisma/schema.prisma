@@ -1873,44 +1873,44 @@ model CalendarEvent {
 /// `calendarEventId` so it also appears on the calendar, and its action items
 /// are real `Task` rows linked back through `Task.meetingId`.
 model Meeting {
-  id              String               @id @default(cuid())
-  workspaceId     String
-  organizerId     String
-  projectId       String?
+  id                String               @id @default(cuid())
+  workspaceId       String
+  organizerId       String
+  projectId         String?
   /// The calendar row this meeting also shows up on, when one was created with
   /// it. One-to-one; deleting the meeting leaves the calendar event in place.
-  calendarEventId String?              @unique
-  title           String
-  description     String?
+  calendarEventId   String?              @unique
+  title             String
+  description       String?
   /// Free-form agenda (markdown), shown at the top of the meeting detail.
-  agenda          String?
+  agenda            String?
   /// A join URL (Zoom / Meet / native huddle) or a physical location.
-  location        String?
-  status          MeetingStatus        @default(SCHEDULED)
-  startAt         DateTime
-  endAt           DateTime
+  location          String?
+  status            MeetingStatus        @default(SCHEDULED)
+  startAt           DateTime
+  endAt             DateTime
   /// When the meeting was actually ended, set by "End meeting". Independent of
   /// the scheduled `endAt`.
-  endedAt         DateTime?
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  endedAt           DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
   /// Soft delete — see Project.deletedAt.
-  deletedAt       DateTime?
+  deletedAt         DateTime?
   /// Set when the meeting mirrors an event in an external calendar (Google).
-  externalSource  String?
-  externalId      String?
+  externalSource    String?
+  externalId        String?
   /// The external event's own `updated` stamp at the last sync, so a pull
   /// never re-applies what a push just wrote (and vice versa).
   externalUpdatedAt DateTime?
-  organizer       User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
-  workspace       Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project         Project?             @relation(fields: [projectId], references: [id])
-  calendarEvent   CalendarEvent?       @relation(fields: [calendarEventId], references: [id])
-  participants    MeetingParticipant[]
-  notes           MeetingNote[]
-  decisions       MeetingDecision[]
-  actionItems     Task[]               @relation("MeetingActionItems")
-  calls           Call[]
+  organizer         User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  workspace         Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project           Project?             @relation(fields: [projectId], references: [id])
+  calendarEvent     CalendarEvent?       @relation(fields: [calendarEventId], references: [id])
+  participants      MeetingParticipant[]
+  notes             MeetingNote[]
+  decisions         MeetingDecision[]
+  actionItems       Task[]               @relation("MeetingActionItems")
+  calls             Call[]
 
   @@unique([workspaceId, organizerId, externalSource, externalId])
   @@index([workspaceId, startAt])
@@ -4089,9 +4089,34 @@ model KnowledgeBase {
   workspace        Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy        User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
   documents        KnowledgeDocument[]
+  usage            KnowledgeUsage[]
 
   @@index([workspaceId])
   @@map("knowledge_bases")
+}
+
+/// One retrieval or grounded answer: the audit trail behind latency/cost monitoring.
+model KnowledgeUsage {
+  id               String        @id @default(cuid())
+  knowledgeBaseId  String
+  workspaceId      String
+  kind             String // RETRIEVE | ANSWER
+  mode             String?
+  rerank           String? // LEXICAL | MODEL
+  resultCount      Int           @default(0)
+  grounded         Boolean?
+  latencyMs        Int           @default(0)
+  retrievalMs      Int           @default(0)
+  promptTokens     Int           @default(0)
+  completionTokens Int           @default(0)
+  costUsd          Float         @default(0)
+  model            String?
+  createdAt        DateTime      @default(now())
+  knowledgeBase    KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@index([knowledgeBaseId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@map("knowledge_usage")
 }
 
 model KnowledgeDocument {
@@ -4106,6 +4131,8 @@ model KnowledgeDocument {
   chunkCount      Int              @default(0)
   rawText         String?
   errorMessage    String?
+  contentHash     String?
+  version         Int              @default(1)
   metadata        Json             @default("{}")
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -4113,20 +4140,24 @@ model KnowledgeDocument {
   chunks          KnowledgeChunk[]
 
   @@index([knowledgeBaseId, status])
+  @@index([knowledgeBaseId, contentHash])
   @@map("knowledge_documents")
 }
 
 model KnowledgeChunk {
-  id          String            @id @default(cuid())
-  documentId  String
-  chunkIndex  Int
-  content     String
-  tokenCount  Int               @default(0)
-  embeddingId String?
-  metadata    Json              @default("{}")
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  document    KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id             String            @id @default(cuid())
+  documentId     String
+  chunkIndex     Int
+  content        String
+  tokenCount     Int               @default(0)
+  embeddingId    String?
+  // Stored with the chunk so semantic search works without an external vector store.
+  embedding      Float[]           @default([])
+  embeddingModel String?
+  metadata       Json              @default("{}")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  document       KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([documentId, chunkIndex])
   @@map("knowledge_chunks")

@@ -142,6 +142,7 @@ export function AgentRuntimeSettings({
   return (
     <>
       <AgentTabSection
+        id="settings-model"
         title="Model & Behaviour"
         icon={<Cpu />}
         actions={
@@ -247,6 +248,7 @@ export function AgentRuntimeSettings({
       </AgentTabSection>
 
       <AgentTabSection
+        id="settings-limits"
         title="Run Limits"
         description="Hard ceilings on one run of the whole agent team, so a run can never loop or spend without end."
         icon={<Network />}
@@ -292,7 +294,7 @@ export function AgentRuntimeSettings({
         )}
       </AgentTabSection>
 
-      <AgentTabSection title="Safety & Guardrails" icon={<ShieldCheck />} className="gap-3">
+      <AgentTabSection id="settings-safety" title="Safety & Guardrails" icon={<ShieldCheck />} className="gap-3">
         <div className="space-y-2 text-xs">
           <Field
             label="Personal data in answers"

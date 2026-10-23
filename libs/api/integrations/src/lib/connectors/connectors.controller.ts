@@ -62,6 +62,18 @@ export class ConnectorsController {
     return this.custom.create(workspaceId, userId, body, canInstallApps(role, policies));
   }
 
+  @Post('workspaces/:workspaceId/connectors-custom/test-connection')
+  @UseGuards(WorkspaceRoleGuard)
+  testCustomConnection(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @WorkspaceMemberRole() role: WorkspaceRole | undefined,
+    @WorkspacePolicies() policies: WorkspacePolicy | undefined,
+    @Body() body: { connector: CustomConnectorInput; integrationId?: string },
+  ) {
+    return this.custom.testConnection(workspaceId, userId, body, canInstallApps(role, policies));
+  }
+
   @Post('workspaces/:workspaceId/connectors-custom/test-action')
   @UseGuards(WorkspaceRoleGuard)
   testCustomAction(

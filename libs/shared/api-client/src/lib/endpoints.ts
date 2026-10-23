@@ -76,6 +76,7 @@ import type {
   AIAgent,
   AIAgentDetail,
   AgentConnectionStatus,
+  AgentReadinessCheck,
   AICoworker,
   AICoworkerDetail,
   CoworkerRoster,
@@ -292,6 +293,9 @@ import type {
   CreateKnowledgeBaseInput,
   IngestDocumentInput,
   KnowledgeRetrievalQuery,
+  KnowledgeAnswer,
+  KnowledgeAnswerRequest,
+  KnowledgeUsageSummary,
   KnowledgeRetrievalResult,
   AIApp,
   CreateAIAppInput,
@@ -2851,7 +2855,7 @@ export const agentsApi = {
     ),
 
   validate: (workspaceId: string, agentId: string, graphJson?: string) =>
-    request<{ valid: boolean; errors: string[]; warnings: string[] }>(
+    request<{ valid: boolean; errors: string[]; warnings: string[]; checks: AgentReadinessCheck[] }>(
       http.post(`/workspaces/${workspaceId}/agents/${agentId}/validate`, {
         graphJson,
       }),
@@ -3812,6 +3816,11 @@ export const connectorsApi = {
       request<{ provider: string; integrationId: string }>(http.put(`/workspaces/${workspaceId}/connectors-custom/${integrationId}`, input)),
     remove: (workspaceId: string, integrationId: string) =>
       request<{ deleted: true }>(http.delete(`/workspaces/${workspaceId}/connectors-custom/${integrationId}`)),
+    /** Checks that the unsaved connection settings reach the real API and are accepted. */
+    testConnection: (workspaceId: string, body: { connector: CustomConnectorInput; integrationId?: string }) =>
+      request<{ ok: boolean; status?: number; latencyMs?: number; message: string }>(
+        http.post(`/workspaces/${workspaceId}/connectors-custom/test-connection`, body),
+      ),
     /** Runs one action of an unsaved definition against the real API. */
     testAction: (
       workspaceId: string,
@@ -5571,6 +5580,11 @@ export const knowledgeApi = {
   delete: (workspaceId: string, id: string) =>
     request<void>(http.delete(`/workspaces/${workspaceId}/knowledge/${id}`)),
 
+  reindex: (workspaceId: string, id: string, embeddingModel?: string) =>
+    request<{ knowledgeBase: KnowledgeBase; documents: number; failed: number }>(
+      http.post(`/workspaces/${workspaceId}/knowledge/${id}/reindex`, { embeddingModel }),
+    ),
+
   listDocuments: (workspaceId: string, knowledgeBaseId: string) =>
     request<KnowledgeDocument[]>(
       http.get(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents`),
@@ -5612,6 +5626,72 @@ export const knowledgeApi = {
   testRetrieval: (workspaceId: string, knowledgeBaseId: string, query: KnowledgeRetrievalQuery) =>
     request<KnowledgeRetrievalResult[]>(
       http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/retrieve`, query),
+    ),
+  /** Multipart: the browser sets the Content-Type boundary. PDF, DOCX, TXT, Markdown, CSV. */
+  uploadDocument: (workspaceId: string, knowledgeBaseId: string, file: File, tags: string[] = []) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (tags.length) form.append('tags', tags.join(','));
+    return request<KnowledgeDocument>(
+      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/upload`, form, {
+        headers: { 'Content-Type': undefined as unknown as string },
+        timeout: 0,
+      }),
+    );
+  },
+
+  importUrl: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    data: { url: string; sitemap?: boolean; maxPages?: number; tags?: string[] },
+  ) =>
+    request<{ documents: KnowledgeDocument[]; failed: Array<{ url: string; error: string }> }>(
+      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/import-url`, data),
+    ),
+
+  getDocument: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
+    request<KnowledgeDocument>(
+      http.get(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}`),
+    ),
+
+  updateDocument: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+    data: { name?: string; tags?: string[] },
+  ) =>
+    request<KnowledgeDocument>(
+      http.patch(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}`, data),
+    ),
+
+  reindexDocument: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
+    request<{ id: string; status: string }>(
+      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}/reindex`),
+    ),
+
+  /** Files/pages of a connected Google Drive or Notion account that can be imported. */
+  browseApp: (workspaceId: string, integrationId: string, q?: string) =>
+    request<Array<{ id: string; name: string; kind: string; modifiedAt?: string; url?: string }>>(
+      http.get(`/workspaces/${workspaceId}/knowledge-sources/${integrationId}/browse`, { params: { q } }),
+    ),
+
+  importApp: (
+    workspaceId: string,
+    integrationId: string,
+    data: { knowledgeBaseId: string; items: Array<{ id: string; name?: string }>; tags?: string[] },
+  ) =>
+    request<{ documents: KnowledgeDocument[]; failed: Array<{ id: string; name?: string; error: string }> }>(
+      http.post(`/workspaces/${workspaceId}/knowledge-sources/${integrationId}/import`, data),
+    ),
+
+  usage: (workspaceId: string, knowledgeBaseId: string, days = 7) =>
+    request<KnowledgeUsageSummary>(
+      http.get(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/usage`, { params: { days } }),
+    ),
+
+  answer: (workspaceId: string, knowledgeBaseId: string, data: KnowledgeAnswerRequest) =>
+    request<KnowledgeAnswer>(
+      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/answer`, data),
     ),
 };
 
@@ -5745,7 +5825,7 @@ export const aiSecretsApi = {
     request<AISecret>(http.post(`/workspaces/${workspaceId}/ai-secrets`, data)),
 
   delete: (workspaceId: string, key: string) =>
-    request<void>(http.delete(`/workspaces/${workspaceId}/ai-secrets/${key}`)),
+    request<void>(http.delete(`/workspaces/${workspaceId}/ai-secrets/${encodeURIComponent(key)}`)),
 };
 
 export const aiMemoryApi = {
@@ -5756,7 +5836,7 @@ export const aiMemoryApi = {
     request<AIMemoryEntry>(http.post(`/workspaces/${workspaceId}/ai/memory`, data)),
 
   delete: (workspaceId: string, key: string) =>
-    request<void>(http.delete(`/workspaces/${workspaceId}/ai/memory/${encodeURIComponent(key)}`)),
+    request<void>(http.delete(`/workspaces/${workspaceId}/ai/memory`, { params: { key } })),
 
   forgetAgent: (workspaceId: string, agentId: string) =>
     request<{ count: number }>(http.delete(`/workspaces/${workspaceId}/ai/memory/agents/${encodeURIComponent(agentId)}`)),

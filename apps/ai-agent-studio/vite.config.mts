@@ -4,14 +4,6 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
-const TUNNEL_HOSTS = [
-  'my-custom-domain.local',
-  'host.docker.internal',
-  '.ngrok-free.app',
-  '.trycloudflare.com',
-  '.cfargotunnel.com',
-];
-
 const API_PROXY = {
   '/api': {
     target: 'http://localhost:3000',
@@ -86,7 +78,6 @@ export default defineConfig(() => ({
     port: 4202,
     strictPort: true,
     host: true,
-    allowedHosts: TUNNEL_HOSTS,
     proxy: API_PROXY,
     fs: {
       strict: false,
@@ -97,7 +88,6 @@ export default defineConfig(() => ({
     port: 4202,
     strictPort: true,
     host: true,
-    allowedHosts: TUNNEL_HOSTS,
     proxy: API_PROXY,
   },
   resolve: {

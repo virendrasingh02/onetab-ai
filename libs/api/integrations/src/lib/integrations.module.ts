@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AIInfrastructureModule } from '@org/api-ai';
 import { AuthModule } from '@org/api-auth';
 import { PrismaModule } from '@org/database';
 import { MatrixModule } from '@org/api-matrix';
@@ -21,6 +22,8 @@ import { IntegrationSyncService } from './core/integration-sync.service.js';
 import { OAuthService } from './core/oauth.service.js';
 import { SSRFGuardService } from './core/ssrf-guard.service.js';
 import { WebhookService } from './core/webhook.service.js';
+import { KnowledgeImportController } from './knowledge-import.controller.js';
+import { KnowledgeImportService } from './knowledge-import.service.js';
 import { IntegrationsController } from './integrations.controller.js';
 import { IntegrationsService } from './integrations.service.js';
 import { NotionImporterService } from './notion-importer.service.js';
@@ -80,17 +83,19 @@ import { MigrationWorkerService } from './migration/migration-worker.service.js'
 import { MigrationEngineService } from './migration/migration-engine.service.js';
 
 @Module({
-  imports: [ConfigModule, PrismaModule, AuthModule, MatrixModule],
+  imports: [ConfigModule, PrismaModule, AuthModule, MatrixModule, AIInfrastructureModule],
   controllers: [
     IntegrationsController,
     WebhooksController,
     ChannelAppsController,
+    KnowledgeImportController,
     ConnectorsController,
     ConnectorGroupsController,
     OAuthAppsController,
     MigrationController,
   ],
   providers: [
+    KnowledgeImportService,
     // Core Services
     IntegrationEncryptionService,
     SSRFGuardService,

@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@org/ui';
+import type { AgentReadinessCheck } from '@org/types';
 import { AlertCircle, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 interface ValidationModalProps {
@@ -17,6 +18,8 @@ interface ValidationModalProps {
     valid: boolean;
     errors: string[];
     warnings: string[];
+    /** What the live environment lacks (apps not connected, unknown tools, models without keys). */
+    checks?: AgentReadinessCheck[];
   } | null;
   onPublishAnyway?: () => void;
 }
@@ -29,7 +32,8 @@ export function ValidationModal({
 }: ValidationModalProps) {
   if (!validationResult) return null;
 
-  const { valid, errors, warnings } = validationResult;
+  const { valid, errors, warnings, checks = [] } = validationResult;
+  const failing = (code: AgentReadinessCheck['code']) => checks.some((c) => c.code === code);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -69,22 +73,19 @@ export function ValidationModal({
               <CheckCircle2 className="size-3.5 text-success" />
               <span>Canvas Graph Topology</span>
             </div>
-            <div className="flex items-center gap-2 text-foreground font-medium">
-              {errors.some((e) => e.includes('Start')) ? (
-                <AlertCircle className="size-3.5 text-destructive" />
-              ) : (
-                <CheckCircle2 className="size-3.5 text-success" />
-              )}
-              <span>Start Node Entrypoint</span>
-            </div>
-            <div className="flex items-center gap-2 text-foreground font-medium">
-              {errors.some((e) => e.includes('Tool')) ? (
-                <AlertCircle className="size-3.5 text-destructive" />
-              ) : (
-                <CheckCircle2 className="size-3.5 text-success" />
-              )}
-              <span>Tool & Model Attachments</span>
-            </div>
+            {(
+              [
+                ['Start node and connections', errors.some((e) => e.includes('Start') || e.includes('Add at least one step'))],
+                ['Tools exist on this platform', failing('UNKNOWN_TOOL')],
+                ['Apps are connected', failing('NOT_CONNECTED')],
+                ['Models have an API key', failing('MODEL_UNAVAILABLE')],
+              ] as const
+            ).map(([label, bad]) => (
+              <div key={label} className="flex items-center gap-2 text-foreground font-medium">
+                {bad ? <AlertCircle className="size-3.5 text-destructive" /> : <CheckCircle2 className="size-3.5 text-success" />}
+                <span>{label}</span>
+              </div>
+            ))}
           </div>
 
           {/* Errors list */}

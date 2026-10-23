@@ -49,6 +49,7 @@ import {
   deleteCustomConnector,
   errorMessage,
   testCustomAction,
+  testCustomConnection,
   updateCustomConnector,
   useConnectorDetail,
   useInvalidateConnectors,
@@ -291,6 +292,7 @@ function Builder({ initial, integrationId, provider }: { initial: Draft; integra
             secretValues
             addLabel="Add a header"
           />
+          <TestConnection draft={draft} integrationId={integrationId} needsSecret={needsSecret} />
         </Section>
 
         <Section
@@ -638,6 +640,58 @@ function slugify(label: string): string {
     .replace(/^_+|_+$/g, '')
     .slice(0, 40);
   return /^[a-z]/.test(id) || !id ? id : `a_${id}`.slice(0, 40);
+}
+
+/** Calls the real API with the connection settings as they are now — nothing is saved. */
+function TestConnection({ draft, integrationId, needsSecret }: { draft: Draft; integrationId?: string; needsSecret: boolean }) {
+  const { activeWorkspace } = useStudioSession();
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string; for: string } | null>(null);
+  const signature = JSON.stringify([
+    draft.baseUrl,
+    draft.authType,
+    draft.bearerToken,
+    draft.apiKey,
+    draft.apiKeyHeader,
+    draft.apiKeyQueryParam,
+    draft.basicUsername,
+    draft.basicPassword,
+    draft.headerRows,
+  ]);
+  // A result only describes the settings it was run with.
+  const shown = result && result.for === signature ? result : null;
+
+  const run = async () => {
+    if (!activeWorkspace) return;
+    if (needsSecret) {
+      setResult({ ok: false, message: 'Enter the API key, token or password first.', for: signature });
+      return;
+    }
+    setRunning(true);
+    try {
+      const res = await testCustomConnection(activeWorkspace.id, { connector: inputFromDraft(draft), ...(integrationId ? { integrationId } : {}) });
+      setResult({ ok: res.ok, message: res.message, for: signature });
+    } catch (error) {
+      setResult({ ok: false, message: errorMessage(error, 'The connection test couldn’t run.'), for: signature });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-border bg-surface-raised p-3">
+      <Button size="xs" variant="outline" onClick={run} loading={running} disabled={!draft.baseUrl.trim()} leadingIcon={<Zap />}>
+        Test connection
+      </Button>
+      {shown ? (
+        <span role="status" className={cn('min-w-0 flex-1 text-xs', shown.ok ? 'text-success-text' : 'text-destructive-text')}>
+          {shown.message}
+        </span>
+      ) : (
+        <span className="text-[11px] text-muted-foreground">Sends one real request to the base URL with this sign-in. Nothing is saved.</span>
+      )}
+    </div>
+  );
 }
 
 /** Runs the action for real against the API with the form as it is now — nothing is saved. */

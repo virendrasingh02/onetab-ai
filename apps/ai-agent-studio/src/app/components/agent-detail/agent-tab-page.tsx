@@ -35,6 +35,8 @@ export function AgentTabPage({ title, description, icon, actions, toolbar, class
 }
 
 export interface AgentTabSectionProps {
+  /** Anchor id, for in-page navigation. */
+  id?: string;
   title: ReactNode;
   description?: ReactNode;
   /** Lucide icon element, shown before the title. */
@@ -46,9 +48,9 @@ export interface AgentTabSectionProps {
 }
 
 /** A titled card within an agent section — one look for every settings block. */
-export function AgentTabSection({ title, description, icon, actions, className, children }: AgentTabSectionProps) {
+export function AgentTabSection({ id, title, description, icon, actions, className, children }: AgentTabSectionProps) {
   return (
-    <Card className={cn('gap-4 p-5', className)}>
+    <Card id={id} className={cn('gap-4 p-5', id && 'scroll-mt-16', className)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">

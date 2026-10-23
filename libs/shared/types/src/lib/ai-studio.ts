@@ -4,7 +4,7 @@ import type { IsoDateString } from './entities.js';
 // 1. KNOWLEDGE / RAG TYPES
 // ==========================================
 
-export type KnowledgeSourceType = 'FILE' | 'URL' | 'WORKSPACE' | 'MANUAL';
+export type KnowledgeSourceType = 'FILE' | 'URL' | 'WORKSPACE' | 'MANUAL' | 'APP';
 export type KnowledgeDocumentStatus = 'QUEUED' | 'PROCESSING' | 'INDEXED' | 'FAILED';
 export type KnowledgeRetrievalMode = 'SEMANTIC' | 'KEYWORD' | 'HYBRID';
 
@@ -37,6 +37,10 @@ export interface KnowledgeDocument {
   chunkCount: number;
   rawText?: string | null;
   errorMessage?: string | null;
+  contentHash?: string | null;
+  version?: number;
+  /** Set on an ingest that matched identical content already in the base. */
+  deduplicated?: boolean;
   metadata: Record<string, unknown>;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
@@ -59,7 +63,34 @@ export interface KnowledgeRetrievalQuery {
   topK?: number;
   mode?: KnowledgeRetrievalMode;
   scoreThreshold?: number;
+  /** Re-score the candidates before cutting to top-K. */
+  rerank?: boolean;
+  /** LEXICAL (default, free) scores by query coverage; MODEL asks the chat model to grade each passage. */
+  rerankStrategy?: 'LEXICAL' | 'MODEL';
+  /** `documentIds`, `tags` (any match) and `sourceType` narrow the search. */
   filters?: Record<string, unknown>;
+}
+
+export interface KnowledgeAnswerRequest extends Omit<KnowledgeRetrievalQuery, 'query'> {
+  question: string;
+  model?: string;
+}
+
+export interface KnowledgeAnswerSource extends KnowledgeRetrievalResult {
+  /** The `[n]` the answer uses to cite this passage. */
+  sourceNumber: number;
+  cited: boolean;
+}
+
+export interface KnowledgeAnswer {
+  answer: string;
+  /** False when nothing relevant was found; the answer is then the standard "not found" text. */
+  grounded: boolean;
+  sources: KnowledgeAnswerSource[];
+  latencyMs: number;
+  retrievalMs: number;
+  model?: string;
+  usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
 }
 
 export interface KnowledgeRetrievalResult {
@@ -77,6 +108,8 @@ export interface CreateKnowledgeBaseInput {
   description?: string;
   icon?: string;
   embeddingModel?: string;
+  chunkSize?: number;
+  chunkOverlap?: number;
 }
 
 export interface IngestDocumentInput {
@@ -483,4 +516,17 @@ export interface AIObservabilityMetrics {
     tool: string;
     count: number;
   }>;
+}
+
+export interface KnowledgeUsageSummary {
+  windowDays: number;
+  /** Estimated spend from token usage and the model's listed price; 0 for free models. */
+  costUsd: number;
+  queries: number;
+  answers: number;
+  ungrounded: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  promptTokens: number;
+  completionTokens: number;
 }

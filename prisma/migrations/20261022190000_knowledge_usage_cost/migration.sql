@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "knowledge_usage" ADD COLUMN "costUsd" DOUBLE PRECISION NOT NULL DEFAULT 0;
