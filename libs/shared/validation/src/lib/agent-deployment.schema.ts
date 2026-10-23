@@ -49,19 +49,33 @@ export const updateAgentDeploymentSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
+/** `ot_vis_` and 48 hex characters, as the server issues them. */
+export const VISITOR_KEY = /^ot_vis_[a-f0-9]{48}$/;
+
 export const initAgentSessionSchema = z.object({
   publicKey: z.string().min(1),
   agentId: z.string().optional(),
   /** The site framing the iframe embed, when the browser's own Origin is the API. */
   embedOrigin: z.string().max(300).optional(),
   userContext: z.record(z.string(), z.unknown()).default({}),
+  /** The browser's anonymous visitor key, so its earlier conversations stay reachable. */
+  visitorKey: z.string().regex(VISITOR_KEY).optional(),
+  /** Pick up this conversation of the same visitor instead of starting a new one. */
+  resumeSessionId: z.string().min(1).max(64).optional(),
 });
 
-export const sendSessionMessageSchema = z.object({
-  message: z.string().min(1),
-  context: z.record(z.string(), z.unknown()).optional(),
-  stream: z.boolean().optional().default(false),
-});
+export const sendSessionMessageSchema = z
+  .object({
+    message: z.string().max(8000).default(''),
+    /** Files uploaded to this session with `POST /agent-sessions/:id/attachments`. */
+    attachmentIds: z.array(z.string().min(1).max(64)).max(5).default([]),
+    context: z.record(z.string(), z.unknown()).optional(),
+    stream: z.boolean().optional().default(false),
+  })
+  .refine((v) => v.message.trim().length > 0 || v.attachmentIds.length > 0, {
+    message: 'A message or an attachment is required.',
+    path: ['message'],
+  });
 
 export const executeHeadlessAgentSchema = z.object({
   prompt: z.string().min(1).optional(),

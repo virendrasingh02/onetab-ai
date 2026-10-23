@@ -151,6 +151,33 @@ export interface AgentSessionMessage {
     parameters: Record<string, unknown>;
     riskLevel?: 'low' | 'medium' | 'high';
   };
+  /** Files the visitor sent with this message. */
+  attachments?: AgentSessionAttachment[];
+}
+
+/** A file a widget visitor uploaded into a conversation (its text stays on the server). */
+export interface AgentSessionAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
+/** One of a widget visitor's conversations, for the history list. */
+export interface AgentWidgetConversation {
+  id: string;
+  title: string;
+  updatedAt: string;
+  /** The conversation the asking session is. */
+  current: boolean;
+}
+
+/** What opening, creating or resuming a widget conversation hands back. */
+export interface AgentConversationHandle {
+  sessionId: string;
+  sessionToken: string;
+  expiresAt: string;
+  visitorKey: string | null;
 }
 
 export interface AgentRunResponseView {
@@ -281,9 +308,9 @@ export const DEFAULT_WIDGET_CONFIG: AgentWidgetConfig = {
   position: 'bottom-right',
   welcomeMessage: 'Hello! How can I assist you today?',
   suggestedPrompts: [
-    'Compare product specifications',
-    'Check inventory and pricing',
-    'Create an order request',
+    'What can you help me with?',
+    'Summarize a file I upload',
+    'Talk me through getting started',
   ],
   showAvatar: true,
   showHeader: true,
@@ -309,9 +336,9 @@ export const DEFAULT_WIDGET_CONFIG: AgentWidgetConfig = {
     height: 600,
     welcomeMessage: 'Hello! How can I assist you today?',
     suggestedPrompts: [
-      'Compare product specifications',
-      'Check inventory and pricing',
-      'Create an order request',
+      'What can you help me with?',
+      'Summarize a file I upload',
+      'Talk me through getting started',
     ],
     inputPlaceholder: 'Ask a question or enter instructions...',
     showBranding: true,

@@ -6,8 +6,37 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import { randomBytes } from 'node:crypto';
-import type { AgentSessionMessage } from '@org/types';
+import type {
+  AgentConversationHandle,
+  AgentWidgetConversation,
+  AgentSessionAttachment,
+  AgentSessionMessage,
+} from '@org/types';
 import { AgentDeploymentService } from './agent-deployment.service.js';
+
+/** An uploaded file as the session keeps it: what the visitor sees, plus its text for the model. */
+export interface AgentSessionAttachmentRecord extends AgentSessionAttachment {
+  text: string;
+  createdAt: string;
+}
+
+/** How many uploads one conversation keeps; older ones fall off. */
+const MAX_SESSION_ATTACHMENTS = 20;
+/** How much of one file's text a conversation keeps. */
+const MAX_ATTACHMENT_TEXT = 60_000;
+const MAX_HISTORY_ITEMS = 50;
+/** A conversation the visitor deleted: kept for analytics, gone from their history. */
+const DELETED = 'DELETED';
+
+const VISITOR_KEY = /^ot_vis_[a-f0-9]{48}$/;
+
+/** A history title from a conversation's first message. */
+export function conversationTitle(message: string, attachments: AgentSessionAttachment[] = []): string | null {
+  const text = message.replace(/\s+/g, ' ').trim();
+  const base = text || attachments[0]?.name || '';
+  if (!base) return null;
+  return base.length > 80 ? `${base.slice(0, 79).trimEnd()}…` : base;
+}
 
 const AVATAR_URL = /^(https?:\/\/|\/(?!\/))[^\s"'<>]+$/i;
 const AVATAR_DATA_URL = /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i;
@@ -61,11 +90,39 @@ export class AgentSessionService {
     }
   }
 
+  generateVisitorKey(): string {
+    return `ot_vis_${randomBytes(24).toString('hex')}`;
+  }
+
+  private sessionMinutes(widgetConfig: unknown): number {
+    return ((widgetConfig as any)?.behavior?.sessionDurationMinutes as number) || 1440; // 24 hours default
+  }
+
+  private greeting(deployment: { widgetConfig: unknown; agent: { name: string; welcomeMessage: string | null } }): AgentSessionMessage {
+    return {
+      id: `msg_${randomBytes(8).toString('hex')}`,
+      role: 'assistant',
+      content:
+        ((deployment.widgetConfig as any)?.appearance?.welcomeMessage as string) ||
+        deployment.agent.welcomeMessage ||
+        `Hello! I am ${deployment.agent.name}. How can I assist you today?`,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   async initSession(
     publicKey: string,
     userContext: Record<string, unknown> = {},
     clientOrigin?: string | null,
-  ): Promise<{ sessionToken: string; sessionId: string; expiresAt: string; deployment: any }> {
+    options: { visitorKey?: string; resumeSessionId?: string } = {},
+  ): Promise<{
+    sessionToken: string;
+    sessionId: string;
+    expiresAt: string;
+    visitorKey: string;
+    resumed: boolean;
+    deployment: any;
+  }> {
     const deployment = await this.deploymentService.getDeploymentByPublicKey(publicKey);
 
     if (deployment.status !== 'ACTIVE') {
@@ -76,43 +133,37 @@ export class AgentSessionService {
       throw new ForbiddenException(`Origin "${clientOrigin}" is not authorized for this deployment.`);
     }
 
-    const sessionToken = this.generateSessionToken();
-    const durationMinutes =
-      ((deployment.widgetConfig as any)?.behavior?.sessionDurationMinutes as number) || 1440; // 24 hours default
-    const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
+    // A browser keeps its visitor key, so its earlier conversations stay in its history.
+    const visitorKey =
+      options.visitorKey && VISITOR_KEY.test(options.visitorKey) ? options.visitorKey : this.generateVisitorKey();
+    const minutes = this.sessionMinutes(deployment.widgetConfig);
 
-    // Initial greeting if configured
-    const initialGreeting =
-      ((deployment.widgetConfig as any)?.appearance?.welcomeMessage as string) ||
-      deployment.agent.welcomeMessage ||
-      `Hello! I am ${deployment.agent.name}. How can I assist you today?`;
+    const resumed = options.resumeSessionId
+      ? await this.reopen(deployment.id, visitorKey, options.resumeSessionId, minutes)
+      : null;
 
-    const initialMessages: AgentSessionMessage[] = [
-      {
-        id: `msg_${randomBytes(8).toString('hex')}`,
-        role: 'assistant',
-        content: initialGreeting,
-        timestamp: new Date().toISOString(),
-      },
-    ];
-
-    const session = await this.prisma.agentDeploymentSession.create({
-      data: {
-        deploymentId: deployment.id,
-        agentId: deployment.agentId,
-        sessionToken,
-        clientOrigin: clientOrigin ?? null,
-        userContext: userContext as any,
-        messages: initialMessages as any,
-        status: 'ACTIVE',
-        expiresAt,
-      },
-    });
+    const session =
+      resumed ??
+      (await this.prisma.agentDeploymentSession.create({
+        data: {
+          deploymentId: deployment.id,
+          agentId: deployment.agentId,
+          sessionToken: this.generateSessionToken(),
+          visitorKey,
+          clientOrigin: clientOrigin ?? null,
+          userContext: userContext as any,
+          messages: [this.greeting(deployment)] as any,
+          status: 'ACTIVE',
+          expiresAt: new Date(Date.now() + minutes * 60 * 1000),
+        },
+      }));
 
     return {
       sessionToken: session.sessionToken,
       sessionId: session.id,
       expiresAt: session.expiresAt.toISOString(),
+      visitorKey,
+      resumed: !!resumed,
       deployment: {
         id: deployment.id,
         name: deployment.name,
@@ -195,10 +246,15 @@ export class AgentSessionService {
     // Cap conversation history at 100 messages for token hygiene
     const capped = updated.length > 100 ? updated.slice(updated.length - 100) : updated;
 
+    // The first thing the visitor says names the conversation in their history.
+    const title =
+      !session.title && message.role === 'user' ? conversationTitle(message.content, message.attachments) : null;
+
     await this.prisma.agentDeploymentSession.update({
       where: { id: sessionId },
       data: {
         messages: capped as any,
+        ...(title ? { title } : {}),
         updatedAt: new Date(),
       },
     });
@@ -208,26 +264,157 @@ export class AgentSessionService {
 
   async resetSession(sessionId: string): Promise<void> {
     const session = await this.getSessionById(sessionId);
-    const initialGreeting =
-      ((session.deployment.widgetConfig as any)?.appearance?.welcomeMessage as string) ||
-      session.deployment.agent.welcomeMessage ||
-      `Hello! I am ${session.deployment.agent.name}. How can I assist you today?`;
-
-    const freshMessages: AgentSessionMessage[] = [
-      {
-        id: `msg_${randomBytes(8).toString('hex')}`,
-        role: 'assistant',
-        content: initialGreeting,
-        timestamp: new Date().toISOString(),
-      },
-    ];
-
     await this.prisma.agentDeploymentSession.update({
       where: { id: sessionId },
       data: {
-        messages: freshMessages as any,
+        messages: [this.greeting(session.deployment)] as any,
+        attachments: [],
+        title: null,
         updatedAt: new Date(),
       },
     });
   }
+
+  /* ---------------------------- conversations ---------------------------- */
+
+  /**
+   * One of a visitor's own conversations on a deployment, live again for
+   * another session length. A conversation that isn't theirs, or was deleted,
+   * is indistinguishable from one that doesn't exist.
+   */
+  private async reopen(deploymentId: string, visitorKey: string, sessionId: string, minutes: number) {
+    const found = await this.prisma.agentDeploymentSession.findFirst({
+      where: { id: sessionId, deploymentId, visitorKey, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (!found) return null;
+    return this.prisma.agentDeploymentSession.update({
+      where: { id: found.id },
+      data: { expiresAt: new Date(Date.now() + minutes * 60 * 1000) },
+    });
+  }
+
+  private handle(session: {
+    id: string;
+    sessionToken: string;
+    expiresAt: Date;
+    visitorKey: string | null;
+  }): AgentConversationHandle {
+    return {
+      sessionId: session.id,
+      sessionToken: session.sessionToken,
+      expiresAt: session.expiresAt.toISOString(),
+      visitorKey: session.visitorKey,
+    };
+  }
+
+  /** The visitor's conversations on this deployment, newest first; untouched ones other than the current one are left out. */
+  async listConversations(session: SessionWithDeployment): Promise<AgentWidgetConversation[]> {
+    const rows = session.visitorKey
+      ? await this.prisma.agentDeploymentSession.findMany({
+          where: {
+            deploymentId: session.deploymentId,
+            visitorKey: session.visitorKey,
+            status: 'ACTIVE',
+            OR: [{ title: { not: null } }, { id: session.id }],
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: MAX_HISTORY_ITEMS,
+          select: { id: true, title: true, updatedAt: true },
+        })
+      : [session];
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title ?? 'New conversation',
+      updatedAt: r.updatedAt.toISOString(),
+      current: r.id === session.id,
+    }));
+  }
+
+  /** A fresh conversation for the same visitor. */
+  async createConversation(session: SessionWithDeployment): Promise<AgentConversationHandle> {
+    const created = await this.prisma.agentDeploymentSession.create({
+      data: {
+        deploymentId: session.deploymentId,
+        agentId: session.agentId,
+        sessionToken: this.generateSessionToken(),
+        visitorKey: session.visitorKey,
+        clientOrigin: session.clientOrigin,
+        userContext: (session.userContext ?? {}) as any,
+        messages: [this.greeting(session.deployment)] as any,
+        status: 'ACTIVE',
+        expiresAt: new Date(Date.now() + this.sessionMinutes(session.deployment.widgetConfig) * 60 * 1000),
+      },
+    });
+    return this.handle(created);
+  }
+
+  /** Switch to another of the visitor's conversations. */
+  async openConversation(session: SessionWithDeployment, targetId: string): Promise<AgentConversationHandle> {
+    if (targetId === session.id) return this.handle(session);
+    const target = session.visitorKey
+      ? await this.reopen(
+          session.deploymentId,
+          session.visitorKey,
+          targetId,
+          this.sessionMinutes(session.deployment.widgetConfig),
+        )
+      : null;
+    if (!target) throw new NotFoundException('Conversation not found.');
+    return this.handle(target);
+  }
+
+  /** Remove one of the visitor's conversations from their history. */
+  async deleteConversation(session: SessionWithDeployment, targetId: string): Promise<void> {
+    const mine =
+      targetId === session.id
+        ? { id: session.id }
+        : session.visitorKey
+          ? { id: targetId, deploymentId: session.deploymentId, visitorKey: session.visitorKey, status: 'ACTIVE' }
+          : null;
+    const { count } = mine
+      ? await this.prisma.agentDeploymentSession.updateMany({ where: mine, data: { status: DELETED, attachments: [] } })
+      : { count: 0 };
+    if (!count) throw new NotFoundException('Conversation not found.');
+  }
+
+  /* ------------------------------ attachments ----------------------------- */
+
+  /** Keep an uploaded file's text on the session, for a later message to send along. */
+  async addAttachment(
+    session: { id: string; attachments: unknown },
+    file: { name: string; mimeType: string; size: number; text: string },
+  ): Promise<AgentSessionAttachment> {
+    const record: AgentSessionAttachmentRecord = {
+      id: `att_${randomBytes(10).toString('hex')}`,
+      name: file.name.slice(0, 200),
+      mimeType: file.mimeType,
+      size: file.size,
+      text: file.text.slice(0, MAX_ATTACHMENT_TEXT),
+      createdAt: new Date().toISOString(),
+    };
+    await this.prisma.agentDeploymentSession.update({
+      where: { id: session.id },
+      data: {
+        attachments: [...attachmentRecords(session.attachments), record].slice(-MAX_SESSION_ATTACHMENTS) as any,
+      },
+    });
+    return { id: record.id, name: record.name, mimeType: record.mimeType, size: record.size };
+  }
+
+  /** The session's uploads with these ids, in the order asked; an id it doesn't hold is refused. */
+  resolveAttachments(session: { attachments: unknown }, ids: string[]): AgentSessionAttachmentRecord[] {
+    const records = attachmentRecords(session.attachments);
+    return [...new Set(ids)].map((id) => {
+      const found = records.find((r) => r.id === id);
+      if (!found) throw new NotFoundException('That file is no longer part of this conversation. Upload it again.');
+      return found;
+    });
+  }
+}
+
+export type SessionWithDeployment = Awaited<ReturnType<AgentSessionService['getSessionById']>>;
+
+function attachmentRecords(value: unknown): AgentSessionAttachmentRecord[] {
+  return Array.isArray(value) ? (value as AgentSessionAttachmentRecord[]) : [];
 }

@@ -65,6 +65,9 @@ import type {
   AgentApiKeyView,
   AgentRunResponseView,
   AgentSessionMessage,
+  AgentConversationHandle,
+  AgentSessionAttachment,
+  AgentWidgetConversation,
   AgentExecutionLogEntry,
   AgentRunResult,
   AgentChatResult,
@@ -3142,14 +3145,24 @@ export const agentApiKeysApi = {
 };
 
 export const publicAgentApi = {
-  initSession: (publicKey: string, userContext?: Record<string, unknown>) =>
+  /**
+   * Start a widget conversation, or pick up `resumeSessionId` when it is one of
+   * this visitor's. Keep the returned `visitorKey` to see the visitor's history later.
+   */
+  initSession: (
+    publicKey: string,
+    userContext?: Record<string, unknown>,
+    options?: { visitorKey?: string; resumeSessionId?: string },
+  ) =>
     request<{
       sessionToken: string;
       sessionId: string;
       expiresAt: string;
+      visitorKey: string;
+      resumed: boolean;
       deployment: any;
     }>(
-      http.post('/agent-sessions', { publicKey, userContext }),
+      http.post('/agent-sessions', { publicKey, userContext, ...options }),
     ),
 
   sendMessage: (
@@ -3157,26 +3170,70 @@ export const publicAgentApi = {
     sessionToken: string,
     message: string,
     context?: Record<string, unknown>,
+    attachmentIds?: string[],
   ) =>
     request<AgentRunResponseView>(
       http.post(
         `/agent-sessions/${sessionId}/messages`,
-        { message, context },
-        {
-          headers: {
-            'x-session-token': sessionToken,
-          },
-        },
+        { message, context, attachmentIds },
+        { headers: { 'x-session-token': sessionToken } },
       ),
     ),
 
-  getMessages: (sessionId: string) =>
+  getMessages: (sessionId: string, sessionToken: string) =>
     request<AgentSessionMessage[]>(
-      http.get(`/agent-sessions/${sessionId}/messages`),
+      http.get(`/agent-sessions/${sessionId}/messages`, {
+        headers: { 'x-session-token': sessionToken },
+      }),
     ),
 
-  resetSession: (sessionId: string) =>
-    request<void>(http.post(`/agent-sessions/${sessionId}/reset`, {})),
+  resetSession: (sessionId: string, sessionToken: string) =>
+    request<void>(
+      http.post(`/agent-sessions/${sessionId}/reset`, {}, {
+        headers: { 'x-session-token': sessionToken },
+      }),
+    ),
+
+  /** A file for the next message; send its `id` in `attachmentIds`. */
+  uploadAttachment: (sessionId: string, sessionToken: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<AgentSessionAttachment>(
+      http.post(`/agent-sessions/${sessionId}/attachments`, form, {
+        headers: { 'x-session-token': sessionToken, 'Content-Type': undefined as unknown as string },
+        timeout: 0,
+      }),
+    );
+  },
+
+  /** The visitor's conversations on this deployment, newest first. */
+  listConversations: (sessionId: string, sessionToken: string) =>
+    request<AgentWidgetConversation[]>(
+      http.get(`/agent-sessions/${sessionId}/conversations`, {
+        headers: { 'x-session-token': sessionToken },
+      }),
+    ),
+
+  createConversation: (sessionId: string, sessionToken: string) =>
+    request<AgentConversationHandle>(
+      http.post(`/agent-sessions/${sessionId}/conversations`, {}, {
+        headers: { 'x-session-token': sessionToken },
+      }),
+    ),
+
+  openConversation: (sessionId: string, sessionToken: string, conversationId: string) =>
+    request<AgentConversationHandle>(
+      http.post(`/agent-sessions/${sessionId}/conversations/${conversationId}/open`, {}, {
+        headers: { 'x-session-token': sessionToken },
+      }),
+    ),
+
+  deleteConversation: (sessionId: string, sessionToken: string, conversationId: string) =>
+    request<void>(
+      http.delete(`/agent-sessions/${sessionId}/conversations/${conversationId}`, {
+        headers: { 'x-session-token': sessionToken },
+      }),
+    ),
 
   execute: (
     agentId: string,

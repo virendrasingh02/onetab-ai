@@ -3,25 +3,31 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AgentPublicController } from './agent-public.controller.js';
 
 /** Runs the real browser SDK against a stubbed session reply and returns its shadow root. */
-async function mountWidget(appearance: Record<string, unknown>, mode = 'floating') {
+async function mountWidget(appearance: Record<string, unknown>, mode = 'floating', behavior: Record<string, unknown> = {}) {
   const send = vi.fn();
   new AgentPublicController({} as never, {} as never, {} as never).getWidgetSdk({ setHeader: vi.fn(), send } as never);
   const sdk = send.mock.calls[0][0] as string;
 
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (url: string) => ({
-      json: async () =>
-        url.endsWith('/agent-sessions')
-          ? {
-              sessionId: 's1',
-              sessionToken: 't1',
-              expiresAt: new Date(Date.now() + 60_000).toISOString(),
-              deployment: { agentName: 'Taylor', agentRole: 'AI assistant', avatarUrl: null, widgetConfig: { appearance } },
-            }
+  const fetchMock = vi.fn(async (url: string) => ({
+    ok: true,
+    status: 200,
+    json: async () =>
+      url.endsWith('/agent-sessions')
+        ? {
+            sessionId: 's1',
+            sessionToken: 't1',
+            visitorKey: VISITOR,
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            deployment: { agentName: 'Taylor', agentRole: 'AI assistant', avatarUrl: null, widgetConfig: { appearance, behavior } },
+          }
+        : url.endsWith('/conversations')
+          ? [
+              { id: 's1', title: 'New conversation', updatedAt: new Date().toISOString(), current: true },
+              { id: 's0', title: 'Return policy for damaged items', updatedAt: new Date().toISOString(), current: false },
+            ]
           : [{ id: 'm1', role: 'assistant', content: 'Hello there' }],
-    })),
-  );
+  }));
+  vi.stubGlobal('fetch', fetchMock);
 
   const script = document.createElement('script');
   script.setAttribute('data-agent-id', `agent_${Math.random().toString(36).slice(2)}`);
@@ -30,8 +36,48 @@ async function mountWidget(appearance: Record<string, unknown>, mode = 'floating
   document.body.appendChild(script);
   new Function(sdk)();
   await new Promise((r) => setTimeout(r, 20));
-  return document.querySelector('[id^="onetab-agent-widget-"]')!.shadowRoot!;
+  const root = document.querySelector('[id^="onetab-agent-widget-"]')!.shadowRoot!;
+  return Object.assign(root, { fetchMock });
 }
+
+const VISITOR = `ot_vis_${'a'.repeat(48)}`;
+
+describe('embed SDK conversations and files', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    sessionStorage.clear();
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it('remembers the visitor and resumes their last conversation', async () => {
+    localStorage.setItem('ot_agent_visitor_ot_pub_x', VISITOR);
+    localStorage.setItem('ot_agent_session_ot_pub_x', 's_prev');
+    const root = await mountWidget({}, 'inline');
+    const init = JSON.parse(root.fetchMock.mock.calls[0][1].body);
+    expect(init).toMatchObject({ visitorKey: VISITOR, resumeSessionId: 's_prev' });
+    expect(localStorage.getItem('ot_agent_session_ot_pub_x')).toBe('s1');
+  });
+
+  it('has history and new-chat actions, and lists earlier conversations', async () => {
+    const root = await mountWidget({}, 'inline');
+    expect(root.querySelector<HTMLButtonElement>('[aria-label="New chat"]')!.disabled).toBe(true);
+    root.querySelector<HTMLButtonElement>('[aria-label="Conversation history"]')!.click();
+    await new Promise((r) => setTimeout(r, 20));
+    const names = [...root.querySelectorAll('.ot-history-name')].map((n) => n.textContent);
+    // The untouched current conversation is left out.
+    expect(names).toEqual(['Return policy for damaged items']);
+    expect(root.querySelector('[aria-label="Delete Return policy for damaged items"]')).not.toBeNull();
+  });
+
+  it('offers a file picker unless the deployment turned uploads off', async () => {
+    const on = await mountWidget({}, 'inline');
+    expect(on.querySelector<HTMLInputElement>('input[type="file"]')!.accept).toContain('.pdf');
+    document.body.innerHTML = '';
+    const off = await mountWidget({}, 'inline', { allowAttachments: false });
+    expect(off.querySelector('.ot-attach')).toBeNull();
+  });
+});
 
 describe('embed SDK layouts', () => {
   afterEach(() => {
@@ -84,7 +130,7 @@ describe('embed SDK layouts', () => {
     const send = vi.fn();
     new AgentPublicController({} as never, {} as never, {} as never).getWidgetSdk({ setHeader: vi.fn(), send } as never);
     const sdk = send.mock.calls[0][0] as string;
-    const fetchMock = vi.fn(async () => ({ json: async () => ({ sessionId: 's1', sessionToken: 't1', deployment: {} }) }));
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ sessionId: 's1', sessionToken: 't1', deployment: {} }) }));
     vi.stubGlobal('fetch', fetchMock);
 
     document.body.innerHTML = '<div id="onetab-agent-container"></div>';

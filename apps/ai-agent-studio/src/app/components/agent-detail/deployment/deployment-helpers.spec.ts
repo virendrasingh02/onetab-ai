@@ -78,9 +78,18 @@ describe('widget config mapping', () => {
       { ...DEFAULT_WIDGET_FORM, title: ' Support ', welcomeMessage: 'Hello', suggestedPrompts: [' Pricing ', ''] },
       { appearance: { avatarUrl: 'https://x/y.png' }, custom: 1 } as never,
     ) as Record<string, any>;
-    expect(saved.appearance).toMatchObject({ title: 'Support', welcomeMessage: 'Hello', suggestedPrompts: ['Pricing'], avatarUrl: 'https://x/y.png' });
+    expect(saved.appearance).toMatchObject({ title: 'Support', welcomeMessage: 'Hello', suggestedPrompts: ['Pricing'] });
+    // An empty avatar in the form means "use the agent's own", so the old image is dropped.
+    expect(saved.appearance.avatarUrl).toBeUndefined();
     expect(saved.behavior.sessionDurationMinutes).toBe(DEFAULT_WIDGET_FORM.sessionDurationMinutes);
+    expect(saved.behavior.allowAttachments).toBe(true);
     expect(saved.custom).toBe(1);
+  });
+
+  it('reads file uploads as on unless a save turned them off', () => {
+    expect(readWidgetForm(undefined).allowAttachments).toBe(true);
+    expect(readWidgetForm({ behavior: { allowAttachments: false } } as never).allowAttachments).toBe(false);
+    expect(readWidgetForm(toWidgetConfig({ ...DEFAULT_WIDGET_FORM, allowAttachments: false }, undefined)).allowAttachments).toBe(false);
   });
 
   it('round-trips a form', () => {

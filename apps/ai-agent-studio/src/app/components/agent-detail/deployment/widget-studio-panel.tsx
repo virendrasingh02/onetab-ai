@@ -1,13 +1,13 @@
-import { publicAgentApi } from '@org/api-client';
-import type { AgentDeploymentView, AgentRunResponseView, AgentWidgetLayout } from '@org/types';
-import { Button, Card, Field, Input, Label, SegmentedControl, Textarea, ToggleGroup, ToggleGroupItem } from '@org/ui';
+import type { AgentDeploymentView, AgentWidgetLayout } from '@org/types';
+import { Button, Card, Field, Input, Label, SegmentedControl, Switch, Textarea, ToggleGroup, ToggleGroupItem } from '@org/ui';
 import { cn } from '@org/utils';
 import { ImageUp, Laptop, Palette, RotateCcw, Smartphone, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { BrandColorPicker } from './brand-color-picker.js';
 import { cleanAvatarUrl, cleanColor, cleanLinkUrl, cleanOrigins, MAX_AVATAR_BYTES, readWidgetForm, toWidgetConfig, type WidgetForm } from './widget-config.js';
-import { Avatar, initialView, WidgetPreview, type ChatMessage, type PreviewView, type WidgetLook } from './widget-preview.js';
-import { errorMessage, type DeploymentApi } from './use-deployment.js';
+import { Avatar, initialView, WidgetPreview, type PreviewView, type WidgetLook } from './widget-preview.js';
+import { type DeploymentApi } from './use-deployment.js';
+import { useWidgetChat } from './use-widget-chat.js';
 
 const LAYOUTS: Array<{ value: AgentWidgetLayout; label: string; hint: string }> = [
   { value: 'panel', label: 'Panel', hint: 'Launcher opens the full chat' },
@@ -88,58 +88,17 @@ export function WidgetStudioPanel({
 
   /* ------------------------------ live preview ------------------------------ */
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [sending, setSending] = useState(false);
   const [originBlocked, setOriginBlocked] = useState(false);
-  const session = useRef<{ id: string; token: string } | null>(null);
+  const chat = useWidgetChat(deployment.publicKey, { onOriginBlocked: setOriginBlocked });
   const [view, setView] = useState<PreviewView>(() => initialView(saved.layout));
   // Switching layout shows what a visitor first sees with it.
   useEffect(() => {
     setView(initialView(form.layout));
   }, [form.layout]);
 
-  // A different deployment is a different conversation.
-  useEffect(() => {
-    session.current = null;
-    setMessages([]);
-  }, [deployment.id]);
-
-  const send = async (text: string) => {
-    const message = text.trim();
-    if (!message || sending) return;
-    setMessages((m) => [...m, { id: `u-${Date.now()}`, role: 'user', text: message }]);
+  const send = (text: string) => {
     setView('open');
-    setSending(true);
-    setOriginBlocked(false);
-    try {
-      if (!session.current) {
-        const init = await publicAgentApi.initSession(deployment.publicKey, { preview: true });
-        session.current = { id: init.sessionId, token: init.sessionToken };
-      }
-      const run: AgentRunResponseView = await publicAgentApi.sendMessage(session.current.id, session.current.token, message);
-      setMessages((m) => [
-        ...m,
-        {
-          id: run.runId || `a-${Date.now()}`,
-          role: 'assistant',
-          text: run.output || (run.error ? `Error: ${run.error}` : 'The agent finished without a reply.'),
-          needsApproval: run.status === 'WAITING_FOR_APPROVAL',
-          tools: run.toolExecutions?.length,
-        },
-      ]);
-    } catch (err) {
-      const msg = errorMessage(err, 'The agent could not answer.');
-      if (/origin/i.test(msg)) setOriginBlocked(true);
-      setMessages((m) => [...m, { id: `e-${Date.now()}`, role: 'assistant', text: msg }]);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const reset = () => {
-    session.current = null;
-    setMessages([]);
-    setOriginBlocked(false);
+    void chat.send(text);
   };
 
   const brand = cleanColor(form.primaryColor) ?? '#6366f1';
@@ -162,6 +121,7 @@ export function WidgetStudioPanel({
     launcherLabel: form.launcherLabel.trim(),
     disclaimer: form.disclaimer.trim(),
     privacyUrl: cleanLinkUrl(form.privacyPolicyUrl),
+    allowAttachments: form.allowAttachments,
   };
 
   return (
@@ -375,6 +335,15 @@ export function WidgetStudioPanel({
                 onChange={(e) => patch({ sessionDurationMinutes: Number(e.target.value) || saved.sessionDurationMinutes })}
               />
             </Field>
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="ws-attachments">Allow file uploads</Label>
+                <p className="text-xs text-muted-foreground">
+                  Visitors can attach PDFs, Word documents, spreadsheets (CSV), text files and images (read with OCR), up to 10 MB each. The agent reads their contents.
+                </p>
+              </div>
+              <Switch id="ws-attachments" checked={form.allowAttachments} onCheckedChange={(allowAttachments) => patch({ allowAttachments })} />
+            </div>
           </div>
         </Card>
 
@@ -414,7 +383,7 @@ export function WidgetStudioPanel({
                 { value: 'open', label: 'Open' },
               ]}
             />
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="Start a new conversation" title="Start a new conversation" onClick={reset} disabled={!messages.length}>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Start a new conversation" title="Start a new conversation" onClick={() => void chat.newChat()} disabled={!chat.messages.length}>
               <RotateCcw className="size-3.5" />
             </Button>
           </div>
@@ -424,10 +393,15 @@ export function WidgetStudioPanel({
           look={look}
           view={view}
           onViewChange={setView}
-          messages={messages}
-          sending={sending}
+          messages={chat.messages}
+          sending={chat.sending}
           disabled={deployment.status !== 'ACTIVE'}
-          onSend={(text) => void send(text)}
+          onSend={send}
+          onNewChat={() => void chat.newChat()}
+          history={chat.history}
+          attachments={chat.attachments}
+          onAttach={(files) => void chat.attach(files)}
+          onRemoveAttachment={chat.removeAttachment}
           device={device}
           notice={
             originBlocked ? (

@@ -12,7 +12,7 @@ import type {
   AgentSessionMessage,
 } from '@org/types';
 import { AIRuntimeService, type AIEntityTurnContext } from '../ai-runtime.service.js';
-import { AgentSessionService } from './agent-session.service.js';
+import { AgentSessionService, type AgentSessionAttachmentRecord } from './agent-session.service.js';
 import { AgentDeploymentWebhookService } from './agent-webhook.service.js';
 
 export interface ExecuteAgentOptions {
@@ -25,6 +25,38 @@ export interface ExecuteAgentOptions {
   userId?: string;
   allowedTools?: string[];
   versionNumber?: number;
+  /** Files a widget visitor sent with this message (already resolved from the session). */
+  attachments?: AgentSessionAttachmentRecord[];
+}
+
+/** How much of all attached files' text one turn sends the model. */
+const TURN_ATTACHMENT_CHARS = 48_000;
+/** How much of a file an earlier turn carries forward, so follow-up questions still see it. */
+const HISTORY_ATTACHMENT_CHARS = 6_000;
+/** Earlier messages sent along; the runtime windows these further by the agent's memory policy. */
+const SESSION_HISTORY_MESSAGES = 40;
+
+/** The visitor's words followed by the text of the files they attached, within `budget` characters. */
+export function promptWithAttachments(
+  message: string,
+  attachments: Array<{ name: string; text?: string }>,
+  budget = TURN_ATTACHMENT_CHARS,
+): string {
+  const files = attachments.filter((a) => a.name);
+  if (!files.length) return message;
+  const share = Math.floor(budget / files.length);
+  const blocks = files.map((a) => {
+    const text = (a.text ?? '').trim();
+    const body = !text
+      ? '(no readable text)'
+      : text.length > share
+        ? `${text.slice(0, share)}\n[…truncated, ${text.length - share} more characters]`
+        : text;
+    return `<attached_file name="${a.name.replace(/"/g, "'")}">\n${body}\n</attached_file>`;
+  });
+  const ask = message.trim() || `Please review the attached file${files.length > 1 ? 's' : ''}.`;
+  const count = files.length === 1 ? 'a file' : `${files.length} files`;
+  return `${ask}\n\nThe user attached ${count}:\n${blocks.join('\n')}`;
 }
 
 /**
@@ -80,6 +112,7 @@ export class AgentRuntimeBridgeService {
       sessionId,
       userId,
       versionNumber,
+      attachments = [],
     } = options;
 
     const runId = `run_${randomBytes(12).toString('hex')}`;
@@ -129,19 +162,27 @@ export class AgentRuntimeBridgeService {
     }
 
     try {
-      // 5. Append user message to session history if sessionId provided
+      // 5. Earlier turns of this conversation go to the model as history; then
+      //    the visitor's message is recorded (with its files, by name only).
+      let history: AIEntityTurnContext['history'];
       if (sessionId) {
+        const session = await this.sessionService.getSessionById(sessionId);
+        history = this.sessionHistory(session.messages, session.attachments);
         const userMsg: AgentSessionMessage = {
           id: `msg_${randomBytes(8).toString('hex')}`,
           role: 'user',
           content: prompt,
           timestamp: new Date().toISOString(),
+          ...(attachments.length
+            ? { attachments: attachments.map(({ id, name, mimeType, size }) => ({ id, name, mimeType, size })) }
+            : {}),
         };
         await this.sessionService.appendMessage(sessionId, userMsg);
       }
 
       // 6. Build turn context and execute through existing AIRuntimeService
       const turnContext: AIEntityTurnContext = {
+        history,
         requesterId: userId ?? agent.creatorId ?? undefined,
         // An embed session, a public-key call, or (no deployment) a private API key.
         deployment: {
@@ -155,7 +196,7 @@ export class AgentRuntimeBridgeService {
       const turnResult = await this.runtimeService.executeTurn(
         workspaceId,
         agentId,
-        prompt,
+        promptWithAttachments(prompt, attachments),
         turnContext,
         (toolUpdates) => {
           this.notifyListeners(runId, 'tools', { tools: toolUpdates });
@@ -306,6 +347,31 @@ export class AgentRuntimeBridgeService {
     } finally {
       setTimeout(() => this.activeRuns.delete(runId), 60000);
     }
+  }
+
+  /** A session's stored messages as model history: the greeting and failed turns are left out. */
+  private sessionHistory(messages: unknown, attachments: unknown): NonNullable<AIEntityTurnContext['history']> {
+    const list = Array.isArray(messages) ? (messages as AgentSessionMessage[]) : [];
+    const files = new Map(
+      (Array.isArray(attachments) ? (attachments as AgentSessionAttachmentRecord[]) : []).map((a) => [a.id, a]),
+    );
+    const firstUser = list.findIndex((m) => m.role === 'user');
+    if (firstUser < 0) return [];
+    return list
+      .slice(firstUser)
+      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.executionState !== 'FAILED')
+      .slice(-SESSION_HISTORY_MESSAGES)
+      .map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content:
+          m.role === 'user' && m.attachments?.length
+            ? promptWithAttachments(
+                m.content,
+                m.attachments.map((a) => ({ name: a.name, text: files.get(a.id)?.text })),
+                HISTORY_ATTACHMENT_CHARS,
+              )
+            : m.content,
+      }));
   }
 
   /**

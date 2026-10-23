@@ -23,6 +23,8 @@ export interface WidgetForm {
   disclaimer: string;
   privacyPolicyUrl: string;
   sessionDurationMinutes: number;
+  /** Whether visitors can attach files (documents, spreadsheets, images) to a message. */
+  allowAttachments: boolean;
 }
 
 export const DEFAULT_WIDGET_FORM: WidgetForm = {
@@ -40,6 +42,7 @@ export const DEFAULT_WIDGET_FORM: WidgetForm = {
   disclaimer: '',
   privacyPolicyUrl: '',
   sessionDurationMinutes: 1440,
+  allowAttachments: true,
 };
 
 const LAYOUTS = ['panel', 'compact', 'pill'] as const;
@@ -114,6 +117,8 @@ export function readWidgetForm(raw: AgentWidgetConfig | undefined): WidgetForm {
     privacyPolicyUrl: cleanLinkUrl(appearance['privacyPolicyUrl']) ?? DEFAULT_WIDGET_FORM.privacyPolicyUrl,
     sessionDurationMinutes:
       Number.isFinite(minutes) && minutes > 0 ? Math.min(Math.round(minutes), 60 * 24 * 30) : DEFAULT_WIDGET_FORM.sessionDurationMinutes,
+    // On unless a save turned it off (the API reads it the same way).
+    allowAttachments: (behavior['allowAttachments'] ?? config['allowAttachments']) !== false,
   };
 }
 
@@ -141,6 +146,7 @@ export function toWidgetConfig(form: WidgetForm, base: AgentWidgetConfig | undef
     behavior: {
       ...obj(config['behavior']),
       sessionDurationMinutes: form.sessionDurationMinutes,
+      allowAttachments: form.allowAttachments,
     },
   } as AgentWidgetConfig;
 }

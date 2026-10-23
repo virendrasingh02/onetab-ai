@@ -4760,9 +4760,15 @@ model AgentDeploymentSession {
   deploymentId String
   agentId      String
   sessionToken String          @unique
+  /// The anonymous visitor (one browser) behind this conversation; their other conversations share it.
+  visitorKey   String?
+  /// The conversation's name in the visitor's history, from its first message.
+  title        String?
   clientOrigin String?
   userContext  Json            @default("{}")
   messages     Json            @default("[]")
+  /// Files the visitor uploaded, with their extracted text (`AgentSessionAttachmentRecord[]`).
+  attachments  Json            @default("[]")
   status       String          @default("ACTIVE")
   expiresAt    DateTime
   createdAt    DateTime        @default(now())
@@ -4770,6 +4776,7 @@ model AgentDeploymentSession {
   deployment   AgentDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 
   @@index([deploymentId, status])
+  @@index([deploymentId, visitorKey, updatedAt])
   @@index([sessionToken])
   @@index([expiresAt])
   @@map("agent_deployment_sessions")
