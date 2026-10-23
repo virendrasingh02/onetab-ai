@@ -193,7 +193,15 @@ export function buildRows(
       !startsOwnGroup(message) &&
       message.timestamp - previous.timestamp < GROUPING_WINDOW_MS;
 
-    rows.push({ kind: 'message', key: message.id, message, grouped });
+    // A sent message changes id (txn → local echo → `$event`); keying on the
+    // transaction id keeps the row mounted and measured through the swap
+    // instead of remounting it, which read as a flicker.
+    rows.push({
+      kind: 'message',
+      key: message.transactionId ?? message.id,
+      message,
+      grouped,
+    });
     previous = message;
     breakGroup = false;
 
@@ -761,7 +769,9 @@ export function MessageList({
     (messageId: string): boolean => {
       if (!scrollRef.current) return false;
       const index = rowsRef.current.findIndex(
-        (row) => row.kind === 'message' && row.key === messageId,
+        (row) =>
+          row.kind === 'message' &&
+          (row.key === messageId || row.message.id === messageId),
       );
       if (index < 0) return false;
       /*

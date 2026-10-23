@@ -67,3 +67,19 @@ describe('buildRows — ephemeral rows', () => {
     expect(shape(rows)).toEqual(['separator', 'a', 'b+']);
   });
 });
+
+describe('buildRows — row keys', () => {
+  it('keeps a sent message on one key while its id changes', () => {
+    const keyOf = (id: string) =>
+      buildRows([message(id, 0, { transactionId: 'm.1' })]).find((row) => row.kind === 'message')?.key;
+
+    expect(keyOf('m.1')).toBe('m.1');
+    expect(keyOf('~!room:a:m.1')).toBe('m.1');
+    expect(keyOf('$real')).toBe('m.1');
+  });
+
+  it('falls back to the message id without a transaction id', () => {
+    const rows = buildRows([message('$other', 0)]);
+    expect(rows.find((row) => row.kind === 'message')?.key).toBe('$other');
+  });
+});
