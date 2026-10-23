@@ -34,6 +34,7 @@ import {
   Link2,
   Shield,
   Network,
+  Pause,
   Pencil,
   Play,
   Plus,
@@ -1037,6 +1038,9 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
         }
       />
 
+      {!nodeData.run?.output && !isConnectorTrigger && (
+        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">Runs when you test the agent or send it a message.</p>
+      )}
       {nodeData.run?.output && (
         <div className="nodrag nowheel mt-3 max-h-28 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg bg-surface-raised px-2.5 py-2 text-[11px] leading-relaxed text-foreground">
           {nodeData.run.output}
@@ -1535,16 +1539,19 @@ function ConfigureButton({ id, data }: { id: string; data: WorkflowNodePayload }
   return (
     <Button
       type="button"
-      variant="primary"
+      variant="outline"
       size="xs"
-      className="nodrag mt-2.5"
+      className="nodrag mt-2.5 h-7 w-full justify-between text-muted-foreground hover:text-foreground"
       onClick={(e) => {
         e.stopPropagation();
         data.onEdit?.(id);
       }}
     >
-      <Settings2 />
-      Configure
+      <span className="inline-flex items-center gap-1.5">
+        <Settings2 />
+        Configure
+      </span>
+      <ChevronRight className="opacity-60" />
     </Button>
   );
 }
@@ -1987,6 +1994,7 @@ export const TransformNode = memo(({ id, data, selected }: NodeProps) => {
         onUpdateMetadata={nodeData.onUpdateMetadata}
       />
       <AttachedChip data={nodeData} />
+      <ConfigureButton id={id} data={nodeData} />
       <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
         colorClass="bg-accent-blue"
@@ -2033,6 +2041,24 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
         onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
         onUpdateMetadata={nodeData.onUpdateMetadata}
       />
+
+      {cfg.variable ? (
+        <div className="mt-2.5 truncate rounded-md bg-surface-raised px-2 py-1 font-mono text-[10px] text-foreground" title={`${cfg.variable} ${cfg.operator || '=='} ${cfg.value ?? ''}`}>
+          {String(cfg.variable)} <span className="text-accent-violet">{String(cfg.operator || '==')}</span> {String(cfg.value ?? '')}
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled={!nodeData.onEdit}
+          onClick={(e) => {
+            e.stopPropagation();
+            nodeData.onEdit?.(id);
+          }}
+          className="nodrag mt-2.5 w-full rounded-md border border-dashed border-border px-2 py-1 text-left text-[11px] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default"
+        >
+          Set a condition…
+        </button>
+      )}
 
       {isVertical ? (
         <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-[10px] font-semibold">
@@ -2218,12 +2244,12 @@ export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {
     <div
       className={cn(
         'group relative min-w-[230px] rounded-xl border bg-surface p-3.5 shadow-sm transition-all',
-        selected ? 'ring-2 ring-destructive border-destructive shadow-md' : 'hover:border-destructive/50',
+        selected ? 'ring-2 ring-warning/70 border-warning shadow-md' : 'hover:border-warning/50',
         statusBorderClasses[nodeData.status || 'idle'],
       )}
     >
       <NodeActionToolbar id={id} data={nodeData} selected={selected} />
-      <WorkflowHandle type="target" colorClass="bg-destructive" />
+      <WorkflowHandle type="target" colorClass="bg-warning" />
       <EditableNodeHeader
         id={id}
         title={nodeData.title || nodeData.label}
@@ -2231,22 +2257,25 @@ export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {
         defaultTitle="User Approval"
         defaultDescription="Human signoff gate"
         icon={UserCheck}
-        iconBg="bg-destructive/15 text-destructive"
-        badge={<span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[9px] font-semibold text-destructive">Pause Flow</span>}
+        iconBg="bg-warning/15 text-warning"
         locked={Boolean(nodeData.locked)}
         onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
         onUpdateMetadata={nodeData.onUpdateMetadata}
       />
 
-      {cfg.action && (
-        <div className="mt-2 text-[10px] text-muted-foreground italic truncate">
-          Action: {String(cfg.action)}
-        </div>
+      <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-warning/25 bg-warning/10 px-2 py-1.5 text-[11px] text-warning-text">
+        <Pause className="size-3 shrink-0" />
+        <span className="font-medium">Waits for a person to approve</span>
+      </div>
+      {cfg.action && String(cfg.action) !== (nodeData.title || nodeData.label) && (
+        <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground" title={String(cfg.action)}>
+          {String(cfg.action)}
+        </p>
       )}
 
       <NodeRunFooter run={nodeData.run} />
       <SourceHandleWithQuickAdd
-        colorClass="bg-destructive"
+        colorClass="bg-warning"
         onConnectNext={nodeData.onConnectNext}
       />
     </div>
@@ -2321,9 +2350,8 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
           <button type="button" className={toolButton} disabled={!text} onClick={download} aria-label="Download output" title="Download">
             <Download className="size-3" />
           </button>
-          <button type="button" className={toolButton} disabled={!run || !nodeData.onClearRun} onClick={() => nodeData.onClearRun?.()} aria-label="Clear output">
+          <button type="button" className={toolButton} disabled={!run || !nodeData.onClearRun} onClick={() => nodeData.onClearRun?.()} aria-label="Clear output" title="Clear">
             <Trash2 className="size-3" />
-            Clear
           </button>
         </span>
       </div>
@@ -2336,9 +2364,12 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
         )}
       >
         {!text ? (
-          <p className="py-2 text-center text-[11px] text-muted-foreground">
-            {run?.status === 'running' ? 'Waiting for the agent…' : 'Run the agent to see its answer here.'}
-          </p>
+          <div className="flex flex-col items-center gap-1 py-3 text-center text-muted-foreground">
+            <CheckCircle2 className={cn('size-4', run?.status === 'running' && 'animate-pulse text-primary')} />
+            <p className="text-[11px]">
+              {run?.status === 'running' ? 'Waiting for the agent…' : 'Run a test to see the final answer here.'}
+            </p>
+          </div>
         ) : run?.error ? (
           <p className="whitespace-pre-wrap text-[11px] text-destructive">{run.error}</p>
         ) : view === 'formatted' ? (

@@ -1442,6 +1442,8 @@ function WorkflowCanvasInner({
         deleteKeyCode={isLocked ? [] : ['Backspace', 'Delete']}
         proOptions={{ hideAttribution: true }}
         fitView
+        // Small graphs open at a readable size instead of being blown up to fill the pane
+        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         className={cn(
           'bg-dot-pattern',
           interactionMode === 'pan' && 'cursor-grab active:cursor-grabbing',
