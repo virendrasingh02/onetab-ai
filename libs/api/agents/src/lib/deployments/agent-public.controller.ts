@@ -262,7 +262,7 @@ export class AgentPublicController {
   getWidgetSdk(@Res() res: Response) {
     res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     res.send(BROWSER_WIDGET_SDK_SCRIPT);
   }
 

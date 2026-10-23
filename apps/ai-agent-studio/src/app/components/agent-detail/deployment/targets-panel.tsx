@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { InstallCheck } from './install-check.js';
 import type { DeploymentSection } from './overview-panel.js';
 import { SnippetBlock } from './parts.js';
+import { readWidgetForm } from './widget-config.js';
 import { buildSnippets, type SnippetId } from './snippets.js';
 import { apiBase } from './use-deployment.js';
 
@@ -126,10 +127,12 @@ export function TargetsPanel({
   deployment,
   agentId,
   onNavigate,
+  widgetDirty = false,
 }: {
   deployment: AgentDeploymentView;
   agentId: string;
   onNavigate: (section: DeploymentSection) => void;
+  widgetDirty?: boolean;
 }) {
   const [active, setActive] = useState<TargetId>('widget');
   const [restLang, setRestLang] = useState<'curl' | 'node' | 'python'>('curl');
@@ -139,6 +142,9 @@ export function TargetsPanel({
     () => buildSnippets({ apiBase: apiBase(), agentId, publicKey: deployment.publicKey, theme: widgetTheme }),
     [agentId, deployment.publicKey, widgetTheme],
   );
+
+  const style = readWidgetForm(deployment.widgetConfig);
+  const styleLabel = { panel: 'Panel', compact: 'Compact', pill: 'Pill' }[style.layout];
 
   const target = TARGETS.find((t) => t.id === active) ?? TARGETS[0];
   const snippetId = SNIPPET_FOR[active];
@@ -185,6 +191,18 @@ export function TargetsPanel({
             <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning" role="status">
               This deployment is {deployment.status.toLowerCase()}, so embeds and API calls are refused until you reactivate it.
             </p>
+          ) : null}
+
+          {active === 'widget' || active === 'inline' || active === 'react' || active === 'web-component' ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs" role="status">
+              <span className="text-muted-foreground">
+                Live style from your deployment: <strong className="text-foreground">{styleLabel}</strong> · {style.position === 'bottom-left' ? 'bottom left' : 'bottom right'} · {style.theme}
+                <span className="ml-2 inline-block size-2.5 rounded-full align-middle" style={{ background: style.primaryColor }} />
+                <span className="block">The script has no style option: it reads this from the API each time it loads, so saving in Widget Studio updates every site.</span>
+                {widgetDirty ? <span className="block font-semibold text-warning">You have unsaved changes in Widget Studio. Save them or this snippet keeps serving {styleLabel}.</span> : null}
+              </span>
+              <Button type="button" variant="outline" size="xs" onClick={() => onNavigate('widget')}>Change style</Button>
+            </div>
           ) : null}
 
           {target.needs === 'api-key' ? (

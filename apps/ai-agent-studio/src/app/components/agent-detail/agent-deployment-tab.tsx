@@ -35,6 +35,7 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
   const { deploymentsQuery, deployment } = api;
 
   const [section, setSection] = useState<DeploymentSection>('overview');
+  const [widgetDirty, setWidgetDirty] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishVersion, setPublishVersion] = useState<number | undefined>();
 
@@ -140,7 +141,7 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
           items={[
             { value: 'overview', label: 'Overview', icon: <Activity className="size-3.5" /> },
             { value: 'targets', label: 'Install & call', icon: <Globe className="size-3.5" /> },
-            { value: 'widget', label: 'Widget Studio', icon: <Palette className="size-3.5" /> },
+            { value: 'widget', label: widgetDirty ? 'Widget Studio •' : 'Widget Studio', icon: <Palette className="size-3.5" /> },
             { value: 'webhooks', label: 'Webhooks', icon: <Zap className="size-3.5" />, count: api.webhooksQuery.data?.length || undefined },
             { value: 'api-keys', label: 'API keys', icon: <KeyRound className="size-3.5" /> },
             { value: 'versions', label: 'Versions', icon: <History className="size-3.5" /> },
@@ -151,8 +152,11 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
       {section === 'overview' && (
         <OverviewPanel api={api} deployment={deployment} toolCount={countTools(agent.tools)} onNavigate={setSection} />
       )}
-      {section === 'targets' && <TargetsPanel deployment={deployment} agentId={agent.id} onNavigate={setSection} />}
-      {section === 'widget' && <WidgetStudioPanel api={api} deployment={deployment} agentName={agent.name} agentAvatarUrl={deployment.agentAvatarUrl ?? agent.avatarUrl} />}
+      {section === 'targets' && <TargetsPanel deployment={deployment} agentId={agent.id} onNavigate={setSection} widgetDirty={widgetDirty} />}
+      {/* Stays mounted so an unsaved draft survives a visit to Install & call. */}
+      <div hidden={section !== 'widget'}>
+        <WidgetStudioPanel api={api} deployment={deployment} agentName={agent.name} agentAvatarUrl={deployment.agentAvatarUrl ?? agent.avatarUrl} onDirtyChange={setWidgetDirty} />
+      </div>
       {section === 'webhooks' && <WebhooksPanel api={api} deployment={deployment} />}
       {section === 'api-keys' && <ApiKeysManager workspaceId={api.workspaceId} />}
       {section === 'versions' && <VersionsPanel api={api} deployment={deployment} onPublish={openPublish} />}

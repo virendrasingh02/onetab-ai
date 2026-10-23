@@ -332,6 +332,15 @@ function StudioNavSection({
 }
 
 const EXPANDED_GROUPS_KEY = 'onetab_studio_sidebar_expanded_groups';
+const LAST_ROUTE_KEY = 'onetab_studio_last_route_by_workspace';
+
+function readLastRoutes(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(LAST_ROUTE_KEY) ?? '{}') as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
 
 function persistExpanded(value: Record<string, boolean>) {
   try {
@@ -413,6 +422,34 @@ export function StudioSidebar({
     });
   }, [location.pathname]);
 
+  // Remember where the user was in each workspace so switching back resumes it.
+  useEffect(() => {
+    const prefix = `/w/${activeWorkspace.slug}/ai`;
+    if (!location.pathname.startsWith(prefix)) return;
+    try {
+      localStorage.setItem(
+        LAST_ROUTE_KEY,
+        JSON.stringify({
+          ...readLastRoutes(),
+          [activeWorkspace.slug]: `${location.pathname}${location.search}`,
+        }),
+      );
+    } catch {
+      // Storage blocked: the page just isn't remembered.
+    }
+  }, [activeWorkspace.slug, location.pathname, location.search]);
+
+  // The URL owns the workspace: go to the target workspace's URL (its last page,
+  // else its Studio home) and the route guard swaps the session to match.
+  const switchWorkspace = (ws: (typeof workspaces)[number]) => {
+    if (ws.id === activeWorkspace.id) return;
+    const saved = readLastRoutes()[ws.slug];
+    const target = saved?.startsWith(`/w/${ws.slug}/ai`) ? saved : `/w/${ws.slug}/ai`;
+    setActiveWorkspace(ws);
+    onCloseMobile?.();
+    navigate(target);
+  };
+
   const displayName = user.name || user.email || 'Studio user';
   const displayEmail = user.email || '';
 
@@ -464,7 +501,7 @@ export function StudioSidebar({
             {workspaces.map((ws) => (
               <DropdownMenuItem
                 key={ws.id}
-                onClick={() => setActiveWorkspace(ws)}
+                onClick={() => switchWorkspace(ws)}
                 className="gap-2 text-sm"
               >
                 <WorkspaceAvatar

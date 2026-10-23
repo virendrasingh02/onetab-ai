@@ -22,11 +22,13 @@ export function WidgetStudioPanel({
   deployment,
   agentName,
   agentAvatarUrl,
+  onDirtyChange,
 }: {
   api: DeploymentApi;
   deployment: AgentDeploymentView;
   agentName: string;
   agentAvatarUrl?: string | null;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const saved = useMemo(() => readWidgetForm(deployment.widgetConfig), [deployment.widgetConfig]);
   const savedOrigins = deployment.allowedOrigins.join('\n');
@@ -47,6 +49,9 @@ export function WidgetStudioPanel({
 
   const origins = cleanOrigins(originsText.split('\n'));
   const dirty = !sameJson(form, saved) || !sameJson(origins, cleanOrigins(deployment.allowedOrigins));
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
   const patch = (next: Partial<WidgetForm>) => setForm((f) => ({ ...f, ...next }));
   const colorOk = !!cleanColor(form.primaryColor);
   const avatarOk = !form.avatarUrl.trim() || !!cleanAvatarUrl(form.avatarUrl);
