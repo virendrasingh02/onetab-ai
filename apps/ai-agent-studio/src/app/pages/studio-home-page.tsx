@@ -1,4 +1,4 @@
-import { agentsApi } from '@org/api-client';
+import { agentStudioApi, agentsApi, queryKeys } from '@org/api-client';
 import { agentService } from '../services/agentService.js';
 import {
   Badge,
@@ -188,6 +188,11 @@ function StudioInsights() {
     queryFn: () => agentsApi.list(activeWorkspace.id),
   });
 
+  const { data: plannedAgents = [], isLoading: isLoadingPlanned } = useQuery({
+    queryKey: queryKeys.agentStudio.list(activeWorkspace.id),
+    queryFn: () => agentStudioApi.list(activeWorkspace.id),
+  });
+
   const { data: logs = [], isLoading: isLoadingLogs, isError: logsFailed, refetch: refetchLogs } = useQuery({
     queryKey: ['workspace-logs', activeWorkspace.id],
     queryFn: () => agentsApi.workspaceLogs(activeWorkspace.id),
@@ -204,23 +209,35 @@ function StudioInsights() {
   const archivedAgents = agents.filter((a) => statusOf(a) === 'archived');
   const draftAgents = agents.length - publishedAgents.length - archivedAgents.length;
 
+  // Agents made from the planner or a template live in the plan-first library, not
+  // in `agents`; the journey has to count both or it never moves past step one.
+  const plannedLive = plannedAgents.filter((a) => !a.archivedAt);
+  const plannedFirst = plannedLive.find((a) => !a.isActive) ?? plannedLive[0];
   const firstDraft = agents.find((a) => statusOf(a) !== 'published' && statusOf(a) !== 'archived') ?? agents[0];
+  const draftHref = firstDraft ? `/agents/${firstDraft.id}` : plannedFirst ? `/studio/${plannedFirst.id}` : null;
   const journey: JourneyStep[] = [
-    { id: 'create', title: 'Create an agent', hint: 'Describe it in plain words — Studio plans and builds it.', done: agents.length > 0, to: '/create', cta: 'Create with AI' },
+    {
+      id: 'create',
+      title: 'Create an agent',
+      hint: 'Describe it in plain words — Studio plans and builds it.',
+      done: agents.length > 0 || plannedLive.length > 0,
+      to: '/create',
+      cta: 'Create with AI',
+    },
     {
       id: 'test',
       title: 'Run a test',
       hint: 'Watch each step run before anything goes live.',
-      done: logs.length > 0,
-      to: firstDraft ? `/agents/${firstDraft.id}?copilot=1&test=1` : '/create',
+      done: logs.length > 0 || plannedLive.some((a) => a.runCount > 0 || a.lastRun !== null),
+      to: firstDraft ? `/agents/${firstDraft.id}?copilot=1&test=1` : plannedFirst ? `/studio/${plannedFirst.id}?tab=runs` : '/create',
       cta: 'Run a test',
     },
     {
       id: 'publish',
-      title: 'Publish it',
-      hint: 'Make it callable by API, widget or schedule.',
-      done: publishedAgents.length > 0,
-      to: firstDraft ? `/agents/${firstDraft.id}` : '/create',
+      title: plannedFirst && !firstDraft ? 'Switch it on' : 'Publish it',
+      hint: plannedFirst && !firstDraft ? 'Let it run on its schedule or trigger, not just when you test it.' : 'Make it callable by API, widget or schedule.',
+      done: publishedAgents.length > 0 || plannedLive.some((a) => a.isActive || a.publishedVersion !== null),
+      to: draftHref ?? '/create',
       cta: 'Open the agent',
     },
   ];
@@ -312,7 +329,7 @@ function StudioInsights() {
       {agentsFailed && (
         <ErrorState title="Couldn’t load your agents" description="The platform didn’t answer. Try again in a moment." onRetry={() => void refetchAgents()} />
       )}
-      {!isLoadingAgents && !agentsFailed && <GettingStarted steps={journey} />}
+      {!isLoadingAgents && !isLoadingPlanned && !agentsFailed && <GettingStarted steps={journey} />}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <PageSection
@@ -375,7 +392,26 @@ function StudioInsights() {
               {filteredAgents.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 p-10 text-center text-muted-foreground">
                   <Bot className="mb-2 size-12 text-muted-foreground/30" />
-                  {agents.length === 0 ? (
+                  {agents.length === 0 && plannedLive.length > 0 ? (
+                    <>
+                      <div className="text-sm font-semibold text-foreground">No canvas agents yet</div>
+                      <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                        {plannedLive.length === 1
+                          ? 'Your agent built from a plan lives in Planned Agents.'
+                          : `Your ${plannedLive.length} agents built from a plan live in Planned Agents.`}
+                      </p>
+                      <div className="mt-4 flex flex-wrap justify-center gap-2">
+                        <Button size="sm" asChild className="gap-1.5">
+                          <Link to={`/w/${activeWorkspace.slug}/ai/agents`}>
+                            <Sparkles className="size-3.5" /> Open Planned Agents
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => navigate('/agents?create=blank')} className="gap-1.5">
+                          <Plus className="size-3.5" /> New canvas agent
+                        </Button>
+                      </div>
+                    </>
+                  ) : agents.length === 0 ? (
                     <>
                       <div className="text-sm font-semibold text-foreground">No agents yet</div>
                       <p className="mt-1 max-w-sm text-xs text-muted-foreground">

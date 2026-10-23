@@ -26,6 +26,7 @@ import { AuthLayout } from '../auth-layout.js';
 import { DesktopBrowserSignIn } from '../components/desktop-browser-sign-in.js';
 import { SocialAuthButtons } from '../components/social-auth-buttons.js';
 import { readDesktopHandoff, withDesktopHandoff } from '../desktop-handoff.js';
+import { LEGAL_LINKS } from '../legal-links.js';
 import {
   formErrorMessage,
   redirectPathFromAuthState,
@@ -254,7 +255,23 @@ export function RegisterPage() {
                     htmlFor="acceptTerms"
                     className="text-muted-foreground cursor-pointer select-none leading-tight"
                   >
-                    I agree to the Terms of Service and Privacy Policy.
+                    I agree to the{' '}
+                    {LEGAL_LINKS.terms ? (
+                      <a href={LEGAL_LINKS.terms} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">
+                        Terms of Service
+                      </a>
+                    ) : (
+                      'Terms of Service'
+                    )}{' '}
+                    and{' '}
+                    {LEGAL_LINKS.privacy ? (
+                      <a href={LEGAL_LINKS.privacy} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground">
+                        Privacy Policy
+                      </a>
+                    ) : (
+                      'Privacy Policy'
+                    )}
+                    .
                   </label>
                 </div>
                 <FormMessage className="text-[11px]" />

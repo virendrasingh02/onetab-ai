@@ -260,7 +260,15 @@ export function useSessionBootstrap(): void {
       // them to a bare /login would override where `useLogout` is taking them.
       if (signingOut) return;
       clear();
-      navigate('/login', { replace: true });
+      // A signed-out visitor on a public page (an invitation link, say) is
+      // where they should be: a stale background request failing to refresh
+      // must not bounce them to sign-in and drop the invite token.
+      const { pathname, search, hash } = window.location;
+      if (isPublicAuthPath(pathname)) return;
+      navigate('/login', {
+        replace: true,
+        state: { from: { pathname, search, hash } },
+      });
     });
     return () => setSessionExpiredHandler(null);
   }, [clear, navigate]);
@@ -439,6 +447,23 @@ export function useSendEmailVerification() {
 
 export function useCurrentUser() {
   return useAuthStore((state) => state.user);
+}
+
+/** Routes a signed-out visitor may stay on (mirrors the public routes in apps/web). */
+const PUBLIC_AUTH_PATH_PREFIXES = [
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/logout',
+  '/invite/',
+  '/auth/',
+  '/verify-email',
+  '/pricing',
+];
+
+export function isPublicAuthPath(pathname: string): boolean {
+  return PUBLIC_AUTH_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 /**

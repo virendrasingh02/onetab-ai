@@ -28,7 +28,10 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { AIErrorRow, AIMessage, AIThinkingRow, Composer } from '@org/chat-ui';
 import { AI_STUDIO_SLASH_COMMANDS, AIModelPicker } from '@org/web-ai';
+import { useWorkspaceFavorites } from '@org/web-workspace';
+import { useAssistantCoworker } from './assistant-conversation.js';
 import { useAssistantConversation } from './use-assistant-conversation.js';
+import { WorkspaceSetupChecklist } from './workspace-setup-checklist.js';
 
 /**
  * Greeting word, icon, and the boundaries between them — all by wall-clock
@@ -73,9 +76,10 @@ function useDaypartClock() {
  */
 export function AIChatView() {
   const chat = useAssistantConversation();
+  const { assistant, workspaceId } = useAssistantCoworker();
+  const favorites = useWorkspaceFavorites(workspaceId);
   const user = useCurrentUser();
   const { greeting } = useDaypartClock();
-  const [isFavorite, setIsFavorite] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const firstName = (user?.displayName ?? user?.name ?? '').split(' ')[0];
@@ -102,11 +106,11 @@ export function AIChatView() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Starring Home stars the Assistant coworker behind it — the same server-side
+  // favorite the sidebar's Starred section shows.
+  const isFavorite = assistant ? favorites.isFavorite('coworker', assistant.id) : false;
   const handleToggleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    toast.success(
-      !isFavorite ? 'Added to favorites' : 'Removed from favorites',
-    );
+    if (assistant) favorites.toggleFavorite('coworker', assistant.id);
   };
 
   const composer = (
@@ -144,6 +148,7 @@ export function AIChatView() {
           </div>
 
           {composer}
+          <WorkspaceSetupChecklist />
         </div>
       ) : (
         <>
@@ -221,6 +226,7 @@ export function AIChatView() {
 
                     <DropdownMenuItem
                       onClick={handleToggleFavorite}
+                      disabled={!assistant}
                       className="gap-2.5"
                     >
                       <Star

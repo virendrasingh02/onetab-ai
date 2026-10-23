@@ -49,6 +49,13 @@ export { WorkspaceCompanyAnalytics } from './lib/components/workspace-company-an
 export { EnterpriseCustomLLMSettings } from './lib/components/enterprise-custom-llm-settings.js';
 export { FeatureGateDialog } from './lib/components/feature-gate-dialog.js';
 export { usePlanEntitlements } from './lib/hooks/use-plan-entitlements.js';
+export {
+  useWorkspaceFavorites,
+  normalizeFavorites,
+  WORKSPACE_FAVORITES_KEY,
+  type FavoriteType,
+  type WorkspaceFavorites,
+} from './lib/hooks/use-workspace-favorites.js';
 export { SettingsLayout } from './lib/settings-layout.js';
 
 export {

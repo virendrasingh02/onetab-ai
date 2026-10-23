@@ -3,6 +3,13 @@ import { LanguageSelect } from '@org/ui';
 import { cn } from '@org/utils';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { LEGAL_LINKS, type LegalLinks } from './legal-links.js';
+
+const FOOTER_LINKS: { key: keyof LegalLinks; label: string }[] = [
+  { key: 'privacy', label: 'Privacy Policy' },
+  { key: 'docs', label: 'Docs' },
+  { key: 'support', label: 'Support' },
+];
 
 export interface AuthLayoutProps {
   title: string;
@@ -74,28 +81,36 @@ export function AuthLayout({
 
       {/* Bottom Legal Notice & Footer Links */}
       <footer className="pt-6 pb-2 text-center max-w-md w-full px-2 space-y-2.5">
-        <p className="text-[11px] sm:text-xs text-subtle leading-relaxed">
-          By proceeding, you acknowledge that you have read, understood, and agree to {brandName}&apos;s{' '}
-          <a
-            href="#terms"
-            className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
-          >
-            Terms and Conditions
-          </a>
-          , including our sign-in and account access policies.
-        </p>
+        {LEGAL_LINKS.terms ? (
+          <p className="text-[11px] sm:text-xs text-subtle leading-relaxed">
+            By proceeding, you acknowledge that you have read, understood, and agree to {brandName}&apos;s{' '}
+            <a
+              href={LEGAL_LINKS.terms}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              Terms and Conditions
+            </a>
+            , including our sign-in and account access policies.
+          </p>
+        ) : null}
 
         <div className="text-[11px] sm:text-xs text-subtle flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
           <span>© {new Date().getFullYear()} {brandName}</span>
-          <a href="#privacy" className="hover:text-foreground transition-colors">
-            Privacy Policy
-          </a>
-          <a href="#docs" className="hover:text-foreground transition-colors">
-            Docs
-          </a>
-          <a href="#support" className="hover:text-foreground transition-colors">
-            Support
-          </a>
+          {FOOTER_LINKS.map(({ key, label }) =>
+            LEGAL_LINKS[key] ? (
+              <a
+                key={key}
+                href={LEGAL_LINKS[key]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
+                {label}
+              </a>
+            ) : null,
+          )}
         </div>
 
         <div className="flex justify-center pt-1">
