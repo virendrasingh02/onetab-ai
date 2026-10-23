@@ -2753,6 +2753,10 @@ export const agentArchitectApi = {
 };
 
 export const agentsApi = {
+  /** Whether the signed-in member may create agents in this workspace (workspace policy). */
+  canCreate: (workspaceId: string) =>
+    request<{ allowed: boolean; reason: string | null }>(http.get(`/workspaces/${workspaceId}/agents/can-create`)),
+
   list: (workspaceId: string) =>
     request<AIAgentDetail[]>(http.get(`/workspaces/${workspaceId}/agents`)),
 

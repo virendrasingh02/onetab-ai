@@ -1,4 +1,4 @@
-import { agentArchitectApi, agentGraphsApi, agentsApi } from '@org/api-client';
+import { agentArchitectApi, agentGraphsApi, agentsApi, knowledgeApi } from '@org/api-client';
 import {
   applyGraphEdits,
   compileStudioGraph,
@@ -6,6 +6,7 @@ import {
   describeFlowLine,
   diffStudioGraphs,
   explainStudioGraph,
+  mainPath,
   suggestNextActions,
   type AgentArchitectSpec,
   type ArchitectDiagnosisResult,
@@ -146,6 +147,24 @@ const nextId = () => `m${++messageSeq}`;
 
 type Intent = 'explain' | 'debug' | 'optimize' | 'test' | 'permissions' | 'missing' | 'check' | 'create' | 'edit';
 
+/** The opening message for a freshly built agent: trigger, numbered steps, and what still needs connecting. */
+function builtSummary(agentName: string, graph: StudioCanvasGraph): string {
+  const path = mainPath(graph);
+  const label = (n: StudioCanvasGraph['nodes'][number]) => String(n.data?.label || n.type);
+  const steps = path.filter((n) => !/^TRIGGER|^START$|^END$|^OUTPUT$/.test(String(n.type)));
+  if (!steps.length) return `I built ${agentName}. ${explainStudioGraph(graph)}`;
+  const lines = [`I built ${agentName}.`, '', explainStudioGraph(graph).split('. ')[0]?.replace(/\.$/, '') + '.', '', 'Steps'];
+  steps.forEach((n, i) => {
+    const t = String(n.type);
+    const tag = /APPROVAL|REVIEW|ESCALATE/.test(t) ? ' — waits for you' : /AGENT/.test(t) ? ' — AI agent' : '';
+    lines.push(`${i + 1}. ${label(n)}${tag}`);
+  });
+  const needs = [...new Set(graph.nodes.map((n) => n.data?.config?.['needsConnection']).filter((v): v is string => typeof v === 'string'))];
+  if (needs.length) lines.push('', `Still to connect: ${needs.join(', ')}.`);
+  lines.push('', 'It stays off until you switch on “Runs on its own”. Run a test first to see each step.');
+  return lines.join('\n');
+}
+
 /** What kind of request it is — editing goes to the API, the rest is answered from the graph and its runs. */
 /** Leading icon for a follow-up suggestion, picked from its wording. */
 function suggestionIcon(text: string): typeof Play {
@@ -283,7 +302,7 @@ export function AgentCopilotPanel({
     id: nextId(),
     role: 'assistant',
     text: built
-      ? `I built ${agentName}. ${explainStudioGraph(graph)}`
+      ? builtSummary(agentName, graph)
       : `Everything happens right here:\n• Modify — “add Slack notifications”, “run it every Monday at 9”\n• Check — I go through every step, connection and setting, and suggest what to add\n• Test — run it with any input and watch each step\n• Create — describe an agent and I’ll build the whole workflow\nChanges go onto the canvas live and I check them after — Undo reverts any. Turn off “Live changes” below to approve each one yourself.`,
   });
   const [messages, setMessages] = useState<Message[]>(() => [greeting(!!welcome)]);
@@ -329,12 +348,18 @@ export function AgentCopilotPanel({
     queryFn: () => agentGraphsApi.activation(workspaceId, agentId),
     staleTime: 30_000,
   });
+  // Real count — "use our knowledge base" is only suggested when the workspace has one.
+  const { data: knowledgeBases = [] } = useQuery({
+    queryKey: ['knowledge-bases', workspaceId],
+    queryFn: () => knowledgeApi.list(workspaceId),
+    staleTime: 60_000,
+  });
   const [switching, setSwitching] = useState(false);
   const [hintTick, setHintTick] = useState(0);
 
   const suggestions = useMemo(
-    () => suggestNextActions(graph, { hasRuns: runs.length > 0, lastRunFailed: runs[0]?.status === 'FAILED', knowledgeBases: 1 }),
-    [graph, runs],
+    () => suggestNextActions(graph, { hasRuns: runs.length > 0, lastRunFailed: runs[0]?.status === 'FAILED', knowledgeBases: knowledgeBases.length }),
+    [graph, runs, knowledgeBases.length],
   );
 
   useEffect(() => {
@@ -770,7 +795,7 @@ export function AgentCopilotPanel({
         ? `On ${appTrigger.label}${appTrigger.lastPolledAt ? ` · checked ${new Date(appTrigger.lastPolledAt).toLocaleTimeString()}` : ' · first check within 2 min'}`
         : `On ${appTrigger.label}`
     : schedule
-      ? `${describeCronExpression(schedule.cron)}${schedule.timezone ? ` (${schedule.timezone})` : ''}`
+      ? `${activation?.active ? '' : 'Off · '}${describeCronExpression(schedule.cron)}${schedule.timezone ? ` (${schedule.timezone})` : ''}`
       : 'No schedule or app event — ask me to “run it every weekday at 9”';
 
   const last = messages[messages.length - 1];

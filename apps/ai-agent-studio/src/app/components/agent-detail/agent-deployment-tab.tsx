@@ -146,7 +146,7 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
         <OverviewPanel api={api} deployment={deployment} toolCount={countTools(agent.tools)} onNavigate={setSection} />
       )}
       {section === 'targets' && <TargetsPanel deployment={deployment} agentId={agent.id} onNavigate={setSection} />}
-      {section === 'widget' && <WidgetStudioPanel api={api} deployment={deployment} agentName={agent.name} />}
+      {section === 'widget' && <WidgetStudioPanel api={api} deployment={deployment} agentName={agent.name} agentAvatarUrl={deployment.agentAvatarUrl ?? agent.avatarUrl} />}
       {section === 'webhooks' && <WebhooksPanel api={api} deployment={deployment} />}
       {section === 'api-keys' && <ApiKeysManager workspaceId={api.workspaceId} />}
       {section === 'versions' && <VersionsPanel api={api} deployment={deployment} onPublish={openPublish} />}

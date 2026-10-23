@@ -84,6 +84,19 @@ export class AgentsController {
     return STUDIO_TEMPLATES;
   }
 
+  /** Whether the signed-in member may create agents here (Settings → Permissions & Policies), so the UI can say so before any work is done. */
+  @Get('can-create')
+  canCreate(
+    @WorkspaceMemberRole() role: WorkspaceRole | undefined,
+    @WorkspacePolicies() policies: WorkspacePolicy | undefined,
+  ) {
+    const allowed = !policies || isPolicyRoleAllowed(role, policies.whoCanCreateAgents);
+    return {
+      allowed,
+      reason: allowed ? null : 'Your workspace admin has limited who can create AI agents. Ask an admin to create it, or to allow members (Settings → AI).',
+    };
+  }
+
   @Get('logs')
   getWorkspaceLogs(@WorkspaceId() workspaceId: string) {
     return this.agentsService.getWorkspaceLogs(workspaceId);

@@ -1,30 +1,19 @@
 import { publicAgentApi } from '@org/api-client';
-import type { AgentDeploymentView, AgentRunResponseView } from '@org/types';
+import type { AgentDeploymentView, AgentRunResponseView, AgentWidgetLayout } from '@org/types';
 import { Button, Card, Field, Input, Label, SegmentedControl, Textarea, ToggleGroup, ToggleGroupItem } from '@org/ui';
 import { cn } from '@org/utils';
-import { AlertCircle, Laptop, Palette, RefreshCw, Send, Smartphone, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from '../../../router.js';
-import { cleanColor, cleanOrigins, readWidgetForm, toWidgetConfig, type WidgetForm } from './widget-config.js';
+import { ImageUp, Laptop, Palette, RotateCcw, Smartphone, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { BrandColorPicker } from './brand-color-picker.js';
+import { cleanAvatarUrl, cleanColor, cleanLinkUrl, cleanOrigins, MAX_AVATAR_BYTES, readWidgetForm, toWidgetConfig, type WidgetForm } from './widget-config.js';
+import { Avatar, initialView, WidgetPreview, type ChatMessage, type PreviewView, type WidgetLook } from './widget-preview.js';
 import { errorMessage, type DeploymentApi } from './use-deployment.js';
 
-const PRESET_COLORS = [
-  { name: 'Indigo', hex: '#6366f1' },
-  { name: 'Blue', hex: '#2563eb' },
-  { name: 'Violet', hex: '#7c3aed' },
-  { name: 'Emerald', hex: '#059669' },
-  { name: 'Amber', hex: '#d97706' },
-  { name: 'Rose', hex: '#e11d48' },
-  { name: 'Slate', hex: '#0f172a' },
+const LAYOUTS: Array<{ value: AgentWidgetLayout; label: string; hint: string }> = [
+  { value: 'panel', label: 'Panel', hint: 'Launcher opens the full chat' },
+  { value: 'compact', label: 'Compact', hint: 'Greets with a small card that expands' },
+  { value: 'pill', label: 'Pill', hint: 'Avatar + label launcher' },
 ];
-
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  text: string;
-  needsApproval?: boolean;
-  tools?: number;
-}
 
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -32,10 +21,12 @@ export function WidgetStudioPanel({
   api,
   deployment,
   agentName,
+  agentAvatarUrl,
 }: {
   api: DeploymentApi;
   deployment: AgentDeploymentView;
   agentName: string;
+  agentAvatarUrl?: string | null;
 }) {
   const saved = useMemo(() => readWidgetForm(deployment.widgetConfig), [deployment.widgetConfig]);
   const savedOrigins = deployment.allowedOrigins.join('\n');
@@ -44,6 +35,7 @@ export function WidgetStudioPanel({
   const [originsText, setOriginsText] = useState(savedOrigins);
   const [promptInput, setPromptInput] = useState('');
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const avatarFileRef = useRef<HTMLInputElement>(null);
 
   // Take the server's copy whenever it changes (a save, or another tab).
   useEffect(() => {
@@ -57,6 +49,25 @@ export function WidgetStudioPanel({
   const dirty = !sameJson(form, saved) || !sameJson(origins, cleanOrigins(deployment.allowedOrigins));
   const patch = (next: Partial<WidgetForm>) => setForm((f) => ({ ...f, ...next }));
   const colorOk = !!cleanColor(form.primaryColor);
+  const avatarOk = !form.avatarUrl.trim() || !!cleanAvatarUrl(form.avatarUrl);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  const uploadAvatar = (file: File | undefined) => {
+    setAvatarError(null);
+    if (!file) return;
+    if (!/^image\/(png|jpeg|gif|webp|svg\+xml)$/.test(file.type)) {
+      setAvatarError('Use a PNG, JPG, GIF, WebP or SVG image.');
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setAvatarError('Keep the image under 256 KB, or paste a hosted image URL instead.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === 'string' && patch({ avatarUrl: reader.result });
+    reader.onerror = () => setAvatarError('That image could not be read.');
+    reader.readAsDataURL(file);
+  };
 
   const save = () =>
     api.update.mutate(
@@ -73,14 +84,14 @@ export function WidgetStudioPanel({
   /* ------------------------------ live preview ------------------------------ */
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
   const [originBlocked, setOriginBlocked] = useState(false);
   const session = useRef<{ id: string; token: string } | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<PreviewView>(() => initialView(saved.layout));
+  // Switching layout shows what a visitor first sees with it.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' });
-  }, [messages, sending]);
+    setView(initialView(form.layout));
+  }, [form.layout]);
 
   // A different deployment is a different conversation.
   useEffect(() => {
@@ -92,7 +103,7 @@ export function WidgetStudioPanel({
     const message = text.trim();
     if (!message || sending) return;
     setMessages((m) => [...m, { id: `u-${Date.now()}`, role: 'user', text: message }]);
-    setChatInput('');
+    setView('open');
     setSending(true);
     setOriginBlocked(false);
     try {
@@ -127,8 +138,26 @@ export function WidgetStudioPanel({
   };
 
   const brand = cleanColor(form.primaryColor) ?? '#6366f1';
-  const initial = (form.title || agentName).charAt(0).toUpperCase();
-  const dark = form.theme === 'dark';
+  // Same order the API resolves for the embed: the widget's own image, else the agent's.
+  const avatarSrc = cleanAvatarUrl(form.avatarUrl) ?? cleanAvatarUrl(agentAvatarUrl);
+  const dark = form.theme === 'dark' || (form.theme === 'system' && prefersDark());
+  const title = form.title.trim() || agentName;
+  const privacyOk = !form.privacyPolicyUrl.trim() || !!cleanLinkUrl(form.privacyPolicyUrl);
+  const look: WidgetLook = {
+    layout: form.layout,
+    title,
+    subtitle: form.subtitle.trim(),
+    avatarSrc,
+    brand,
+    dark,
+    position: form.position,
+    welcomeMessage: form.welcomeMessage.trim() || `Hello! I am ${agentName}. How can I assist you today?`,
+    suggestedPrompts: form.suggestedPrompts,
+    placeholder: form.inputPlaceholder.trim(),
+    launcherLabel: form.launcherLabel.trim(),
+    disclaimer: form.disclaimer.trim(),
+    privacyUrl: cleanLinkUrl(form.privacyPolicyUrl),
+  };
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -145,34 +174,77 @@ export function WidgetStudioPanel({
             {dirty ? <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">Unsaved changes</span> : null}
           </div>
 
-          <SectionLabel>Branding</SectionLabel>
-          <div className="space-y-2">
-            <Label htmlFor="ws-color">Brand colour</Label>
-            <div className="flex flex-wrap items-center gap-2">
-              {PRESET_COLORS.map((c) => (
-                <Button
-                  key={c.hex}
+          <SectionLabel>Style</SectionLabel>
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Widget style">
+            {LAYOUTS.map((l) => {
+              const active = form.layout === l.value;
+              return (
+                <button
+                  key={l.value}
                   type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={c.name}
-                  aria-pressed={brand.toLowerCase() === c.hex}
-                  title={c.name}
-                  onClick={() => patch({ primaryColor: c.hex })}
-                  className={cn('size-7 rounded-full border-2 p-0 transition-transform', brand.toLowerCase() === c.hex ? 'scale-110 border-foreground' : 'border-transparent hover:scale-105')}
-                  style={{ backgroundColor: c.hex }}
-                />
-              ))}
-              <Input
-                id="ws-color"
-                value={form.primaryColor}
-                onChange={(e) => patch({ primaryColor: e.target.value })}
-                aria-invalid={!colorOk}
-                wrapperClassName="w-28"
-                className="font-mono text-xs"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => patch({ layout: l.value })}
+                  className={cn(
+                    'group flex flex-col gap-2 rounded-xl border p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    active ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:border-foreground/30 hover:bg-muted/50',
+                  )}
+                >
+                  <LayoutThumb layout={l.value} brand={brand} />
+                  <span>
+                    <span className="block text-xs font-semibold text-foreground">{l.label}</span>
+                    <span className="block text-[10px] leading-snug text-muted-foreground">{l.hint}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <SectionLabel>Branding</SectionLabel>
+          <BrandColorPicker value={form.primaryColor} onChange={(primaryColor) => patch({ primaryColor })} />
+
+          <div className="space-y-2">
+            <Label htmlFor="ws-avatar">Avatar</Label>
+            <div className="flex items-center gap-3">
+              <span style={{ '--ot-brand': brand } as CSSProperties}>
+                <Avatar src={avatarSrc} className="size-10" />
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => avatarFileRef.current?.click()}>
+                  <ImageUp className="size-3.5" /> Upload
+                </Button>
+                {form.avatarUrl ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setAvatarError(null); patch({ avatarUrl: '' }); }}>
+                    Use agent avatar
+                  </Button>
+                ) : null}
+              </div>
+              <input
+                ref={avatarFileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={(e) => {
+                  uploadAvatar(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
               />
             </div>
-            {!colorOk ? <p className="text-[11px] text-destructive">Use a hex colour like #6366f1.</p> : null}
+            <Input
+              id="ws-avatar"
+              value={form.avatarUrl.startsWith('data:') ? '' : form.avatarUrl}
+              onChange={(e) => { setAvatarError(null); patch({ avatarUrl: e.target.value }); }}
+              placeholder={form.avatarUrl.startsWith('data:') ? 'Uploaded image' : 'https://… or leave empty to use the agent’s avatar'}
+              aria-invalid={!avatarOk}
+              className="text-xs"
+            />
+            {avatarError || !avatarOk ? (
+              <p className="text-[11px] text-destructive">{avatarError ?? 'Use an https:// image URL.'}</p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                {form.avatarUrl ? 'Shown in the widget header and on the launcher.' : agentAvatarUrl ? 'Using the agent’s avatar.' : 'The agent has no avatar yet, so a bot icon is shown. Upload one to put your brand in the widget.'}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -209,8 +281,16 @@ export function WidgetStudioPanel({
           <Field label="Title" hint="Defaults to the agent’s name.">
             <Input value={form.title} onChange={(e) => patch({ title: e.target.value })} placeholder={agentName} />
           </Field>
-          <Field label="Subtitle" hint="Defaults to the agent’s role.">
-            <Input value={form.subtitle} onChange={(e) => patch({ subtitle: e.target.value })} />
+          <Field label="Subtitle" hint="Shown under the title, e.g. “AI assistant”.">
+            <Input value={form.subtitle} onChange={(e) => patch({ subtitle: e.target.value })} placeholder="AI assistant" />
+          </Field>
+          {form.layout === 'pill' ? (
+            <Field label="Launcher label" hint="The text on the pill.">
+              <Input value={form.launcherLabel} onChange={(e) => patch({ launcherLabel: e.target.value })} placeholder={`Chat with ${title}`} />
+            </Field>
+          ) : null}
+          <Field label="Input placeholder">
+            <Input value={form.inputPlaceholder} onChange={(e) => patch({ inputPlaceholder: e.target.value })} placeholder={`Ask ${title} a question`} />
           </Field>
           <Field label="Welcome message" hint="The first message in every new conversation.">
             <Textarea rows={2} value={form.welcomeMessage} onChange={(e) => patch({ welcomeMessage: e.target.value })} placeholder="Hi! How can I help?" />
@@ -254,6 +334,25 @@ export function WidgetStudioPanel({
             </div>
           </div>
 
+          <Field label="Disclaimer" hint="Small print under the input, e.g. a recording or data-use notice.">
+            <Textarea
+              rows={2}
+              value={form.disclaimer}
+              onChange={(e) => patch({ disclaimer: e.target.value })}
+              placeholder="By messaging, you agree that this chat may be monitored and recorded per our"
+            />
+          </Field>
+          <Field label="Privacy policy link" hint="Shown as “Privacy Policy” at the end of the disclaimer.">
+            <Input
+              type="url"
+              value={form.privacyPolicyUrl}
+              onChange={(e) => patch({ privacyPolicyUrl: e.target.value })}
+              placeholder="https://www.example.com/privacy"
+              aria-invalid={!privacyOk}
+            />
+          </Field>
+          {!privacyOk ? <p className="-mt-3 text-[11px] text-destructive">Use a full https:// link.</p> : null}
+
           <div className="space-y-4">
             <SectionLabel>Access &amp; sessions</SectionLabel>
             <Field
@@ -280,7 +379,7 @@ export function WidgetStudioPanel({
             <Button type="button" variant="ghost" size="sm" disabled={!dirty || api.update.isPending} onClick={() => { setForm(saved); setOriginsText(savedOrigins); }}>
               Reset
             </Button>
-            <Button type="button" size="sm" onClick={save} loading={api.update.isPending} disabled={!dirty || !colorOk} className="font-semibold">
+            <Button type="button" size="sm" onClick={save} loading={api.update.isPending} disabled={!dirty || !colorOk || !avatarOk || !privacyOk} className="font-semibold">
               Save changes
             </Button>
           </div>
@@ -288,158 +387,105 @@ export function WidgetStudioPanel({
       </div>
 
       {/* Live preview */}
-      <div className="flex flex-col items-center lg:sticky lg:top-4 lg:col-span-7 lg:self-start">
-        <ToggleGroup
-          type="single"
-          size="sm"
-          aria-label="Preview device"
-          className="mb-3"
-          value={device}
-          onValueChange={(v) => v && setDevice(v as 'desktop' | 'mobile')}
-        >
-          <ToggleGroupItem value="desktop" className="gap-1.5 px-3">
-            <Laptop className="size-3.5" /> Desktop
-          </ToggleGroupItem>
-          <ToggleGroupItem value="mobile" className="gap-1.5 px-3">
-            <Smartphone className="size-3.5" /> Mobile
-          </ToggleGroupItem>
-        </ToggleGroup>
-
-        <div
-          className={cn(
-            'flex h-[min(640px,calc(100vh-16rem))] min-h-[420px] flex-col overflow-hidden rounded-2xl border-2 border-border shadow-xl transition-all duration-300',
-            device === 'desktop' ? 'w-[420px]' : 'w-[360px]',
-            dark ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-900',
-          )}
-          aria-label="Widget preview"
-        >
-          <div className="flex items-center justify-between p-4 text-white" style={{ backgroundColor: brand }}>
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-8 items-center justify-center rounded-full bg-white/20 text-xs font-bold">{initial}</div>
-              <div>
-                <div className="text-xs font-bold leading-tight">{form.title || agentName}</div>
-                <div className="text-[10px] leading-tight text-white/80">{form.subtitle || 'Online'}</div>
-              </div>
-            </div>
-            <Button type="button" variant="ghost" size="icon-xs" aria-label="Start a new conversation" title="Start a new conversation" onClick={reset} className="text-white/80 hover:bg-white/10 hover:text-white">
-              <RefreshCw className="size-3.5" />
-            </Button>
-          </div>
-
-          <div className="flex-1 space-y-3 overflow-y-auto p-4 text-xs" aria-live="polite">
-            <Bubble brand={brand} dark={dark} initial={initial}>
-              <p>{form.welcomeMessage || `Hello! I am ${agentName}. How can I assist you today?`}</p>
-              {form.suggestedPrompts.length > 0 && messages.length === 0 ? (
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {form.suggestedPrompts.map((p) => (
-                    <Button
-                      key={p}
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      className="h-auto whitespace-normal rounded-full px-2 py-1 text-left text-[10px] font-normal"
-                      onClick={() => void send(p)}
-                    >
-                      {p}
-                    </Button>
-                  ))}
-                </div>
-              ) : null}
-            </Bubble>
-
-            {messages.map((m) =>
-              m.role === 'user' ? (
-                <div key={m.id} className="flex justify-end">
-                  <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-sm px-3 py-2 text-white" style={{ backgroundColor: brand }}>
-                    {m.text}
-                  </div>
-                </div>
-              ) : (
-                <Bubble key={m.id} brand={brand} dark={dark} initial={initial}>
-                  <p className="whitespace-pre-wrap">{m.text}</p>
-                  {m.tools ? <p className="text-[10px] opacity-60">{m.tools} tool call{m.tools === 1 ? '' : 's'}</p> : null}
-                  {m.needsApproval ? (
-                    <div className="space-y-1 rounded-lg border border-warning/40 bg-warning/10 p-2 text-[11px] text-warning">
-                      <div className="flex items-center gap-1 font-bold">
-                        <AlertCircle className="size-3.5" /> Waiting for a person to approve
-                      </div>
-                      <p>
-                        This step is paused until it is approved in{' '}
-                        <Link to="/approvals" className="underline">
-                          Human Approvals
-                        </Link>
-                        .
-                      </p>
-                    </div>
-                  ) : null}
-                </Bubble>
-              ),
-            )}
-
-            {sending ? (
-              <div className="flex items-center gap-2 text-xs italic opacity-70">
-                <span className="size-5 animate-pulse rounded-full" style={{ backgroundColor: brand }} />
-                Thinking…
-              </div>
-            ) : null}
-            <div ref={endRef} />
-          </div>
-
-          {originBlocked ? (
-            <div className="space-y-1.5 border-t border-border bg-warning/10 px-3 py-2 text-[11px] text-warning">
-              <p>This Studio’s address isn’t in the allowed origins, so a preview session was refused, as it would be for any other site.</p>
-              <Button
-                type="button"
-                size="xs"
-                variant="outline"
-                onClick={() => {
-                  const next = cleanOrigins([...origins, window.location.origin]);
-                  setOriginsText(next.join('\n'));
-                  api.update.mutate({ allowedOrigins: next });
-                }}
-              >
-                Allow {window.location.origin}
-              </Button>
-            </div>
-          ) : null}
-
-          <form
-            className={cn('flex items-center gap-2 border-t p-3', dark ? 'border-slate-700 bg-slate-800' : 'border-border bg-slate-50')}
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send(chatInput);
-            }}
-          >
-            <Input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Ask a question…"
-              aria-label="Message"
-              disabled={sending || deployment.status !== 'ACTIVE'}
-              wrapperClassName="flex-1"
-              className="text-xs"
+      <div className="flex flex-col items-center gap-3 lg:sticky lg:top-4 lg:col-span-7 lg:self-start">
+        <div className="flex w-full max-w-[560px] flex-wrap items-center justify-between gap-2">
+          <ToggleGroup type="single" size="sm" aria-label="Preview device" value={device} onValueChange={(v) => v && setDevice(v as 'desktop' | 'mobile')}>
+            <ToggleGroupItem value="desktop" className="gap-1.5 px-3">
+              <Laptop className="size-3.5" /> Desktop
+            </ToggleGroupItem>
+            <ToggleGroupItem value="mobile" className="gap-1.5 px-3">
+              <Smartphone className="size-3.5" /> Mobile
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <div className="flex items-center gap-2">
+            <SegmentedControl
+              aria-label="Preview state"
+              size="sm"
+              value={view === 'compact' && form.layout !== 'compact' ? 'closed' : view}
+              onChange={setView}
+              options={[
+                { value: 'closed', label: 'Launcher' },
+                ...(form.layout === 'compact' ? [{ value: 'compact' as const, label: 'Card' }] : []),
+                { value: 'open', label: 'Open' },
+              ]}
             />
-            <Button type="submit" size="icon" aria-label="Send" disabled={!chatInput.trim() || sending || deployment.status !== 'ACTIVE'} className="shrink-0 text-white" style={{ backgroundColor: brand }}>
-              <Send className="size-3.5" />
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Start a new conversation" title="Start a new conversation" onClick={reset} disabled={!messages.length}>
+              <RotateCcw className="size-3.5" />
             </Button>
-          </form>
+          </div>
         </div>
-        <p className="mt-3 max-w-[420px] text-center text-[11px] text-muted-foreground">
+
+        <WidgetPreview
+          look={look}
+          view={view}
+          onViewChange={setView}
+          messages={messages}
+          sending={sending}
+          disabled={deployment.status !== 'ACTIVE'}
+          onSend={(text) => void send(text)}
+          device={device}
+          notice={
+            originBlocked ? (
+              <div className="mx-5 mb-2.5 space-y-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-400">
+                <p>This Studio’s address isn’t in the allowed origins, so a preview session was refused, as it would be for any other site.</p>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  onClick={() => {
+                    const next = cleanOrigins([...origins, window.location.origin]);
+                    setOriginsText(next.join('\n'));
+                    api.update.mutate({ allowedOrigins: next });
+                  }}
+                >
+                  Allow {window.location.origin}
+                </Button>
+              </div>
+            ) : null
+          }
+        />
+        <p className="max-w-[560px] text-center text-[11px] text-muted-foreground">
           The preview chats with the live deployment, exactly as an embed would. It uses real model credits.
+          {deployment.status !== 'ACTIVE' ? ' Chat is off while the deployment isn’t active.' : ''}
         </p>
       </div>
     </div>
   );
 }
 
-function Bubble({ brand, dark, initial, children }: { brand: string; dark: boolean; initial: string; children: React.ReactNode }) {
+const prefersDark = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+
+/** A tiny drawing of each layout for the style picker. */
+function LayoutThumb({ layout, brand }: { layout: AgentWidgetLayout; brand: string }) {
+  const line = (w: string) => <span className="block h-1 rounded-full bg-muted-foreground/25" style={{ width: w }} />;
   return (
-    <div className="flex items-start gap-2">
-      <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: brand }}>
-        {initial}
-      </div>
-      <div className={cn('max-w-[85%] space-y-2 rounded-2xl rounded-tl-sm border px-3 py-2', dark ? 'border-slate-700 bg-slate-800' : 'border-border bg-slate-50')}>{children}</div>
-    </div>
+    <span className="relative block h-16 overflow-hidden rounded-lg border border-border/60 bg-muted/60" aria-hidden>
+      {layout === 'panel' ? (
+        <span className="absolute bottom-1.5 right-1.5 top-1.5 flex w-[58%] flex-col gap-1 rounded-md border border-border/60 bg-background p-1.5 shadow-sm">
+          <span className="flex items-center gap-1">
+            <span className="size-2.5 rounded-full" style={{ background: brand }} />
+            {line('50%')}
+          </span>
+          {line('85%')}
+          <span className="block h-1.5 w-[45%] self-end rounded bg-muted-foreground/20" />
+          <span className="mt-auto block h-2 rounded border" style={{ borderColor: brand }} />
+        </span>
+      ) : layout === 'compact' ? (
+        <span className="absolute bottom-1.5 right-1.5 flex w-[62%] flex-col gap-1 rounded-md border border-border/60 bg-background p-1.5 shadow-sm">
+          <span className="flex items-center gap-1">
+            <span className="size-2.5 rounded-full" style={{ background: brand }} />
+            {line('50%')}
+          </span>
+          <span className="block h-2 rounded border border-border" />
+          {line('70%')}
+        </span>
+      ) : (
+        <span className="absolute bottom-2 right-1.5 flex items-center gap-1 rounded-full border border-border/60 bg-background py-0.5 pl-0.5 pr-2 shadow-sm">
+          <span className="size-3 rounded-full" style={{ background: brand }} />
+          {line('18px')}
+        </span>
+      )}
+    </span>
   );
 }
 

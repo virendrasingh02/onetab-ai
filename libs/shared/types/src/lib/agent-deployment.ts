@@ -21,9 +21,16 @@ export type { AgentExecutionState };
 export type AgentWidgetTheme = 'light' | 'dark' | 'system';
 export type AgentWidgetPosition = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 export type AgentWidgetLauncherSize = 'sm' | 'md' | 'lg';
+/**
+ * How the floating widget presents itself: `panel` is a launcher that opens
+ * the full chat, `compact` greets with a small prompt card that expands, and
+ * `pill` is an avatar-and-label launcher.
+ */
+export type AgentWidgetLayout = 'panel' | 'compact' | 'pill';
 
 export interface AgentWidgetAppearanceConfig {
   mode?: 'floating' | 'inline';
+  layout?: AgentWidgetLayout;
   position?: AgentWidgetPosition;
   theme?: AgentWidgetTheme;
   primaryColor?: string;
@@ -45,6 +52,12 @@ export interface AgentWidgetAppearanceConfig {
   greeting?: string;
   suggestedPrompts?: string[];
   inputPlaceholder?: string;
+  /** Text on the `pill` launcher. */
+  launcherLabel?: string;
+  /** Small print under the input, e.g. a recording notice. */
+  disclaimer?: string;
+  /** Linked from the end of the disclaimer; http(s) only. */
+  privacyPolicyUrl?: string;
   showBranding?: boolean;
 }
 

@@ -273,12 +273,29 @@ export class AgentPublicController {
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    // The one API document meant to render, inside a customer's iframe: the
+    // global deny-all CSP and frame guard would leave it blank. Sessions are
+    // still origin-checked by the API itself.
+    res.setHeader('Content-Security-Policy', EMBED_PAGE_CSP);
+    res.removeHeader('X-Frame-Options');
     res.send(generateEmbedHtmlPage(agentId, publicKey, theme === 'light' ? 'light' : 'dark'));
   }
 }
 
 /** Ids and keys are letters, digits, `_` and `-`. */
 const IDENTIFIER = /^[A-Za-z0-9_-]{1,128}$/;
+
+/** Its own SDK and API calls, inline styles, and avatar images; framable anywhere. */
+const EMBED_PAGE_CSP = [
+  "default-src 'none'",
+  "script-src 'self'",
+  "connect-src 'self'",
+  "style-src 'unsafe-inline'",
+  'img-src https: http: data:',
+  "base-uri 'none'",
+  "form-action 'none'",
+  'frame-ancestors *',
+].join('; ');
 
 // Standalone, framework-independent browser SDK packaged inline
 const BROWSER_WIDGET_SDK_SCRIPT = `
@@ -287,6 +304,8 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
 
   var SCRIPT_SRC = document.currentScript ? document.currentScript.src : '';
   var BASE_URL = SCRIPT_SRC ? new URL(SCRIPT_SRC).origin : window.location.origin;
+  // Shown when the agent has no avatar image (the Studio preview draws the same glyph).
+  var BOT_ICON = '<svg width="60%" height="60%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>';
 
   function initWidget() {
     var script = document.currentScript;
@@ -312,79 +331,122 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
       mode: mode,
       theme: theme,
       baseUrl: BASE_URL,
+      // An inline widget renders where its script tag sits.
+      anchor: script,
     });
+  }
+
+  // Lucide paths, the same icons the Studio preview draws.
+  var P_CLOSE = '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>';
+  var P_EXPAND = '<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>';
+  var P_ARROW = '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>';
+  var P_EXTERNAL = '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>';
+  var P_CHAT = '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>';
+
+  function svg(paths, size) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  }
+
+  function str(value) {
+    return typeof value === 'string' && value.trim() ? value.trim() : '';
+  }
+
+  /** http(s) links only; anything else is dropped. */
+  function safeLink(value) {
+    try {
+      var url = new URL(str(value));
+      return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
+    } catch (e) {
+      return null;
+    }
   }
 
   function createAgentWidget(options) {
     var containerId = 'onetab-agent-widget-' + options.agentId;
     if (document.getElementById(containerId)) return;
+    var inline = options.mode === 'inline';
 
     var host = document.createElement('div');
     host.id = containerId;
-    document.body.appendChild(host);
+    if (inline) host.style.height = '100%';
+    if (inline && options.container) options.container.appendChild(host);
+    else if (inline && options.anchor && options.anchor.parentNode) options.anchor.parentNode.insertBefore(host, options.anchor.nextSibling);
+    else document.body.appendChild(host);
 
     var shadow = host.attachShadow({ mode: 'open' });
 
     var style = document.createElement('style');
-    style.textContent = getWidgetStyles(options);
+    style.textContent = getWidgetStyles();
     shadow.appendChild(style);
 
-    // Branding from the deployment (colour, position) lives in its own sheet,
-    // so it can be applied once the session reply arrives.
+    // The deployment's brand colour lives in its own sheet, set once the session reply arrives.
     var brandStyle = document.createElement('style');
     shadow.appendChild(brandStyle);
 
-    var wrapper = document.createElement('div');
-    shadow.appendChild(wrapper);
-
-    function resolveTheme(configTheme) {
-      var pick = configTheme === 'light' || configTheme === 'dark' ? configTheme
-        : options.theme === 'light' || options.theme === 'dark' ? options.theme
-        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-      wrapper.className = 'ot-widget-wrapper ' + (pick === 'light' ? 'ot-light' : 'ot-dark');
-    }
-    resolveTheme(null);
-
-    function applyBranding() {
-      var css = '';
-      if (state.brand) {
-        css += '.ot-launcher, .ot-user, .ot-send-btn { background: ' + state.brand + ' !important; }';
-        css += '.ot-input:focus { border-color: ' + state.brand + ' !important; }';
-      }
-      if (state.position === 'bottom-left') {
-        css += '.ot-widget-wrapper { right: auto !important; left: 24px; } .ot-popup { right: auto !important; left: 0; }';
-      }
-      brandStyle.textContent = css;
-    }
+    var root = document.createElement('div');
+    shadow.appendChild(root);
 
     var state = {
-      isOpen: options.mode === 'inline',
+      ready: inline,
+      view: inline ? 'open' : 'closed', // closed | compact | open
       sessionId: null,
       sessionToken: null,
       messages: [],
       isLoading: false,
+      draft: '',
+      dark: false,
+      layout: 'panel',
       title: 'AI Assistant',
-      subtitle: 'Universal Agent',
+      subtitle: '',
       brand: null,
       position: 'bottom-right',
       suggestions: [],
+      avatarUrl: null,
+      placeholder: '',
+      launcherLabel: '',
+      disclaimer: '',
+      privacyUrl: null,
     };
 
-    var storageKey = 'ot_agent_sess_' + options.agentId;
-    try {
-      var saved = localStorage.getItem(storageKey);
-      if (saved) {
-        var parsed = JSON.parse(saved);
-        if (parsed.expiresAt && new Date(parsed.expiresAt) > new Date()) {
-          state.sessionId = parsed.sessionId;
-          state.sessionToken = parsed.sessionToken;
-        }
-      }
-    } catch (e) {}
+    function resolveTheme(configTheme) {
+      var pick = configTheme === 'light' || configTheme === 'dark' ? configTheme
+        : options.theme === 'light' || options.theme === 'dark' ? options.theme
+        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      state.dark = pick === 'dark';
+    }
+    resolveTheme(null);
+
+    var dismissKey = 'ot_agent_dismissed_' + options.agentId;
+    function wasDismissed() {
+      try { return sessionStorage.getItem(dismissKey) === '1'; } catch (e) { return false; }
+    }
+
+    function applyConfig(dep) {
+      var a = (dep.widgetConfig && dep.widgetConfig.appearance) || {};
+      state.title = str(a.title) || dep.agentName || state.title;
+      state.subtitle = str(a.subtitle) || dep.agentRole || '';
+      // Vetted by the server; relative paths are served by this API.
+      try {
+        state.avatarUrl = dep.avatarUrl ? new URL(dep.avatarUrl, options.baseUrl).href : null;
+      } catch (e) { state.avatarUrl = null; }
+      // Only a plain hex colour is ever put into CSS.
+      state.brand = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(a.primaryColor || '') ? a.primaryColor : null;
+      state.position = a.position === 'bottom-left' ? 'bottom-left' : 'bottom-right';
+      state.layout = a.layout === 'compact' || a.layout === 'pill' ? a.layout : 'panel';
+      state.placeholder = str(a.inputPlaceholder);
+      state.launcherLabel = str(a.launcherLabel);
+      state.disclaimer = str(a.disclaimer);
+      state.privacyUrl = safeLink(a.privacyPolicyUrl);
+      state.suggestions = Array.isArray(a.suggestedPrompts)
+        ? a.suggestedPrompts.filter(function (p) { return typeof p === 'string' && p.trim(); }).slice(0, 6)
+        : [];
+      resolveTheme(a.theme);
+      brandStyle.textContent = state.brand ? '.ot-root { --ot-brand: ' + state.brand + '; }' : '';
+      if (!inline && state.view === 'closed' && state.layout === 'compact' && !wasDismissed()) state.view = 'compact';
+    }
 
     render();
 
-    // Init session
     fetch(options.baseUrl + '/api/v1/agent-sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -392,33 +454,20 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
-        if (data.sessionId) {
-          state.sessionId = data.sessionId;
-          state.sessionToken = data.sessionToken;
-          if (data.deployment) {
-            var appearance = (data.deployment.widgetConfig && data.deployment.widgetConfig.appearance) || {};
-            state.title = appearance.title || data.deployment.agentName || state.title;
-            state.subtitle = appearance.subtitle || data.deployment.agentRole || state.subtitle;
-            // Only a plain hex colour is ever put into CSS.
-            state.brand = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(appearance.primaryColor || '') ? appearance.primaryColor : null;
-            state.position = appearance.position === 'bottom-left' ? 'bottom-left' : 'bottom-right';
-            state.suggestions = Array.isArray(appearance.suggestedPrompts)
-              ? appearance.suggestedPrompts.filter(function (p) { return typeof p === 'string'; }).slice(0, 6)
-              : [];
-            resolveTheme(appearance.theme);
-            applyBranding();
-          }
-          try {
-            localStorage.setItem(storageKey, JSON.stringify({
-              sessionId: data.sessionId,
-              sessionToken: data.sessionToken,
-              expiresAt: data.expiresAt,
-            }));
-          } catch (e) {}
-          loadMessages();
+        state.ready = true;
+        if (!data.sessionId) {
+          render();
+          return;
         }
+        state.sessionId = data.sessionId;
+        state.sessionToken = data.sessionToken;
+        if (data.deployment) applyConfig(data.deployment);
+        render();
+        loadMessages();
       })
       .catch(function (err) {
+        state.ready = true;
+        render();
         console.error('[Onetab Agent Widget] Session initialization failed:', err);
       });
 
@@ -436,170 +485,248 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
         });
     }
 
+    function pushAssistant(content, extra) {
+      var msg = { id: 'msg_' + Date.now(), role: 'assistant', content: content, timestamp: new Date().toISOString() };
+      if (extra) for (var k in extra) msg[k] = extra[k];
+      state.messages.push(msg);
+    }
+
     function sendMessage(text) {
-      if (!text || !text.trim() || state.isLoading) return;
-      var cleanText = text.trim();
-      state.messages.push({
-        id: 'temp_' + Date.now(),
-        role: 'user',
-        content: cleanText,
-        timestamp: new Date().toISOString(),
-      });
+      var cleanText = str(text);
+      if (!cleanText || state.isLoading) return;
+      state.messages.push({ id: 'temp_' + Date.now(), role: 'user', content: cleanText, timestamp: new Date().toISOString() });
+      if (!state.sessionId) {
+        pushAssistant('The assistant is not available right now. Please try again later.');
+        render();
+        return;
+      }
       state.isLoading = true;
       render();
 
       fetch(options.baseUrl + '/api/v1/agent-sessions/' + state.sessionId + '/messages', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + state.sessionToken,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.sessionToken },
         body: JSON.stringify({ message: cleanText }),
       })
         .then(function (res) { return res.json(); })
         .then(function (resData) {
           state.isLoading = false;
           if (resData.output) {
-            state.messages.push({
-              id: resData.runId || ('msg_' + Date.now()),
-              role: 'assistant',
-              content: resData.output,
-              timestamp: new Date().toISOString(),
-              awaitingApproval: resData.awaitingApproval,
-            });
+            pushAssistant(resData.output, { id: resData.runId || ('msg_' + Date.now()), awaitingApproval: resData.awaitingApproval });
+          } else {
+            pushAssistant(resData.error || resData.message || 'The assistant finished without a reply.');
           }
           render();
         })
-        .catch(function (err) {
+        .catch(function () {
           state.isLoading = false;
-          state.messages.push({
-            id: 'err_' + Date.now(),
-            role: 'assistant',
-            content: 'Connection error. Please try again.',
-            timestamp: new Date().toISOString(),
-          });
+          pushAssistant('Connection error. Please try again.');
           render();
         });
     }
 
+    function setView(view) {
+      state.view = view;
+      if (view === 'closed' && state.layout === 'compact') {
+        try { sessionStorage.setItem(dismissKey, '1'); } catch (e) {}
+      }
+      render();
+      if (view !== 'closed') focusInput();
+    }
+
+    function focusInput() {
+      var input = root.querySelector('.ot-input');
+      if (input) input.focus();
+    }
+
+    /* ------------------------------- building ------------------------------- */
+
+    function el(tag, cls, text) {
+      var node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (text != null) node.textContent = text;
+      return node;
+    }
+
+    function iconButton(cls, icon, label, onClick) {
+      var button = el('button', cls);
+      button.type = 'button';
+      button.innerHTML = icon;
+      button.setAttribute('aria-label', label);
+      button.title = label;
+      button.onclick = onClick;
+      return button;
+    }
+
+    function fillAvatar(node, fallback) {
+      node.innerHTML = fallback || BOT_ICON;
+      if (!state.avatarUrl) return;
+      var img = document.createElement('img');
+      img.alt = '';
+      img.src = state.avatarUrl;
+      img.onerror = function () { node.innerHTML = fallback || BOT_ICON; };
+      node.innerHTML = '';
+      node.appendChild(img);
+    }
+
+    function buildHeader() {
+      var header = el('div', 'ot-header');
+      var avatar = el('div', 'ot-avatar');
+      fillAvatar(avatar);
+      header.appendChild(avatar);
+      var info = el('div', 'ot-info');
+      info.appendChild(el('div', 'ot-title', state.title));
+      if (state.subtitle) info.appendChild(el('div', 'ot-subtitle', state.subtitle));
+      header.appendChild(info);
+      return header;
+    }
+
+    function buildComposer() {
+      var box = el('div', 'ot-composer');
+      var input = el('input', 'ot-input');
+      input.type = 'text';
+      input.value = state.draft;
+      input.placeholder = state.placeholder || 'Ask ' + state.title + ' a question';
+      input.setAttribute('aria-label', 'Message');
+      var send = iconButton('ot-send', svg(P_ARROW, 16), 'Send', null);
+      send.disabled = !state.draft.trim() || state.isLoading;
+      function submit() {
+        var text = state.draft;
+        if (!str(text) || state.isLoading) return;
+        state.draft = '';
+        if (state.view === 'compact') state.view = 'open';
+        sendMessage(text);
+        focusInput();
+      }
+      input.oninput = function () {
+        state.draft = input.value;
+        send.disabled = !input.value.trim() || state.isLoading;
+      };
+      input.onkeydown = function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submit();
+        }
+      };
+      send.onclick = submit;
+      box.appendChild(input);
+      box.appendChild(send);
+      return box;
+    }
+
+    function buildDisclaimer() {
+      if (!state.disclaimer && !state.privacyUrl) return null;
+      var p = el('p', 'ot-disclaimer', state.disclaimer ? state.disclaimer + ' ' : '');
+      if (state.privacyUrl) {
+        var link = el('a', null, 'Privacy Policy');
+        link.href = state.privacyUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.insertAdjacentHTML('beforeend', svg(P_EXTERNAL, 11));
+        p.appendChild(link);
+      }
+      return p;
+    }
+
+    function buildMessages() {
+      var list = el('div', 'ot-messages');
+      list.setAttribute('aria-live', 'polite');
+      for (var i = 0; i < state.messages.length; i++) {
+        var m = state.messages[i];
+        var msg = el('div', 'ot-msg ' + (m.role === 'user' ? 'ot-user' : 'ot-bot'));
+        msg.innerHTML = renderMarkdown(m.content);
+        if (m.awaitingApproval) {
+          var box = el('div', 'ot-approval-box');
+          box.appendChild(el('div', 'ot-approval-title', 'Waiting for approval'));
+          box.appendChild(el('div', 'ot-approval-desc', m.awaitingApproval.description || ''));
+          box.appendChild(el('div', 'ot-approval-desc', 'A person on the team has to approve this before it goes ahead.'));
+          msg.appendChild(box);
+        }
+        list.appendChild(msg);
+      }
+      if (state.isLoading) {
+        var typing = el('div', 'ot-msg ot-bot ot-typing');
+        typing.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+        list.appendChild(typing);
+      }
+      setTimeout(function () { list.scrollTop = list.scrollHeight; }, 30);
+      return list;
+    }
+
+    function buildChips() {
+      var visitorSpoke = state.messages.some(function (m) { return m.role === 'user'; });
+      if (!state.suggestions.length || visitorSpoke) return null;
+      var chips = el('div', 'ot-chips');
+      state.suggestions.forEach(function (text) {
+        var chip = el('button', 'ot-chip', text);
+        chip.type = 'button';
+        chip.onclick = function () { sendMessage(text); };
+        chips.appendChild(chip);
+      });
+      return chips;
+    }
+
+    function buildPanel() {
+      var card = el('div', 'ot-card ot-panel');
+      card.setAttribute('role', 'dialog');
+      card.setAttribute('aria-label', 'Chat with ' + state.title);
+      var header = buildHeader();
+      if (!inline) header.appendChild(iconButton('ot-icon-btn', svg(P_CLOSE, 18), 'Close chat', function () { setView('closed'); }));
+      card.appendChild(header);
+      card.appendChild(buildMessages());
+      var chips = buildChips();
+      if (chips) card.appendChild(chips);
+      card.appendChild(buildComposer());
+      var note = buildDisclaimer();
+      if (note) card.appendChild(note);
+      else card.classList.add('ot-no-note');
+      return card;
+    }
+
+    function buildCompact() {
+      var card = el('div', 'ot-card ot-compact');
+      card.setAttribute('role', 'dialog');
+      card.setAttribute('aria-label', 'Chat with ' + state.title);
+      var tools = el('div', 'ot-compact-tools');
+      tools.appendChild(iconButton('ot-icon-btn', svg(P_EXPAND, 13), 'Expand chat', function () { setView('open'); }));
+      tools.appendChild(iconButton('ot-icon-btn', svg(P_CLOSE, 13), 'Dismiss', function () { setView('closed'); }));
+      card.appendChild(tools);
+      card.appendChild(buildHeader());
+      card.appendChild(buildComposer());
+      var note = buildDisclaimer();
+      if (note) card.appendChild(note);
+      return card;
+    }
+
+    function buildLauncher() {
+      if (state.layout === 'pill') {
+        var pill = el('button', 'ot-pill');
+        pill.type = 'button';
+        var avatar = el('span', 'ot-avatar ot-avatar-sm');
+        fillAvatar(avatar);
+        pill.appendChild(avatar);
+        pill.appendChild(el('span', null, state.launcherLabel || 'Chat with ' + state.title));
+        pill.onclick = function () { setView('open'); };
+        return pill;
+      }
+      var button = el('button', 'ot-launcher');
+      button.type = 'button';
+      button.setAttribute('aria-label', 'Chat with ' + state.title);
+      if (state.avatarUrl) fillAvatar(button, svg(P_CHAT, 24));
+      else button.innerHTML = svg(P_CHAT, 24);
+      button.onclick = function () { setView('open'); };
+      return button;
+    }
+
     function render() {
-      wrapper.innerHTML = '';
-
-      if (options.mode === 'floating') {
-        var launcher = document.createElement('button');
-        launcher.className = 'ot-launcher';
-        launcher.innerHTML = state.isOpen
-          ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
-          : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
-        launcher.onclick = function () {
-          state.isOpen = !state.isOpen;
-          render();
-        };
-        wrapper.appendChild(launcher);
-      }
-
-      if (state.isOpen || options.mode === 'inline') {
-        var card = document.createElement('div');
-        card.className = 'ot-card ' + (options.mode === 'inline' ? 'ot-inline' : 'ot-popup');
-
-        // Header
-        var header = document.createElement('div');
-        header.className = 'ot-header';
-        header.innerHTML =
-          '<div class="ot-header-info">' +
-          '<div class="ot-avatar">🤖</div>' +
-          '<div>' +
-          '<div class="ot-title">' + escapeHtml(state.title) + '</div>' +
-          '<div class="ot-subtitle">' + escapeHtml(state.subtitle) + '</div>' +
-          '</div>' +
-          '</div>' +
-          (options.mode === 'floating'
-            ? '<button class="ot-close-btn">&times;</button>'
-            : '');
-        if (options.mode === 'floating') {
-          header.querySelector('.ot-close-btn').onclick = function () {
-            state.isOpen = false;
-            render();
-          };
-        }
-        card.appendChild(header);
-
-        // Messages list
-        var msgList = document.createElement('div');
-        msgList.className = 'ot-messages';
-        var chipsShown = false;
-        for (var i = 0; i < state.messages.length; i++) {
-          var m = state.messages[i];
-          var bubble = document.createElement('div');
-          bubble.className = 'ot-bubble ' + (m.role === 'user' ? 'ot-user' : 'ot-bot');
-          bubble.innerHTML = renderMarkdown(m.content);
-
-          if (m.awaitingApproval) {
-            var approvalBox = document.createElement('div');
-            approvalBox.className = 'ot-approval-box';
-            approvalBox.innerHTML =
-              '<div class="ot-approval-title">&#9888; Waiting for approval</div>' +
-              '<div class="ot-approval-desc">' + escapeHtml(m.awaitingApproval.description) + '</div>' +
-              '<div class="ot-approval-desc">A person on the team has to approve this before it goes ahead.</div>';
-            bubble.appendChild(approvalBox);
-          }
-
-          msgList.appendChild(bubble);
-
-          // Starter questions sit under the greeting until the visitor says something.
-          if (!chipsShown && i === 0 && state.suggestions.length > 0 && state.messages.length <= 1) {
-            chipsShown = true;
-            var chips = document.createElement('div');
-            chips.className = 'ot-chips';
-            state.suggestions.forEach(function (text) {
-              var chip = document.createElement('button');
-              chip.className = 'ot-chip';
-              chip.textContent = text;
-              chip.onclick = function () { sendMessage(text); };
-              chips.appendChild(chip);
-            });
-            msgList.appendChild(chips);
-          }
-        }
-
-        if (state.isLoading) {
-          var typing = document.createElement('div');
-          typing.className = 'ot-bubble ot-bot ot-typing';
-          typing.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
-          msgList.appendChild(typing);
-        }
-
-        card.appendChild(msgList);
-        setTimeout(function () { msgList.scrollTop = msgList.scrollHeight; }, 50);
-
-        // Footer Input
-        var footer = document.createElement('div');
-        footer.className = 'ot-footer';
-        var input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'ot-input';
-        input.placeholder = 'Type a message...';
-        input.onkeydown = function (e) {
-          if (e.key === 'Enter') {
-            sendMessage(input.value);
-            input.value = '';
-          }
-        };
-
-        var sendBtn = document.createElement('button');
-        sendBtn.className = 'ot-send-btn';
-        sendBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
-        sendBtn.onclick = function () {
-          sendMessage(input.value);
-          input.value = '';
-        };
-
-        footer.appendChild(input);
-        footer.appendChild(sendBtn);
-        card.appendChild(footer);
-
-        wrapper.appendChild(card);
-      }
+      var hadFocus = shadow.activeElement && shadow.activeElement.className === 'ot-input';
+      root.innerHTML = '';
+      root.className = 'ot-root' + (state.dark ? ' ot-dark' : '') + (inline ? ' ot-inline-root' : '') + (state.position === 'bottom-left' ? ' ot-left' : '');
+      if (!state.ready) return;
+      if (inline || state.view === 'open') root.appendChild(buildPanel());
+      else if (state.view === 'compact') root.appendChild(buildCompact());
+      else root.appendChild(buildLauncher());
+      if (hadFocus) focusInput();
     }
   }
 
@@ -620,50 +747,68 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
     return div.innerHTML;
   }
 
-  function getWidgetStyles(opts) {
+  // Mirrors the Studio preview (widget-preview.tsx): change one, change the other.
+  function getWidgetStyles() {
     return [
-      ':host { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; z-index: 999999; }',
-      '.ot-widget-wrapper { position: fixed; bottom: 24px; right: 24px; z-index: 999999; }',
-      '.ot-launcher { width: 56px; height: 56px; border-radius: 28px; background: #6366f1; color: #fff; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(99,102,241,0.4); display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }',
-      '.ot-launcher:hover { transform: scale(1.05); }',
-      '.ot-card { width: 380px; height: 540px; background: #0f172a; border: 1px solid #334155; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden; }',
-      '.ot-popup { position: absolute; bottom: 70px; right: 0; animation: otSlide 0.2s ease-out; }',
-      '.ot-inline { position: relative; width: 100%; height: 500px; }',
-      '@keyframes otSlide { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }',
-      '.ot-header { background: #1e293b; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; }',
-      '.ot-header-info { display: flex; align-items: center; gap: 10px; }',
-      '.ot-avatar { font-size: 20px; width: 36px; height: 36px; border-radius: 8px; background: #334155; display: flex; align-items: center; justify-content: center; }',
-      '.ot-title { color: #f8fafc; font-size: 14px; font-weight: 600; }',
-      '.ot-subtitle { color: #94a3b8; font-size: 11px; }',
-      '.ot-close-btn { background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; }',
-      '.ot-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }',
-      '.ot-bubble { max-width: 82%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.45; word-break: break-word; }',
-      '.ot-user { background: #6366f1; color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }',
-      '.ot-bot { background: #1e293b; color: #e2e8f0; align-self: flex-start; border-bottom-left-radius: 2px; }',
-      '.ot-typing { display: flex; gap: 4px; padding: 12px 14px; }',
-      '.ot-typing .dot { width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; animation: otBlink 1.4s infinite both; }',
+      ':host { all: initial; display: block; }',
+      '.ot-root { --ot-brand: #6366f1; --ot-bg: #ffffff; --ot-fg: #1f2937; --ot-muted: #6b7280; --ot-soft: #f3f4f6; --ot-line: #e5e7eb; --ot-shadow: 0 12px 40px rgba(15,23,42,0.16), 0 2px 8px rgba(15,23,42,0.06);',
+      '  position: fixed; right: 20px; bottom: 20px; z-index: 2147483000; display: flex; flex-direction: column; align-items: flex-end;',
+      '  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; font-size: 14px; line-height: 1.5; color: var(--ot-fg); }',
+      '.ot-root *, .ot-root *::before, .ot-root *::after { box-sizing: border-box; }',
+      '.ot-root.ot-left { right: auto; left: 20px; align-items: flex-start; }',
+      '.ot-root.ot-dark { --ot-bg: #16181d; --ot-fg: #e5e7eb; --ot-muted: #9ca3af; --ot-soft: #262a33; --ot-line: #2c313b; --ot-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3); }',
+      '.ot-root.ot-inline-root { position: relative; right: auto; bottom: auto; left: auto; width: 100%; height: 100%; }',
+      '.ot-root button { font: inherit; }',
+      '.ot-card { position: relative; background: var(--ot-bg); color: var(--ot-fg); border: 1px solid var(--ot-line); border-radius: 16px; box-shadow: var(--ot-shadow); animation: otIn 0.18s ease-out; }',
+      '.ot-panel { width: 400px; height: min(640px, calc(100vh - 40px)); display: flex; flex-direction: column; overflow: hidden; }',
+      '.ot-inline-root .ot-panel { width: 100%; height: 100%; border: 0; border-radius: 0; box-shadow: none; animation: none; }',
+      '.ot-compact { width: 320px; padding: 20px 14px 14px; }',
+      '@keyframes otIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }',
+      '.ot-header { display: flex; align-items: center; gap: 12px; padding: 18px 16px 10px 20px; }',
+      '.ot-compact .ot-header { padding: 0 2px 14px; }',
+      '.ot-avatar { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--ot-brand); color: #fff; }',
+      '.ot-avatar-sm { width: 36px; height: 36px; }',
+      '.ot-avatar img, .ot-launcher img { width: 100%; height: 100%; object-fit: cover; display: block; }',
+      '.ot-info { flex: 1; min-width: 0; }',
+      '.ot-title { font-size: 15px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+      '.ot-subtitle { font-size: 13px; line-height: 1.3; color: var(--ot-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+      '.ot-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ot-fg); cursor: pointer; }',
+      '.ot-icon-btn:hover { background: var(--ot-soft); }',
+      '.ot-compact-tools { position: absolute; top: -13px; right: 12px; display: flex; gap: 2px; padding: 2px 4px; background: var(--ot-bg); border: 1px solid var(--ot-line); border-radius: 999px; }',
+      '.ot-compact-tools .ot-icon-btn { width: 22px; height: 22px; border-radius: 999px; color: var(--ot-muted); }',
+      '.ot-messages { flex: 1; overflow-y: auto; padding: 10px 20px 16px; display: flex; flex-direction: column; gap: 18px; }',
+      '.ot-msg { font-size: 15px; line-height: 1.55; word-break: break-word; }',
+      '.ot-user { align-self: flex-end; max-width: 80%; padding: 10px 14px; border-radius: 12px; background: var(--ot-soft); }',
+      '.ot-msg pre { margin: 6px 0; padding: 8px 10px; white-space: pre-wrap; border-radius: 8px; background: var(--ot-soft); font-size: 12.5px; }',
+      '.ot-typing { display: flex; gap: 4px; padding: 6px 0; }',
+      '.ot-typing .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ot-muted); animation: otBlink 1.4s infinite both; }',
       '.ot-typing .dot:nth-child(2) { animation-delay: 0.2s; }',
       '.ot-typing .dot:nth-child(3) { animation-delay: 0.4s; }',
       '@keyframes otBlink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }',
-      '.ot-approval-box { margin-top: 10px; padding: 10px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); border-radius: 8px; font-size: 12px; }',
-      '.ot-approval-title { font-weight: 600; color: #f59e0b; margin-bottom: 4px; }',
-      '.ot-approval-desc { color: #cbd5e1; margin-bottom: 8px; }',
-      '.ot-light .ot-card { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 10px 30px rgba(15,23,42,0.18); }',
-      '.ot-light .ot-header, .ot-light .ot-footer { background: #f8fafc; border-color: #e2e8f0; }',
-      '.ot-light .ot-avatar { background: #e2e8f0; }',
-      '.ot-light .ot-title { color: #0f172a; }',
-      '.ot-light .ot-subtitle, .ot-light .ot-close-btn { color: #64748b; }',
-      '.ot-light .ot-bot { background: #f1f5f9; color: #0f172a; }',
-      '.ot-light .ot-input { background: #ffffff; border-color: #cbd5e1; color: #0f172a; }',
-      '.ot-light .ot-chip { border-color: #cbd5e1; }',
-      '.ot-light .ot-approval-desc { color: #475569; }',
-      '.ot-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; }',
-      '.ot-chip { background: transparent; border: 1px solid #475569; color: inherit; border-radius: 999px; padding: 4px 10px; font-size: 12px; cursor: pointer; }',
-      '.ot-chip:hover { border-color: #94a3b8; }',
-      '.ot-footer { padding: 12px; background: #1e293b; border-top: 1px solid #334155; display: flex; gap: 8px; }',
-      '.ot-input { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #f8fafc; font-size: 13px; outline: none; }',
-      '.ot-input:focus { border-color: #6366f1; }',
-      '.ot-send-btn { background: #6366f1; color: #fff; border: none; border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }',
+      '.ot-approval-box { margin-top: 10px; padding: 10px; border: 1px solid rgba(245,158,11,0.4); border-radius: 8px; background: rgba(245,158,11,0.12); font-size: 12px; }',
+      '.ot-approval-title { margin-bottom: 4px; font-weight: 600; color: #d97706; }',
+      '.ot-approval-desc { margin-bottom: 4px; color: var(--ot-muted); }',
+      '.ot-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 10px; }',
+      '.ot-chip { padding: 5px 10px; border: 0; border-radius: 999px; font-size: 13px; line-height: 1.3; cursor: pointer; color: var(--ot-brand); background: color-mix(in srgb, var(--ot-brand) 12%, transparent); }',
+      '.ot-chip:hover { background: color-mix(in srgb, var(--ot-brand) 20%, transparent); }',
+      '.ot-dark .ot-chip { color: color-mix(in srgb, var(--ot-brand) 55%, #fff); background: color-mix(in srgb, var(--ot-brand) 22%, transparent); }',
+      '.ot-composer { display: flex; align-items: center; gap: 8px; margin: 0 20px; padding: 6px 6px 6px 14px; border: 1.5px solid var(--ot-line); border-radius: 10px; background: var(--ot-bg); transition: border-color 0.15s; }',
+      '.ot-panel .ot-composer, .ot-composer:focus-within { border-color: var(--ot-brand); }',
+      '.ot-compact .ot-composer { margin: 0; }',
+      '.ot-no-note .ot-composer { margin-bottom: 16px; }',
+      '.ot-input { flex: 1; min-width: 0; padding: 7px 0; border: 0; outline: 0; background: transparent; color: var(--ot-fg); font: inherit; font-size: 15px; }',
+      '.ot-input::placeholder { color: var(--ot-muted); }',
+      '.ot-send { width: 30px; height: 30px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: var(--ot-brand); color: #fff; cursor: pointer; transition: background 0.15s; }',
+      '.ot-send:disabled { background: var(--ot-soft); color: var(--ot-muted); cursor: default; }',
+      '.ot-disclaimer { margin: 10px 20px 16px; font-size: 11.5px; line-height: 1.5; text-align: center; color: var(--ot-muted); }',
+      '.ot-compact .ot-disclaimer { margin: 10px 4px 0; }',
+      '.ot-disclaimer a { display: inline-flex; align-items: center; gap: 3px; color: inherit; text-decoration: underline; }',
+      '.ot-launcher { width: 56px; height: 56px; padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: var(--ot-brand); color: #fff; box-shadow: var(--ot-shadow); cursor: pointer; transition: transform 0.15s; }',
+      '.ot-pill { display: flex; align-items: center; gap: 10px; padding: 6px 20px 6px 6px; border: 1px solid var(--ot-line); border-radius: 999px; background: var(--ot-bg); color: var(--ot-fg); box-shadow: var(--ot-shadow); font-size: 15px; font-weight: 500; cursor: pointer; transition: transform 0.15s; }',
+      '.ot-launcher:hover, .ot-pill:hover { transform: translateY(-1px); }',
+      '.ot-root button:focus-visible, .ot-disclaimer a:focus-visible { outline: 2px solid var(--ot-brand); outline-offset: 2px; }',
+      '@media (max-width: 480px) { .ot-root:not(.ot-inline-root) { left: 12px; right: 12px; bottom: 12px; } .ot-panel { width: 100%; height: calc(100vh - 24px); } .ot-compact { width: 100%; } }',
+      '@media (prefers-reduced-motion: reduce) { .ot-card { animation: none; } .ot-launcher, .ot-pill { transition: none; } }',
     ].join(' ');
   }
 
@@ -687,6 +832,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
           mode: mode,
           theme: theme,
           baseUrl: BASE_URL,
+          container: this,
         });
       }
     };
@@ -709,19 +855,20 @@ function generateEmbedHtmlPage(agentId: string, publicKey: string, theme = 'dark
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Onetab AI Agent</title>
   <style>
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: ${theme === 'light' ? '#ffffff' : '#0f172a'}; }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: ${theme === 'light' ? '#ffffff' : '#16181d'}; }
     .embed-container { width: 100%; height: 100%; display: flex; flex-direction: column; }
   </style>
 </head>
 <body>
-  <div class="embed-container" id="widget-root"></div>
-  <script
-    src="/api/v1/deployments/sdk/agent-widget.js"
-    data-agent-id="${agentId}"
-    data-public-key="${publicKey}"
-    data-mode="inline"
-    data-theme="${theme}"
-  ></script>
+  <div class="embed-container" id="widget-root">
+    <script
+      src="/api/v1/deployments/sdk/agent-widget.js"
+      data-agent-id="${agentId}"
+      data-public-key="${publicKey}"
+      data-mode="inline"
+      data-theme="${theme}"
+    ></script>
+  </div>
 </body>
 </html>`;
 }

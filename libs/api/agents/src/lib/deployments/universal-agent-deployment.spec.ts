@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createHash } from 'node:crypto';
 import { AgentDeploymentService, bucketRuns, periodToMs } from './agent-deployment.service.js';
-import { AgentSessionService } from './agent-session.service.js';
+import { AgentSessionService, widgetAvatarUrl } from './agent-session.service.js';
 import { AgentDeploymentWebhookService } from './agent-webhook.service.js';
 import { AgentRuntimeBridgeService, publicRunError } from './agent-runtime-bridge.service.js';
 import { AgentPublicController } from './agent-public.controller.js';
@@ -764,7 +764,7 @@ describe('Universal AI Agent Deployment System', () => {
 
   describe('6d. Embed page and SDK safety', () => {
     const send = () => {
-      const res: any = { setHeader: vi.fn(), send: vi.fn() };
+      const res: any = { setHeader: vi.fn(), removeHeader: vi.fn(), send: vi.fn() };
       return res;
     };
 
@@ -788,8 +788,8 @@ describe('Universal AI Agent Deployment System', () => {
       const res = send();
       publicController.getWidgetSdk(res);
       const sdk = res.send.mock.calls[0][0] as string;
-      expect(sdk).toContain('applyBranding');
-      expect(sdk).toContain('appearance.suggestedPrompts');
+      expect(sdk).toContain('applyConfig');
+      expect(sdk).toContain('a.suggestedPrompts');
       expect(sdk).toContain('Waiting for approval');
       expect(sdk).not.toContain('ot-approve-btn');
       expect(sdk).not.toContain('Approved by user');
@@ -904,16 +904,53 @@ describe('Universal AI Agent Deployment System', () => {
     it('serves the isolated iframe embed page', () => {
       const mockRes: any = {
         setHeader: vi.fn(),
+        removeHeader: vi.fn(),
         send: vi.fn(),
       };
 
       publicController.getEmbedHtml(macAgentId, 'ot_pub_valid_key', 'system', mockRes);
 
       expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'text/html; charset=utf-8');
+      // Must render inside a customer's iframe, unlike every other API response.
+      expect(mockRes.removeHeader).toHaveBeenCalledWith('X-Frame-Options');
+      const csp = mockRes.setHeader.mock.calls.find(([h]: [string]) => h === 'Content-Security-Policy')?.[1] as string;
+      expect(csp).toContain("script-src 'self'");
+      expect(csp).toContain('frame-ancestors *');
       expect(mockRes.send).toHaveBeenCalled();
       const htmlBody = mockRes.send.mock.calls[0][0];
       expect(htmlBody).toContain('Onetab AI Agent');
       expect(htmlBody).toContain('agent-widget.js');
     });
+  });
+
+  describe('widget avatar', () => {
+    it('prefers the widget image, then falls back to the agent avatar', () => {
+      expect(widgetAvatarUrl('https://cdn.example.com/a.png', 'https://x.test/b.png')).toBe('https://cdn.example.com/a.png');
+      expect(widgetAvatarUrl('', 'https://x.test/b.png')).toBe('https://x.test/b.png');
+      expect(widgetAvatarUrl(undefined, null)).toBeNull();
+    });
+
+    it('accepts same-origin paths and base64 image data URLs', () => {
+      expect(widgetAvatarUrl('/api/v1/files/avatar.png')).toBe('/api/v1/files/avatar.png');
+      expect(widgetAvatarUrl('data:image/png;base64,iVBORw0KGgo=')).toBe('data:image/png;base64,iVBORw0KGgo=');
+    });
+
+    it('refuses anything a third-party page should not load', () => {
+      expect(widgetAvatarUrl('javascript:alert(1)')).toBeNull();
+      expect(widgetAvatarUrl('//evil.test/a.png')).toBeNull();
+      expect(widgetAvatarUrl('data:text/html;base64,PHNjcmlwdD4=')).toBeNull();
+      expect(widgetAvatarUrl('https://x.test/a.png" onerror="x')).toBeNull();
+      expect(widgetAvatarUrl('🤖')).toBeNull();
+    });
+  });
+
+  it('draws the avatar image in the embed SDK, with a bot glyph fallback', () => {
+    const send = vi.fn();
+    new AgentPublicController({} as never, {} as never, {} as never).getWidgetSdk({ setHeader: vi.fn(), send } as never);
+    const sdk = send.mock.calls[0][0] as string;
+    expect(sdk).toContain('dep.avatarUrl');
+    expect(sdk).toContain('BOT_ICON');
+    expect(sdk).not.toContain('🤖');
+    expect(() => new Function(sdk)).not.toThrow();
   });
 });

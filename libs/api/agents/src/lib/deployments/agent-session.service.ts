@@ -9,6 +9,22 @@ import { randomBytes } from 'node:crypto';
 import type { AgentSessionMessage } from '@org/types';
 import { AgentDeploymentService } from './agent-deployment.service.js';
 
+const AVATAR_URL = /^(https?:\/\/|\/(?!\/))[^\s"'<>]+$/i;
+const AVATAR_DATA_URL = /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i;
+
+/**
+ * The first candidate a third-party page can safely put in an `<img src>`:
+ * an http(s) URL, a same-origin path, or a base64 image data URL.
+ */
+export function widgetAvatarUrl(...candidates: unknown[]): string | null {
+  for (const c of candidates) {
+    if (typeof c !== 'string') continue;
+    const value = c.trim();
+    if (value && (AVATAR_URL.test(value) || AVATAR_DATA_URL.test(value))) return value;
+  }
+  return null;
+}
+
 @Injectable()
 export class AgentSessionService {
 
@@ -103,7 +119,12 @@ export class AgentSessionService {
         agentId: deployment.agentId,
         agentName: deployment.agent.name,
         agentRole: deployment.agent.role,
-        avatarUrl: deployment.agent.avatarUrl,
+        // The widget's own avatar wins; otherwise the agent's live avatar, so a
+        // later change to the agent shows up without re-saving the widget.
+        avatarUrl: widgetAvatarUrl(
+          (deployment.widgetConfig as any)?.appearance?.avatarUrl,
+          deployment.agent.avatarUrl,
+        ),
         versionNumber: deployment.versionNumber,
         widgetConfig: deployment.widgetConfig,
       },

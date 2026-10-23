@@ -3,13 +3,14 @@ import {
   applyRecommendations,
   compileStudioGraph,
   describeCronExpression,
-  describeFlowLine,
   refreshSpecConnections,
   specToStudioGraph,
   type AgentArchitectSpec,
+  type ArchitectEditResult,
   type ArchitectStep,
   type ArchitectUnderstandResult,
   type MissingConfigItem,
+  type StudioCanvasGraph,
 } from '@org/types';
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Checkbox, Input, Page, PromptComposer, toast, Label } from '@org/ui';
 import { cn } from '@org/utils';
@@ -26,6 +27,7 @@ import {
   LayoutTemplate,
   Loader2,
   Pencil,
+  Power,
   Play,
   Plus,
   RefreshCw,
@@ -39,7 +41,8 @@ import { Link, useNavigate, useSearchParams } from '../router.js';
 import { useMemberPreference } from '../hooks/use-member-preference.js';
 import { PlanLimitNotice } from '../plan/plan-limit-notice.js';
 import { readPlanLimit, type PlanLimitInfo } from '../plan/plan-limit.js';
-import { ConnectionBadge, FlowLine, IssueList, errorText, integrationsHref } from '../components/agent-architect/architect-ui.js';
+import { FlowPreview } from '../components/agent-architect/flow-preview.js';
+import { ConnectionBadge, IssueList, errorText, integrationsHref } from '../components/agent-architect/architect-ui.js';
 import { PROMPT_SUGGESTIONS, PROMPT_TEMPLATES } from '../data/prompt-templates.js';
 import { useStudioSession } from '../session-guard.js';
 
@@ -62,6 +65,13 @@ const SCHEDULE_PRESETS: Array<{ label: string; cron: string | null }> = [
   { label: 'Every Monday at 9:00', cron: '0 9 * * 1' },
   { label: 'Every day at 18:00', cron: '0 18 * * *' },
 ];
+
+/** The planner schedules in UTC unless told otherwise; "6 pm" means the user's own 6 pm. */
+function withLocalTimezone(spec: AgentArchitectSpec): AgentArchitectSpec {
+  const local = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (spec.trigger.kind !== 'schedule' || !local || (spec.trigger.timezone && spec.trigger.timezone !== 'UTC')) return spec;
+  return { ...spec, trigger: { ...spec.trigger, timezone: local } };
+}
 
 const parseRecent = (raw: unknown): string[] | undefined =>
   Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string').slice(0, 5) : undefined;
@@ -102,10 +112,18 @@ export function CreateAgentPage() {
   const [planLimit, setPlanLimit] = useState<PlanLimitInfo | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [addition, setAddition] = useState('');
+  // Extra requirements are applied to the workflow itself (the real edit route) and replayed when the plan changes.
+  const [requests, setRequests] = useState<string[]>([]);
+  const [edited, setEdited] = useState<{ graph: StudioCanvasGraph; changes: string[] } | null>(null);
+  const [applying, setApplying] = useState(false);
+  const editCache = useRef(new Map<string, ArchitectEditResult>());
+  const editRun = useRef(0);
   const [editingName, setEditingName] = useState(false);
   const [build, setBuild] = useState<BuildStep[]>([]);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [checkingConnections, setCheckingConnections] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [scheduleOn, setScheduleOn] = useState(false);
   const [recent, setRecent] = useMemberPreference<string[]>(RECENT_KEY, [], parseRecent);
   const [suggestion, setSuggestion] = useState(0);
   const requestRef = useRef(0);
@@ -117,6 +135,14 @@ export function CreateAgentPage() {
     queryFn: () => knowledgeApi.list(activeWorkspace.id),
     staleTime: 60_000,
   });
+
+  // Ask the server up front, so a member who can't create agents hears it before planning, not after.
+  const { data: createAccess } = useQuery({
+    queryKey: ['agents-can-create', activeWorkspace.id],
+    queryFn: () => agentsApi.canCreate(activeWorkspace.id),
+    staleTime: 60_000,
+  });
+  const cannotCreate = createAccess?.allowed === false;
 
   // Rotating example under the prompt box.
   useEffect(() => {
@@ -147,7 +173,9 @@ export function CreateAgentPage() {
         const res = await agentArchitectApi.understand(activeWorkspace.id, { prompt: trimmed });
         if (id !== requestRef.current) return;
         setResult(res);
-        setSpec(res.spec);
+        setSpec(withLocalTimezone(res.spec));
+        setRequests([]);
+        setEdited(null);
         setAccepted(res.spec.recommendations.filter((r) => r.recommended).map((r) => r.id));
         setDeferred([]);
         setPhase('plan');
@@ -177,8 +205,80 @@ export function CreateAgentPage() {
   }, [params, setParams, understand]);
 
   const finalSpec = useMemo(() => (spec ? applyRecommendations(spec, accepted) : null), [spec, accepted]);
-  const preview = useMemo(() => (finalSpec ? specToStudioGraph(finalSpec) : null), [finalSpec]);
-  const flow = useMemo(() => (preview ? describeFlowLine(preview) : ''), [preview]);
+  const baseGraph = useMemo(() => (finalSpec ? specToStudioGraph(finalSpec) : null), [finalSpec]);
+
+  /** Runs each requirement through the edit route in order; identical steps are served from a cache. */
+  const applyRequests = useCallback(
+    async (base: StudioCanvasGraph, commands: string[]) => {
+      let graph = base;
+      const results: ArchitectEditResult[] = [];
+      for (const command of commands) {
+        const graphJson = JSON.stringify(graph);
+        const key = `${command}
+${graphJson}`;
+        let res = editCache.current.get(key);
+        if (!res) {
+          res = await agentArchitectApi.edit(activeWorkspace.id, { command, graphJson });
+          editCache.current.set(key, res);
+        }
+        if (res.changedAnything) graph = res.graph;
+        results.push(res);
+      }
+      return { graph, results };
+    },
+    [activeWorkspace.id],
+  );
+
+  // Re-apply the requirements whenever the plan under them changes (a step removed, a schedule picked…).
+  useEffect(() => {
+    if (!baseGraph || requests.length === 0) {
+      setEdited(null);
+      return;
+    }
+    const id = ++editRun.current;
+    setApplying(true);
+    applyRequests(baseGraph, requests)
+      .then(({ graph, results }) => {
+        if (id !== editRun.current) return;
+        setEdited({ graph, changes: results.flatMap((r) => r.changes) });
+      })
+      .catch((err) => {
+        if (id === editRun.current) toast.error(errorText(err, 'Couldn’t apply your added requirements.'));
+      })
+      .finally(() => {
+        if (id === editRun.current) setApplying(false);
+      });
+  }, [baseGraph, requests, applyRequests]);
+
+  const addRequirement = async (text: string) => {
+    if (!baseGraph) return;
+    const id = ++editRun.current;
+    setApplying(true);
+    try {
+      const { graph, results } = await applyRequests(baseGraph, [...requests, text]);
+      if (id !== editRun.current) return;
+      const last = results[results.length - 1]!;
+      if (!last.changedAnything) {
+        toast.error(last.explanation || 'I couldn’t turn that into a change. Try rephrasing it.');
+        return;
+      }
+      setRequests((r) => [...r, text]);
+      setEdited({ graph, changes: results.flatMap((r) => r.changes) });
+      setAddition('');
+      toast.success(last.changes[0] ?? 'Added to the workflow.');
+    } catch (err) {
+      toast.error(errorText(err, 'Couldn’t apply that requirement.'));
+    } finally {
+      if (id === editRun.current) setApplying(false);
+    }
+  };
+
+  const preview = edited?.graph ?? baseGraph;
+  // Counted from the workflow itself, so approvals added by a requirement are included.
+  const approvalCount = useMemo(
+    () => (preview ? preview.nodes.filter((n) => ['USER_APPROVAL', 'HUMAN_APPROVAL', 'HUMAN_REVIEW', 'ESCALATE_HUMAN'].includes(String(n.type))).length : 0),
+    [preview],
+  );
   const issues = useMemo(() => (preview ? compileStudioGraph(preview).issues : []), [preview]);
   const missing = useMemo(
     () => (finalSpec?.missingConfiguration ?? []).filter((m) => !deferred.includes(m.id)),
@@ -245,7 +345,7 @@ export function CreateAgentPage() {
 
   /** Creates the agent through the normal routes, then checks it — every line is a real call. */
   const buildAgent = async () => {
-    if (!finalSpec || !preview) return;
+    if (!finalSpec || !preview || applying) return;
     const blocking = issues.filter((i) => i.level === 'error');
     const appSteps = finalSpec.apps.map((a) => ({ id: `app_${a.provider}`, label: a.connected ? `${a.label} connected` : `Waiting for ${a.label} connection`, status: 'pending' as const }));
     setBuild([
@@ -257,6 +357,7 @@ export function CreateAgentPage() {
       ...(finalSpec.knowledge.enabled ? [{ id: 'knowledge', label: 'Connecting knowledge', status: 'pending' as const }] : []),
       ...appSteps,
     ]);
+    setScheduleOn(false);
     setPhase('building');
 
     setBuildStep('validate', {
@@ -278,7 +379,7 @@ export function CreateAgentPage() {
           icon: finalSpec.agent.icon,
           tags: finalSpec.agent.tags,
           lifecycle: 'draft',
-          architect: { spec: finalSpec, prompt: finalSpec.source.prompt, createdAt: new Date().toISOString() },
+          architect: { spec: finalSpec, prompt: finalSpec.source.prompt, requests, createdAt: new Date().toISOString() },
         },
       });
       agentId = created.id;
@@ -323,6 +424,22 @@ export function CreateAgentPage() {
       setBuildStep(`app_${app.provider}`, app.connected ? { status: 'done' } : { status: 'waiting', detail: `Connect ${app.label} in Integrations` });
     }
     setPhase('built');
+  };
+
+  /** Switches the agent's schedule on through the real activation route (owner or admin). */
+  const activateSchedule = async () => {
+    if (!createdId) return;
+    setActivating(true);
+    try {
+      const res = await agentGraphsApi.setActivation(activeWorkspace.id, createdId, true);
+      setScheduleOn(res.active);
+      queryClient.invalidateQueries({ queryKey: ['agents', activeWorkspace.id] });
+      toast.success(res.active ? 'Schedule is on. It will run by itself.' : 'The schedule was not switched on.');
+    } catch (err) {
+      toast.error(errorText(err, 'Couldn’t switch on the schedule.'));
+    } finally {
+      setActivating(false);
+    }
   };
 
   const allRecommendations = spec?.recommendations ?? [];
@@ -377,6 +494,14 @@ export function CreateAgentPage() {
           footnote="Studio can make mistakes — you review and approve the plan before it’s built."
         />
 
+        {cannotCreate && (
+          <Alert variant="warning">
+            <ShieldCheck aria-hidden />
+            <AlertTitle>You can plan an agent, but not create it</AlertTitle>
+            <AlertDescription>{createAccess?.reason}</AlertDescription>
+          </Alert>
+        )}
+
         <div aria-live="polite">
           {busy && (
             <div className="space-y-3 rounded-xl border border-border bg-surface p-4">
@@ -384,6 +509,16 @@ export function CreateAgentPage() {
                 <Loader2 className="size-4 animate-spin text-primary" aria-hidden />
                 Understanding what you want and planning it with your workspace’s tools and apps…
               </div>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  requestRef.current += 1;
+                  setPhase('describe');
+                }}
+              >
+                Cancel
+              </Button>
               <p className="text-xs text-muted-foreground">
                 {elapsed}s — a full plan from the AI model can take up to a minute. If no model can plan it, the closest template is used and the plan says so.
               </p>
@@ -492,12 +627,27 @@ export function CreateAgentPage() {
                 <AlertDescription>Run a test to see each step, then publish it or switch on its schedule.</AlertDescription>
               </Alert>
             )}
+            <FlowPreview graph={preview} />
+            {finalSpec.trigger.kind === 'schedule' && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{finalSpec.trigger.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {scheduleOn ? 'The schedule is on.' : waiting.length ? 'Finish the items above before switching the schedule on.' : 'Off until you switch it on.'}
+                  </p>
+                </div>
+                <Button size="sm" variant={scheduleOn ? 'outline' : 'primary'} onClick={activateSchedule} disabled={scheduleOn || activating || waiting.length > 0} className="gap-1.5">
+                  {activating ? <Loader2 className="size-3.5 animate-spin" /> : <Power className="size-3.5" />}
+                  {scheduleOn ? 'Schedule on' : 'Switch on schedule'}
+                </Button>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => navigate(`/agents/${createdId}?copilot=1&test=1`)} className="gap-1.5">
                 <Play className="size-4" /> Run a test
               </Button>
               <Button variant="outline" onClick={() => navigate(`/agents/${createdId}?copilot=1`)} className="gap-1.5">
-                <Bot className="size-4" /> Open in Studio
+                <Bot className="size-4" /> Open flow canvas
               </Button>
             </div>
           </div>
@@ -539,11 +689,24 @@ export function CreateAgentPage() {
         </div>
       </div>
 
+      {result_.plannedBy === 'template' && (
+        <Alert variant="warning">
+          <CircleAlert aria-hidden />
+          <AlertTitle>This is a generic starting point, not a plan for your request</AlertTitle>
+          <AlertDescription>
+            {finalSpec.source.fallbackReason ?? 'The AI model didn’t answer.'} Retry for a plan written for what you asked, or review and edit these steps before building.
+            <Button variant="outline" size="xs" className="ml-2" onClick={() => void understand(prompt)}>
+              <RefreshCw className="size-3" /> Plan it again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         {/* The plan */}
         <section className="space-y-5 rounded-xl border border-border bg-surface p-4 sm:p-5" aria-labelledby="plan-heading">
           <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">I understand what you want to build.</p>
+            <p className="text-xs font-medium text-muted-foreground">{result_.plannedBy === 'ai' ? 'I understand what you want to build.' : 'Closest template to your request.'}</p>
             <h1 ref={planHeadingRef} tabIndex={-1} id="plan-heading" className="flex flex-wrap items-center gap-2 text-lg font-semibold text-foreground outline-none">
               {editingName ? (
                 <Input
@@ -603,7 +766,7 @@ export function CreateAgentPage() {
 
           <div className="space-y-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Workflow</h2>
-            <FlowLine flow={flow} />
+            {preview && <FlowPreview graph={preview} />}
             {finalSpec.team && (
               <p className="text-xs text-muted-foreground">
                 A coordinator delegates to {finalSpec.team.members.length} specialists: {finalSpec.team.members.map((m) => m.name).join(', ')}.
@@ -648,7 +811,7 @@ export function CreateAgentPage() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                {finalSpec.approvals.length ? `Waits for your approval at ${finalSpec.approvals.length} point${finalSpec.approvals.length === 1 ? '' : 's'}.` : 'Never waits for approval.'}
+                {approvalCount ? `Waits for your approval at ${approvalCount} point${approvalCount === 1 ? '' : 's'}.` : 'Never waits for approval.'}
                 {' '}Produces: {finalSpec.outputs.join(', ')}.
               </p>
             </div>
@@ -671,23 +834,42 @@ export function CreateAgentPage() {
             </details>
           )}
 
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!addition.trim()) return;
-              const next = `${prompt.trim()}\nAlso: ${addition.trim()}`;
-              setPrompt(next);
-              setAddition('');
-              void understand(next);
-            }}
-          >
-            <Label htmlFor="add-requirement" className="sr-only">Add a requirement</Label>
-            <Input id="add-requirement" value={addition} onChange={(e) => setAddition(e.target.value)} placeholder="Add a requirement — e.g. “also post a summary in #sales”" className="h-8" />
-            <Button type="submit" variant="outline" size="md" disabled={!addition.trim()} className="gap-1">
-              <Plus className="size-3.5" /> Add
-            </Button>
-          </form>
+          <div className="space-y-2">
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (addition.trim() && !applying) void addRequirement(addition.trim());
+              }}
+            >
+              <Label htmlFor="add-requirement" className="sr-only">Add a requirement</Label>
+              <Input id="add-requirement" value={addition} onChange={(e) => setAddition(e.target.value)} placeholder="Add a requirement — e.g. “also post a summary in #sales”" className="h-8" disabled={applying} />
+              <Button type="submit" variant="outline" size="md" disabled={!addition.trim() || applying} className="gap-1">
+                {applying ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />} Add
+              </Button>
+            </form>
+            {requests.length > 0 && (
+              <ul className="space-y-1" aria-label="Added requirements">
+                {requests.map((r, i) => (
+                  <li key={`${r}-${i}`} className="flex items-center justify-between gap-2 rounded-md bg-surface-raised/50 px-2 py-1 text-xs text-foreground">
+                    <span className="min-w-0 truncate">{r}</span>
+                    <Button variant="ghost" size="icon-xs" aria-label={`Remove “${r}”`} onClick={() => setRequests((all) => all.filter((_, j) => j !== i))} disabled={applying}>
+                      <X />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {edited && edited.changes.length > 0 && (
+              <ul className="space-y-0.5">
+                {edited.changes.map((c, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <CircleCheck className="mt-0.5 size-3 shrink-0 text-success-text" aria-hidden /> {c}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
         {/* What's missing, recommendations, build */}
@@ -751,11 +933,11 @@ export function CreateAgentPage() {
             </section>
           )}
 
-          <Button size="xl" className="w-full gap-2" onClick={buildAgent}>
+          <Button size="xl" className="w-full gap-2" onClick={buildAgent} disabled={applying || cannotCreate}>
             <Zap className="size-4" /> Build it
           </Button>
           <p className="text-center text-[11px] text-muted-foreground">
-            Creates the agent as a draft. Nothing runs until you test or switch it on.
+            {cannotCreate ? createAccess?.reason : 'Creates the agent as a draft. Nothing runs until you test or switch it on.'}
           </p>
         </aside>
       </div>
