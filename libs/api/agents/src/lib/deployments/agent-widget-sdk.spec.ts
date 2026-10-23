@@ -80,4 +80,24 @@ describe('embed SDK layouts', () => {
     expect(root.querySelector('.ot-disclaimer')).toBeNull();
     expect(root.querySelectorAll('style')[1].textContent).toBe('');
   });
+  it('calls the API it was served from, fills the inline container, and works as a module script', async () => {
+    const send = vi.fn();
+    new AgentPublicController({} as never, {} as never, {} as never).getWidgetSdk({ setHeader: vi.fn(), send } as never);
+    const sdk = send.mock.calls[0][0] as string;
+    const fetchMock = vi.fn(async () => ({ json: async () => ({ sessionId: 's1', sessionToken: 't1', deployment: {} }) }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    document.body.innerHTML = '<div id="onetab-agent-container"></div>';
+    const script = document.createElement('script');
+    script.src = 'https://api.example.com/v2/deployments/sdk/agent-widget.js?x=1';
+    script.setAttribute('data-agent-id', 'agent_inline');
+    script.setAttribute('data-public-key', 'ot_pub_x');
+    script.setAttribute('data-mode', 'inline');
+    document.body.appendChild(script);
+    new Function(sdk)(); // jsdom has no currentScript here, like a module script
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.example.com/v2/agent-sessions');
+    expect(document.querySelector('#onetab-agent-container #onetab-agent-widget-agent_inline')).not.toBeNull();
+  });
 });

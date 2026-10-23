@@ -747,7 +747,7 @@ export function NodeLibrary({
         />
 
         {/* Categories Bar */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-[11px]">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-xs">
           {CATEGORY_ITEMS.map((cat) => (
             <button
               key={cat.id}
@@ -760,7 +760,7 @@ export function NodeLibrary({
               )}
             >
               <span>{cat.label}</span>
-              <span className="text-[9px] opacity-60">({cat.count})</span>
+              <span className="text-2xs opacity-60">({cat.count})</span>
             </button>
           ))}
         </div>
@@ -772,7 +772,7 @@ export function NodeLibrary({
           <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
             <Search className="size-6 text-muted-foreground/40 mb-2" />
             <div className="text-xs font-medium text-foreground">No nodes found</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Try searching for different keywords or select a different category.
             </p>
           </div>
@@ -802,7 +802,7 @@ export function NodeLibrary({
                       <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
                         {item.label}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-2xs text-muted-foreground">
                         {item.subtitle}
                       </div>
                     </div>
@@ -810,7 +810,7 @@ export function NodeLibrary({
 
                   <div className="flex items-center gap-1">
                     {item.badge && (
-                      <span className="rounded-full bg-surface-raised px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground border border-border/50">
+                      <span className="rounded-full bg-surface-raised px-1.5 py-0.5 text-2xs font-medium text-muted-foreground border border-border/50">
                         {item.badge}
                       </span>
                     )}
@@ -831,7 +831,7 @@ export function NodeLibrary({
                   </div>
                 </div>
 
-                <p className="mt-1.5 text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                   {item.description}
                 </p>
               </div>

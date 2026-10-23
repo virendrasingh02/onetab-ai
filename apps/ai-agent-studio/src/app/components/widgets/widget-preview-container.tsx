@@ -79,7 +79,7 @@ export function WidgetPreviewContainer({
 
         {/* State Simulator */}
         <div className="flex items-center gap-1 text-xs">
-          <span className="text-[11px] font-medium text-muted-foreground mr-1">Simulate State:</span>
+          <span className="text-xs font-medium text-muted-foreground mr-1">Simulate State:</span>
           {(['idle', 'loading', 'empty', 'error'] as WidgetState[]).map((st) => (
             <Button
               key={st}
@@ -87,7 +87,7 @@ export function WidgetPreviewContainer({
               size="xs"
               onClick={() => setPreviewState(st)}
               className={cn(
-                'h-7 capitalize text-[11px] px-2',
+                'h-7 capitalize text-xs px-2',
                 previewState === st && 'border-primary/50 text-primary font-semibold'
               )}
             >
@@ -117,7 +117,7 @@ export function WidgetPreviewContainer({
           <div className="flex items-center gap-1.5 font-semibold text-foreground">
             <Terminal className="size-3.5 text-primary" />
             <span>Widget Action & Event Stream</span>
-            <Badge variant="secondary" className="text-[10px] font-mono">
+            <Badge variant="secondary" className="text-2xs font-mono">
               {actionLogs.length} events
             </Badge>
           </div>
@@ -126,14 +126,14 @@ export function WidgetPreviewContainer({
               variant="ghost"
               size="xs"
               onClick={() => setActionLogs([])}
-              className="text-[10px] h-6 text-muted-foreground hover:text-foreground"
+              className="text-2xs h-6 text-muted-foreground hover:text-foreground"
             >
               Clear
             </Button>
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 font-mono text-[11px] space-y-1.5 bg-zinc-950/90 text-zinc-200">
+        <div className="flex-1 overflow-y-auto p-3 font-mono text-xs space-y-1.5 bg-zinc-950/90 text-zinc-200">
           {actionLogs.length === 0 ? (
             <div className="text-zinc-500 italic py-2 text-center text-xs">
               Interact with buttons, forms, or charts in the preview above to view real-time action dispatches.
@@ -141,7 +141,7 @@ export function WidgetPreviewContainer({
           ) : (
             actionLogs.map((log) => (
               <div key={log.id} className="flex items-start gap-2 border-b border-zinc-800/60 pb-1">
-                <span className="text-zinc-500 text-[10px] shrink-0">{log.timestamp}</span>
+                <span className="text-zinc-500 text-2xs shrink-0">{log.timestamp}</span>
                 <span className="text-indigo-400 font-semibold shrink-0">[{log.action}]</span>
                 <span className="text-zinc-300 truncate">
                   {JSON.stringify(log.payload)}

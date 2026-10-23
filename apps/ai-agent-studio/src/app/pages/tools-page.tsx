@@ -263,7 +263,7 @@ export function ToolsPage() {
               <h2 id="tool-sandbox" className="flex items-center gap-2 text-sm font-bold text-foreground">
                 <Flame className="size-4 text-warning" /> Tool sandbox
               </h2>
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-2xs">
                 Runs for real
               </Badge>
             </div>
@@ -340,9 +340,9 @@ export function ToolsPage() {
 
             {result ? (
               <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
-                <div className="flex items-center gap-2 text-[11px] font-bold text-foreground">
+                <div className="flex items-center gap-2 text-xs font-bold text-foreground">
                   Output
-                  <Badge variant={result.success === false ? 'destructive' : 'success'} className="text-[9px]">
+                  <Badge variant={result.success === false ? 'destructive' : 'success'} className="text-2xs">
                     {result.success === false ? 'Failed' : 'Succeeded'}
                   </Badge>
                 </div>
@@ -412,13 +412,13 @@ export function ToolsPage() {
                         </span>
                         <span className="truncate font-mono text-xs font-bold text-foreground">{t.name}</span>
                       </span>
-                      <Badge variant={t.readOnly ? 'outline' : 'warning'} className="shrink-0 text-[9px]">
+                      <Badge variant={t.readOnly ? 'outline' : 'warning'} className="shrink-0 text-2xs">
                         {t.readOnly ? 'Read' : 'Write'}
                       </Badge>
                     </div>
-                    <p className="line-clamp-3 text-[11px] leading-relaxed text-muted-foreground">{t.description}</p>
+                    <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">{t.description}</p>
                     {!builtin ? (
-                      <p className="text-[10px] font-medium text-muted-foreground">
+                      <p className="text-2xs font-medium text-muted-foreground">
                         {SOURCE_LABEL[t.source]} · {t.origin}
                       </p>
                     ) : null}

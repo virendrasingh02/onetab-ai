@@ -117,7 +117,7 @@ export function CanvasContextMenu({
       <DropdownMenuContent align="start" side="bottom" sideOffset={0} className="min-w-[210px]">
         {targetNode ? (
           <>
-            <DropdownMenuLabel className="text-[10px] uppercase">
+            <DropdownMenuLabel className="text-2xs uppercase">
               Step: {targetNode.data?.label || targetNode.id}
             </DropdownMenuLabel>
             <Row icon={Play} iconClass="fill-current text-primary" label="Test Step Execution" onSelect={run(() => onTestNode?.(targetNode))} />
@@ -131,7 +131,7 @@ export function CanvasContextMenu({
           </>
         ) : targetEdge ? (
           <>
-            <DropdownMenuLabel className="text-[10px] uppercase">Connection: {targetEdge.id}</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-2xs uppercase">Connection: {targetEdge.id}</DropdownMenuLabel>
             <Row icon={Sliders} iconClass="text-primary" label="Inspect Data Flow" onSelect={run(() => onInspectEdge?.(targetEdge))} />
             <Row icon={Plus} label="Insert Step Between" onSelect={run(() => onInsertNodeOnEdge?.(targetEdge))} />
             {onEditEdgeLabel && (
@@ -154,7 +154,7 @@ export function CanvasContextMenu({
           </>
         ) : (
           <>
-            <DropdownMenuLabel className="text-[10px] uppercase">Canvas Actions</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-2xs uppercase">Canvas Actions</DropdownMenuLabel>
             <Row icon={Plus} iconClass="text-primary" label="Add Step Here…" onSelect={run(() => onAddNode?.({ x, y }))} />
             {hasClipboard && (
               <Row icon={Clipboard} iconClass="text-primary" label="Paste Step" shortcut="Ctrl+V" onSelect={run(() => onPaste?.())} />

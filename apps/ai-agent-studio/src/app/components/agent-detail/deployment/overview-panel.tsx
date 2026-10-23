@@ -57,12 +57,12 @@ const formatLatency = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(1)} s
 function Stat({ icon, label, value, hint, tone }: { icon: ReactNode; label: string; value: ReactNode; hint?: ReactNode; tone?: string }) {
   return (
     <Card className="p-3.5 shadow-2xs">
-      <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         {icon}
         {label}
       </span>
       <div className={`mt-1.5 font-mono text-xl font-bold tabular-nums ${tone ?? 'text-foreground'}`}>{value}</div>
-      {hint && <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{hint}</div>}
+      {hint && <div className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</div>}
     </Card>
   );
 }
@@ -101,11 +101,11 @@ function RecentRunRow({ run }: { run: AgentDeploymentRecentRun }) {
       <span className={`size-2 shrink-0 rounded-full ${STATUS_TONE[run.status] ?? 'bg-muted-foreground'}`} title={run.status} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-foreground">{run.prompt || <span className="text-muted-foreground">No prompt recorded</span>}</p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           {run.channel ? CHANNEL_LABELS[run.channel] : 'Deployment'} · {run.status.replace(/_/g, ' ').toLowerCase()}
         </p>
       </div>
-      <div className="shrink-0 text-right font-mono text-[11px] text-muted-foreground tabular-nums">
+      <div className="shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">
         <div>{run.latencyMs > 0 ? formatLatency(run.latencyMs) : '—'}</div>
         <div>{timeAgo(run.startedAt)}</div>
       </div>
@@ -253,7 +253,7 @@ export function OverviewPanel({
               icon={<Activity className="size-4 text-primary" />}
               title={hourly ? 'Runs per hour' : 'Runs per day'}
               action={
-                <span className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <span className="size-2 rounded-sm bg-primary" /> Succeeded
                   </span>
@@ -383,7 +383,7 @@ export function OverviewPanel({
                 ['Active sessions', String(stats?.activeSessions ?? deployment.activeSessionsCount ?? 0)],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-lg border border-border/50 bg-muted/40 p-2.5">
-                  <dt className="text-[10px] font-semibold uppercase text-muted-foreground">{label}</dt>
+                  <dt className="text-2xs font-semibold uppercase text-muted-foreground">{label}</dt>
                   <dd className="mt-0.5 truncate font-mono font-bold text-foreground" title={value}>
                     {value}
                   </dd>
@@ -409,7 +409,7 @@ export function OverviewPanel({
               <Button variant="outline" className="h-9 justify-start gap-2 text-xs" onClick={() => onNavigate('webhooks')}>
                 <Server className="size-3.5 text-success" /> {webhooks.length ? 'Manage webhooks' : 'Add a webhook'}
                 {webhooks.length > 0 && (
-                  <Badge variant="outline" className={`ml-auto text-[10px] ${failingWebhooks ? 'text-destructive' : ''}`}>
+                  <Badge variant="outline" className={`ml-auto text-2xs ${failingWebhooks ? 'text-destructive' : ''}`}>
                     {failingWebhooks ? `${failingWebhooks} failing` : webhooks.length}
                   </Badge>
                 )}
@@ -423,9 +423,9 @@ export function OverviewPanel({
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Public key</span>
-                  <CopyButton text={deployment.publicKey} className="h-6 px-1.5 text-[11px]" />
+                  <CopyButton text={deployment.publicKey} className="h-6 px-1.5 text-xs" />
                 </div>
-                <div className="truncate rounded-md bg-muted/40 px-2 py-1 font-mono text-[11px] text-foreground">{deployment.publicKey}</div>
+                <div className="truncate rounded-md bg-muted/40 px-2 py-1 font-mono text-xs text-foreground">{deployment.publicKey}</div>
               </div>
               <div className="space-y-1 border-t border-border/50 pt-2">
                 <span className="text-muted-foreground">Allowed origins</span>
@@ -437,7 +437,7 @@ export function OverviewPanel({
                     </Button>
                   </div>
                 ) : (
-                  <ul className="space-y-0.5 font-mono text-[11px] text-foreground">
+                  <ul className="space-y-0.5 font-mono text-xs text-foreground">
                     {deployment.allowedOrigins.map((o) => (
                       <li key={o} className="truncate">
                         {o}

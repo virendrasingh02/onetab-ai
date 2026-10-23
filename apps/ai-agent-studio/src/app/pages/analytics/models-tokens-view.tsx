@@ -146,7 +146,7 @@ export function ModelsTokensView({ models }: ModelsTokensViewProps) {
           <div className="rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-surface-raised/50 text-[11px]">
+                <TableRow className="bg-surface-raised/50 text-xs">
                   <TableHead>Model</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Invocations</TableHead>

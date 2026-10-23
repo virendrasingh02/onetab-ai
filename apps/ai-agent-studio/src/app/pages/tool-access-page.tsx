@@ -206,7 +206,7 @@ export function ToolAccessPage() {
           { label: 'Active rules', value: ruleCount },
         ].map((s) => (
           <Card key={s.label} className="p-3 shadow-2xs">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{s.label}</div>
+            <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">{s.label}</div>
             <div className="mt-1 text-lg font-bold tabular-nums text-foreground">{s.value}</div>
           </Card>
         ))}
@@ -254,23 +254,23 @@ export function ToolAccessPage() {
                         onClick={() => toggle(c.provider)}
                         aria-expanded={expanded}
                         aria-label={`${expanded ? 'Hide' : 'Show'} ${c.name} tools`}
-                        className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                        className="rounded-md p-0.5 text-muted-foreground hover:text-foreground"
                       >
                         {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
                       </button>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="truncate text-xs font-bold text-foreground">{c.name}</p>
-                          <Badge variant={connected ? 'success' : 'neutral'} className="text-[9px]">
+                          <Badge variant={connected ? 'success' : 'neutral'} className="text-2xs">
                             {connected ? 'Connected' : 'Not connected'}
                           </Badge>
                           {appMode(c) !== 'allow' ? (
-                            <Badge variant={MODE_BADGE[appMode(c)]} className="text-[9px]">
+                            <Badge variant={MODE_BADGE[appMode(c)]} className="text-2xs">
                               {MODE_OPTIONS.find((m) => m.value === appMode(c))?.label}
                             </Badge>
                           ) : null}
                         </div>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {c.capabilities.length} action{c.capabilities.length === 1 ? '' : 's'}
                           {overrides ? ` · ${overrides} tool rule${overrides === 1 ? '' : 's'}` : ''}
                         </p>
@@ -288,7 +288,7 @@ export function ToolAccessPage() {
                           <li key={cap.id} className="flex items-center gap-3">
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-xs font-medium text-foreground">{cap.label}</p>
-                              <p className="truncate font-mono text-[10px] text-muted-foreground">
+                              <p className="truncate font-mono text-2xs text-muted-foreground">
                                 {cap.toolName} · {cap.permissionLevel}
                               </p>
                             </div>
@@ -324,7 +324,7 @@ export function ToolAccessPage() {
                 <li key={tool.name} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-mono text-xs font-bold text-foreground">{tool.name}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{tool.description}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{tool.description}</p>
                   </div>
                   <ModeSelect
                     label={`${tool.name} access`}

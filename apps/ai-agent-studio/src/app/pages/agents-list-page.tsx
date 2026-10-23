@@ -555,7 +555,7 @@ export function AgentsListPage() {
 
       {/* Grid of Agent Cards */}
       {filteredAgents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 p-12 text-center text-muted-foreground">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface/50 p-12 text-center text-muted-foreground">
           <Bot className="size-12 text-muted-foreground/30 mb-2" />
           <div className="text-sm font-semibold text-foreground">
             {filterTab === 'trash' ? 'Trash is Empty' : 'No Agents Matching Filters'}
@@ -592,34 +592,34 @@ export function AgentsListPage() {
             const getStatusBadge = () => {
               if (status === 'published') {
                 return (
-                  <Badge variant="success" className="text-[10px] gap-1">
+                  <Badge variant="success" className="text-2xs gap-1">
                     <CheckCircle2 className="size-2.5" /> PUBLISHED
                   </Badge>
                 );
               }
               if (status === 'testing') {
                 return (
-                  <Badge className="bg-warning/15 text-warning border border-warning/30 text-[10px] gap-1">
+                  <Badge className="bg-warning/15 text-warning border border-warning/30 text-2xs gap-1">
                     <Zap className="size-2.5" /> TESTING
                   </Badge>
                 );
               }
               if (status === 'paused') {
                 return (
-                  <Badge className="bg-accent-blue/15 text-accent-blue border border-accent-blue/30 text-[10px] gap-1">
+                  <Badge className="bg-accent-blue/15 text-accent-blue border border-accent-blue/30 text-2xs gap-1">
                     <Pause className="size-2.5" /> PAUSED
                   </Badge>
                 );
               }
               if (status === 'archived') {
                 return (
-                  <Badge className="bg-muted-foreground/15 text-muted-foreground border border-muted-foreground/30 text-[10px] gap-1">
+                  <Badge className="bg-muted-foreground/15 text-muted-foreground border border-muted-foreground/30 text-2xs gap-1">
                     <Archive className="size-2.5" /> ARCHIVED
                   </Badge>
                 );
               }
               return (
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-2xs">
                   DRAFT
                 </Badge>
               );
@@ -665,7 +665,7 @@ export function AgentsListPage() {
                         <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
                           <span>{agent.role || 'Assistant'}</span>
                           <span>•</span>
-                          <span className="font-mono text-[10px] uppercase text-muted-foreground/80">
+                          <span className="font-mono text-2xs uppercase text-muted-foreground/80">
                             {env}
                           </span>
                         </div>
@@ -711,7 +711,7 @@ export function AgentsListPage() {
                               <DropdownMenuSeparator />
 
                               {/* Status Sub-menu */}
-                              <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase">
+                              <div className="px-2 py-1 text-2xs font-semibold text-muted-foreground uppercase">
                                 Change Status
                               </div>
                               <DropdownMenuItem
@@ -814,14 +814,14 @@ export function AgentsListPage() {
                   {/* Tags & Category */}
                   <div className="mt-3 flex flex-wrap items-center gap-1.5">
                     {config.category && (
-                      <span className="rounded-md bg-surface-raised px-2 py-0.5 text-[10px] font-medium text-foreground border border-border/60">
+                      <span className="rounded-md bg-surface-raised px-2 py-0.5 text-2xs font-medium text-foreground border border-border/60">
                         {config.category}
                       </span>
                     )}
                     {tags.slice(0, 2).map((t: string, idx: number) => (
                       <span
                         key={idx}
-                        className="rounded-md bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                        className="rounded-md bg-muted/40 px-1.5 py-0.5 text-2xs text-muted-foreground"
                       >
                         #{t}
                       </span>
@@ -830,8 +830,8 @@ export function AgentsListPage() {
                 </div>
 
                 <div className="mt-4 border-t border-border/60 pt-3">
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
-                    <span className="flex items-center gap-1 text-[10px]">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
+                    <span className="flex items-center gap-1 text-2xs">
                       <User className="size-3 text-muted-foreground" />
                       <span>{owner.name}</span>
                     </span>
@@ -839,7 +839,7 @@ export function AgentsListPage() {
                   </div>
 
                   <div className="mt-3 flex items-center justify-between pt-1">
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {toolsCount} tool{toolsCount === 1 ? '' : 's'} connected
                     </span>
                     {!isDeleted ? (
@@ -903,7 +903,7 @@ export function AgentsListPage() {
             <DialogBody className="min-h-0 flex-1 space-y-3.5 overflow-y-auto overscroll-contain py-4 text-xs">
               {/* Agent Name * */}
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   Agent Name *
                 </Label>
                 <Input
@@ -919,7 +919,7 @@ export function AgentsListPage() {
               {/* 2-Column: Role / Title + Category */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-xs font-semibold text-foreground">
                     Role / Title
                   </Label>
                   <Input
@@ -931,7 +931,7 @@ export function AgentsListPage() {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[11px] font-semibold text-foreground">
+                    <Label className="text-xs font-semibold text-foreground">
                       Category
                     </Label>
                     <Button
@@ -939,7 +939,7 @@ export function AgentsListPage() {
                       size="xs"
                       type="button"
                       onClick={() => setIsCreatingCustomCategory(!isCreatingCustomCategory)}
-                      className="h-auto text-[10px] text-success"
+                      className="h-auto text-2xs text-success"
                     >
                       {isCreatingCustomCategory ? 'Choose Existing' : '+ New Category'}
                     </Button>
@@ -990,7 +990,7 @@ export function AgentsListPage() {
 
               {/* Description */}
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   Description
                 </Label>
                 <Input
@@ -1004,7 +1004,7 @@ export function AgentsListPage() {
               {/* Agent Icon, Custom Avatar & Theme (Module 1.2 Specs) */}
               <div className="rounded-xl border border-border bg-background p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-foreground">
+                  <span className="text-xs font-semibold text-foreground">
                     Agent Icon, Avatar & Theme
                   </span>
                   {/* Avatar Mode switcher: Icon vs Custom Image */}
@@ -1030,14 +1030,14 @@ export function AgentsListPage() {
                       theme={newTheme}
                       size="lg"
                     />
-                    <span className="text-[10px] text-muted-foreground font-mono">Live Preview</span>
+                    <span className="text-2xs text-muted-foreground font-mono">Live Preview</span>
                   </div>
 
                   <div className="flex-1 space-y-2.5">
                     {/* Icon Picker Mode */}
                     {avatarMode === 'icon' && (
                       <div>
-                        <Label className="text-[10px] text-muted-foreground block mb-1">
+                        <Label className="text-2xs text-muted-foreground block mb-1">
                           Choose Built-in Icon:
                         </Label>
                         <div className="grid grid-cols-10 gap-1.5 max-h-24 overflow-y-auto pr-1">
@@ -1070,7 +1070,7 @@ export function AgentsListPage() {
                     {/* File Upload Mode */}
                     {avatarMode === 'upload' && (
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] text-muted-foreground block">
+                        <Label className="text-2xs text-muted-foreground block">
                           Upload custom avatar image (PNG, JPG, SVG):
                         </Label>
                         <div className="flex items-center gap-2">
@@ -1121,7 +1121,7 @@ export function AgentsListPage() {
                     {/* URL Mode */}
                     {avatarMode === 'url' && (
                       <div className="space-y-1">
-                        <Label className="text-[10px] text-muted-foreground block">
+                        <Label className="text-2xs text-muted-foreground block">
                           Avatar Image URL:
                         </Label>
                         <div className="flex items-center gap-1.5">
@@ -1148,7 +1148,7 @@ export function AgentsListPage() {
 
                     {/* Theme Color Row */}
                     <div className="pt-1 flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground font-medium">Theme Color:</span>
+                      <span className="text-2xs text-muted-foreground font-medium">Theme Color:</span>
                       <div className="flex items-center gap-1.5">
                         {THEME_COLORS.map((item) => {
                           const color = item.id;
@@ -1173,7 +1173,7 @@ export function AgentsListPage() {
 
               {/* System Instructions */}
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   System Instructions
                 </Label>
                 <Textarea rows={3} value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} className="text-xs" />
@@ -1182,7 +1182,7 @@ export function AgentsListPage() {
               {/* 2-Column: Reasoning Model + Target Environment */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-xs font-semibold text-foreground">
                     Reasoning Model
                   </Label>
                   <AppSelect
@@ -1195,7 +1195,7 @@ export function AgentsListPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-xs font-semibold text-foreground">
                     Target Environment
                   </Label>
                   <AppSelect
@@ -1213,7 +1213,7 @@ export function AgentsListPage() {
               {/* Owner & Tags */}
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-xs font-semibold text-foreground">
                     Owner / Lead Name
                   </Label>
                   <Input
@@ -1225,7 +1225,7 @@ export function AgentsListPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-xs font-semibold text-foreground">
                     Owner Email
                   </Label>
                   <Input
@@ -1238,7 +1238,7 @@ export function AgentsListPage() {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   Tags (comma-separated)
                 </Label>
                 <Input
@@ -1293,7 +1293,7 @@ export function AgentsListPage() {
             </DialogHeader>
 
             <DialogBody className="py-4 text-xs">
-              <Label className="text-[11px] font-semibold text-foreground block mb-1">
+              <Label className="text-xs font-semibold text-foreground block mb-1">
                 New Agent Title *
               </Label>
               <Input

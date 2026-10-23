@@ -295,21 +295,21 @@ export function SettingsPage() {
                         </div>
                         <div>
                           <div className="font-semibold text-sm text-foreground">{meta.name}</div>
-                          <div className="text-[11px] text-muted-foreground line-clamp-1">
+                          <div className="text-xs text-muted-foreground line-clamp-1">
                             {meta.description}
                           </div>
                         </div>
                       </div>
                       <Badge
                         variant={isConfigured ? 'success' : 'outline'}
-                        className="text-[10px] shrink-0"
+                        className="text-2xs shrink-0"
                       >
                         {isConfigured ? 'Connected' : 'Not Configured'}
                       </Badge>
                     </div>
 
-                    <div className="text-[11px] text-muted-foreground space-y-1.5 pt-1">
-                      <div className="font-medium text-foreground text-[10px] uppercase tracking-wider">
+                    <div className="text-xs text-muted-foreground space-y-1.5 pt-1">
+                      <div className="font-medium text-foreground text-2xs uppercase tracking-wider">
                         Models in this workspace
                       </div>
                       <div className="flex flex-wrap gap-1">
@@ -317,7 +317,7 @@ export function SettingsPage() {
                           const listed = (modelsQuery.data ?? []).filter((m) => m.provider === meta.provider && m.enabled !== false);
                           if (listed.length === 0) {
                             return (
-                              <span className="text-[10px] text-muted-foreground">
+                              <span className="text-2xs text-muted-foreground">
                                 {isConfigured ? 'None listed yet.' : 'Appear once the provider is connected.'}
                               </span>
                             );
@@ -327,7 +327,7 @@ export function SettingsPage() {
                               {listed.slice(0, 3).map((m) => (
                                 <AIModelBadge key={m.id} modelId={m.model} provider={meta.provider} variant="subtle" size="xs" />
                               ))}
-                              {listed.length > 3 && <span className="self-center text-[10px] text-muted-foreground">+{listed.length - 3} more</span>}
+                              {listed.length > 3 && <span className="self-center text-2xs text-muted-foreground">+{listed.length - 3} more</span>}
                             </>
                           );
                         })()}
@@ -417,7 +417,7 @@ export function SettingsPage() {
                 value={providerForm.apiKey}
                 onChange={(e) => setProviderForm({ ...providerForm, apiKey: e.target.value })}
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Stored with AES-256-GCM envelope encryption. Never exposed in responses.
               </p>
             </div>
@@ -429,7 +429,7 @@ export function SettingsPage() {
                 value={providerForm.baseUrl}
                 onChange={(e) => setProviderForm({ ...providerForm, baseUrl: e.target.value })}
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Leave empty for provider defaults, or specify private proxy/local address.
               </p>
             </div>

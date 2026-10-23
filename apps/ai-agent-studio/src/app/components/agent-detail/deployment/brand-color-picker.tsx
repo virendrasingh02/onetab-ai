@@ -133,11 +133,11 @@ export function BrandColorPicker({ value, onChange }: { value: string; onChange:
       />
 
       {!current ? (
-        <p className="text-[11px] text-destructive">Use a hex colour like #6366F1.</p>
+        <p className="text-xs text-destructive">Use a hex colour like #6366F1.</p>
       ) : lowContrast ? (
-        <p className="text-[11px] text-warning">This colour is light, so white text and icons on it (launcher, send button) may be hard to read.</p>
+        <p className="text-xs text-warning">This colour is light, so white text and icons on it (launcher, send button) may be hard to read.</p>
       ) : (
-        <p className="text-[11px] text-muted-foreground">Pick a preset, choose any colour with the picker, or paste your brand’s hex code.</p>
+        <p className="text-xs text-muted-foreground">Pick a preset, choose any colour with the picker, or paste your brand’s hex code.</p>
       )}
     </div>
   );

@@ -148,6 +148,7 @@ import { AgentConnectorsTab } from '../components/agent-detail/agent-connectors-
 import { MemoryTab } from '../components/agent-detail/memory-tab.jsx';
 import { VariablesTab } from '../components/agent-detail/variables-tab.jsx';
 import { EvaluationsTab } from '../components/agent-detail/evaluations-tab.jsx';
+import { AgentVersionsList } from '../components/agent-detail/agent-versions-list.js';
 import { AgentDeploymentTab } from '../components/agent-detail/agent-deployment-tab.js';
 import { AgentMarketplaceTab } from '../components/agent-detail/agent-marketplace-tab.js';
 import { AgentTabPage, AgentTabSection } from '../components/agent-detail/agent-tab-page.js';
@@ -400,12 +401,13 @@ const AGENT_TABS = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const;
 type AgentTab = (typeof AGENT_TABS)[number]['id'];
-/** Five short header items; multi-section groups open a menu. */
+/** Short header items; multi-section groups open a menu. */
 const AGENT_TAB_GROUPS: readonly { label: string; icon: typeof Plug; tabs: readonly AgentTab[] }[] = [
   { label: 'Canvas', icon: GitBranch, tabs: ['build'] },
   { label: 'Setup', icon: Plug, tabs: ['connectors', 'memory', 'variables'] },
   { label: 'Runs', icon: Activity, tabs: ['executions', 'evaluations'] },
-  { label: 'Release', icon: Rocket, tabs: ['versions', 'deploy', 'marketplace'] },
+  { label: 'Deploy', icon: Rocket, tabs: ['deploy'] },
+  { label: 'Release', icon: Clock, tabs: ['versions', 'marketplace'] },
   { label: 'Settings', icon: Settings, tabs: ['settings'] },
 ];
 const isAgentTab = (value: string | null): value is AgentTab =>
@@ -922,7 +924,7 @@ function WorkflowCanvasInner({
       onDrop={handleDrop}
     >
       {/* Floating Canvas Quick Toolbar (Docked at Bottom Center) */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-2xl border border-border bg-surface p-1.5 shadow-lg select-none">
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-xl border border-border bg-surface p-1.5 shadow-lg select-none">
         {onToggleCopilot && (
           <>
             <button
@@ -992,7 +994,7 @@ function WorkflowCanvasInner({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="center" className="w-52">
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground">Layout direction</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Layout direction</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={direction}
               onValueChange={(value) => onChangeDirection?.(value as WorkflowDirection)}
@@ -1007,7 +1009,7 @@ function WorkflowCanvasInner({
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground">Arrangement</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Arrangement</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={layoutPrefs.arrange}
               onValueChange={(value) => onChangeLayoutPrefs?.({ arrange: value as LayoutArrange })}
@@ -1020,7 +1022,7 @@ function WorkflowCanvasInner({
               ))}
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground">Spacing</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Spacing</DropdownMenuLabel>
             <div role="radiogroup" aria-label="Spacing" className="mx-1 mb-1 grid grid-cols-3 gap-0.5 rounded-lg bg-surface-raised p-0.5">
               {LAYOUT_SPACING_MENU.map(({ value, label }) => (
                 <button
@@ -1031,7 +1033,7 @@ function WorkflowCanvasInner({
                   disabled={isLocked}
                   onClick={() => onChangeLayoutPrefs?.({ spacing: value })}
                   className={cn(
-                    'h-6 rounded-md text-[11px] font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50',
+                    'h-6 rounded-md text-xs font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50',
                     layoutPrefs.spacing === value
                       ? 'bg-surface text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground',
@@ -1042,7 +1044,7 @@ function WorkflowCanvasInner({
               ))}
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground">Edge routing</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Edge routing</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={edgeStyle}
               onValueChange={(value) => onChangeEdgeStyle?.(value as WorkflowEdgeStyle)}
@@ -1309,7 +1311,7 @@ function WorkflowCanvasInner({
                 size="xs"
                 aria-pressed={overlayMetric === m.id}
                 onClick={() => setOverlayMetric(m.id)}
-                className="rounded"
+                className="rounded-md"
               >
                 {m.label}
               </Button>
@@ -1327,7 +1329,7 @@ function WorkflowCanvasInner({
                 size="xs"
                 aria-pressed={overlayRange === r}
                 onClick={() => setOverlayRange(r)}
-                className="h-5 rounded px-1.5 text-[10px]"
+                className="h-5 rounded-md px-1.5 text-2xs"
               >
                 {r}
               </Button>
@@ -1337,7 +1339,7 @@ function WorkflowCanvasInner({
           <div className="h-3 w-px bg-border" />
 
           {/* Color Legend */}
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-1">
+          <div className="flex items-center gap-2 text-2xs text-muted-foreground px-1">
             <span className="flex items-center gap-1">
               <span className="size-2 rounded-full bg-success" />
               Optimal
@@ -3725,7 +3727,7 @@ export function AgentDetailPage() {
               <DropdownMenuContent align="start" className="w-64">
                 <div className="px-2 py-1.5">
                   <p className="text-xs font-medium text-foreground">{saveStatusText}</p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
                     {autoSaveEnabled
                       ? `Your draft saves itself ${AUTO_SAVE_DELAY_MS / 1000}s after you stop editing. Publishing makes it live.`
                       : 'Auto-save is off — save with Ctrl+S. Publishing makes it live.'}
@@ -3756,7 +3758,7 @@ export function AgentDetailPage() {
             const GroupIcon = group.icon;
             const isActive = group.tabs.includes(activeTab);
             const triggerClass = cn(
-              'relative flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[13px] font-semibold transition-colors',
+              'relative flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-sm font-semibold transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               isActive ? 'bg-accent text-foreground' : 'text-foreground/70 hover:bg-accent/60 hover:text-foreground',
             );
@@ -3854,7 +3856,7 @@ export function AgentDetailPage() {
             <PopoverContent
               align="end"
               sideOffset={8}
-              className="w-80 rounded-2xl border border-border bg-surface p-3.5 shadow-lg text-foreground"
+              className="w-80 rounded-xl border border-border bg-surface p-3.5 shadow-lg text-foreground"
             >
               {/* Status & Timeline Section */}
               <div className="relative pl-6 py-1">
@@ -3893,14 +3895,14 @@ export function AgentDetailPage() {
                     className="w-full rounded-xl font-semibold"
                   >
                     <span>{isPublished ? 'Publish update' : 'Publish'}</span>
-                    <span className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-mono font-bold text-primary-foreground">
+                    <span className="rounded-md bg-primary-foreground/20 px-1.5 py-0.5 text-2xs font-mono font-bold text-primary-foreground">
                       {targetPublishVersion}
                     </span>
                     <div className="flex items-center gap-1 ml-1">
-                      <kbd className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-medium font-sans text-primary-foreground leading-none">
+                      <kbd className="rounded-md bg-primary-foreground/20 px-1.5 py-0.5 text-2xs font-medium font-sans text-primary-foreground leading-none">
                         Ctrl Shift
                       </kbd>
-                      <kbd className="rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-medium font-sans text-primary-foreground leading-none">
+                      <kbd className="rounded-md bg-primary-foreground/20 px-1.5 py-0.5 text-2xs font-medium font-sans text-primary-foreground leading-none">
                         P
                       </kbd>
                     </div>
@@ -3985,7 +3987,7 @@ export function AgentDetailPage() {
                       </div>
                       <span>Unpublish Agent</span>
                     </div>
-                    <span className="text-[10px] text-destructive/80 font-normal">Revert to Draft</span>
+                    <span className="text-2xs text-destructive/80 font-normal">Revert to Draft</span>
                   </Button>
                 )}
               </div>
@@ -4298,7 +4300,7 @@ export function AgentDetailPage() {
                                 ? 'destructive'
                                 : 'outline'
                           }
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {exec.status}
                         </Badge>
@@ -4349,8 +4351,8 @@ export function AgentDetailPage() {
         {/* TAB 4: VERSIONS */}
         {activeTab === 'versions' && (
           <AgentTabPage
-            title="Version Snapshots & Rollback"
-            description="Create immutable snapshots of the workflow graph and rollback anytime."
+            title="Version history"
+            description="Snapshots of the canvas. Compare any version with the current graph, or restore it."
             icon={<Clock />}
             actions={
               <Button
@@ -4359,7 +4361,7 @@ export function AgentDetailPage() {
                 className="gap-1.5 text-xs"
               >
                 <Clock className="h-3.5 w-3.5" />
-                Create Snapshot
+                Save snapshot
               </Button>
             }
           >
@@ -4370,60 +4372,12 @@ export function AgentDetailPage() {
                 description="Tag your current workflow graph as a version to easily revert changes later."
               />
             ) : (
-              <Card className="divide-y divide-border overflow-hidden">
-                {versions.map((ver) => (
-                  <div
-                    key={ver.version}
-                    className="flex items-center justify-between gap-4 p-4 transition-colors hover:bg-surface-raised"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
-                          {ver.versionTag ?? `v${ver.version}`}
-                        </span>
-                        {ver.status ? (
-                          <Badge
-                            variant={ver.status === 'PUBLISHED' ? 'success' : 'outline'}
-                            className="text-[10px]"
-                          >
-                            {ver.status === 'PUBLISHED' ? 'Published' : 'Snapshot'}
-                          </Badge>
-                        ) : null}
-                        {ver.publishedAt ? (
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(ver.publishedAt).toLocaleString()}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="text-xs text-foreground font-medium">
-                        {ver.changeSummary || 'No description provided'}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDiffModalTarget(ver)}
-                        className="gap-1 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        Compare Diff
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRestoreVersion(ver)}
-                        disabled={restoreVersionMutation.isPending}
-                        className="gap-1.5 text-xs"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        Restore Graph
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </Card>
+              <AgentVersionsList
+                versions={versions}
+                restoring={restoreVersionMutation.isPending}
+                onCompare={setDiffModalTarget}
+                onRestore={handleRestoreVersion}
+              />
             )}
           </AgentTabPage>
         )}
@@ -4493,11 +4447,11 @@ export function AgentDetailPage() {
                 <div className="space-y-1">
                   <div className="text-xs font-bold text-foreground flex items-center gap-2">
                     <span>{settingsDraft?.name || agent.name}</span>
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-2xs">
                       {settingsDraft?.category || 'General'}
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Theme: <span className="font-semibold capitalize text-foreground">{settingsDraft?.theme || 'emerald'}</span> •{' '}
                     Avatar: <span className="font-semibold text-foreground">{settingsDraft?.avatar ? 'Custom Image' : `Icon (${settingsDraft?.icon || 'Bot'})`}</span>
                   </p>
@@ -4544,7 +4498,7 @@ export function AgentDetailPage() {
 
                 {avatarMode === 'icon' && (
                   <div className="space-y-2">
-                    <p className="text-[11px] text-muted-foreground">Select an icon from the built-in library:</p>
+                    <p className="text-xs text-muted-foreground">Select an icon from the built-in library:</p>
                     <div className="flex flex-wrap gap-2">
                       {AGENT_ICONS.map((item) => {
                         const IconComponent = item.icon;
@@ -4571,7 +4525,7 @@ export function AgentDetailPage() {
 
                 {avatarMode === 'upload' && (
                   <div className="space-y-3">
-                    <p className="text-[11px] text-muted-foreground">Upload an avatar image (PNG, JPG, SVG, max 2MB):</p>
+                    <p className="text-xs text-muted-foreground">Upload an avatar image (PNG, JPG, SVG, max 2MB):</p>
                     <div className="flex items-center gap-3">
                       <Button asChild variant="outline" size="md" className="border-dashed">
                         <Label className="cursor-pointer">
@@ -4601,7 +4555,7 @@ export function AgentDetailPage() {
 
                 {avatarMode === 'url' && (
                   <div className="space-y-2">
-                    <Label htmlFor="settings-avatar-url" className="text-[11px] text-muted-foreground">
+                    <Label htmlFor="settings-avatar-url" className="text-xs text-muted-foreground">
                       Direct Image Web Link
                     </Label>
                     <div className="flex items-center gap-2">
@@ -4728,7 +4682,7 @@ export function AgentDetailPage() {
                     {(settingsDraft?.tags || []).map((t) => (
                       <span
                         key={t}
-                        className="inline-flex items-center gap-1 rounded-md bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-foreground border border-border"
+                        className="inline-flex items-center gap-1 rounded-md bg-surface-raised px-2 py-0.5 text-xs font-medium text-foreground border border-border"
                       >
                         #{t}
                         <Button
@@ -4744,7 +4698,7 @@ export function AgentDetailPage() {
                       </span>
                     ))}
                     {(settingsDraft?.tags || []).length === 0 && (
-                      <span className="text-[11px] text-muted-foreground italic">No tags assigned</span>
+                      <span className="text-xs text-muted-foreground italic">No tags assigned</span>
                     )}
                   </div>
                 </div>
@@ -4930,19 +4884,19 @@ export function AgentDetailPage() {
                   {/* Summary Metric Cards */}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="rounded-lg border border-success/20 bg-success/5 p-3">
-                      <div className="text-[10px] uppercase font-bold text-success-text">
+                      <div className="text-2xs uppercase font-bold text-success-text">
                         Added Nodes
                       </div>
                       <div className="text-xl font-bold text-success">+{addedNodes.length}</div>
                     </div>
                     <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
-                      <div className="text-[10px] uppercase font-bold text-warning-text">
+                      <div className="text-2xs uppercase font-bold text-warning-text">
                         Modified Nodes
                       </div>
                       <div className="text-xl font-bold text-warning">~{modifiedNodes.length}</div>
                     </div>
                     <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-                      <div className="text-[10px] uppercase font-bold text-destructive-text">
+                      <div className="text-2xs uppercase font-bold text-destructive-text">
                         Removed Nodes
                       </div>
                       <div className="text-xl font-bold text-destructive">-{removedNodes.length}</div>
@@ -4951,7 +4905,7 @@ export function AgentDetailPage() {
 
                   {/* Node Diff Breakdown */}
                   <div className="rounded-lg border border-border overflow-hidden">
-                    <div className="bg-surface-raised px-3 py-2 font-semibold text-[11px] border-b border-border">
+                    <div className="bg-surface-raised px-3 py-2 font-semibold text-xs border-b border-border">
                       Detailed Node Differences
                     </div>
                     <div className="divide-y divide-border max-h-60 overflow-y-auto">
@@ -4960,9 +4914,9 @@ export function AgentDetailPage() {
                           <div className="flex items-center gap-2">
                             <span className="size-2 rounded-full bg-success" />
                             <span className="font-semibold text-foreground">{String(n.data?.label ?? n.id)}</span>
-                            <span className="font-mono text-[10px] text-muted-foreground">({n.type})</span>
+                            <span className="font-mono text-2xs text-muted-foreground">({n.type})</span>
                           </div>
-                          <Badge variant="success" className="text-[10px]">Added in Current</Badge>
+                          <Badge variant="success" className="text-2xs">Added in Current</Badge>
                         </div>
                       ))}
 
@@ -4971,9 +4925,9 @@ export function AgentDetailPage() {
                           <div className="flex items-center gap-2">
                             <span className="size-2 rounded-full bg-warning" />
                             <span className="font-semibold text-foreground">{String(n.data?.label ?? n.id)}</span>
-                            <span className="font-mono text-[10px] text-muted-foreground">({n.type})</span>
+                            <span className="font-mono text-2xs text-muted-foreground">({n.type})</span>
                           </div>
-                          <Badge variant="warning" className="text-[10px]">Parameters Modified</Badge>
+                          <Badge variant="warning" className="text-2xs">Parameters Modified</Badge>
                         </div>
                       ))}
 
@@ -4982,9 +4936,9 @@ export function AgentDetailPage() {
                           <div className="flex items-center gap-2">
                             <span className="size-2 rounded-full bg-destructive" />
                             <span className="font-semibold text-foreground">{String(n.data?.label ?? n.id)}</span>
-                            <span className="font-mono text-[10px] text-muted-foreground">({n.type})</span>
+                            <span className="font-mono text-2xs text-muted-foreground">({n.type})</span>
                           </div>
-                          <Badge variant="destructive" className="text-[10px]">Missing in Current</Badge>
+                          <Badge variant="destructive" className="text-2xs">Missing in Current</Badge>
                         </div>
                       ))}
 

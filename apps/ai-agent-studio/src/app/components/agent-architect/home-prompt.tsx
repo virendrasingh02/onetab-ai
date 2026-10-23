@@ -90,7 +90,7 @@ export function HomePrompt({ workspaceId }: { workspaceId: string }) {
                 onClick={() => go(idea.prompt)}
                 className="w-full rounded-lg border border-border p-2.5 text-left transition-colors hover:border-border-strong hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
-                <span className="block text-[11px] text-muted-foreground">{idea.why} Want this?</span>
+                <span className="block text-xs text-muted-foreground">{idea.why} Want this?</span>
                 <span className="block text-xs font-medium text-foreground">{idea.prompt}</span>
               </button>
             </li>

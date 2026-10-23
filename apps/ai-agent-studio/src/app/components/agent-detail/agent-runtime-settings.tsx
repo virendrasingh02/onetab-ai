@@ -156,7 +156,7 @@ export function AgentRuntimeSettings({
       >
 
         {!view && (
-          <p className="rounded-lg bg-surface-raised px-3 py-2 text-[11px] text-muted-foreground">
+          <p className="rounded-lg bg-surface-raised px-3 py-2 text-xs text-muted-foreground">
             Add an agent to the canvas to set its sampling, tone and tool rounds here. The model below is the default for
             every agent that doesn’t pick its own.
           </p>
@@ -287,7 +287,7 @@ export function AgentRuntimeSettings({
           </Field>
         </div>
         {limits && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Currently up to {limits.maxSteps} steps, {Math.round(limits.maxDurationMs / 60_000)} min
             {limits.maxTokens ? `, ${limits.maxTokens.toLocaleString()} tokens` : ''} per run.
           </p>
@@ -313,7 +313,7 @@ export function AgentRuntimeSettings({
           >
             <span className="flex flex-col items-start gap-0.5">
               <span className="font-semibold text-foreground">Ask a person before changes</span>
-              <span className="text-[10px] font-normal text-muted-foreground">
+              <span className="text-2xs font-normal text-muted-foreground">
                 Tools that send, write or delete wait for approval. Read-only tools still run. A canvas agent that sets its
                 own autonomy keeps it.
               </span>

@@ -94,15 +94,15 @@ export function SettingSection({
         >
           <ChevronDown className={cn('mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none', !open && '-rotate-90')} />
           <span className="min-w-0">
-            <span id={`${sectionDomId(id)}-title`} className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+            <span id={`${sectionDomId(id)}-title`} className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
               {title}
               {problems > 0 && (
-                <Badge variant="warning" className="h-4 px-1 text-[9px]" aria-label={`${problems} issue${problems === 1 ? '' : 's'}`}>
+                <Badge variant="warning" className="h-4 px-1 text-2xs" aria-label={`${problems} issue${problems === 1 ? '' : 's'}`}>
                   {problems}
                 </Badge>
               )}
             </span>
-            {description && <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">{description}</span>}
+            {description && <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{description}</span>}
           </span>
         </button>
         {actions && open && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
@@ -140,7 +140,7 @@ export function SettingField({
   return (
     <div id={field ? fieldDomId(field) : undefined} className="space-y-1.5 scroll-mt-16">
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={htmlFor} className="text-[11px] font-semibold text-foreground">
+        <Label htmlFor={htmlFor} className="text-xs font-semibold text-foreground">
           {label}
           {required && <span className="ml-0.5 text-destructive" aria-hidden>*</span>}
         </Label>
@@ -148,12 +148,12 @@ export function SettingField({
       </div>
       {children}
       {error ? (
-        <p id={errorId} role="alert" className="flex items-start gap-1 text-[11px] text-destructive">
+        <p id={errorId} role="alert" className="flex items-start gap-1 text-xs text-destructive">
           <AlertCircle className="mt-0.5 size-3 shrink-0" />
           {error}
         </p>
       ) : hint ? (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">{hint}</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p>
       ) : null}
     </div>
   );
@@ -180,7 +180,7 @@ export function SettingSwitch({
     <div id={field ? fieldDomId(field) : undefined} className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface-raised/40 px-3 py-2.5">
       <Label htmlFor={id} className="min-w-0 cursor-pointer">
         <span className="block text-xs font-medium text-foreground">{label}</span>
-        {hint && <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">{hint}</span>}
+        {hint && <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{hint}</span>}
       </Label>
       <Switch id={id} checked={checked} onCheckedChange={onChange} disabled={disabled || readOnly} aria-label={label} />
     </div>
@@ -227,7 +227,7 @@ export function NumberSetting({
         placeholder={placeholder}
         disabled={readOnly}
         invalid={outOfRange}
-        suffix={suffix ? <span className="text-[11px] text-muted-foreground">{suffix}</span> : undefined}
+        suffix={suffix ? <span className="text-xs text-muted-foreground">{suffix}</span> : undefined}
         onChange={(e) => {
           const raw = e.target.value;
           if (raw === '') return onChange(undefined);
@@ -271,7 +271,7 @@ export function StringListEditor({
   };
   return (
     <div id={fieldDomId(field)} className="space-y-1.5 scroll-mt-16">
-      {items.length === 0 && emptyText && <p className="text-[11px] text-muted-foreground">{emptyText}</p>}
+      {items.length === 0 && emptyText && <p className="text-xs text-muted-foreground">{emptyText}</p>}
       {items.length > 0 && (
         <ul className="space-y-1">
           {items.map((item, i) => (
@@ -337,7 +337,7 @@ const ISSUE_TONE = { error: 'text-destructive', warning: 'text-warning', info: '
 export function IssueList({ issues, onJump, empty }: { issues: ModuleIssue[]; onJump?: (issue: ModuleIssue) => void; empty?: string }) {
   if (issues.length === 0) {
     return empty ? (
-      <p className="flex items-center gap-1.5 text-[11px] text-success-text">
+      <p className="flex items-center gap-1.5 text-xs text-success-text">
         <CheckCircle2 className="size-3.5 text-success" />
         {empty}
       </p>
@@ -353,7 +353,7 @@ export function IssueList({ issues, onJump, empty }: { issues: ModuleIssue[]; on
               type="button"
               onClick={() => onJump?.(issue)}
               disabled={!onJump}
-              className="flex w-full items-start gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] leading-relaxed text-foreground hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:hover:bg-transparent"
+              className="flex w-full items-start gap-1.5 rounded-md px-1.5 py-1 text-left text-xs leading-relaxed text-foreground hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:hover:bg-transparent"
             >
               <Icon className={cn('mt-0.5 size-3.5 shrink-0', ISSUE_TONE[issue.level])} aria-label={issue.level} />
               <span>{issue.message}</span>
@@ -375,7 +375,7 @@ export const STATE_META: Record<ModuleState, { label: string; dot: string; text:
 export function StatusPill({ state, className }: { state: ModuleState; className?: string }) {
   const meta = STATE_META[state];
   return (
-    <span className={cn('inline-flex items-center gap-1.5 text-[11px] font-medium', meta.text, className)}>
+    <span className={cn('inline-flex items-center gap-1.5 text-xs font-medium', meta.text, className)}>
       <span className={cn('size-1.5 rounded-full', meta.dot)} aria-hidden />
       {meta.label}
     </span>
@@ -387,7 +387,7 @@ export function StatGrid({ items }: { items: Array<{ label: string; value: React
     <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {items.map((item) => (
         <div key={item.label} className="rounded-lg border border-border bg-surface-raised/40 px-2.5 py-2">
-          <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{item.label}</dt>
+          <dt className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{item.label}</dt>
           <dd className="mt-0.5 truncate text-xs font-semibold text-foreground">{item.value}</dd>
         </div>
       ))}
@@ -399,7 +399,7 @@ export function StatGrid({ items }: { items: Array<{ label: string; value: React
 export function LoadError({ what, error, onRetry }: { what: string; error: unknown; onRetry?: () => void }) {
   const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Something went wrong.';
   return (
-    <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px]">
+    <div role="alert" className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
       <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
       <div className="min-w-0 flex-1">
         <p className="font-medium text-foreground">Couldn’t load {what}</p>
@@ -421,7 +421,7 @@ export function SectionEmpty({ icon: Icon, title, children }: { icon: LucideIcon
     <div className="flex flex-col items-center rounded-lg border border-dashed border-border px-4 py-5 text-center">
       <Icon className="size-5 text-muted-foreground/60" />
       <p className="mt-1.5 text-xs font-medium text-foreground">{title}</p>
-      {children && <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{children}</div>}
+      {children && <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{children}</div>}
     </div>
   );
 }
@@ -430,11 +430,11 @@ export function SectionEmpty({ icon: Icon, title, children }: { icon: LucideIcon
 export function OutputBlock({ label, children, tone = 'default' }: { label?: string; children: ReactNode; tone?: 'default' | 'error' }) {
   return (
     <div className="space-y-1">
-      {label && <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>}
+      {label && <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>}
       <pre
         tabIndex={0}
         className={cn(
-          'max-h-72 min-w-0 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg border px-3 py-2 font-mono text-[11px] leading-relaxed',
+          'max-h-72 min-w-0 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg border px-3 py-2 font-mono text-xs leading-relaxed',
           tone === 'error' ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-border bg-surface-inset text-foreground',
         )}
       >

@@ -20,7 +20,7 @@ export function FlowLine({ flow, className }: { flow: string; className?: string
       {steps.map((step, i) => (
         <li key={`${step}-${i}`} className="flex items-center gap-1">
           {i > 0 && <ArrowRight className="size-3 shrink-0 text-muted-foreground" aria-hidden />}
-          <span className="rounded-md border border-border bg-surface-raised px-1.5 py-0.5 text-[11px] font-medium text-foreground">
+          <span className="rounded-md border border-border bg-surface-raised px-1.5 py-0.5 text-xs font-medium text-foreground">
             {step}
           </span>
         </li>
@@ -37,7 +37,7 @@ export function IssueList({ issues, className }: { issues: StudioGraphIssue[]; c
   return (
     <ul className={cn('space-y-1', className)}>
       {[...errors, ...warnings].map((issue, i) => (
-        <li key={i} className="flex items-start gap-1.5 text-[11px] leading-snug">
+        <li key={i} className="flex items-start gap-1.5 text-xs leading-snug">
           {issue.level === 'error' ? (
             <CircleAlert className="mt-0.5 size-3 shrink-0 text-destructive-text" aria-label="Blocks a run" />
           ) : (
@@ -66,7 +66,7 @@ export function ChangeList({ changes }: { changes: string[] }) {
           </li>
         ))}
       </ul>
-      <p className="text-[11px] text-muted-foreground">No other steps change.</p>
+      <p className="text-xs text-muted-foreground">No other steps change.</p>
     </div>
   );
 }

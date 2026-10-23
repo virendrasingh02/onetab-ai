@@ -55,7 +55,7 @@ function Deliveries({ api, deployment, webhook }: { api: DeploymentApi; deployme
       {deliveries.map((d) => (
         <li key={d.id} className="flex items-center justify-between gap-3 py-1.5">
           <span className="flex min-w-0 items-center gap-2">
-            <Badge variant={d.status === 'SUCCESS' ? 'success' : 'destructive'} className="text-[9px]">
+            <Badge variant={d.status === 'SUCCESS' ? 'success' : 'destructive'} className="text-2xs">
               {d.statusCode ?? (d.status === 'SUCCESS' ? 'OK' : 'ERR')}
             </Badge>
             <span className="truncate font-mono text-foreground">{d.event}</span>
@@ -141,8 +141,8 @@ export function WebhooksPanel({ api, deployment }: { api: DeploymentApi; deploym
                     </div>
                     <div className="min-w-0">
                       <div className="truncate font-mono text-xs font-bold text-foreground">{wh.url}</div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                        <Badge variant={wh.isActive ? 'success' : 'outline'} className="text-[10px]">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant={wh.isActive ? 'success' : 'outline'} className="text-2xs">
                           {wh.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                         <span>{wh.deliveriesCount ?? 0} deliveries</span>
@@ -182,9 +182,9 @@ export function WebhooksPanel({ api, deployment }: { api: DeploymentApi; deploym
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-2">
-                  <span className="mr-1 text-[10px] font-semibold uppercase text-muted-foreground">Events</span>
+                  <span className="mr-1 text-2xs font-semibold uppercase text-muted-foreground">Events</span>
                   {wh.events.map((ev) => (
-                    <Badge key={ev} variant="secondary" className="font-mono text-[10px]">
+                    <Badge key={ev} variant="secondary" className="font-mono text-2xs">
                       {ev}
                     </Badge>
                   ))}
@@ -250,7 +250,7 @@ export function WebhooksPanel({ api, deployment }: { api: DeploymentApi; deploym
                     />
                     <span>
                       <span className="block font-semibold text-foreground">{ev.label}</span>
-                      <span className="block text-[11px] text-muted-foreground">{ev.hint}</span>
+                      <span className="block text-xs text-muted-foreground">{ev.hint}</span>
                     </span>
                   </Label>
                 ))}

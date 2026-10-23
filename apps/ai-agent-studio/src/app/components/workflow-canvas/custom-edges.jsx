@@ -351,7 +351,7 @@ export function WorkflowEdge(props) {
                 }
               }}
               title="Click to inspect · double-click to rename"
-              className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold border shadow-xs transition-transform hover:scale-105 cursor-pointer ${
+              className={`rounded-full px-2.5 py-0.5 text-2xs font-semibold border shadow-xs transition-transform hover:scale-105 cursor-pointer ${
                 isBranchTrue
                   ? 'bg-success/15 text-success border-success/40'
                   : isBranchFalse
@@ -440,7 +440,7 @@ function EdgeLabelInput({ initial, onCommit, onCancel }) {
       }}
       onBlur={() => finish(true)}
       onPointerDown={(e) => e.stopPropagation()}
-      className="nodrag nopan h-6 w-36 rounded-full border border-primary/60 bg-surface px-2.5 text-[11px] font-medium text-foreground shadow-sm outline-none ring-2 ring-primary/30"
+      className="nodrag nopan h-6 w-36 rounded-full border border-primary/60 bg-surface px-2.5 text-xs font-medium text-foreground shadow-sm outline-none ring-2 ring-primary/30"
     />
   );
 }

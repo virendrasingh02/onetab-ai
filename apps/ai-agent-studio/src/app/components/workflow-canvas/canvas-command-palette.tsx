@@ -287,7 +287,7 @@ export function CanvasCommandPalette({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-xl overflow-hidden p-0 gap-0 rounded-2xl border-border bg-surface/98 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="max-w-xl overflow-hidden p-0 gap-0 rounded-xl border-border bg-surface/98 backdrop-blur-xl shadow-2xl">
         <DialogTitle className="sr-only">Workflow Command Palette</DialogTitle>
 
         {/* Input Bar */}
@@ -305,7 +305,7 @@ export function CanvasCommandPalette({
             placeholder="Type a command, search nodes, or add new steps…"
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 outline-none"
           />
-          <kbd className="rounded border border-border/60 bg-surface-raised px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+          <kbd className="rounded-md border border-border/60 bg-surface-raised px-1.5 py-0.5 text-2xs font-mono text-muted-foreground">
             Esc
           </kbd>
         </div>
@@ -315,7 +315,7 @@ export function CanvasCommandPalette({
           {/* 1. Canvas Nodes on search */}
           {matchingNodes.length > 0 && (
             <div>
-              <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="px-2.5 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Nodes on Canvas
               </div>
               {matchingNodes.map((n, i) => {
@@ -337,12 +337,12 @@ export function CanvasCommandPalette({
                       </div>
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{String(n.data?.label || n.id)}</div>
-                        <div className={cn('text-[10px] truncate', isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                        <div className={cn('text-2xs truncate', isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
                           {String(n.data?.subtitle || n.type || '')}
                         </div>
                       </div>
                     </div>
-                    <span className="text-[10px] font-mono opacity-60 shrink-0">Focus Step</span>
+                    <span className="text-2xs font-mono opacity-60 shrink-0">Focus Step</span>
                   </button>
                 );
               })}
@@ -352,7 +352,7 @@ export function CanvasCommandPalette({
           {/* 2. Commands */}
           {filteredCommands.length > 0 && (
             <div>
-              <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="px-2.5 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Commands & Actions
               </div>
               {filteredCommands.map((c, i) => {
@@ -376,14 +376,14 @@ export function CanvasCommandPalette({
                       <div className="min-w-0">
                         <div className="font-semibold truncate">{c.label}</div>
                         {c.subtitle && (
-                          <div className={cn('text-[10px] truncate', isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                          <div className={cn('text-2xs truncate', isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
                             {c.subtitle}
                           </div>
                         )}
                       </div>
                     </div>
                     {c.shortcut && (
-                      <kbd className={cn('rounded border px-1.5 py-0.5 text-[10px] font-mono shrink-0', isSelected ? 'border-background/30 bg-background/10 text-background' : 'border-border/60 bg-surface-raised text-muted-foreground')}>
+                      <kbd className={cn('rounded-md border px-1.5 py-0.5 text-2xs font-mono shrink-0', isSelected ? 'border-background/30 bg-background/10 text-background' : 'border-border/60 bg-surface-raised text-muted-foreground')}>
                         {c.shortcut}
                       </kbd>
                     )}
@@ -396,7 +396,7 @@ export function CanvasCommandPalette({
           {/* 3. Catalog Nodes to Insert */}
           {matchingCatalog.length > 0 && (
             <div>
-              <div className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="px-2.5 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Add Node to Canvas
               </div>
               {matchingCatalog.map((cat, i) => {
@@ -419,12 +419,12 @@ export function CanvasCommandPalette({
                       </div>
                       <div className="min-w-0">
                         <div className="font-semibold truncate">Add {cat.label}</div>
-                        <div className={cn('text-[10px] truncate', isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                        <div className={cn('text-2xs truncate', isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
                           {cat.subtitle || cat.description}
                         </div>
                       </div>
                     </div>
-                    <span className="text-[10px] font-mono opacity-60 shrink-0">Insert</span>
+                    <span className="text-2xs font-mono opacity-60 shrink-0">Insert</span>
                   </button>
                 );
               })}
@@ -439,7 +439,7 @@ export function CanvasCommandPalette({
         </div>
 
         {/* Footer info */}
-        <div className="flex items-center justify-between border-t border-border/80 px-4 py-2 text-[11px] text-muted-foreground bg-surface-raised/40">
+        <div className="flex items-center justify-between border-t border-border/80 px-4 py-2 text-xs text-muted-foreground bg-surface-raised/40">
           <span>Navigate with ↑ ↓, press Enter to execute</span>
           <span>AI Agent Studio</span>
         </div>

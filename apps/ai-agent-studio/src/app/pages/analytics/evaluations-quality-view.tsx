@@ -129,7 +129,7 @@ export function EvaluationsQualityView({ evaluations }: EvaluationsQualityViewPr
           <div className="rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-surface-raised/50 text-[11px]">
+                <TableRow className="bg-surface-raised/50 text-xs">
                   <TableHead>Issue Category</TableHead>
                   <TableHead className="text-right">Report Count</TableHead>
                 </TableRow>

@@ -167,7 +167,7 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
         <div className="rounded-lg border border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-surface-raised/50 text-[11px]">
+              <TableRow className="bg-surface-raised/50 text-xs">
                 <TableHead>Agent</TableHead>
                 <TableHead>Runs</TableHead>
                 <TableHead>Success Rate</TableHead>
@@ -200,11 +200,11 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
                         <div>
                           <div className="font-semibold text-foreground flex items-center gap-1.5">
                             {agent.name}
-                            <Badge variant="outline" className="text-[9px] px-1 py-0">
+                            <Badge variant="outline" className="text-2xs px-1 py-0">
                               v{agent.version ?? 1}
                             </Badge>
                           </div>
-                          <div className="text-[10px] text-muted-foreground font-mono">
+                          <div className="text-2xs text-muted-foreground font-mono">
                             {(agent.agentId || '').slice(0, 8)}...
                           </div>
                         </div>
@@ -222,14 +222,14 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
                             ? 'warning'
                             : 'destructive'
                         }
-                        className="text-[10px]"
+                        className="text-2xs"
                       >
                         {(agent.successRate ?? 100).toFixed(1)}%
                       </Badge>
                     </TableCell>
                     <TableCell className="tabular-nums">
                       <span>{Math.round(agent.avgLatencyMs ?? 0)}ms</span>
-                      <span className="text-[10px] text-muted-foreground ml-1">
+                      <span className="text-2xs text-muted-foreground ml-1">
                         / {Math.round(agent.p95LatencyMs)}ms
                       </span>
                     </TableCell>
@@ -245,7 +245,7 @@ export function AgentsView({ agents, onOpenExecution }: AgentsViewProps) {
                           {agent.toolsUsed[0].name}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-muted-foreground">None</span>
+                        <span className="text-2xs text-muted-foreground">None</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">

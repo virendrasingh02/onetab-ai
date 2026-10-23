@@ -201,7 +201,7 @@ export function NodeInspector({
         <div className="text-xs font-semibold text-foreground">
           No Node Selected
         </div>
-        <p className="mt-1 text-[11px] leading-relaxed">
+        <p className="mt-1 text-xs leading-relaxed">
           Click any node on the workflow canvas to configure its properties, models, prompts, and tool attachments.
         </p>
       </div>
@@ -253,7 +253,7 @@ export function NodeInspector({
         'animate-in fade-in slide-in-from-right-2 duration-150 motion-reduce:animate-none',
         className,
         // Phones: a full-screen sheet, not a squeezed side panel.
-        isPhone ? '!fixed !inset-0 !z-50 !h-dvh !w-full !max-w-none rounded-none border-0' : 'rounded-2xl',
+        isPhone ? '!fixed !inset-0 !z-50 !h-dvh !w-full !max-w-none rounded-none border-0' : 'rounded-xl',
       )}
       onKeyDown={(e) => {
         // Esc closes the panel (keeping edits) unless a field wants it
@@ -313,14 +313,14 @@ export function NodeInspector({
         {statusBadge ? (
           <span
             className={cn(
-              'inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-[11px] font-semibold',
+              'inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-xs font-semibold',
               statusBadge.className,
             )}
           >
             {statusBadge.label}
           </span>
         ) : (
-          <span className="inline-flex h-5 shrink-0 items-center rounded-md border border-border bg-surface-raised px-1.5 font-mono text-[10px] text-muted-foreground">
+          <span className="inline-flex h-5 shrink-0 items-center rounded-md border border-border bg-surface-raised px-1.5 font-mono text-2xs text-muted-foreground">
             {nodeType}
           </span>
         )}
@@ -383,12 +383,12 @@ export function NodeInspector({
             {data.analytics ? (
               <Badge
                 variant={data.analytics.successRate >= 95 ? 'success' : 'warning'}
-                className="text-[10px]"
+                className="text-2xs"
               >
                 {data.analytics.successRate.toFixed(1)}% Success
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-2xs">
                 {data.run ? 'Latest Run Available' : 'No Live Telemetry'}
               </Badge>
             )}
@@ -396,25 +396,25 @@ export function NodeInspector({
 
           <div className="grid grid-cols-2 gap-2.5 text-center">
             <div className="p-2.5 rounded-lg border border-border bg-surface-raised">
-              <div className="text-[10px] text-muted-foreground font-semibold">Total Runs</div>
+              <div className="text-2xs text-muted-foreground font-semibold">Total Runs</div>
               <div className="mt-1 text-base font-bold text-foreground">
                 {data.analytics?.executionCount ?? (data.run ? 1 : 0)}
               </div>
             </div>
             <div className="p-2.5 rounded-lg border border-border bg-surface-raised">
-              <div className="text-[10px] text-muted-foreground font-semibold">Avg Latency</div>
+              <div className="text-2xs text-muted-foreground font-semibold">Avg Latency</div>
               <div className="mt-1 text-base font-bold text-foreground">
                 {Math.round(data.analytics?.avgDurationMs ?? data.run?.latencyMs ?? 0)}ms
               </div>
             </div>
             <div className="p-2.5 rounded-lg border border-border bg-surface-raised">
-              <div className="text-[10px] text-muted-foreground font-semibold">Token Usage</div>
+              <div className="text-2xs text-muted-foreground font-semibold">Token Usage</div>
               <div className="mt-1 text-base font-bold text-foreground">
                 {(data.analytics?.totalTokens ?? data.run?.tokens ?? 0).toLocaleString()}
               </div>
             </div>
             <div className="p-2.5 rounded-lg border border-border bg-surface-raised">
-              <div className="text-[10px] text-muted-foreground font-semibold">Incurred Cost</div>
+              <div className="text-2xs text-muted-foreground font-semibold">Incurred Cost</div>
               <div className="mt-1 text-base font-bold text-foreground">
                 ${(data.analytics?.estimatedCost ?? ((data.run?.tokens ?? 0) * 0.000005)).toFixed(4)}
               </div>
@@ -425,7 +425,7 @@ export function NodeInspector({
           {data.run && (
             <div className="space-y-1.5 border-t border-border pt-3">
               <span className="font-semibold text-foreground">Latest Step Output</span>
-              <pre className="p-2.5 rounded-lg bg-surface-raised border border-border text-[10px] font-mono max-h-36 overflow-auto whitespace-pre-wrap break-all text-muted-foreground">
+              <pre className="p-2.5 rounded-lg bg-surface-raised border border-border text-2xs font-mono max-h-36 overflow-auto whitespace-pre-wrap break-all text-muted-foreground">
                 {data.run.error ? data.run.error : data.run.output || 'No output text'}
               </pre>
             </div>
@@ -435,7 +435,7 @@ export function NodeInspector({
           {config && Object.keys(config).length > 0 && (
             <div className="space-y-1.5 border-t border-border pt-3">
               <span className="font-semibold text-foreground">Step Parameters & Inputs</span>
-              <pre className="p-2.5 rounded-lg bg-surface-raised border border-border text-[10px] font-mono max-h-32 overflow-auto whitespace-pre-wrap break-all text-muted-foreground">
+              <pre className="p-2.5 rounded-lg bg-surface-raised border border-border text-2xs font-mono max-h-32 overflow-auto whitespace-pre-wrap break-all text-muted-foreground">
                 {JSON.stringify(config, null, 2)}
               </pre>
             </div>
@@ -450,7 +450,7 @@ export function NodeInspector({
         {showVariablePicker && targetField && (
           <div className="sticky top-0 z-10 rounded-xl border border-primary/30 bg-surface p-3 shadow-lg animate-in fade-in slide-in-from-top-1 duration-100">
             <div className="mb-2 flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                 <Braces className="size-3.5 text-primary" />
                 Insert a variable
               </span>
@@ -473,7 +473,7 @@ export function NodeInspector({
                   size="xs"
                   title={v.hint}
                   onClick={() => insertVariable(v.token)}
-                  className="h-5 px-1.5 font-mono text-[10px]"
+                  className="h-5 px-1.5 font-mono text-2xs"
                 >
                   {v.token}
                 </Button>
@@ -485,7 +485,7 @@ export function NodeInspector({
         {/* General: Title & Description */}
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold text-foreground">
+            <Label className="text-xs font-semibold text-foreground">
               Node Title
             </Label>
             <Input
@@ -503,11 +503,11 @@ export function NodeInspector({
           </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Description
               </Label>
               {/* Hidden on the card by default; this puts it under the title. */}
-              <Label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-muted-foreground select-none">
+              <Label className="flex cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground select-none">
                 Show on card
                 <Switch
                   checked={data.showDescription === true}
@@ -551,7 +551,7 @@ export function NodeInspector({
             type="button"
             variant="outline"
             onClick={() => onOpenAgentModule(ownerSlot.agent.id, ownerSlot.module.id)}
-            className="h-auto w-full justify-start gap-2 whitespace-normal rounded-lg border-primary/30 bg-primary/5 px-3 py-2 text-left text-[11px] font-normal text-foreground hover:bg-primary/10"
+            className="h-auto w-full justify-start gap-2 whitespace-normal rounded-lg border-primary/30 bg-primary/5 px-3 py-2 text-left text-xs font-normal text-foreground hover:bg-primary/10"
           >
             <Link2 className="size-3.5 shrink-0 text-primary" />
             <span className="min-w-0 flex-1">
@@ -569,7 +569,7 @@ export function NodeInspector({
               <div className="font-semibold flex items-center gap-1.5">
                 <Flame className="size-3.5" /> Firecrawl Web Integration
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Connects directly to Firecrawl API or built-in intelligent scraper to convert pages to markdown.
               </p>
             </div>
@@ -578,7 +578,7 @@ export function NodeInspector({
               <>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[11px] font-semibold text-foreground">
+                    <Label className="text-xs font-semibold text-foreground">
                       Search Query
                     </Label>
                     <Button
@@ -589,7 +589,7 @@ export function NodeInspector({
                         setTargetField('query');
                         setShowVariablePicker(true);
                       }}
-                      className="h-auto text-[10px]"
+                      className="h-auto text-2xs"
                     >
                       Use Variable
                     </Button>
@@ -603,7 +603,7 @@ export function NodeInspector({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-xs font-semibold text-foreground">
                     Result Limit: {config.limit || 5}
                   </Label>
                   <Slider
@@ -619,7 +619,7 @@ export function NodeInspector({
             {(nodeType === 'FIRECRAWL_SCRAPE' || nodeType === 'FIRECRAWL_CRAWL' || nodeType === 'FIRECRAWL_EXTRACT') && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-semibold text-foreground">
+                  <Label className="text-xs font-semibold text-foreground">
                     Target URL
                   </Label>
                   <Button
@@ -630,7 +630,7 @@ export function NodeInspector({
                       setTargetField('url');
                       setShowVariablePicker(true);
                     }}
-                    className="h-auto text-[10px]"
+                    className="h-auto text-2xs"
                   >
                     Use Variable
                   </Button>
@@ -646,7 +646,7 @@ export function NodeInspector({
 
             {nodeType === 'FIRECRAWL_EXTRACT' && (
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   Extraction Objective / Prompt
                 </Label>
                 <Textarea rows={3} value={config.prompt || ''} onChange={(e) => updateConfig('prompt', e.target.value)} placeholder="Extract product price, features, and company contacts…" className="text-xs" />
@@ -659,14 +659,14 @@ export function NodeInspector({
         {(nodeType === 'MCP_TOOL' || nodeType === 'TOOL') && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 MCP Tool Name
               </Label>
               <BuiltinToolSelect value={config.toolName || 'search_docs'} disabled={readOnly} onChange={(v) => updateConfig('toolName', v)} />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Timeout (seconds): {config.timeout || 30}s
               </Label>
               <Slider
@@ -716,7 +716,7 @@ export function NodeInspector({
         {nodeType === 'IF_ELSE' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Variable to Compare
               </Label>
               <Input
@@ -728,7 +728,7 @@ export function NodeInspector({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Operator
               </Label>
               <AppSelect
@@ -746,7 +746,7 @@ export function NodeInspector({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Expected Value
               </Label>
               <Input
@@ -763,7 +763,7 @@ export function NodeInspector({
         {nodeType === 'USER_APPROVAL' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Approval Action Name
               </Label>
               <Input
@@ -775,7 +775,7 @@ export function NodeInspector({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Description / Context for Approver
               </Label>
               <Textarea rows={3} value={config.description || ''} onChange={(e) => updateConfig('description', e.target.value)} placeholder="Explain why this operation needs human approval…" className="text-xs" />
@@ -797,13 +797,13 @@ export function NodeInspector({
               <div className="font-semibold flex items-center gap-1.5">
                 <Shield className="size-3.5 text-success" /> Security & Guardrail Filter
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Applies automated PII redaction, token budgets, and prompt injection defenses to protect outputs.
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Guardrail Mode
               </Label>
               <AppSelect
@@ -820,7 +820,7 @@ export function NodeInspector({
 
             {config.policy !== 'cost-cap' ? (
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   Policy Enforcement Action
                 </Label>
                 <AppSelect
@@ -835,7 +835,7 @@ export function NodeInspector({
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   Max Tokens Cap Per Run: {config.maxTokens || 4096}
                 </Label>
                 <Input
@@ -846,12 +846,12 @@ export function NodeInspector({
                   onChange={(e) => updateConfig('maxTokens', parseInt(e.target.value, 10) || 4096)}
                   className="h-8 text-xs font-mono"
                 />
-                <span className="text-[10px] text-muted-foreground">Hard cap applied by execution engine</span>
+                <span className="text-2xs text-muted-foreground">Hard cap applied by execution engine</span>
               </div>
             )}
 
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Custom Banned Words / RegEx (Optional)
               </Label>
               <Input
@@ -869,7 +869,7 @@ export function NodeInspector({
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   {nodeType === 'PROMPT_TEMPLATE' ? 'Prompt' : 'Template'}
                 </Label>
                 <Button
@@ -880,7 +880,7 @@ export function NodeInspector({
                     setTargetField(templateKey);
                     setShowVariablePicker(true);
                   }}
-                  className="h-auto text-[10px]"
+                  className="h-auto text-2xs"
                 >
                   Insert Variable
                 </Button>
@@ -897,13 +897,13 @@ export function NodeInspector({
               <div className="font-semibold flex items-center gap-1.5">
                 <LayoutDashboard className="size-3.5 text-primary-text" /> Widget Configuration
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 Configure rendering, data source binding, user interactions, and event execution for this widget canvas node.
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">Widget Type</Label>
+              <Label className="text-xs font-semibold text-foreground">Widget Type</Label>
               <AppSelect
                 value={config.componentType || 'metric_card'}
                 onValueChange={(v) => updateConfig('componentType', v)}
@@ -948,7 +948,7 @@ export function NodeInspector({
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-[11px] font-semibold text-foreground">Data Binding Path</Label>
+                <Label className="text-xs font-semibold text-foreground">Data Binding Path</Label>
                 <Button
                   type="button"
                   variant="link"
@@ -957,7 +957,7 @@ export function NodeInspector({
                     setTargetField('dataPath');
                     setShowVariablePicker(true);
                   }}
-                  className="h-auto text-[10px]"
+                  className="h-auto text-2xs"
                 >
                   Use Variable
                 </Button>
@@ -972,7 +972,7 @@ export function NodeInspector({
 
             {(nodeType === 'WIDGET_TRIGGER' || nodeType === 'WIDGET_ACTION' || nodeType === 'WIDGET_EVENT_HANDLER') && (
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-foreground">Action / Event Name</Label>
+                <Label className="text-xs font-semibold text-foreground">Action / Event Name</Label>
                 <Input
                   value={config.actionName || config.eventName || ''}
                   onChange={(e) => {
@@ -987,7 +987,7 @@ export function NodeInspector({
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-foreground">Display Size</Label>
+                <Label className="text-xs font-semibold text-foreground">Display Size</Label>
                 <AppSelect
                   value={config.size || 'md'}
                   onValueChange={(v) => updateConfig('size', v)}
@@ -1000,7 +1000,7 @@ export function NodeInspector({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-foreground">Auto-Refresh</Label>
+                <Label className="text-xs font-semibold text-foreground">Auto-Refresh</Label>
                 <AppSelect
                   value={config.refreshInterval || '0'}
                   onValueChange={(v) => updateConfig('refreshInterval', parseInt(v, 10))}
@@ -1021,13 +1021,13 @@ export function NodeInspector({
           <div className="space-y-3.5 pt-2 border-t border-border">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-[11px] font-semibold text-foreground">Model</Label>
+                <Label className="text-xs font-semibold text-foreground">Model</Label>
                 <AIModelBadge modelId={config.model || 'gpt-4o'} size="xs" variant="subtle" />
               </div>
               <ModelSelect value={config.model || 'gpt-4o'} onChange={(v) => updateConfig('model', v)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">
+              <Label className="text-xs font-semibold text-foreground">
                 Temperature: {config.temperature ?? 0.7}
               </Label>
               <Slider
@@ -1039,7 +1039,7 @@ export function NodeInspector({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">Max tokens</Label>
+              <Label className="text-xs font-semibold text-foreground">Max tokens</Label>
               <Input
                 type="number"
                 min={1}
@@ -1063,20 +1063,20 @@ export function NodeInspector({
             </div>
             {nodeType === 'TRIGGER_SCHEDULE' && (
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-foreground">Cron Expression</Label>
+                <Label className="text-xs font-semibold text-foreground">Cron Expression</Label>
                 <Input
                   value={config.cron || '0 9 * * 1-5'}
                   onChange={(e) => updateConfig('cron', e.target.value)}
                   placeholder="0 9 * * 1-5"
                   className="h-8 text-xs font-mono"
                 />
-                <span className="text-[10px] text-muted-foreground">Every weekday at 09:00 UTC</span>
+                <span className="text-2xs text-muted-foreground">Every weekday at 09:00 UTC</span>
               </div>
             )}
             {nodeType === 'TRIGGER_LOCATION' && (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-foreground">Starts when its owner</Label>
+                  <Label className="text-xs font-semibold text-foreground">Starts when its owner</Label>
                   <AppSelect
                     value={String(config.eventType || 'BOTH').toUpperCase()}
                     onValueChange={(v) => updateConfig('eventType', v)}
@@ -1088,7 +1088,7 @@ export function NodeInspector({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-foreground">Office name</Label>
+                  <Label className="text-xs font-semibold text-foreground">Office name</Label>
                   <Input value={config.officeName ?? ''} onChange={(e) => updateConfig('officeName', e.target.value)} placeholder="Main office" className="h-8 text-xs" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -1099,7 +1099,7 @@ export function NodeInspector({
                     ] as const
                   ).map(([key, label, placeholder]) => (
                     <div key={key} className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold text-foreground">{label}</Label>
+                      <Label className="text-xs font-semibold text-foreground">{label}</Label>
                       <Input
                         type="number"
                         step="any"
@@ -1120,20 +1120,20 @@ export function NodeInspector({
                   ] as const
                 ).map(([key, label, fallback, min, max, unit]) => (
                   <div key={key} className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold text-foreground">
+                    <Label className="text-xs font-semibold text-foreground">
                       {label}: {config[key] ?? fallback} {unit}
                     </Label>
                     <Slider min={min} max={max} value={[Number(config[key] ?? fallback)]} onValueChange={([v]) => updateConfig(key, v)} />
                   </div>
                 ))}
-                <span className="block text-[10px] text-muted-foreground">
+                <span className="block text-2xs text-muted-foreground">
                   Runs for the agent’s owner, from their device’s location updates. Readings at the edge of the zone are ignored.
                 </span>
               </div>
             )}
             {nodeType === 'TRIGGER_WEBHOOK' && (
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-foreground">HTTP Method</Label>
+                <Label className="text-xs font-semibold text-foreground">HTTP Method</Label>
                 <AppSelect
                   value={config.httpMethod || 'POST'}
                   onValueChange={(v) => updateConfig('httpMethod', v)}
@@ -1147,7 +1147,7 @@ export function NodeInspector({
             )}
             {nodeType === 'TRIGGER_CHAT' && (
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-foreground">Welcome Greeting</Label>
+                <Label className="text-xs font-semibold text-foreground">Welcome Greeting</Label>
                 <Input
                   value={config.welcomeGreeting || 'Hi! How can I assist you today?'}
                   onChange={(e) => updateConfig('welcomeGreeting', e.target.value)}
@@ -1162,15 +1162,15 @@ export function NodeInspector({
         {(nodeType === 'KB_SEARCH' || nodeType === 'VECTOR_SEARCH' || nodeType === 'KNOWLEDGE_RETRIEVAL') && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">Knowledge Base</Label>
+              <Label className="text-xs font-semibold text-foreground">Knowledge Base</Label>
               <KnowledgeBaseSelect value={config.knowledgeBaseId || ''} disabled={readOnly} onChange={(v) => updateConfig('knowledgeBaseId', v)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">Top Chunks (Top-K): {config.topK || 4}</Label>
+              <Label className="text-xs font-semibold text-foreground">Top Chunks (Top-K): {config.topK || 4}</Label>
               <Slider min={1} max={10} value={[Number(config.topK || 4)]} onValueChange={([v]) => updateConfig('topK', v)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">Min Similarity Score: {config.minScore || 0.75}</Label>
+              <Label className="text-xs font-semibold text-foreground">Min Similarity Score: {config.minScore || 0.75}</Label>
               <Slider
                 min={0.5}
                 max={0.95}
@@ -1186,7 +1186,7 @@ export function NodeInspector({
         {(nodeType === 'CODE_JAVASCRIPT' || nodeType === 'CODE' || nodeType === 'CODE_PYTHON') && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">Sandboxed Code</Label>
+              <Label className="text-xs font-semibold text-foreground">Sandboxed Code</Label>
               <Textarea rows={8} value={config.code || '// Custom transformation\nreturn input;'} onChange={(e) => updateConfig('code', e.target.value)} className="font-mono text-xs" />
             </div>
           </div>
@@ -1196,7 +1196,7 @@ export function NodeInspector({
         {nodeType === 'HTTP_REQUEST' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">HTTP Method</Label>
+              <Label className="text-xs font-semibold text-foreground">HTTP Method</Label>
               <AppSelect
                 value={config.method || 'GET'}
                 onValueChange={(v) => updateConfig('method', v)}
@@ -1209,7 +1209,7 @@ export function NodeInspector({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">Endpoint URL</Label>
+              <Label className="text-xs font-semibold text-foreground">Endpoint URL</Label>
               <Input
                 value={config.url || ''}
                 onChange={(e) => updateConfig('url', e.target.value)}
@@ -1223,7 +1223,7 @@ export function NodeInspector({
         {nodeType === 'DB_QUERY' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">SQL Query</Label>
+              <Label className="text-xs font-semibold text-foreground">SQL Query</Label>
               <Textarea rows={4} value={config.query || 'SELECT * FROM records LIMIT 20;'} onChange={(e) => updateConfig('query', e.target.value)} className="font-mono text-xs" />
             </div>
           </div>
@@ -1233,7 +1233,7 @@ export function NodeInspector({
         {(nodeType === 'STICKY_NOTE' || nodeType === 'NOTE') && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">Note Content</Label>
+              <Label className="text-xs font-semibold text-foreground">Note Content</Label>
               <Textarea rows={6} value={config.note || ''} onChange={(e) => updateConfig('note', e.target.value)} placeholder="Document your architecture or steps here…" className="text-xs" />
             </div>
           </div>
@@ -1242,7 +1242,7 @@ export function NodeInspector({
         {nodeType === 'GROUP' && (
           <div className="space-y-3 pt-2 border-t border-border">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-foreground">Stage Title</Label>
+              <Label className="text-xs font-semibold text-foreground">Stage Title</Label>
               <Input
                 value={config.label || ''}
                 onChange={(e) => updateConfig('label', e.target.value)}
@@ -1321,7 +1321,7 @@ function KnowledgeBaseSelect({ value, onChange, disabled }: { value: string; onC
         emptyText={bases.error ? 'Couldn’t load knowledge bases' : 'No knowledge bases yet'}
         onValueChange={onChange}
       />
-      {missing && <p className="text-[10px] text-destructive">That knowledge base no longer exists — pick another.</p>}
+      {missing && <p className="text-2xs text-destructive">That knowledge base no longer exists — pick another.</p>}
     </div>
   );
 }

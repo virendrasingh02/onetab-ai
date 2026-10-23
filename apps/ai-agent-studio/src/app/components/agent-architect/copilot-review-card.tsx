@@ -22,7 +22,7 @@ function ScoreRing({ score, level }: { score: number; level: CheckLevel }) {
         <circle cx="18" cy="18" r={r} fill="none" stroke="var(--color-border)" strokeWidth="3" />
         <circle cx="18" cy="18" r={r} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(score / 100) * c} ${c}`} />
       </svg>
-      <span className="text-[11px] font-bold tabular-nums text-foreground">{score}</span>
+      <span className="text-xs font-bold tabular-nums text-foreground">{score}</span>
     </span>
   );
 }
@@ -57,7 +57,7 @@ export function CopilotReviewCard({ review, onAsk, onFocusStep, disabled }: Copi
         type="button"
         disabled={disabled}
         onClick={() => onAsk(p.fix)}
-        className="h-auto shrink-0 gap-1 px-1.5 py-0.5 text-[11px] text-primary hover:bg-primary/10 hover:text-primary"
+        className="h-auto shrink-0 gap-1 px-1.5 py-0.5 text-xs text-primary hover:bg-primary/10 hover:text-primary"
       >
         <Wand2 className="size-3" aria-hidden /> Fix
       </Button>
@@ -73,7 +73,7 @@ export function CopilotReviewCard({ review, onAsk, onFocusStep, disabled }: Copi
           <p className="text-xs font-semibold text-foreground">
             {overall === 'ok' ? 'Everything checks out' : overall === 'error' ? 'Needs fixing before it runs well' : 'Works, with things to tidy'}
           </p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {review.steps.length} steps · {review.counts.error} problem{review.counts.error === 1 ? '' : 's'} · {review.counts.warning} warning
             {review.counts.warning === 1 ? '' : 's'}
           </p>
@@ -139,7 +139,7 @@ export function CopilotReviewCard({ review, onAsk, onFocusStep, disabled }: Copi
                     size="xs"
                     type="button"
                     onClick={() => onFocusStep?.(s.id)}
-                    className="h-auto px-1.5 py-0.5 text-[11px] font-normal"
+                    className="h-auto px-1.5 py-0.5 text-xs font-normal"
                   >
                     {s.label}
                   </Button>
@@ -153,13 +153,13 @@ export function CopilotReviewCard({ review, onAsk, onFocusStep, disabled }: Copi
       {/* What to add */}
       {review.suggestions.length > 0 && (
         <div className="border-t border-border bg-surface/50 px-3 py-2.5">
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Make it better</p>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Make it better</p>
           <ul className="space-y-1.5">
             {review.suggestions.map((s) => (
               <li key={s.title} className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-foreground">{s.title}</p>
-                  <p className="text-[11px] leading-snug text-muted-foreground">{s.detail}</p>
+                  <p className="text-xs leading-snug text-muted-foreground">{s.detail}</p>
                 </div>
                 <Button
                   variant="outline"
@@ -167,7 +167,7 @@ export function CopilotReviewCard({ review, onAsk, onFocusStep, disabled }: Copi
                   type="button"
                   disabled={disabled}
                   onClick={() => onAsk(s.prompt)}
-                  className="h-auto shrink-0 gap-1 px-1.5 py-0.5 text-[11px]"
+                  className="h-auto shrink-0 gap-1 px-1.5 py-0.5 text-xs"
                 >
                   <Plus className="size-3" aria-hidden /> Add
                 </Button>

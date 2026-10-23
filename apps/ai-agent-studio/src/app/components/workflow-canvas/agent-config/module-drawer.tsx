@@ -394,11 +394,11 @@ export function ModuleDrawer({
       >
         {/* Sticky header */}
         <header className="relative shrink-0 space-y-3 border-b border-border px-4 pb-3 pt-3.5">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground">
             <button
               type="button"
               onClick={() => void leave(onBack)}
-              className="inline-flex min-w-0 items-center gap-0.5 rounded px-1 py-0.5 hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="inline-flex min-w-0 items-center gap-0.5 rounded-md px-1 py-0.5 hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               <ChevronLeft className="size-3.5 shrink-0" />
               <span className="max-w-[10rem] truncate">{view.agentLabel}</span>
@@ -408,7 +408,7 @@ export function ModuleDrawer({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-medium text-foreground hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 font-medium text-foreground hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   aria-label={`${def.label} — switch module`}
                 >
                   {def.label}
@@ -437,13 +437,13 @@ export function ModuleDrawer({
               <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 {def.label}
                 {dirty && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-warning/12 px-1.5 py-0.5 text-[10px] font-medium text-warning-text">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-warning/12 px-1.5 py-0.5 text-2xs font-medium text-warning-text">
                     <span className="size-1.5 rounded-full bg-warning" aria-hidden />
                     Unsaved
                   </span>
                 )}
               </h3>
-              <p className="truncate text-[11px] text-muted-foreground">{def.description}</p>
+              <p className="truncate text-xs text-muted-foreground">{def.description}</p>
               <StatusPill state={summary.state} className="mt-1" />
             </div>
             <div className="flex shrink-0 items-center gap-0.5">
@@ -528,7 +528,7 @@ export function ModuleDrawer({
                     onClick={() => goToSection(s.id)}
                     aria-current={activeSection === s.id ? 'true' : undefined}
                     className={cn(
-                      'inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+                      'inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
                       activeSection === s.id ? 'bg-primary/12 text-primary-text' : 'text-muted-foreground hover:bg-surface-raised hover:text-foreground',
                     )}
                   >
@@ -580,7 +580,7 @@ export function ModuleDrawer({
             </div>
           )}
           <div className="flex items-center gap-2">
-            <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground" aria-live="polite">
+            <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground" aria-live="polite">
               {readOnly ? 'Canvas is locked' : dirty ? 'Unsaved changes' : 'All changes applied'}
             </p>
             <Button type="button" variant="outline" size="sm" onClick={discard} disabled={!dirty}>

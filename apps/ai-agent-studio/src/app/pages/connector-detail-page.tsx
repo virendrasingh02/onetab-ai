@@ -199,7 +199,7 @@ export function ConnectorDetailPage() {
                 <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
                   {c.scopes.map((s) => (
                     <li key={s.scope}>
-                      <code className="mr-1 rounded bg-surface-raised px-1 py-0.5 text-[10px]">{s.scope}</code>
+                      <code className="mr-1 rounded-md bg-surface-raised px-1 py-0.5 text-2xs">{s.scope}</code>
                       {s.description}
                     </li>
                   ))}
@@ -246,9 +246,9 @@ export function ConnectorDetailPage() {
                         <Zap className="size-4 text-warning" aria-hidden="true" /> {t.label}
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">{t.description}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Checked every 2 minutes through “{watches?.label ?? t.pollActionId}”. Each new item starts one run, and is available to the agent as{' '}
-                        <code className="rounded bg-surface-raised px-1">{'{{event}}'}</code>.
+                        <code className="rounded-md bg-surface-raised px-1">{'{{event}}'}</code>.
                       </p>
                     </div>
                     <Button size="sm" variant="outline" onClick={() => navigate('/workflows')}>
@@ -285,7 +285,7 @@ export function ConnectorDetailPage() {
                     <TableRow key={a.id}>
                       <TableCell className="text-xs font-medium">
                         {a.label}
-                        {a.error && <div className="mt-0.5 max-w-md truncate text-[11px] font-normal text-destructive-text" title={a.error}>{a.error}</div>}
+                        {a.error && <div className="mt-0.5 max-w-md truncate text-xs font-normal text-destructive-text" title={a.error}>{a.error}</div>}
                       </TableCell>
                       <TableCell>
                         {a.status === 'SUCCESS' ? (
@@ -323,7 +323,7 @@ export function ConnectorDetailPage() {
 function Fact({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-3.5">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 truncate text-lg font-semibold tabular-nums text-foreground">{value}</div>
     </div>
   );
@@ -411,9 +411,9 @@ function ActionRow({
       </button>
       {open && (
         <div className="space-y-3 border-t border-border p-4">
-          <div className="text-[11px] text-muted-foreground">
-            Tool name <code className="rounded bg-surface-raised px-1">{capability.toolName}</code> · Workflow step{' '}
-            <code className="rounded bg-surface-raised px-1">{capability.actionRef}</code>
+          <div className="text-xs text-muted-foreground">
+            Tool name <code className="rounded-md bg-surface-raised px-1">{capability.toolName}</code> · Workflow step{' '}
+            <code className="rounded-md bg-surface-raised px-1">{capability.actionRef}</code>
           </div>
           {schemaProperties(capability.inputSchema).length > 0 && (
             <SchemaFields schema={capability.inputSchema} values={values} onChange={setValues} idPrefix={`run-${capability.id}`} />
@@ -515,15 +515,15 @@ function ConnectionsList({
                 <Badge variant={healthy ? 'success' : conn.status === 'DISCONNECTED' ? 'neutral' : 'warning'}>{conn.status.toLowerCase()}</Badge>
                 <Badge variant="outline">{conn.scopeType === 'USER' ? (conn.mine ? 'Yours' : 'Personal') : 'Whole workspace'}</Badge>
               </div>
-              <div className="mt-0.5 text-[11px] text-muted-foreground">
+              <div className="mt-0.5 text-xs text-muted-foreground">
                 Connected {timeAgo(conn.createdAt)}
                 {conn.lastSyncAt && ` · synced ${timeAgo(conn.lastSyncAt)}`}
               </div>
-              {conn.lastErrorMessage && <div className="mt-1 text-[11px] text-destructive-text">{conn.lastErrorMessage}</div>}
+              {conn.lastErrorMessage && <div className="mt-1 text-xs text-destructive-text">{conn.lastErrorMessage}</div>}
               {conn.webhookUrl && (
-                <div className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="shrink-0">Webhook address</span>
-                  <code className="min-w-0 truncate rounded bg-surface-muted px-1.5 py-0.5 font-mono text-foreground">{conn.webhookUrl}</code>
+                  <code className="min-w-0 truncate rounded-md bg-surface-muted px-1.5 py-0.5 font-mono text-foreground">{conn.webhookUrl}</code>
                   <Button
                     size="xs"
                     variant="ghost"

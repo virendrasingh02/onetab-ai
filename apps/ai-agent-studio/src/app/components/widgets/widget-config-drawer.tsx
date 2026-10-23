@@ -114,8 +114,8 @@ export function WidgetConfigDrawer({
       {tab === 'code' ? (
         <div className="flex-1 p-3 flex flex-col space-y-2">
           <Label className="text-xs font-medium text-foreground">Direct JSON Definition</Label>
-          <Textarea value={rawJson} onChange={(e) => setRawJson(e.target.value)} onBlur={handleJsonBlur} rows={22} className="flex-1 font-mono text-[11px] resize-none" />
-          {jsonError && <p className="text-[11px] text-destructive">{jsonError}</p>}
+          <Textarea value={rawJson} onChange={(e) => setRawJson(e.target.value)} onBlur={handleJsonBlur} rows={22} className="flex-1 font-mono text-xs resize-none" />
+          {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
@@ -125,7 +125,7 @@ export function WidgetConfigDrawer({
               <Layers className="size-3.5 text-primary" /> Metadata
             </h4>
             <div className="space-y-1.5">
-              <Label className="text-[11px] text-muted-foreground">Widget Name</Label>
+              <Label className="text-xs text-muted-foreground">Widget Name</Label>
               <Input
                 value={definition.name || ''}
                 onChange={(e) => updateRootField('name', e.target.value)}
@@ -134,7 +134,7 @@ export function WidgetConfigDrawer({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] text-muted-foreground">Description</Label>
+              <Label className="text-xs text-muted-foreground">Description</Label>
               <Input
                 value={definition.description || ''}
                 onChange={(e) => updateRootField('description', e.target.value)}
@@ -144,7 +144,7 @@ export function WidgetConfigDrawer({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-[11px] text-muted-foreground">Category</Label>
+                <Label className="text-xs text-muted-foreground">Category</Label>
                 <AppSelect
                   value={definition.category}
                   onValueChange={(v) => updateRootField('category', v as WidgetCategory)}
@@ -158,7 +158,7 @@ export function WidgetConfigDrawer({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px] text-muted-foreground">Component Type</Label>
+                <Label className="text-xs text-muted-foreground">Component Type</Label>
                 <AppSelect
                   value={config.componentType || 'metric_card'}
                   onValueChange={(v) => updateConfig('componentType', v as WidgetComponentType)}
@@ -191,7 +191,7 @@ export function WidgetConfigDrawer({
             </h4>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
-                <Label className="text-[11px] text-muted-foreground">Display Size</Label>
+                <Label className="text-xs text-muted-foreground">Display Size</Label>
                 <AppSelect
                   value={config.size || 'md'}
                   onValueChange={(v) => updateConfig('size', v)}
@@ -204,7 +204,7 @@ export function WidgetConfigDrawer({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px] text-muted-foreground">Auto-Refresh</Label>
+                <Label className="text-xs text-muted-foreground">Auto-Refresh</Label>
                 <AppSelect
                   value={String(config.refreshInterval || 0)}
                   onValueChange={(v) => updateConfig('refreshInterval', parseInt(v, 10))}
@@ -218,7 +218,7 @@ export function WidgetConfigDrawer({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] text-muted-foreground">Display Title</Label>
+              <Label className="text-xs text-muted-foreground">Display Title</Label>
               <Input
                 value={String(config.title ?? '')}
                 onChange={(e) => updateConfig('title', e.target.value)}
@@ -227,7 +227,7 @@ export function WidgetConfigDrawer({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] text-muted-foreground">Footer / Attribution Text</Label>
+              <Label className="text-xs text-muted-foreground">Footer / Attribution Text</Label>
               <Input
                 value={String(config.footerText ?? '')}
                 onChange={(e) => updateConfig('footerText', e.target.value)}
@@ -243,7 +243,7 @@ export function WidgetConfigDrawer({
               <Database className="size-3.5 text-primary" /> Data Source & Variables
             </h4>
             <div className="space-y-1.5">
-              <Label className="text-[11px] text-muted-foreground">Workflow Output Binding Path</Label>
+              <Label className="text-xs text-muted-foreground">Workflow Output Binding Path</Label>
               <Input
                 value={String(config.bindingPath ?? '')}
                 onChange={(e) => updateConfig('bindingPath', e.target.value)}
@@ -252,7 +252,7 @@ export function WidgetConfigDrawer({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] text-muted-foreground">Initial / Mock Data (JSON)</Label>
+              <Label className="text-xs text-muted-foreground">Initial / Mock Data (JSON)</Label>
               <Textarea
                 value={typeof config.initialData === 'object' ? JSON.stringify(config.initialData, null, 2) : String(config.initialData ?? '')}
                 onChange={(e) => {
@@ -265,7 +265,7 @@ export function WidgetConfigDrawer({
                 }}
                 rows={5}
                 placeholder='{"value": "1,280", "change": "+14%"}'
-                className="font-mono text-[11px]"
+                className="font-mono text-xs"
               />
             </div>
           </div>
@@ -278,7 +278,7 @@ export function WidgetConfigDrawer({
             <div className="flex items-center justify-between pt-1">
               <div>
                 <span className="font-medium text-foreground">Publish to Workspace</span>
-                <p className="text-[11px] text-muted-foreground">Make visible to all workspace team members</p>
+                <p className="text-xs text-muted-foreground">Make visible to all workspace team members</p>
               </div>
               <Switch
                 checked={definition.visibility !== 'PRIVATE'}

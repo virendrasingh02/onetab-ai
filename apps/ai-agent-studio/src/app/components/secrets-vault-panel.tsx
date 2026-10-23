@@ -219,8 +219,8 @@ export function SecretsVaultPanel({ workspaceId, title = 'Secrets Vault', descri
                   <Key className="size-3.5 text-primary shrink-0" />
                   <span className="font-mono truncate">{sec.key}</span>
                 </div>
-                <div className="font-mono text-[11px] text-muted-foreground">{sec.maskedValue}</div>
-                <div className="text-[10px] text-muted-foreground">
+                <div className="font-mono text-xs text-muted-foreground">{sec.maskedValue}</div>
+                <div className="text-2xs text-muted-foreground">
                   {sec.description ? `${sec.description} · ` : ''}Updated{' '}
                   {new Date(sec.updatedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                 </div>
@@ -279,7 +279,7 @@ export function SecretsVaultPanel({ workspaceId, title = 'Secrets Vault', descri
                   disabled={editingKey !== null}
                   required
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Keys are stored in upper case, e.g. firecrawl_api_key → FIRECRAWL_API_KEY.
                 </p>
               </div>
@@ -305,7 +305,7 @@ export function SecretsVaultPanel({ workspaceId, title = 'Secrets Vault', descri
                     {showValue ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Encrypted at rest. Saving an existing key replaces its value; the old value can’t be recovered.
                 </p>
               </div>

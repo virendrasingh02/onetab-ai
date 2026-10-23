@@ -102,7 +102,7 @@ export function ErrorsReliabilityView({ errors }: ErrorsReliabilityViewProps) {
         <div className="rounded-lg border border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-surface-raised/50 text-[11px]">
+              <TableRow className="bg-surface-raised/50 text-xs">
                 <TableHead>Category</TableHead>
                 <TableHead>Error Message / Fingerprint</TableHead>
                 <TableHead>Occurrences</TableHead>
@@ -128,7 +128,7 @@ export function ErrorsReliabilityView({ errors }: ErrorsReliabilityViewProps) {
                     <TableCell>
                       <Badge
                         variant={getCategoryBadgeVariant(item.category)}
-                        className="text-[10px] font-mono"
+                        className="text-2xs font-mono"
                       >
                         {item.category}
                       </Badge>
@@ -142,10 +142,10 @@ export function ErrorsReliabilityView({ errors }: ErrorsReliabilityViewProps) {
                     <TableCell className="tabular-nums">
                       {item.affectedExecutionsCount}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-[11px]">
+                    <TableCell className="text-muted-foreground text-xs">
                       {new Date(item.firstSeenAt).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-[11px]">
+                    <TableCell className="text-muted-foreground text-xs">
                       {new Date(item.lastSeenAt).toLocaleTimeString()}
                     </TableCell>
                   </TableRow>

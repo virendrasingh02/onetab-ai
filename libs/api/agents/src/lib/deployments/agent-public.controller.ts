@@ -74,13 +74,20 @@ export class AgentPublicController {
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   async initSession(
     @Headers('origin') origin: string | undefined,
+    @Headers('host') host: string | undefined,
     @Body(zodBody(initAgentSessionSchema)) body: InitAgentSessionInput,
   ) {
-    return this.sessionService.initSession(
-      body.publicKey,
-      body.userContext,
-      origin,
-    );
+    // Inside our own iframe embed the browser's Origin is this API, not the site
+    // framing it; the embed page reports the framing site instead.
+    let effectiveOrigin = origin;
+    if (body.embedOrigin) {
+      try {
+        if (!origin || new URL(origin).host === host) effectiveOrigin = body.embedOrigin;
+      } catch {
+        /* a malformed Origin keeps its own value */
+      }
+    }
+    return this.sessionService.initSession(body.publicKey, body.userContext, effectiveOrigin);
   }
 
   @Get('agent-sessions/:sessionId')
@@ -302,8 +309,21 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
 (function () {
   'use strict';
 
-  var SCRIPT_SRC = document.currentScript ? document.currentScript.src : '';
-  var BASE_URL = SCRIPT_SRC ? new URL(SCRIPT_SRC).origin : window.location.origin;
+  // A module script has no currentScript, so fall back to finding this file's own tag.
+  var SELF = document.currentScript || document.querySelector('script[src*="deployments/sdk/agent-widget.js"]');
+  var SCRIPT_SRC = SELF && SELF.src ? SELF.src : '';
+  // The API root (with its version prefix) is wherever this file was served from.
+  var API_BASE = SCRIPT_SRC
+    ? SCRIPT_SRC.split(/[?#]/)[0].replace(/\\/deployments\\/sdk\\/agent-widget\\.js$/, '')
+    : window.location.origin + '/api/v1';
+  // Inside our own iframe embed the browser reports the API as the origin, so pass the framing page along.
+  var EMBED_ORIGIN = '';
+  try {
+    if (window.parent !== window) {
+      EMBED_ORIGIN = (window.location.ancestorOrigins && window.location.ancestorOrigins[0]) ||
+        (document.referrer ? new URL(document.referrer).origin : '');
+    }
+  } catch (e) {}
   // Shown when the agent has no avatar image (the Studio preview draws the same glyph).
   var BOT_ICON = '<svg width="60%" height="60%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>';
 
@@ -313,7 +333,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
       var scripts = document.querySelectorAll('script[data-agent-id]');
       script = scripts[scripts.length - 1];
     }
-    if (!script) return;
+    if (!script || !script.hasAttribute('data-agent-id')) return;
 
     var agentId = script.getAttribute('data-agent-id');
     var publicKey = script.getAttribute('data-public-key');
@@ -330,8 +350,11 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
       publicKey: publicKey,
       mode: mode,
       theme: theme,
-      baseUrl: BASE_URL,
-      // An inline widget renders where its script tag sits.
+      baseUrl: API_BASE,
+      // An inline widget fills its container, or renders where its script tag sits.
+      container: mode === 'inline'
+        ? document.getElementById(script.getAttribute('data-container') || 'onetab-agent-container')
+        : null,
       anchor: script,
     });
   }
@@ -447,10 +470,10 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
 
     render();
 
-    fetch(options.baseUrl + '/api/v1/agent-sessions', {
+    fetch(options.baseUrl + '/agent-sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ publicKey: options.publicKey }),
+      body: JSON.stringify({ publicKey: options.publicKey, embedOrigin: EMBED_ORIGIN || undefined }),
     })
       .then(function (res) { return res.json(); })
       .then(function (data) {
@@ -473,7 +496,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
 
     function loadMessages() {
       if (!state.sessionId) return;
-      fetch(options.baseUrl + '/api/v1/agent-sessions/' + state.sessionId + '/messages', {
+      fetch(options.baseUrl + '/agent-sessions/' + state.sessionId + '/messages', {
         headers: { 'x-session-token': state.sessionToken },
       })
         .then(function (res) { return res.json(); })
@@ -503,7 +526,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
       state.isLoading = true;
       render();
 
-      fetch(options.baseUrl + '/api/v1/agent-sessions/' + state.sessionId + '/messages', {
+      fetch(options.baseUrl + '/agent-sessions/' + state.sessionId + '/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + state.sessionToken },
         body: JSON.stringify({ message: cleanText }),
@@ -831,7 +854,7 @@ const BROWSER_WIDGET_SDK_SCRIPT = `
           publicKey: publicKey,
           mode: mode,
           theme: theme,
-          baseUrl: BASE_URL,
+          baseUrl: API_BASE,
           container: this,
         });
       }
@@ -862,7 +885,7 @@ function generateEmbedHtmlPage(agentId: string, publicKey: string, theme = 'dark
 <body>
   <div class="embed-container" id="widget-root">
     <script
-      src="/api/v1/deployments/sdk/agent-widget.js"
+      src="agent-widget.js"
       data-agent-id="${agentId}"
       data-public-key="${publicKey}"
       data-mode="inline"

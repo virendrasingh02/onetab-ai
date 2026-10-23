@@ -57,14 +57,14 @@ export function NodeAnalyticsBadge({
         }
       }}
       className={cn(
-        'nodrag nopan absolute -top-3.5 right-3 z-20 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border backdrop-blur-md shadow-xs transition-all hover:scale-105 cursor-pointer',
+        'nodrag nopan absolute -top-3.5 right-3 z-20 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-semibold border backdrop-blur-md shadow-xs transition-all hover:scale-105 cursor-pointer',
         intensityStyle,
       )}
       title={`Runs: ${analytics.executionCount} | Success: ${analytics.successRate.toFixed(1)}% | Avg Duration: ${Math.round(analytics.avgDurationMs)}ms | Cost: $${analytics.estimatedCost.toFixed(4)}`}
     >
       <span className="opacity-80 font-normal">{analytics.metricLabel}:</span>
       <span className="font-mono font-bold">{analytics.metricValue}</span>
-      <span className="opacity-60 text-[9px] font-mono">({analytics.executionCount})</span>
+      <span className="opacity-60 text-2xs font-mono">({analytics.executionCount})</span>
     </div>
   );
 }
@@ -85,7 +85,7 @@ export function NodeRunFooter({ run, showTokens = true, extra }: { run?: NodeRun
   if (!running && !((run?.tokens ?? 0) > 0)) return null;
   return (
     <div className="nodrag nopan -mx-3.5 -mb-3.5 mt-3 rounded-b-xl border-t border-border/70 bg-surface-raised/30">
-      <div className="flex items-center gap-2 px-3.5 py-1.5 text-[10px] text-muted-foreground">
+      <div className="flex items-center gap-2 px-3.5 py-1.5 text-2xs text-muted-foreground">
         <button
           type="button"
           onClick={(e) => {
@@ -95,7 +95,7 @@ export function NodeRunFooter({ run, showTokens = true, extra }: { run?: NodeRun
           disabled={!hasOutput}
           aria-expanded={hasOutput ? open : undefined}
           title={hasOutput ? undefined : running ? 'Running…' : 'Run the agent to see this step’s results'}
-          className="inline-flex items-center gap-1 rounded font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default disabled:hover:text-muted-foreground"
+          className="inline-flex items-center gap-1 rounded-md font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default disabled:hover:text-muted-foreground"
         >
           {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
           {running ? 'Running…' : 'View Results'}
@@ -110,7 +110,7 @@ export function NodeRunFooter({ run, showTokens = true, extra }: { run?: NodeRun
         <pre
           tabIndex={0}
           className={cn(
-            'nowheel mx-3.5 mb-3 max-h-48 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg border px-2.5 py-2 font-mono text-[10px] leading-relaxed',
+            'nowheel mx-3.5 mb-3 max-h-48 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg border px-2.5 py-2 font-mono text-2xs leading-relaxed',
             run?.error ? 'border-destructive/30 bg-destructive/5 text-destructive' : 'border-border bg-surface text-foreground',
           )}
         >
@@ -135,7 +135,7 @@ function inline(text: string): ReactNode[] {
       token.startsWith('**') ? (
         <strong key={k++} className="font-semibold">{token.slice(2, -2)}</strong>
       ) : (
-        <code key={k++} className="rounded bg-surface-raised px-1 font-mono text-[0.95em]">{token.slice(1, -1)}</code>
+        <code key={k++} className="rounded-md bg-surface-raised px-1 font-mono text-[0.95em]">{token.slice(1, -1)}</code>
       ),
     );
     last = m.index + token.length;
@@ -171,7 +171,7 @@ export function FormattedText({ text, className }: { text: string; className?: s
       const code: string[] = [];
       while (++i < lines.length && !lines[i].startsWith('```')) code.push(lines[i]);
       blocks.push(
-        <pre key={blocks.length} className="overflow-auto rounded-md bg-surface-raised p-2 font-mono text-[10px]">
+        <pre key={blocks.length} className="overflow-auto rounded-md bg-surface-raised p-2 font-mono text-2xs">
           {code.join('\n')}
         </pre>,
       );
@@ -190,7 +190,7 @@ export function FormattedText({ text, className }: { text: string; className?: s
     const heading = /^(#{1,4})\s+(.*)$/.exec(line);
     if (heading) {
       blocks.push(
-        <p key={blocks.length} className={cn('font-semibold text-foreground', heading[1].length <= 2 && 'text-[13px]')}>
+        <p key={blocks.length} className={cn('font-semibold text-foreground', heading[1].length <= 2 && 'text-sm')}>
           {inline(heading[2])}
         </p>,
       );

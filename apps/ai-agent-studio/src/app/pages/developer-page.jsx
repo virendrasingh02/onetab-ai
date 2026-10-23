@@ -176,7 +176,7 @@ print("Result:", data.get("result"))`,
           <div className="mt-2 font-mono text-xs font-bold text-foreground">
             {platformUrl}/api/v1
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">x-api-key or Bearer JWT authenticated</p>
+          <p className="mt-1 text-xs text-muted-foreground">x-api-key or Bearer JWT authenticated</p>
         </Card>
 
         <Card className="p-4 shadow-2xs hover:border-primary/40 transition-colors">
@@ -187,7 +187,7 @@ print("Result:", data.get("result"))`,
           <div className="mt-2 font-mono text-xs font-bold text-foreground truncate">
             {workspaceId || 'Default Workspace'}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Workspace isolated sandbox</p>
+          <p className="mt-1 text-xs text-muted-foreground">Workspace isolated sandbox</p>
         </Card>
 
         <Card className="p-4 shadow-2xs hover:border-primary/40 transition-colors">
@@ -198,7 +198,7 @@ print("Result:", data.get("result"))`,
           <div className="mt-2 text-xs font-bold text-foreground">
             600 req/min • 50 concurrent
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Enterprise burst tier</p>
+          <p className="mt-1 text-xs text-muted-foreground">Enterprise burst tier</p>
         </Card>
       </div>
 
@@ -210,7 +210,7 @@ print("Result:", data.get("result"))`,
           </div>
           <div>
             <span className="text-xs font-bold text-foreground">Target Agent</span>
-            <p className="text-[11px] text-muted-foreground">Select an agent from your workspace to test</p>
+            <p className="text-xs text-muted-foreground">Select an agent from your workspace to test</p>
           </div>
         </div>
 
@@ -285,7 +285,7 @@ print("Result:", data.get("result"))`,
           </div>
 
           <div>
-            <Label className="text-[11px] font-semibold text-muted-foreground uppercase">Optional API Key</Label>
+            <Label className="text-xs font-semibold text-muted-foreground uppercase">Optional API Key</Label>
             <Input
               type="text"
               value={apiKeyInput}
@@ -296,13 +296,13 @@ print("Result:", data.get("result"))`,
           </div>
 
           <div>
-            <Label className="text-[11px] font-semibold text-muted-foreground uppercase">Request Body (JSON)</Label>
+            <Label className="text-xs font-semibold text-muted-foreground uppercase">Request Body (JSON)</Label>
             <Textarea rows={4} value={testPayload} onChange={(e) => setTestPayload(e.target.value)} className="mt-1 font-mono text-xs" />
           </div>
 
           {testResponse && (
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase">
+              <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase">
                 <span>Response Body</span>
                 <span
                   className={cn(

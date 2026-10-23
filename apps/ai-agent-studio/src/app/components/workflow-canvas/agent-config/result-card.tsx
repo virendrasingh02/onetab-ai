@@ -8,8 +8,8 @@ export function ResultCard({ result }: { result: ModelTestResult }) {
   return (
     <div className="min-w-0 space-y-2 rounded-lg border border-border p-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate font-mono text-[11px] font-semibold text-foreground">{result.model}</span>
-        {result.ok ? <Badge variant="success" className="h-4 px-1 text-[9px]">OK</Badge> : <Badge variant="destructive" className="h-4 px-1 text-[9px]">Failed</Badge>}
+        <span className="truncate font-mono text-xs font-semibold text-foreground">{result.model}</span>
+        {result.ok ? <Badge variant="success" className="h-4 px-1 text-2xs">OK</Badge> : <Badge variant="destructive" className="h-4 px-1 text-2xs">Failed</Badge>}
       </div>
       {result.ok ? <OutputBlock>{result.output || '(empty reply)'}</OutputBlock> : <OutputBlock tone="error">{result.error}</OutputBlock>}
       <StatGrid

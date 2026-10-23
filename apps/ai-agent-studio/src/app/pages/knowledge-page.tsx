@@ -418,7 +418,7 @@ export function KnowledgePage() {
                         </div>
                         <div>
                           <div className="text-xs font-bold text-foreground">{kb.name}</div>
-                          <div className="text-[11px] text-muted-foreground">
+                          <div className="text-xs text-muted-foreground">
                             {kb._count?.documents ?? 0} document{(kb._count?.documents ?? 0) === 1 ? '' : 's'}
                           </div>
                         </div>
@@ -439,10 +439,10 @@ export function KnowledgePage() {
                     </div>
 
                     {kb.description ? (
-                      <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{kb.description}</p>
+                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{kb.description}</p>
                     ) : null}
 
-                    <div className="mt-3 border-t border-border/50 pt-2 font-mono text-[10px] text-muted-foreground">
+                    <div className="mt-3 border-t border-border/50 pt-2 font-mono text-2xs text-muted-foreground">
                       {kb.embeddingModel}
                     </div>
                   </div>
@@ -486,7 +486,7 @@ export function KnowledgePage() {
                   </div>
 
                   <div className="space-y-2 border-t border-border pt-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Indexed documents ({documents.length}) · {totalChunks.toLocaleString()} chunks
                     </div>
 
@@ -519,17 +519,17 @@ export function KnowledgePage() {
                                 <div className="truncate font-semibold text-foreground">
                                   {doc.name}
                                   {(doc.version ?? 1) > 1 ? (
-                                    <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground">v{doc.version}</span>
+                                    <span className="ml-1.5 font-mono text-2xs font-normal text-muted-foreground">v{doc.version}</span>
                                   ) : null}
                                 </div>
                                 {doc.errorMessage ? (
-                                  <div className="truncate text-[10px] text-destructive">{doc.errorMessage}</div>
+                                  <div className="truncate text-2xs text-destructive">{doc.errorMessage}</div>
                                 ) : null}
                               </div>
                             </div>
-                            <div className="flex shrink-0 items-center gap-3 font-mono text-[11px] text-muted-foreground">
+                            <div className="flex shrink-0 items-center gap-3 font-mono text-xs text-muted-foreground">
                               <span>{doc.chunkCount} chunks</span>
-                              <Badge variant={STATUS_VARIANT[doc.status] ?? 'outline'} className="text-[9px]">
+                              <Badge variant={STATUS_VARIANT[doc.status] ?? 'outline'} className="text-2xs">
                                 {doc.status}
                               </Badge>
                               <Button
@@ -633,7 +633,7 @@ export function KnowledgePage() {
                     </Button>
                   </form>
 
-                  <label className="flex items-center gap-2 text-[11px] font-semibold text-foreground">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
                     <Switch checked={rerank} onCheckedChange={setRerank} aria-label="Rerank results" />
                     Rerank results
                   </label>
@@ -650,7 +650,7 @@ export function KnowledgePage() {
                     />
                   ) : null}
                   {usage && usage.queries > 0 ? (
-                    <p className="font-mono text-[10px] text-muted-foreground">
+                    <p className="font-mono text-2xs text-muted-foreground">
                       Last {usage.windowDays} days: {usage.queries} searches · {usage.answers} answers
                       {usage.ungrounded ? ` (${usage.ungrounded} unanswerable)` : ''} · avg {usage.avgLatencyMs} ms · p95{' '}
                       {usage.p95LatencyMs} ms · {(usage.promptTokens + usage.completionTokens).toLocaleString()} tokens
@@ -660,11 +660,11 @@ export function KnowledgePage() {
 
                   <div className="grid grid-cols-1 gap-4 rounded-lg bg-surface-raised/40 p-3 text-xs sm:grid-cols-2">
                     <div className="space-y-1">
-                      <span className="text-[11px] font-semibold text-foreground">Top-K chunks: {topK}</span>
+                      <span className="text-xs font-semibold text-foreground">Top-K chunks: {topK}</span>
                       <Slider aria-label="Top K" min={1} max={10} value={[topK]} onValueChange={([v]) => setTopK(v)} />
                     </div>
                     <div className="space-y-1">
-                      <span className="text-[11px] font-semibold text-foreground">
+                      <span className="text-xs font-semibold text-foreground">
                         Minimum score: {minScore === 0 ? 'any' : minScore.toFixed(2)}
                       </span>
                       <Slider
@@ -686,7 +686,7 @@ export function KnowledgePage() {
 
                   {answerResult && (
                     <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5 text-xs">
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span className="font-bold uppercase tracking-wider text-foreground">Answer</span>
                         <span className="font-mono">
                           {answerResult.latencyMs} ms{answerResult.model ? ` · ${answerResult.model}` : ''}
@@ -694,7 +694,7 @@ export function KnowledgePage() {
                       </div>
                       <p className="whitespace-pre-wrap leading-relaxed text-foreground">{answerResult.answer}</p>
                       {!answerResult.grounded ? (
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           Nothing in this knowledge base supports an answer, so none was generated.
                         </p>
                       ) : null}
@@ -703,7 +703,7 @@ export function KnowledgePage() {
                           {answerResult.sources.map((src) => (
                             <li key={src.chunkId} className="flex gap-2">
                               <span
-                                className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded font-mono text-[10px] font-bold ${
+                                className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-md font-mono text-2xs font-bold ${
                                   src.cited ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                                 }`}
                               >
@@ -712,7 +712,7 @@ export function KnowledgePage() {
                               <div className="min-w-0">
                                 <div className="font-semibold text-foreground">
                                   {src.documentName}{' '}
-                                  <span className="font-mono text-[10px] font-normal text-muted-foreground">
+                                  <span className="font-mono text-2xs font-normal text-muted-foreground">
                                     {(src.score * 100).toFixed(0)}%{src.cited ? '' : ' · not cited'}
                                   </span>
                                 </div>
@@ -733,24 +733,24 @@ export function KnowledgePage() {
 
                   {testResults && (
                     <div className="space-y-3 pt-2">
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Retrieved passages ({testResults.length})
                       </div>
                       <ul className="space-y-2">
                         {testResults.map((chunk) => (
                           <li key={chunk.chunkId} className="space-y-2 rounded-xl border border-border bg-card p-3.5 text-xs">
-                            <div className="flex items-center justify-between text-[11px]">
+                            <div className="flex items-center justify-between text-xs">
                               <span className="flex items-center gap-1.5 font-bold text-foreground">
                                 <FileText className="size-3 text-primary" />
                                 {chunk.documentName}
                               </span>
-                              <span className="rounded bg-success/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-success">
+                              <span className="rounded-md bg-success/10 px-1.5 py-0.5 font-mono text-2xs font-bold text-success">
                                 {(chunk.score * 100).toFixed(1)}% match
                               </span>
                             </div>
                             <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">{chunk.content}</p>
                             {chunk.citation ? (
-                              <div className="border-t border-border/50 pt-1 font-mono text-[10px] text-muted-foreground">
+                              <div className="border-t border-border/50 pt-1 font-mono text-2xs text-muted-foreground">
                                 {chunk.citation}
                               </div>
                             ) : null}
@@ -784,7 +784,7 @@ export function KnowledgePage() {
 
             <DialogBody className="space-y-3.5 py-4 text-xs">
               <div className="space-y-1">
-                <Label htmlFor="kb-name" className="text-[11px] font-semibold text-foreground">
+                <Label htmlFor="kb-name" className="text-xs font-semibold text-foreground">
                   Name *
                 </Label>
                 <Input
@@ -798,7 +798,7 @@ export function KnowledgePage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="kb-desc" className="text-[11px] font-semibold text-foreground">
+                <Label htmlFor="kb-desc" className="text-xs font-semibold text-foreground">
                   Description
                 </Label>
                 <Input
@@ -810,7 +810,7 @@ export function KnowledgePage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-foreground">Embedding model</Label>
+                <Label className="text-xs font-semibold text-foreground">Embedding model</Label>
                 <AppSelect
                   value={newEmbeddingModel || defaultEmbedding}
                   loading={models.isLoading || providers.isLoading}
@@ -818,11 +818,11 @@ export function KnowledgePage() {
                   onValueChange={setNewEmbeddingModel}
                   options={embeddingGroups}
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Fixed once documents are indexed: vectors from different models can’t be compared.
                 </p>
                 {embeddingOptions.length === 0 && !models.isLoading ? (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     No embedding model is listed for this workspace; the platform default (NVIDIA Nemotron Embed) is used.
                   </p>
                 ) : null}
@@ -853,7 +853,7 @@ export function KnowledgePage() {
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-2 py-4 text-xs">
-            <Label className="text-[11px] font-semibold text-foreground">Embedding model</Label>
+            <Label className="text-xs font-semibold text-foreground">Embedding model</Label>
             <AppSelect
               value={reindexModel}
               loading={models.isLoading || providers.isLoading}
@@ -898,7 +898,7 @@ export function KnowledgePage() {
                 {errorText(previewQuery.error)}
               </p>
             ) : (
-              <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-lg bg-surface-raised/60 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+              <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap rounded-lg bg-surface-raised/60 p-3 font-mono text-xs leading-relaxed text-muted-foreground">
                 {previewQuery.data?.rawText || 'No text stored for this document.'}
               </pre>
             )}
@@ -948,7 +948,7 @@ export function KnowledgePage() {
                     <Upload className="size-4" />
                     {sourceFile ? sourceFile.name : 'Choose a file'}
                   </Button>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     PDF, DOCX, TXT, Markdown, CSV or a PNG/JPG/BMP image, up to 20 MB. Scans and images are read with OCR (English), which is slower.
                   </p>
                 </div>
@@ -956,7 +956,7 @@ export function KnowledgePage() {
 
               {sourceKind === 'url' && (
                 <div className="space-y-1">
-                  <Label htmlFor="kb-url" className="text-[11px] font-semibold text-foreground">
+                  <Label htmlFor="kb-url" className="text-xs font-semibold text-foreground">
                     Page URL *
                   </Label>
                   <Input
@@ -968,11 +968,11 @@ export function KnowledgePage() {
                     placeholder="https://docs.example.com/guide"
                     className="font-mono text-xs"
                   />
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     The page is fetched once and converted to text. Add it again to refresh: changed content becomes a new
                     version, identical content is skipped.
                   </p>
-                  <label className="flex items-center gap-2 pt-1 text-[11px] font-semibold text-foreground">
+                  <label className="flex items-center gap-2 pt-1 text-xs font-semibold text-foreground">
                     <Switch checked={sourceSitemap} onCheckedChange={setSourceSitemap} aria-label="URL is a sitemap" />
                     This URL is a sitemap (import up to 20 pages from the same site)
                   </label>
@@ -984,7 +984,7 @@ export function KnowledgePage() {
                   {appsQuery.isLoading ? (
                     <LoadingState label="Loading connected apps…" />
                   ) : (appsQuery.data ?? []).length === 0 ? (
-                    <p className="rounded-lg border border-dashed border-border p-3 text-[11px] text-muted-foreground">
+                    <p className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">
                       No Google Drive or Notion account is connected to this workspace. Connect one in Integrations first.
                     </p>
                   ) : (
@@ -1017,7 +1017,7 @@ export function KnowledgePage() {
                       ) : (
                         <ul className="max-h-56 space-y-1 overflow-auto rounded-lg border border-border p-1.5">
                           {(appItemsQuery.data ?? []).length === 0 ? (
-                            <li className="p-2 text-center text-[11px] text-muted-foreground">Nothing found.</li>
+                            <li className="p-2 text-center text-xs text-muted-foreground">Nothing found.</li>
                           ) : (
                             (appItemsQuery.data ?? []).map((item) => (
                               <li key={item.id}>
@@ -1035,7 +1035,7 @@ export function KnowledgePage() {
                                     aria-label={`Select ${item.name}`}
                                   />
                                   <span className="min-w-0 flex-1 truncate font-medium text-foreground">{item.name}</span>
-                                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                                  <span className="shrink-0 font-mono text-2xs text-muted-foreground">
                                     {item.kind.replace('application/vnd.google-apps.', '')}
                                   </span>
                                 </label>
@@ -1044,7 +1044,7 @@ export function KnowledgePage() {
                           )}
                         </ul>
                       )}
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {Object.keys(appPicked).length} selected (up to 25). Importing again later updates the document as a new
                         version when the content changed.
                       </p>
@@ -1056,7 +1056,7 @@ export function KnowledgePage() {
               {sourceKind === 'text' && (
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <Label htmlFor="kb-note-name" className="text-[11px] font-semibold text-foreground">
+                    <Label htmlFor="kb-note-name" className="text-xs font-semibold text-foreground">
                       Title
                     </Label>
                     <Input
@@ -1068,7 +1068,7 @@ export function KnowledgePage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="kb-note-text" className="text-[11px] font-semibold text-foreground">
+                    <Label htmlFor="kb-note-text" className="text-xs font-semibold text-foreground">
                       Content *
                     </Label>
                     <Textarea

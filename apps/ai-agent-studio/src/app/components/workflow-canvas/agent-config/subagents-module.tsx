@@ -62,16 +62,16 @@ export function SubAgentsModule({ view, agent, nodes, edges, issues, readOnly, s
               <li key={m.nodeId} id={fieldDomId(`node-${m.nodeId}`)} className={cn('space-y-2 rounded-lg border bg-surface-raised/40 p-2.5 scroll-mt-16', reviewer?.nodeId === m.nodeId ? 'border-primary/50' : 'border-border')}>
                 <div className="flex items-center gap-2">
                   {team.delegation === 'sequential' || team.delegation === 'review_loop' ? (
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/12 text-[10px] font-semibold text-primary-text">{i + 1}</span>
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/12 text-2xs font-semibold text-primary-text">{i + 1}</span>
                   ) : (
                     <Bot className="size-4 shrink-0 text-primary" />
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
                       <span className="truncate">{m.label}</span>
-                      {reviewer?.nodeId === m.nodeId && <Badge variant="primary" className="h-4 px-1 text-[9px]">Reviewer</Badge>}
+                      {reviewer?.nodeId === m.nodeId && <Badge variant="primary" className="h-4 px-1 text-2xs">Reviewer</Badge>}
                     </span>
-                    <span className="block truncate text-[10px] text-muted-foreground">
+                    <span className="block truncate text-2xs text-muted-foreground">
                       {m.model ? `${m.model.inherited ? 'Inherits ' : ''}${m.model.model}` : 'No model'} · {m.hasPrompt ? 'has instructions' : 'no instructions'} · {m.toolCount} tools
                       {m.memberCount ? ` · leads ${m.memberCount}` : ''}
                     </span>
@@ -157,13 +157,13 @@ export function SubAgentsModule({ view, agent, nodes, edges, issues, readOnly, s
                   <span className={cn('size-3 rounded-full border-2', selected ? 'border-foreground bg-foreground' : 'border-muted-foreground/40')} aria-hidden />
                   {mode.label}
                 </span>
-                <span className="mt-0.5 block pl-5 text-[11px] leading-relaxed text-muted-foreground">{PATTERNS[mode.value]}</span>
+                <span className="mt-0.5 block pl-5 text-xs leading-relaxed text-muted-foreground">{PATTERNS[mode.value]}</span>
               </button>
             );
           })}
         </div>
         {members.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1 rounded-lg bg-surface-inset px-2.5 py-2 text-[11px] text-foreground" aria-label="Execution order">
+          <div className="flex flex-wrap items-center gap-1 rounded-lg bg-surface-inset px-2.5 py-2 text-xs text-foreground" aria-label="Execution order">
             <span className="font-medium">{view.agentLabel}</span>
             <ArrowRight className="size-3 text-muted-foreground" />
             {team.delegation === 'parallel' || team.delegation === 'router' ? (
@@ -229,7 +229,7 @@ export function SubAgentsModule({ view, agent, nodes, edges, issues, readOnly, s
           Open run console
         </Button>
         <SettingField label="Who would be involved">
-          <ul className="space-y-0.5 text-[11px] text-muted-foreground">
+          <ul className="space-y-0.5 text-xs text-muted-foreground">
             <li className="font-medium text-foreground">{view.agentLabel} (lead)</li>
             {members.map((m) => (
               <li key={m.nodeId} className="pl-3">↳ {m.label}{m.memberCount ? ` (+${m.memberCount} of its own)` : ''}</li>

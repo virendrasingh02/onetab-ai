@@ -67,7 +67,7 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
           <div className="mt-2 text-2xl font-bold text-foreground">
             ${projectedMonthSpend.toFixed(2)}
           </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
+          <div className="text-2xs text-muted-foreground mt-0.5">
             Estimated based on current run velocity
           </div>
         </Card>
@@ -154,11 +154,11 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground">{rec.title}</span>
-                    <Badge variant="outline" className="text-[10px] text-success-text">
+                    <Badge variant="outline" className="text-2xs text-success-text">
                       Save ~{rec.estimatedSavingsPct}%
                     </Badge>
                   </div>
-                  <p className="text-muted-foreground text-[11px] leading-relaxed">
+                  <p className="text-muted-foreground text-xs leading-relaxed">
                     {rec.description}
                   </p>
                 </div>
@@ -179,7 +179,7 @@ export function CostUsageView({ costData }: CostUsageViewProps) {
           <div className="rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-surface-raised/50 text-[11px]">
+                <TableRow className="bg-surface-raised/50 text-xs">
                   <TableHead>Model</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead className="text-right">Share</TableHead>

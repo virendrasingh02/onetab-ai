@@ -68,7 +68,7 @@ export function buildSnippets({ apiBase, agentId, publicKey, theme }: SnippetInp
   allow="clipboard-write"
 ></iframe>`,
 
-    webComponent: `<script type="module" src="${sdk}"></script>
+    webComponent: `<script src="${sdk}" async></script>
 
 <onetab-agent
   agent-id="${agentId}"

@@ -95,7 +95,7 @@ export function ValidationModal({
                 <AlertCircle className="size-3.5" />
                 <span>Errors ({errors.length})</span>
               </div>
-              <ul className="list-inside list-disc space-y-1 text-[11px]">
+              <ul className="list-inside list-disc space-y-1 text-xs">
                 {errors.map((err, i) => (
                   <li key={i}>{err}</li>
                 ))}
@@ -110,7 +110,7 @@ export function ValidationModal({
                 <AlertTriangle className="size-3.5" />
                 <span>Warnings ({warnings.length})</span>
               </div>
-              <ul className="list-inside list-disc space-y-1 text-[11px]">
+              <ul className="list-inside list-disc space-y-1 text-xs">
                 {warnings.map((warn, i) => (
                   <li key={i}>{warn}</li>
                 ))}

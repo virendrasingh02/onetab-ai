@@ -120,7 +120,7 @@ export function ConnectorNodeConfig({
     <div className="space-y-3.5 border-t border-border pt-3">
       {!lockedProvider && (
       <div className="space-y-1.5">
-        <span className="text-[11px] font-semibold text-foreground">App</span>
+        <span className="text-xs font-semibold text-foreground">App</span>
         <AppSelect
           value={connector?.provider ?? ''}
           onValueChange={(p) => {
@@ -146,9 +146,9 @@ export function ConnectorNodeConfig({
       {connector && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-foreground">Connected Account</span>
+            <span className="text-xs font-semibold text-foreground">Connected Account</span>
             {activeConnections.length > 1 && (
-              <Badge variant="outline" className="text-[10px] py-0 font-normal">
+              <Badge variant="outline" className="text-2xs py-0 font-normal">
                 {activeConnections.length} accounts
               </Badge>
             )}
@@ -185,7 +185,7 @@ export function ConnectorNodeConfig({
 
       {connector && (
         <div className="space-y-1.5">
-          <span className="text-[11px] font-semibold text-foreground">{kind === 'action' ? 'Action' : 'Event'}</span>
+          <span className="text-xs font-semibold text-foreground">{kind === 'action' ? 'Action' : 'Event'}</span>
           <AppSelect
             value={capabilityId}
             onValueChange={(id) =>
@@ -204,7 +204,7 @@ export function ConnectorNodeConfig({
             }
           />
           {(capability?.description || trigger?.description) && (
-            <p className="text-[11px] text-muted-foreground">{capability?.description ?? trigger?.description}</p>
+            <p className="text-xs text-muted-foreground">{capability?.description ?? trigger?.description}</p>
           )}
         </div>
       )}
@@ -213,11 +213,11 @@ export function ConnectorNodeConfig({
         <div className="space-y-1.5 rounded-lg border border-border bg-surface-raised/60 p-2.5">
           <Label htmlFor={`approval-${node.id}`} className="flex cursor-pointer items-start justify-between gap-3">
             <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                 <ShieldCheck className="size-3.5 shrink-0 text-warning" aria-hidden="true" />
                 Ask a person first
               </span>
-              <span className="text-[11px] font-normal text-muted-foreground">
+              <span className="text-xs font-normal text-muted-foreground">
                 The run pauses here and shows exactly what will happen in {connector?.name}. It continues when someone approves; if
                 they reject it, nothing after this runs. Test runs never run it.
               </span>
@@ -230,7 +230,7 @@ export function ConnectorNodeConfig({
             />
           </Label>
           {capability.permissionLevel === 'destructive' && config['requireApproval'] !== true && (
-            <p className="text-[11px] text-warning-text">
+            <p className="text-xs text-warning-text">
               This action can’t be undone. Without approval it runs as soon as the run reaches it.
             </p>
           )}
@@ -238,18 +238,18 @@ export function ConnectorNodeConfig({
       )}
 
       {kind === 'trigger' && trigger && (
-        <p className="flex items-start gap-1.5 rounded-lg border border-border bg-surface-raised/60 p-2.5 text-[11px] text-muted-foreground">
+        <p className="flex items-start gap-1.5 rounded-lg border border-border bg-surface-raised/60 p-2.5 text-xs text-muted-foreground">
           <Zap className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden="true" />
           {trigger.delivery === 'webhook' ? (
             <span>
               Once the agent is switched on, {connector?.name} sends this event the moment it happens — add the connection’s webhook
               address in {connector?.name}’s settings (it’s shown on the connector page). The item is{' '}
-              <code className="rounded bg-surface px-1">{'{{event}}'}</code> in later steps.
+              <code className="rounded-md bg-surface px-1">{'{{event}}'}</code> in later steps.
             </span>
           ) : (
             <span>
               Once the agent is switched on, {connector?.name} is checked every 2 minutes and each new item starts one run. The item is{' '}
-              <code className="rounded bg-surface px-1">{'{{event}}'}</code> in later steps.
+              <code className="rounded-md bg-surface px-1">{'{{event}}'}</code> in later steps.
             </span>
           )}
         </p>
@@ -258,9 +258,9 @@ export function ConnectorNodeConfig({
       {schema && schemaProperties(schema).length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-foreground">{kind === 'action' ? 'Inputs' : 'Only for'}</span>
+            <span className="text-xs font-semibold text-foreground">{kind === 'action' ? 'Inputs' : 'Only for'}</span>
             {kind === 'action' && (
-              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1 text-2xs text-muted-foreground">
                 <Braces className="size-3" aria-hidden="true" /> Any field takes a variable
               </span>
             )}
@@ -283,14 +283,14 @@ export function ConnectorNodeConfig({
                       () => toast.message(v.value),
                     );
                   }}
-                  className="h-auto px-1.5 py-0.5 font-mono text-[10px] font-normal"
+                  className="h-auto px-1.5 py-0.5 font-mono text-2xs font-normal"
                 >
                   {v.value}
                 </Button>
               ))}
             </div>
           )}
-          {missing.length > 0 && <p className="text-[11px] text-warning-text">Still needed: {missing.join(', ')}.</p>}
+          {missing.length > 0 && <p className="text-xs text-warning-text">Still needed: {missing.join(', ')}.</p>}
         </div>
       )}
 
@@ -311,8 +311,8 @@ export function ConnectorNodeConfig({
               role="status"
               className={
                 result.ok
-                  ? 'rounded-lg border border-success/30 bg-success/10 p-2.5 text-[11px] text-success-text'
-                  : 'rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-[11px] text-destructive-text'
+                  ? 'rounded-lg border border-success/30 bg-success/10 p-2.5 text-xs text-success-text'
+                  : 'rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive-text'
               }
             >
               <div className="font-medium">{result.message}</div>

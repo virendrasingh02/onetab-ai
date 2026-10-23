@@ -105,7 +105,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <Label className="text-[11px] text-muted-foreground">Alert Rule Name</Label>
+              <Label className="text-xs text-muted-foreground">Alert Rule Name</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -115,7 +115,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
             </div>
 
             <div>
-              <Label className="text-[11px] text-muted-foreground">Target Metric</Label>
+              <Label className="text-xs text-muted-foreground">Target Metric</Label>
               <AppSelect
                 value={metric}
                 onValueChange={(v) => setMetric(v as any)}
@@ -129,7 +129,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
             </div>
 
             <div>
-              <Label className="text-[11px] text-muted-foreground">Threshold Value</Label>
+              <Label className="text-xs text-muted-foreground">Threshold Value</Label>
               <Input
                 type="number"
                 value={threshold}
@@ -166,7 +166,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
         <div className="rounded-lg border border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-surface-raised/50 text-[11px]">
+              <TableRow className="bg-surface-raised/50 text-xs">
                 <TableHead>Rule Name</TableHead>
                 <TableHead>Target Metric</TableHead>
                 <TableHead>Condition</TableHead>
@@ -191,7 +191,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
                       <TableCell className="font-semibold text-foreground">
                         {rule.name}
                       </TableCell>
-                      <TableCell className="font-mono text-[11px] text-muted-foreground">
+                      <TableCell className="font-mono text-xs text-muted-foreground">
                         {rule.metric}
                       </TableCell>
                       <TableCell className="tabular-nums font-mono text-muted-foreground">
@@ -203,7 +203,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
                       <TableCell>
                         <Badge
                           variant={isFiring ? 'destructive' : 'success'}
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {rule.status}
                         </Badge>
@@ -215,7 +215,7 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
                               variant="outline"
                               size="sm"
                               onClick={() => handleUpdateStatus(rule.id, 'ACKNOWLEDGED')}
-                              className="h-7 text-[10px] px-2"
+                              className="h-7 text-2xs px-2"
                             >
                               Acknowledge
                             </Button>
@@ -223,13 +223,13 @@ export function AlertsAnomaliesView({ alerts = [], onRefresh }: AlertsAnomaliesV
                               variant="secondary"
                               size="sm"
                               onClick={() => handleUpdateStatus(rule.id, 'RESOLVED')}
-                              className="h-7 text-[10px] px-2"
+                              className="h-7 text-2xs px-2"
                             >
                               Resolve
                             </Button>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-muted-foreground">Monitoring OK</span>
+                          <span className="text-2xs text-muted-foreground">Monitoring OK</span>
                         )}
                       </TableCell>
                     </TableRow>

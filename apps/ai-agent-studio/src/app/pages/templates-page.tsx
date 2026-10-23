@@ -198,7 +198,7 @@ export function TemplatesPage() {
                       <h3 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
                         {template.name}
                       </h3>
-                      <span className="text-[10px] text-muted-foreground font-mono">
+                      <span className="text-2xs text-muted-foreground font-mono">
                         {template.nodes.length} nodes ·{' '}
                         {template.edges.length} connections
                       </span>
@@ -214,7 +214,7 @@ export function TemplatesPage() {
                   <div className="mt-2.5 flex items-center gap-1.5">
                     <span
                       className={cn(
-                        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium',
                         missingApps.length === 0
                           ? 'border-success/30 bg-success/10 text-success-text'
                           : 'border-warning/30 bg-warning/10 text-warning-text',
@@ -234,7 +234,7 @@ export function TemplatesPage() {
                     <Badge
                       key={tag}
                       variant="outline"
-                      className="text-[10px] py-0 font-normal"
+                      className="text-2xs py-0 font-normal"
                     >
                       {tag}
                     </Badge>
@@ -243,7 +243,7 @@ export function TemplatesPage() {
               </div>
 
               <div className="mt-5 flex items-center justify-between border-t border-border/60 pt-3 text-xs">
-                <span className="font-mono text-[11px] text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground">
                   {template.recommendedModel}
                 </span>
 

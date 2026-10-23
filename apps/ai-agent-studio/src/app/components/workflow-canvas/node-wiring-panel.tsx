@@ -99,7 +99,7 @@ function Chip({ className, children }: { className?: string; children: React.Rea
   return (
     <span
       className={cn(
-        'inline-flex h-5 items-center rounded-md border border-border bg-surface-raised px-1.5 text-[11px] font-semibold text-foreground',
+        'inline-flex h-5 items-center rounded-md border border-border bg-surface-raised px-1.5 text-xs font-semibold text-foreground',
         className,
       )}
     >
@@ -111,7 +111,7 @@ function Chip({ className, children }: { className?: string; children: React.Rea
 function SectionHeader({ title, hint, aside }: { title: string; hint: string; aside?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h4>
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h4>
       <div className="flex items-center gap-2">
         {aside}
         <span title={hint} aria-label={hint} className="text-muted-foreground">
@@ -160,7 +160,7 @@ function WireRow({
       <div className="flex items-center gap-1.5">
         <span className="size-2 shrink-0 rounded-full border border-muted-foreground/60 bg-surface" />
         <Select value={value} onValueChange={onChange} disabled={disabled}>
-          <SelectTrigger className="h-8 min-w-0 flex-1 rounded-lg bg-surface-raised text-[13px] font-medium">
+          <SelectTrigger className="h-8 min-w-0 flex-1 rounded-lg bg-surface-raised text-sm font-medium">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

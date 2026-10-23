@@ -21,7 +21,7 @@ export function AgentModulesOverview({
   return (
     <div className="space-y-4">
       <div>
-        <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Agent configuration</h4>
+        <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent configuration</h4>
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
           {summaries.map((s) => {
             const Icon = MODULE_ICONS[s.id];
@@ -42,7 +42,7 @@ export function AgentModulesOverview({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-semibold text-foreground">{s.label}</span>
-                    <span className="block truncate text-[11px] text-muted-foreground">
+                    <span className="block truncate text-xs text-muted-foreground">
                       {s.title}
                       {s.detail ? ` · ${s.detail}` : ''}
                     </span>
@@ -85,7 +85,7 @@ function ExecutionPreview({ summaries, onOpen, onRunTest }: { summaries: ModuleS
         type="button"
         onClick={() => onOpen(id)}
         className={cn(
-          'flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+          'flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
           skipped ? 'border-dashed border-border text-muted-foreground' : 'border-border bg-surface',
         )}
       >
@@ -100,14 +100,14 @@ function ExecutionPreview({ summaries, onOpen, onRunTest }: { summaries: ModuleS
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
-        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">How a run flows</h4>
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">How a run flows</h4>
         <Button type="button" variant="ghost" size="xs" onClick={onRunTest}>
           <Activity className="size-3.5" />
           Test run
         </Button>
       </div>
       <ol className="space-y-1" aria-label="Execution order">
-        <li className="flex items-center gap-2 rounded-lg bg-surface-inset px-2.5 py-1.5 text-[11px] text-muted-foreground">
+        <li className="flex items-center gap-2 rounded-lg bg-surface-inset px-2.5 py-1.5 text-xs text-muted-foreground">
           <MessageSquare className="size-3.5" /> Input — the message or the previous step’s result
         </li>
         <li>{arrow}</li>
@@ -121,7 +121,7 @@ function ExecutionPreview({ summaries, onOpen, onRunTest }: { summaries: ModuleS
           {step('subAgents', 'delegated to')}
         </li>
         <li>{arrow}</li>
-        <li className="flex items-center gap-2 rounded-lg bg-surface-inset px-2.5 py-1.5 text-[11px] text-muted-foreground">
+        <li className="flex items-center gap-2 rounded-lg bg-surface-inset px-2.5 py-1.5 text-xs text-muted-foreground">
           <Send className="size-3.5" /> Output — the agent’s answer goes to the next step
         </li>
       </ol>

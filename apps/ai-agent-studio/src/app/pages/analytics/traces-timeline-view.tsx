@@ -81,7 +81,7 @@ export function TracesTimelineView({
                   variant={executionId === ex.id ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setExecutionId(ex.id)}
-                  className="h-7 px-2 font-mono text-[10px]"
+                  className="h-7 px-2 font-mono text-2xs"
                 >
                   {ex.id.slice(0, 8)}...
                 </Button>
@@ -171,17 +171,17 @@ export function TracesTimelineView({
                           <span className="font-semibold text-foreground truncate">
                             {span.name}
                           </span>
-                          <Badge variant="outline" className="text-[9px] font-mono shrink-0">
+                          <Badge variant="outline" className="text-2xs font-mono shrink-0">
                             {span.operationType}
                           </Badge>
                           {isBottleneck && (
-                            <Badge variant="warning" className="text-[9px] shrink-0">
+                            <Badge variant="warning" className="text-2xs shrink-0">
                               Bottleneck
                             </Badge>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 text-muted-foreground font-mono text-[11px] shrink-0">
+                        <div className="flex items-center gap-3 text-muted-foreground font-mono text-xs shrink-0">
                           {span.totalTokens ? <span>{span.totalTokens} tok</span> : null}
                           <span className="font-semibold text-foreground">{span.durationMs}ms</span>
                         </div>
@@ -216,7 +216,7 @@ export function TracesTimelineView({
                   Span Telemetry Inspector
                 </h4>
                 {selectedSpan && (
-                  <Badge variant="outline" className="text-[10px] font-mono">
+                  <Badge variant="outline" className="text-2xs font-mono">
                     {selectedSpan.operationType}
                   </Badge>
                 )}
@@ -229,34 +229,34 @@ export function TracesTimelineView({
               ) : (
                 <div className="space-y-3 text-xs">
                   <div>
-                    <span className="text-[10px] text-muted-foreground font-semibold">Span Name:</span>
+                    <span className="text-2xs text-muted-foreground font-semibold">Span Name:</span>
                     <div className="font-semibold text-foreground mt-0.5">{selectedSpan.name}</div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2 rounded bg-surface-raised border border-border">
-                      <span className="text-[10px] text-muted-foreground">Duration</span>
+                    <div className="p-2 rounded-md bg-surface-raised border border-border">
+                      <span className="text-2xs text-muted-foreground">Duration</span>
                       <div className="font-bold text-foreground">{selectedSpan.durationMs}ms</div>
                     </div>
-                    <div className="p-2 rounded bg-surface-raised border border-border">
-                      <span className="text-[10px] text-muted-foreground">Tokens</span>
+                    <div className="p-2 rounded-md bg-surface-raised border border-border">
+                      <span className="text-2xs text-muted-foreground">Tokens</span>
                       <div className="font-bold text-foreground">{selectedSpan.totalTokens ?? 0}</div>
                     </div>
                   </div>
 
                   {selectedSpan.model && (
                     <div>
-                      <span className="text-[10px] text-muted-foreground font-semibold">Model:</span>
+                      <span className="text-2xs text-muted-foreground font-semibold">Model:</span>
                       <div className="font-mono text-foreground mt-0.5">{selectedSpan.model}</div>
                     </div>
                   )}
 
                   {selectedSpan.inputRedacted && (
                     <div>
-                      <span className="text-[10px] text-muted-foreground font-semibold">
+                      <span className="text-2xs text-muted-foreground font-semibold">
                         Inputs (Credentials Redacted):
                       </span>
-                      <pre className="mt-1 p-2 rounded bg-surface-raised border border-border text-[10px] font-mono max-h-36 overflow-auto whitespace-pre-wrap break-all">
+                      <pre className="mt-1 p-2 rounded-md bg-surface-raised border border-border text-2xs font-mono max-h-36 overflow-auto whitespace-pre-wrap break-all">
                         {JSON.stringify(selectedSpan.inputRedacted, null, 2)}
                       </pre>
                     </div>
@@ -264,15 +264,15 @@ export function TracesTimelineView({
 
                   {selectedSpan.outputRedacted && (
                     <div>
-                      <span className="text-[10px] text-muted-foreground font-semibold">Outputs:</span>
-                      <pre className="mt-1 p-2 rounded bg-surface-raised border border-border text-[10px] font-mono max-h-36 overflow-auto whitespace-pre-wrap break-all">
+                      <span className="text-2xs text-muted-foreground font-semibold">Outputs:</span>
+                      <pre className="mt-1 p-2 rounded-md bg-surface-raised border border-border text-2xs font-mono max-h-36 overflow-auto whitespace-pre-wrap break-all">
                         {JSON.stringify(selectedSpan.outputRedacted, null, 2)}
                       </pre>
                     </div>
                   )}
 
                   {selectedSpan.errorMessage && (
-                    <div className="p-2.5 rounded bg-destructive/10 border border-destructive/30 text-destructive text-[11px] font-mono">
+                    <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs font-mono">
                       {selectedSpan.errorMessage}
                     </div>
                   )}

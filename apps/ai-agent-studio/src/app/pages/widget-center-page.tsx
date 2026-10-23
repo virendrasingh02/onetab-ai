@@ -300,14 +300,14 @@ export function WidgetCenterPage() {
                           <CardTitle className="text-sm font-semibold text-foreground">
                             {widget.name}
                           </CardTitle>
-                          <span className="text-[10px] font-mono text-muted-foreground">
+                          <span className="text-2xs font-mono text-muted-foreground">
                             v{widget.version} • {widget.category.replace('_', ' ')}
                           </span>
                         </div>
                       </div>
                       <Badge
                         variant={widget.visibility === 'PRIVATE' ? 'outline' : 'secondary'}
-                        className="text-[9px] uppercase font-mono"
+                        className="text-2xs uppercase font-mono"
                       >
                         {widget.visibility === 'PRIVATE' ? 'Personal' : widget.visibility === 'PUBLIC' ? 'Public' : 'Workspace'}
                       </Badge>
@@ -318,14 +318,14 @@ export function WidgetCenterPage() {
                   </CardHeader>
 
                   <CardContent className="p-4 pt-2">
-                    <div className="rounded border border-border/60 bg-muted/20 p-2.5">
-                      <div className="flex justify-between items-center text-[11px] text-muted-foreground">
+                    <div className="rounded-md border border-border/60 bg-muted/20 p-2.5">
+                      <div className="flex justify-between items-center text-xs text-muted-foreground">
                         <span>Component Type:</span>
                         <span className="font-mono text-foreground font-medium">
                           {widget.componentType}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center text-[11px] text-muted-foreground mt-1">
+                      <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                         <span>Refresh Interval:</span>
                         <span className="font-mono text-foreground">
                           {widget.dataSource?.autoRefresh && widget.dataSource.refreshIntervalSec
@@ -417,7 +417,7 @@ export function WidgetCenterPage() {
                         {tpl.name}
                       </CardTitle>
                     </div>
-                    <Badge variant="outline" className="text-[10px] font-mono">
+                    <Badge variant="outline" className="text-2xs font-mono">
                       {tpl.category.split('_')[0]}
                     </Badge>
                   </div>
@@ -431,7 +431,7 @@ export function WidgetCenterPage() {
                     {tpl.tags?.map((t: string) => (
                       <span
                         key={t}
-                        className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono text-muted-foreground"
+                        className="px-1.5 py-0.5 rounded-md bg-muted text-2xs font-mono text-muted-foreground"
                       >
                         #{t}
                       </span>
@@ -519,7 +519,7 @@ export function WidgetCenterPage() {
                       <TableCell className="p-3">
                         <span
                           className={cn(
-                            'px-1.5 py-0.5 rounded text-[10px] font-semibold',
+                            'px-1.5 py-0.5 rounded-md text-2xs font-semibold',
                             ex.status === 'SUCCESS' ? 'bg-success/10 text-success-text' : 'bg-rose-500/10 text-rose-500'
                           )}
                         >
@@ -571,11 +571,11 @@ export function WidgetCenterPage() {
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-foreground">v{ver.version}</span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-2xs text-muted-foreground">
                           {new Date(ver.createdAt).toLocaleString()}
                         </span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{ver.changeNote || 'Version snapshot'}</p>
+                      <p className="text-xs text-muted-foreground">{ver.changeNote || 'Version snapshot'}</p>
                     </div>
 
                     <Button
@@ -609,21 +609,21 @@ export function WidgetCenterPage() {
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <div>
                 <span className="font-medium text-foreground">Auto-Refresh Maximum Frequency</span>
-                <p className="text-[11px]">Enforce lower bound on widget periodic HTTP queries</p>
+                <p className="text-xs">Enforce lower bound on widget periodic HTTP queries</p>
               </div>
               <Badge variant="secondary">15 seconds</Badge>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
               <div>
                 <span className="font-medium text-foreground">SSRF Protection Engine</span>
-                <p className="text-[11px]">Blocks requests targeting private IPs, AWS metadata, and loopbacks</p>
+                <p className="text-xs">Blocks requests targeting private IPs, AWS metadata, and loopbacks</p>
               </div>
               <Badge variant="secondary" className="text-success-text font-mono">Enforced</Badge>
             </div>
             <div className="flex justify-between items-center py-2">
               <div>
                 <span className="font-medium text-foreground">Audit Log Retention</span>
-                <p className="text-[11px]">Days of execution history retained per widget</p>
+                <p className="text-xs">Days of execution history retained per widget</p>
               </div>
               <Badge variant="secondary">90 days</Badge>
             </div>
@@ -639,7 +639,7 @@ export function WidgetCenterPage() {
               <DialogTitle className="text-sm font-semibold flex items-center gap-2">
                 <LayoutDashboard className="size-4 text-primary" />
                 <span>{previewWidget.draft.name || 'Widget Preview'}</span>
-                <Badge variant="outline" className="text-[10px] font-mono">
+                <Badge variant="outline" className="text-2xs font-mono">
                   {previewWidget.draft.category}
                 </Badge>
               </DialogTitle>

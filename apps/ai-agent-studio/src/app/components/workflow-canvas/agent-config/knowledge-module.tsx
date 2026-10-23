@@ -96,10 +96,10 @@ export function KnowledgeModule({ view, issues, readOnly, setConfig, actions, ju
                     onValueChange={(knowledgeBaseId) => setConfig(s.nodeId, { knowledgeBaseId })}
                   />
                   {s.binding && !base && !bases.isLoading && bases.data && (
-                    <p className="text-[11px] text-destructive">That knowledge base no longer exists or you can’t access it.</p>
+                    <p className="text-xs text-destructive">That knowledge base no longer exists or you can’t access it.</p>
                   )}
                   {base && (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {base._count?.documents ?? 0} documents · embeddings: {base.embeddingModel}
                     </p>
                   )}
@@ -130,15 +130,15 @@ export function KnowledgeModule({ view, issues, readOnly, setConfig, actions, ju
             </Button>
           </div>
         )}
-        <Link to="/knowledge" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline">
+        <Link to="/knowledge" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
           Manage knowledge bases and documents <ExternalLink className="size-3" />
         </Link>
       </SettingSection>
 
       <SettingSection id="retrieval" title="Retrieval" description="How each source is searched. Changes apply to the agent’s next run.">
-        {sources.length === 0 && <p className="text-[11px] text-muted-foreground">Add a source first.</p>}
+        {sources.length === 0 && <p className="text-xs text-muted-foreground">Add a source first.</p>}
         {sources.length > 1 && !readOnly && (
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             Set every source to:
             {MODE_OPTIONS.map((m) => (
               <Button key={m.value} type="button" variant="ghost" size="xs" onClick={() => setAll({ mode: m.value === 'AUTO' ? undefined : m.value })}>
@@ -158,14 +158,14 @@ export function KnowledgeModule({ view, issues, readOnly, setConfig, actions, ju
                 <SegmentedControl aria-label={`Search mode for ${s.label}`} size="sm" options={MODE_OPTIONS} value={mode} onChange={(m) => !readOnly && setConfig(s.nodeId, { mode: m === 'AUTO' ? undefined : m })} />
               </SettingField>
               <div className="space-y-1.5">
-                <div className="flex justify-between text-[11px]">
+                <div className="flex justify-between text-xs">
                   <span className="font-semibold text-foreground">Passages (top K)</span>
                   <span className="tabular-nums text-muted-foreground">{topK}</span>
                 </div>
                 <Slider min={1} max={20} step={1} value={[topK]} disabled={readOnly} aria-label={`Top K for ${s.label}`} onValueChange={([v]) => setConfig(s.nodeId, { topK: v })} />
               </div>
               <div className="space-y-1.5">
-                <div className="flex justify-between text-[11px]">
+                <div className="flex justify-between text-xs">
                   <span className="font-semibold text-foreground">Minimum score</span>
                   <span className="tabular-nums text-muted-foreground">{minScore ? minScore.toFixed(2) : 'Off'}</span>
                 </div>
@@ -246,34 +246,34 @@ function RetrievalDebugger({ view, testSignal }: Pick<ModuleEditorProps, 'view' 
           Search
         </Button>
       </form>
-      {active.length === 0 && <p className="text-[11px] text-muted-foreground">No active source to search.</p>}
+      {active.length === 0 && <p className="text-xs text-muted-foreground">No active source to search.</p>}
       {runs && (
         <ol className="space-y-2" aria-label="Retrieval steps">
-          <li className="rounded-lg border border-border px-2.5 py-2 text-[11px]">
+          <li className="rounded-lg border border-border px-2.5 py-2 text-xs">
             <span className="font-semibold text-foreground">1. Query</span>
             <span className="ml-1.5 text-muted-foreground">“{query.slice(0, 120)}”</span>
           </li>
           <li className="flex justify-center text-muted-foreground" aria-hidden><ArrowDown className="size-3.5" /></li>
           {runs.map((r) => (
             <li key={r.nodeId} className="space-y-1.5 rounded-lg border border-border px-2.5 py-2">
-              <div className="flex items-center gap-1.5 text-[11px]">
+              <div className="flex items-center gap-1.5 text-xs">
                 <span className="font-semibold text-foreground">2. {r.name}</span>
-                <Badge variant="neutral" className="h-4 px-1 text-[9px]">{r.mode.toLowerCase()}</Badge>
+                <Badge variant="neutral" className="h-4 px-1 text-2xs">{r.mode.toLowerCase()}</Badge>
                 <span className="ml-auto tabular-nums text-muted-foreground">{r.results.length} hits · {r.ms} ms</span>
               </div>
               {r.error && <OutputBlock tone="error">{r.error}</OutputBlock>}
-              {!r.error && r.results.length === 0 && <p className="text-[11px] text-muted-foreground">Nothing matched (or nothing scored above the minimum).</p>}
+              {!r.error && r.results.length === 0 && <p className="text-xs text-muted-foreground">Nothing matched (or nothing scored above the minimum).</p>}
               <ul className="space-y-1">
                 {r.results.map((h) => (
                   <li key={h.chunkId} className="rounded-md bg-surface-inset px-2 py-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{h.documentName}</span>
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{h.documentName}</span>
                       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-border" aria-hidden>
                         <span className="block h-full bg-primary" style={{ width: `${Math.round(h.score * 100)}%` }} />
                       </span>
-                      <span className="w-9 text-right font-mono text-[10px] tabular-nums text-muted-foreground" aria-label={`Score ${h.score}`}>{h.score.toFixed(2)}</span>
+                      <span className="w-9 text-right font-mono text-2xs tabular-nums text-muted-foreground" aria-label={`Score ${h.score}`}>{h.score.toFixed(2)}</span>
                     </div>
-                    <p className="mt-0.5 line-clamp-3 text-[11px] leading-relaxed text-muted-foreground">{h.content}</p>
+                    <p className="mt-0.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{h.content}</p>
                   </li>
                 ))}
               </ul>

@@ -444,7 +444,7 @@ export function MemoryTab({ agent, onUpdate }) {
                   placeholder="e.g. Writes short, friendly replies and signs off with the team name."
                   onChange={(e) => setForm({ ...form, value: e.target.value })}
                 />
-                <span className="text-right text-[11px] tabular-nums text-muted-foreground">
+                <span className="text-right text-xs tabular-nums text-muted-foreground">
                   {form.value.length}/{MAX_VALUE}
                 </span>
               </div>
@@ -494,15 +494,15 @@ export function MemoryTab({ agent, onUpdate }) {
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-medium text-foreground">{name}</span>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-2xs">
                           {otherAgent ? 'Another agent' : scope === 'agent' ? 'This agent' : scope === 'user' ? 'Person' : scope}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        <Badge variant="outline" className="text-2xs text-muted-foreground">
                           {mem.source === 'manual' ? 'Added by you' : 'Saved by agent'}
                         </Badge>
                       </div>
                       <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">{mem.value}</p>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         Updated {timeAgo(mem.updatedAt || mem.createdAt)} · ~{Math.ceil((mem.value || '').length / 4)} tokens
                       </div>
                     </div>

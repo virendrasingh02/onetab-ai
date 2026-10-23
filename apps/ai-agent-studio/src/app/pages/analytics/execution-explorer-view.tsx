@@ -107,7 +107,7 @@ export function ExecutionExplorerView({
         <div className="rounded-lg border border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-surface-raised/50 text-[11px]">
+              <TableRow className="bg-surface-raised/50 text-xs">
                 <TableHead>Run ID</TableHead>
                 <TableHead>Target Entity</TableHead>
                 <TableHead>Status</TableHead>
@@ -141,21 +141,21 @@ export function ExecutionExplorerView({
                       className="cursor-pointer hover:bg-surface-raised/50 text-xs"
                       onClick={() => setSelectedExecution(item)}
                     >
-                      <TableCell className="font-mono text-[11px] font-semibold text-foreground">
+                      <TableCell className="font-mono text-xs font-semibold text-foreground">
                         {item.id.slice(0, 10)}...
                       </TableCell>
                       <TableCell>
                         <div className="font-medium text-foreground">
                           {item.agentName || item.entityType || 'Workflow Run'}
                         </div>
-                        <div className="text-[10px] text-muted-foreground truncate max-w-[140px]">
+                        <div className="text-2xs text-muted-foreground truncate max-w-[140px]">
                           {item.promptText || 'Automation Dispatch'}
                         </div>
                       </TableCell>
                       <TableCell>
                         <Badge
                           variant={isSuccess ? 'success' : isFailed ? 'destructive' : 'secondary'}
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {status}
                         </Badge>
@@ -172,7 +172,7 @@ export function ExecutionExplorerView({
                       <TableCell className="text-muted-foreground">
                         {item.triggerType || item.metadata?.triggerType || 'MANUAL'}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-[11px]">
+                      <TableCell className="text-muted-foreground text-xs">
                         {new Date(item.executedAt || item.startedAt || 0).toLocaleTimeString()}
                       </TableCell>
                       <TableCell className="text-right">

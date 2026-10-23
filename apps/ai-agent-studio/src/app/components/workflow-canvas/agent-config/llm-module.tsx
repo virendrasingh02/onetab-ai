@@ -136,22 +136,22 @@ export function LlmModule({ view, nodes, issues, readOnly, setConfig, actions, j
           <div className="flex flex-wrap items-center gap-1.5">
             <AIModelIcon modelId={meta.model} size={14} />
             {CAPABILITY_LABELS.map(([key, label]) => (
-              <Badge key={key} variant={(caps as Record<string, boolean | undefined>)[key] ? 'success' : 'neutral'} className={cn('h-5 px-1.5 text-[10px]', !(caps as Record<string, boolean | undefined>)[key] && 'line-through opacity-60')}>
+              <Badge key={key} variant={(caps as Record<string, boolean | undefined>)[key] ? 'success' : 'neutral'} className={cn('h-5 px-1.5 text-2xs', !(caps as Record<string, boolean | undefined>)[key] && 'line-through opacity-60')}>
                 {label}
               </Badge>
             ))}
           </div>
         )}
         {meta && hasTools && caps.toolCalling === false && (
-          <p className="text-[11px] text-warning">This model doesn’t advertise tool calling, but the agent has tools or sub-agents.</p>
+          <p className="text-xs text-warning">This model doesn’t advertise tool calling, but the agent has tools or sub-agents.</p>
         )}
         {meta && view.prompt.settings.output.format === 'json' && caps.structuredOutput === false && (
-          <p className="text-[11px] text-muted-foreground">JSON replies are requested in the prompt; this model has no native structured-output mode.</p>
+          <p className="text-xs text-muted-foreground">JSON replies are requested in the prompt; this model has no native structured-output mode.</p>
         )}
         {meta && (
           <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-raised/40 px-2.5 py-2">
             <span className={cn('size-2 rounded-full', connected ? 'bg-success' : 'bg-warning')} aria-hidden />
-            <span className="min-w-0 flex-1 text-[11px] text-foreground">
+            <span className="min-w-0 flex-1 text-xs text-foreground">
               {provider?.name ?? meta.provider} — {connected ? 'connected' : 'not connected: add its API key in AI settings'}
               {connection && <span className="block text-muted-foreground">{connection.status} · {connection.latencyMs !== null ? `${connection.latencyMs} ms · ` : ''}{connection.detail}</span>}
             </span>
@@ -165,7 +165,7 @@ export function LlmModule({ view, nodes, issues, readOnly, setConfig, actions, j
 
       <SettingSection id="generation" title="Generation" issues={issues.filter((i) => i.section === 'generation')}>
         <div id={fieldDomId('temperature')} className="space-y-1.5 scroll-mt-16">
-          <div className="flex items-center justify-between text-[11px]">
+          <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-foreground">Temperature</span>
             <span className="tabular-nums text-muted-foreground">
               {llm.temperature ?? 'default'} · {(llm.temperature ?? 0.7) < 0.4 ? 'Precise' : (llm.temperature ?? 0.7) > 1.2 ? 'Very creative' : 'Balanced'}
@@ -221,7 +221,7 @@ export function LlmModule({ view, nodes, issues, readOnly, setConfig, actions, j
           hint="How many times the model may call tools before it must answer."
           onChange={(v) => setConfig(view.agentId, { maxSteps: v === undefined ? undefined : Math.round(v) })}
         />
-        <p className="text-[11px] text-muted-foreground">Run-wide time, step and token budgets are under Sub-agents → Limits; they cover the whole team.</p>
+        <p className="text-xs text-muted-foreground">Run-wide time, step and token budgets are under Sub-agents → Limits; they cover the whole team.</p>
       </SettingSection>
 
       <SettingSection id="usage" title="Usage & cost" description="Estimates for one turn, before tools and knowledge add context.">
@@ -237,7 +237,7 @@ export function LlmModule({ view, nodes, issues, readOnly, setConfig, actions, j
         />
         {contextWindow ? (
           <div className="space-y-1">
-            <div className="flex justify-between text-[11px] text-muted-foreground">
+            <div className="flex justify-between text-xs text-muted-foreground">
               <span>Context used by prompt + output cap</span>
               <span className="tabular-nums">{Math.min(100, Math.round(((promptTokens + outputBudget) / contextWindow) * 100))}%</span>
             </div>

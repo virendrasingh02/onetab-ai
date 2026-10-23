@@ -50,7 +50,7 @@ export function ToolsConnectorsView({ data }: ToolsConnectorsViewProps) {
           <div className="rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-surface-raised/50 text-[11px]">
+                <TableRow className="bg-surface-raised/50 text-xs">
                   <TableHead>Connector Name</TableHead>
                   <TableHead>App Type</TableHead>
                   <TableHead>Invocations</TableHead>
@@ -73,7 +73,7 @@ export function ToolsConnectorsView({ data }: ToolsConnectorsViewProps) {
                       <TableCell className="font-semibold text-foreground">
                         {c.name}
                       </TableCell>
-                      <TableCell className="font-mono text-[11px] text-muted-foreground">
+                      <TableCell className="font-mono text-xs text-muted-foreground">
                         {c.provider}
                       </TableCell>
                       <TableCell className="font-semibold tabular-nums">
@@ -82,7 +82,7 @@ export function ToolsConnectorsView({ data }: ToolsConnectorsViewProps) {
                       <TableCell>
                         <Badge
                           variant={c.successRate >= 95 ? 'success' : 'warning'}
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {c.successRate.toFixed(1)}%
                         </Badge>
@@ -96,7 +96,7 @@ export function ToolsConnectorsView({ data }: ToolsConnectorsViewProps) {
                       <TableCell>
                         <Badge
                           variant={c.lastErrorAt ? 'destructive' : 'success'}
-                          className="text-[10px]"
+                          className="text-2xs"
                           title={c.lastErrorMessage ?? undefined}
                         >
                           {c.lastErrorAt ? 'DEGRADED' : 'HEALTHY'}
@@ -118,7 +118,7 @@ export function ToolsConnectorsView({ data }: ToolsConnectorsViewProps) {
           <div className="rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-surface-raised/50 text-[11px]">
+                <TableRow className="bg-surface-raised/50 text-xs">
                   <TableHead>Tool Identifier</TableHead>
                   <TableHead>Execution Count</TableHead>
                   <TableHead>Success Rate</TableHead>
@@ -145,7 +145,7 @@ export function ToolsConnectorsView({ data }: ToolsConnectorsViewProps) {
                       <TableCell>
                         <Badge
                           variant={t.successRate >= 95 ? 'success' : 'warning'}
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {t.successRate.toFixed(1)}%
                         </Badge>

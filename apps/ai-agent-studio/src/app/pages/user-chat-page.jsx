@@ -136,7 +136,7 @@ export function UserChatPage() {
         </div>
         <div className="flex-1 space-y-0.5 overflow-y-auto p-2">
           {conversations.length === 0 && (
-            <p className="px-2 py-4 text-center text-[11px] text-muted-foreground">No conversations yet.</p>
+            <p className="px-2 py-4 text-center text-xs text-muted-foreground">No conversations yet.</p>
           )}
           {conversations.map((c) => (
             <div
@@ -190,11 +190,11 @@ export function UserChatPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-foreground">{agent.name}</span>
-                <Badge variant={agent.status === 'published' ? 'success' : 'outline'} className="text-[10px] px-1.5 py-0.2">
+                <Badge variant={agent.status === 'published' ? 'success' : 'outline'} className="text-2xs px-1.5 py-0.2">
                   {agent.status === 'published' ? 'Live' : 'Draft'}
                 </Badge>
               </div>
-              <p className="text-[11px] text-muted-foreground truncate max-w-xs">
+              <p className="text-xs text-muted-foreground truncate max-w-xs">
                 {[agent.role, agent.model].filter(Boolean).join(' • ')}
               </p>
             </div>
@@ -251,7 +251,7 @@ export function UserChatPage() {
 
               <div
                 className={cn(
-                  'rounded-2xl p-4 text-xs leading-relaxed max-w-[85%] shadow-2xs',
+                  'rounded-xl p-4 text-xs leading-relaxed max-w-[85%] shadow-2xs',
                   isUser
                     ? 'bg-primary text-primary-foreground rounded-tr-xs'
                     : 'bg-surface border border-border text-foreground rounded-tl-xs',
@@ -261,7 +261,7 @@ export function UserChatPage() {
 
                 {/* Assistant Feedback Buttons */}
                 {!isUser && msg.logId && (
-                  <div className="mt-2.5 flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/40">
+                  <div className="mt-2.5 flex items-center justify-between text-2xs text-muted-foreground pt-1.5 border-t border-border/40">
                     <span>{timeOf(new Date(msg.at))}</span>
                     <div className="flex items-center gap-1">
                       <Button
@@ -318,7 +318,7 @@ export function UserChatPage() {
                   key={prompt}
                   onClick={() => handleSend(prompt)}
                   disabled={isStreaming}
-                  className="h-auto rounded-full px-3 py-1 text-[11px] font-normal"
+                  className="h-auto rounded-full px-3 py-1 text-xs font-normal"
                 >
                   {prompt}
                 </Button>

@@ -140,10 +140,10 @@ export function ApiKeysManager({ workspaceId, title = 'API keys', description }:
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-foreground">{k.name}</span>
-                    <code className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">{k.keyPrefix}••••••••</code>
-                    {!k.isActive ? <Badge variant="outline" className="text-[10px]">{k.expiresAt && new Date(k.expiresAt) < new Date() ? 'Expired' : 'Revoked'}</Badge> : null}
+                    <code className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">{k.keyPrefix}••••••••</code>
+                    {!k.isActive ? <Badge variant="outline" className="text-2xs">{k.expiresAt && new Date(k.expiresAt) < new Date() ? 'Expired' : 'Revoked'}</Badge> : null}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-xs text-muted-foreground">
                     Created {when(k.createdAt)}
                     {k.expiresAt ? ` · expires ${when(k.expiresAt)}` : ''}
                     {' · '}

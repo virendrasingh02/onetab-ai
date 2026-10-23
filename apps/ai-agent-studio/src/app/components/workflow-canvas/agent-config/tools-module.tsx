@@ -128,13 +128,13 @@ export function ToolsModule({ view, agent, issues, readOnly, setConfig, actions,
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs font-medium capitalize text-foreground">{cap?.label ?? e.label}</span>
-                    <span className="block truncate font-mono text-[10px] text-muted-foreground">
+                    <span className="block truncate font-mono text-2xs text-muted-foreground">
                       {e.toolName}
                       {connector ? ` · ${connector.name}${connector.status !== 'connected' ? ' (not connected)' : ''}` : ''}
                       {e.nodeId ? ' · canvas card' : ''}
                     </span>
                   </span>
-                  <Badge variant={risk.variant} className="h-4 shrink-0 px-1 text-[9px]">{risk.label}</Badge>
+                  <Badge variant={risk.variant} className="h-4 shrink-0 px-1 text-2xs">{risk.label}</Badge>
                   {(cap?.requiresConfirmation || view.tools.policies[policyKey(e)]) && (
                     <ShieldAlert className="size-3.5 shrink-0 text-warning" aria-label={view.tools.policies[policyKey(e)] === 'blocked' ? 'Blocked' : 'Needs approval'} />
                   )}
@@ -159,7 +159,7 @@ export function ToolsModule({ view, agent, issues, readOnly, setConfig, actions,
       <AppTools connectors={connectors} enabledRefs={toolList} readOnly={readOnly} onToggle={toggleTool} />
 
       <SettingSection id="guidance" title="Tool instructions" description="Written for you when a tool is turned on and added to the agent’s prompt. Edit freely, or regenerate from the tool’s definition.">
-        {entries.filter((e) => !e.nodeId).length === 0 && <p className="text-[11px] text-muted-foreground">Enable a tool to get instructions for it.</p>}
+        {entries.filter((e) => !e.nodeId).length === 0 && <p className="text-xs text-muted-foreground">Enable a tool to get instructions for it.</p>}
         <ul className="space-y-2">
           {entries
             .filter((e) => !e.nodeId)
@@ -189,7 +189,7 @@ export function ToolsModule({ view, agent, issues, readOnly, setConfig, actions,
                       if (!ev.target.value.trim()) delete g[e.key];
                       setGuidance(g);
                     }}
-                    className="text-[11px]"
+                    className="text-xs"
                   />
                 </li>
               );
@@ -198,7 +198,7 @@ export function ToolsModule({ view, agent, issues, readOnly, setConfig, actions,
       </SettingSection>
 
       <SettingSection id="permissions" title="Permissions" description="A canvas can only tighten permissions. Actions an app marks as needing confirmation, and deletes, always wait for approval.">
-        {entries.length === 0 && <p className="text-[11px] text-muted-foreground">Enable a tool first.</p>}
+        {entries.length === 0 && <p className="text-xs text-muted-foreground">Enable a tool first.</p>}
         <ul className="space-y-1.5">
           {entries.map((e) => {
             const key = policyKey(e);
@@ -207,7 +207,7 @@ export function ToolsModule({ view, agent, issues, readOnly, setConfig, actions,
             return (
               <li key={e.key} className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-xs capitalize text-foreground">{cap?.label ?? e.label}</span>
-                {forced && <Badge variant="warning" className="h-4 shrink-0 px-1 text-[9px]">Always approved</Badge>}
+                {forced && <Badge variant="warning" className="h-4 shrink-0 px-1 text-2xs">Always approved</Badge>}
                 <AppSelect
                   size="sm"
                   value={view.tools.policies[key] ?? 'default'}
@@ -249,7 +249,7 @@ function BuiltinTools({
     <SettingSection id="builtin" title="Built-in tools" description="Platform tools: workspace search, tasks, docs, memory, web…">
       {builtin.error && <LoadError what="built-in tools" error={builtin.error} onRetry={() => void builtin.refetch()} />}
       <SearchInput value={filter} onValueChange={setFilter} placeholder="Filter tools" label="Filter built-in tools" className="h-8 text-xs" />
-      {builtin.isLoading && <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Loader2 className="size-3 animate-spin" />Loading tools…</p>}
+      {builtin.isLoading && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="size-3 animate-spin" />Loading tools…</p>}
       <ul className="max-h-80 space-y-0.5 overflow-y-auto pr-1">
         {list.map((t) => {
           const on = enabled.includes(t.name);
@@ -259,17 +259,17 @@ function BuiltinTools({
               <Label htmlFor={id} className={cn('flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-surface-raised', on && 'bg-primary/5')}>
                 <Checkbox id={id} checked={on} disabled={readOnly} onCheckedChange={(v) => onToggle(t.name, v === true)} className="mt-0.5" />
                 <span className="min-w-0">
-                  <span className="flex items-center gap-1.5 font-mono text-[11px] text-foreground">
+                  <span className="flex items-center gap-1.5 font-mono text-xs text-foreground">
                     {t.name}
-                    {READ_ONLY_AGENT_TOOLS.includes(t.name) && <Badge variant="neutral" className="h-3.5 px-1 font-sans text-[9px]">read-only</Badge>}
+                    {READ_ONLY_AGENT_TOOLS.includes(t.name) && <Badge variant="neutral" className="h-3.5 px-1 font-sans text-2xs">read-only</Badge>}
                   </span>
-                  <span className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{t.description}</span>
+                  <span className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{t.description}</span>
                 </span>
               </Label>
             </li>
           );
         })}
-        {builtin.data && list.length === 0 && <li className="px-2 py-3 text-center text-[11px] text-muted-foreground">No tools match.</li>}
+        {builtin.data && list.length === 0 && <li className="px-2 py-3 text-center text-xs text-muted-foreground">No tools match.</li>}
       </ul>
     </SettingSection>
   );
@@ -301,7 +301,7 @@ function AppTools({
     <SettingSection id="apps" title="App connectors" description="Every connected app’s actions can be agent tools. The run uses your workspace’s (or the agent owner’s) connection.">
       {connectors.error && <LoadError what="connectors" error={connectors.error} onRetry={() => void connectors.refetch()} />}
       <SearchInput value={filter} onValueChange={setFilter} placeholder="Filter apps and actions" label="Filter apps" className="h-8 text-xs" />
-      {connectors.isLoading && <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Loader2 className="size-3 animate-spin" />Loading apps…</p>}
+      {connectors.isLoading && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="size-3 animate-spin" />Loading apps…</p>}
       <ul className="space-y-1">
         {list.map((c) => {
           const isOpen = open === c.provider || Boolean(f);
@@ -316,14 +316,14 @@ function AppTools({
               >
                 <AppConnectorIcon connectorId={c.slug} size={16} />
                 <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{c.name}</span>
-                {count > 0 && <Badge variant="primary" className="h-4 px-1 text-[9px]">{count} on</Badge>}
-                <Badge variant={c.status === 'connected' ? 'success' : 'neutral'} className="h-4 px-1 text-[9px]">{c.status === 'connected' ? 'Connected' : 'Not connected'}</Badge>
+                {count > 0 && <Badge variant="primary" className="h-4 px-1 text-2xs">{count} on</Badge>}
+                <Badge variant={c.status === 'connected' ? 'success' : 'neutral'} className="h-4 px-1 text-2xs">{c.status === 'connected' ? 'Connected' : 'Not connected'}</Badge>
                 <ChevronRight className={cn('size-3.5 text-muted-foreground transition-transform motion-reduce:transition-none', isOpen && 'rotate-90')} />
               </button>
               {isOpen && (
                 <div className="space-y-0.5 border-t border-border px-1.5 py-1.5">
                   {c.status !== 'connected' && (
-                    <Link to={`/connectors/${c.slug}`} target="_blank" rel="noreferrer" className="mb-1 flex items-center gap-1 px-1 text-[11px] font-medium text-primary hover:underline">
+                    <Link to={`/connectors/${c.slug}`} target="_blank" rel="noreferrer" className="mb-1 flex items-center gap-1 px-1 text-xs font-medium text-primary hover:underline">
                       <Plug className="size-3" /> Connect {c.name} to use these at run time <ExternalLink className="size-3" />
                     </Link>
                   )}
@@ -337,12 +337,12 @@ function AppTools({
                         <Label key={cap.id} htmlFor={id} className={cn('flex cursor-pointer items-start gap-2 rounded-md px-1.5 py-1.5 hover:bg-surface-raised', on && 'bg-primary/5')}>
                           <Checkbox id={id} checked={on} disabled={readOnly} onCheckedChange={(v) => onToggle(cap.actionRef, v === true)} className="mt-0.5" />
                           <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
                               {cap.label}
-                              <Badge variant={risk.variant} className="h-3.5 px-1 text-[9px]">{risk.label}</Badge>
-                              {cap.requiresConfirmation && <Badge variant="warning" className="h-3.5 px-1 text-[9px]">Approval</Badge>}
+                              <Badge variant={risk.variant} className="h-3.5 px-1 text-2xs">{risk.label}</Badge>
+                              {cap.requiresConfirmation && <Badge variant="warning" className="h-3.5 px-1 text-2xs">Approval</Badge>}
                             </span>
-                            <span className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{cap.description}</span>
+                            <span className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{cap.description}</span>
                           </span>
                         </Label>
                       );
@@ -352,7 +352,7 @@ function AppTools({
             </li>
           );
         })}
-        {connectors.data && list.length === 0 && <li className="py-3 text-center text-[11px] text-muted-foreground">No apps match.</li>}
+        {connectors.data && list.length === 0 && <li className="py-3 text-center text-xs text-muted-foreground">No apps match.</li>}
       </ul>
     </SettingSection>
   );
@@ -443,7 +443,7 @@ function ToolTester({ entries, builtin, connectors, testSignal }: { entries: Too
   return (
     <SettingSection id="testing" title="Testing" description="Call one tool with your own input and see exactly what it returns.">
       {entries.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground">Enable a tool to test it.</p>
+        <p className="text-xs text-muted-foreground">Enable a tool to test it.</p>
       ) : (
         <>
           <div ref={selectRef}>
@@ -463,11 +463,11 @@ function ToolTester({ entries, builtin, connectors, testSignal }: { entries: Too
           </div>
           {entry && (
             <>
-              {fields.length === 0 && <p className="text-[11px] text-muted-foreground">This tool takes no input.</p>}
+              {fields.length === 0 && <p className="text-xs text-muted-foreground">This tool takes no input.</p>}
               {fields.map((f) => (
                 <SettingField key={f.name} label={`${f.name}${f.type ? ` (${f.type})` : ''}`} required={f.required} hint={f.description} htmlFor={`tool-in-${f.name}`}>
                   {f.type === 'object' || f.type === 'array' ? (
-                    <Textarea id={`tool-in-${f.name}`} minRows={2} maxRows={8} value={values[f.name] ?? ''} placeholder="JSON" onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} className="font-mono text-[11px]" />
+                    <Textarea id={`tool-in-${f.name}`} minRows={2} maxRows={8} value={values[f.name] ?? ''} placeholder="JSON" onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} className="font-mono text-xs" />
                   ) : (
                     <Input id={`tool-in-${f.name}`} inputSize="sm" value={values[f.name] ?? ''} onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))} className="text-xs" />
                   )}
@@ -483,7 +483,7 @@ function ToolTester({ entries, builtin, connectors, testSignal }: { entries: Too
                   {readOnlyTool ? 'Run' : 'Run for real…'}
                 </Button>
               </div>
-              {missing.length > 0 && <p className="text-[11px] text-muted-foreground">Required: {missing.map((m) => m.name).join(', ')}</p>}
+              {missing.length > 0 && <p className="text-xs text-muted-foreground">Required: {missing.map((m) => m.name).join(', ')}</p>}
               {preview && <OutputBlock label="Call (dry run — nothing is sent)">{JSON.stringify({ tool: entry.toolName, ...(connector ? { app: connector.name } : {}), input }, null, 2)}</OutputBlock>}
               {result && (
                 <OutputBlock label={`${result.ok ? 'Result' : 'Failed'} · ${result.ms} ms`} tone={result.ok ? 'default' : 'error'}>

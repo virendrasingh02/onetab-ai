@@ -89,7 +89,7 @@ export function EdgeDataInspector({
     <aside
       aria-label="Connection data inspector"
       className={cn(
-        'flex flex-col overflow-hidden rounded-2xl border border-border bg-surface text-foreground shadow-2xl select-none',
+        'flex flex-col overflow-hidden rounded-xl border border-border bg-surface text-foreground shadow-2xl select-none',
         'animate-in fade-in slide-in-from-right-2 duration-150',
         className,
       )}
@@ -99,7 +99,7 @@ export function EdgeDataInspector({
         <GitBranch className="size-4 shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold">Data Flow Connection</h3>
-          <p className="truncate text-[10px] text-muted-foreground font-mono">{selectedEdge.id}</p>
+          <p className="truncate text-2xs text-muted-foreground font-mono">{selectedEdge.id}</p>
         </div>
         <Button
           variant="ghost"
@@ -126,7 +126,7 @@ export function EdgeDataInspector({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Source -> Target Summary */}
         <div className="rounded-xl border border-border bg-surface-raised/40 p-3">
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Execution Path
           </div>
           <div className="flex items-center justify-between gap-2 text-xs">
@@ -134,7 +134,7 @@ export function EdgeDataInspector({
               <div className="font-semibold text-foreground truncate">
                 {sourceNode?.data?.label ? String(sourceNode.data.label) : selectedEdge.source}
               </div>
-              <div className="text-[10px] text-muted-foreground truncate">
+              <div className="text-2xs text-muted-foreground truncate">
                 Handle: {selectedEdge.sourceHandle || 'output (default)'}
               </div>
             </div>
@@ -145,7 +145,7 @@ export function EdgeDataInspector({
               <div className="font-semibold text-foreground truncate">
                 {targetNode?.data?.label ? String(targetNode.data.label) : selectedEdge.target}
               </div>
-              <div className="text-[10px] text-muted-foreground truncate">
+              <div className="text-2xs text-muted-foreground truncate">
                 Handle: {selectedEdge.targetHandle || 'input (default)'}
               </div>
             </div>
@@ -154,7 +154,7 @@ export function EdgeDataInspector({
 
         {/* Routing: follow the canvas, or draw this one connection its own way */}
         <div className="space-y-2 rounded-xl border border-border bg-surface-raised/30 p-3">
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Routing</div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Routing</div>
           <div role="radiogroup" aria-label="Connection routing" className="grid grid-cols-5 gap-1">
             <RoutingOption
               checked={routingOverride === 'auto'}
@@ -162,7 +162,7 @@ export function EdgeDataInspector({
               label="Auto"
               title={`Follow the canvas (${EDGE_ROUTING_LABELS[canvasRouting]})`}
             >
-              <span className="text-[10px] font-semibold">A</span>
+              <span className="text-2xs font-semibold">A</span>
             </RoutingOption>
             {ROUTING_OPTIONS.map(({ value, Icon }) => (
               <RoutingOption
@@ -176,7 +176,7 @@ export function EdgeDataInspector({
               </RoutingOption>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {routingOverride === 'auto'
               ? `Follows the canvas: ${EDGE_ROUTING_LABELS[canvasRouting]}.`
               : `${EDGE_ROUTING_HINTS[routingOverride]} — for this connection only.`}
@@ -186,7 +186,7 @@ export function EdgeDataInspector({
         {/* Condition / Branching Settings */}
         {isConditional && (
           <div className="space-y-2.5 rounded-xl border border-border bg-surface-raised/30 p-3">
-            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Branch Condition
             </div>
             <div>
@@ -225,14 +225,14 @@ export function EdgeDataInspector({
         {/* Payload Schema & Simulation */}
         <div className="space-y-2 rounded-xl border border-border bg-surface-raised/30 p-3">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Data Flow Schema
             </span>
-            <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] text-primary">
+            <span className="rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-2xs text-primary">
               JSON payload
             </span>
           </div>
-          <div className="rounded-lg bg-surface border border-border p-2.5 font-mono text-[11px] text-muted-foreground overflow-x-auto">
+          <div className="rounded-lg bg-surface border border-border p-2.5 font-mono text-xs text-muted-foreground overflow-x-auto">
             <pre>
               {JSON.stringify(
                 {
@@ -291,7 +291,7 @@ function RoutingOption({
       onClick={onSelect}
       title={title}
       className={cn(
-        'flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 text-[10px] font-medium transition-colors',
+        'flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 text-2xs font-medium transition-colors',
         checked
           ? 'border-foreground/30 bg-selected text-foreground'
           : 'border-border bg-surface text-muted-foreground hover:text-foreground',

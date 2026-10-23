@@ -58,7 +58,7 @@ export function AgentOutlinePanel({
         <Network className="size-3.5 text-primary" />
         <div className="min-w-0 flex-1">
           <div className="text-xs font-semibold text-foreground">Agents</div>
-          <div className="text-[10px] text-muted-foreground">
+          <div className="text-2xs text-muted-foreground">
             {totals.agents} agent{totals.agents === 1 ? '' : 's'}
             {totals.teams > 0 && ` · ${totals.teams} team${totals.teams === 1 ? '' : 's'}`}
           </div>
@@ -83,7 +83,7 @@ export function AgentOutlinePanel({
       </div>
 
       {trees.length === 0 ? (
-        <div className="px-4 py-6 text-center text-[11px] text-muted-foreground">
+        <div className="px-4 py-6 text-center text-xs text-muted-foreground">
           No agents yet. Add an AI Agent, or a Supervisor Agent to build a team.
         </div>
       ) : (
@@ -137,7 +137,7 @@ function AgentRow({
         <button
           type="button"
           className={cn(
-            'flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground',
+            'flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground',
             !hasBody && 'invisible',
           )}
           onClick={() => setOpen((v) => !v)}
@@ -156,9 +156,9 @@ function AgentRow({
           ) : (
             <Bot className="size-3.5 shrink-0 text-primary" />
           )}
-          <span className="truncate text-[11px] font-medium text-foreground">{labelOf(agent)}</span>
+          <span className="truncate text-xs font-medium text-foreground">{labelOf(agent)}</span>
           {children.length > 0 && (
-            <Badge variant="primary" className="h-4 shrink-0 px-1 text-[9px]">
+            <Badge variant="primary" className="h-4 shrink-0 px-1 text-2xs">
               {children.length}
             </Badge>
           )}
@@ -186,8 +186,8 @@ function AgentRow({
                   title={`Go to ${labelOf(node)}`}
                 >
                   <Icon className="size-3 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-[10px] text-foreground">{labelOf(node)}</span>
-                  <span className="ml-auto shrink-0 text-[9px] text-muted-foreground">{slot}</span>
+                  <span className="truncate text-2xs text-foreground">{labelOf(node)}</span>
+                  <span className="ml-auto shrink-0 text-2xs text-muted-foreground">{slot}</span>
                 </button>
               </li>
             );

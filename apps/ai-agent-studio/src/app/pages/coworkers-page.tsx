@@ -117,7 +117,7 @@ export function CoworkersPage() {
             ))}
           </ul>
           {roster.data ? (
-            <p className="text-[11px] text-muted-foreground">Updated {formatRelative(roster.data.generatedAt)} · refreshes when a coworker run finishes.</p>
+            <p className="text-xs text-muted-foreground">Updated {formatRelative(roster.data.generatedAt)} · refreshes when a coworker run finishes.</p>
           ) : null}
         </div>
       )}
@@ -155,12 +155,12 @@ function PlanStrip({ plan, coworkers }: { plan: CoworkerRoster['plan']; coworker
 function Stat({ label, value, hint, icon }: { label: string; value: ReactNode; hint?: string; icon?: ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground [&_svg]:size-3.5">
+      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground [&_svg]:size-3.5">
         {icon}
         {label}
       </p>
       <p className="mt-0.5 truncate text-base font-semibold tabular-nums text-foreground">{value}</p>
-      {hint ? <p className="truncate text-[11px] text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="truncate text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -191,9 +191,9 @@ function CoworkerCard({ coworker: c, workspaceId, slug, open, onToggle }: { cowo
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-foreground">{c.name}</span>
             <span className="text-xs text-muted-foreground">{c.role}</span>
-            <Badge variant={status.variant} className="text-[10px]">{status.label}</Badge>
+            <Badge variant={status.variant} className="text-2xs">{status.label}</Badge>
             {c.adoptedFrom ? (
-              <Badge variant="outline" className="text-[10px]">Was {ADOPTED_LABEL[c.adoptedFrom] ?? c.adoptedFrom}</Badge>
+              <Badge variant="outline" className="text-2xs">Was {ADOPTED_LABEL[c.adoptedFrom] ?? c.adoptedFrom}</Badge>
             ) : null}
           </span>
           <span className="mt-1 block text-xs text-muted-foreground">
@@ -218,7 +218,7 @@ function CoworkerCard({ coworker: c, workspaceId, slug, open, onToggle }: { cowo
         </span>
         <span className="hidden shrink-0 text-right sm:block">
           <span className="block text-sm font-semibold tabular-nums text-foreground">{number.format(c.activity.runs30d)}</span>
-          <span className="block text-[11px] text-muted-foreground">runs · 30 days</span>
+          <span className="block text-xs text-muted-foreground">runs · 30 days</span>
         </span>
         <ChevronDown aria-hidden className={`mt-1 size-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -400,7 +400,7 @@ function SpecialistsSection({ coworker: c, slug }: { coworker: CoworkerRosterEnt
               <span className="min-w-0 flex-1 truncate">
                 <span className="font-medium text-foreground">{s.name}</span> <span className="text-muted-foreground">· {s.role}</span>
               </span>
-              {!s.isActive ? <Badge variant="neutral" className="text-[10px]">Off</Badge> : null}
+              {!s.isActive ? <Badge variant="neutral" className="text-2xs">Off</Badge> : null}
             </li>
           ))}
         </ul>
@@ -506,10 +506,10 @@ function ConnectorsSection({ coworker: c, workspaceId }: { coworker: CoworkerRos
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="font-medium text-foreground">{x.name}</span>
-                  <Badge variant={STATE_VARIANT[x.state]} className="text-[10px]">{STATE_LABEL[x.state]}</Badge>
-                  {!x.fromTemplate ? <Badge variant="outline" className="text-[10px]">Added</Badge> : null}
+                  <Badge variant={STATE_VARIANT[x.state]} className="text-2xs">{STATE_LABEL[x.state]}</Badge>
+                  {!x.fromTemplate ? <Badge variant="outline" className="text-2xs">Added</Badge> : null}
                 </div>
-                <p className="truncate text-[11px] text-muted-foreground">
+                <p className="truncate text-xs text-muted-foreground">
                   {x.state === 'unavailable' || x.state === 'not_set_up'
                     ? x.reason
                     : [
@@ -600,7 +600,7 @@ function MetricsSection({ coworker: c, slug }: { coworker: CoworkerRosterEntry; 
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {items.map((m) => (
           <div key={m.label} className="rounded-md border border-border px-2.5 py-2">
-            <dt className="truncate text-[11px] text-muted-foreground">{m.label}</dt>
+            <dt className="truncate text-xs text-muted-foreground">{m.label}</dt>
             <dd className="text-sm font-semibold tabular-nums text-foreground">{m.value}</dd>
           </div>
         ))}

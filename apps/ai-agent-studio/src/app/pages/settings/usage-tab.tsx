@@ -101,15 +101,15 @@ export function UsageTab() {
             <span className="text-xl font-bold text-foreground">{planName}</span>
           </div>
           {plan !== 'free' && endsOn ? (
-            <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+            <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
               <Calendar className="size-3" aria-hidden />
               {pending ? `${pending} on ${endsOn}` : subscription?.source === 'PROMOTION' ? `Coupon plan ends ${endsOn}` : `Renews ${endsOn}`}
             </div>
           ) : (
-            <div className="mt-1 text-[11px] text-muted-foreground">{planConfig.tagline}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{planConfig.tagline}</div>
           )}
           {!paymentsEnabled && canManageBilling ? (
-            <div className="mt-2 text-[11px] text-muted-foreground">Online payments aren’t enabled on this deployment yet.</div>
+            <div className="mt-2 text-xs text-muted-foreground">Online payments aren’t enabled on this deployment yet.</div>
           ) : null}
         </div>
         <div className="rounded-xl border border-border bg-surface p-4">
@@ -117,7 +117,7 @@ export function UsageTab() {
           <div className={`mt-1 text-xl font-bold tabular-nums ${lowCredits ? 'text-warning-text' : 'text-foreground'}`}>
             {creditAccount.balance.toLocaleString(undefined, { style: 'currency', currency: creditAccount.currency || 'USD' })}
           </div>
-          <div className="text-[11px] text-muted-foreground">
+          <div className="text-xs text-muted-foreground">
             {lowCredits ? 'Running low — runs stop at $0. ' : ''}
             {planConfig.machineLimits.aiCreditsUsd > 0 ? `${planName} includes $${planConfig.machineLimits.aiCreditsUsd} per period.` : 'Custom allowance.'}
           </div>

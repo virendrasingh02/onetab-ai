@@ -123,7 +123,7 @@ function GettingStarted({ steps }: { steps: JourneyStep[] }) {
   if (doneCount === steps.length) return null;
   const nextId = steps.find((s) => !s.done)?.id;
   return (
-    <section aria-labelledby="journey-heading" className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+    <section aria-labelledby="journey-heading" className="rounded-xl border border-border bg-surface p-4 sm:p-5">
       <div className="flex items-center justify-between gap-2">
         <h2 id="journey-heading" className="text-sm font-bold text-foreground">
           Get your first agent live
@@ -142,7 +142,7 @@ function GettingStarted({ steps }: { steps: JourneyStep[] }) {
               {step.done ? (
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
               ) : (
-                <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground" aria-hidden>
+                <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-border text-2xs font-semibold text-muted-foreground" aria-hidden>
                   {i + 1}
                 </span>
               )}
@@ -151,7 +151,7 @@ function GettingStarted({ steps }: { steps: JourneyStep[] }) {
                   {step.title}
                   <span className="sr-only">{step.done ? ' — done' : ''}</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">{step.hint}</p>
+                <p className="text-xs text-muted-foreground">{step.hint}</p>
               </div>
             </div>
             {!step.done && (
@@ -390,7 +390,7 @@ function StudioInsights() {
 
             <div className="mt-4">
               {filteredAgents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/50 p-10 text-center text-muted-foreground">
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface/50 p-10 text-center text-muted-foreground">
                   <Bot className="mb-2 size-12 text-muted-foreground/30" />
                   {agents.length === 0 && plannedLive.length > 0 ? (
                     <>
@@ -472,7 +472,7 @@ function StudioInsights() {
                                   <span>{agent.name}</span>
                                   {isPinned && <Pin className="size-3 fill-warning text-warning" />}
                                 </div>
-                                <div className="text-[11px] text-muted-foreground">{agent.role || 'Assistant'}</div>
+                                <div className="text-xs text-muted-foreground">{agent.role || 'Assistant'}</div>
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -486,7 +486,7 @@ function StudioInsights() {
                               >
                                 <Pin className="size-3.5" />
                               </button>
-                              <Badge variant={isPublished ? 'success' : 'outline'} className="text-[10px]">
+                              <Badge variant={isPublished ? 'success' : 'outline'} className="text-2xs">
                                 {isPublished ? 'Published' : isArchived ? 'Archived' : 'Draft'}
                               </Badge>
                             </div>
@@ -496,7 +496,7 @@ function StudioInsights() {
                           </p>
                         </div>
 
-                        <div className="mt-4 space-y-2 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                        <div className="mt-4 space-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
                           <div className="flex items-center justify-between">
                             <span>
                               {usage
@@ -547,12 +547,12 @@ function StudioInsights() {
                                 <span>{agent.name}</span>
                                 {pinnedAgentIds.includes(agent.id) && <Pin className="size-3 fill-warning text-warning" />}
                               </div>
-                              <div className="max-w-xs truncate text-[11px] text-muted-foreground">
+                              <div className="max-w-xs truncate text-xs text-muted-foreground">
                                 {agent.description || agent.role || 'Workflow agent'}
                               </div>
                             </TableCell>
                             <TableCell className="px-4 py-3">
-                              <Badge variant={status === 'published' ? 'success' : 'outline'} className="text-[10px]">
+                              <Badge variant={status === 'published' ? 'success' : 'outline'} className="text-2xs">
                                 {status === 'published' ? 'Published' : status === 'archived' ? 'Archived' : 'Draft'}
                               </Badge>
                             </TableCell>
@@ -612,14 +612,14 @@ function StudioInsights() {
                     <div className="flex min-w-0 items-center gap-2.5">
                       <div className={`size-2 shrink-0 rounded-full ${log.status === 'SUCCESS' ? 'bg-success' : 'bg-destructive'}`} />
                       <span className="truncate font-semibold text-foreground">{log.agent?.name || 'Agent Run'}</span>
-                      <span className="hidden truncate text-[11px] text-muted-foreground sm:inline">
+                      <span className="hidden truncate text-xs text-muted-foreground sm:inline">
                         {log.promptText || 'Manual test prompt'}
                       </span>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3 font-mono text-[11px] text-muted-foreground">
+                    <div className="flex shrink-0 items-center gap-3 font-mono text-xs text-muted-foreground">
                       <span className="hidden sm:inline">{new Date(log.executedAt).toLocaleString()}</span>
                       <span>{log.tokensUsed?.toLocaleString() || 0} tokens</span>
-                      <Badge variant={log.status === 'SUCCESS' ? 'success' : 'destructive'} className="text-[10px]">
+                      <Badge variant={log.status === 'SUCCESS' ? 'success' : 'destructive'} className="text-2xs">
                         {log.status}
                       </Badge>
                     </div>
@@ -650,10 +650,10 @@ function StudioInsights() {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground transition-colors group-hover:text-primary">{tpl.name}</span>
-                  <Badge variant="outline" className="text-[9px]">{tpl.tags[0]}</Badge>
+                  <Badge variant="outline" className="text-2xs">{tpl.tags[0]}</Badge>
                 </div>
-                <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{tpl.description}</p>
-                <div className="mt-2.5 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
+                <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{tpl.description}</p>
+                <div className="mt-2.5 flex items-center justify-between font-mono text-2xs text-muted-foreground">
                   <span>{tpl.nodes.length} nodes · {tpl.edges.length} edges</span>
                   <span className="font-semibold text-primary group-hover:underline">Use Template →</span>
                 </div>
@@ -666,7 +666,7 @@ function StudioInsights() {
               <Wrench className="size-3.5 text-primary" />
               Developer Resources
             </h3>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               Call any published agent via the REST API or deploy it as an embedded chat widget onto your website.
             </p>
             <div className="flex flex-col gap-1.5 pt-1">
@@ -733,7 +733,7 @@ function StudioInsights() {
               <h3 className="flex items-center gap-2 text-xs font-bold text-foreground">
                 <Activity className="size-4 text-accent-blue" /> Runs — last 7 days
               </h3>
-              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-success" /> Succeeded</span>
                 <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-destructive" /> Failed</span>
               </div>
@@ -743,12 +743,12 @@ function StudioInsights() {
                 const total = d.ok + d.failed;
                 return (
                   <div key={d.from} className="flex h-full flex-1 flex-col items-center justify-end gap-1" title={`${d.label}: ${d.ok} succeeded, ${d.failed} failed`}>
-                    <span className="text-[10px] tabular-nums text-muted-foreground">{total || ''}</span>
+                    <span className="text-2xs tabular-nums text-muted-foreground">{total || ''}</span>
                     <div className="flex w-full max-w-10 flex-col justify-end overflow-hidden rounded-t-md bg-surface-raised" style={{ height: `${Math.max(4, (total / weekMax) * 100)}%` }}>
                       {d.failed > 0 && <div className="bg-destructive" style={{ flexGrow: d.failed }} />}
                       {d.ok > 0 && <div className="bg-success" style={{ flexGrow: d.ok }} />}
                     </div>
-                    <span className="text-[10px] text-muted-foreground">{d.label}</span>
+                    <span className="text-2xs text-muted-foreground">{d.label}</span>
                   </div>
                 );
               })}
@@ -767,12 +767,12 @@ function StudioInsights() {
                   <li key={r.id}>
                     <Link to={`/agents/${r.id}`} className="flex items-center justify-between gap-2 text-xs hover:text-primary">
                       <span className="truncate font-semibold text-foreground">{r.name}</span>
-                      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{r.runs} runs · {Math.round((r.ok / r.runs) * 100)}%</span>
+                      <span className="shrink-0 font-mono text-xs text-muted-foreground">{r.runs} runs · {Math.round((r.ok / r.runs) * 100)}%</span>
                     </Link>
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-raised">
                       <div className="h-full rounded-full bg-primary" style={{ width: `${(r.runs / perAgent[0].runs) * 100}%` }} />
                     </div>
-                    <div className="mt-0.5 text-[10px] text-muted-foreground">{formatTokens(r.tokens)} tokens</div>
+                    <div className="mt-0.5 text-2xs text-muted-foreground">{formatTokens(r.tokens)} tokens</div>
                   </li>
                 ))}
               </ul>

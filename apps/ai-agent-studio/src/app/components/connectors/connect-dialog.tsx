@@ -124,7 +124,7 @@ export function ConnectDialog({
                     placeholder={f.placeholder}
                     onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
                   />
-                  {f.help && <p className="text-[11px] text-muted-foreground">{f.help}</p>}
+                  {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
                 </div>
               ))}
             </div>
@@ -144,7 +144,7 @@ export function ConnectDialog({
             </div>
           )}
 
-          <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
             <KeyRound className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
             Credentials are encrypted at rest and never sent back to the browser.
           </p>

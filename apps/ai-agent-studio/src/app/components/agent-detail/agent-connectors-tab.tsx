@@ -157,7 +157,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
                 key={c.provider}
                 type="button"
                 onClick={() => openApp(c)}
-                className="group flex min-h-28 w-60 shrink-0 snap-start flex-col justify-between gap-4 rounded-2xl border border-border bg-surface p-4 text-left transition-colors hover:border-border-strong hover:bg-surface-raised sm:w-auto cursor-pointer"
+                className="group flex min-h-28 w-60 shrink-0 snap-start flex-col justify-between gap-4 rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-border-strong hover:bg-surface-raised sm:w-auto cursor-pointer"
               >
                 <AppTile connector={c} />
                 <span className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">{c.description || `Use ${c.name} from this agent`}</span>
@@ -216,7 +216,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
                   }}
                   title={unavailable ? c.unavailableReason || 'Not set up on this server yet' : undefined}
                   className={cn(
-                    'group flex items-center gap-3 rounded-2xl border border-border bg-surface p-3.5 text-left outline-none transition-colors',
+                    'group flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 text-left outline-none transition-colors',
                     'focus-visible:ring-2 focus-visible:ring-primary/50',
                     unavailable ? 'cursor-not-allowed opacity-55' : 'cursor-pointer hover:border-border-strong hover:bg-surface-raised',
                   )}
@@ -226,7 +226,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-sm font-semibold text-foreground">{c.name}</span>
                       {enabled && c.status !== 'connected' && (
-                        <Badge variant="warning" className="shrink-0 text-[10px]">
+                        <Badge variant="warning" className="shrink-0 text-2xs">
                           {c.status === 'needs_attention' ? 'Reconnect' : 'Not connected'}
                         </Badge>
                       )}
@@ -289,7 +289,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border-strong bg-surface-muted p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border-strong bg-surface-muted p-4">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Need another app?</p>
             <p className="text-xs text-muted-foreground">
@@ -308,7 +308,7 @@ export function AgentConnectorsTab({ agent, onChanged }: { agent: AgentWithApps;
           </div>
         </div>
 
-        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Bot className="size-3.5" aria-hidden="true" /> Canvas agents get apps by plugging an app action into the agent’s Tools slot.
         </p>
 

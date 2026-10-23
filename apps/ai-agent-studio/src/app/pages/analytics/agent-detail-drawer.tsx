@@ -99,12 +99,12 @@ export function AgentDetailDrawer({
               <div>
                 <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
                   {agent.agentName}
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="text-2xs">
                     v{agent.version}
                   </Badge>
                   <Badge
                     variant={agent.status === 'PUBLISHED' ? 'success' : 'secondary'}
-                    className="text-[10px]"
+                    className="text-2xs"
                   >
                     {agent.status}
                   </Badge>
@@ -147,25 +147,25 @@ export function AgentDetailDrawer({
             <div className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Card className="p-3 bg-surface-raised">
-                  <div className="text-[11px] text-muted-foreground">Total Invocations</div>
+                  <div className="text-xs text-muted-foreground">Total Invocations</div>
                   <div className="mt-1 text-xl font-bold text-foreground">
                     {agent.executionCount.toLocaleString()}
                   </div>
                 </Card>
                 <Card className="p-3 bg-surface-raised">
-                  <div className="text-[11px] text-muted-foreground">Success Rate</div>
+                  <div className="text-xs text-muted-foreground">Success Rate</div>
                   <div className="mt-1 text-xl font-bold text-success">
                     {agent.successRate.toFixed(1)}%
                   </div>
                 </Card>
                 <Card className="p-3 bg-surface-raised">
-                  <div className="text-[11px] text-muted-foreground">Average Latency</div>
+                  <div className="text-xs text-muted-foreground">Average Latency</div>
                   <div className="mt-1 text-xl font-bold text-foreground">
                     {Math.round(agent.avgLatencyMs)}ms
                   </div>
                 </Card>
                 <Card className="p-3 bg-surface-raised">
-                  <div className="text-[11px] text-muted-foreground">Estimated Spend</div>
+                  <div className="text-xs text-muted-foreground">Estimated Spend</div>
                   <div className="mt-1 text-xl font-bold text-foreground">
                     ${agent.estimatedCost.toFixed(3)}
                   </div>
@@ -275,7 +275,7 @@ export function AgentDetailDrawer({
                               ? 'destructive'
                               : 'secondary'
                           }
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {exec.status}
                         </Badge>
@@ -303,7 +303,7 @@ export function AgentDetailDrawer({
             <div className="space-y-4">
               <div className="grid grid-cols-4 gap-3 text-center">
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  <div className="text-2xs text-muted-foreground uppercase font-semibold">
                     p50 (Median)
                   </div>
                   <div className="mt-1 text-lg font-bold text-foreground">
@@ -311,7 +311,7 @@ export function AgentDetailDrawer({
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  <div className="text-2xs text-muted-foreground uppercase font-semibold">
                     avg
                   </div>
                   <div className="mt-1 text-lg font-bold text-foreground">
@@ -319,7 +319,7 @@ export function AgentDetailDrawer({
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  <div className="text-2xs text-muted-foreground uppercase font-semibold">
                     p95
                   </div>
                   <div className="mt-1 text-lg font-bold text-warning">
@@ -327,7 +327,7 @@ export function AgentDetailDrawer({
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  <div className="text-2xs text-muted-foreground uppercase font-semibold">
                     p99
                   </div>
                   <div className="mt-1 text-lg font-bold text-destructive-text">
@@ -374,7 +374,7 @@ export function AgentDetailDrawer({
                         <span className="text-muted-foreground">{tool.invocations} calls</span>
                         <Badge
                           variant={tool.successRate >= 95 ? 'success' : 'warning'}
-                          className="text-[10px]"
+                          className="text-2xs"
                         >
                           {tool.successRate.toFixed(1)}% success
                         </Badge>
@@ -416,13 +416,13 @@ export function AgentDetailDrawer({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[11px] text-muted-foreground">Total Incurred Cost</div>
+                  <div className="text-xs text-muted-foreground">Total Incurred Cost</div>
                   <div className="mt-1 text-xl font-bold text-foreground">
                     ${agent.estimatedCost.toFixed(3)}
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[11px] text-muted-foreground">Cost per Successful Task</div>
+                  <div className="text-xs text-muted-foreground">Cost per Successful Task</div>
                   <div className="mt-1 text-xl font-bold text-success">
                     ${agent.costPerSuccessfulTask.toFixed(4)}
                   </div>
@@ -436,7 +436,7 @@ export function AgentDetailDrawer({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[11px] text-muted-foreground">User Evaluation Rating</div>
+                  <div className="text-xs text-muted-foreground">User Evaluation Rating</div>
                   <div className="mt-1 text-xl font-bold text-primary">
                     {agent.evaluationScore != null
                       ? `${agent.evaluationScore.toFixed(1)} / 5.0`
@@ -478,19 +478,19 @@ export function AgentDetailDrawer({
               <div className="text-xs font-semibold text-foreground">Error Statistics</div>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[10px] text-muted-foreground font-semibold">Failed Runs</div>
+                  <div className="text-2xs text-muted-foreground font-semibold">Failed Runs</div>
                   <div className="mt-1 text-lg font-bold text-destructive-text">
                     {agent.failureCount}
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[10px] text-muted-foreground font-semibold">Timeouts</div>
+                  <div className="text-2xs text-muted-foreground font-semibold">Timeouts</div>
                   <div className="mt-1 text-lg font-bold text-warning">
                     {agent.timeoutCount}
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-surface-raised border border-border">
-                  <div className="text-[10px] text-muted-foreground font-semibold">Retries</div>
+                  <div className="text-2xs text-muted-foreground font-semibold">Retries</div>
                   <div className="mt-1 text-lg font-bold text-foreground">
                     {agent.retryCount}
                   </div>

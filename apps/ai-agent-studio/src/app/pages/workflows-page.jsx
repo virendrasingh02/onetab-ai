@@ -231,7 +231,7 @@ export function WorkflowsPage() {
                           {workflow.name}
                         </h3>
                         <div className="flex items-center gap-2 pt-0.5">
-                          <span className="text-[11px] text-muted-foreground">{nodeCount} nodes</span>
+                          <span className="text-xs text-muted-foreground">{nodeCount} nodes</span>
                           <AIModelBadge modelId={workflow.model || 'gpt-4o'} variant="subtle" size="xs" />
                         </div>
                       </div>
@@ -240,7 +240,7 @@ export function WorkflowsPage() {
                     <Badge
                       variant={isPub ? 'default' : 'outline'}
                       className={cn(
-                        'text-[10px] px-1.5 py-0.2 uppercase tracking-wide',
+                        'text-2xs px-1.5 py-0.2 uppercase tracking-wide',
                         isPub ? 'bg-success/15 text-success border-success/30' : 'text-muted-foreground',
                       )}
                     >
@@ -254,7 +254,7 @@ export function WorkflowsPage() {
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Clock className="size-3 text-muted-foreground" />
                     <span>Updated {new Date(workflow.updatedAt).toLocaleDateString()}</span>
                   </div>
@@ -336,7 +336,7 @@ export function WorkflowsPage() {
                       <GitBranch className="size-4 text-primary shrink-0" />
                       <div>
                         <div>{workflow.name}</div>
-                        <div className="text-[11px] text-muted-foreground line-clamp-1">{workflow.description}</div>
+                        <div className="text-xs text-muted-foreground line-clamp-1">{workflow.description}</div>
                       </div>
                     </div>
                   </TableCell>
@@ -344,7 +344,7 @@ export function WorkflowsPage() {
                     <AIModelBadge modelId={workflow.model || 'gpt-4o'} variant="subtle" size="xs" />
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <Badge variant={workflow.status === 'published' ? 'success' : 'outline'} className="text-[10px]">
+                    <Badge variant={workflow.status === 'published' ? 'success' : 'outline'} className="text-2xs">
                       {workflow.status || 'draft'}
                     </Badge>
                   </TableCell>
@@ -450,7 +450,7 @@ export function WorkflowsPage() {
               </p>
               <Textarea rows={4} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="e.g. Scrape pricing pages from 3 competitor websites daily using Firecrawl, synthesize key differences into an executive summary, and ask for supervisor approval before posting to Slack." className="text-xs" required />
               <div className="space-y-1.5">
-                <div className="text-[11px] font-semibold text-muted-foreground uppercase">Try Examples:</div>
+                <div className="text-xs font-semibold text-muted-foreground uppercase">Try Examples:</div>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     'Competitor pricing crawl with Firecrawl & Slack',
@@ -461,7 +461,7 @@ export function WorkflowsPage() {
                       key={ex}
                       type="button"
                       onClick={() => setAiPrompt(ex)}
-                      className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                      className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-muted-foreground hover:bg-surface-raised hover:text-foreground"
                     >
                       {ex}
                     </button>

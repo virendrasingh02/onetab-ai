@@ -131,7 +131,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
         <div className="rounded-lg border border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-surface-raised/50 text-[11px]">
+              <TableRow className="bg-surface-raised/50 text-xs">
                 <TableHead>Workflow</TableHead>
                 <TableHead>Total Runs</TableHead>
                 <TableHead>Success Rate</TableHead>
@@ -164,11 +164,11 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
                         <div>
                           <div className="font-semibold text-foreground flex items-center gap-1.5">
                             {wf.workflowName}
-                            <Badge variant="outline" className="text-[9px] px-1 py-0">
+                            <Badge variant="outline" className="text-2xs px-1 py-0">
                               v{wf.version}
                             </Badge>
                           </div>
-                          <div className="text-[10px] text-muted-foreground font-mono">
+                          <div className="text-2xs text-muted-foreground font-mono">
                             {wf.workflowId.slice(0, 8)}...
                           </div>
                         </div>
@@ -186,14 +186,14 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
                             ? 'warning'
                             : 'destructive'
                         }
-                        className="text-[10px]"
+                        className="text-2xs"
                       >
                         {wf.successRate.toFixed(1)}%
                       </Badge>
                     </TableCell>
                     <TableCell className="tabular-nums">
                       <span>{Math.round(wf.avgDurationMs)}ms</span>
-                      <span className="text-[10px] text-muted-foreground ml-1">
+                      <span className="text-2xs text-muted-foreground ml-1">
                         / {Math.round(wf.latencyPercentiles.p95)}ms
                       </span>
                     </TableCell>
@@ -209,7 +209,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
                           {wf.mostCommonFailurePoints[0].nodeType}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-success-text">None</span>
+                        <span className="text-2xs text-success-text">None</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -277,7 +277,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
                   selectedWf.slowestNodes.map((n, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between text-xs p-1.5 rounded bg-surface border border-border"
+                      className="flex items-center justify-between text-xs p-1.5 rounded-md bg-surface border border-border"
                     >
                       <span className="font-mono text-foreground">{n.nodeId}</span>
                       <span className="font-medium text-warning-text">
@@ -302,7 +302,7 @@ export function WorkflowsView({ workflows }: WorkflowsViewProps) {
                   selectedWf.mostExpensiveNodes.map((n, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between text-xs p-1.5 rounded bg-surface border border-border"
+                      className="flex items-center justify-between text-xs p-1.5 rounded-md bg-surface border border-border"
                     >
                       <span className="font-mono text-foreground">{n.nodeId}</span>
                       <span className="font-medium text-foreground">${n.cost.toFixed(4)}</span>

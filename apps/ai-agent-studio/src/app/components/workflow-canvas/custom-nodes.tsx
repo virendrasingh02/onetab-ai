@@ -387,7 +387,7 @@ function QuickAddMenu({
           <button
             type="button"
             onClick={() => setSearch('')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded cursor-pointer"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md cursor-pointer"
             title="Clear search"
           >
             <X className="size-3" />
@@ -399,7 +399,7 @@ function QuickAddMenu({
               e.stopPropagation();
               onClose();
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground p-0.5 rounded cursor-pointer"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground p-0.5 rounded-md cursor-pointer"
             title="Close"
           >
             <X className="size-3" />
@@ -414,14 +414,14 @@ function QuickAddMenu({
             e.stopPropagation();
             goBack();
           }}
-          className="mb-2 flex items-center gap-1 rounded px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground cursor-pointer"
+          className="mb-2 flex items-center gap-1 rounded-md px-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground cursor-pointer"
         >
           <ChevronLeft className="size-3.5" />
           {view.level === 'apps' ? 'Choose an app' : `${view.app} actions`}
         </button>
       ) : (
         title && (
-          <div className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mb-2 px-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
             {title}
           </div>
         )
@@ -430,7 +430,7 @@ function QuickAddMenu({
       {/* Category Filter Pills */}
       <div
         className={cn(
-          'nowheel gap-1 overflow-x-auto pb-1.5 mb-2 scrollbar-none text-[10px]',
+          'nowheel gap-1 overflow-x-auto pb-1.5 mb-2 scrollbar-none text-2xs',
           items || view.level !== 'root' ? 'hidden' : 'flex',
         )}
         onWheel={(e) => e.stopPropagation()}
@@ -441,7 +441,7 @@ function QuickAddMenu({
             type="button"
             onClick={() => setActiveCategory(cat.id)}
             className={cn(
-              'shrink-0 rounded px-2 py-0.5 font-medium transition-colors cursor-pointer',
+              'shrink-0 rounded-md px-2 py-0.5 font-medium transition-colors cursor-pointer',
               activeCategory === cat.id
                 ? 'bg-foreground text-background'
                 : 'bg-surface-raised text-muted-foreground hover:text-foreground hover:bg-surface-raised/80',
@@ -512,12 +512,12 @@ function QuickAddMenu({
                         : item.label}
                     </span>
                     {item.badge && (
-                      <span className="shrink-0 rounded bg-surface-raised px-1.5 py-0.2 text-[9px] font-medium text-muted-foreground">
+                      <span className="shrink-0 rounded-md bg-surface-raised px-1.5 py-0.2 text-2xs font-medium text-muted-foreground">
                         {item.badge}
                       </span>
                     )}
                   </div>
-                  <p className="truncate text-[10px] text-muted-foreground">
+                  <p className="truncate text-2xs text-muted-foreground">
                     {item.subtitle || item.description}
                   </p>
                 </div>
@@ -536,7 +536,7 @@ function QuickAddMenu({
             onClose();
             navigate('/connectors');
           }}
-          className="mt-2 flex w-full items-center justify-between rounded-lg border border-dashed border-border px-2.5 py-2 text-[11px] font-medium text-muted-foreground hover:border-border-strong hover:text-foreground cursor-pointer"
+          className="mt-2 flex w-full items-center justify-between rounded-lg border border-dashed border-border px-2.5 py-2 text-xs font-medium text-muted-foreground hover:border-border-strong hover:text-foreground cursor-pointer"
         >
           <span className="flex items-center gap-1.5">
             <Plus className="size-3.5" /> Connect another app
@@ -808,7 +808,7 @@ export function EditableNodeHeader({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span
-            className="truncate text-[13px] font-semibold text-foreground select-none"
+            className="truncate text-sm font-semibold text-foreground select-none"
             title={displayTitle}
           >
             {displayTitle}
@@ -817,7 +817,7 @@ export function EditableNodeHeader({
         </div>
         {displayDescription && (
           <div
-            className="mt-0.5 text-[11px] leading-snug text-muted-foreground select-none line-clamp-2"
+            className="mt-0.5 text-xs leading-snug text-muted-foreground select-none line-clamp-2"
             title={displayDescription}
           >
             {displayDescription}
@@ -1039,10 +1039,10 @@ export const StartNode = memo(({ id, type, data, selected }: NodeProps) => {
       />
 
       {!nodeData.run?.output && !isConnectorTrigger && (
-        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">Runs when you test the agent or send it a message.</p>
+        <p className="mt-2 text-xs leading-snug text-muted-foreground">Runs when you test the agent or send it a message.</p>
       )}
       {nodeData.run?.output && (
-        <div className="nodrag nowheel mt-3 max-h-28 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg bg-surface-raised px-2.5 py-2 text-[11px] leading-relaxed text-foreground">
+        <div className="nodrag nowheel mt-3 max-h-28 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg bg-surface-raised px-2.5 py-2 text-xs leading-relaxed text-foreground">
           {nodeData.run.output}
         </div>
       )}
@@ -1075,7 +1075,7 @@ function AppLogoStack({ apps }: { apps: string[] }) {
         </span>
       ))}
       {apps.length > shown.length && (
-        <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full border-2 border-surface bg-surface-raised text-[9px] font-semibold text-muted-foreground">
+        <span className="-ml-1.5 flex size-6 items-center justify-center rounded-full border-2 border-surface bg-surface-raised text-2xs font-semibold text-muted-foreground">
           +{apps.length - shown.length}
         </span>
       )}
@@ -1259,7 +1259,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
         onUpdateMetadata={nodeData.onUpdateMetadata}
         badge={
           roleBadge ? (
-            <Badge variant={roleBadge.variant} className="h-4 shrink-0 px-1.5 text-[9px]">
+            <Badge variant={roleBadge.variant} className="h-4 shrink-0 px-1.5 text-2xs">
               {roleBadge.label}
             </Badge>
           ) : undefined
@@ -1278,7 +1278,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-60">
-                  <ul className="space-y-1 text-[11px]">
+                  <ul className="space-y-1 text-xs">
                     {issues.map((issue) => (
                       <li key={issue}>{issue}</li>
                     ))}
@@ -1305,7 +1305,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
             >
               {modelId ? <AIModelIcon modelId={modelId} size={14} /> : <Cpu className="size-3.5 text-muted-foreground" />}
               <span className="min-w-0 flex-1 truncate">{modelName ?? 'Choose a model'}</span>
-              {team?.model?.inherited && <Badge variant="neutral" className="h-4 shrink-0 px-1 text-[9px]">Inherited</Badge>}
+              {team?.model?.inherited && <Badge variant="neutral" className="h-4 shrink-0 px-1 text-2xs">Inherited</Badge>}
             </button>
           </AgentSection>
 
@@ -1318,7 +1318,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                 e.stopPropagation();
                 open('prompt');
               }}
-              className="nodrag block w-full rounded-lg border border-border px-2.5 py-1.5 text-left text-[11px] leading-snug transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 motion-reduce:transition-none"
+              className="nodrag block w-full rounded-lg border border-border px-2.5 py-1.5 text-left text-xs leading-snug transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 motion-reduce:transition-none"
               aria-label="Open Prompt settings"
             >
               {promptPreview ? (
@@ -1326,7 +1326,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
               ) : (
                 <span className="text-muted-foreground">Add instructions…</span>
               )}
-              {moduleOf('prompt')?.detail && <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{moduleOf('prompt')?.detail}</span>}
+              {moduleOf('prompt')?.detail && <span className="mt-0.5 block truncate text-2xs text-muted-foreground">{moduleOf('prompt')?.detail}</span>}
             </button>
           </AgentSection>
 
@@ -1371,12 +1371,12 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                 >
                   <AppLogoStack apps={toolApps} />
                   {builtinTools.slice(0, toolApps.length ? 1 : 2).map((t) => (
-                    <span key={t} className="inline-flex h-6 max-w-[96px] items-center gap-1 truncate rounded-full border border-border bg-surface-raised px-1.5 text-[10px] leading-none text-foreground">
+                    <span key={t} className="inline-flex h-6 max-w-[96px] items-center gap-1 truncate rounded-full border border-border bg-surface-raised px-1.5 text-2xs leading-none text-foreground">
                       <Wrench className="size-2.5 shrink-0 text-muted-foreground" />
                       <span className="truncate">{t.replace(/_/g, ' ')}</span>
                     </span>
                   ))}
-                  {hiddenToolCount > 0 && <span className="text-[10px] leading-none text-muted-foreground">+{hiddenToolCount}</span>}
+                  {hiddenToolCount > 0 && <span className="text-2xs leading-none text-muted-foreground">+{hiddenToolCount}</span>}
                 </button>
               </div>
             ) : (
@@ -1405,7 +1405,7 @@ function SlottedAgentNode({ id, data, selected, type }: NodeProps) {
                   options={DELEGATION_OPTIONS}
                   disabled={locked || !nodeData.onUpdateConfig}
                   onValueChange={(delegation) => nodeData.onUpdateConfig?.({ delegation })}
-                  className="h-7 text-[11px]"
+                  className="h-7 text-xs"
                 />
               </div>
             )}
@@ -1446,7 +1446,7 @@ function AgentSection({
         onOpen(summary.id, { section: issue.section, field: issue.field });
       }}
       className={cn(
-        'nodrag flex size-5 shrink-0 items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+        'nodrag flex size-5 shrink-0 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
         issue.level === 'error' ? 'text-destructive hover:bg-destructive/10' : 'text-warning hover:bg-warning/10',
       )}
       title={issue.message}
@@ -1467,7 +1467,7 @@ function AgentSection({
   return (
     <section aria-label={label}>
       <div className="mb-1 flex items-center gap-1.5">
-        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
         <span className="ml-auto flex items-center gap-1">
           {warning}
           {addButton && <span className={QUICK_ADD_REVEAL}>{addButton}</span>}
@@ -1488,7 +1488,7 @@ function OutlineAction({ icon, label, onClick, disabled }: { icon: React.ReactNo
         e.stopPropagation();
         onClick();
       }}
-      className="nodrag flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-[11px] font-medium text-foreground shadow-2xs transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 motion-reduce:transition-none"
+      className="nodrag flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-xs font-medium text-foreground shadow-2xs transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60 motion-reduce:transition-none"
     >
       {icon}
       {label}
@@ -1509,12 +1509,12 @@ function ChipRow({ items, onClick }: { items: Array<{ key: string; label: string
       className="nodrag flex w-full flex-wrap items-center gap-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
       {shown.map((item) => (
-        <span key={item.key} className="inline-flex max-w-[130px] items-center gap-1 rounded-full border border-border bg-surface-raised px-1.5 py-0.5 text-[10px] text-foreground">
+        <span key={item.key} className="inline-flex max-w-[130px] items-center gap-1 rounded-full border border-border bg-surface-raised px-1.5 py-0.5 text-2xs text-foreground">
           {item.icon}
           <span className="truncate">{item.label}</span>
         </span>
       ))}
-      {items.length > shown.length && <span className="text-[10px] text-muted-foreground">+{items.length - shown.length}</span>}
+      {items.length > shown.length && <span className="text-2xs text-muted-foreground">+{items.length - shown.length}</span>}
     </button>
   );
 }
@@ -1524,7 +1524,7 @@ function AttachedChip({ data }: { data: WorkflowNodePayload }) {
   const attachedTo = data.attachedTo;
   if (!attachedTo) return null;
   return (
-    <Badge variant="primary" className="mt-2 h-5 max-w-full gap-1 px-1.5 text-[9px]">
+    <Badge variant="primary" className="mt-2 h-5 max-w-full gap-1 px-1.5 text-2xs">
       <Link2 className="size-2.5 shrink-0" />
       <span className="truncate">
         {attachedTo.slot} · {attachedTo.label}
@@ -1584,7 +1584,7 @@ function useDraftValue(value: string, commit: (next: string) => void) {
   return { draft, change, flush };
 }
 
-const fieldLabelClass = 'text-[10px] font-semibold text-muted-foreground';
+const fieldLabelClass = 'text-2xs font-semibold text-muted-foreground';
 
 // 2a. Prompt Node — the agent's system prompt, editable on the canvas
 export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
@@ -1629,7 +1629,7 @@ export const PromptNode = memo(({ id, data, selected }: NodeProps) => {
         minRows={5}
         maxRows={12}
         placeholder={'## Role\nYou are…\n\n## Scope\n…'}
-        className="nodrag nopan nowheel mt-1 font-mono text-[11px] leading-relaxed"
+        className="nodrag nopan nowheel mt-1 font-mono text-xs leading-relaxed"
       />
       <AttachedChip data={nodeData} />
       <NodeRunFooter run={nodeData.run} />
@@ -1688,7 +1688,7 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
             loading={modelsLoading}
             disabled={locked}
             onValueChange={(next) => update({ model: next })}
-            className="h-7 text-[11px]"
+            className="h-7 text-xs"
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -1709,7 +1709,7 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
                 const v = e.target.valueAsNumber;
                 if (Number.isFinite(v)) update({ temperature: Math.min(2, Math.max(0, v)) });
               }}
-              className="text-[11px]"
+              className="text-xs"
             />
           </div>
           <div className="space-y-1">
@@ -1728,7 +1728,7 @@ export const LlmNode = memo(({ id, data, selected }: NodeProps) => {
                 const v = e.target.valueAsNumber;
                 if (Number.isFinite(v) && v >= 1) update({ maxTokens: Math.round(v) });
               }}
-              className="text-[11px]"
+              className="text-xs"
             />
           </div>
         </div>
@@ -1776,12 +1776,12 @@ export const AgentNode = memo((props: NodeProps) => {
       />
 
       {cfg.instructions && (
-        <div className="mt-2.5 rounded-md bg-surface-raised/70 p-1.5 text-[10px] text-muted-foreground line-clamp-2">
+        <div className="mt-2.5 rounded-md bg-surface-raised/70 p-1.5 text-2xs text-muted-foreground line-clamp-2">
           {String(cfg.instructions)}
         </div>
       )}
 
-      <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2 text-[10px] text-muted-foreground">
+      <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2 text-2xs text-muted-foreground">
         <span>Tools: {(cfg.tools as string[])?.length || 0} attached</span>
         <span>Temp: {cfg.temperature ?? 0.7}</span>
       </div>
@@ -1818,14 +1818,14 @@ export const FirecrawlNode = memo(({ id, data, selected }: NodeProps) => {
         defaultDescription="Web Extraction"
         icon={Flame}
         iconBg="bg-warning/15 text-warning"
-        badge={<span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-warning">Firecrawl</span>}
+        badge={<span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-2xs font-semibold text-warning">Firecrawl</span>}
         locked={Boolean(nodeData.locked)}
         onEdit={nodeData.onEdit ? () => nodeData.onEdit?.(id) : undefined}
         onUpdateMetadata={nodeData.onUpdateMetadata}
       />
 
       {(cfg.query || cfg.url) && (
-        <div className="mt-2 rounded bg-surface-raised px-2 py-1 font-mono text-[10px] text-muted-foreground truncate">
+        <div className="mt-2 rounded-md bg-surface-raised px-2 py-1 font-mono text-2xs text-muted-foreground truncate">
           {String(cfg.query || cfg.url)}
         </div>
       )}
@@ -1926,7 +1926,7 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
           picked && !app.loading ? (
             <span
               className={cn(
-                'shrink-0 rounded border px-1.5 py-0.5 text-[9px] font-semibold',
+                'shrink-0 rounded-md border px-1.5 py-0.5 text-2xs font-semibold',
                 app.connected
                   ? 'border-success/25 bg-success/10 text-success-text'
                   : 'border-warning/30 bg-warning/10 text-warning-text',
@@ -1942,7 +1942,7 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
       />
 
       {preview.map(([k, v]) => (
-        <div key={k} className="mt-1 truncate rounded bg-surface-raised/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/80">
+        <div key={k} className="mt-1 truncate rounded-md bg-surface-raised/80 px-1.5 py-0.5 font-mono text-2xs text-muted-foreground/80">
           {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
         </div>
       ))}
@@ -1950,9 +1950,9 @@ export const AppConnectorNode = memo(({ id, type, data, selected }: NodeProps) =
       <AttachedChip data={nodeData} />
       <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-2">
         <ConfigureButton id={id} data={nodeData} />
-        {kindLabel && <span className="ml-auto mr-2 shrink-0 text-[9px] uppercase tracking-wide text-muted-foreground/80">{kindLabel}</span>}
+        {kindLabel && <span className="ml-auto mr-2 shrink-0 text-2xs uppercase tracking-wide text-muted-foreground/80">{kindLabel}</span>}
         {app.capability?.requiresConfirmation && (
-          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-warning-text" title={`${app.connector?.name} marks this as needing confirmation`}>
+          <span className="inline-flex items-center gap-1 text-2xs font-semibold text-warning-text" title={`${app.connector?.name} marks this as needing confirmation`}>
             <Shield className="size-2.5" /> Sensitive
           </span>
         )}
@@ -2043,7 +2043,7 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
       />
 
       {cfg.variable ? (
-        <div className="mt-2.5 truncate rounded-md bg-surface-raised px-2 py-1 font-mono text-[10px] text-foreground" title={`${cfg.variable} ${cfg.operator || '=='} ${cfg.value ?? ''}`}>
+        <div className="mt-2.5 truncate rounded-md bg-surface-raised px-2 py-1 font-mono text-2xs text-foreground" title={`${cfg.variable} ${cfg.operator || '=='} ${cfg.value ?? ''}`}>
           {String(cfg.variable)} <span className="text-accent-violet">{String(cfg.operator || '==')}</span> {String(cfg.value ?? '')}
         </div>
       ) : (
@@ -2054,14 +2054,14 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
             e.stopPropagation();
             nodeData.onEdit?.(id);
           }}
-          className="nodrag mt-2.5 w-full rounded-md border border-dashed border-border px-2 py-1 text-left text-[11px] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default"
+          className="nodrag mt-2.5 w-full rounded-md border border-dashed border-border px-2 py-1 text-left text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default"
         >
           Set a condition…
         </button>
       )}
 
       {isVertical ? (
-        <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-[10px] font-semibold">
+        <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-2xs font-semibold">
           <div className="flex items-center gap-1 text-success">
             <span>True</span>
             <SourceHandleWithQuickAdd
@@ -2086,7 +2086,7 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
       ) : (
         <div className="mt-3 space-y-2">
           {/* True Handle (Top Right) */}
-          <div className="flex items-center justify-between text-[10px] font-semibold text-success">
+          <div className="flex items-center justify-between text-2xs font-semibold text-success">
             <span>True</span>
             <SourceHandleWithQuickAdd
               id="true"
@@ -2098,7 +2098,7 @@ export const ConditionNode = memo(({ id, data, selected }: NodeProps) => {
           </div>
 
           {/* False Handle (Bottom Right) */}
-          <div className="flex items-center justify-between text-[10px] font-semibold text-destructive">
+          <div className="flex items-center justify-between text-2xs font-semibold text-destructive">
             <span>False</span>
             <SourceHandleWithQuickAdd
               id="false"
@@ -2188,7 +2188,7 @@ function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNo
       />
 
       {isVertical ? (
-        <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-[10px] font-semibold">
+        <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-2xs font-semibold">
           <div className="flex items-center gap-1 text-muted-foreground">
             <span>When done</span>
             <SourceHandleWithQuickAdd
@@ -2210,7 +2210,7 @@ function LoopNode({ id, nodeData, selected }: { id: string; nodeData: WorkflowNo
           </div>
         </div>
       ) : (
-        <div className="mt-3 flex flex-col-reverse gap-1.5 text-[10px] font-semibold">
+        <div className="mt-3 flex flex-col-reverse gap-1.5 text-2xs font-semibold">
           <div className="relative flex items-center justify-end pr-2 text-muted-foreground">
             <span>When done</span>
             <SourceHandleWithQuickAdd
@@ -2263,12 +2263,12 @@ export const UserApprovalNode = memo(({ id, data, selected }: NodeProps) => {
         onUpdateMetadata={nodeData.onUpdateMetadata}
       />
 
-      <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-warning/25 bg-warning/10 px-2 py-1.5 text-[11px] text-warning-text">
+      <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-warning/25 bg-warning/10 px-2 py-1.5 text-xs text-warning-text">
         <Pause className="size-3 shrink-0" />
         <span className="font-medium">Waits for a person to approve</span>
       </div>
       {cfg.action && String(cfg.action) !== (nodeData.title || nodeData.label) && (
-        <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground" title={String(cfg.action)}>
+        <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-muted-foreground" title={String(cfg.action)}>
           {String(cfg.action)}
         </p>
       )}
@@ -2304,7 +2304,7 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
     a.click();
     URL.revokeObjectURL(url);
   };
-  const toolButton = 'flex h-6 items-center gap-1 rounded-md border border-border bg-surface px-1.5 text-[10px] text-muted-foreground hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-40';
+  const toolButton = 'flex h-6 items-center gap-1 rounded-md border border-border bg-surface px-1.5 text-2xs text-muted-foreground hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-40';
   return (
     <div
       className={cn(
@@ -2337,7 +2337,7 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
               role="radio"
               aria-checked={view === v}
               onClick={() => setView(v)}
-              className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium capitalize', view === v ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground')}
+              className={cn('rounded-md px-1.5 py-0.5 text-2xs font-medium capitalize', view === v ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground')}
             >
               {v}
             </button>
@@ -2366,16 +2366,16 @@ export const EndNode = memo(({ id, data, selected }: NodeProps) => {
         {!text ? (
           <div className="flex flex-col items-center gap-1 py-3 text-center text-muted-foreground">
             <CheckCircle2 className={cn('size-4', run?.status === 'running' && 'animate-pulse text-primary')} />
-            <p className="text-[11px]">
+            <p className="text-xs">
               {run?.status === 'running' ? 'Waiting for the agent…' : 'Run a test to see the final answer here.'}
             </p>
           </div>
         ) : run?.error ? (
-          <p className="whitespace-pre-wrap text-[11px] text-destructive">{run.error}</p>
+          <p className="whitespace-pre-wrap text-xs text-destructive">{run.error}</p>
         ) : view === 'formatted' ? (
           <FormattedText text={text} />
         ) : (
-          <pre className="whitespace-pre-wrap [overflow-wrap:anywhere] font-mono text-[11px] leading-relaxed text-foreground">{text}</pre>
+          <pre className="whitespace-pre-wrap [overflow-wrap:anywhere] font-mono text-xs leading-relaxed text-foreground">{text}</pre>
         )}
       </div>
       <NodeRunFooter run={run} />
@@ -2408,7 +2408,7 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
         iconBg="bg-primary/10 text-primary"
         badge={
           nodeData.badge ? (
-            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary">
               {nodeData.badge}
             </span>
           ) : undefined
@@ -2419,7 +2419,7 @@ export const GenericStudioNode = memo(({ id, data, selected }: NodeProps) => {
       />
 
       {cfg.action && (
-        <div className="mt-2 text-[10px] text-muted-foreground font-mono truncate">
+        <div className="mt-2 text-2xs text-muted-foreground font-mono truncate">
           {String(cfg.action)}
         </div>
       )}
@@ -2449,7 +2449,7 @@ export const StickyNoteNode = memo(({ id, data, selected }: NodeProps) => {
   return (
     <div
       className={cn(
-        'group relative min-w-[190px] h-full w-full rounded-2xl border p-3 shadow-xs transition-all backdrop-blur-xs',
+        'group relative min-w-[190px] h-full w-full rounded-xl border p-3 shadow-xs transition-all backdrop-blur-xs',
         colorStyles[color] || colorStyles.yellow,
         selected ? 'ring-2 ring-foreground/60 shadow-md' : 'hover:border-border-strong',
       )}
@@ -2481,7 +2481,7 @@ export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
   return (
     <div
       className={cn(
-        'group relative min-w-[340px] min-h-[220px] h-full w-full rounded-2xl border-2 border-dashed border-border/80 bg-surface/30 p-4 transition-all',
+        'group relative min-w-[340px] min-h-[220px] h-full w-full rounded-xl border-2 border-dashed border-border/80 bg-surface/30 p-4 transition-all',
         selected ? 'border-foreground/60 ring-2 ring-foreground/10' : 'hover:border-border-strong',
       )}
     >
@@ -2497,7 +2497,7 @@ export const GroupNode = memo(({ id, data, selected }: NodeProps) => {
         <Folder className="size-4 text-primary" />
         <span>{nodeData.label || 'Stage Group'}</span>
         {nodeData.subtitle && nodeData.showDescription === true && (
-          <span className="text-[10px] text-muted-foreground font-normal">
+          <span className="text-2xs text-muted-foreground font-normal">
             ({nodeData.subtitle})
           </span>
         )}
@@ -2540,7 +2540,7 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
         icon={LayoutDashboard}
         iconBg="bg-primary/15 text-primary"
         badge={
-          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary">
             {type.replace('WIDGET_', '')}
           </span>
         }
@@ -2554,17 +2554,17 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
         {componentType === 'metric_card' && (
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Preview KPI</div>
+              <div className="text-2xs text-muted-foreground uppercase tracking-wider font-semibold">Preview KPI</div>
               <div className="text-base font-bold text-foreground mt-0.5">128,450</div>
             </div>
-            <span className="text-[10px] font-semibold text-success bg-success/10 px-1.5 py-0.5 rounded">+14.2%</span>
+            <span className="text-2xs font-semibold text-success bg-success/10 px-1.5 py-0.5 rounded-md">+14.2%</span>
           </div>
         )}
         {componentType.includes('chart') && (
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <div className="flex items-center justify-between text-2xs text-muted-foreground">
               <span>{componentType.replace('_', ' ')}</span>
-              <span className="text-primary font-mono text-[9px]">Live Data</span>
+              <span className="text-primary font-mono text-2xs">Live Data</span>
             </div>
             <div className="flex items-end gap-1.5 h-6 pt-1">
               <div className="w-1/5 bg-primary/40 rounded-t h-3/6" />
@@ -2577,20 +2577,20 @@ export const WidgetNode = memo(({ id, type, data, selected }: NodeProps) => {
         )}
         {isInput && (
           <div className="space-y-1">
-            <div className="text-[10px] text-muted-foreground">Form Field Input</div>
-            <div className="rounded border border-dashed border-border bg-background px-2 py-1 text-[10px] text-muted-foreground">
+            <div className="text-2xs text-muted-foreground">Form Field Input</div>
+            <div className="rounded-md border border-dashed border-border bg-background px-2 py-1 text-2xs text-muted-foreground">
               [ Collects user values ]
             </div>
           </div>
         )}
         {isApproval && (
           <div className="flex items-center gap-1.5 pt-0.5">
-            <span className="rounded bg-success/15 text-success px-2 py-0.5 text-[9px] font-semibold">Approve</span>
-            <span className="rounded bg-destructive/15 text-destructive px-2 py-0.5 text-[9px] font-semibold">Reject</span>
+            <span className="rounded-md bg-success/15 text-success px-2 py-0.5 text-2xs font-semibold">Approve</span>
+            <span className="rounded-md bg-destructive/15 text-destructive px-2 py-0.5 text-2xs font-semibold">Reject</span>
           </div>
         )}
         {!['metric_card'].includes(componentType) && !componentType.includes('chart') && !isInput && !isApproval && (
-          <div className="text-[11px] text-muted-foreground truncate">
+          <div className="text-xs text-muted-foreground truncate">
             {cfg.title || cfg.action || 'Ready for data binding'}
           </div>
         )}
@@ -2784,7 +2784,7 @@ function IssueBadge({ issues, label }: { issues: Array<{ level: string; message:
           type="button"
           aria-label={`${label}: ${issues.length} problem${issues.length === 1 ? '' : 's'} — ${issues.map((i) => i.message).join(' ')}`}
           className={cn(
-            'nodrag nopan absolute -right-2 -top-2 z-10 flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full border-2 border-background px-1 text-[10px] font-bold shadow-sm',
+            'nodrag nopan absolute -right-2 -top-2 z-10 flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full border-2 border-background px-1 text-2xs font-bold shadow-sm',
             tone === 'error' ? 'bg-destructive text-destructive-foreground' : 'bg-warning text-warning-foreground',
           )}
         >

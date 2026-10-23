@@ -217,7 +217,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
                   {tc.expected && <div className="text-muted-foreground">Expected: {tc.expected}</div>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Badge variant={STATUS_VARIANT[tc.status] ?? 'outline'} className="text-[10px]">
+                  <Badge variant={STATUS_VARIANT[tc.status] ?? 'outline'} className="text-2xs">
                     {tc.status === 'PENDING' || !tc.status ? 'Not run' : tc.status}
                   </Badge>
                   {tc.actual != null && (
@@ -240,7 +240,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
               {tc.actual != null && (
                 <p
                   className={cn(
-                    'line-clamp-2 font-mono text-[11px]',
+                    'line-clamp-2 font-mono text-xs',
                     tc.status === 'ERROR' || tc.status === 'FAILED' ? 'text-destructive' : 'text-muted-foreground',
                   )}
                 >
@@ -248,7 +248,7 @@ export function EvaluationsTab({ agent, onUpdate }) {
                 </p>
               )}
               {tc.ranAt && (
-                <div className="text-[10px] text-muted-foreground">
+                <div className="text-2xs text-muted-foreground">
                   {new Date(tc.ranAt).toLocaleString()} · {tc.latencyMs ?? 0}ms · {tc.tokens ?? 0} tokens
                 </div>
               )}

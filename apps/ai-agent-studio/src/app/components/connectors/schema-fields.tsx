@@ -153,7 +153,7 @@ export function SchemaFields({
               {required.has(key) && <span className="text-destructive" aria-label="required">*</span>}
             </Label>
             {control}
-            {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+            {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
           </div>
         );
       })}

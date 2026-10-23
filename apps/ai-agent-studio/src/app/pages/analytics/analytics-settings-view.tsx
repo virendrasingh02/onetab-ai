@@ -71,7 +71,7 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label className="text-xs font-semibold text-foreground">Metadata Retention</Label>
-            <p className="text-[11px] text-muted-foreground mb-2">
+            <p className="text-xs text-muted-foreground mb-2">
               Run status, timings, token and cost metrics
             </p>
             <AppSelect
@@ -88,7 +88,7 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
           </div>
           <div>
             <Label className="text-xs font-semibold text-foreground">Payload Retention</Label>
-            <p className="text-[11px] text-muted-foreground mb-2">
+            <p className="text-xs text-muted-foreground mb-2">
               Redacted span inputs and outputs
             </p>
             <AppSelect
@@ -109,7 +109,7 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label className="text-xs font-semibold text-foreground">Monthly Budget ($)</Label>
-            <p className="text-[11px] text-muted-foreground mb-2">
+            <p className="text-xs text-muted-foreground mb-2">
               Used for budget utilization and spend projections
             </p>
             <Input
@@ -122,7 +122,7 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
           </div>
           <div>
             <Label className="text-xs font-semibold text-foreground">Budget Alert Threshold (%)</Label>
-            <p className="text-[11px] text-muted-foreground mb-2">
+            <p className="text-xs text-muted-foreground mb-2">
               Warn when spend reaches this share of the budget
             </p>
             <Input
@@ -139,7 +139,7 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
         {/* Default timeframe */}
         <div>
           <Label className="text-xs font-semibold text-foreground">Default Timeframe</Label>
-          <p className="text-[11px] text-muted-foreground mb-2">
+          <p className="text-xs text-muted-foreground mb-2">
             Range the analytics dashboards open with
           </p>
           <AppSelect
@@ -166,7 +166,7 @@ export function AnalyticsSettingsView({ settings, onRefresh }: AnalyticsSettings
               <div className="text-xs font-medium text-foreground">
                 Deep Secret & API Token Redaction
               </div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 Masks values under these keys in traces: {draft.redactedKeys.join(', ')}
               </div>
             </div>

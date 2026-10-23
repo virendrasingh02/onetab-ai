@@ -3,6 +3,7 @@ import { Badge, Button, Card, CodeBlock } from '@org/ui';
 import { cn } from '@org/utils';
 import { ArrowRight, Code2, Laptop, Layers, Maximize2, MessageSquare, Server, Sparkles, Terminal, Zap, type LucideIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { InstallCheck } from './install-check.js';
 import type { DeploymentSection } from './overview-panel.js';
 import { SnippetBlock } from './parts.js';
 import { buildSnippets, type SnippetId } from './snippets.js';
@@ -164,7 +165,7 @@ export function TargetsPanel({
                 <span className="truncate">{item.label}</span>
               </span>
               {item.badge ? (
-                <Badge variant="outline" className={cn('px-1.5 py-0 text-[9px] uppercase', selected && 'border-background/30 text-background')}>
+                <Badge variant="outline" className={cn('px-1.5 py-0 text-2xs uppercase', selected && 'border-background/30 text-background')}>
                   {item.badge}
                 </Badge>
               ) : null}
@@ -195,15 +196,6 @@ export function TargetsPanel({
             </p>
           ) : null}
 
-          {target.needs === 'public-key' && (deployment.allowedOrigins.length === 0 || deployment.allowedOrigins.includes('*')) ? (
-            <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-              Any site can use this snippet. Limit it to your own domains first.
-              <Button type="button" variant="link" size="xs" className="h-auto" onClick={() => onNavigate('widget')}>
-                Set allowed origins <ArrowRight className="size-3" />
-              </Button>
-            </p>
-          ) : null}
-
           {active === 'rest' ? (
             <div className="space-y-3">
               <div role="radiogroup" aria-label="Language" className="inline-flex gap-1 rounded-lg border bg-muted/40 p-0.5">
@@ -226,7 +218,7 @@ export function TargetsPanel({
                 code={snippets[restLang]}
                 language={restLang === 'curl' ? 'bash' : restLang === 'node' ? 'javascript' : 'python'}
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 The response holds <code className="text-foreground">status</code>, <code className="text-foreground">output</code>,{' '}
                 <code className="text-foreground">runId</code> and the tool calls made. A run that needs a person ends in{' '}
                 <code className="text-foreground">WAITING_FOR_APPROVAL</code>.
@@ -252,6 +244,8 @@ export function TargetsPanel({
               language={active === 'iframe' || active === 'widget' || active === 'inline' || active === 'web-component' ? 'html' : 'javascript'}
             />
           ) : null}
+
+          {target.needs === 'public-key' ? <InstallCheck deployment={deployment} /> : null}
 
           {active === 'widget' ? (
             <ol className="list-inside list-decimal space-y-1 rounded-xl border border-border/80 bg-muted/20 p-4 text-xs text-muted-foreground">

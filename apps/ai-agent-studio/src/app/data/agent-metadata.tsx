@@ -116,7 +116,7 @@ export function AgentAvatar({
     sm: 'size-7 text-xs rounded-lg',
     md: 'size-10 text-sm rounded-xl',
     lg: 'size-12 text-base rounded-xl',
-    xl: 'size-16 text-lg rounded-2xl',
+    xl: 'size-16 text-lg rounded-xl',
   };
 
   const iconSizes = {

@@ -134,7 +134,7 @@ export function ReportsExportsView({ dateRange }: { dateRange: string }) {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-foreground text-sm">{rep.title}</span>
-                  <Badge variant="outline" className="text-[10px] font-mono">
+                  <Badge variant="outline" className="text-2xs font-mono">
                     {rep.type}
                   </Badge>
                 </div>

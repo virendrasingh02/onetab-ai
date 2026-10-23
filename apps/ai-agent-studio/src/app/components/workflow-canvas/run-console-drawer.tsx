@@ -288,7 +288,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
           </div>
           <div className="min-w-0">
             <div className="truncate text-sm font-bold text-foreground">Run {agentName}</div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               {mode === 'test' ? 'Test: reads real data, changes nothing' : 'Live: acts for real'}
             </div>
           </div>
@@ -362,7 +362,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
             <div className="flex items-center gap-1.5 font-semibold text-warning">
               <AlertTriangle className="size-3.5" /> {issues.some((i) => i.level === 'error') ? 'Fix before running' : 'Heads up'}
             </div>
-            <ul className="space-y-1 text-[11px] text-muted-foreground">
+            <ul className="space-y-1 text-xs text-muted-foreground">
               {issues.map((issue, i) => (
                 <li key={i} className="flex gap-1.5">
                   <span className={cn('font-semibold', issue.level === 'error' ? 'text-destructive' : 'text-warning')}>
@@ -383,7 +383,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
             <div className="flex items-center gap-1.5 font-semibold text-destructive">
               <AlertTriangle className="size-3.5" /> {startError.title}
             </div>
-            <p className="text-[11px] text-muted-foreground">{startError.detail}</p>
+            <p className="text-xs text-muted-foreground">{startError.detail}</p>
           </section>
         )}
 
@@ -405,7 +405,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
         {run && (
           <>
             {/* Summary */}
-            <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface-raised px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface-raised px-4 py-2.5 font-mono text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Clock className="size-3" /> {formatDuration(run.latencyMs || (settled ? 0 : Date.now() - new Date(run.startedAt).getTime()))}
               </span>
@@ -421,7 +421,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
             </div>
 
             {run.status === 'FAILED' && run.errorsJson?.message && (
-              <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-[11px] text-destructive">
+              <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
                 {run.errorsJson.message}
               </div>
             )}
@@ -431,7 +431,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
                 <div className="flex items-center gap-2 font-bold text-warning">
                   <ShieldCheck className="size-4" /> Waiting for approval: {pendingApproval.actionType}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   The run is paused here. Approving continues it; rejecting stops it. You can also decide it in Approvals.
                 </p>
                 <div className="flex gap-2">
@@ -447,7 +447,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
 
             {/* Steps */}
             <section className="space-y-1.5" aria-label="Steps">
-              <h3 className="text-[11px] font-bold text-foreground">Steps</h3>
+              <h3 className="text-xs font-bold text-foreground">Steps</h3>
               <ol className="space-y-1">
                 {run.steps.map((step: CanvasRunStep) => (
                   <li key={step.id}>
@@ -463,9 +463,9 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
                       <span className="flex min-w-0 items-center gap-2">
                         <StatusIcon status={step.status} />
                         <span className="truncate font-semibold text-foreground">{labels.get(step.stepId) ?? step.stepId}</span>
-                        <span className="shrink-0 font-mono text-[10px] uppercase text-muted-foreground">{step.nodeType}</span>
+                        <span className="shrink-0 font-mono text-2xs uppercase text-muted-foreground">{step.nodeType}</span>
                       </span>
-                      <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                      <span className="shrink-0 font-mono text-2xs text-muted-foreground">
                         {step.tokensUsed ? `${step.tokensUsed} tok · ` : ''}
                         {formatDuration(step.latencyMs)}
                       </span>
@@ -478,7 +478,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
             {/* Team */}
             {tasks.length > 0 && (
               <section className="space-y-1.5" aria-label="Agent team">
-                <h3 className="flex items-center gap-1.5 text-[11px] font-bold text-foreground">
+                <h3 className="flex items-center gap-1.5 text-xs font-bold text-foreground">
                   <Users className="size-3.5" /> What the team did
                 </h3>
                 <ul className="space-y-1">
@@ -498,7 +498,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
                           <span className="shrink-0 font-semibold text-foreground">{task.agentName}</span>
                           <span className="truncate text-muted-foreground">{task.title}</span>
                         </span>
-                        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{task.tokensUsed ? `${task.tokensUsed} tok` : ''}</span>
+                        <span className="shrink-0 font-mono text-2xs text-muted-foreground">{task.tokensUsed ? `${task.tokensUsed} tok` : ''}</span>
                       </button>
                     </li>
                   ))}
@@ -513,7 +513,7 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
               ) : (
                 <>
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[11px] font-bold text-foreground">
+                    <h3 className="text-xs font-bold text-foreground">
                       {selectedStep ? labels.get(selectedStep.stepId) ?? selectedStep.stepId : settled ? 'Result' : 'Latest output'}
                     </h3>
                     {(selectedStep ?? finalStep) && (
@@ -522,16 +522,16 @@ export function RunConsoleDrawer({ agentId, agentName, nodes, isOpen, onClose, o
                       </Button>
                     )}
                   </div>
-                  {selectedStep?.errorMessage && <p className="text-[11px] text-destructive">{selectedStep.errorMessage}</p>}
+                  {selectedStep?.errorMessage && <p className="text-xs text-destructive">{selectedStep.errorMessage}</p>}
                   {selectedStep ?? finalStep ? (
-                    <div className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-[12px] leading-relaxed text-foreground">
+                    <div className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-xs leading-relaxed text-foreground">
                       {readableOutput((selectedStep ?? finalStep)!.outputJson) || 'No output.'}
                     </div>
                   ) : (
                     <p className="text-muted-foreground">{settled ? 'The run produced no output.' : 'Working…'}</p>
                   )}
                   {selectedStep && (
-                    <details className="text-[11px]">
+                    <details className="text-xs">
                       <summary className="cursor-pointer text-muted-foreground">Raw step data</summary>
                       <CodeBlock variant="compact" language="json" code={JSON.stringify({ input: selectedStep.inputJson, output: selectedStep.outputJson }, null, 2)} />
                     </details>
@@ -551,9 +551,9 @@ function TaskDetail({ task, messages, onCopy }: { task: AgentTaskRecord; message
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[11px] font-bold text-foreground">
+        <h3 className="text-xs font-bold text-foreground">
           {task.agentName}
-          <Badge variant="neutral" className="ml-2 text-[10px]">
+          <Badge variant="neutral" className="ml-2 text-2xs">
             {task.status.toLowerCase().replace('_', ' ')}
           </Badge>
         </h3>
@@ -563,29 +563,29 @@ function TaskDetail({ task, messages, onCopy }: { task: AgentTaskRecord; message
           </Button>
         )}
       </div>
-      {task.error && <p className="text-[11px] text-destructive">{task.error}</p>}
+      {task.error && <p className="text-xs text-destructive">{task.error}</p>}
       {task.output?.notices?.map((n, i) => (
-        <p key={i} className="text-[11px] text-warning">
+        <p key={i} className="text-xs text-warning">
           {n}
         </p>
       ))}
       {task.output?.tools && task.output.tools.length > 0 && (
-        <p className="text-[11px] text-muted-foreground">Tools used: {task.output.tools.join(', ')}</p>
+        <p className="text-xs text-muted-foreground">Tools used: {task.output.tools.join(', ')}</p>
       )}
       {messages.length > 0 ? (
         <ol className="space-y-2" aria-label="Conversation">
           {messages.map((m) => (
             <li key={m.id} className="rounded-lg border border-border bg-surface p-2.5">
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
+              <div className="mb-1 flex items-center gap-1.5 text-2xs font-semibold text-muted-foreground">
                 <MessageSquare className="size-3" /> {m.fromName} → {m.toName}
                 <span className={cn('uppercase', m.kind === 'error' && 'text-destructive')}>· {m.kind}</span>
               </div>
-              <div className="max-h-56 overflow-auto whitespace-pre-wrap text-[12px] leading-relaxed text-foreground">{m.content}</div>
+              <div className="max-h-56 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-foreground">{m.content}</div>
             </li>
           ))}
         </ol>
       ) : (
-        result && <div className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-[12px] leading-relaxed">{result}</div>
+        result && <div className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-xs leading-relaxed">{result}</div>
       )}
     </div>
   );

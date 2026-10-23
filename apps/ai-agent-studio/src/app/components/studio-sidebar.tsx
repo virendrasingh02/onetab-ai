@@ -227,7 +227,7 @@ function CountBadge({ count, className }: { count: number; className?: string })
   return (
     <span
       className={cn(
-        'ml-auto inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-destructive/12 px-1.5 font-mono text-[10px] font-semibold tabular-nums text-destructive',
+        'ml-auto inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-destructive/12 px-1.5 font-mono text-2xs font-semibold tabular-nums text-destructive',
         className,
       )}
     >
@@ -310,7 +310,7 @@ function StudioNavSection({
         <div className="group/section flex items-center px-2.5 py-1 select-none">
           <CollapsibleTrigger
             aria-label={`Toggle ${title} section`}
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md text-[11px] font-semibold uppercase tracking-wide text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md text-xs font-semibold uppercase tracking-wide text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
           >
             <span className="truncate">{title}</span>
             <ChevronDown

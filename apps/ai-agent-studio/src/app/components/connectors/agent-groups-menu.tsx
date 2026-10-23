@@ -177,7 +177,7 @@ function SaveGroupDialog({ agent, onClose }: { agent: AgentWithApps; onClose: ()
                 </Label>
                 <Input id="save-group-name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {members.length} app{members.length === 1 ? '' : 's'}: {members.map((m) => connectors.data?.find((c) => c.provider === m.provider)?.name ?? m.provider).join(', ')}
               </p>
             </>

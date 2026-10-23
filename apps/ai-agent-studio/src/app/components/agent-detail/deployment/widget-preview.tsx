@@ -105,7 +105,7 @@ export function WidgetPreview({
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-2xl border border-border bg-muted/40 transition-[width] duration-300',
+        'relative overflow-hidden rounded-xl border border-border bg-muted/40 transition-[width] duration-300',
         '[background-image:radial-gradient(var(--color-border)_1px,transparent_1px)] [background-size:16px_16px]',
         device === 'desktop' ? 'w-full max-w-[560px]' : 'w-[380px] max-w-full',
       )}
@@ -113,7 +113,7 @@ export function WidgetPreview({
       aria-label="Widget preview"
     >
       <div
-        className={cn('absolute bottom-4 flex flex-col font-sans text-[14px] leading-normal', left ? 'left-4 items-start' : 'right-4 items-end')}
+        className={cn('absolute bottom-4 flex flex-col font-sans text-sm leading-normal', left ? 'left-4 items-start' : 'right-4 items-end')}
         style={{ ...vars, color: 'var(--ot-fg)', maxWidth: 'calc(100% - 2rem)', maxHeight: 'calc(100% - 2rem)' }}
       >
         {view === 'open' ? (
@@ -134,7 +134,7 @@ export function WidgetPreview({
                 ) : (
                   <div key={m.id}>
                     <BotText>{m.text}</BotText>
-                    {m.tools ? <p className="mt-1 text-[11px]" style={{ color: 'var(--ot-muted)' }}>{m.tools} tool call{m.tools === 1 ? '' : 's'}</p> : null}
+                    {m.tools ? <p className="mt-1 text-xs" style={{ color: 'var(--ot-muted)' }}>{m.tools} tool call{m.tools === 1 ? '' : 's'}</p> : null}
                     {m.needsApproval ? (
                       <div className="mt-2.5 space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs">
                         <div className="flex items-center gap-1 font-semibold text-amber-600">
@@ -172,7 +172,7 @@ export function WidgetPreview({
                     type="button"
                     disabled={disabled || sending}
                     onClick={() => onSend(p)}
-                    className="rounded-full px-2.5 py-[5px] text-[13px] leading-tight transition-colors disabled:opacity-60"
+                    className="rounded-full px-2.5 py-[5px] text-sm leading-tight transition-colors disabled:opacity-60"
                     style={{
                       color: look.dark ? 'color-mix(in srgb, var(--ot-brand) 55%, #fff)' : 'var(--ot-brand)',
                       background: `color-mix(in srgb, var(--ot-brand) ${look.dark ? 22 : 12}%, transparent)`,
@@ -233,7 +233,7 @@ function Card({ className, style, children }: { className?: string; style?: CSSP
   return (
     <div
       role="dialog"
-      className={cn('animate-in fade-in-0 slide-in-from-bottom-2 rounded-2xl border duration-200', className)}
+      className={cn('animate-in fade-in-0 slide-in-from-bottom-2 rounded-xl border duration-200', className)}
       style={{ background: 'var(--ot-bg)', borderColor: 'var(--ot-line)', boxShadow: 'var(--ot-shadow)', ...style }}
     >
       {children}
@@ -248,7 +248,7 @@ function Header({ look, compact, children }: { look: WidgetLook; compact?: boole
       <div className="min-w-0 flex-1">
         <div className="truncate text-[15px] font-semibold leading-tight">{look.title}</div>
         {look.subtitle ? (
-          <div className="truncate text-[13px] leading-tight" style={{ color: 'var(--ot-muted)' }}>
+          <div className="truncate text-sm leading-tight" style={{ color: 'var(--ot-muted)' }}>
             {look.subtitle}
           </div>
         ) : null}

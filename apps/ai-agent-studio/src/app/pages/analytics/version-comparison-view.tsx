@@ -138,7 +138,7 @@ export function VersionComparisonView({ agents }: VersionComparisonViewProps) {
             <div className="rounded-lg border border-border overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-surface-raised/50 text-[11px]">
+                  <TableRow className="bg-surface-raised/50 text-xs">
                     <TableHead>Metric</TableHead>
                     <TableHead className="text-center">Version {comparison.versionA.version}</TableHead>
                     <TableHead className="text-center">Version {comparison.versionB.version}</TableHead>
@@ -172,7 +172,7 @@ export function VersionComparisonView({ agents }: VersionComparisonViewProps) {
                         variant={
                           comparison.diff.successRateDelta >= 0 ? 'success' : 'destructive'
                         }
-                        className="text-[10px]"
+                        className="text-2xs"
                       >
                         {comparison.diff.successRateDelta >= 0 ? '+' : ''}
                         {comparison.diff.successRateDelta.toFixed(1)}%
@@ -193,7 +193,7 @@ export function VersionComparisonView({ agents }: VersionComparisonViewProps) {
                         variant={
                           comparison.diff.latencyDeltaPct <= 0 ? 'success' : 'destructive'
                         }
-                        className="text-[10px]"
+                        className="text-2xs"
                       >
                         {comparison.diff.latencyDeltaPct >= 0 ? '+' : ''}
                         {comparison.diff.latencyDeltaPct.toFixed(1)}%
@@ -214,7 +214,7 @@ export function VersionComparisonView({ agents }: VersionComparisonViewProps) {
                         variant={
                           comparison.diff.tokensDeltaPct <= 0 ? 'success' : 'secondary'
                         }
-                        className="text-[10px]"
+                        className="text-2xs"
                       >
                         {comparison.diff.tokensDeltaPct >= 0 ? '+' : ''}
                         {comparison.diff.tokensDeltaPct.toFixed(1)}%
@@ -235,7 +235,7 @@ export function VersionComparisonView({ agents }: VersionComparisonViewProps) {
                         variant={
                           comparison.diff.costDeltaPct <= 0 ? 'success' : 'secondary'
                         }
-                        className="text-[10px]"
+                        className="text-2xs"
                       >
                         {comparison.diff.costDeltaPct >= 0 ? '+' : ''}
                         {comparison.diff.costDeltaPct.toFixed(1)}%

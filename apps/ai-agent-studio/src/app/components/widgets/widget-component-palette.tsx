@@ -268,16 +268,16 @@ export function WidgetComponentPalette({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="rounded p-1 bg-primary/10 text-primary group-hover:bg-foreground group-hover:text-background transition-colors">
+                  <div className="rounded-md p-1 bg-primary/10 text-primary group-hover:bg-foreground group-hover:text-background transition-colors">
                     <Icon className="size-3.5" />
                   </div>
                   <span className="text-xs font-semibold text-foreground">{preset.name}</span>
                 </div>
-                <Badge variant="outline" className="text-[9px] uppercase font-mono px-1 py-0">
+                <Badge variant="outline" className="text-2xs uppercase font-mono px-1 py-0">
                   {preset.category.split('_')[0]}
                 </Badge>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2 pl-6">
+              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 pl-6">
                 {preset.description}
               </p>
             </div>

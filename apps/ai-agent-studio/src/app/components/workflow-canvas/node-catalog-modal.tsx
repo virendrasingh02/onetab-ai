@@ -162,7 +162,7 @@ export function NodeCatalogModal({
       onWheel={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
-      className="nowheel nodrag nopan absolute bottom-20 left-1/2 -translate-x-1/2 z-30 w-[780px] max-w-[94vw] max-h-[75vh] flex flex-col rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl text-foreground select-none animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
+      className="nowheel nodrag nopan absolute bottom-20 left-1/2 -translate-x-1/2 z-30 w-[780px] max-w-[94vw] max-h-[75vh] flex flex-col rounded-xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl text-foreground select-none animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/80 px-5 py-3.5 bg-surface/50">
@@ -175,11 +175,11 @@ export function NodeCatalogModal({
               <h2 className="text-sm font-bold text-foreground">
                 Add Step to Workflow
               </h2>
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-2xs font-semibold text-primary">
                 {filteredNodes.length} available
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Select or drag a node into your workflow canvas
             </p>
           </div>
@@ -244,7 +244,7 @@ export function NodeCatalogModal({
                 <span>{cat.label}</span>
                 <span
                   className={cn(
-                    'text-[9px] rounded-full px-1.5 py-0.2',
+                    'text-2xs rounded-full px-1.5 py-0.2',
                     isSelected
                       ? 'bg-background/20 text-background'
                       : 'bg-border/60 text-muted-foreground',
@@ -270,7 +270,7 @@ export function NodeCatalogModal({
             <div className="text-xs font-semibold text-foreground">
               No matching steps found
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1 max-w-xs">
+            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
               Try searching with different terms or switch categories above.
             </p>
           </div>
@@ -321,18 +321,18 @@ export function NodeCatalogModal({
                       </div>
 
                       {item.badge && (
-                        <span className="shrink-0 rounded-full bg-surface-raised border border-border/60 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                        <span className="shrink-0 rounded-full bg-surface-raised border border-border/60 px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
                           {item.badge}
                         </span>
                       )}
                     </div>
 
-                    <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                       {item.description || item.subtitle}
                     </p>
                   </div>
 
-                  <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-border/40 text-[10px] text-muted-foreground">
+                  <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-border/40 text-2xs text-muted-foreground">
                     <span className="capitalize font-mono opacity-70">
                       {item.category}
                     </span>
@@ -349,7 +349,7 @@ export function NodeCatalogModal({
       </div>
 
       {/* Footer shortcut hints */}
-      <div className="flex items-center justify-between border-t border-border/70 px-4 py-2 bg-surface/50 text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between border-t border-border/70 px-4 py-2 bg-surface/50 text-2xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span>Click to place</span>
           <span>•</span>

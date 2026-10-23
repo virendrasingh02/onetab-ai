@@ -833,7 +833,7 @@ export function AgentCopilotPanel({
         <div className="flex min-w-0 items-center gap-2">
           <Sparkles className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <h2 className="truncate text-sm font-semibold text-foreground">Agent Copilot</h2>
-          <span className="truncate text-[11px] text-muted-foreground">· {agentName}</span>
+          <span className="truncate text-xs text-muted-foreground">· {agentName}</span>
         </div>
         <div className="flex items-center gap-0.5">
           <Button variant="ghost" size="icon-sm" type="button" onClick={newChat} disabled={!!busy} className={iconBtn} aria-label="New chat" title="New chat">
@@ -849,7 +849,7 @@ export function AgentCopilotPanel({
       <div className="mx-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-raised/40 px-3 py-2">
         <div className="min-w-0">
           <p className="text-xs font-medium text-foreground">Runs on its own</p>
-          <p className={cn('truncate text-[11px]', appTrigger?.lastError ? 'text-warning-text' : 'text-muted-foreground')} title={runsOnItsOwnText}>
+          <p className={cn('truncate text-xs', appTrigger?.lastError ? 'text-warning-text' : 'text-muted-foreground')} title={runsOnItsOwnText}>
             {runsOnItsOwnText}
           </p>
         </div>
@@ -866,14 +866,14 @@ export function AgentCopilotPanel({
         {!started && (
           <div className="flex flex-col items-center pt-6 text-center">
             <span className="relative mb-4 flex size-16 items-center justify-center" aria-hidden>
-              <span className="absolute inset-0 -rotate-6 rounded-2xl border border-border bg-surface-raised/50" />
-              <span className="absolute inset-0 rotate-6 rounded-2xl border border-border bg-surface-raised/70" />
-              <span className="relative flex size-14 items-center justify-center rounded-2xl border border-border bg-surface-raised text-primary shadow-sm">
+              <span className="absolute inset-0 -rotate-6 rounded-xl border border-border bg-surface-raised/50" />
+              <span className="absolute inset-0 rotate-6 rounded-xl border border-border bg-surface-raised/70" />
+              <span className="relative flex size-14 items-center justify-center rounded-xl border border-border bg-surface-raised text-primary shadow-sm">
                 <Sparkles className="size-6" />
               </span>
             </span>
             <p className="text-base font-semibold text-foreground">Agent Copilot</p>
-            <p className="mt-1 max-w-[260px] text-[13px] text-muted-foreground">
+            <p className="mt-1 max-w-[260px] text-sm text-muted-foreground">
               Change, check, test or rebuild “{agentName}” in plain words.{' '}
               {live ? 'Changes appear on the canvas live, get checked, and can be undone.' : 'Nothing is saved until you Apply.'}
             </p>
@@ -885,7 +885,7 @@ export function AgentCopilotPanel({
                   type="button"
                   disabled={!!busy}
                   onClick={() => void handle(prompt)}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-surface-raised/40 px-3 py-2.5 text-left text-[13px] font-medium text-foreground transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-surface-raised/40 px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <span className="min-w-0 flex-1 truncate">{label}</span>
@@ -898,14 +898,14 @@ export function AgentCopilotPanel({
         {visibleMessages.map((m) =>
           m.role === 'user' ? (
             <div key={m.id} className="flex justify-end">
-              <p className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md border border-border bg-surface-raised px-3.5 py-2 text-[13px] leading-relaxed text-foreground">
+              <p className="max-w-[85%] whitespace-pre-line rounded-xl rounded-br-md border border-border bg-surface-raised px-3.5 py-2 text-sm leading-relaxed text-foreground">
                 {m.text}
               </p>
             </div>
           ) : (
-            <div key={m.id} className="group/msg space-y-2.5 text-[13px] leading-relaxed text-foreground">
+            <div key={m.id} className="group/msg space-y-2.5 text-sm leading-relaxed text-foreground">
               <p className="whitespace-pre-line">{m.text}</p>
-              {m.by && <p className="text-[11px] text-muted-foreground">{m.by}</p>}
+              {m.by && <p className="text-xs text-muted-foreground">{m.by}</p>}
               {m.notes?.length ? (
                 <ul className="space-y-1">
                   {m.notes.map((n, i) => (
@@ -972,17 +972,17 @@ export function AgentCopilotPanel({
                 <div className="space-y-2">
                   <div className="overflow-hidden rounded-xl border border-border bg-background">
                     <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
-                      <span className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                      <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
                         <Workflow className="size-3.5" aria-hidden /> proposed-change
                       </span>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {m.proposal.changes.length} change{m.proposal.changes.length === 1 ? '' : 's'}
                       </span>
                     </div>
                     <div className="max-h-64 space-y-3 overflow-y-auto p-3">
                       <ChangeList changes={m.proposal.changes} />
                       <div>
-                        <p className="mb-1 text-[11px] font-medium text-muted-foreground">Workflow after</p>
+                        <p className="mb-1 text-xs font-medium text-muted-foreground">Workflow after</p>
                         <FlowLine flow={m.proposal.flow} />
                       </div>
                       <IssueList issues={m.proposal.issues.filter((i) => i.level === 'error')} />
@@ -1002,7 +1002,7 @@ export function AgentCopilotPanel({
                       <Button size="xs" variant="ghost" onClick={() => updateProposal(m.id, { state: 'discarded' })}>
                         Discard
                       </Button>
-                      {!m.proposal.rebuild && <span className="text-[11px] text-muted-foreground">Saves a new version you can undo</span>}
+                      {!m.proposal.rebuild && <span className="text-xs text-muted-foreground">Saves a new version you can undo</span>}
                     </div>
                   )}
                   {m.proposal.rebuild?.savedAgentId && (
@@ -1070,7 +1070,7 @@ export function AgentCopilotPanel({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="top" className="w-48">
-                    <DropdownMenuLabel className="text-[11px] text-muted-foreground">Download as</DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Download as</DropdownMenuLabel>
                     <DropdownMenuItem onSelect={() => downloadMessage(m, 'pdf')} className="gap-2 text-xs">
                       <FileText className="size-3.5" /> PDF
                     </DropdownMenuItem>
@@ -1125,7 +1125,7 @@ export function AgentCopilotPanel({
       <div className="px-4 pb-3">
         <form
           onSubmit={submit}
-          className="flex items-end gap-1 rounded-2xl border border-border bg-background px-2 py-1.5 transition-colors focus-within:border-ring"
+          className="flex items-end gap-1 rounded-xl border border-border bg-background px-2 py-1.5 transition-colors focus-within:border-ring"
         >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1158,7 +1158,7 @@ export function AgentCopilotPanel({
                 if (dictation.listening) dictation.stop();
                 void handle(input, mode);
               }
-            }} placeholder={dictation.listening ? 'Listening…' : activePlaceholder} className="max-h-40 min-h-8 flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-[13px] shadow-none focus-visible:ring-0" />
+            }} placeholder={dictation.listening ? 'Listening…' : activePlaceholder} className="max-h-40 min-h-8 flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-sm shadow-none focus-visible:ring-0" />
           <div className="flex items-center gap-1">
               {dictation.supported && (
                 <Button variant="ghost" size="icon-sm"
@@ -1204,7 +1204,7 @@ export function AgentCopilotPanel({
               </button>
           </div>
         </form>
-        <div className="mt-2 flex items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
+        <div className="mt-2 flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -1218,7 +1218,7 @@ export function AgentCopilotPanel({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" side="top" className="w-52">
-              <DropdownMenuLabel className="text-[11px] text-muted-foreground">What to do</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">What to do</DropdownMenuLabel>
               {COMPOSER_MODES.map(({ id, label, Icon }) => (
                 <DropdownMenuItem
                   key={id}

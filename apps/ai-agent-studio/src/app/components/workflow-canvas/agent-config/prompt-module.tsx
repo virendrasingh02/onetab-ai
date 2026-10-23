@@ -175,7 +175,7 @@ export function PromptModule({ view, agent, nodes, issues, readOnly, setConfig, 
             invalid={Boolean(errorFor(issues, 'instructions'))}
             placeholder={'## Role\nYou are…\n\n## Scope\n…'}
             onChange={(e) => setText(e.target.value)}
-            className="font-mono text-[11px] leading-relaxed"
+            className="font-mono text-xs leading-relaxed"
           />
         </SettingField>
         <TemplatePicker disabled={readOnly} onUse={(text, mode) => setText(mode === 'replace' ? text : `${prompt.text}${prompt.text.trim() ? '\n\n' : ''}${text}`)} />
@@ -257,7 +257,7 @@ export function PromptModule({ view, agent, nodes, issues, readOnly, setConfig, 
               invalid={Boolean(jsonSchemaError(s.output.schema))}
               placeholder={'{\n  "type": "object",\n  "properties": { "answer": { "type": "string" } },\n  "required": ["answer"]\n}'}
               onChange={(e) => setSettings({ output: { ...s.output, schema: e.target.value } })}
-              className="font-mono text-[11px]"
+              className="font-mono text-xs"
             />
           </SettingField>
         )}
@@ -330,7 +330,7 @@ function VariableInsert({ variables, stepIds, onInsert, disabled }: { variables:
             if (!items.length) return null;
             return (
               <div key={g.label}>
-                <p className="px-1 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
+                <p className="px-1 pb-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
                 <div className="flex flex-wrap gap-1">
                   {items.map((item) => (
                     <Button
@@ -342,7 +342,7 @@ function VariableInsert({ variables, stepIds, onInsert, disabled }: { variables:
                         onInsert(item);
                         setOpen(false);
                       }}
-                      className="h-auto px-1.5 py-0.5 font-mono text-[10px] font-normal"
+                      className="h-auto px-1.5 py-0.5 font-mono text-2xs font-normal"
                     >
                       {`{{${item}}}`}
                     </Button>
@@ -428,7 +428,7 @@ function TemplatePicker({ onUse, disabled }: { onUse: (text: string, mode: 'repl
         emptyText="No templates match"
         onValueChange={setSelected}
       />
-      {chosen && <p className="text-[11px] text-muted-foreground">{chosen.summary}</p>}
+      {chosen && <p className="text-xs text-muted-foreground">{chosen.summary}</p>}
       {chosen && <OutputBlock label="Preview">{chosen.promptText}</OutputBlock>}
       <div className="flex justify-end gap-1.5">
         <Button type="button" variant="ghost" size="xs" onClick={() => setWanted(false)}>
@@ -457,10 +457,10 @@ function VariablesEditor({ variables, used, readOnly, onChange }: { variables: P
         variables.map((v, i) => (
           <div key={i} className="space-y-2 rounded-lg border border-border bg-surface-raised/40 p-2.5">
             <div className="flex items-center gap-1.5">
-              <span className="font-mono text-[11px] text-muted-foreground">{'{{'}</span>
-              <Input inputSize="sm" value={v.name} disabled={readOnly} aria-label="Variable name" placeholder="customer.name" invalid={!/^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$/.test(v.name)} onChange={(e) => update(i, { name: e.target.value.trim() })} className="font-mono text-[11px]" />
-              <span className="font-mono text-[11px] text-muted-foreground">{'}}'}</span>
-              {!used.includes(v.name) && <Badge variant="neutral" className="h-4 shrink-0 px-1 text-[9px]">unused</Badge>}
+              <span className="font-mono text-xs text-muted-foreground">{'{{'}</span>
+              <Input inputSize="sm" value={v.name} disabled={readOnly} aria-label="Variable name" placeholder="customer.name" invalid={!/^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$/.test(v.name)} onChange={(e) => update(i, { name: e.target.value.trim() })} className="font-mono text-xs" />
+              <span className="font-mono text-xs text-muted-foreground">{'}}'}</span>
+              {!used.includes(v.name) && <Badge variant="neutral" className="h-4 shrink-0 px-1 text-2xs">unused</Badge>}
               {!readOnly && (
                 <Button type="button" variant="ghost" size="icon-xs" aria-label={`Remove ${v.name}`} onClick={() => onChange(variables.filter((_, j) => j !== i))}>
                   <Trash2 className="size-3.5" />
@@ -471,7 +471,7 @@ function VariablesEditor({ variables, used, readOnly, onChange }: { variables: P
               <Input inputSize="sm" value={v.defaultValue ?? ''} disabled={readOnly} aria-label={`Default for ${v.name}`} placeholder="Default value" onChange={(e) => update(i, { defaultValue: e.target.value || undefined })} className="text-xs" />
               <Input inputSize="sm" value={v.description ?? ''} disabled={readOnly} aria-label={`Description of ${v.name}`} placeholder="Description" onChange={(e) => update(i, { description: e.target.value || undefined })} className="text-xs" />
             </div>
-            <Label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <Label className="flex items-center gap-2 text-xs text-muted-foreground">
               <Switch checked={Boolean(v.required)} disabled={readOnly} onCheckedChange={(required) => update(i, { required: required || undefined })} aria-label={`${v.name} is required`} />
               Required
             </Label>
@@ -506,7 +506,7 @@ function ExamplesEditor({ examples, readOnly, onChange }: { examples: PromptExam
       {examples.map((ex, i) => (
         <div key={ex.id} className={cn('space-y-2 rounded-lg border p-2.5', ex.enabled ? 'border-border bg-surface-raised/40' : 'border-dashed border-border opacity-70')}>
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-foreground">Example {i + 1}</span>
+            <span className="text-xs font-semibold text-foreground">Example {i + 1}</span>
             <SegmentedControl
               aria-label={`Example ${i + 1} kind`}
               size="sm"
@@ -630,13 +630,13 @@ function PromptTesting({
         <SettingField label="Variable values for this test">
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {refs.map((r) => (
-              <Input key={r} inputSize="sm" value={values[r] ?? ''} placeholder={defaults[r] ? `${r} (default: ${defaults[r]})` : r} aria-label={`Value for ${r}`} onChange={(e) => setValues((v) => ({ ...v, [r]: e.target.value }))} className="font-mono text-[11px]" />
+              <Input key={r} inputSize="sm" value={values[r] ?? ''} placeholder={defaults[r] ? `${r} (default: ${defaults[r]})` : r} aria-label={`Value for ${r}`} onChange={(e) => setValues((v) => ({ ...v, [r]: e.target.value }))} className="font-mono text-xs" />
             ))}
           </div>
         </SettingField>
       )}
       <OutputBlock label={`Resolved prompt · ~${estimateTokens(resolved.text).toLocaleString()} tokens`}>{resolved.text || '(empty)'}</OutputBlock>
-      {resolved.missing.length > 0 && <p className="text-[11px] text-warning">Left unfilled: {resolved.missing.map((m) => `{{${m}}}`).join(', ')}</p>}
+      {resolved.missing.length > 0 && <p className="text-xs text-warning">Left unfilled: {resolved.missing.map((m) => `{{${m}}}`).join(', ')}</p>}
       <SettingField field="testInput" label="Test message" htmlFor="cfg-test-input">
         <Textarea ref={inputRef} id="cfg-test-input" minRows={2} maxRows={8} value={input} placeholder="What a person would send the agent" onChange={(e) => setInput(e.target.value)} className="text-xs" />
       </SettingField>
@@ -674,7 +674,7 @@ function PromptTesting({
 
       <div className="space-y-2 border-t border-border/70 pt-3">
         <div className="flex items-center justify-between">
-          <p className="text-[11px] font-semibold text-foreground">Regression cases</p>
+          <p className="text-xs font-semibold text-foreground">Regression cases</p>
           <div className="flex gap-1">
             {!readOnly && (
               <Button type="button" variant="outline" size="xs" onClick={() => setCases([...cases, { id: newId(), input: input || '', expect: '' }])}>
@@ -688,7 +688,7 @@ function PromptTesting({
             </Button>
           </div>
         </div>
-        {cases.length === 0 && <p className="text-[11px] text-muted-foreground">Save inputs with an expected phrase; re-run them after every prompt change. Saved with the agent.</p>}
+        {cases.length === 0 && <p className="text-xs text-muted-foreground">Save inputs with an expected phrase; re-run them after every prompt change. Saved with the agent.</p>}
         {cases.map((c, i) => {
           const res = caseResults[c.id];
           return (
@@ -744,7 +744,7 @@ function PromptVersions({ view, agent, readOnly, setConfig }: Pick<ModuleEditorP
   const current = history.find((h) => h.version.version === comparing);
   return (
     <SettingSection id="versions" title="Versions" description="This agent’s prompt in each saved version. Restoring puts it in the draft — Save to keep it.">
-      {versions.isLoading && <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Loader2 className="size-3 animate-spin" />Loading versions…</p>}
+      {versions.isLoading && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="size-3 animate-spin" />Loading versions…</p>}
       {versions.error && <LoadError what="versions" error={versions.error} onRetry={() => void versions.refetch()} />}
       {versions.data && history.length === 0 && <SectionEmpty icon={History} title="No saved versions yet">Save a version from the toolbar to start a history.</SectionEmpty>}
       <ul className="space-y-1.5">
@@ -756,9 +756,9 @@ function PromptVersions({ view, agent, readOnly, setConfig }: Pick<ModuleEditorP
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-foreground">
                     {version.versionTag ?? `v${version.version}`}
-                    <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">{version.publishedAt ? new Date(version.publishedAt).toLocaleString() : ''}</span>
+                    <span className="ml-1.5 text-2xs font-normal text-muted-foreground">{version.publishedAt ? new Date(version.publishedAt).toLocaleString() : ''}</span>
                   </p>
-                  <p className="truncate text-[11px] text-muted-foreground">{prompt ? (same ? 'Same as now' : version.changeSummary || 'Different prompt') : 'This agent isn’t in that version'}</p>
+                  <p className="truncate text-xs text-muted-foreground">{prompt ? (same ? 'Same as now' : version.changeSummary || 'Different prompt') : 'This agent isn’t in that version'}</p>
                 </div>
                 {prompt && !same && (
                   <>
@@ -796,8 +796,8 @@ function DiffView({ before, after }: { before: string; after: string }) {
   const lines = useMemo(() => diffLines(before, after), [before, after]);
   return (
     <div className="space-y-1">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">That version → now</p>
-      <pre tabIndex={0} aria-label="Differences" className="max-h-72 overflow-auto rounded-lg border border-border bg-surface-inset py-1 font-mono text-[11px] leading-relaxed">
+      <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">That version → now</p>
+      <pre tabIndex={0} aria-label="Differences" className="max-h-72 overflow-auto rounded-lg border border-border bg-surface-inset py-1 font-mono text-xs leading-relaxed">
         {lines.map((l, i) => (
           <div
             key={i}

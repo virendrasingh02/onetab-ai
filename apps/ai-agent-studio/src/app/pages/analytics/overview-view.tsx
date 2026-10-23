@@ -58,7 +58,7 @@ function SlowestCard({
           <Icon className="size-3.5 text-primary" />
           {title}
         </span>
-        <span className="text-[10px] text-muted-foreground">{subtitle}</span>
+        <span className="text-2xs text-muted-foreground">{subtitle}</span>
       </div>
       <div className="space-y-2">
         {items.length === 0 ? (
@@ -74,7 +74,7 @@ function SlowestCard({
               <span className="font-medium text-foreground truncate max-w-[150px]">
                 {item.name}
               </span>
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-2xs">
                 {Math.round(item.durationMs)}ms
               </Badge>
             </div>
@@ -168,7 +168,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
     return (
       <div
         className={cn(
-          'flex items-center gap-1 text-[11px] font-medium',
+          'flex items-center gap-1 text-xs font-medium',
           isGood ? 'text-success-text' : 'text-destructive-text',
         )}
       >
@@ -200,7 +200,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
           </div>
           <div className="mt-1 flex items-center justify-between">
             {renderDelta(comparison.executionVolumeGrowthPct)}
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               {executions.running + executions.queued} active
             </span>
           </div>
@@ -222,7 +222,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
           </div>
           <div className="mt-1 flex items-center justify-between">
             {renderDelta(comparison.successRateDiffPct)}
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               {executions.failed} failed
             </span>
           </div>
@@ -243,7 +243,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             {formatTokens(aiUsage.totalTokens)}
           </div>
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               {aiUsage.avgTokensPerExecution.toLocaleString()} / run
             </span>
           </div>
@@ -264,7 +264,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             {formatCurrency(cost.totalEstimatedCost)}
           </div>
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               Budget: {cost.budgetUtilization.toFixed(0)}%
             </span>
           </div>
@@ -433,7 +433,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
 
           <div className="grid grid-cols-4 gap-3 text-center mb-4">
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              <div className="text-2xs text-muted-foreground uppercase tracking-wider font-semibold">
                 p50 (Median)
               </div>
               <div className="mt-1 text-base font-bold text-foreground">
@@ -441,7 +441,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              <div className="text-2xs text-muted-foreground uppercase tracking-wider font-semibold">
                 p90
               </div>
               <div className="mt-1 text-base font-bold text-foreground">
@@ -449,7 +449,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              <div className="text-2xs text-muted-foreground uppercase tracking-wider font-semibold">
                 p95
               </div>
               <div className="mt-1 text-base font-bold text-warning-text">
@@ -457,7 +457,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+              <div className="text-2xs text-muted-foreground uppercase tracking-wider font-semibold">
                 p99
               </div>
               <div className="mt-1 text-base font-bold text-destructive-text">
@@ -505,7 +505,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
             </div>
             <Badge
               variant={reliability.errorRate > 5 ? 'destructive' : 'success'}
-              className="text-[10px]"
+              className="text-2xs"
             >
               {reliability.errorRate.toFixed(1)}% Error Rate
             </Badge>
@@ -513,7 +513,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
 
           <div className="grid grid-cols-3 gap-3 text-center mb-4">
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
-              <div className="text-[10px] text-muted-foreground font-semibold">
+              <div className="text-2xs text-muted-foreground font-semibold">
                 Rate Limits
               </div>
               <div className="mt-1 text-base font-bold text-foreground">
@@ -521,7 +521,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
-              <div className="text-[10px] text-muted-foreground font-semibold">
+              <div className="text-2xs text-muted-foreground font-semibold">
                 Auth / Connectors
               </div>
               <div className="mt-1 text-base font-bold text-foreground">
@@ -529,7 +529,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface-raised p-2.5">
-              <div className="text-[10px] text-muted-foreground font-semibold">
+              <div className="text-2xs text-muted-foreground font-semibold">
                 Provider Timeouts
               </div>
               <div className="mt-1 text-base font-bold text-foreground">
@@ -598,7 +598,7 @@ export function OverviewView({ data, onNavigateToTab }: OverviewViewProps) {
         </div>
         <div className="flex items-center gap-2">
           <span>Concurrent execution peak: </span>
-          <Badge variant="secondary" className="text-[11px] font-mono">
+          <Badge variant="secondary" className="text-xs font-mono">
             {performance.concurrentExecutions} runs
           </Badge>
         </div>

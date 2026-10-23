@@ -433,7 +433,7 @@ function Field({ label, htmlFor, hint, required, children }: { label: string; ht
         )}
       </Label>
       {children}
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -489,7 +489,7 @@ function RowsEditor({
       <Button variant="ghost" size="xs" type="button" leadingIcon={<Plus />} onClick={() => onChange([...rows, { k: '', v: '' }])}>
         {addLabel}
       </Button>
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -525,10 +525,10 @@ function ActionEditor({
         className="flex w-full items-center gap-3 rounded-xl p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {open ? <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /> : <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
-        <span className={cn('shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-semibold', METHOD_STYLE[a.method])}>{a.method}</span>
+        <span className={cn('shrink-0 rounded-md px-1.5 py-0.5 font-mono text-2xs font-semibold', METHOD_STYLE[a.method])}>{a.method}</span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-foreground">{a.label || 'Untitled action'}</span>
-          <span className="block truncate font-mono text-[11px] text-muted-foreground">{a.path || '/'}</span>
+          <span className="block truncate font-mono text-xs text-muted-foreground">{a.path || '/'}</span>
         </span>
         <Badge variant={permission === 'read' ? 'success' : permission === 'destructive' ? 'destructive' : 'warning'}>
           {permission === 'read' ? 'Reads' : permission === 'destructive' ? 'Deletes' : 'Writes'}
@@ -567,7 +567,7 @@ function ActionEditor({
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2">
               <div>
                 <div className="text-xs font-medium text-foreground">This only reads data</div>
-                <div className="text-[11px] text-muted-foreground">For search endpoints that use POST. Agents then run it without asking, and events can watch it.</div>
+                <div className="text-xs text-muted-foreground">For search endpoints that use POST. Agents then run it without asking, and events can watch it.</div>
               </div>
               <Switch aria-label="This only reads data" checked={a.permissionLevel === 'read'} onCheckedChange={(on) => onChange({ permissionLevel: on ? 'read' : undefined })} />
             </div>
@@ -688,7 +688,7 @@ function TestConnection({ draft, integrationId, needsSecret }: { draft: Draft; i
           {shown.message}
         </span>
       ) : (
-        <span className="text-[11px] text-muted-foreground">Sends one real request to the base URL with this sign-in. Nothing is saved.</span>
+        <span className="text-xs text-muted-foreground">Sends one real request to the base URL with this sign-in. Nothing is saved.</span>
       )}
     </div>
   );
@@ -743,7 +743,7 @@ function TestRun({ action, draft, integrationId }: { action: ActionDraft; draft:
       <div className="flex items-center justify-between gap-2">
         <div>
           <div className="text-xs font-medium text-foreground">Try it</div>
-          <div className="text-[11px] text-muted-foreground">Sends a real request with the form as it is now. Nothing is saved.</div>
+          <div className="text-xs text-muted-foreground">Sends a real request with the form as it is now. Nothing is saved.</div>
         </div>
         <Button size="xs" onClick={run} loading={running} disabled={incomplete.length > 0} leadingIcon={<Play />}>
           Run test

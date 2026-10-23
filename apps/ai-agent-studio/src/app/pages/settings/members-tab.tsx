@@ -214,7 +214,7 @@ export function MembersTab() {
                         email={m.email}
                         size="sm"
                         indicator={false}
-                        badge={isMe ? <span className="text-[11px] text-muted-foreground">(you)</span> : undefined}
+                        badge={isMe ? <span className="text-xs text-muted-foreground">(you)</span> : undefined}
                       />
                     </TableCell>
                     <TableCell className="px-4 py-3">
@@ -229,15 +229,15 @@ export function MembersTab() {
                         />
                       ) : (
                         <div>
-                          <Badge variant="outline" className="text-[11px] capitalize">
+                          <Badge variant="outline" className="text-xs capitalize">
                             {m.role.toLowerCase()}
                           </Badge>
-                          <div className="mt-0.5 text-[10px] text-muted-foreground">{ROLE_BLURB[m.role]}</div>
+                          <div className="mt-0.5 text-2xs text-muted-foreground">{ROLE_BLURB[m.role]}</div>
                         </div>
                       )}
                     </TableCell>
                     <TableCell className="px-4 py-3">
-                      <Badge variant={m.status === 'ACTIVE' ? 'success' : 'outline'} className="text-[10px] capitalize">
+                      <Badge variant={m.status === 'ACTIVE' ? 'success' : 'outline'} className="text-2xs capitalize">
                         {m.status.toLowerCase()}
                       </Badge>
                     </TableCell>
@@ -274,12 +274,12 @@ export function MembersTab() {
                 <span className="flex min-w-0 items-center gap-2">
                   <MailPlus className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate text-foreground">{inv.email ?? 'Invite link'}</span>
-                  <Badge variant="outline" className="text-[10px] capitalize">
+                  <Badge variant="outline" className="text-2xs capitalize">
                     {inv.role.toLowerCase()}
                   </Badge>
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="mr-2 text-[11px] text-muted-foreground">expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
+                  <span className="mr-2 text-xs text-muted-foreground">expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
                   {inv.email ? (
                     <Button variant="ghost" size="xs" onClick={() => resend.mutate(inv.id)} loading={resend.isPending && resend.variables === inv.id}>
                       Resend

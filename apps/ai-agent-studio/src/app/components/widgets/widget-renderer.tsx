@@ -102,17 +102,17 @@ export function WidgetRenderer({
     return (
       <Card className={cn('relative overflow-hidden border-border bg-surface flex flex-col justify-between p-5', sizeClasses, className)}>
         <div className="flex items-center justify-between">
-          <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-32 animate-pulse rounded-md bg-muted" />
           <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
         <div className="space-y-3 py-6">
-          <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-full animate-pulse rounded bg-muted/60" />
-          <div className="h-4 w-4/5 animate-pulse rounded bg-muted/40" />
+          <div className="h-8 w-2/3 animate-pulse rounded-md bg-muted" />
+          <div className="h-4 w-full animate-pulse rounded-md bg-muted/60" />
+          <div className="h-4 w-4/5 animate-pulse rounded-md bg-muted/40" />
         </div>
         <div className="flex justify-between items-center pt-2 border-t border-border/50">
-          <div className="h-3 w-20 animate-pulse rounded bg-muted/50" />
-          <div className="h-6 w-16 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-20 animate-pulse rounded-md bg-muted/50" />
+          <div className="h-6 w-16 animate-pulse rounded-md bg-muted" />
         </div>
       </Card>
     );
@@ -178,7 +178,7 @@ export function WidgetRenderer({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {definition?.category && (
-            <Badge variant="outline" className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">
+            <Badge variant="outline" className="text-2xs uppercase font-mono tracking-wider text-muted-foreground">
               {definition.category}
             </Badge>
           )}
@@ -206,9 +206,9 @@ export function WidgetRenderer({
       </CardContent>
 
       {config.footerText && (
-        <CardFooter className="py-2 px-4 border-t border-border/40 text-[10px] text-muted-foreground flex justify-between items-center">
+        <CardFooter className="py-2 px-4 border-t border-border/40 text-2xs text-muted-foreground flex justify-between items-center">
           <span>{config.footerText}</span>
-          <span className="font-mono text-[9px] opacity-75">v{definition?.version ?? 1}</span>
+          <span className="font-mono text-2xs opacity-75">v{definition?.version ?? 1}</span>
         </CardFooter>
       )}
     </Card>
@@ -347,7 +347,7 @@ function MetricCardContent({
             variant="ghost"
             size="xs"
             onClick={() => onAction?.('drill_down', { value, label })}
-            className="text-[11px] h-6 px-1.5 text-primary hover:underline"
+            className="text-xs h-6 px-1.5 text-primary hover:underline"
           >
             Details <ExternalLink className="ml-1 size-2.5" />
           </Button>
@@ -517,12 +517,12 @@ function TableViewContent({
         </Button>
       </div>
 
-      <div className="flex-1 overflow-x-auto rounded border border-border bg-surface-raised/40">
+      <div className="flex-1 overflow-x-auto rounded-md border border-border bg-surface-raised/40">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-b border-border bg-muted/40 font-semibold text-muted-foreground">
               {columns.map((col: string) => (
-                <th key={col} className="p-2 capitalize text-[11px]">{col}</th>
+                <th key={col} className="p-2 capitalize text-xs">{col}</th>
               ))}
             </tr>
           </thead>
@@ -533,7 +533,7 @@ function TableViewContent({
                   <td key={col} className="p-2 text-foreground truncate max-w-[150px]">
                     {col === 'status' ? (
                       <span className={cn(
-                        'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
+                        'inline-flex items-center px-1.5 py-0.5 rounded-md text-2xs font-medium',
                         String(row[col]).toLowerCase() === 'success' ? 'bg-success/10 text-success-text' : 'bg-amber-500/10 text-amber-500'
                       )}>
                         {row[col]}
@@ -629,7 +629,7 @@ function FormInputContent({
           className="h-9 text-xs"
         />
         {config.helpText && (
-          <p className="text-[11px] text-muted-foreground">{config.helpText}</p>
+          <p className="text-xs text-muted-foreground">{config.helpText}</p>
         )}
       </div>
 
@@ -769,10 +769,10 @@ function ApprovalFormContent({
           <span>Requires Human Approval</span>
         </div>
         <h4 className="text-xs font-semibold text-foreground">{actionName}</h4>
-        <p className="text-[11px] text-muted-foreground leading-relaxed bg-muted/30 p-2.5 rounded border border-border/50">
+        <p className="text-xs text-muted-foreground leading-relaxed bg-muted/30 p-2.5 rounded-md border border-border/50">
           {details}
         </p>
-        <div className="text-[10px] text-muted-foreground flex items-center gap-1 pt-1">
+        <div className="text-2xs text-muted-foreground flex items-center gap-1 pt-1">
           <User className="size-3" /> Requested by <span className="font-medium text-foreground">{requester}</span>
         </div>
       </div>
@@ -830,7 +830,7 @@ function AiSummaryContent({
           <span className="flex items-center gap-1.5 font-medium text-primary">
             <Sparkles className="size-3.5" /> AI Synthesis
           </span>
-          <Badge variant="secondary" className="text-[10px] text-success-text font-mono">
+          <Badge variant="secondary" className="text-2xs text-success-text font-mono">
             {confidence} Confidence
           </Badge>
         </div>
@@ -844,7 +844,7 @@ function AiSummaryContent({
           variant="ghost"
           size="xs"
           onClick={handleCopy}
-          className="text-[11px] h-7 px-2 text-muted-foreground hover:text-foreground"
+          className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
         >
           {copied ? <Check className="mr-1.5 size-3" /> : <Copy className="mr-1.5 size-3" />}
           {copied ? 'Copied' : 'Copy'}
@@ -853,7 +853,7 @@ function AiSummaryContent({
           variant="outline"
           size="xs"
           onClick={() => onAction?.('regenerate_summary')}
-          className="text-[11px] h-7 px-2 text-primary"
+          className="text-xs h-7 px-2 text-primary"
         >
           <RefreshCw className="mr-1.5 size-3" /> Regenerate
         </Button>
@@ -891,9 +891,9 @@ function EntityExtractorContent({
             key={idx}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-surface-raised text-xs"
           >
-            <span className="text-[10px] uppercase font-mono text-muted-foreground">{ent.type}:</span>
+            <span className="text-2xs uppercase font-mono text-muted-foreground">{ent.type}:</span>
             <span className="font-medium text-foreground">{ent.value}</span>
-            <span className="text-[10px] rounded-full bg-muted px-1.5 text-muted-foreground">
+            <span className="text-2xs rounded-full bg-muted px-1.5 text-muted-foreground">
               {ent.count}
             </span>
           </div>
@@ -932,7 +932,7 @@ function SentimentContent({
         <div style={{ width: `${sentiment.breakdown.negative}%` }} className="bg-rose-500" title="Negative" />
       </div>
 
-      <div className="flex justify-between text-[11px] text-muted-foreground pt-1">
+      <div className="flex justify-between text-xs text-muted-foreground pt-1">
         <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-success inline-block" /> Positive {sentiment.breakdown.positive}%</span>
         <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-amber-500 inline-block" /> Neutral {sentiment.breakdown.neutral}%</span>
         <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-rose-500 inline-block" /> Negative {sentiment.breakdown.negative}%</span>
@@ -970,15 +970,15 @@ function ActionCardContent({
     <div className="flex flex-col justify-between h-full space-y-3 py-1">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
+          <Badge variant="outline" className="text-2xs text-primary border-primary/30">
             {connectorName}
           </Badge>
-          <span className="inline-flex items-center gap-1 text-[10px] text-success-text font-medium">
+          <span className="inline-flex items-center gap-1 text-2xs text-success-text font-medium">
             <span className="size-1.5 rounded-full bg-success animate-pulse" /> Connected
           </span>
         </div>
         <h4 className="text-xs font-semibold text-foreground">{actionTitle}</h4>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {config.description || 'Triggers immediate outbound sync via workspace connector credentials.'}
         </p>
       </div>
@@ -1028,7 +1028,7 @@ function TaskListContent({
           className="flex items-center gap-2.5 p-2 rounded-md border border-border/60 bg-surface-raised/40 hover:bg-surface-raised cursor-pointer transition-colors text-xs"
         >
           <div className={cn(
-            'size-4 rounded border flex items-center justify-center transition-colors',
+            'size-4 rounded-md border flex items-center justify-center transition-colors',
             task.done ? 'bg-foreground border-foreground text-background' : 'border-muted-foreground'
           )}>
             {task.done && <Check className="size-3" />}
@@ -1064,7 +1064,7 @@ function MeetingNotesContent({
         <div className="font-semibold text-foreground flex items-center gap-1.5">
           <FileText className="size-3.5 text-primary" /> {title}
         </div>
-        <ul className="space-y-1.5 list-disc list-inside text-muted-foreground leading-relaxed text-[11px]">
+        <ul className="space-y-1.5 list-disc list-inside text-muted-foreground leading-relaxed text-xs">
           {notes.map((note: string, idx: number) => (
             <li key={idx}><span className="text-foreground">{note}</span></li>
           ))}
@@ -1096,7 +1096,7 @@ function DefaultJsonViewer({
   const displayVal = data !== undefined ? data : config;
   return (
     <div className="h-full flex flex-col justify-center">
-      <pre className="text-[11px] font-mono text-muted-foreground bg-zinc-950 p-3 rounded border border-border/60 overflow-x-auto max-h-48">
+      <pre className="text-xs font-mono text-muted-foreground bg-zinc-950 p-3 rounded-md border border-border/60 overflow-x-auto max-h-48">
         {JSON.stringify(displayVal, null, 2)}
       </pre>
     </div>

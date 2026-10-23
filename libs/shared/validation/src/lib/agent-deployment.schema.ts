@@ -52,6 +52,8 @@ export const updateAgentDeploymentSchema = z.object({
 export const initAgentSessionSchema = z.object({
   publicKey: z.string().min(1),
   agentId: z.string().optional(),
+  /** The site framing the iframe embed, when the browser's own Origin is the API. */
+  embedOrigin: z.string().max(300).optional(),
   userContext: z.record(z.string(), z.unknown()).default({}),
 });
 

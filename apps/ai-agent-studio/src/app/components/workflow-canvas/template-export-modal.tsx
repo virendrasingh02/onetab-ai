@@ -81,7 +81,7 @@ export function TemplateExportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md rounded-2xl border-border bg-surface shadow-2xl">
+      <DialogContent className="max-w-md rounded-xl border-border bg-surface shadow-2xl">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -146,7 +146,7 @@ export function TemplateExportModal({
             </div>
           </div>
 
-          <div className="rounded-lg bg-surface-raised/50 border border-border/80 p-2.5 text-[11px] text-muted-foreground">
+          <div className="rounded-lg bg-surface-raised/50 border border-border/80 p-2.5 text-xs text-muted-foreground">
             Contains <span className="font-semibold text-foreground">{nodes.length} nodes</span> and{' '}
             <span className="font-semibold text-foreground">{edges.length} connections</span>. Sensitive credentials and secrets are stripped automatically for security.
           </div>

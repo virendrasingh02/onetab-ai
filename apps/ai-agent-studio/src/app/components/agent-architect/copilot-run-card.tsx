@@ -133,7 +133,7 @@ export function CopilotRunCard({
             {mode === 'test' ? 'Test run' : 'Live run'} · {STATUS_TEXT[status.toUpperCase()] ?? status.toLowerCase()}
           </span>
         </span>
-        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+        <span className="shrink-0 font-mono text-2xs text-muted-foreground">
           {run ? formatDuration(Math.max(0, elapsed)) : '…'}
           {run?.tokensUsed ? ` · ${run.tokensUsed.toLocaleString()} tok` : ''}
         </span>
@@ -148,14 +148,14 @@ export function CopilotRunCard({
               size="xs"
               type="button"
               onClick={() => setShowAll(true)}
-              className="h-auto px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+              className="h-auto px-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
               + {hidden} earlier step{hidden === 1 ? '' : 's'}
             </Button>
           </li>
         )}
         {shown.length === 0 && (
-          <li className="px-1.5 text-[11px] text-muted-foreground">Starting…</li>
+          <li className="px-1.5 text-xs text-muted-foreground">Starting…</li>
         )}
         {shown.map((s) => (
           <li key={s.id} className="rounded-md px-1.5 py-1">
@@ -164,10 +164,10 @@ export function CopilotRunCard({
               <span className={cn('min-w-0 flex-1 truncate text-xs', s.status === 'FAILED' ? 'text-destructive-text' : 'text-foreground')}>
                 {labels.get(s.stepId) ?? s.nodeType}
               </span>
-              {s.finishedAt && <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{formatDuration(s.latencyMs)}</span>}
+              {s.finishedAt && <span className="shrink-0 font-mono text-2xs text-muted-foreground">{formatDuration(s.latencyMs)}</span>}
             </div>
             {s.status === 'FAILED' && s.errorMessage && (
-              <p className="mt-0.5 pl-5.5 text-[11px] leading-snug text-muted-foreground">{s.errorMessage}</p>
+              <p className="mt-0.5 pl-5.5 text-xs leading-snug text-muted-foreground">{s.errorMessage}</p>
             )}
           </li>
         ))}
@@ -179,7 +179,7 @@ export function CopilotRunCard({
           <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
             <UserCheck className="size-3.5 text-warning" aria-hidden /> Needs your approval
           </p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {pending.stepId ? `${labels.get(pending.stepId) ?? pending.stepId}: ` : ''}
             {pending.actionType.replace(/_/g, ' ').toLowerCase()}
             {mode === 'test' ? ' — a test run never really sends or changes anything.' : ''}
@@ -199,16 +199,16 @@ export function CopilotRunCard({
       {answer && (
         <div className="mx-2 mb-2 overflow-hidden rounded-lg border border-border">
           <div className="flex items-center justify-between border-b border-border bg-surface px-2.5 py-1">
-            <span className="font-mono text-[10px] text-muted-foreground">output</span>
+            <span className="font-mono text-2xs text-muted-foreground">output</span>
             <Button variant="ghost" size="icon-xs" type="button" onClick={() => void copyAnswer()} aria-label="Copy output">
               {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
             </Button>
           </div>
-          <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words p-2.5 font-mono text-[11px] leading-relaxed text-foreground">{answer}</pre>
+          <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words p-2.5 font-mono text-xs leading-relaxed text-foreground">{answer}</pre>
         </div>
       )}
       {settled && status.toUpperCase() === 'FAILED' && runError && !steps.some((s) => s.status === 'FAILED') && (
-        <p className="mx-3 mb-2 text-[11px] text-destructive-text">{runError}</p>
+        <p className="mx-3 mb-2 text-xs text-destructive-text">{runError}</p>
       )}
 
       {/* Actions */}

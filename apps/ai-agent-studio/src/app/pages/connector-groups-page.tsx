@@ -191,7 +191,7 @@ function GroupCard({
                   <AppConnectorIcon connectorId={connector?.slug ?? m.provider.toLowerCase()} name={connector?.name ?? m.provider} category={connector?.category} size={14} />
                 </span>
                 <span className={m.enabled ? 'text-foreground' : 'text-muted-foreground line-through'}>{connector?.name ?? m.provider}</span>
-                <span className="ml-auto text-[11px] text-muted-foreground">
+                <span className="ml-auto text-xs text-muted-foreground">
                   {!m.enabled
                     ? 'off'
                     : m.actions === null
@@ -205,7 +205,7 @@ function GroupCard({
         </ul>
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {group.members.length} app{group.members.length === 1 ? '' : 's'} · {actions} actions on
         </span>
         <div className="flex items-center gap-1">
@@ -296,7 +296,7 @@ function GroupEditor({
           <Label htmlFor="group-template" className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-border bg-surface-raised/60 p-3">
             <span className="flex flex-col gap-0.5">
               <span className="text-xs font-semibold text-foreground">Share as a template</span>
-              <span className="text-[11px] font-normal text-muted-foreground">
+              <span className="text-xs font-normal text-muted-foreground">
                 Everyone in the workspace can see it and make their own copy. No connections or credentials are shared.
               </span>
             </span>
@@ -385,7 +385,7 @@ function MemberRow({
         </span>
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="min-w-0 flex-1 cursor-pointer text-left">
           <span className="block truncate text-xs font-semibold text-foreground">{connector?.name ?? member.provider}</span>
-          <span className="block truncate text-[11px] text-muted-foreground">
+          <span className="block truncate text-xs text-muted-foreground">
             {member.actions === null ? 'Every action' : `${member.actions.length} of ${capabilities.length} actions`}
             {member.askBefore?.length ? ` · asks first on ${member.askBefore.length}` : ''}
             {connector && connector.status !== 'connected' ? ' · not connected yet' : ''}
@@ -400,7 +400,7 @@ function MemberRow({
         <div className="space-y-3 border-t border-border p-3">
           {connections.length > 1 && (
             <div className="space-y-1">
-              <span className="text-[11px] font-semibold text-foreground">Connection</span>
+              <span className="text-xs font-semibold text-foreground">Connection</span>
               <AppSelect
                 value={member.integrationId ?? ''}
                 onValueChange={(id) => onChange({ integrationId: id || null })}
@@ -415,10 +415,10 @@ function MemberRow({
                 <Checkbox id={`${member.provider}-${c.id}`} checked={on(c.id)} onCheckedChange={(v) => toggleAction(c.id, v === true)} />
                 <label htmlFor={`${member.provider}-${c.id}`} className="min-w-0 flex-1 cursor-pointer truncate text-foreground">
                   {c.label}
-                  {c.kind === 'action' && <span className="ml-1 text-[10px] text-muted-foreground">writes</span>}
+                  {c.kind === 'action' && <span className="ml-1 text-2xs text-muted-foreground">writes</span>}
                 </label>
                 {c.kind === 'action' && (
-                  <label className="flex shrink-0 cursor-pointer items-center gap-1 text-[11px] text-muted-foreground">
+                  <label className="flex shrink-0 cursor-pointer items-center gap-1 text-xs text-muted-foreground">
                     <Checkbox
                       checked={member.askBefore?.includes(c.id) ?? false}
                       disabled={!on(c.id)}

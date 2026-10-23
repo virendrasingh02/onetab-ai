@@ -26,7 +26,7 @@ export function SignedOutScreen({ cameBackSignedOut, onSignIn, onRetry }: Signed
             <Sparkles className="size-4" />
           </div>
           <span className="text-sm font-semibold tracking-tight">Onetab AI</span>
-          <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
             Agent Studio
           </span>
         </div>
@@ -40,7 +40,7 @@ export function SignedOutScreen({ cameBackSignedOut, onSignIn, onRetry }: Signed
       </header>
 
       <main className="my-auto flex w-full max-w-[420px] flex-col items-center text-center" role="main">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border border-border bg-muted text-foreground shadow-lg shadow-black/5">
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-xl border border-border bg-muted text-foreground shadow-lg shadow-black/5">
           <Sparkles className="size-7" />
         </div>
 

@@ -56,7 +56,7 @@ function ToolChips({
           key={t.name}
           title={t.description}
           className={cn(
-            'rounded border bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-foreground',
+            'rounded-md border bg-surface-raised px-1.5 py-0.5 font-mono text-2xs text-foreground',
             t.annotations?.destructiveHint
               ? 'border-destructive/40'
               : 'border-border',
@@ -229,7 +229,7 @@ export function McpPage() {
           },
         ].map((s) => (
           <Card key={s.label} className="p-3 shadow-2xs">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               {s.label}
             </div>
             <div className="mt-1 text-lg font-bold tabular-nums text-foreground">
@@ -252,27 +252,27 @@ export function McpPage() {
                   Onetab Platform Built-in MCP Server
                 </span>
                 {builtIn.isError ? (
-                  <Badge variant="destructive" className="text-[9px]">
+                  <Badge variant="destructive" className="text-2xs">
                     Unavailable
                   </Badge>
                 ) : builtIn.isLoading ? (
-                  <Badge variant="neutral" className="text-[9px]">
+                  <Badge variant="neutral" className="text-2xs">
                     Checking…
                   </Badge>
                 ) : (
-                  <Badge variant="success" className="text-[9px]">
+                  <Badge variant="success" className="text-2xs">
                     {builtInTools.length} tools
                   </Badge>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 In-process server supplying document search, task management,
                 Matrix chat posts, and memory.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden font-mono text-[10px] text-muted-foreground sm:inline">
+            <span className="hidden font-mono text-2xs text-muted-foreground sm:inline">
               Transport: in-process
             </span>
             {builtInTools.length > 0 && (
@@ -294,7 +294,7 @@ export function McpPage() {
           </div>
         </div>
         {builtIn.isError && (
-          <p className="text-[11px] text-destructive">
+          <p className="text-xs text-destructive">
             {(builtIn.error as Error | null)?.message ??
               'Could not load the built-in tool list.'}
           </p>
@@ -353,7 +353,7 @@ export function McpPage() {
                             {conn.name}
                           </div>
                           <span
-                            className="block truncate font-mono text-[10px] text-muted-foreground"
+                            className="block truncate font-mono text-2xs text-muted-foreground"
                             title={conn.serverUrl}
                           >
                             {conn.serverUrl}
@@ -362,13 +362,13 @@ export function McpPage() {
                       </div>
                       <Badge
                         variant={status.variant}
-                        className="shrink-0 text-[9px]"
+                        className="shrink-0 text-2xs"
                       >
                         {status.label}
                       </Badge>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground">
                       <span>{conn.transport}</span>
                       <span>
                         {conn.lastSyncedAt
@@ -384,7 +384,7 @@ export function McpPage() {
 
                     {conn.lastError && (
                       <p
-                        className="line-clamp-2 text-[10px] text-destructive"
+                        className="line-clamp-2 text-2xs text-destructive"
                         title={conn.lastError}
                       >
                         {conn.lastError}
@@ -393,7 +393,7 @@ export function McpPage() {
 
                     {conn.discoveredToolsJson.length > 0 && (
                       <div className="space-y-1">
-                        <div className="text-[10px] font-semibold uppercase text-muted-foreground">
+                        <div className="text-2xs font-semibold uppercase text-muted-foreground">
                           Discovered Tools ({conn.discoveredToolsJson.length})
                         </div>
                         <ToolChips tools={conn.discoveredToolsJson} />
@@ -474,7 +474,7 @@ export function McpPage() {
 
             <DialogBody className="space-y-3.5 text-xs">
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   Server Name *
                 </Label>
                 <Input
@@ -487,7 +487,7 @@ export function McpPage() {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   Server URL (Streamable HTTP) *
                 </Label>
                 <Input
@@ -501,7 +501,7 @@ export function McpPage() {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-foreground">
+                <Label className="text-xs font-semibold text-foreground">
                   Bearer token (optional)
                 </Label>
                 <Input
@@ -512,7 +512,7 @@ export function McpPage() {
                   placeholder="Sent as Authorization: Bearer …"
                   className="h-8 font-mono text-xs"
                 />
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   Stored encrypted and never shown again. Private-network URLs
                   need AI_ALLOW_PRIVATE_NETWORK on the API.
                 </p>

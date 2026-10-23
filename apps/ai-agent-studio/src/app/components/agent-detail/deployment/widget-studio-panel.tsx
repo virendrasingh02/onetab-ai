@@ -171,7 +171,7 @@ export function WidgetStudioPanel({
               </h3>
               <p className="text-xs text-muted-foreground">Saved to the deployment and applied by the embed.</p>
             </div>
-            {dirty ? <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">Unsaved changes</span> : null}
+            {dirty ? <span className="rounded-full bg-warning/15 px-2 py-0.5 text-2xs font-semibold text-warning">Unsaved changes</span> : null}
           </div>
 
           <SectionLabel>Style</SectionLabel>
@@ -193,7 +193,7 @@ export function WidgetStudioPanel({
                   <LayoutThumb layout={l.value} brand={brand} />
                   <span>
                     <span className="block text-xs font-semibold text-foreground">{l.label}</span>
-                    <span className="block text-[10px] leading-snug text-muted-foreground">{l.hint}</span>
+                    <span className="block text-2xs leading-snug text-muted-foreground">{l.hint}</span>
                   </span>
                 </button>
               );
@@ -239,9 +239,9 @@ export function WidgetStudioPanel({
               className="text-xs"
             />
             {avatarError || !avatarOk ? (
-              <p className="text-[11px] text-destructive">{avatarError ?? 'Use an https:// image URL.'}</p>
+              <p className="text-xs text-destructive">{avatarError ?? 'Use an https:// image URL.'}</p>
             ) : (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {form.avatarUrl ? 'Shown in the widget header and on the launcher.' : agentAvatarUrl ? 'Using the agent’s avatar.' : 'The agent has no avatar yet, so a bot icon is shown. Upload one to put your brand in the widget.'}
               </p>
             )}
@@ -300,7 +300,7 @@ export function WidgetStudioPanel({
             <Label htmlFor="ws-prompt">Suggested prompts</Label>
             <div className="flex flex-wrap gap-1.5">
               {form.suggestedPrompts.map((p) => (
-                <span key={p} className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted py-0.5 pl-2.5 pr-1 text-[11px] text-foreground">
+                <span key={p} className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted py-0.5 pl-2.5 pr-1 text-xs text-foreground">
                   {p}
                   <Button
                     type="button"
@@ -351,7 +351,7 @@ export function WidgetStudioPanel({
               aria-invalid={!privacyOk}
             />
           </Field>
-          {!privacyOk ? <p className="-mt-3 text-[11px] text-destructive">Use a full https:// link.</p> : null}
+          {!privacyOk ? <p className="-mt-3 text-xs text-destructive">Use a full https:// link.</p> : null}
 
           <div className="space-y-4">
             <SectionLabel>Access &amp; sessions</SectionLabel>
@@ -426,7 +426,7 @@ export function WidgetStudioPanel({
           device={device}
           notice={
             originBlocked ? (
-              <div className="mx-5 mb-2.5 space-y-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-400">
+              <div className="mx-5 mb-2.5 space-y-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
                 <p>This Studio’s address isn’t in the allowed origins, so a preview session was refused, as it would be for any other site.</p>
                 <Button
                   type="button"
@@ -444,7 +444,7 @@ export function WidgetStudioPanel({
             ) : null
           }
         />
-        <p className="max-w-[560px] text-center text-[11px] text-muted-foreground">
+        <p className="max-w-[560px] text-center text-xs text-muted-foreground">
           The preview chats with the live deployment, exactly as an embed would. It uses real model credits.
           {deployment.status !== 'ACTIVE' ? ' Chat is off while the deployment isn’t active.' : ''}
         </p>
@@ -467,8 +467,8 @@ function LayoutThumb({ layout, brand }: { layout: AgentWidgetLayout; brand: stri
             {line('50%')}
           </span>
           {line('85%')}
-          <span className="block h-1.5 w-[45%] self-end rounded bg-muted-foreground/20" />
-          <span className="mt-auto block h-2 rounded border" style={{ borderColor: brand }} />
+          <span className="block h-1.5 w-[45%] self-end rounded-md bg-muted-foreground/20" />
+          <span className="mt-auto block h-2 rounded-md border" style={{ borderColor: brand }} />
         </span>
       ) : layout === 'compact' ? (
         <span className="absolute bottom-1.5 right-1.5 flex w-[62%] flex-col gap-1 rounded-md border border-border/60 bg-background p-1.5 shadow-sm">
@@ -476,7 +476,7 @@ function LayoutThumb({ layout, brand }: { layout: AgentWidgetLayout; brand: stri
             <span className="size-2.5 rounded-full" style={{ background: brand }} />
             {line('50%')}
           </span>
-          <span className="block h-2 rounded border border-border" />
+          <span className="block h-2 rounded-md border border-border" />
           {line('70%')}
         </span>
       ) : (
@@ -490,5 +490,5 @@ function LayoutThumb({ layout, brand }: { layout: AgentWidgetLayout; brand: stri
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="border-b border-border/60 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{children}</div>;
+  return <div className="border-b border-border/60 pb-1 text-2xs font-bold uppercase tracking-wider text-muted-foreground">{children}</div>;
 }

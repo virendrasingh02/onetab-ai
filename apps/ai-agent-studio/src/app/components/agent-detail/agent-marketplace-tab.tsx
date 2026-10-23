@@ -136,7 +136,7 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
                 onChange={(next) => setVisibility(next as MarketplaceVisibility)}
                 size="sm"
               />
-              <p className="text-[11px] text-muted-foreground">{VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.hint}</p>
+              <p className="text-xs text-muted-foreground">{VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.hint}</p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Tagline" hint="One line shown on the listing card.">
@@ -150,7 +150,7 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
               <Textarea value={changeNotes} maxLength={500} rows={2} onChange={(e) => setChangeNotes(e.target.value)} placeholder="Shown in the listing's changelog" />
             </Field>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
-              <p className="text-[11px] text-muted-foreground">Publishes v{version}. Tools that need credentials must be reconnected by whoever installs it.</p>
+              <p className="text-xs text-muted-foreground">Publishes v{version}. Tools that need credentials must be reconnected by whoever installs it.</p>
               <Button size="sm" className="gap-1.5 text-xs font-semibold" onClick={() => publish.mutate()} loading={publish.isPending}>
                 <Rocket className="size-3.5" /> {live ? 'Update listing' : 'Publish to marketplace'}
               </Button>
@@ -162,14 +162,14 @@ export function AgentMarketplaceTab({ agent }: { agent: AIAgentDetail }) {
           <AgentTabSection title="Current listing" icon={<Store />} className="gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-foreground">{listing.name}</span>
-              <Badge variant={live ? 'success' : 'outline'} className="text-[10px] font-semibold uppercase tracking-wider">
+              <Badge variant={live ? 'success' : 'outline'} className="text-2xs font-semibold uppercase tracking-wider">
                 {live ? 'Live' : 'Removed'}
               </Badge>
-              <Badge variant="outline" className="gap-1 text-[10px]">
+              <Badge variant="outline" className="gap-1 text-2xs">
                 {listing.visibility === 'PUBLIC' ? <Globe className="size-3" /> : <Lock className="size-3" />}
                 {listing.visibility === 'PUBLIC' ? 'Everyone' : 'My workspace'}
               </Badge>
-              <Badge variant="outline" className="font-mono text-[10px]">
+              <Badge variant="outline" className="font-mono text-2xs">
                 v{listing.version}
               </Badge>
             </div>

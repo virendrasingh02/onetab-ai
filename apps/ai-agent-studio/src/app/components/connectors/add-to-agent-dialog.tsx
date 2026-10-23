@@ -122,7 +122,7 @@ export function AddToAgentDialog({
                   placeholder={agents.isLoading ? 'Loading agents…' : agentOptions.length ? 'Choose an agent' : 'No agents yet'}
                 />
                 {!agents.isLoading && agentOptions.length === 0 && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     This list only has canvas agents. Agents made with Create with AI take their apps from the plan instead.{' '}
                     <button
                       type="button"
@@ -145,7 +145,7 @@ export function AddToAgentDialog({
                       <Checkbox checked={picked.includes(c.id)} onCheckedChange={(v) => toggle(c.id, v === true)} className="mt-0.5" />
                       <span className="min-w-0">
                         <span className="font-medium text-foreground">{c.label}</span>
-                        <span className="ml-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <span className="ml-1.5 text-2xs uppercase tracking-wide text-muted-foreground">
                           {c.kind === 'query' ? 'reads' : c.permissionLevel === 'destructive' ? 'deletes' : 'writes'}
                         </span>
                         {c.description && <span className="block truncate text-muted-foreground">{c.description}</span>}
@@ -153,7 +153,7 @@ export function AddToAgentDialog({
                     </Label>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Actions that write still follow the agent’s approval rules, and ones the app marks as needing confirmation ask first.
                 </p>
               </fieldset>

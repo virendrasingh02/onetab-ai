@@ -78,7 +78,7 @@ export function ExecutionDetailDrawer({
                         ? 'destructive'
                         : 'secondary'
                     }
-                    className="text-[10px]"
+                    className="text-2xs"
                   >
                     {raw.status}
                   </Badge>
@@ -110,25 +110,25 @@ export function ExecutionDetailDrawer({
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-4 gap-3 mt-4 text-xs">
             <div className="p-2.5 rounded-lg bg-surface border border-border">
-              <span className="text-[10px] text-muted-foreground">Tokens In / Out</span>
+              <span className="text-2xs text-muted-foreground">Tokens In / Out</span>
               <div className="mt-0.5 font-bold text-foreground">
                 {(raw.tokensUsed || execution.tokensUsed || 0).toLocaleString()}
               </div>
             </div>
             <div className="p-2.5 rounded-lg bg-surface border border-border">
-              <span className="text-[10px] text-muted-foreground">Estimated Cost</span>
+              <span className="text-2xs text-muted-foreground">Estimated Cost</span>
               <div className="mt-0.5 font-bold text-foreground">
                 ${(raw.cost || (raw.tokensUsed || 0) * 0.000005).toFixed(4)}
               </div>
             </div>
             <div className="p-2.5 rounded-lg bg-surface border border-border">
-              <span className="text-[10px] text-muted-foreground">Entity Type</span>
+              <span className="text-2xs text-muted-foreground">Entity Type</span>
               <div className="mt-0.5 font-semibold text-foreground">
                 {raw.entityType || 'AGENT'}
               </div>
             </div>
             <div className="p-2.5 rounded-lg bg-surface border border-border">
-              <span className="text-[10px] text-muted-foreground">Trigger</span>
+              <span className="text-2xs text-muted-foreground">Trigger</span>
               <div className="mt-0.5 font-semibold text-foreground">
                 {raw.metadata?.triggerType || 'MANUAL'}
               </div>
@@ -159,7 +159,7 @@ export function ExecutionDetailDrawer({
                 {isLoadingTrace ? <span className="ml-2 font-normal text-muted-foreground">loading full trace…</span> : null}
               </span>
               {trace?.bottleneckSpanId && (
-                <Badge variant="warning" className="text-[10px] gap-1">
+                <Badge variant="warning" className="text-2xs gap-1">
                   <Clock className="size-3" />
                   Bottleneck Detected
                 </Badge>
@@ -194,14 +194,14 @@ export function ExecutionDetailDrawer({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[10px] font-mono">
+                          <Badge variant="outline" className="text-2xs font-mono">
                             {step.kind || step.stepType || 'STEP'}
                           </Badge>
                           <span className="font-semibold text-foreground">
                             {step.name || step.nodeName || `Step ${idx + 1}`}
                           </span>
                           {isBottleneck && (
-                            <Badge variant="warning" className="text-[9px]">
+                            <Badge variant="warning" className="text-2xs">
                               Latency Bottleneck
                             </Badge>
                           )}
@@ -217,7 +217,7 @@ export function ExecutionDetailDrawer({
                                 ? 'destructive'
                                 : 'secondary'
                             }
-                            className="text-[9px]"
+                            className="text-2xs"
                           >
                             {step.status}
                           </Badge>
@@ -229,10 +229,10 @@ export function ExecutionDetailDrawer({
                         <div className="mt-3 pt-3 border-t border-border space-y-2">
                           {step.inputs && (
                             <div>
-                              <span className="text-[10px] text-muted-foreground font-semibold">
+                              <span className="text-2xs text-muted-foreground font-semibold">
                                 Sanitized Inputs:
                               </span>
-                              <pre className="mt-1 p-2 rounded bg-surface border border-border text-[11px] font-mono max-h-32 overflow-auto whitespace-pre-wrap break-all">
+                              <pre className="mt-1 p-2 rounded-md bg-surface border border-border text-xs font-mono max-h-32 overflow-auto whitespace-pre-wrap break-all">
                                 {typeof step.inputs === 'string'
                                   ? step.inputs
                                   : JSON.stringify(step.inputs, null, 2)}
@@ -241,10 +241,10 @@ export function ExecutionDetailDrawer({
                           )}
                           {step.outputs && (
                             <div>
-                              <span className="text-[10px] text-muted-foreground font-semibold">
+                              <span className="text-2xs text-muted-foreground font-semibold">
                                 Output Result:
                               </span>
-                              <pre className="mt-1 p-2 rounded bg-surface border border-border text-[11px] font-mono max-h-32 overflow-auto whitespace-pre-wrap break-all">
+                              <pre className="mt-1 p-2 rounded-md bg-surface border border-border text-xs font-mono max-h-32 overflow-auto whitespace-pre-wrap break-all">
                                 {typeof step.outputs === 'string'
                                   ? step.outputs
                                   : JSON.stringify(step.outputs, null, 2)}
@@ -252,7 +252,7 @@ export function ExecutionDetailDrawer({
                             </div>
                           )}
                           {step.error && (
-                            <div className="text-destructive font-mono text-[10px] p-2 bg-destructive/10 rounded">
+                            <div className="text-destructive font-mono text-2xs p-2 bg-destructive/10 rounded-md">
                               {step.error.message || JSON.stringify(step.error)}
                             </div>
                           )}

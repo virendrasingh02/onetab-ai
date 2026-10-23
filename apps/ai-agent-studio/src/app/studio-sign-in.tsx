@@ -54,7 +54,7 @@ export function StudioSignIn({ onSignedIn }: StudioSignInProps) {
           <Sparkles className="size-4" />
         </div>
         <span className="text-sm font-semibold tracking-tight">Onetab AI</span>
-        <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
           Agent Studio
         </span>
       </div>

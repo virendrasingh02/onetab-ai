@@ -451,7 +451,7 @@ ${graphJson}`;
     return (
       <Page className="mx-auto w-full max-w-3xl space-y-8 py-6">
         <header className="space-y-2 text-center">
-          <div className="mx-auto flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <div className="mx-auto flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Sparkles className="size-5" aria-hidden />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">What should your agent do?</h1>
@@ -523,9 +523,9 @@ ${graphJson}`;
                 {elapsed}s — a full plan from the AI model can take up to a minute. If no model can plan it, the closest template is used and the plan says so.
               </p>
               <div className="space-y-2" aria-hidden>
-                <div className="h-3 w-2/3 animate-pulse rounded bg-surface-raised" />
-                <div className="h-3 w-1/2 animate-pulse rounded bg-surface-raised" />
-                <div className="h-3 w-3/5 animate-pulse rounded bg-surface-raised" />
+                <div className="h-3 w-2/3 animate-pulse rounded-md bg-surface-raised" />
+                <div className="h-3 w-1/2 animate-pulse rounded-md bg-surface-raised" />
+                <div className="h-3 w-3/5 animate-pulse rounded-md bg-surface-raised" />
               </div>
             </div>
           )}
@@ -561,7 +561,7 @@ ${graphJson}`;
                       <span className="text-xs font-semibold text-foreground">{t.title}</span>
                       <Badge variant="neutral">{t.domain}</Badge>
                     </div>
-                    <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{t.prompt}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t.prompt}</p>
                   </button>
                 ))}
               </div>
@@ -677,7 +677,7 @@ ${graphJson}`;
         <Button variant="ghost" size="sm" onClick={() => setPhase('describe')} className="gap-1.5">
           <ArrowLeft className="size-3.5" /> Edit prompt
         </Button>
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {result_.plannedBy === 'ai' ? (
             <span>Planned by {result_.model ?? 'AI'} in {Math.round(result_.durationMs / 1000)}s</span>
           ) : (
@@ -742,7 +742,7 @@ ${graphJson}`;
             <ol className="space-y-1.5">
               {finalSpec.steps.map((step, i) => (
                 <li key={step.id} className="group flex items-start gap-2.5 rounded-lg border border-transparent px-2 py-1.5 hover:border-border hover:bg-accent/40">
-                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-[11px] font-semibold text-muted-foreground">{i + 1}</span>
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-raised text-xs font-semibold text-muted-foreground">{i + 1}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-sm font-medium text-foreground">{step.title}</span>
@@ -915,7 +915,7 @@ ${graphJson}`;
                         />
                         <span className="min-w-0">
                           <span className="block text-xs font-medium text-foreground">{r.title}</span>
-                          <span className="block text-[11px] text-muted-foreground">{r.reason}</span>
+                          <span className="block text-xs text-muted-foreground">{r.reason}</span>
                         </span>
                       </Label>
                     </li>
@@ -936,7 +936,7 @@ ${graphJson}`;
           <Button size="xl" className="w-full gap-2" onClick={buildAgent} disabled={applying || cannotCreate}>
             <Zap className="size-4" /> Build it
           </Button>
-          <p className="text-center text-[11px] text-muted-foreground">
+          <p className="text-center text-xs text-muted-foreground">
             {cannotCreate ? createAccess?.reason : 'Creates the agent as a draft. Nothing runs until you test or switch it on.'}
           </p>
         </aside>
@@ -968,7 +968,7 @@ function MissingCard({
         <p className="text-xs font-semibold text-foreground">
           {index}. {item.title}
         </p>
-        <p className="text-[11px] text-muted-foreground">{item.detail}</p>
+        <p className="text-xs text-muted-foreground">{item.detail}</p>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {item.kind === 'connection' && (
@@ -1016,7 +1016,7 @@ function MissingCard({
               </Link>
             </Button>
           ))}
-        {(item.kind === 'channel' || item.kind === 'param') && <span className="text-[11px] text-muted-foreground">You’ll choose this on the canvas.</span>}
+        {(item.kind === 'channel' || item.kind === 'param') && <span className="text-xs text-muted-foreground">You’ll choose this on the canvas.</span>}
         {item.kind !== 'connection' && (
           <Button size="xs" variant="ghost" onClick={onDefer} className="gap-1">
             <Check className="size-3" /> Later

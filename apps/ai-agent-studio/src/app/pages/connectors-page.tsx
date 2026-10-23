@@ -244,9 +244,9 @@ export function ConnectorsPage() {
 function Stat({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-3.5">
-      <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{value}</div>
-      {hint && <div className="mt-0.5 text-[11px] text-muted-foreground">{hint}</div>}
+      {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
 }
@@ -282,7 +282,7 @@ export function ConnectorCard({
             </span>
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold text-foreground group-hover:text-primary">{c.name}</span>
-              <span className="block truncate text-[11px] text-muted-foreground">
+              <span className="block truncate text-xs text-muted-foreground">
                 {c.custom ? 'Custom' : (CATEGORY_LABEL.get(c.category) ?? c.category)} · {AUTH_LABELS[c.authType] ?? c.authType}
               </span>
             </span>
@@ -305,7 +305,7 @@ export function ConnectorCard({
 
         <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{c.description}</p>
 
-        <div className="mb-3 flex flex-wrap gap-1.5 text-[11px]">
+        <div className="mb-3 flex flex-wrap gap-1.5 text-xs">
           <CountChip icon={<Wrench className="size-3" />} label={`${c.counts.actions} action${c.counts.actions === 1 ? '' : 's'}`} />
           <CountChip icon={<Eye className="size-3" />} label={`${c.counts.queries} read${c.counts.queries === 1 ? '' : 's'}`} />
           {c.counts.triggers > 0 && <CountChip icon={<Zap className="size-3 text-warning" />} label={`${c.counts.triggers} trigger${c.counts.triggers === 1 ? '' : 's'}`} />}
@@ -315,7 +315,7 @@ export function ConnectorCard({
           <div className="flex flex-wrap items-center gap-1" aria-label="What agents can do with it">
             <Bot className="size-3.5 text-primary" aria-hidden="true" />
             {c.agentCapabilities.slice(0, 4).map((tag) => (
-              <span key={tag} className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary-text">
+              <span key={tag} className="rounded-md bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-primary-text">
                 {AGENT_CAPABILITY_LABELS[tag]}
               </span>
             ))}
@@ -323,13 +323,13 @@ export function ConnectorCard({
         )}
 
         {account && (
-          <p className="mt-3 truncate text-[11px] text-muted-foreground">
+          <p className="mt-3 truncate text-xs text-muted-foreground">
             As <span className="font-medium text-foreground">{account.accountEmail ?? account.accountName ?? account.displayName}</span>
             {c.usage.calls > 0 && ` · ${c.usage.calls} call${c.usage.calls === 1 ? '' : 's'} in 30 days`}
           </p>
         )}
         {c.status === 'needs_attention' && (
-          <p className="mt-2 text-[11px] text-warning-text">{c.connections.find((x) => x.lastErrorMessage)?.lastErrorMessage ?? 'The connection stopped working. Reconnect it.'}</p>
+          <p className="mt-2 text-xs text-warning-text">{c.connections.find((x) => x.lastErrorMessage)?.lastErrorMessage ?? 'The connection stopped working. Reconnect it.'}</p>
         )}
       </div>
 
@@ -337,7 +337,7 @@ export function ConnectorCard({
         {c.status === 'unavailable' ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="flex-1 text-[11px] text-muted-foreground">Not set up on this server</span>
+              <span className="flex-1 text-xs text-muted-foreground">Not set up on this server</span>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">{c.unavailableReason}</TooltipContent>
           </Tooltip>

@@ -1,6 +1,6 @@
 import type { AIAgentDetail } from '@org/types';
 import { Badge, Button, EmptyState, ErrorState, LoadingState, ResponsiveTabs } from '@org/ui';
-import { Activity, CheckCircle2, Globe, History, KeyRound, Minus, Palette, Rocket, Sparkles, Zap } from 'lucide-react';
+import { Activity, CheckCircle2, Globe, History, KeyRound, Minus, Palette, Radio, Rocket, Sparkles, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { AgentTabPage } from './agent-tab-page.js';
 import { ApiKeysManager } from './deployment/api-keys-manager.js';
@@ -88,13 +88,13 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
       title="Deploy"
       description={
         <span className="flex flex-wrap items-center gap-1.5">
-          <Badge variant={live ? 'success' : deployment.status === 'SUSPENDED' ? 'destructive' : 'outline'} className="font-mono text-[10px] font-semibold uppercase tracking-wider">
+          <Badge variant={live ? 'success' : deployment.status === 'SUSPENDED' ? 'destructive' : 'outline'} className="font-mono text-2xs font-semibold uppercase tracking-wider">
             {deployment.status}
           </Badge>
-          <Badge variant="outline" className="font-mono text-[10px] text-primary">
+          <Badge variant="outline" className="font-mono text-2xs text-primary">
             {deployment.environment}
           </Badge>
-          <Badge variant="outline" className="font-mono text-[10px]">
+          <Badge variant="outline" className="font-mono text-2xs">
             {deployment.publishedVersionTag ?? `v${deployment.versionNumber}`}
           </Badge>
           <span>Embeds, the REST API, webhooks and the versions they serve.</span>
@@ -120,8 +120,14 @@ export function AgentDeploymentTab({ agent }: { agent: AIAgentDetail }) {
               </>
             )}
           </Button>
-          <Button size="sm" onClick={() => openPublish()} className="gap-1.5 text-xs font-semibold">
-            <Rocket className="size-3.5" /> Publish a version
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openPublish()}
+            title="Choose which published version this deployment serves. To create a new version, use Publish in the header."
+            className="gap-1.5 text-xs"
+          >
+            <Radio className="size-3.5 text-primary" /> Change live version
           </Button>
         </>
       }

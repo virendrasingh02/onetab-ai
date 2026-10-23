@@ -3,7 +3,6 @@ import {
   AppSelect,
   Badge,
   Button,
-  Card,
   confirm,
   Dialog,
   DialogBody,
@@ -18,7 +17,7 @@ import {
   Input,
   LoadingState,
 } from '@org/ui';
-import { Camera, History, RotateCcw, Rocket } from 'lucide-react';
+import { Camera, History, Radio, RotateCcw, Rocket } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { errorMessage, publishableVersions, type DeploymentApi } from './use-deployment.js';
 
@@ -27,6 +26,20 @@ const ENVIRONMENTS: Array<{ value: AgentDeploymentEnvironment; label: string }> 
   { value: 'STAGING', label: 'Staging' },
   { value: 'DEVELOPMENT', label: 'Development' },
 ];
+
+const VISIBLE = 6;
+
+/** "5 min ago" for recent versions, a date once it's older than a week. */
+export function formatWhen(iso?: string | null): string {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.round(diff / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  if (min < 1440) return `${Math.round(min / 60)} h ago`;
+  if (min < 10_080) return `${Math.round(min / 1440)} d ago`;
+  return new Date(iso).toLocaleDateString();
+}
 
 const versionLabel = (v: AgentVersion) => v.versionTag || `v${v.version}.0.0`;
 
@@ -68,10 +81,10 @@ export function PublishDialog({
         >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Rocket className="size-5 text-primary" /> Publish to this deployment
+              <Radio className="size-5 text-primary" /> Change live version
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Every embed, API call and webhook switches to the version you pick as soon as you publish.
+              Pick which published version this deployment serves. Every embed, API call and webhook switches to it straight away. To create a new version from your latest edits, use Publish in the agent’s header.
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-4 text-xs">
@@ -103,7 +116,7 @@ export function PublishDialog({
               Cancel
             </Button>
             <Button type="submit" size="sm" loading={api.publish.isPending} disabled={empty || !version} className="gap-1.5 font-semibold">
-              Publish now
+              Go live
             </Button>
           </DialogFooter>
         </form>
@@ -123,6 +136,10 @@ export function VersionsPanel({
 }) {
   const { versionsQuery } = api;
   const versions = publishableVersions(versionsQuery.data);
+  const [showAll, setShowAll] = useState(false);
+  const liveVersion = versions.find((v) => v.version === deployment.versionNumber);
+  const others = versions.filter((v) => v !== liveVersion);
+  const shown = showAll ? others : others.slice(0, VISIBLE);
   const [snapshotOpen, setSnapshotOpen] = useState(false);
   const [summary, setSummary] = useState('');
 
@@ -159,39 +176,71 @@ export function VersionsPanel({
           description="Use Publish in the agent’s header to create the first version. It then shows up here."
         />
       ) : (
-        <ul className="space-y-3">
-          {versions.map((v) => {
-            const live = v.version === deployment.versionNumber;
-            const newer = v.version > deployment.versionNumber;
-            return (
-              <li key={v.version}>
-                <Card className="flex flex-wrap items-center justify-between gap-3 p-4 shadow-2xs">
-                  <div className="min-w-0 space-y-1">
+        <div className="space-y-5">
+          {liveVersion ? (
+            <section aria-label="Live version" className="rounded-2xl border border-success/40 bg-success/5 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
+                    <Radio className="size-4" />
+                  </span>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">{versionLabel(v)}</span>
-                      {live ? <Badge variant="success" className="text-[10px]">Live · {deployment.environment.toLowerCase()}</Badge> : null}
+                      <span className="font-mono text-sm font-bold text-foreground">{versionLabel(liveVersion)}</span>
+                      <Badge variant="success" className="text-2xs">Live · {deployment.environment.toLowerCase()}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {v.changeSummary || 'No summary'}
-                      {v.publishedAt ? ` · ${new Date(v.publishedAt).toLocaleString()}` : ''}
+                    <p className="mt-0.5 text-xs text-muted-foreground">{liveVersion.changeSummary || 'No summary'}</p>
+                    <p className="mt-0.5 text-2xs text-muted-foreground/80">
+                      {deployment.publishedAt ? `Went live ${formatWhen(deployment.publishedAt)}` : 'Serving every embed, API call and webhook'}
                     </p>
                   </div>
-                  {!live ? (
-                    newer ? (
-                      <Button size="sm" onClick={() => onPublish(v.version)} className="gap-1.5 text-xs">
-                        <Rocket className="size-3.5" /> Publish
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          <section aria-label="Version history" className="space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              History <span className="font-normal normal-case">· {others.length}</span>
+            </h4>
+            <ul className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/80">
+              {shown.map((v) => {
+                const newer = v.version > deployment.versionNumber;
+                const busy = api.rollback.isPending && api.rollback.variables?.versionNumber === v.version;
+                return (
+                  <li key={v.version} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-muted/30">
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-foreground">{versionLabel(v)}</span>
+                        {newer ? <Badge variant="outline" className="px-1.5 py-0 text-2xs">Newer than live</Badge> : null}
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground" title={v.changeSummary || undefined}>
+                        {v.changeSummary || 'No summary'}
+                      </p>
+                    </div>
+                    <time className="shrink-0 text-2xs text-muted-foreground" dateTime={v.publishedAt ?? undefined} title={v.publishedAt ? new Date(v.publishedAt).toLocaleString() : undefined}>
+                      {formatWhen(v.publishedAt)}
+                    </time>
+                    {newer ? (
+                      <Button size="sm" onClick={() => onPublish(v.version)} className="w-28 gap-1.5 text-xs">
+                        <Rocket className="size-3.5" /> Go live
                       </Button>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => void rollback(v)} loading={api.rollback.isPending && api.rollback.variables?.versionNumber === v.version} className="gap-1.5 text-xs">
-                        <RotateCcw className="size-3.5" /> Roll back to this
+                      <Button size="sm" variant="outline" onClick={() => void rollback(v)} loading={busy} className="w-28 gap-1.5 text-xs">
+                        <RotateCcw className="size-3.5" /> Roll back
                       </Button>
-                    )
-                  ) : null}
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            {others.length > VISIBLE ? (
+              <Button type="button" variant="ghost" size="sm" className="w-full text-xs" onClick={() => setShowAll((x) => !x)}>
+                {showAll ? 'Show fewer' : `Show ${others.length - VISIBLE} older versions`}
+              </Button>
+            ) : null}
+          </section>
+        </div>
       )}
 
       <Dialog open={snapshotOpen} onOpenChange={setSnapshotOpen}>

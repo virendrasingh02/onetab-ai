@@ -153,11 +153,11 @@ export function StudioHeader({
               <DropdownMenuLabel className="font-normal">
                 <p className="text-xs font-semibold text-foreground">{planName} plan</p>
                 {credits !== null ? (
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     ${credits.toFixed(2)} shared AI credits{lowCredits ? ' — running low' : ''}
                   </p>
                 ) : null}
-                {pastDue ? <p className="mt-0.5 text-[11px] text-destructive-text">Last payment failed</p> : null}
+                {pastDue ? <p className="mt-0.5 text-xs text-destructive-text">Last payment failed</p> : null}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="gap-2 text-xs">

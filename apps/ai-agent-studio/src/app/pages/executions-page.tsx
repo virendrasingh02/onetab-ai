@@ -244,7 +244,7 @@ export function ExecutionsPage() {
                             ? 'destructive'
                             : 'warning'
                         }
-                        className="text-[10px] font-mono gap-1"
+                        className="text-2xs font-mono gap-1"
                       >
                         {isSuccess ? (
                           <CheckCircle2 className="size-3" />
@@ -257,20 +257,20 @@ export function ExecutionsPage() {
                     <TableCell className="font-semibold text-foreground text-xs">
                       {log.agent?.name || log.agentName || 'Agent'}
                     </TableCell>
-                    <TableCell className="max-w-[280px] text-muted-foreground truncate font-mono text-[11px]">
+                    <TableCell className="max-w-[280px] text-muted-foreground truncate font-mono text-xs">
                       {log.promptText ||
                         log.promptPreview ||
                         'Test execution turn'}
                     </TableCell>
-                    <TableCell className="font-mono text-muted-foreground text-[11px]">
+                    <TableCell className="font-mono text-muted-foreground text-xs">
                       <div>
                         {log.durationMs ? `${log.durationMs}ms` : '320ms'}
                       </div>
-                      <div className="text-[10px] text-muted-foreground/80">
+                      <div className="text-2xs text-muted-foreground/80">
                         {(log.tokensUsed || 320).toLocaleString()} tokens
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-[11px]">
+                    <TableCell className="text-muted-foreground text-xs">
                       {new Date(
                         log.executedAt || log.startedAt || Date.now(),
                       ).toLocaleString()}
@@ -318,7 +318,7 @@ export function ExecutionsPage() {
             <DialogBody className="space-y-4 text-xs">
               <div className="grid grid-cols-4 gap-2 rounded-lg border border-border bg-surface-raised p-3 text-center">
                 <div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  <div className="text-2xs text-muted-foreground uppercase font-semibold">
                     Status
                   </div>
                   <div className="mt-0.5 font-bold uppercase font-mono">
@@ -326,7 +326,7 @@ export function ExecutionsPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  <div className="text-2xs text-muted-foreground uppercase font-semibold">
                     Duration
                   </div>
                   <div className="mt-0.5 font-bold font-mono">
@@ -334,7 +334,7 @@ export function ExecutionsPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  <div className="text-2xs text-muted-foreground uppercase font-semibold">
                     Tokens
                   </div>
                   <div className="mt-0.5 font-bold font-mono">
@@ -342,7 +342,7 @@ export function ExecutionsPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                  <div className="text-2xs text-muted-foreground uppercase font-semibold">
                     Estimated Cost
                   </div>
                   <div className="mt-0.5 font-bold font-mono text-success">
@@ -354,12 +354,12 @@ export function ExecutionsPage() {
               {/* Waterfall Steps Timeline */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                  <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Layers className="size-3.5 text-primary" />
                     <span>Execution Steps Waterfall</span>
                   </div>
                   {isLoadingSteps && (
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-2xs text-muted-foreground">
                       Loading steps…
                     </span>
                   )}
@@ -374,10 +374,10 @@ export function ExecutionsPage() {
                       return (
                         <div
                           key={st.id || idx}
-                          className="p-2.5 flex items-center justify-between gap-3 text-[11px]"
+                          className="p-2.5 flex items-center justify-between gap-3 text-xs"
                         >
                           <div className="flex items-center gap-2">
-                            <span className="flex size-5 items-center justify-center rounded-full bg-surface-raised font-mono text-[10px] text-muted-foreground">
+                            <span className="flex size-5 items-center justify-center rounded-full bg-surface-raised font-mono text-2xs text-muted-foreground">
                               {idx + 1}
                             </span>
                             {isStepOk ? (
@@ -391,13 +391,13 @@ export function ExecutionsPage() {
                               {st.nodeName || st.stepName || `Step ${idx + 1}`}
                             </span>
                           </div>
-                          <div className="flex items-center gap-3 font-mono text-[10px] text-muted-foreground">
+                          <div className="flex items-center gap-3 font-mono text-2xs text-muted-foreground">
                             <span>
                               {st.durationMs ? `${st.durationMs}ms` : '35ms'}
                             </span>
                             <Badge
                               variant={isStepOk ? 'success' : 'outline'}
-                              className="text-[9px] py-0"
+                              className="text-2xs py-0"
                             >
                               {st.status}
                             </Badge>
@@ -406,7 +406,7 @@ export function ExecutionsPage() {
                       );
                     })
                   ) : (
-                    <div className="p-3 text-[11px] text-muted-foreground">
+                    <div className="p-3 text-xs text-muted-foreground">
                       Single-turn direct model execution trace (no multi-step
                       branch recorded).
                     </div>
@@ -416,10 +416,10 @@ export function ExecutionsPage() {
 
               {/* Input Prompt */}
               <div>
-                <div className="text-[11px] font-semibold text-foreground mb-1">
+                <div className="text-xs font-semibold text-foreground mb-1">
                   Prompt Input
                 </div>
-                <div className="rounded-lg border border-border bg-surface-raised p-2.5 font-mono text-[11px] break-words">
+                <div className="rounded-lg border border-border bg-surface-raised p-2.5 font-mono text-xs break-words">
                   {inspectExecution.promptText ||
                     inspectExecution.promptPreview ||
                     'Standard test turn'}
@@ -428,7 +428,7 @@ export function ExecutionsPage() {
 
               {/* Response */}
               <div>
-                <div className="text-[11px] font-semibold text-foreground mb-1">
+                <div className="text-xs font-semibold text-foreground mb-1">
                   Raw Turn Response
                 </div>
                 <CodeBlock

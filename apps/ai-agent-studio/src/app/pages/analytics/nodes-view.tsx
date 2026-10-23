@@ -117,7 +117,7 @@ export function NodesView({ nodes }: NodesViewProps) {
         <div className="rounded-lg border border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-surface-raised/50 text-[11px]">
+              <TableRow className="bg-surface-raised/50 text-xs">
                 <TableHead>Node Category / Type</TableHead>
                 <TableHead>Total Invocations</TableHead>
                 <TableHead>Success Rate</TableHead>
@@ -152,14 +152,14 @@ export function NodesView({ nodes }: NodesViewProps) {
                             ? 'warning'
                             : 'destructive'
                         }
-                        className="text-[10px]"
+                        className="text-2xs"
                       >
                         {item.successRate.toFixed(1)}%
                       </Badge>
                     </TableCell>
                     <TableCell className="tabular-nums">
                       <span>{Math.round(item.avgDurationMs)}ms</span>
-                      <span className="text-[10px] text-muted-foreground ml-1">
+                      <span className="text-2xs text-muted-foreground ml-1">
                         / {Math.round(item.p95DurationMs)}ms
                       </span>
                     </TableCell>

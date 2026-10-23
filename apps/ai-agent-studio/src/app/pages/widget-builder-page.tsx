@@ -164,11 +164,11 @@ export function WidgetBuilderPage() {
             <span className="font-semibold text-sm text-foreground">
               {definition.name || 'Untitled Widget'}
             </span>
-            <Badge variant="outline" className="font-mono text-[10px]">
+            <Badge variant="outline" className="font-mono text-2xs">
               v{definition.version ?? 1}
             </Badge>
             {definition.visibility !== 'PRIVATE' && (
-              <Badge variant="secondary" className="text-[10px] text-success-text">
+              <Badge variant="secondary" className="text-2xs text-success-text">
                 Workspace Shared
               </Badge>
             )}
