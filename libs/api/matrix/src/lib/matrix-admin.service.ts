@@ -511,6 +511,29 @@ export class MatrixAdminService {
   }
 
   /**
+   * Deactivates the Matrix account behind a bridged bot (a deleted AI agent or
+   * coworker) so it leaves its rooms and can no longer post. Admin mode only —
+   * the shared-secret fallback has no deactivate endpoint, so there it is a
+   * no-op. Idempotent: deactivating an already-deactivated account succeeds.
+   */
+  async deactivateUser(matrixUserId: string): Promise<void> {
+    this.assertEnabled();
+    if (!this.isAdminMode) return;
+
+    await this.withPrivileged((accessToken) =>
+      this.request(
+        `/_synapse/admin/v1/deactivate/${encodeURIComponent(matrixUserId)}`,
+        {
+          method: 'POST',
+          accessToken,
+          body: JSON.stringify({ erase: false }),
+        },
+      ),
+    );
+    this.logger.log(`Deactivated Matrix identity ${matrixUserId}`);
+  }
+
+  /**
    * Mirrors a bridged user's display name and avatar into their Matrix profile.
    *
    * Chat reads the sender's name and photo straight from Matrix, so without

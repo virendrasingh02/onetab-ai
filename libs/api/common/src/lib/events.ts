@@ -602,6 +602,10 @@ export interface AgentChangedEvent {
   kind: 'entity' | 'workflow';
   action: AgentChangeAction;
   actorId?: string | null;
+  /** Set on `entity` `deleted`, when the row (and so its type) is already gone. */
+  entityType?: 'agent' | 'coworker';
+  /** Set on `entity` `deleted`: the Matrix bot account to retire. */
+  matrixUserId?: string | null;
 }
 
 export interface AiRunFinishedEvent {

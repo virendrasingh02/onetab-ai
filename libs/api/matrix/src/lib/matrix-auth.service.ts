@@ -348,6 +348,45 @@ export class MatrixAuthService {
   }
 
   /**
+   * Provisions (idempotently) the Matrix bot account of an AI agent/coworker
+   * and mirrors its current name and photo into the Matrix profile.
+   *
+   * Called when the entity is created or edited, so its identity already
+   * exists — with the right name — before anyone opens a DM, instead of being
+   * provisioned lazily on first open and then drifting from renames.
+   */
+  async syncAiEntityIdentity(agentId: string): Promise<string | null> {
+    if (!this.admin.isEnabled) return null;
+
+    const agent = await this.prisma.aIAgent.findUnique({
+      where: { id: agentId },
+      select: { id: true, type: true, name: true, avatarUrl: true, matrixUserId: true },
+    });
+    if (!agent) return null;
+
+    const botId = `${agent.type === 'coworker' ? 'coworker' : 'agent'}-${agent.id}`;
+    let matrixUserId = agent.matrixUserId;
+    if (!matrixUserId) {
+      ({ matrixUserId } = await this.admin.provisionUser({
+        userId: botId,
+        displayName: agent.name,
+      }));
+      await this.prisma.aIAgent.update({
+        where: { id: agent.id },
+        data: { matrixUserId },
+      });
+      this.logger.log(`Provisioned Matrix identity for ${botId}`);
+    }
+
+    await this.admin.pushUserProfile({
+      userId: botId,
+      displayName: agent.name,
+      avatarUrl: agent.avatarUrl,
+    });
+    return matrixUserId;
+  }
+
+  /**
    * The Matrix identity of an AI agent in one of the caller's workspaces.
    *
    * Keyed by the agent's own row id rather than anything derived (like its

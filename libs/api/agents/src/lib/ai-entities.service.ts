@@ -559,8 +559,19 @@ export class AIEntitiesService {
 
   async deleteEntity(workspaceId: string, entityId: string): Promise<void> {
     await this.assertEntity(workspaceId, entityId);
+    const row = await this.prisma.aIAgent.findUnique({
+      where: { id: entityId },
+      select: { type: true, matrixUserId: true },
+    });
     await this.prisma.aIAgent.delete({ where: { id: entityId } });
-    this.emitChange(workspaceId, entityId, 'deleted');
+    this.events?.emit(AppEvent.AgentChanged, {
+      workspaceId,
+      agentId: entityId,
+      kind: 'entity',
+      action: 'deleted',
+      entityType: row?.type === 'coworker' ? 'coworker' : 'agent',
+      matrixUserId: row?.matrixUserId ?? null,
+    });
   }
 
   async linkAgent(workspaceId: string, coworkerId: string, agentId: string) {
