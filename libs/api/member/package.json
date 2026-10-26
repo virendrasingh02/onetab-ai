@@ -36,6 +36,7 @@
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
     "@nestjs/throttler": "^6.5.0",
-    "@org/api-mail": "*"
+    "@org/api-mail": "*",
+    "@org/api-notifications": "*"
   }
 }

@@ -60,14 +60,10 @@ import {
   SettingsBadge,
   SettingsCard,
   SettingsRow,
+  SegmentedControl,
   SettingsSectionHeader,
 } from '@org/ui';
-import {
-  cn,
-  getSystemTimezone,
-  initials,
-  slugify,
-} from '@org/utils';
+import { cn, getSystemTimezone, initials, slugify } from '@org/utils';
 import {
   PolicySubjectRole,
   WorkspaceRole,
@@ -86,10 +82,7 @@ import {
   type UpdateProfileInput,
   type UpdateWorkspaceInput,
 } from '@org/validation';
-import {
-  useTranslation,
-  type SupportedLanguageCode,
-} from '@org/i18n';
+import { useTranslation, type SupportedLanguageCode } from '@org/i18n';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -182,6 +175,8 @@ export interface WorkspaceSettingsPageProps {
   themePanel?: ReactNode;
   /** The full profile panel, from `@org/web-profile`. */
   profilePanel?: ReactNode;
+  /** The employee work-profile panel (contact, birthday, privacy), from `@org/web-members`. */
+  workProfilePanel?: ReactNode;
   /** The invitations & access-links manager, from `@org/web-invitations`. */
   invitationsPanel?: ReactNode;
   /** The Matrix end-to-end encryption and key backup panel, from `@org/web-chat`. */
@@ -207,6 +202,7 @@ export function WorkspaceSettingsPage({
   kanbanPanel,
   themePanel,
   profilePanel,
+  workProfilePanel,
   invitationsPanel,
   encryptionSecurityPanel,
 }: WorkspaceSettingsPageProps = {}) {
@@ -305,7 +301,6 @@ export function WorkspaceSettingsPage({
   const setUser = useAuthStore((state) => state.setUser);
   const { t, locale, setLocale } = useTranslation();
 
-
   const handleLanguageChange = async (newLocale: SupportedLanguageCode) => {
     setLocale(newLocale);
     try {
@@ -323,7 +318,6 @@ export function WorkspaceSettingsPage({
      when the saved profile disagrees with where the user actually is. */
   const systemTimezone = getSystemTimezone();
 
-
   /*
    * The active section is the `:section` path segment
    * (`/w/:slug/settings/<section>`). A handful of ids have older aliases that
@@ -338,6 +332,8 @@ export function WorkspaceSettingsPage({
     'workspace-appearance': 'appearance',
     plans: 'billing',
     'timezone-region': 'profile',
+    // Work Profile was merged into Profile (its "Work & privacy" view).
+    'work-profile': 'profile',
     'focus-status': 'profile',
     'integrations/import': 'import-export',
   };
@@ -347,6 +343,17 @@ export function WorkspaceSettingsPage({
     searchParams.get('section') ||
     'appearance';
   const currentTab = SECTION_ALIASES[rawSection] ?? rawSection;
+  /* Profile has two views: the account (identity, status, hours) and the
+     employee's work & privacy details. `?view=work` deep-links the latter. */
+  const profileWorkView =
+    !!workProfilePanel &&
+    (searchParams.get('view') === 'work' || rawSection === 'work-profile');
+  const setProfileView = (view: 'account' | 'work') => {
+    const next = new URLSearchParams(searchParams);
+    if (view === 'work') next.set('view', 'work');
+    else next.delete('view');
+    setSearchParams(next, { replace: true });
+  };
 
   const handleTabChange = (val: string) => {
     if (!workspaceSlug) return;
@@ -393,8 +400,6 @@ export function WorkspaceSettingsPage({
     'fontSize',
     'default',
   );
-
-
 
   const [docAutoSave, setDocAutoSave] = useWorkspacePreference(
     workspaceId,
@@ -449,7 +454,11 @@ export function WorkspaceSettingsPage({
   );
   const githubWebhookQuery = useQuery({
     queryKey: ['github-webhook-setup', workspaceId, githubConnection?.id],
-    queryFn: () => integrationsApi.getWebhookSetup(workspaceId as string, githubConnection?.id as string),
+    queryFn: () =>
+      integrationsApi.getWebhookSetup(
+        workspaceId as string,
+        githubConnection?.id as string,
+      ),
     enabled: !!workspaceId && !!githubConnection,
     retry: false,
   });
@@ -463,7 +472,6 @@ export function WorkspaceSettingsPage({
     'autoRecordMeetings',
     false,
   );
-
 
   // Workflow Automations preferences
   const [githubPRWebhook, setGithubPRWebhook] = useWorkspacePreference(
@@ -493,7 +501,6 @@ export function WorkspaceSettingsPage({
   const focusStore = useFocusStore();
   const [testSoundPlaying, setTestSoundPlaying] =
     useState<FocusSoundType | null>(null);
-
 
   // Profile Update Form & Mutation
   const updateProfile = useMutation({
@@ -569,9 +576,13 @@ export function WorkspaceSettingsPage({
   const [disableTotpModalOpen, setDisableTotpModalOpen] = useState(false);
   const [disableTotpPassword, setDisableTotpPassword] = useState('');
   const disconnectIdentityMutation = useDisconnectIdentity();
-  const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null);
+  const [disconnectingProvider, setDisconnectingProvider] = useState<
+    string | null
+  >(null);
 
-  const [connectingProvider, setConnectingProvider] = useState<'google' | 'apple' | null>(null);
+  const [connectingProvider, setConnectingProvider] = useState<
+    'google' | 'apple' | null
+  >(null);
 
   /*
    * The link URL is fetched with the bearer token (a plain navigation can't
@@ -634,7 +645,9 @@ export function WorkspaceSettingsPage({
     setDisconnectingProvider(provider);
     try {
       await disconnectIdentityMutation.mutateAsync(provider);
-      toast.success(`${provider === 'google' ? 'Google' : 'Apple'} account disconnected.`);
+      toast.success(
+        `${provider === 'google' ? 'Google' : 'Apple'} account disconnected.`,
+      );
     } catch (err: any) {
       toast.error(err?.message || `Failed to disconnect ${provider}.`);
     } finally {
@@ -900,9 +913,16 @@ export function WorkspaceSettingsPage({
             </h3>
             <SettingsCard divided>
               <SettingsRow
-                title={<>{t('settings.language_title', 'Interface Language')}</>}
+                title={
+                  <>{t('settings.language_title', 'Interface Language')}</>
+                }
                 description={
-                  <>{t('settings.language_description', 'Choose your preferred language for the web and desktop applications')}</>
+                  <>
+                    {t(
+                      'settings.language_description',
+                      'Choose your preferred language for the web and desktop applications',
+                    )}
+                  </>
                 }
               >
                 <div className="w-56">
@@ -1154,261 +1174,285 @@ export function WorkspaceSettingsPage({
               title={<>Profile</>}
               description={
                 <>
-                  Manage your personal identity, status, focus preferences, and
-                  working hours.
+                  Manage your personal identity, status, focus preferences,
+                  working hours, and your work details.
                 </>
               }
             />
 
-            {profilePanel ?? (
-              <SettingsCard>
-                <div className="sm:flex-row sm:items-center gap-4 pb-6 flex flex-col justify-between border-b border-border/40">
-                  <div className="gap-5 flex items-center">
-                    <UserAvatar
-                      name={user.displayName ?? user.name}
-                      src={profileForm.watch('avatarUrl') || user.avatarUrl}
-                      seed={user.id}
-                      size="xl"
-                      presence={user.presence}
-                      statusEmoji={user.statusEmoji}
-                      statusText={user.statusText}
-                    />
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-semibold text-foreground">
-                        {user.displayName ?? user.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {user.email}
-                      </p>
-                      <span className="px-2.5 py-0.5 font-semibold inline-block rounded-full bg-primary/10 text-[10px] text-primary">
-                        {workspace.role}
-                      </span>
-                    </div>
-                  </div>
+            {workProfilePanel && (
+              <SegmentedControl
+                aria-label="Profile view"
+                value={profileWorkView ? 'work' : 'account'}
+                onChange={setProfileView}
+                options={[
+                  { value: 'account', label: 'Account' },
+                  {
+                    value: 'work',
+                    label: 'Work & privacy',
+                    hint: 'Contact details, birthday, privacy and celebration notifications',
+                  },
+                ]}
+              />
+            )}
 
-                  {/* Quick Status & Focus Mode controls */}
-                  <div className="gap-2 flex items-center">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={openStatusModal}
-                      className="text-xs gap-1.5"
-                    >
-                      <Smile className="size-3.5 text-primary" />
-                      {user.statusText ? 'Edit Status' : 'Set Status'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="sm"
-                      onClick={openFocusModal}
-                      className="text-xs gap-1.5"
-                    >
-                      <Target className="size-3.5" />
-                      Focus Mode
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Active Status Highlight if set */}
-                {(user.statusText || user.statusEmoji) && (
-                  <div className="p-3 text-xs flex items-center justify-between rounded-xl border border-primary/25 bg-primary/5 text-foreground">
-                    <div className="gap-2 min-w-0 flex items-center">
-                      <span className="text-lg">
-                        {user.statusEmoji || '💬'}
-                      </span>
-                      <div className="min-w-0">
-                        <span className="font-semibold block truncate">
-                          {user.statusText}
-                        </span>
-                        {user.statusExpiresAt && (
-                          <span className="gap-1 mt-0.5 flex items-center text-[11px] text-muted-foreground">
-                            <Clock className="size-3" />
-                            Clears{' '}
-                            {new Date(user.statusExpiresAt).toLocaleTimeString(
-                              [],
-                              { hour: '2-digit', minute: '2-digit' },
-                            )}
+            {profileWorkView
+              ? workProfilePanel
+              : (profilePanel ?? (
+                  <SettingsCard>
+                    <div className="sm:flex-row sm:items-center gap-4 pb-6 flex flex-col justify-between border-b border-border/40">
+                      <div className="gap-5 flex items-center">
+                        <UserAvatar
+                          name={user.displayName ?? user.name}
+                          src={profileForm.watch('avatarUrl') || user.avatarUrl}
+                          seed={user.id}
+                          size="xl"
+                          presence={user.presence}
+                          statusEmoji={user.statusEmoji}
+                          statusText={user.statusText}
+                        />
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {user.displayName ?? user.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {user.email}
+                          </p>
+                          <span className="px-2.5 py-0.5 font-semibold inline-block rounded-full bg-primary/10 text-[10px] text-primary">
+                            {workspace.role}
                           </span>
-                        )}
+                        </div>
+                      </div>
+
+                      {/* Quick Status & Focus Mode controls */}
+                      <div className="gap-2 flex items-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={openStatusModal}
+                          className="text-xs gap-1.5"
+                        >
+                          <Smile className="size-3.5 text-primary" />
+                          {user.statusText ? 'Edit Status' : 'Set Status'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          onClick={openFocusModal}
+                          className="text-xs gap-1.5"
+                        >
+                          <Target className="size-3.5" />
+                          Focus Mode
+                        </Button>
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={openStatusModal}
-                      className="h-7 text-xs text-primary"
-                    >
-                      Change
-                    </Button>
-                  </div>
-                )}
 
-                <Form {...profileForm}>
-                  <form
-                    onSubmit={onProfileSubmit}
-                    className="space-y-4 max-w-xl"
-                    noValidate
-                  >
-                    <FormError error={formErrorMessage(updateProfile.error)} />
-
-                    <FormField
-                      control={profileForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium">
-                            Full name
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value ?? ''}
-                              className="h-9 text-xs"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={profileForm.control}
-                      name="displayName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium">
-                            Display name
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value ?? ''}
-                              placeholder="Optional"
-                              className="h-9 text-xs"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={profileForm.control}
-                      name="bio"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium">
-                            Bio
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              value={field.value ?? ''}
-                              rows={3}
-                              placeholder="What you work on..."
-                              className="text-xs"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={profileForm.control}
-                      name="avatarUrl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium">
-                            Avatar Image
-                          </FormLabel>
-                          <div className="gap-3 flex items-center">
-                            <FormControl>
-                              <Input
-                                {...field}
-                                value={field.value ?? ''}
-                                placeholder="Image URL (https://...) or upload an image"
-                                className="h-9 text-xs flex-1 font-mono"
-                              />
-                            </FormControl>
-                            <label className="gap-1.5 px-3 py-2 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md border border-border transition-colors hover:bg-accent">
-                              <Upload className="size-3.5 text-muted-foreground" />
-                              <span>Upload</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = (evt) => {
-                                      if (evt.target?.result) {
-                                        profileForm.setValue(
-                                          'avatarUrl',
-                                          evt.target.result as string,
-                                          {
-                                            shouldDirty: true,
-                                          },
-                                        );
-                                      }
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                              />
-                            </label>
-                            {field.value ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-9 text-xs px-2.5 text-destructive hover:text-destructive"
-                                onClick={() =>
-                                  profileForm.setValue('avatarUrl', '', {
-                                    shouldDirty: true,
-                                  })
-                                }
-                              >
-                                <Trash2 className="size-3.5 mr-1" />
-                                Remove
-                              </Button>
-                            ) : null}
+                    {/* Active Status Highlight if set */}
+                    {(user.statusText || user.statusEmoji) && (
+                      <div className="p-3 text-xs flex items-center justify-between rounded-xl border border-primary/25 bg-primary/5 text-foreground">
+                        <div className="gap-2 min-w-0 flex items-center">
+                          <span className="text-lg">
+                            {user.statusEmoji || '💬'}
+                          </span>
+                          <div className="min-w-0">
+                            <span className="font-semibold block truncate">
+                              {user.statusText}
+                            </span>
+                            {user.statusExpiresAt && (
+                              <span className="gap-1 mt-0.5 flex items-center text-[11px] text-muted-foreground">
+                                <Clock className="size-3" />
+                                Clears{' '}
+                                {new Date(
+                                  user.statusExpiresAt,
+                                ).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            )}
                           </div>
-                          <FormDescription className="mt-1 text-[11px] text-muted-foreground">
-                            Upload an image file or paste an image URL. If
-                            removed, fallback displays single letter initial
-                            &quot;
-                            {initials(profileForm.watch('name') || user.name)}
-                            &quot;.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={openStatusModal}
+                          className="h-7 text-xs text-primary"
+                        >
+                          Change
+                        </Button>
+                      </div>
+                    )}
 
-                    {/* Region, timezone, date/time formats and working hours
+                    <Form {...profileForm}>
+                      <form
+                        onSubmit={onProfileSubmit}
+                        className="space-y-4 max-w-xl"
+                        noValidate
+                      >
+                        <FormError
+                          error={formErrorMessage(updateProfile.error)}
+                        />
+
+                        <FormField
+                          control={profileForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">
+                                Full name
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  value={field.value ?? ''}
+                                  className="h-9 text-xs"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={profileForm.control}
+                          name="displayName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">
+                                Display name
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  value={field.value ?? ''}
+                                  placeholder="Optional"
+                                  className="h-9 text-xs"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={profileForm.control}
+                          name="bio"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">
+                                Bio
+                              </FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  value={field.value ?? ''}
+                                  rows={3}
+                                  placeholder="What you work on..."
+                                  className="text-xs"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={profileForm.control}
+                          name="avatarUrl"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">
+                                Avatar Image
+                              </FormLabel>
+                              <div className="gap-3 flex items-center">
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    value={field.value ?? ''}
+                                    placeholder="Image URL (https://...) or upload an image"
+                                    className="h-9 text-xs flex-1 font-mono"
+                                  />
+                                </FormControl>
+                                <label className="gap-1.5 px-3 py-2 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md border border-border transition-colors hover:bg-accent">
+                                  <Upload className="size-3.5 text-muted-foreground" />
+                                  <span>Upload</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = (evt) => {
+                                          if (evt.target?.result) {
+                                            profileForm.setValue(
+                                              'avatarUrl',
+                                              evt.target.result as string,
+                                              {
+                                                shouldDirty: true,
+                                              },
+                                            );
+                                          }
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                                {field.value ? (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 text-xs px-2.5 text-destructive hover:text-destructive"
+                                    onClick={() =>
+                                      profileForm.setValue('avatarUrl', '', {
+                                        shouldDirty: true,
+                                      })
+                                    }
+                                  >
+                                    <Trash2 className="size-3.5 mr-1" />
+                                    Remove
+                                  </Button>
+                                ) : null}
+                              </div>
+                              <FormDescription className="mt-1 text-[11px] text-muted-foreground">
+                                Upload an image file or paste an image URL. If
+                                removed, fallback displays single letter initial
+                                &quot;
+                                {initials(
+                                  profileForm.watch('name') || user.name,
+                                )}
+                                &quot;.
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Region, timezone, date/time formats and working hours
                         moved to Settings → Language & Region. The `timezone`
                         field still rides this form; it's edited there. */}
 
-                    <div className="pt-2">
-                      <Button
-                        type="submit"
-                        size="sm"
-                        loading={updateProfile.isPending}
-                        disabled={!profileForm.formState.isDirty}
-                        className="text-xs"
-                      >
-                        Save profile
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </SettingsCard>
-            )}
+                        <div className="pt-2">
+                          <Button
+                            type="submit"
+                            size="sm"
+                            loading={updateProfile.isPending}
+                            disabled={!profileForm.formState.isDirty}
+                            className="text-xs"
+                          >
+                            Save profile
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </SettingsCard>
+                ))}
 
             {/* Subsection: Slack Status */}
             <div className="space-y-3">
@@ -1722,8 +1766,7 @@ export function WorkspaceSettingsPage({
             title={<>Notifications</>}
             description={
               <>
-                What notifies you in {workspace.name}, and where it reaches
-                you.
+                What notifies you in {workspace.name}, and where it reaches you.
               </>
             }
           />
@@ -1776,10 +1819,10 @@ export function WorkspaceSettingsPage({
             title={<>AI Models & Persona</>}
             description={
               <>
-                Model, temperature, tools, and system prompt are configured
-                per Agent or Coworker — there is no single workspace-wide
-                default. This page covers who may create them and where your
-                provider keys live.
+                Model, temperature, tools, and system prompt are configured per
+                Agent or Coworker — there is no single workspace-wide default.
+                This page covers who may create them and where your provider
+                keys live.
               </>
             }
           />
@@ -1814,7 +1857,9 @@ export function WorkspaceSettingsPage({
               >
                 <div className="gap-2 flex items-center">
                   <Badge variant="neutral" className="text-[10px]">
-                    {policySubjectLabel(policiesQuery.data?.whoCanCreateCoworkers)}
+                    {policySubjectLabel(
+                      policiesQuery.data?.whoCanCreateCoworkers,
+                    )}
                   </Badge>
                   <Button
                     variant="outline"
@@ -1844,7 +1889,9 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents`)}
+                  onClick={() =>
+                    workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents`)
+                  }
                 >
                   Open AI Workspace
                 </Button>
@@ -1860,7 +1907,10 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)}
+                  onClick={() =>
+                    workspaceSlug &&
+                    navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)
+                  }
                 >
                   Open Coworkers
                 </Button>
@@ -1913,7 +1963,9 @@ export function WorkspaceSettingsPage({
                 variant="primary"
                 size="sm"
                 className="h-7 px-2.5 text-[11px]"
-                onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/marketplace`)}
+                onClick={() =>
+                  workspaceSlug && navigate(`/w/${workspaceSlug}/marketplace`)
+                }
               >
                 Browse Marketplace
               </Button>
@@ -1928,7 +1980,9 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents`)}
+                  onClick={() =>
+                    workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents`)
+                  }
                 >
                   Agents
                 </Button>
@@ -1936,7 +1990,10 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)}
+                  onClick={() =>
+                    workspaceSlug &&
+                    navigate(`/w/${workspaceSlug}/ai/agents?type=coworker`)
+                  }
                 >
                   Coworkers
                 </Button>
@@ -1978,12 +2035,16 @@ export function WorkspaceSettingsPage({
               title={<>GitHub webhook setup</>}
               description={
                 !githubConnection ? (
-                  <>Connect GitHub in Integrations first — pull-request events arrive through a webhook on your repository.</>
+                  <>
+                    Connect GitHub in Integrations first — pull-request events
+                    arrive through a webhook on your repository.
+                  </>
                 ) : githubWebhookQuery.data ? (
                   <>
-                    In your repository: Settings → Webhooks → Add webhook. Content type{' '}
-                    <code>application/json</code>, events <em>Pull requests</em>. Workflows with the “GitHub pull request”
-                    trigger then run for this workspace.
+                    In your repository: Settings → Webhooks → Add webhook.
+                    Content type <code>application/json</code>, events{' '}
+                    <em>Pull requests</em>. Workflows with the “GitHub pull
+                    request” trigger then run for this workspace.
                   </>
                 ) : githubWebhookQuery.isError ? (
                   <>Only workspace admins can see the webhook URL and secret.</>
@@ -1993,7 +2054,7 @@ export function WorkspaceSettingsPage({
               }
             >
               {githubWebhookQuery.data ? (
-                <div className="flex flex-col gap-1.5">
+                <div className="gap-1.5 flex flex-col">
                   {(
                     [
                       ['Payload URL', githubWebhookQuery.data.url],
@@ -2005,7 +2066,7 @@ export function WorkspaceSettingsPage({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 justify-between gap-2 px-2.5 text-[11px]"
+                      className="h-7 gap-2 px-2.5 justify-between text-[11px]"
                       onClick={() => {
                         void navigator.clipboard?.writeText(value).then(
                           () => toast.success(`${label} copied`),
@@ -2080,9 +2141,9 @@ export function WorkspaceSettingsPage({
             title={<>Channels & DMs</>}
             description={
               <>
-                Default channel for new members and channel lifecycle. Who
-                may create channels, react, edit or read-receipt policy live
-                in Permissions & Policies.
+                Default channel for new members and channel lifecycle. Who may
+                create channels, react, edit or read-receipt policy live in
+                Permissions & Policies.
               </>
             }
           />
@@ -2091,7 +2152,10 @@ export function WorkspaceSettingsPage({
             <SettingsRow
               title={<>Default Join Channel</>}
               description={
-                <>Channel automatically joined by new workspace members. Off means new members join no channel automatically.</>
+                <>
+                  Channel automatically joined by new workspace members. Off
+                  means new members join no channel automatically.
+                </>
               }
             >
               <Select
@@ -2319,12 +2383,19 @@ export function WorkspaceSettingsPage({
               description={
                 googleCalendarConnection ? (
                   <>
-                    Two-way sync with {googleCalendarConnection.displayName ?? 'your Google Calendar'}: upcoming events
-                    appear in this workspace’s Meetings (visible to its members; private and all-day events are
-                    skipped) and meetings you schedule here are added to your calendar.
+                    Two-way sync with{' '}
+                    {googleCalendarConnection.displayName ??
+                      'your Google Calendar'}
+                    : upcoming events appear in this workspace’s Meetings
+                    (visible to its members; private and all-day events are
+                    skipped) and meetings you schedule here are added to your
+                    calendar.
                   </>
                 ) : (
-                  <>Connect Google Calendar in Integrations to sync it with this workspace’s Meetings.</>
+                  <>
+                    Connect Google Calendar in Integrations to sync it with this
+                    workspace’s Meetings.
+                  </>
                 )
               }
             >
@@ -2387,8 +2458,8 @@ export function WorkspaceSettingsPage({
             title={<>Integration Hub</>}
             description={
               <>
-                Connect external web services, OAuth providers, and dev
-                tools. Managed in the full Integration Hub.
+                Connect external web services, OAuth providers, and dev tools.
+                Managed in the full Integration Hub.
               </>
             }
           />
@@ -2407,7 +2478,9 @@ export function WorkspaceSettingsPage({
                 variant="primary"
                 size="sm"
                 className="h-7 px-2.5 text-[11px]"
-                onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/integrations`)}
+                onClick={() =>
+                  workspaceSlug && navigate(`/w/${workspaceSlug}/integrations`)
+                }
               >
                 Open Integration Hub
               </Button>
@@ -2470,7 +2543,8 @@ export function WorkspaceSettingsPage({
             description={
               <>
                 Track pending invitations, resend or revoke them, and manage
-                shareable access links for {workspace?.name ?? 'this workspace'}.
+                shareable access links for {workspace?.name ?? 'this workspace'}
+                .
               </>
             }
           />
@@ -2711,7 +2785,7 @@ export function WorkspaceSettingsPage({
                   />
                   <div className="-mt-3 space-y-1.5">
                     <div className="text-xs gap-2 flex items-center justify-between text-muted-foreground">
-                      <span className="gap-1.5 flex min-w-0 items-center">
+                      <span className="gap-1.5 min-w-0 flex items-center">
                         <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
                         <span className="truncate">
                           Live at{' '}
@@ -2914,11 +2988,10 @@ export function WorkspaceSettingsPage({
                     />
                   </div>
                 </div>
-
               </SettingsCard>
 
               {isAdmin ? (
-                <div className="bottom-4 z-10 gap-3 px-4 py-3 sticky flex items-center justify-between rounded-xl border border-border bg-background/95 shadow-sm backdrop-blur">
+                <div className="bottom-4 gap-3 px-4 py-3 backdrop-blur sticky z-10 flex items-center justify-between rounded-xl border border-border bg-background/95 shadow-sm">
                   <p className="text-xs text-muted-foreground">
                     {isWorkspaceDirty
                       ? 'You have unsaved changes.'
@@ -2980,7 +3053,8 @@ export function WorkspaceSettingsPage({
                 </SettingsCard>
               );
             }
-            const passkeys = webAuthnQuery.data?.length ?? overview.passkeysCount;
+            const passkeys =
+              webAuthnQuery.data?.length ?? overview.passkeysCount;
             const checks: Array<{
               key: string;
               ok: boolean;
@@ -3139,7 +3213,9 @@ export function WorkspaceSettingsPage({
                       }
                       badge={
                         overview.sso.isConnected ? (
-                          <SettingsBadge tone="success">Connected</SettingsBadge>
+                          <SettingsBadge tone="success">
+                            Connected
+                          </SettingsBadge>
                         ) : null
                       }
                     >
@@ -3181,7 +3257,7 @@ export function WorkspaceSettingsPage({
                         className={cn(
                           'font-medium text-[10px]',
                           securityOverviewQuery.data?.password.hasPassword
-                            ? 'text-success-text bg-success/10 border-success/20'
+                            ? 'border-success/20 bg-success/10 text-success-text'
                             : 'border-border bg-muted/40 text-muted-foreground',
                         )}
                       >
@@ -3213,11 +3289,27 @@ export function WorkspaceSettingsPage({
               <div className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
                 <div className="gap-4 flex items-start">
                   <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-foreground">
-                    <svg className="size-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
-                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
-                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.97 0 12s.45 3.83 1.25 5.42l4.03-3.15z" />
-                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+                    <svg
+                      className="size-5 shrink-0"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fill="#4285F4"
+                        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.97 0 12s.45 3.83 1.25 5.42l4.03-3.15z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                      />
                     </svg>
                   </div>
                   <div>
@@ -3229,25 +3321,29 @@ export function WorkspaceSettingsPage({
                         variant="outline"
                         className={cn(
                           'font-medium text-[10px]',
-                          securityOverviewQuery.data?.socialProviders?.google.isConnected
-                            ? 'text-success-text bg-success/10 border-success/20'
+                          securityOverviewQuery.data?.socialProviders?.google
+                            .isConnected
+                            ? 'border-success/20 bg-success/10 text-success-text'
                             : 'border-border bg-muted/40 text-muted-foreground',
                         )}
                       >
-                        {securityOverviewQuery.data?.socialProviders?.google.isConnected
+                        {securityOverviewQuery.data?.socialProviders?.google
+                          .isConnected
                           ? 'Connected'
                           : 'Not connected'}
                       </Badge>
                     </div>
                     <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
-                      {securityOverviewQuery.data?.socialProviders?.google.isConnected
+                      {securityOverviewQuery.data?.socialProviders?.google
+                        .isConnected
                         ? `Connected with ${securityOverviewQuery.data.socialProviders.google.email || 'Google account'}.`
                         : 'Sign in to Onetab AI using your Google account.'}
                     </p>
                   </div>
                 </div>
                 <div className="gap-2 flex shrink-0 items-center">
-                  {securityOverviewQuery.data?.socialProviders?.google.isConnected ? (
+                  {securityOverviewQuery.data?.socialProviders?.google
+                    .isConnected ? (
                     <Button
                       variant="outline"
                       size="sm"
@@ -3275,7 +3371,11 @@ export function WorkspaceSettingsPage({
               <div className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
                 <div className="gap-4 flex items-start">
                   <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-foreground">
-                    <svg className="size-5 shrink-0 fill-current text-foreground" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg
+                      className="size-5 shrink-0 fill-current text-foreground"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
                       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 1.01-2.87-.96.04-2.12.64-2.79 1.43-.59.68-1.11 1.77-1.03 2.83 1.07.08 2.19-.58 2.81-1.39z" />
                     </svg>
                   </div>
@@ -3288,25 +3388,29 @@ export function WorkspaceSettingsPage({
                         variant="outline"
                         className={cn(
                           'font-medium text-[10px]',
-                          securityOverviewQuery.data?.socialProviders?.apple.isConnected
-                            ? 'text-success-text bg-success/10 border-success/20'
+                          securityOverviewQuery.data?.socialProviders?.apple
+                            .isConnected
+                            ? 'border-success/20 bg-success/10 text-success-text'
                             : 'border-border bg-muted/40 text-muted-foreground',
                         )}
                       >
-                        {securityOverviewQuery.data?.socialProviders?.apple.isConnected
+                        {securityOverviewQuery.data?.socialProviders?.apple
+                          .isConnected
                           ? 'Connected'
                           : 'Not connected'}
                       </Badge>
                     </div>
                     <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
-                      {securityOverviewQuery.data?.socialProviders?.apple.isConnected
+                      {securityOverviewQuery.data?.socialProviders?.apple
+                        .isConnected
                         ? `Connected with ${securityOverviewQuery.data.socialProviders.apple.email || 'Apple ID'}.`
                         : 'Sign in to Onetab AI using Sign in with Apple.'}
                     </p>
                   </div>
                 </div>
                 <div className="gap-2 flex shrink-0 items-center">
-                  {securityOverviewQuery.data?.socialProviders?.apple.isConnected ? (
+                  {securityOverviewQuery.data?.socialProviders?.apple
+                    .isConnected ? (
                     <Button
                       variant="outline"
                       size="sm"
@@ -3354,7 +3458,7 @@ export function WorkspaceSettingsPage({
                         className={cn(
                           'font-medium text-[10px]',
                           securityOverviewQuery.data?.twoFactor.isEnabled
-                            ? 'text-success-text bg-success/10 border-success/20'
+                            ? 'border-success/20 bg-success/10 text-success-text'
                             : 'border-border bg-muted/40 text-muted-foreground',
                         )}
                       >
@@ -3743,70 +3847,70 @@ export function WorkspaceSettingsPage({
           <Form {...passwordForm}>
             <form onSubmit={onPasswordSubmit}>
               <DialogBody className="space-y-4">
-              <FormError error={formErrorMessage(changePassword.error)} />
+                <FormError error={formErrorMessage(changePassword.error)} />
 
-              <FormField
-                control={passwordForm.control}
-                name="currentPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs font-medium">
-                      Current password
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="password"
-                        autoComplete="current-password"
-                        className="h-9 text-xs"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={passwordForm.control}
+                  name="currentPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium">
+                        Current password
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          autoComplete="current-password"
+                          className="h-9 text-xs"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={passwordForm.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs font-medium">
-                      New password
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="password"
-                        autoComplete="new-password"
-                        className="h-9 text-xs"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={passwordForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium">
+                        New password
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          autoComplete="new-password"
+                          className="h-9 text-xs"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={passwordForm.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs font-medium">
-                      Confirm new password
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="password"
-                        autoComplete="new-password"
-                        className="h-9 text-xs"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={passwordForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium">
+                        Confirm new password
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          autoComplete="new-password"
+                          className="h-9 text-xs"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </DialogBody>
 
               <DialogFooter>
@@ -3848,7 +3952,7 @@ export function WorkspaceSettingsPage({
 
           {totpBackupCodes ? (
             <DialogBody className="space-y-4">
-              <div className="p-3 border-success/20 bg-success/10 text-success-text text-xs rounded-lg border">
+              <div className="p-3 text-xs rounded-lg border border-success/20 bg-success/10 text-success-text">
                 Two-factor authentication is now active! Please save these
                 emergency recovery codes in a safe place.
               </div>

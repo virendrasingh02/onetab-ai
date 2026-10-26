@@ -92,3 +92,16 @@ export {
   isValidId,
   isValidUuid,
 } from './lib/id.js';
+export {
+  countryFlag,
+  countryFromLocale,
+  formatNationalAsYouType,
+  formatPhone,
+  isValidPhone,
+  listPhoneCountries,
+  parsePhone,
+  splitPhone,
+  toE164,
+  type PhoneCountry,
+  type PhoneCountryOption,
+} from './lib/phone.js';

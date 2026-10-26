@@ -136,7 +136,7 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/threads': 'Threads',
   '/saved': 'Saved Items',
   '/members': 'Team Directory',
-  '/directory': 'Team Directory',
+  '/directory': 'People',
   '/invitations': 'Invitations',
   '/channels': 'Channels',
   '/channels/new': 'Create a channel',
@@ -187,8 +187,7 @@ export function resolvePageTitle(
   pathname: string,
   entities: PageTitleEntities = {},
 ): ResolvedPageTitle {
-  const path =
-    pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
 
   const done = (title: string): ResolvedPageTitle => ({
     title,
@@ -211,7 +210,8 @@ export function resolvePageTitle(
   const sub = path.slice(base.length); // '', '/c/foo', '/settings/appearance', …
 
   // Settings has its own layout, mounted outside the app shell.
-  if (sub === '/settings' || sub.startsWith('/settings/')) return done('Settings');
+  if (sub === '/settings' || sub.startsWith('/settings/'))
+    return done('Settings');
 
   // --- dynamic, entity-backed routes ------------------------------------
   if (match(`${base}/c/:channelSlug`, path)) {
@@ -250,7 +250,9 @@ export function resolvePageTitle(
   }
   if (match(`${base}/ai/studio/new`, path)) return done('New agent');
   if (match(`${base}/ai/studio/:workflowId`, path)) {
-    return entities.workflowName ? done(entities.workflowName) : pending('Agent');
+    return entities.workflowName
+      ? done(entities.workflowName)
+      : pending('Agent');
   }
   if (match(`${base}/ai/workflows/new`, path)) return done('New workflow');
   if (match(`${base}/ai/workflows/:workflowId`, path)) {

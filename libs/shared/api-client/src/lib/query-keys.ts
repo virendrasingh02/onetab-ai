@@ -46,17 +46,28 @@ export const queryKeys = {
   },
   billing: {
     all: (workspaceId: string) => ['billing', workspaceId] as const,
-    summary: (workspaceId: string) => ['billing', workspaceId, 'summary'] as const,
+    summary: (workspaceId: string) =>
+      ['billing', workspaceId, 'summary'] as const,
     downgradeImpact: (workspaceId: string, targetPlan: string) =>
       ['billing', workspaceId, 'downgrade-impact', targetPlan] as const,
-    customLLM: (workspaceId: string) => ['billing', workspaceId, 'custom-llm'] as const,
-    invoices: (workspaceId: string) => ['billing', workspaceId, 'invoices'] as const,
-    credits: (workspaceId: string) => ['billing', workspaceId, 'credits'] as const,
+    customLLM: (workspaceId: string) =>
+      ['billing', workspaceId, 'custom-llm'] as const,
+    invoices: (workspaceId: string) =>
+      ['billing', workspaceId, 'invoices'] as const,
+    credits: (workspaceId: string) =>
+      ['billing', workspaceId, 'credits'] as const,
     promotion: (code: string, planTier: string) =>
       ['billing', 'promotion', code, planTier] as const,
-    quote: (workspaceId: string, plan: string, interval: string, code: string, trial: boolean) =>
+    quote: (
+      workspaceId: string,
+      plan: string,
+      interval: string,
+      code: string,
+      trial: boolean,
+    ) =>
       ['billing', workspaceId, 'quote', plan, interval, code, trial] as const,
-    redemptions: (workspaceId: string) => ['billing', workspaceId, 'redemptions'] as const,
+    redemptions: (workspaceId: string) =>
+      ['billing', workspaceId, 'redemptions'] as const,
   },
 
   channels: {
@@ -85,6 +96,15 @@ export const queryKeys = {
     search: (workspaceId: string, query: string) =>
       ['members', workspaceId, 'search', query] as const,
   },
+  people: {
+    all: (workspaceId: string) => ['people', workspaceId] as const,
+    directory: (workspaceId: string, filters: unknown) =>
+      ['people', workspaceId, 'directory', filters] as const,
+    celebrations: (workspaceId: string, from: string, days: number) =>
+      ['people', workspaceId, 'celebrations', from, days] as const,
+    profile: (workspaceId: string, userId: string) =>
+      ['people', workspaceId, 'profile', userId] as const,
+  },
   invitations: {
     all: (workspaceId: string) => ['invitations', workspaceId] as const,
     list: (
@@ -111,8 +131,19 @@ export const queryKeys = {
       ['analytics', workspaceId, 'errors', hours] as const,
     reports: (workspaceId: string) =>
       ['analytics', workspaceId, 'reports'] as const,
-    report: (workspaceId: string, type: string, range: { from: string; to: string }) =>
-      ['analytics', workspaceId, 'reports', type, range.from, range.to] as const,
+    report: (
+      workspaceId: string,
+      type: string,
+      range: { from: string; to: string },
+    ) =>
+      [
+        'analytics',
+        workspaceId,
+        'reports',
+        type,
+        range.from,
+        range.to,
+      ] as const,
     /** Not workspace-scoped — the whole API process is the subject. */
     platform: () => ['analytics', 'platform'] as const,
     performance: () => ['analytics', 'platform', 'performance'] as const,
@@ -130,8 +161,7 @@ export const queryKeys = {
       ['marketplace', 'listings', workspaceId, filters] as const,
     listing: (slug: string, workspaceId: string) =>
       ['marketplace', 'listing', slug, workspaceId] as const,
-    categories: (kind: string) =>
-      ['marketplace', 'categories', kind] as const,
+    categories: (kind: string) => ['marketplace', 'categories', kind] as const,
     reviews: (slug: string) => ['marketplace', 'reviews', slug] as const,
     installations: (workspaceId: string, kind: string) =>
       ['marketplace', 'installations', workspaceId, kind] as const,
@@ -172,11 +202,42 @@ export const queryKeys = {
     deployments: (workspaceId: string, agentId: string) =>
       ['agents', workspaceId, 'detail', agentId, 'deployments'] as const,
     deployment: (workspaceId: string, agentId: string, deploymentId: string) =>
-      ['agents', workspaceId, 'detail', agentId, 'deployments', deploymentId] as const,
-    deploymentAnalytics: (workspaceId: string, agentId: string, deploymentId: string) =>
-      ['agents', workspaceId, 'detail', agentId, 'deployments', deploymentId, 'analytics'] as const,
-    deploymentWebhooks: (workspaceId: string, agentId: string, deploymentId: string) =>
-      ['agents', workspaceId, 'detail', agentId, 'deployments', deploymentId, 'webhooks'] as const,
+      [
+        'agents',
+        workspaceId,
+        'detail',
+        agentId,
+        'deployments',
+        deploymentId,
+      ] as const,
+    deploymentAnalytics: (
+      workspaceId: string,
+      agentId: string,
+      deploymentId: string,
+    ) =>
+      [
+        'agents',
+        workspaceId,
+        'detail',
+        agentId,
+        'deployments',
+        deploymentId,
+        'analytics',
+      ] as const,
+    deploymentWebhooks: (
+      workspaceId: string,
+      agentId: string,
+      deploymentId: string,
+    ) =>
+      [
+        'agents',
+        workspaceId,
+        'detail',
+        agentId,
+        'deployments',
+        deploymentId,
+        'webhooks',
+      ] as const,
     apiKeys: (workspaceId: string, agentId: string) =>
       ['agents', workspaceId, 'detail', agentId, 'api-keys'] as const,
     /** The built-in tools an agent can be given (the MCP tool registry). */
@@ -185,7 +246,8 @@ export const queryKeys = {
   coworkers: {
     all: (workspaceId: string) => ['coworkers', workspaceId] as const,
     list: (workspaceId: string) => ['coworkers', workspaceId, 'list'] as const,
-    roster: (workspaceId: string) => ['coworkers', workspaceId, 'roster'] as const,
+    roster: (workspaceId: string) =>
+      ['coworkers', workspaceId, 'roster'] as const,
     detail: (workspaceId: string, coworkerId: string) =>
       ['coworkers', workspaceId, coworkerId] as const,
     logs: (workspaceId: string, coworkerId: string) =>
@@ -244,7 +306,14 @@ export const queryKeys = {
       actionId: string,
       input?: Record<string, unknown>,
     ) =>
-      ['integrations', workspaceId, 'action-result', integrationId, actionId, input] as const,
+      [
+        'integrations',
+        workspaceId,
+        'action-result',
+        integrationId,
+        actionId,
+        input,
+      ] as const,
   },
   admin: {
     all: () => ['admin'] as const,
@@ -293,12 +362,17 @@ export const queryKeys = {
     },
     billing: {
       all: () => ['admin-billing'] as const,
-      stats: (params?: Record<string, unknown>) => ['admin-billing', 'stats', params ?? {}] as const,
+      stats: (params?: Record<string, unknown>) =>
+        ['admin-billing', 'stats', params ?? {}] as const,
       coupons: () => ['admin-billing', 'coupons'] as const,
-      subscriptions: (params?: Record<string, unknown>) => ['admin-billing', 'subscriptions', params ?? {}] as const,
-      invoices: (params?: Record<string, unknown>) => ['admin-billing', 'invoices', params ?? {}] as const,
-      audit: (params?: Record<string, unknown>) => ['admin-billing', 'audit', params ?? {}] as const,
-      webhooks: (params?: Record<string, unknown>) => ['admin-billing', 'webhooks', params ?? {}] as const,
+      subscriptions: (params?: Record<string, unknown>) =>
+        ['admin-billing', 'subscriptions', params ?? {}] as const,
+      invoices: (params?: Record<string, unknown>) =>
+        ['admin-billing', 'invoices', params ?? {}] as const,
+      audit: (params?: Record<string, unknown>) =>
+        ['admin-billing', 'audit', params ?? {}] as const,
+      webhooks: (params?: Record<string, unknown>) =>
+        ['admin-billing', 'webhooks', params ?? {}] as const,
     },
   },
 
@@ -337,7 +411,8 @@ export const queryKeys = {
   gifs: {
     all: () => ['gifs'] as const,
     trending: (pos?: string) => ['gifs', 'trending', pos ?? ''] as const,
-    search: (q: string, pos?: string) => ['gifs', 'search', q, pos ?? ''] as const,
+    search: (q: string, pos?: string) =>
+      ['gifs', 'search', q, pos ?? ''] as const,
     categories: () => ['gifs', 'categories'] as const,
   },
   stickers: {
@@ -353,7 +428,12 @@ export const queryKeys = {
       ['notifications', workspaceId, 'feed'] as const,
     /** The bell menu's paginated list. */
     list: (workspaceId: string, unreadOnly = false) =>
-      ['notifications', workspaceId, 'list', unreadOnly ? 'unread' : 'all'] as const,
+      [
+        'notifications',
+        workspaceId,
+        'list',
+        unreadOnly ? 'unread' : 'all',
+      ] as const,
     /** Server-side unread total, polled for the bell badge. */
     unreadCount: (workspaceId: string) =>
       ['notifications', workspaceId, 'unread-count'] as const,
@@ -377,10 +457,26 @@ export const queryKeys = {
     modules: (workspaceId: string, projectId: string) =>
       ['work-tools', workspaceId, 'projects', projectId, 'modules'] as const,
     cycles: (workspaceId: string, projectId?: string, teamId?: string) =>
-      ['work-tools', workspaceId, 'cycles', projectId ?? 'all', teamId ?? 'all'] as const,
+      [
+        'work-tools',
+        workspaceId,
+        'cycles',
+        projectId ?? 'all',
+        teamId ?? 'all',
+      ] as const,
     /** `projectId` narrows the board; `undefined` is the all-tasks view. */
-    tasks: (workspaceId: string, projectId?: string, filters?: Record<string, any>) =>
-      ['work-tools', workspaceId, 'tasks', projectId ?? 'all', filters ?? {}] as const,
+    tasks: (
+      workspaceId: string,
+      projectId?: string,
+      filters?: Record<string, any>,
+    ) =>
+      [
+        'work-tools',
+        workspaceId,
+        'tasks',
+        projectId ?? 'all',
+        filters ?? {},
+      ] as const,
     task: (workspaceId: string, taskId: string) =>
       ['work-tools', workspaceId, 'tasks', 'detail', taskId] as const,
     taskComments: (workspaceId: string, taskId: string) =>
@@ -388,7 +484,13 @@ export const queryKeys = {
     relations: (workspaceId: string, taskId: string) =>
       ['work-tools', workspaceId, 'tasks', taskId, 'relations'] as const,
     savedViews: (workspaceId: string, projectId?: string, teamId?: string) =>
-      ['work-tools', workspaceId, 'views', projectId ?? 'all', teamId ?? 'all'] as const,
+      [
+        'work-tools',
+        workspaceId,
+        'views',
+        projectId ?? 'all',
+        teamId ?? 'all',
+      ] as const,
     intake: (workspaceId: string, status?: string) =>
       ['work-tools', workspaceId, 'intake', status ?? 'all'] as const,
     projectUpdates: (workspaceId: string, projectId: string) =>
@@ -400,7 +502,13 @@ export const queryKeys = {
     meeting: (workspaceId: string, meetingId: string) =>
       ['work-tools', workspaceId, 'meetings', 'detail', meetingId] as const,
     meetingActionItems: (workspaceId: string, meetingId: string) =>
-      ['work-tools', workspaceId, 'meetings', meetingId, 'action-items'] as const,
+      [
+        'work-tools',
+        workspaceId,
+        'meetings',
+        meetingId,
+        'action-items',
+      ] as const,
     documents: (workspaceId: string, kind?: string) =>
       ['work-tools', workspaceId, 'documents', kind ?? 'all'] as const,
     document: (workspaceId: string, docId: string) =>
@@ -408,7 +516,8 @@ export const queryKeys = {
   },
   realtime: {
     all: () => ['realtime'] as const,
-    presence: (workspaceId: string) => ['realtime', 'presence', workspaceId] as const,
+    presence: (workspaceId: string) =>
+      ['realtime', 'presence', workspaceId] as const,
   },
   sync: {
     all: (workspaceId: string) => ['sync', workspaceId] as const,
@@ -430,8 +539,7 @@ export const queryKeys = {
       ['compliance', 'versions', platformId ?? 'all'] as const,
     reviews: (filters?: Record<string, unknown>) =>
       ['compliance', 'reviews', filters ?? {}] as const,
-    review: (reviewId: string) =>
-      ['compliance', 'reviews', reviewId] as const,
+    review: (reviewId: string) => ['compliance', 'reviews', reviewId] as const,
     checklist: (reviewId: string) =>
       ['compliance', 'checklist', reviewId] as const,
     issues: (filters?: Record<string, unknown>) =>
@@ -468,40 +576,60 @@ export const queryKeys = {
       ['bookmarks', workspaceId, { targetType }] as const,
   },
   aiStudio: {
-    overview: (workspaceId: string) => ['ai-studio', workspaceId, 'overview'] as const,
+    overview: (workspaceId: string) =>
+      ['ai-studio', workspaceId, 'overview'] as const,
   },
   knowledge: {
     all: (workspaceId: string) => ['knowledge', workspaceId] as const,
     list: (workspaceId: string) => ['knowledge', workspaceId, 'list'] as const,
-    detail: (workspaceId: string, id: string) => ['knowledge', workspaceId, 'detail', id] as const,
+    detail: (workspaceId: string, id: string) =>
+      ['knowledge', workspaceId, 'detail', id] as const,
     documents: (workspaceId: string, knowledgeBaseId: string) =>
       ['knowledge', workspaceId, knowledgeBaseId, 'documents'] as const,
-    chunks: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
-      ['knowledge', workspaceId, knowledgeBaseId, 'documents', documentId, 'chunks'] as const,
+    chunks: (
+      workspaceId: string,
+      knowledgeBaseId: string,
+      documentId: string,
+    ) =>
+      [
+        'knowledge',
+        workspaceId,
+        knowledgeBaseId,
+        'documents',
+        documentId,
+        'chunks',
+      ] as const,
   },
   aiApps: {
     all: (workspaceId: string) => ['ai-apps', workspaceId] as const,
     list: (workspaceId: string) => ['ai-apps', workspaceId, 'list'] as const,
-    detail: (workspaceId: string, id: string) => ['ai-apps', workspaceId, 'detail', id] as const,
+    detail: (workspaceId: string, id: string) =>
+      ['ai-apps', workspaceId, 'detail', id] as const,
   },
   approvals: {
     all: (workspaceId: string) => ['approvals', workspaceId] as const,
     list: (workspaceId: string, state?: string) =>
       ['approvals', workspaceId, 'list', { state }] as const,
-    detail: (workspaceId: string, id: string) => ['approvals', workspaceId, 'detail', id] as const,
+    detail: (workspaceId: string, id: string) =>
+      ['approvals', workspaceId, 'detail', id] as const,
   },
   aiExecutions: {
     all: (workspaceId: string) => ['ai-executions', workspaceId] as const,
     list: (workspaceId: string, filters?: Record<string, unknown>) =>
       ['ai-executions', workspaceId, 'list', filters ?? {}] as const,
-    detail: (workspaceId: string, id: string) => ['ai-executions', workspaceId, 'detail', id] as const,
+    detail: (workspaceId: string, id: string) =>
+      ['ai-executions', workspaceId, 'detail', id] as const,
   },
   agentStudio: {
     all: (workspaceId: string) => ['agent-studio', workspaceId] as const,
-    home: (workspaceId: string) => ['agent-studio', workspaceId, 'home'] as const,
-    catalog: (workspaceId: string) => ['agent-studio', workspaceId, 'catalog'] as const,
-    list: (workspaceId: string) => ['agent-studio', workspaceId, 'list'] as const,
-    detail: (workspaceId: string, id: string) => ['agent-studio', workspaceId, 'detail', id] as const,
+    home: (workspaceId: string) =>
+      ['agent-studio', workspaceId, 'home'] as const,
+    catalog: (workspaceId: string) =>
+      ['agent-studio', workspaceId, 'catalog'] as const,
+    list: (workspaceId: string) =>
+      ['agent-studio', workspaceId, 'list'] as const,
+    detail: (workspaceId: string, id: string) =>
+      ['agent-studio', workspaceId, 'detail', id] as const,
     version: (workspaceId: string, id: string, version: number) =>
       ['agent-studio', workspaceId, 'detail', id, 'version', version] as const,
   },
@@ -511,7 +639,8 @@ export const queryKeys = {
   },
   mcp: {
     all: (workspaceId: string) => ['mcp', workspaceId] as const,
-    connections: (workspaceId: string) => ['mcp', workspaceId, 'connections'] as const,
+    connections: (workspaceId: string) =>
+      ['mcp', workspaceId, 'connections'] as const,
   },
   calls: {
     all: (workspaceId: string) => ['calls', workspaceId] as const,
@@ -532,13 +661,11 @@ export const queryKeys = {
   },
   emailTemplates: {
     all: () => ['email-templates'] as const,
-    list: (params?: Record<string, unknown>) => ['email-templates', 'list', params] as const,
-    detail: (key: string, workspaceId?: string) => ['email-templates', 'detail', key, workspaceId] as const,
+    list: (params?: Record<string, unknown>) =>
+      ['email-templates', 'list', params] as const,
+    detail: (key: string, workspaceId?: string) =>
+      ['email-templates', 'detail', key, workspaceId] as const,
     providers: () => ['email-templates', 'providers'] as const,
     events: () => ['email-templates', 'events'] as const,
   },
 } as const;
-
-
-
-

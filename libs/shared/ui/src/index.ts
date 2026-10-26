@@ -24,7 +24,6 @@ export {
   type MediaAssetSource,
 } from './lib/components/platform-image.js';
 
-
 export {
   Card,
   CardAction,
@@ -256,7 +255,6 @@ export {
 } from './lib/components/input.js';
 
 export { Field, type FieldProps } from './lib/components/field.js';
-
 
 export {
   SearchInput,
@@ -608,6 +606,10 @@ export {
   type TeamMemberData,
 } from './lib/components/team-world-clock-modal.js';
 
+export {
+  PhoneInput,
+  type PhoneInputProps,
+} from './lib/components/phone-input.js';
 export { Toaster, toast, type ToasterProps } from './lib/components/toaster.js';
 
 export {
@@ -795,7 +797,10 @@ export {
   type AIExecutionStepStatus,
 } from './lib/components/ai-execution-timeline.js';
 
-export { AIRunStatusBadge, toTimelineSteps } from './lib/components/ai-run-status.js';
+export {
+  AIRunStatusBadge,
+  toTimelineSteps,
+} from './lib/components/ai-run-status.js';
 
 export {
   AIEntityProfilePanel,
@@ -837,17 +842,13 @@ export {
   type UniversalCardAction,
 } from './lib/components/universal-card-registry.js';
 
-
 export {
   BlockRenderer,
   type PageBlockConfig,
   type BlockType,
 } from './lib/components/block-registry.js';
 
-export {
-  QRCode,
-  type QRCodeProps,
-} from './lib/components/qr-code.js';
+export { QRCode, type QRCodeProps } from './lib/components/qr-code.js';
 
 export {
   AlertDialog,
@@ -918,10 +919,7 @@ export {
   navigationMenuTriggerStyle,
 } from './lib/components/navigation-menu.js';
 
-export {
-  PlanBadge,
-  type PlanBadgeProps,
-} from './lib/components/plan-badge.js';
+export { PlanBadge, type PlanBadgeProps } from './lib/components/plan-badge.js';
 
 export {
   UsageMeter,
@@ -989,4 +987,3 @@ export {
 } from './lib/components/adaptive-layout.js';
 
 export * from './lib/code-block/index.js';
-

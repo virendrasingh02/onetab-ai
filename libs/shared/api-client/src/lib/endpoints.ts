@@ -1,4 +1,9 @@
 import type {
+  CelebrationEntry,
+  CelebrationPrefs,
+  EmployeeDirectoryPage,
+  EmployeePrivacy,
+  EmployeeProfileView,
   ActivityFeedItem,
   AnalyticsDateRange,
   AttentionItem,
@@ -135,7 +140,6 @@ import type {
   ChannelAppView,
   ChannelMember,
   ScheduledMessageView,
-
   ChannelPin,
   ChannelSummary,
   CurrentUser,
@@ -180,7 +184,6 @@ import type {
   ComplianceChecklistStatus,
   ComplianceReviewStatus,
   LinkPreview,
-
   MarketplaceBrowseParams,
   MarketplaceCategoryCount,
   MarketplaceInstallation,
@@ -469,6 +472,11 @@ import type {
   UpdateUserPreferencesInput,
   UpdateWorkspaceInput,
   OAuthInitQueryInput,
+  EmployeeDirectoryQuery,
+  UpdateCelebrationPrefsInput,
+  UpdateEmployeePrivacyInput,
+  UpdateEmployeeProfileInput,
+  UpdateEmploymentInput,
 } from '@org/validation';
 import { getAccessToken, http, request, resolveMediaUrl } from './http.js';
 
@@ -543,7 +551,9 @@ export const authApi = {
     request<void>(http.post('/auth/reset-password', input)),
 
   verifyResetToken: (input: { token: string }) =>
-    request<{ valid: boolean }>(http.post('/auth/password-reset/verify', input)),
+    request<{ valid: boolean }>(
+      http.post('/auth/password-reset/verify', input),
+    ),
 
   sendEmailVerification: (input: { email?: string } = {}) =>
     request<{ message: string; devToken?: string }>(
@@ -579,14 +589,10 @@ export const authApi = {
     ),
 
   createDeviceAuth: (input: CreateDeviceAuthInput) =>
-    request<CreateDeviceAuthResponse>(
-      http.post('/auth/device/create', input),
-    ),
+    request<CreateDeviceAuthResponse>(http.post('/auth/device/create', input)),
 
   getDeviceAuthInfo: (params: { requestId?: string; code?: string }) =>
-    request<DeviceAuthInfoResponse>(
-      http.get('/auth/device/info', { params }),
-    ),
+    request<DeviceAuthInfoResponse>(http.get('/auth/device/info', { params })),
 
   approveDeviceAuth: (input: ApproveDeviceAuthInput) =>
     request<{ success: boolean; status: string }>(
@@ -594,9 +600,7 @@ export const authApi = {
     ),
 
   rejectDeviceAuth: (input: RejectDeviceAuthInput) =>
-    request<{ success: boolean }>(
-      http.post('/auth/device/reject', input),
-    ),
+    request<{ success: boolean }>(http.post('/auth/device/reject', input)),
 
   exchangeDeviceAuth: (input: ExchangeDeviceAuthInput) =>
     request<AuthResponse & { refreshToken: string }>(
@@ -604,9 +608,9 @@ export const authApi = {
     ),
 
   pollDeviceAuthStatus: (input: PollDeviceAuthInput) =>
-    request<{ status: 'pending' | 'approved' | 'rejected' | 'expired' | 'consumed' }>(
-      http.post('/auth/device/status', input),
-    ),
+    request<{
+      status: 'pending' | 'approved' | 'rejected' | 'expired' | 'consumed';
+    }>(http.post('/auth/device/status', input)),
 
   getSessions: () => request<UserSessionDto[]>(http.get('/auth/sessions')),
 
@@ -614,12 +618,15 @@ export const authApi = {
     request<void>(http.delete(`/auth/sessions/${sessionId}`)),
 
   revokeOtherSessions: () =>
-    request<{ revokedCount: number }>(http.post('/auth/sessions/revoke-others')),
+    request<{ revokedCount: number }>(
+      http.post('/auth/sessions/revoke-others'),
+    ),
 
   getSecurityOverview: () =>
     request<SecurityOverviewDto>(http.get('/auth/security-overview')),
 
-  setupTotp: () => request<TotpSetupResponse>(http.post('/auth/2fa/totp/setup')),
+  setupTotp: () =>
+    request<TotpSetupResponse>(http.post('/auth/2fa/totp/setup')),
 
   verifyTotp: (input: { code: string }) =>
     request<TotpVerifyResponse>(http.post('/auth/2fa/totp/verify', input)),
@@ -628,14 +635,18 @@ export const authApi = {
     request<void>(http.post('/auth/2fa/totp/disable', input)),
 
   regenerateRecoveryCodes: () =>
-    request<{ codes: string[] }>(http.post('/auth/2fa/recovery-codes/regenerate')),
+    request<{ codes: string[] }>(
+      http.post('/auth/2fa/recovery-codes/regenerate'),
+    ),
 
   getWebAuthnCredentials: () =>
     request<WebAuthnCredentialDto[]>(http.get('/auth/webauthn/credentials')),
 
   /** Server-issued creation options; pass to `startRegistration`. */
   getWebAuthnRegistrationOptions: () =>
-    request<PasskeyOptionsResponse>(http.post('/auth/webauthn/register/options')),
+    request<PasskeyOptionsResponse>(
+      http.post('/auth/webauthn/register/options'),
+    ),
 
   /** Verifies the browser's attestation and stores the passkey. */
   registerWebAuthn: (input: PasskeyRegisterVerifyInput) =>
@@ -654,7 +665,9 @@ export const authApi = {
 
   /** Which social sign-in providers the server has credentials for. */
   getOAuthProviders: () =>
-    request<{ google: boolean; apple: boolean }>(http.get('/auth/oauth/providers')),
+    request<{ google: boolean; apple: boolean }>(
+      http.get('/auth/oauth/providers'),
+    ),
 
   /**
    * Starts a Google / Apple sign-in. The response also sets the httpOnly flow
@@ -664,8 +677,13 @@ export const authApi = {
     request<{ url: string }>(http.get(`/auth/${provider}/url`, { params })),
 
   /** Same, but links the provider to the signed-in account (Settings). */
-  getOAuthLinkUrl: (provider: 'google' | 'apple', params?: OAuthInitQueryInput) =>
-    request<{ url: string }>(http.get(`/auth/${provider}/link/url`, { params })),
+  getOAuthLinkUrl: (
+    provider: 'google' | 'apple',
+    params?: OAuthInitQueryInput,
+  ) =>
+    request<{ url: string }>(
+      http.get(`/auth/${provider}/link/url`, { params }),
+    ),
 
   getIdentities: () =>
     request<{ identities: UserIdentityDto[]; hasPassword: boolean }>(
@@ -684,7 +702,10 @@ export const authApi = {
 function withResolvedAvatar<T extends { avatarUrl?: string | null }>(
   workspace: T,
 ): T {
-  return { ...workspace, avatarUrl: resolveMediaUrl(workspace.avatarUrl) ?? null };
+  return {
+    ...workspace,
+    avatarUrl: resolveMediaUrl(workspace.avatarUrl) ?? null,
+  };
 }
 
 export const workspaceApi = {
@@ -750,9 +771,9 @@ export const workspaceApi = {
    * nothing about picking an icon has to know the shape of the settings form.
    */
   setIcon: (workspaceId: string, selection: IconPatch) =>
-    request<Workspace>(http.patch(`/workspaces/${workspaceId}`, selection)).then(
-      withResolvedAvatar,
-    ),
+    request<Workspace>(
+      http.patch(`/workspaces/${workspaceId}`, selection),
+    ).then(withResolvedAvatar),
 
   /**
    * Multipart, so the Content-Type header is left to the browser — it has to
@@ -836,7 +857,9 @@ export const workspaceApi = {
 
   saveDefaultChannel: (workspaceId: string, channelId: string | null) =>
     request<{ channelId: string | null }>(
-      http.put(`/workspaces/${workspaceId}/settings/default-channel`, { channelId }),
+      http.put(`/workspaces/${workspaceId}/settings/default-channel`, {
+        channelId,
+      }),
     ),
 
   /**
@@ -850,7 +873,10 @@ export const workspaceApi = {
     ),
 
   /** Shallow-merged over what's already stored — a partial update never drops unrelated fields. */
-  saveMemberPreferences: (workspaceId: string, input: Record<string, unknown>) =>
+  saveMemberPreferences: (
+    workspaceId: string,
+    input: Record<string, unknown>,
+  ) =>
     request<Record<string, unknown>>(
       http.put(`/workspaces/${workspaceId}/settings/member-preferences`, input),
     ),
@@ -895,7 +921,9 @@ export const billingApi = {
 
   cancelCheckout: (workspaceId: string, checkoutId: string) =>
     request<CheckoutSessionDto>(
-      http.post(`/workspaces/${workspaceId}/billing/checkout/${checkoutId}/cancel`),
+      http.post(
+        `/workspaces/${workspaceId}/billing/checkout/${checkoutId}/cancel`,
+      ),
     ),
 
   cancel: (workspaceId: string) =>
@@ -991,7 +1019,6 @@ export const billingApi = {
     ),
 };
 
-
 export const channelApi = {
   list: (workspaceId: string, includeArchived = false) =>
     request<ChannelSummary[]>(
@@ -1033,9 +1060,7 @@ export const channelApi = {
   /** Workspace admins/owners only. */
   makePublic: (workspaceId: string, channelId: string) =>
     request<Channel>(
-      http.post(
-        `/workspaces/${workspaceId}/channels/${channelId}/make-public`,
-      ),
+      http.post(`/workspaces/${workspaceId}/channels/${channelId}/make-public`),
     ),
 
   /** Permanent. Workspace admins/owners only. */
@@ -1055,10 +1080,7 @@ export const channelApi = {
     input: JoinChannelInput = {},
   ) =>
     request<void>(
-      http.post(
-        `/workspaces/${workspaceId}/channels/${channelId}/join`,
-        input,
-      ),
+      http.post(`/workspaces/${workspaceId}/channels/${channelId}/join`, input),
     ),
 
   /** Push a temporary membership's expiry out (brief §8). */
@@ -1280,6 +1302,58 @@ export const memberApi = {
     ),
 };
 
+export const peopleApi = {
+  directory: (workspaceId: string, query: Partial<EmployeeDirectoryQuery>) =>
+    request<EmployeeDirectoryPage>(
+      http.get(`/workspaces/${workspaceId}/people/directory`, {
+        params: query,
+      }),
+    ),
+
+  celebrations: (
+    workspaceId: string,
+    params: { from?: string; days?: number },
+  ) =>
+    request<CelebrationEntry[]>(
+      http.get(`/workspaces/${workspaceId}/people/celebrations`, { params }),
+    ),
+
+  profile: (workspaceId: string, userId: string) =>
+    request<EmployeeProfileView>(
+      http.get(`/workspaces/${workspaceId}/people/${userId}`),
+    ),
+
+  updateProfile: (workspaceId: string, input: UpdateEmployeeProfileInput) =>
+    request<void>(
+      http.patch(`/workspaces/${workspaceId}/people/me/profile`, input),
+    ),
+
+  updatePrivacy: (workspaceId: string, input: UpdateEmployeePrivacyInput) =>
+    request<EmployeePrivacy>(
+      http.patch(`/workspaces/${workspaceId}/people/me/privacy`, input),
+    ),
+
+  updateCelebrations: (
+    workspaceId: string,
+    input: UpdateCelebrationPrefsInput,
+  ) =>
+    request<CelebrationPrefs>(
+      http.patch(`/workspaces/${workspaceId}/people/me/celebrations`, input),
+    ),
+
+  updateEmployment: (
+    workspaceId: string,
+    userId: string,
+    input: UpdateEmploymentInput,
+  ) =>
+    request<void>(
+      http.patch(
+        `/workspaces/${workspaceId}/people/${userId}/employment`,
+        input,
+      ),
+    ),
+};
+
 export const invitationApi = {
   list: (
     workspaceId: string,
@@ -1307,9 +1381,7 @@ export const invitationApi = {
     ),
 
   preview: (token: string) =>
-    request<InvitationPublicPreview>(
-      http.get(`/invitations/preview/${token}`),
-    ),
+    request<InvitationPublicPreview>(http.get(`/invitations/preview/${token}`)),
 
   resend: (workspaceId: string, invitationId: string) =>
     request<{ invitation: Invitation; token?: string }>(
@@ -1418,9 +1490,7 @@ export const userApi = {
 
   /** Scheduled status multi-queue (brief §9) — up to 5 per user. */
   scheduledStatuses: () =>
-    request<ScheduledStatusView[]>(
-      http.get('/users/me/scheduled-statuses'),
-    ),
+    request<ScheduledStatusView[]>(http.get('/users/me/scheduled-statuses')),
 
   createScheduledStatus: (input: CreateScheduledStatusInput) =>
     request<ScheduledStatusView>(
@@ -1472,10 +1542,12 @@ export const userApi = {
   /** Updates the user's preferred interface language. */
   updateLanguage: (input: string | { language: string }) =>
     request<{ language: string; user: CurrentUser }>(
-      http.patch('/users/me/language', typeof input === 'string' ? { language: input } : input),
+      http.patch(
+        '/users/me/language',
+        typeof input === 'string' ? { language: input } : input,
+      ),
     ),
 };
-
 
 /** Matrix session brokering. The browser never holds Matrix credentials. */
 export const matrixApi = {
@@ -1521,9 +1593,7 @@ export const matrixApi = {
    * membership mirror. 404 for a non-member.
    */
   joinChannelRoom: (channelId: string) =>
-    request<{ joined: true }>(
-      http.post(`/matrix/channels/${channelId}/join`),
-    ),
+    request<{ joined: true }>(http.post(`/matrix/channels/${channelId}/join`)),
 
   /**
    * A teammate's Matrix id, so the browser can open a direct message with them.
@@ -1543,7 +1613,10 @@ export const linkPreviewApi = {
   getPreview: (url: string) =>
     request<LinkPreview>(http.get('/link-preview', { params: { url } })),
 
-  updateMessageVisibility: (messageId: string, visibility: 'visible' | 'hidden') =>
+  updateMessageVisibility: (
+    messageId: string,
+    visibility: 'visible' | 'hidden',
+  ) =>
     request<{ success: boolean; messageId: string; visibility: string }>(
       http.patch(`/messages/${messageId}/link-preview`, { visibility }),
     ),
@@ -1629,7 +1702,11 @@ export const analyticsApi = {
   /**
    * CSV comes back as text, not JSON — callers turn this into a Blob download.
    */
-  reportCsv: (workspaceId: string, type: ReportType, range: AnalyticsDateRange) =>
+  reportCsv: (
+    workspaceId: string,
+    type: ReportType,
+    range: AnalyticsDateRange,
+  ) =>
     request<string>(
       http.get(`/analytics/workspace/${workspaceId}/reports/${type}`, {
         params: { ...range, format: 'csv' },
@@ -1653,52 +1730,77 @@ export const analyticsApi = {
 export const aiAnalyticsApi = {
   deepOverview: (workspaceId: string, range?: AnalyticsDateRange) =>
     request<DeepAIAnalyticsOverview>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-deep`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-deep`, {
+        params: range,
+      }),
     ),
 
   agents: (workspaceId: string, range?: AnalyticsDateRange) =>
     request<AgentAnalyticsProfile[]>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-agents`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-agents`, {
+        params: range,
+      }),
     ),
 
   agent: (workspaceId: string, agentId: string, range?: AnalyticsDateRange) =>
     request<AgentAnalyticsProfile>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-agents/${agentId}`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-agents/${agentId}`, {
+        params: range,
+      }),
     ),
 
   workflows: (workspaceId: string, range?: AnalyticsDateRange) =>
     request<WorkflowAnalyticsProfile[]>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-workflows`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-workflows`, {
+        params: range,
+      }),
     ),
 
-  workflow: (workspaceId: string, workflowId: string, range?: AnalyticsDateRange) =>
+  workflow: (
+    workspaceId: string,
+    workflowId: string,
+    range?: AnalyticsDateRange,
+  ) =>
     request<WorkflowAnalyticsProfile>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-workflows/${workflowId}`, { params: range }),
+      http.get(
+        `/analytics/workspace/${workspaceId}/ai-workflows/${workflowId}`,
+        { params: range },
+      ),
     ),
 
   nodes: (workspaceId: string, range?: AnalyticsDateRange) =>
     request<NodeAnalyticsRecord[]>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-nodes`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-nodes`, {
+        params: range,
+      }),
     ),
 
   toolsAndConnectors: (workspaceId: string, range?: AnalyticsDateRange) =>
     request<{ tools: any[]; connectors: ConnectorAnalyticsRecord[] }>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-tools`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-tools`, {
+        params: range,
+      }),
     ),
 
   models: (workspaceId: string, range?: AnalyticsDateRange) =>
     request<ModelAnalyticsRecord[]>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-models`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-models`, {
+        params: range,
+      }),
     ),
 
   costs: (workspaceId: string, range?: AnalyticsDateRange) =>
     request<AICostAnalytics>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-costs`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-costs`, {
+        params: range,
+      }),
     ),
 
   errors: (workspaceId: string, range?: AnalyticsDateRange) =>
     request<ErrorAnalyticsGroup[]>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-errors`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-errors`, {
+        params: range,
+      }),
     ),
 
   trace: (workspaceId: string, executionId: string) =>
@@ -1708,7 +1810,9 @@ export const aiAnalyticsApi = {
 
   evaluations: (workspaceId: string, range?: AnalyticsDateRange) =>
     request<EvaluationsAnalyticsOverview>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-evaluations`, { params: range }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-evaluations`, {
+        params: range,
+      }),
     ),
 
   compareVersions: (
@@ -1721,7 +1825,9 @@ export const aiAnalyticsApi = {
     },
   ) =>
     request<VersionComparisonResult>(
-      http.get(`/analytics/workspace/${workspaceId}/ai-versions/compare`, { params }),
+      http.get(`/analytics/workspace/${workspaceId}/ai-versions/compare`, {
+        params,
+      }),
     ),
 
   alerts: (workspaceId: string) =>
@@ -1740,7 +1846,9 @@ export const aiAnalyticsApi = {
     status: 'RESOLVED' | 'ACKNOWLEDGED',
   ) =>
     request<any>(
-      http.patch(`/analytics/workspace/${workspaceId}/ai-alerts/${alertId}`, { status }),
+      http.patch(`/analytics/workspace/${workspaceId}/ai-alerts/${alertId}`, {
+        status,
+      }),
     ),
 
   settings: (workspaceId: string) =>
@@ -1748,7 +1856,10 @@ export const aiAnalyticsApi = {
       http.get(`/analytics/workspace/${workspaceId}/ai-settings`),
     ),
 
-  updateSettings: (workspaceId: string, settings: Partial<AnalyticsSettingsConfig>) =>
+  updateSettings: (
+    workspaceId: string,
+    settings: Partial<AnalyticsSettingsConfig>,
+  ) =>
     request<AnalyticsSettingsConfig>(
       http.put(`/analytics/workspace/${workspaceId}/ai-settings`, settings),
     ),
@@ -1792,7 +1903,12 @@ export const marketplaceApi = {
 
   addReview: (
     slug: string,
-    input: { rating: number; title?: string; body?: string; workspaceId?: string },
+    input: {
+      rating: number;
+      title?: string;
+      body?: string;
+      workspaceId?: string;
+    },
   ) =>
     request<MarketplaceReview>(
       http.post(`/marketplace/listings/${slug}/reviews`, input),
@@ -1881,7 +1997,12 @@ export const marketplaceApi = {
     description?: string;
     category: string;
     capabilities?: string[];
-    permissions?: Array<{ scope: string; name: string; level: string; description: string }>;
+    permissions?: Array<{
+      scope: string;
+      name: string;
+      level: string;
+      description: string;
+    }>;
     commands?: Array<{ command: string; description: string; args?: string }>;
     examplePrompts?: string[];
     iconUrl?: string;
@@ -1920,8 +2041,8 @@ export const marketplaceApi = {
       http.patch(`/marketplace/listings/${slug}/status`, { status }),
     ),
 
-  setPluginStatus: (slug: string, status: "ACTIVE" | "SUSPENDED") =>
-    request<{ slug: string; status: "ACTIVE" | "SUSPENDED" }>(
+  setPluginStatus: (slug: string, status: 'ACTIVE' | 'SUSPENDED') =>
+    request<{ slug: string; status: 'ACTIVE' | 'SUSPENDED' }>(
       http.patch(`/marketplace/plugins/${slug}/status`, { status }),
     ),
 };
@@ -1945,7 +2066,10 @@ export const workToolsApi = {
 
   updateTeam: (workspaceId: string, teamId: string, input: UpdateTeamInput) =>
     request<Team>(
-      http.patch(`/workspaces/${workspaceId}/work-tools/teams/${teamId}`, input),
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/teams/${teamId}`,
+        input,
+      ),
     ),
 
   deleteTeam: (workspaceId: string, teamId: string) =>
@@ -1956,7 +2080,9 @@ export const workToolsApi = {
   // --- task labels ----------------------------------------------------------
 
   taskLabels: (workspaceId: string) =>
-    request<TaskLabel[]>(http.get(`/workspaces/${workspaceId}/work-tools/labels`)),
+    request<TaskLabel[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/labels`),
+    ),
 
   createTaskLabel: (workspaceId: string, input: CreateTaskLabelInput) =>
     request<TaskLabel>(
@@ -1969,7 +2095,10 @@ export const workToolsApi = {
     input: UpdateTaskLabelInput,
   ) =>
     request<TaskLabel>(
-      http.patch(`/workspaces/${workspaceId}/work-tools/labels/${labelId}`, input),
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/labels/${labelId}`,
+        input,
+      ),
     ),
 
   deleteTaskLabel: (workspaceId: string, labelId: string) =>
@@ -2053,7 +2182,9 @@ export const workToolsApi = {
 
   deleteProject: (workspaceId: string, projectId: string) =>
     request<void>(
-      http.delete(`/workspaces/${workspaceId}/work-tools/projects/${projectId}`),
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/projects/${projectId}`,
+      ),
     ),
 
   setProjectIcon: (
@@ -2072,7 +2203,9 @@ export const workToolsApi = {
 
   epics: (workspaceId: string, projectId: string) =>
     request<Epic[]>(
-      http.get(`/workspaces/${workspaceId}/work-tools/projects/${projectId}/epics`),
+      http.get(
+        `/workspaces/${workspaceId}/work-tools/projects/${projectId}/epics`,
+      ),
     ),
 
   createEpic: (workspaceId: string, input: CreateEpicInput) =>
@@ -2082,7 +2215,10 @@ export const workToolsApi = {
 
   updateEpic: (workspaceId: string, epicId: string, input: UpdateEpicInput) =>
     request<Epic>(
-      http.patch(`/workspaces/${workspaceId}/work-tools/epics/${epicId}`, input),
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/epics/${epicId}`,
+        input,
+      ),
     ),
 
   deleteEpic: (workspaceId: string, epicId: string) =>
@@ -2092,7 +2228,9 @@ export const workToolsApi = {
 
   modules: (workspaceId: string, projectId: string) =>
     request<Module[]>(
-      http.get(`/workspaces/${workspaceId}/work-tools/projects/${projectId}/modules`),
+      http.get(
+        `/workspaces/${workspaceId}/work-tools/projects/${projectId}/modules`,
+      ),
     ),
 
   createModule: (workspaceId: string, input: CreateModuleInput) =>
@@ -2132,9 +2270,16 @@ export const workToolsApi = {
       http.post(`/workspaces/${workspaceId}/work-tools/cycles`, input),
     ),
 
-  updateCycle: (workspaceId: string, cycleId: string, input: UpdateCycleInput) =>
+  updateCycle: (
+    workspaceId: string,
+    cycleId: string,
+    input: UpdateCycleInput,
+  ) =>
     request<Cycle>(
-      http.patch(`/workspaces/${workspaceId}/work-tools/cycles/${cycleId}`, input),
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/cycles/${cycleId}`,
+        input,
+      ),
     ),
 
   deleteCycle: (workspaceId: string, cycleId: string) =>
@@ -2146,15 +2291,17 @@ export const workToolsApi = {
 
   tasks: (
     workspaceId: string,
-    params?: {
-      projectId?: string;
-      teamId?: string;
-      cycleId?: string;
-      epicId?: string;
-      moduleId?: string;
-      assigneeId?: string;
-      search?: string;
-    } | string,
+    params?:
+      | {
+          projectId?: string;
+          teamId?: string;
+          cycleId?: string;
+          epicId?: string;
+          moduleId?: string;
+          assigneeId?: string;
+          search?: string;
+        }
+      | string,
   ) => {
     const query = typeof params === 'string' ? { projectId: params } : params;
     return request<Task[]>(
@@ -2176,7 +2323,10 @@ export const workToolsApi = {
 
   updateTask: (workspaceId: string, taskId: string, input: UpdateTaskInput) =>
     request<Task>(
-      http.patch(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}`, input),
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/tasks/${taskId}`,
+        input,
+      ),
     ),
 
   moveTask: (workspaceId: string, taskId: string, input: MoveTaskInput) =>
@@ -2196,7 +2346,9 @@ export const workToolsApi = {
 
   relations: (workspaceId: string, taskId: string) =>
     request<WorkItemRelation[]>(
-      http.get(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}/relations`),
+      http.get(
+        `/workspaces/${workspaceId}/work-tools/tasks/${taskId}/relations`,
+      ),
     ),
 
   addRelation: (workspaceId: string, input: CreateWorkItemRelationInput) =>
@@ -2206,7 +2358,9 @@ export const workToolsApi = {
 
   deleteRelation: (workspaceId: string, relationId: string) =>
     request<void>(
-      http.delete(`/workspaces/${workspaceId}/work-tools/relations/${relationId}`),
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/relations/${relationId}`,
+      ),
     ),
 
   // --- saved views ----------------------------------------------------------
@@ -2232,7 +2386,10 @@ export const workToolsApi = {
     input: UpdateSavedViewInput,
   ) =>
     request<SavedView>(
-      http.patch(`/workspaces/${workspaceId}/work-tools/views/${viewId}`, input),
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/views/${viewId}`,
+        input,
+      ),
     ),
 
   deleteSavedView: (workspaceId: string, viewId: string) =>
@@ -2249,10 +2406,7 @@ export const workToolsApi = {
       }),
     ),
 
-  createIntakeRequest: (
-    workspaceId: string,
-    input: CreateIntakeRequestInput,
-  ) =>
+  createIntakeRequest: (workspaceId: string, input: CreateIntakeRequestInput) =>
     request<IntakeRequest>(
       http.post(`/workspaces/${workspaceId}/work-tools/intake`, input),
     ),
@@ -2285,10 +2439,7 @@ export const workToolsApi = {
       ),
     ),
 
-  createProjectUpdate: (
-    workspaceId: string,
-    input: CreateProjectUpdateInput,
-  ) =>
+  createProjectUpdate: (workspaceId: string, input: CreateProjectUpdateInput) =>
     request<ProjectUpdate>(
       http.post(
         `/workspaces/${workspaceId}/work-tools/projects/${input.projectId}/updates`,
@@ -2298,7 +2449,9 @@ export const workToolsApi = {
 
   taskComments: (workspaceId: string, taskId: string) =>
     request<TaskComment[]>(
-      http.get(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}/comments`),
+      http.get(
+        `/workspaces/${workspaceId}/work-tools/tasks/${taskId}/comments`,
+      ),
     ),
 
   addTaskComment: (
@@ -2408,7 +2561,9 @@ export const workToolsApi = {
 
   deleteMeeting: (workspaceId: string, meetingId: string) =>
     request<void>(
-      http.delete(`/workspaces/${workspaceId}/work-tools/meetings/${meetingId}`),
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}`,
+      ),
     ),
 
   restoreMeeting: (workspaceId: string, meetingId: string) =>
@@ -2549,18 +2704,21 @@ export const workToolsApi = {
     request<void>(
       http.delete(`/workspaces/${workspaceId}/work-tools/documents/${docId}`),
     ),
-
 };
 
 /** Unified AI Entities (Agents & Coworkers). */
 export const aiEntitiesApi = {
   list: (workspaceId: string, type?: AIEntityType) =>
     request<AIEntity[]>(
-      http.get(`/workspaces/${workspaceId}/ai/entities${type ? `?type=${type}` : ''}`),
+      http.get(
+        `/workspaces/${workspaceId}/ai/entities${type ? `?type=${type}` : ''}`,
+      ),
     ),
 
   get: (workspaceId: string, entityId: string) =>
-    request<AIEntity>(http.get(`/workspaces/${workspaceId}/ai/entities/${entityId}`)),
+    request<AIEntity>(
+      http.get(`/workspaces/${workspaceId}/ai/entities/${entityId}`),
+    ),
 
   create: (
     workspaceId: string,
@@ -2583,7 +2741,10 @@ export const aiEntitiesApi = {
       agentIds?: string[];
       integrationIds?: string[];
     },
-  ) => request<AIEntity>(http.post(`/workspaces/${workspaceId}/ai/entities`, input)),
+  ) =>
+    request<AIEntity>(
+      http.post(`/workspaces/${workspaceId}/ai/entities`, input),
+    ),
 
   update: (
     workspaceId: string,
@@ -2604,10 +2765,15 @@ export const aiEntitiesApi = {
       graphJson?: string;
       isActive?: boolean;
     },
-  ) => request<AIEntity>(http.patch(`/workspaces/${workspaceId}/ai/entities/${entityId}`, input)),
+  ) =>
+    request<AIEntity>(
+      http.patch(`/workspaces/${workspaceId}/ai/entities/${entityId}`, input),
+    ),
 
   remove: (workspaceId: string, entityId: string) =>
-    request<void>(http.delete(`/workspaces/${workspaceId}/ai/entities/${entityId}`)),
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/ai/entities/${entityId}`),
+    ),
 
   execute: (
     workspaceId: string,
@@ -2627,7 +2793,12 @@ export const aiEntitiesApi = {
       result: string;
       logId: string;
       tools: unknown[];
-    }>(http.post(`/workspaces/${workspaceId}/ai/entities/${entityId}/execute`, body)),
+    }>(
+      http.post(
+        `/workspaces/${workspaceId}/ai/entities/${entityId}/execute`,
+        body,
+      ),
+    ),
 
   logs: (workspaceId: string, entityId: string) =>
     request<AgentExecutionLog[]>(
@@ -2636,7 +2807,9 @@ export const aiEntitiesApi = {
 
   workspaceLogs: (workspaceId: string, type?: AIEntityType) =>
     request<AgentExecutionLogEntry[]>(
-      http.get(`/workspaces/${workspaceId}/ai/entities/logs${type ? `?type=${type}` : ''}`),
+      http.get(
+        `/workspaces/${workspaceId}/ai/entities/logs${type ? `?type=${type}` : ''}`,
+      ),
     ),
 };
 
@@ -2649,31 +2822,53 @@ export const aiEntitiesApi = {
 export const agentGraphsApi = {
   validate: (workspaceId: string, agentId: string, graphJson?: string) =>
     request<{ valid: boolean; issues: StudioGraphIssue[] }>(
-      http.post(`/workspaces/${workspaceId}/agent-graphs/${agentId}/validate`, { graphJson }),
+      http.post(`/workspaces/${workspaceId}/agent-graphs/${agentId}/validate`, {
+        graphJson,
+      }),
     ),
 
   run: (
     workspaceId: string,
     agentId: string,
-    body: { message?: string; input?: Record<string, unknown>; mode: 'live' | 'test' },
+    body: {
+      message?: string;
+      input?: Record<string, unknown>;
+      mode: 'live' | 'test';
+    },
   ) =>
-    request<{ runId: string; status: 'RUNNING'; workflowId: string; issues: StudioGraphIssue[] }>(
+    request<{
+      runId: string;
+      status: 'RUNNING';
+      workflowId: string;
+      issues: StudioGraphIssue[];
+    }>(
       http.post(`/workspaces/${workspaceId}/agent-graphs/${agentId}/run`, body),
     ),
 
   listRuns: (workspaceId: string, agentId: string) =>
-    request<CanvasAgentRunSummary[]>(http.get(`/workspaces/${workspaceId}/agent-graphs/${agentId}/runs`)),
+    request<CanvasAgentRunSummary[]>(
+      http.get(`/workspaces/${workspaceId}/agent-graphs/${agentId}/runs`),
+    ),
 
   getRun: (workspaceId: string, runId: string) =>
-    request<CanvasAgentRunDetail>(http.get(`/workspaces/${workspaceId}/agent-graphs/runs/${runId}`)),
+    request<CanvasAgentRunDetail>(
+      http.get(`/workspaces/${workspaceId}/agent-graphs/runs/${runId}`),
+    ),
 
   /** Whether the agent runs by itself on its schedule. */
   activation: (workspaceId: string, agentId: string) =>
-    request<CanvasAgentActivation>(http.get(`/workspaces/${workspaceId}/agent-graphs/${agentId}/activation`)),
+    request<CanvasAgentActivation>(
+      http.get(`/workspaces/${workspaceId}/agent-graphs/${agentId}/activation`),
+    ),
 
   /** Switches scheduled runs on or off (owner or admin). */
   setActivation: (workspaceId: string, agentId: string, active: boolean) =>
-    request<CanvasAgentActivation>(http.post(`/workspaces/${workspaceId}/agent-graphs/${agentId}/activation`, { active })),
+    request<CanvasAgentActivation>(
+      http.post(
+        `/workspaces/${workspaceId}/agent-graphs/${agentId}/activation`,
+        { active },
+      ),
+    ),
 };
 
 /**
@@ -2682,12 +2877,23 @@ export const agentGraphsApi = {
  */
 export const agentArchitectApi = {
   /** A request → what it understood, the plan, what's missing, and the workflow. Can take ~a minute (model planning). */
-  understand: (workspaceId: string, body: { prompt: string; templateId?: string }) =>
-    request<ArchitectUnderstandResult>(http.post(`/workspaces/${workspaceId}/agent-architect/understand`, body, { timeout: 150_000 })),
+  understand: (
+    workspaceId: string,
+    body: { prompt: string; templateId?: string },
+  ) =>
+    request<ArchitectUnderstandResult>(
+      http.post(`/workspaces/${workspaceId}/agent-architect/understand`, body, {
+        timeout: 150_000,
+      }),
+    ),
 
   /** A change in words → the changed graph and what changed. */
   edit: (workspaceId: string, body: { command: string; graphJson: string }) =>
-    request<ArchitectEditResult>(http.post(`/workspaces/${workspaceId}/agent-architect/edit`, body, { timeout: 90_000 })),
+    request<ArchitectEditResult>(
+      http.post(`/workspaces/${workspaceId}/agent-architect/edit`, body, {
+        timeout: 90_000,
+      }),
+    ),
 
   /**
    * The same edit, streamed: `onStatus` for progress, `onExplanation` with the
@@ -2696,17 +2902,28 @@ export const agentArchitectApi = {
   editStream: async (
     workspaceId: string,
     body: { command: string; graphJson: string },
-    handlers: { onStatus?: (message: string) => void; onExplanation?: (text: string) => void; signal?: AbortSignal } = {},
+    handlers: {
+      onStatus?: (message: string) => void;
+      onExplanation?: (text: string) => void;
+      signal?: AbortSignal;
+    } = {},
   ): Promise<ArchitectEditResult> => {
     const base = String(http.defaults.baseURL ?? '').replace(/\/$/, '');
     const token = getAccessToken();
-    const res = await fetch(`${base}/workspaces/${workspaceId}/agent-architect/edit/stream`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify(body),
-      signal: handlers.signal,
-    });
+    const res = await fetch(
+      `${base}/workspaces/${workspaceId}/agent-architect/edit/stream`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+        signal: handlers.signal,
+      },
+    );
     if (!res.ok || !res.body) {
       let message = `The Copilot couldn’t be reached (${res.status}).`;
       try {
@@ -2730,10 +2947,16 @@ export const agentArchitectApi = {
       }
       if (!data) return;
       const parsed = JSON.parse(data) as Record<string, unknown>;
-      if (event === 'status') handlers.onStatus?.(String(parsed['message'] ?? ''));
-      else if (event === 'explanation') handlers.onExplanation?.(String(parsed['text'] ?? ''));
-      else if (event === 'result') result = parsed as unknown as ArchitectEditResult;
-      else if (event === 'error') throw new Error(String(parsed['message'] ?? 'The change couldn’t be worked out.'));
+      if (event === 'status')
+        handlers.onStatus?.(String(parsed['message'] ?? ''));
+      else if (event === 'explanation')
+        handlers.onExplanation?.(String(parsed['text'] ?? ''));
+      else if (event === 'result')
+        result = parsed as unknown as ArchitectEditResult;
+      else if (event === 'error')
+        throw new Error(
+          String(parsed['message'] ?? 'The change couldn’t be worked out.'),
+        );
     };
     for (;;) {
       const { done, value } = await reader.read();
@@ -2744,21 +2967,36 @@ export const agentArchitectApi = {
       blocks.forEach(handle);
     }
     if (buffer.trim()) handle(buffer);
-    if (!result) throw new Error('The Copilot stopped before finishing. Nothing was changed.');
+    if (!result)
+      throw new Error(
+        'The Copilot stopped before finishing. Nothing was changed.',
+      );
     return result;
   },
 
   diagnose: (workspaceId: string, agentId: string, graphJson?: string) =>
-    request<ArchitectDiagnosisResult>(http.post(`/workspaces/${workspaceId}/agent-architect/${agentId}/diagnose`, { graphJson })),
+    request<ArchitectDiagnosisResult>(
+      http.post(
+        `/workspaces/${workspaceId}/agent-architect/${agentId}/diagnose`,
+        { graphJson },
+      ),
+    ),
 
   optimize: (workspaceId: string, agentId: string, graphJson: string) =>
-    request<ArchitectOptimizeResult>(http.post(`/workspaces/${workspaceId}/agent-architect/${agentId}/optimize`, { graphJson })),
+    request<ArchitectOptimizeResult>(
+      http.post(
+        `/workspaces/${workspaceId}/agent-architect/${agentId}/optimize`,
+        { graphJson },
+      ),
+    ),
 };
 
 export const agentsApi = {
   /** Whether the signed-in member may create agents in this workspace (workspace policy). */
   canCreate: (workspaceId: string) =>
-    request<{ allowed: boolean; reason: string | null }>(http.get(`/workspaces/${workspaceId}/agents/can-create`)),
+    request<{ allowed: boolean; reason: string | null }>(
+      http.get(`/workspaces/${workspaceId}/agents/can-create`),
+    ),
 
   list: (workspaceId: string) =>
     request<AIAgentDetail[]>(http.get(`/workspaces/${workspaceId}/agents`)),
@@ -2834,14 +3072,26 @@ export const agentsApi = {
       http.get(`/workspaces/${workspaceId}/agents/${agentId}/conversations`),
     ),
 
-  getConversation: (workspaceId: string, agentId: string, conversationId: string) =>
+  getConversation: (
+    workspaceId: string,
+    agentId: string,
+    conversationId: string,
+  ) =>
     request<AgentConversation>(
-      http.get(`/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}`),
+      http.get(
+        `/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}`,
+      ),
     ),
 
-  deleteConversation: (workspaceId: string, agentId: string, conversationId: string) =>
+  deleteConversation: (
+    workspaceId: string,
+    agentId: string,
+    conversationId: string,
+  ) =>
     request<void>(
-      http.delete(`/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}`),
+      http.delete(
+        `/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}`,
+      ),
     ),
 
   logs: (workspaceId: string, agentId: string) =>
@@ -2862,7 +3112,12 @@ export const agentsApi = {
     ),
 
   validate: (workspaceId: string, agentId: string, graphJson?: string) =>
-    request<{ valid: boolean; errors: string[]; warnings: string[]; checks: AgentReadinessCheck[] }>(
+    request<{
+      valid: boolean;
+      errors: string[];
+      warnings: string[];
+      checks: AgentReadinessCheck[];
+    }>(
       http.post(`/workspaces/${workspaceId}/agents/${agentId}/validate`, {
         graphJson,
       }),
@@ -2899,7 +3154,10 @@ export const agentsApi = {
     input: PublishAgentListingInput = {},
   ) =>
     request<MarketplaceListing>(
-      http.put(`/workspaces/${workspaceId}/agents/${agentId}/marketplace`, input),
+      http.put(
+        `/workspaces/${workspaceId}/agents/${agentId}/marketplace`,
+        input,
+      ),
     ),
 
   unpublishFromMarketplace: (workspaceId: string, agentId: string) =>
@@ -2930,7 +3188,11 @@ export const agentsApi = {
   testRun: (
     workspaceId: string,
     agentId: string,
-    payload: { input?: Record<string, unknown>; message?: string; prompt?: string },
+    payload: {
+      input?: Record<string, unknown>;
+      message?: string;
+      prompt?: string;
+    },
   ) =>
     request<AgentTestRunResult>(
       http.post(
@@ -2947,9 +3209,7 @@ export const agentsApi = {
         description: string;
         parameters: Record<string, { type?: string; description?: string }>;
       }>
-    >(
-      http.get(`/workspaces/${workspaceId}/agents/studio/mcp-tools`),
-    ),
+    >(http.get(`/workspaces/${workspaceId}/agents/studio/mcp-tools`)),
 
   testMcpTool: (workspaceId: string, toolName: string, params: any) =>
     request<any>(
@@ -2968,7 +3228,9 @@ export const agentDeploymentsApi = {
 
   getDefault: (workspaceId: string, agentId: string) =>
     request<AgentDeploymentView>(
-      http.get(`/workspaces/${workspaceId}/agents/${agentId}/deployments/default`),
+      http.get(
+        `/workspaces/${workspaceId}/agents/${agentId}/deployments/default`,
+      ),
     ),
 
   get: (workspaceId: string, agentId: string, deploymentId: string) =>
@@ -3060,11 +3322,7 @@ export const agentDeploymentsApi = {
       ),
     ),
 
-  listWebhooks: (
-    workspaceId: string,
-    agentId: string,
-    deploymentId: string,
-  ) =>
+  listWebhooks: (workspaceId: string, agentId: string, deploymentId: string) =>
     request<AgentDeploymentWebhookView[]>(
       http.get(
         `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/webhooks`,
@@ -3120,7 +3378,6 @@ export const agentDeploymentsApi = {
         `/workspaces/${workspaceId}/agents/${agentId}/deployments/${deploymentId}/webhooks/${webhookId}/deliveries`,
       ),
     ),
-
 };
 
 /**
@@ -3129,7 +3386,9 @@ export const agentDeploymentsApi = {
  */
 export const agentApiKeysApi = {
   list: (workspaceId: string) =>
-    request<AgentApiKeyView[]>(http.get(`/workspaces/${workspaceId}/agent-api-keys`)),
+    request<AgentApiKeyView[]>(
+      http.get(`/workspaces/${workspaceId}/agent-api-keys`),
+    ),
 
   /** The response carries the full key once; it can't be shown again. */
   create: (
@@ -3141,7 +3400,9 @@ export const agentApiKeysApi = {
     ),
 
   revoke: (workspaceId: string, keyId: string) =>
-    request<void>(http.delete(`/workspaces/${workspaceId}/agent-api-keys/${keyId}`)),
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/agent-api-keys/${keyId}`),
+    ),
 };
 
 export const publicAgentApi = {
@@ -3161,9 +3422,7 @@ export const publicAgentApi = {
       visitorKey: string;
       resumed: boolean;
       deployment: any;
-    }>(
-      http.post('/agent-sessions', { publicKey, userContext, ...options }),
-    ),
+    }>(http.post('/agent-sessions', { publicKey, userContext, ...options })),
 
   sendMessage: (
     sessionId: string,
@@ -3189,9 +3448,13 @@ export const publicAgentApi = {
 
   resetSession: (sessionId: string, sessionToken: string) =>
     request<void>(
-      http.post(`/agent-sessions/${sessionId}/reset`, {}, {
-        headers: { 'x-session-token': sessionToken },
-      }),
+      http.post(
+        `/agent-sessions/${sessionId}/reset`,
+        {},
+        {
+          headers: { 'x-session-token': sessionToken },
+        },
+      ),
     ),
 
   /** A file for the next message; send its `id` in `attachmentIds`. */
@@ -3200,7 +3463,10 @@ export const publicAgentApi = {
     form.append('file', file);
     return request<AgentSessionAttachment>(
       http.post(`/agent-sessions/${sessionId}/attachments`, form, {
-        headers: { 'x-session-token': sessionToken, 'Content-Type': undefined as unknown as string },
+        headers: {
+          'x-session-token': sessionToken,
+          'Content-Type': undefined as unknown as string,
+        },
         timeout: 0,
       }),
     );
@@ -3216,23 +3482,42 @@ export const publicAgentApi = {
 
   createConversation: (sessionId: string, sessionToken: string) =>
     request<AgentConversationHandle>(
-      http.post(`/agent-sessions/${sessionId}/conversations`, {}, {
-        headers: { 'x-session-token': sessionToken },
-      }),
+      http.post(
+        `/agent-sessions/${sessionId}/conversations`,
+        {},
+        {
+          headers: { 'x-session-token': sessionToken },
+        },
+      ),
     ),
 
-  openConversation: (sessionId: string, sessionToken: string, conversationId: string) =>
+  openConversation: (
+    sessionId: string,
+    sessionToken: string,
+    conversationId: string,
+  ) =>
     request<AgentConversationHandle>(
-      http.post(`/agent-sessions/${sessionId}/conversations/${conversationId}/open`, {}, {
-        headers: { 'x-session-token': sessionToken },
-      }),
+      http.post(
+        `/agent-sessions/${sessionId}/conversations/${conversationId}/open`,
+        {},
+        {
+          headers: { 'x-session-token': sessionToken },
+        },
+      ),
     ),
 
-  deleteConversation: (sessionId: string, sessionToken: string, conversationId: string) =>
+  deleteConversation: (
+    sessionId: string,
+    sessionToken: string,
+    conversationId: string,
+  ) =>
     request<void>(
-      http.delete(`/agent-sessions/${sessionId}/conversations/${conversationId}`, {
-        headers: { 'x-session-token': sessionToken },
-      }),
+      http.delete(
+        `/agent-sessions/${sessionId}/conversations/${conversationId}`,
+        {
+          headers: { 'x-session-token': sessionToken },
+        },
+      ),
     ),
 
   execute: (
@@ -3251,15 +3536,18 @@ export const publicAgentApi = {
         { prompt, input: options?.input, context: options?.context },
         {
           headers: {
-            ...(options?.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
-            ...(options?.publicKey ? { 'x-public-key': options.publicKey } : {}),
+            ...(options?.apiKey
+              ? { Authorization: `Bearer ${options.apiKey}` }
+              : {}),
+            ...(options?.publicKey
+              ? { 'x-public-key': options.publicKey }
+              : {}),
           },
         },
       ),
     ),
 
-  getRun: (runId: string) =>
-    request<any>(http.get(`/agent-runs/${runId}`)),
+  getRun: (runId: string) => request<any>(http.get(`/agent-runs/${runId}`)),
 
   cancelRun: (runId: string) =>
     request<{ success: boolean; runId: string }>(
@@ -3267,15 +3555,18 @@ export const publicAgentApi = {
     ),
 };
 
-
 /** AI Coworkers — persistent teammate layer above agents. */
 export const coworkersApi = {
   list: (workspaceId: string) =>
-    request<AICoworkerDetail[]>(http.get(`/workspaces/${workspaceId}/coworkers`)),
+    request<AICoworkerDetail[]>(
+      http.get(`/workspaces/${workspaceId}/coworkers`),
+    ),
 
   /** Each coworker as an orchestrator with its specialists, connectors, workflows and live numbers. */
   roster: (workspaceId: string) =>
-    request<CoworkerRoster>(http.get(`/workspaces/${workspaceId}/coworkers/roster`)),
+    request<CoworkerRoster>(
+      http.get(`/workspaces/${workspaceId}/coworkers/roster`),
+    ),
 
   get: (workspaceId: string, coworkerId: string) =>
     request<AICoworkerDetail>(
@@ -3337,7 +3628,10 @@ export const coworkersApi = {
     body: { promptText: string; channelId?: string; projectId?: string },
   ) =>
     request<CoworkerRunResult>(
-      http.post(`/workspaces/${workspaceId}/coworkers/${coworkerId}/execute`, body),
+      http.post(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/execute`,
+        body,
+      ),
     ),
 
   logs: (workspaceId: string, coworkerId: string) =>
@@ -3347,9 +3641,13 @@ export const coworkersApi = {
 
   /** Recent activity across every coworker, each row with the coworker it came from. */
   workspaceLogs: (workspaceId: string) =>
-    request<Array<CoworkerExecutionLog & { agent: { id: string; name: string; type: string } }>>(
-      http.get(`/workspaces/${workspaceId}/coworkers/logs`),
-    ),
+    request<
+      Array<
+        CoworkerExecutionLog & {
+          agent: { id: string; name: string; type: string };
+        }
+      >
+    >(http.get(`/workspaces/${workspaceId}/coworkers/logs`)),
 
   linkAgent: (workspaceId: string, coworkerId: string, agentId: string) =>
     request<unknown>(
@@ -3391,10 +3689,9 @@ export const coworkersApi = {
     coworkerId: string,
   ) =>
     request<ChannelCoworkerView>(
-      http.post(
-        `/workspaces/${workspaceId}/channels/${channelId}/coworkers`,
-        { coworkerId },
-      ),
+      http.post(`/workspaces/${workspaceId}/channels/${channelId}/coworkers`, {
+        coworkerId,
+      }),
     ),
 
   setChannelCoworkerEnabled: (
@@ -3433,10 +3730,9 @@ export const coworkersApi = {
     coworkerId: string,
   ) =>
     request<ProjectCoworkerView>(
-      http.post(
-        `/workspaces/${workspaceId}/projects/${projectId}/coworkers`,
-        { coworkerId },
-      ),
+      http.post(`/workspaces/${workspaceId}/projects/${projectId}/coworkers`, {
+        coworkerId,
+      }),
     ),
 
   removeProjectCoworker: (
@@ -3481,11 +3777,7 @@ export const coworkersApi = {
       ),
     ),
 
-  deleteMonitor: (
-    workspaceId: string,
-    coworkerId: string,
-    monitorId: string,
-  ) =>
+  deleteMonitor: (workspaceId: string, coworkerId: string, monitorId: string) =>
     request<void>(
       http.delete(
         `/workspaces/${workspaceId}/coworkers/${coworkerId}/monitors/${monitorId}`,
@@ -3493,11 +3785,7 @@ export const coworkersApi = {
     ),
 
   /** Runs one monitor's check now; returns it with the new result. */
-  checkMonitor: (
-    workspaceId: string,
-    coworkerId: string,
-    monitorId: string,
-  ) =>
+  checkMonitor: (workspaceId: string, coworkerId: string, monitorId: string) =>
     request<TrackerMonitor>(
       http.post(
         `/workspaces/${workspaceId}/coworkers/${coworkerId}/monitors/${monitorId}/check`,
@@ -3526,7 +3814,11 @@ export const coworkersApi = {
     workspaceId: string,
     coworkerId: string,
     scheduleId: string,
-    input: { cronExpression?: string; description?: string; isActive?: boolean },
+    input: {
+      cronExpression?: string;
+      description?: string;
+      isActive?: boolean;
+    },
   ) =>
     request<AgentSchedule>(
       http.patch(
@@ -3555,27 +3847,37 @@ export const automationsApi = {
 
   get: (workspaceId: string, workflowId: string) =>
     request<AutomationWorkflowDetail>(
-      http.get(`/workspaces/${workspaceId}/automations/workflows/${workflowId}`),
+      http.get(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}`,
+      ),
     ),
 
   versions: (workspaceId: string, workflowId: string) =>
     request<AutomationWorkflowVersion[]>(
-      http.get(`/workspaces/${workspaceId}/automations/workflows/${workflowId}/versions`),
+      http.get(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}/versions`,
+      ),
     ),
 
   createVersion: (workspaceId: string, workflowId: string, summary?: string) =>
     request<AutomationWorkflowVersion>(
-      http.post(`/workspaces/${workspaceId}/automations/workflows/${workflowId}/versions`, {
-        summary,
-      }),
+      http.post(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}/versions`,
+        {
+          summary,
+        },
+      ),
     ),
 
   /** Snapshots the current graph as a published version and switches the workflow on. */
   publish: (workspaceId: string, workflowId: string, summary?: string) =>
     request<AutomationWorkflowVersion>(
-      http.post(`/workspaces/${workspaceId}/automations/workflows/${workflowId}/publish`, {
-        summary,
-      }),
+      http.post(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}/publish`,
+        {
+          summary,
+        },
+      ),
     ),
 
   restoreVersion: (workspaceId: string, workflowId: string, version: number) =>
@@ -3636,7 +3938,12 @@ export const automationsApi = {
       executionId: string;
       runId: string;
       status: 'SUCCESS' | 'FAILED' | 'WAITING_APPROVAL';
-      results: Array<{ stepId: string; type: string; status: string; output: unknown }>;
+      results: Array<{
+        stepId: string;
+        type: string;
+        status: string;
+        output: unknown;
+      }>;
     }>(
       http.post(
         `/workspaces/${workspaceId}/automations/workflows/${workflowId}/trigger`,
@@ -3716,8 +4023,15 @@ export const integrationsApi = {
 
   /** The URL and signing secret for a GitHub connection's webhook (admins). */
   getWebhookSetup: (workspaceId: string, integrationId: string) =>
-    request<{ url: string; secret: string; contentType: string; events: string[] }>(
-      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}/webhook-setup`),
+    request<{
+      url: string;
+      secret: string;
+      contentType: string;
+      events: string[];
+    }>(
+      http.get(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/webhook-setup`,
+      ),
     ),
 
   getDetail: (workspaceId: string, integrationId: string) =>
@@ -3735,18 +4049,27 @@ export const integrationsApi = {
       redirectUri?: string;
     } = {},
   ) =>
-    request<{ authUrl?: string; state?: string; id?: string } & ExternalIntegration>(
-      http.post(`/workspaces/${workspaceId}/integrations/${provider}/connect`, input),
+    request<
+      { authUrl?: string; state?: string; id?: string } & ExternalIntegration
+    >(
+      http.post(
+        `/workspaces/${workspaceId}/integrations/${provider}/connect`,
+        input,
+      ),
     ),
 
   disconnect: (workspaceId: string, integrationId: string) =>
     request<ExternalIntegration>(
-      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/disconnect`),
+      http.post(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/disconnect`,
+      ),
     ),
 
   sync: (workspaceId: string, integrationId: string) =>
     request<{ message: string; jobId: string }>(
-      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/sync`),
+      http.post(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/sync`,
+      ),
     ),
 
   getSyncJobs: (workspaceId: string, integrationId: string) =>
@@ -3760,29 +4083,55 @@ export const integrationsApi = {
     params?: { q?: string; pageToken?: string; maxResults?: number },
   ) =>
     request<{ messages: IntegrationMessage[]; nextPageToken?: string }>(
-      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}/messages`, {
-        params,
-      }),
+      http.get(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/messages`,
+        {
+          params,
+        },
+      ),
     ),
 
   getThread: (workspaceId: string, integrationId: string, threadId: string) =>
     request<IntegrationThread>(
-      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}/threads/${threadId}`),
+      http.get(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/threads/${threadId}`,
+      ),
     ),
 
-  sendMessage: (workspaceId: string, integrationId: string, input: SendMessageInput) =>
+  sendMessage: (
+    workspaceId: string,
+    integrationId: string,
+    input: SendMessageInput,
+  ) =>
     request<IntegrationMessage>(
-      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/messages`, input),
+      http.post(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/messages`,
+        input,
+      ),
     ),
 
-  replyMessage: (workspaceId: string, integrationId: string, input: ReplyMessageInput) =>
+  replyMessage: (
+    workspaceId: string,
+    integrationId: string,
+    input: ReplyMessageInput,
+  ) =>
     request<IntegrationMessage>(
-      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/reply`, input),
+      http.post(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/reply`,
+        input,
+      ),
     ),
 
-  createDraft: (workspaceId: string, integrationId: string, input: SendMessageInput) =>
+  createDraft: (
+    workspaceId: string,
+    integrationId: string,
+    input: SendMessageInput,
+  ) =>
     request<IntegrationMessage>(
-      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/drafts`, input),
+      http.post(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/drafts`,
+        input,
+      ),
     ),
 
   modifyLabels: (
@@ -3792,7 +4141,10 @@ export const integrationsApi = {
     input: { addLabelIds?: string[]; removeLabelIds?: string[] },
   ) =>
     request<IntegrationMessage>(
-      http.patch(`/workspaces/${workspaceId}/integrations/${integrationId}/messages/${messageId}/labels`, input),
+      http.patch(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/messages/${messageId}/labels`,
+        input,
+      ),
     ),
 
   testCustomApi: (workspaceId: string, config: Record<string, unknown>) =>
@@ -3806,7 +4158,10 @@ export const integrationsApi = {
     input: IntegrationExecuteRequestInput,
   ) =>
     request<IntegrationExecuteResponse>(
-      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/custom/execute`, input),
+      http.post(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/custom/execute`,
+        input,
+      ),
     ),
 
   importSlack: (
@@ -3831,7 +4186,9 @@ export const integrationsApi = {
 
   getActions: (workspaceId: string, integrationId: string) =>
     request<AppActionDefinition[]>(
-      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}/actions`),
+      http.get(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/actions`,
+      ),
     ),
 
   executeAction: (
@@ -3860,46 +4217,107 @@ export const integrationsApi = {
  */
 export const connectorsApi = {
   list: (workspaceId: string) =>
-    request<ConnectorSummary[]>(http.get(`/workspaces/${workspaceId}/connectors`)),
+    request<ConnectorSummary[]>(
+      http.get(`/workspaces/${workspaceId}/connectors`),
+    ),
 
   detail: (workspaceId: string, provider: string) =>
-    request<ConnectorDetail>(http.get(`/workspaces/${workspaceId}/connectors/${encodeURIComponent(provider)}`)),
+    request<ConnectorDetail>(
+      http.get(
+        `/workspaces/${workspaceId}/connectors/${encodeURIComponent(provider)}`,
+      ),
+    ),
 
   /** Checks a connection against the app itself and records the result. */
   testConnection: (workspaceId: string, integrationId: string) =>
-    request<ConnectionTestResult>(http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/test`)),
+    request<ConnectionTestResult>(
+      http.post(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/test`,
+      ),
+    ),
 
   /** Connectors the workspace defines itself: a REST API plus the named actions it offers. */
   custom: {
     create: (workspaceId: string, input: CustomConnectorInput) =>
-      request<{ provider: string; integrationId: string }>(http.post(`/workspaces/${workspaceId}/connectors-custom`, input)),
-    update: (workspaceId: string, integrationId: string, input: CustomConnectorInput) =>
-      request<{ provider: string; integrationId: string }>(http.put(`/workspaces/${workspaceId}/connectors-custom/${integrationId}`, input)),
+      request<{ provider: string; integrationId: string }>(
+        http.post(`/workspaces/${workspaceId}/connectors-custom`, input),
+      ),
+    update: (
+      workspaceId: string,
+      integrationId: string,
+      input: CustomConnectorInput,
+    ) =>
+      request<{ provider: string; integrationId: string }>(
+        http.put(
+          `/workspaces/${workspaceId}/connectors-custom/${integrationId}`,
+          input,
+        ),
+      ),
     remove: (workspaceId: string, integrationId: string) =>
-      request<{ deleted: true }>(http.delete(`/workspaces/${workspaceId}/connectors-custom/${integrationId}`)),
+      request<{ deleted: true }>(
+        http.delete(
+          `/workspaces/${workspaceId}/connectors-custom/${integrationId}`,
+        ),
+      ),
     /** Checks that the unsaved connection settings reach the real API and are accepted. */
-    testConnection: (workspaceId: string, body: { connector: CustomConnectorInput; integrationId?: string }) =>
-      request<{ ok: boolean; status?: number; latencyMs?: number; message: string }>(
-        http.post(`/workspaces/${workspaceId}/connectors-custom/test-connection`, body),
+    testConnection: (
+      workspaceId: string,
+      body: { connector: CustomConnectorInput; integrationId?: string },
+    ) =>
+      request<{
+        ok: boolean;
+        status?: number;
+        latencyMs?: number;
+        message: string;
+      }>(
+        http.post(
+          `/workspaces/${workspaceId}/connectors-custom/test-connection`,
+          body,
+        ),
       ),
     /** Runs one action of an unsaved definition against the real API. */
     testAction: (
       workspaceId: string,
-      body: { connector: CustomConnectorInput; actionId: string; values?: Record<string, unknown>; confirm?: boolean; integrationId?: string },
-    ) => request<AppActionResult>(http.post(`/workspaces/${workspaceId}/connectors-custom/test-action`, body)),
+      body: {
+        connector: CustomConnectorInput;
+        actionId: string;
+        values?: Record<string, unknown>;
+        confirm?: boolean;
+        integrationId?: string;
+      },
+    ) =>
+      request<AppActionResult>(
+        http.post(
+          `/workspaces/${workspaceId}/connectors-custom/test-action`,
+          body,
+        ),
+      ),
   },
 
   /** Connector groups: named sets of apps (and their switched-on actions) an agent can be given at once. */
   groups: {
-    list: (workspaceId: string) => request<ConnectorGroup[]>(http.get(`/workspaces/${workspaceId}/connector-groups`)),
+    list: (workspaceId: string) =>
+      request<ConnectorGroup[]>(
+        http.get(`/workspaces/${workspaceId}/connector-groups`),
+      ),
     create: (workspaceId: string, input: ConnectorGroupInput) =>
-      request<ConnectorGroup>(http.post(`/workspaces/${workspaceId}/connector-groups`, input)),
+      request<ConnectorGroup>(
+        http.post(`/workspaces/${workspaceId}/connector-groups`, input),
+      ),
     update: (workspaceId: string, id: string, input: ConnectorGroupInput) =>
-      request<ConnectorGroup>(http.put(`/workspaces/${workspaceId}/connector-groups/${id}`, input)),
+      request<ConnectorGroup>(
+        http.put(`/workspaces/${workspaceId}/connector-groups/${id}`, input),
+      ),
     duplicate: (workspaceId: string, id: string) =>
-      request<ConnectorGroup>(http.post(`/workspaces/${workspaceId}/connector-groups/${id}/duplicate`)),
+      request<ConnectorGroup>(
+        http.post(
+          `/workspaces/${workspaceId}/connector-groups/${id}/duplicate`,
+        ),
+      ),
     remove: (workspaceId: string, id: string) =>
-      request<{ deleted: true }>(http.delete(`/workspaces/${workspaceId}/connector-groups/${id}`)),
+      request<{ deleted: true }>(
+        http.delete(`/workspaces/${workspaceId}/connector-groups/${id}`),
+      ),
   },
 };
 
@@ -3908,11 +4326,23 @@ export const connectorsApi = {
  * the main app and the AI Agent Studio; secrets are write-only.
  */
 export const oauthAppsApi = {
-  list: (workspaceId: string) => request<OAuthAppStatus[]>(http.get(`/workspaces/${workspaceId}/oauth-apps`)),
+  list: (workspaceId: string) =>
+    request<OAuthAppStatus[]>(
+      http.get(`/workspaces/${workspaceId}/oauth-apps`),
+    ),
   save: (workspaceId: string, appKey: string, input: OAuthAppInput) =>
-    request<OAuthAppStatus>(http.put(`/workspaces/${workspaceId}/oauth-apps/${encodeURIComponent(appKey)}`, input)),
+    request<OAuthAppStatus>(
+      http.put(
+        `/workspaces/${workspaceId}/oauth-apps/${encodeURIComponent(appKey)}`,
+        input,
+      ),
+    ),
   remove: (workspaceId: string, appKey: string) =>
-    request<OAuthAppStatus>(http.delete(`/workspaces/${workspaceId}/oauth-apps/${encodeURIComponent(appKey)}`)),
+    request<OAuthAppStatus>(
+      http.delete(
+        `/workspaces/${workspaceId}/oauth-apps/${encodeURIComponent(appKey)}`,
+      ),
+    ),
 };
 
 /** Where a file is filed. `channelId` is the legacy shorthand for a CHANNEL context. */
@@ -4066,7 +4496,9 @@ export const uploadApi = {
     ),
 
   remove: (workspaceId: string, uploadId: string) =>
-    request<void>(http.delete(`/workspaces/${workspaceId}/uploads/${uploadId}`)),
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/uploads/${uploadId}`),
+    ),
 };
 
 /**
@@ -4109,11 +4541,7 @@ export const aiApi = {
       ),
     ),
 
-  testProvider: (
-    workspaceId: string,
-    provider: AIProvider,
-    model?: string,
-  ) =>
+  testProvider: (workspaceId: string, provider: AIProvider, model?: string) =>
     request<ProviderConnectionTestResult>(
       http.post(
         `/workspaces/${workspaceId}/ai/providers/${provider}/test`,
@@ -4138,11 +4566,7 @@ export const aiApi = {
       http.get(`/workspaces/${workspaceId}/ai/models`, { timeout: 30_000 }),
     ),
 
-  testConnection: (
-    workspaceId: string,
-    provider: AIProvider,
-    model?: string,
-  ) =>
+  testConnection: (workspaceId: string, provider: AIProvider, model?: string) =>
     request<ProviderConnectionTestResult>(
       http.post(
         `/workspaces/${workspaceId}/ai/test-connection`,
@@ -4250,7 +4674,11 @@ export const searchApi = {
   ) =>
     request<SearchResultItem[]>(
       http.get(`/workspaces/${workspaceId}/search`, {
-        params: { q, ...(category ? { category } : {}), ...(limit ? { limit } : {}) },
+        params: {
+          q,
+          ...(category ? { category } : {}),
+          ...(limit ? { limit } : {}),
+        },
       }),
     ),
 
@@ -4383,10 +4811,7 @@ export const channelEmailApi = {
     input: UpdateChannelEmailSettingsInput,
   ) =>
     request<ChannelEmailSettingsView>(
-      http.put(
-        `/workspaces/${workspaceId}/channels/${channelId}/email`,
-        input,
-      ),
+      http.put(`/workspaces/${workspaceId}/channels/${channelId}/email`, input),
     ),
 };
 
@@ -4403,17 +4828,13 @@ export const huddleApi = {
       }),
     ),
   start: (workspaceId: string, input: StartHuddleInput) =>
-    request<HuddleView>(
-      http.post(`/workspaces/${workspaceId}/huddles`, input),
-    ),
+    request<HuddleView>(http.post(`/workspaces/${workspaceId}/huddles`, input)),
   join: (workspaceId: string, id: string) =>
     request<HuddleView>(
       http.post(`/workspaces/${workspaceId}/huddles/${id}/join`),
     ),
   leave: (workspaceId: string, id: string) =>
-    request<void>(
-      http.post(`/workspaces/${workspaceId}/huddles/${id}/leave`),
-    ),
+    request<void>(http.post(`/workspaces/${workspaceId}/huddles/${id}/leave`)),
   end: (workspaceId: string, id: string) =>
     request<void>(http.post(`/workspaces/${workspaceId}/huddles/${id}/end`)),
 };
@@ -4657,9 +5078,7 @@ export const callsApi = {
 
   deleteDecision: (workspaceId: string, callId: string, id: string) =>
     request<void>(
-      http.delete(
-        `/workspaces/${workspaceId}/calls/${callId}/decisions/${id}`,
-      ),
+      http.delete(`/workspaces/${workspaceId}/calls/${callId}/decisions/${id}`),
     ),
 
   // Transcript
@@ -4674,13 +5093,9 @@ export const callsApi = {
     input: AppendCallTranscriptInput,
   ) =>
     request<CallTranscriptItemView[]>(
-      http.post(
-        `/workspaces/${workspaceId}/calls/${callId}/transcript`,
-        input,
-      ),
+      http.post(`/workspaces/${workspaceId}/calls/${callId}/transcript`, input),
     ),
 };
-
 
 export const gifsApi = {
   trending: (limit?: number, pos?: string) =>
@@ -4713,7 +5128,9 @@ export const stickersApi = {
 /** "Remind me about this" on chat messages — the caller's own reminders. */
 export const remindersApi = {
   list: (workspaceId: string) =>
-    request<MessageReminder[]>(http.get(`/workspaces/${workspaceId}/reminders`)),
+    request<MessageReminder[]>(
+      http.get(`/workspaces/${workspaceId}/reminders`),
+    ),
 
   /** Setting one on a message that already has a pending reminder reschedules it. */
   create: (workspaceId: string, input: CreateMessageReminderInput) =>
@@ -4735,7 +5152,9 @@ export const notificationApi = {
 
   updatePreferences: (
     workspaceId: string,
-    input: Partial<Omit<NotificationPreference, 'id' | 'userId' | 'workspaceId'>>,
+    input: Partial<
+      Omit<NotificationPreference, 'id' | 'userId' | 'workspaceId'>
+    >,
   ) =>
     request<NotificationPreference>(
       http.patch(`/workspaces/${workspaceId}/notifications/preferences`, input),
@@ -4783,9 +5202,7 @@ export const notificationApi = {
 
   dismiss: (workspaceId: string, notificationId: string) =>
     request<void>(
-      http.delete(
-        `/workspaces/${workspaceId}/notifications/${notificationId}`,
-      ),
+      http.delete(`/workspaces/${workspaceId}/notifications/${notificationId}`),
     ),
 
   devices: () => request<PushDevice[]>(http.get('/notifications/devices')),
@@ -4873,31 +5290,43 @@ export const adminBillingApi = {
   saveCoupon: (input: SavePromotionInput) =>
     request<PromotionDto>(http.put('/admin/billing/coupons', input)),
 
-  subscriptions: (params: {
-    search?: string;
-    plan?: string;
-    status?: string;
-    source?: string;
-    page?: number;
-    pageSize?: number;
-  } = {}) =>
-    request<{ total: number; page: number; pageSize: number; items: AdminBillingSubscription[] }>(
-      http.get('/admin/billing/subscriptions', { params }),
-    ),
+  subscriptions: (
+    params: {
+      search?: string;
+      plan?: string;
+      status?: string;
+      source?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) =>
+    request<{
+      total: number;
+      page: number;
+      pageSize: number;
+      items: AdminBillingSubscription[];
+    }>(http.get('/admin/billing/subscriptions', { params })),
 
-  invoices: (params: {
-    status?: string;
-    from?: string;
-    to?: string;
-    page?: number;
-    pageSize?: number;
-  } = {}) =>
-    request<{ total: number; page: number; pageSize: number; items: AdminBillingInvoice[] }>(
-      http.get('/admin/billing/invoices', { params }),
-    ),
+  invoices: (
+    params: {
+      status?: string;
+      from?: string;
+      to?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) =>
+    request<{
+      total: number;
+      page: number;
+      pageSize: number;
+      items: AdminBillingInvoice[];
+    }>(http.get('/admin/billing/invoices', { params })),
 
   audit: (params: { workspaceId?: string; take?: number } = {}) =>
-    request<AdminBillingAuditEntry[]>(http.get('/admin/billing/audit', { params })),
+    request<AdminBillingAuditEntry[]>(
+      http.get('/admin/billing/audit', { params }),
+    ),
 
   setContract: (
     workspaceId: string,
@@ -4926,8 +5355,14 @@ export const adminBillingApi = {
     >(http.get('/admin/billing/webhooks', { params })),
 
   /** CSV downloads go through the authenticated client, then to a Blob. */
-  exportCsv: async (kind: 'subscriptions' | 'invoices', params: Record<string, string | undefined> = {}) => {
-    const res = await http.get(`/admin/billing/${kind}.csv`, { params, responseType: 'blob' });
+  exportCsv: async (
+    kind: 'subscriptions' | 'invoices',
+    params: Record<string, string | undefined> = {},
+  ) => {
+    const res = await http.get(`/admin/billing/${kind}.csv`, {
+      params,
+      responseType: 'blob',
+    });
     return res.data as Blob;
   },
 };
@@ -4935,13 +5370,14 @@ export const adminBillingApi = {
 export const adminApi = {
   overview: () => request<AdminOverview>(http.get('/admin/overview')),
 
-  users: (params: {
-    q?: string;
-    role?: SystemRole;
-    page?: number;
-    pageSize?: number;
-  } = {}) =>
-    request<AdminPage<AdminUser>>(http.get('/admin/users', { params })),
+  users: (
+    params: {
+      q?: string;
+      role?: SystemRole;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) => request<AdminPage<AdminUser>>(http.get('/admin/users', { params })),
 
   user: (userId: string) =>
     request<AdminUserDetail>(http.get(`/admin/users/${userId}`)),
@@ -5104,7 +5540,6 @@ export const adminApi = {
   },
 };
 
-
 /**
  * Enterprise governance — organisations, SSO and SCIM.
  *
@@ -5122,7 +5557,10 @@ export const enterpriseApi = {
     name: string;
     domain: string;
     billingEmail?: string;
-  }) => request<EnterpriseOrganization>(http.post('/enterprise/organizations', input)),
+  }) =>
+    request<EnterpriseOrganization>(
+      http.post('/enterprise/organizations', input),
+    ),
 
   configureSSO: (
     organizationId: string,
@@ -5187,7 +5625,10 @@ export const complianceApi = {
     type?: string;
     currentVersion?: string;
     minSupportedVersion?: string;
-  }) => request<CompliancePlatformView>(http.post('/admin/compliance/platforms', data)),
+  }) =>
+    request<CompliancePlatformView>(
+      http.post('/admin/compliance/platforms', data),
+    ),
 
   updatePlatform: (
     id: string,
@@ -5197,7 +5638,10 @@ export const complianceApi = {
       minSupportedVersion?: string;
       isActive?: boolean;
     },
-  ) => request<CompliancePlatformView>(http.patch(`/admin/compliance/platforms/${id}`, data)),
+  ) =>
+    request<CompliancePlatformView>(
+      http.patch(`/admin/compliance/platforms/${id}`, data),
+    ),
 
   regions: () =>
     request<ComplianceRegionView[]>(http.get('/admin/compliance/regions')),
@@ -5314,9 +5758,7 @@ export const complianceApi = {
     countryId?: string;
     summary?: string;
   }) =>
-    request<ComplianceReviewView>(
-      http.post('/admin/compliance/reviews', data),
-    ),
+    request<ComplianceReviewView>(http.post('/admin/compliance/reviews', data)),
 
   checklist: (reviewId: string) =>
     request<ComplianceChecklistItemView[]>(
@@ -5438,15 +5880,17 @@ export const appVersionsApi = {
   overview: () =>
     request<AppVersionsOverview>(http.get('/admin/app-versions/overview')),
 
-  list: (params: {
-    platform?: AppPlatform;
-    operatingSystem?: AppOperatingSystem;
-    releaseChannel?: AppReleaseChannel;
-    status?: AppReleaseStatus;
-    q?: string;
-    page?: number;
-    pageSize?: number;
-  } = {}) =>
+  list: (
+    params: {
+      platform?: AppPlatform;
+      operatingSystem?: AppOperatingSystem;
+      releaseChannel?: AppReleaseChannel;
+      status?: AppReleaseStatus;
+      q?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) =>
     request<{
       items: AppReleaseView[];
       total: number;
@@ -5494,12 +5938,14 @@ export const appVersionsApi = {
       http.post(`/admin/app-versions/${id}/rollback`, input),
     ),
 
-  auditLogs: (params: {
-    platform?: AppPlatform;
-    releaseId?: string;
-    page?: number;
-    pageSize?: number;
-  } = {}) =>
+  auditLogs: (
+    params: {
+      platform?: AppPlatform;
+      releaseId?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) =>
     request<{
       items: AppReleaseAuditLogView[];
       total: number;
@@ -5577,7 +6023,9 @@ export const bookmarksApi = {
     ),
 
   delete: (workspaceId: string, bookmarkId: string) =>
-    request<void>(http.delete(`/workspaces/${workspaceId}/bookmarks/${bookmarkId}`)),
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/bookmarks/${bookmarkId}`),
+    ),
 
   /** One-off upload of saves made before bookmarks lived on the server. */
   import: (workspaceId: string, items: CreateBookmarkInput[]) =>
@@ -5617,9 +6065,14 @@ export const syncApi = {
 
 export const aiStudioApi = {
   getOverview: (workspaceId: string) =>
-    request<AIStudioOverview>(http.get(`/workspaces/${workspaceId}/ai-studio/overview`)),
+    request<AIStudioOverview>(
+      http.get(`/workspaces/${workspaceId}/ai-studio/overview`),
+    ),
 
-  quickCreate: (workspaceId: string, data: { name: string; type: string; description?: string }) =>
+  quickCreate: (
+    workspaceId: string,
+    data: { name: string; type: string; description?: string },
+  ) =>
     request<{ id: string; type: string }>(
       http.post(`/workspaces/${workspaceId}/ai-studio/quick-create`, data),
     ),
@@ -5630,40 +6083,73 @@ export const knowledgeApi = {
     request<KnowledgeBase[]>(http.get(`/workspaces/${workspaceId}/knowledge`)),
 
   get: (workspaceId: string, id: string) =>
-    request<KnowledgeBase>(http.get(`/workspaces/${workspaceId}/knowledge/${id}`)),
+    request<KnowledgeBase>(
+      http.get(`/workspaces/${workspaceId}/knowledge/${id}`),
+    ),
 
   create: (workspaceId: string, data: CreateKnowledgeBaseInput) =>
-    request<KnowledgeBase>(http.post(`/workspaces/${workspaceId}/knowledge`, data)),
+    request<KnowledgeBase>(
+      http.post(`/workspaces/${workspaceId}/knowledge`, data),
+    ),
 
-  update: (workspaceId: string, id: string, data: Partial<CreateKnowledgeBaseInput>) =>
-    request<KnowledgeBase>(http.patch(`/workspaces/${workspaceId}/knowledge/${id}`, data)),
+  update: (
+    workspaceId: string,
+    id: string,
+    data: Partial<CreateKnowledgeBaseInput>,
+  ) =>
+    request<KnowledgeBase>(
+      http.patch(`/workspaces/${workspaceId}/knowledge/${id}`, data),
+    ),
 
   delete: (workspaceId: string, id: string) =>
     request<void>(http.delete(`/workspaces/${workspaceId}/knowledge/${id}`)),
 
   reindex: (workspaceId: string, id: string, embeddingModel?: string) =>
-    request<{ knowledgeBase: KnowledgeBase; documents: number; failed: number }>(
-      http.post(`/workspaces/${workspaceId}/knowledge/${id}/reindex`, { embeddingModel }),
+    request<{
+      knowledgeBase: KnowledgeBase;
+      documents: number;
+      failed: number;
+    }>(
+      http.post(`/workspaces/${workspaceId}/knowledge/${id}/reindex`, {
+        embeddingModel,
+      }),
     ),
 
   listDocuments: (workspaceId: string, knowledgeBaseId: string) =>
     request<KnowledgeDocument[]>(
-      http.get(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents`),
+      http.get(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents`,
+      ),
     ),
 
-  ingestDocument: (workspaceId: string, knowledgeBaseId: string, data: IngestDocumentInput) =>
+  ingestDocument: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    data: IngestDocumentInput,
+  ) =>
     request<KnowledgeDocument>(
-      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents`, data),
+      http.post(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents`,
+        data,
+      ),
     ),
 
-  deleteDocument: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
+  deleteDocument: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+  ) =>
     request<void>(
       http.delete(
         `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}`,
       ),
     ),
 
-  listChunks: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
+  listChunks: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+  ) =>
     request<KnowledgeChunk[]>(
       http.get(
         `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}/chunks`,
@@ -5684,35 +6170,68 @@ export const knowledgeApi = {
       ),
     ),
 
-  testRetrieval: (workspaceId: string, knowledgeBaseId: string, query: KnowledgeRetrievalQuery) =>
+  testRetrieval: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    query: KnowledgeRetrievalQuery,
+  ) =>
     request<KnowledgeRetrievalResult[]>(
-      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/retrieve`, query),
+      http.post(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/retrieve`,
+        query,
+      ),
     ),
   /** Multipart: the browser sets the Content-Type boundary. PDF, DOCX, TXT, Markdown, CSV. */
-  uploadDocument: (workspaceId: string, knowledgeBaseId: string, file: File, tags: string[] = []) => {
+  uploadDocument: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    file: File,
+    tags: string[] = [],
+  ) => {
     const form = new FormData();
     form.append('file', file);
     if (tags.length) form.append('tags', tags.join(','));
     return request<KnowledgeDocument>(
-      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/upload`, form, {
-        headers: { 'Content-Type': undefined as unknown as string },
-        timeout: 0,
-      }),
+      http.post(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/upload`,
+        form,
+        {
+          headers: { 'Content-Type': undefined as unknown as string },
+          timeout: 0,
+        },
+      ),
     );
   },
 
   importUrl: (
     workspaceId: string,
     knowledgeBaseId: string,
-    data: { url: string; sitemap?: boolean; maxPages?: number; tags?: string[] },
+    data: {
+      url: string;
+      sitemap?: boolean;
+      maxPages?: number;
+      tags?: string[];
+    },
   ) =>
-    request<{ documents: KnowledgeDocument[]; failed: Array<{ url: string; error: string }> }>(
-      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/import-url`, data),
+    request<{
+      documents: KnowledgeDocument[];
+      failed: Array<{ url: string; error: string }>;
+    }>(
+      http.post(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/import-url`,
+        data,
+      ),
     ),
 
-  getDocument: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
+  getDocument: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+  ) =>
     request<KnowledgeDocument>(
-      http.get(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}`),
+      http.get(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}`,
+      ),
     ),
 
   updateDocument: (
@@ -5722,37 +6241,77 @@ export const knowledgeApi = {
     data: { name?: string; tags?: string[] },
   ) =>
     request<KnowledgeDocument>(
-      http.patch(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}`, data),
+      http.patch(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}`,
+        data,
+      ),
     ),
 
-  reindexDocument: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
+  reindexDocument: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+  ) =>
     request<{ id: string; status: string }>(
-      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}/reindex`),
+      http.post(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}/reindex`,
+      ),
     ),
 
   /** Files/pages of a connected Google Drive or Notion account that can be imported. */
   browseApp: (workspaceId: string, integrationId: string, q?: string) =>
-    request<Array<{ id: string; name: string; kind: string; modifiedAt?: string; url?: string }>>(
-      http.get(`/workspaces/${workspaceId}/knowledge-sources/${integrationId}/browse`, { params: { q } }),
+    request<
+      Array<{
+        id: string;
+        name: string;
+        kind: string;
+        modifiedAt?: string;
+        url?: string;
+      }>
+    >(
+      http.get(
+        `/workspaces/${workspaceId}/knowledge-sources/${integrationId}/browse`,
+        { params: { q } },
+      ),
     ),
 
   importApp: (
     workspaceId: string,
     integrationId: string,
-    data: { knowledgeBaseId: string; items: Array<{ id: string; name?: string }>; tags?: string[] },
+    data: {
+      knowledgeBaseId: string;
+      items: Array<{ id: string; name?: string }>;
+      tags?: string[];
+    },
   ) =>
-    request<{ documents: KnowledgeDocument[]; failed: Array<{ id: string; name?: string; error: string }> }>(
-      http.post(`/workspaces/${workspaceId}/knowledge-sources/${integrationId}/import`, data),
+    request<{
+      documents: KnowledgeDocument[];
+      failed: Array<{ id: string; name?: string; error: string }>;
+    }>(
+      http.post(
+        `/workspaces/${workspaceId}/knowledge-sources/${integrationId}/import`,
+        data,
+      ),
     ),
 
   usage: (workspaceId: string, knowledgeBaseId: string, days = 7) =>
     request<KnowledgeUsageSummary>(
-      http.get(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/usage`, { params: { days } }),
+      http.get(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/usage`,
+        { params: { days } },
+      ),
     ),
 
-  answer: (workspaceId: string, knowledgeBaseId: string, data: KnowledgeAnswerRequest) =>
+  answer: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    data: KnowledgeAnswerRequest,
+  ) =>
     request<KnowledgeAnswer>(
-      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/answer`, data),
+      http.post(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/answer`,
+        data,
+      ),
     ),
 };
 
@@ -5767,17 +6326,25 @@ export const aiAppsApi = {
     request<AIApp>(http.post(`/workspaces/${workspaceId}/ai-apps`, data)),
 
   update: (workspaceId: string, id: string, data: Partial<CreateAIAppInput>) =>
-    request<AIApp>(http.patch(`/workspaces/${workspaceId}/ai-apps/${id}`, data)),
+    request<AIApp>(
+      http.patch(`/workspaces/${workspaceId}/ai-apps/${id}`, data),
+    ),
 
   delete: (workspaceId: string, id: string) =>
     request<void>(http.delete(`/workspaces/${workspaceId}/ai-apps/${id}`)),
 
   publish: (workspaceId: string, id: string, isPublished: boolean) =>
     request<AIApp>(
-      http.post(`/workspaces/${workspaceId}/ai-apps/${id}/publish`, { isPublished }),
+      http.post(`/workspaces/${workspaceId}/ai-apps/${id}/publish`, {
+        isPublished,
+      }),
     ),
 
-  execute: (workspaceId: string, id: string, payload: Record<string, unknown>) =>
+  execute: (
+    workspaceId: string,
+    id: string,
+    payload: Record<string, unknown>,
+  ) =>
     request<{ executionId: string; result: unknown }>(
       http.post(`/workspaces/${workspaceId}/ai-apps/${id}/execute`, payload),
     ),
@@ -5792,10 +6359,14 @@ export const approvalsApi = {
     ),
 
   get: (workspaceId: string, id: string) =>
-    request<AIApprovalRequest>(http.get(`/workspaces/${workspaceId}/approvals/${id}`)),
+    request<AIApprovalRequest>(
+      http.get(`/workspaces/${workspaceId}/approvals/${id}`),
+    ),
 
   decide: (workspaceId: string, id: string, data: ApprovalDecisionInput) =>
-    request<AIApprovalRequest>(http.post(`/workspaces/${workspaceId}/approvals/${id}/decide`, data)),
+    request<AIApprovalRequest>(
+      http.post(`/workspaces/${workspaceId}/approvals/${id}/decide`, data),
+    ),
 };
 
 export const aiExecutionsApi = {
@@ -5807,27 +6378,41 @@ export const aiExecutionsApi = {
     ),
 
   get: (workspaceId: string, id: string) =>
-    request<AIExecution>(http.get(`/workspaces/${workspaceId}/ai-executions/${id}`)),
+    request<AIExecution>(
+      http.get(`/workspaces/${workspaceId}/ai-executions/${id}`),
+    ),
 
   cancel: (workspaceId: string, id: string) =>
-    request<AIExecution>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/cancel`)),
+    request<AIExecution>(
+      http.post(`/workspaces/${workspaceId}/ai-executions/${id}/cancel`),
+    ),
 
   /** Re-runs with the recorded input; the retry is a new run. */
   retry: (workspaceId: string, id: string) =>
-    request<{ entityType: string; status: string; executionId?: string | null }>(
-      http.post(`/workspaces/${workspaceId}/ai-executions/${id}/retry`),
-    ),
+    request<{
+      entityType: string;
+      status: string;
+      executionId?: string | null;
+    }>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/retry`)),
 
   /** Stops an agent or workflow run after the step in progress; it can be resumed. */
   pause: (workspaceId: string, id: string) =>
-    request<{ runId: string; status: string }>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/pause`)),
+    request<{ runId: string; status: string }>(
+      http.post(`/workspaces/${workspaceId}/ai-executions/${id}/pause`),
+    ),
 
   resume: (workspaceId: string, id: string) =>
-    request<{ runId: string; status: string }>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/resume`)),
+    request<{ runId: string; status: string }>(
+      http.post(`/workspaces/${workspaceId}/ai-executions/${id}/resume`),
+    ),
 
   /** A new run that starts at `stepId`, reusing what the earlier steps produced. */
   restart: (workspaceId: string, id: string, stepId: string) =>
-    request<StudioRunStarted>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/restart`, { stepId })),
+    request<StudioRunStarted>(
+      http.post(`/workspaces/${workspaceId}/ai-executions/${id}/restart`, {
+        stepId,
+      }),
+    ),
 };
 
 /**
@@ -5838,44 +6423,90 @@ export const aiExecutionsApi = {
  */
 export const agentStudioApi = {
   home: (workspaceId: string) =>
-    request<StudioHome>(http.get(`/workspaces/${workspaceId}/agent-studio/home`)),
+    request<StudioHome>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/home`),
+    ),
 
   catalog: (workspaceId: string) =>
-    request<StudioCatalog>(http.get(`/workspaces/${workspaceId}/agent-studio/catalog`)),
+    request<StudioCatalog>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/catalog`),
+    ),
 
   /** A model drafts the plan, which can take a while — well past the default request timeout. */
-  plan: (workspaceId: string, input: { prompt: string; templateId?: string; timezone?: string }) =>
-    request<AgentPlanResponse>(http.post(`/workspaces/${workspaceId}/agent-studio/plan`, input, { timeout: 120_000 })),
+  plan: (
+    workspaceId: string,
+    input: { prompt: string; templateId?: string; timezone?: string },
+  ) =>
+    request<AgentPlanResponse>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/plan`, input, {
+        timeout: 120_000,
+      }),
+    ),
 
   list: (workspaceId: string) =>
-    request<StudioAgentSummary[]>(http.get(`/workspaces/${workspaceId}/agent-studio/agents`)),
+    request<StudioAgentSummary[]>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/agents`),
+    ),
 
   get: (workspaceId: string, id: string) =>
-    request<StudioAgentDetail>(http.get(`/workspaces/${workspaceId}/agent-studio/agents/${id}`)),
+    request<StudioAgentDetail>(
+      http.get(`/workspaces/${workspaceId}/agent-studio/agents/${id}`),
+    ),
 
-  create: (workspaceId: string, input: { blueprint: AgentBlueprint; activate?: boolean }) =>
-    request<StudioAgentDetail>(http.post(`/workspaces/${workspaceId}/agent-studio/agents`, input)),
+  create: (
+    workspaceId: string,
+    input: { blueprint: AgentBlueprint; activate?: boolean },
+  ) =>
+    request<StudioAgentDetail>(
+      http.post(`/workspaces/${workspaceId}/agent-studio/agents`, input),
+    ),
 
-  update: (workspaceId: string, id: string, input: { blueprint: AgentBlueprint; overwriteCanvasEdits?: boolean }) =>
-    request<StudioAgentDetail>(http.put(`/workspaces/${workspaceId}/agent-studio/agents/${id}`, input)),
+  update: (
+    workspaceId: string,
+    id: string,
+    input: { blueprint: AgentBlueprint; overwriteCanvasEdits?: boolean },
+  ) =>
+    request<StudioAgentDetail>(
+      http.put(`/workspaces/${workspaceId}/agent-studio/agents/${id}`, input),
+    ),
 
   setState: (workspaceId: string, id: string, state: StudioAgentState) =>
     request<{ id: string; state: StudioAgentState }>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/agents/${id}/state`, { state }),
+      http.post(`/workspaces/${workspaceId}/agent-studio/agents/${id}/state`, {
+        state,
+      }),
     ),
 
   duplicate: (workspaceId: string, id: string) =>
-    request<StudioAgentDetail>(http.post(`/workspaces/${workspaceId}/agent-studio/agents/${id}/duplicate`)),
+    request<StudioAgentDetail>(
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/agents/${id}/duplicate`,
+      ),
+    ),
 
   /** Starts a run and returns its id at once; follow it with `ai.run.updated`. */
   run: (
     workspaceId: string,
     id: string,
-    input: { text?: string; mode?: 'live' | 'test'; event?: Record<string, unknown> } = {},
-  ) => request<StudioRunStarted>(http.post(`/workspaces/${workspaceId}/agent-studio/agents/${id}/run`, input)),
+    input: {
+      text?: string;
+      mode?: 'live' | 'test';
+      event?: Record<string, unknown>;
+    } = {},
+  ) =>
+    request<StudioRunStarted>(
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/agents/${id}/run`,
+        input,
+      ),
+    ),
 
   version: (workspaceId: string, id: string, version: number) =>
-    request<StudioAgentVersion>(http.get(`/workspaces/${workspaceId}/agent-studio/agents/${id}/versions/${version}`)),
+    request<StudioAgentVersion>(
+      http.get(
+        `/workspaces/${workspaceId}/agent-studio/agents/${id}/versions/${version}`,
+      ),
+    ),
 };
 
 export const aiSecretsApi = {
@@ -5886,40 +6517,70 @@ export const aiSecretsApi = {
     request<AISecret>(http.post(`/workspaces/${workspaceId}/ai-secrets`, data)),
 
   delete: (workspaceId: string, key: string) =>
-    request<void>(http.delete(`/workspaces/${workspaceId}/ai-secrets/${encodeURIComponent(key)}`)),
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/ai-secrets/${encodeURIComponent(key)}`,
+      ),
+    ),
 };
 
 export const aiMemoryApi = {
-  list: (workspaceId: string, params?: { search?: string; scope?: string; agentId?: string }) =>
-    request<AIMemoryEntry[]>(http.get(`/workspaces/${workspaceId}/ai/memory`, { params })),
+  list: (
+    workspaceId: string,
+    params?: { search?: string; scope?: string; agentId?: string },
+  ) =>
+    request<AIMemoryEntry[]>(
+      http.get(`/workspaces/${workspaceId}/ai/memory`, { params }),
+    ),
 
-  set: (workspaceId: string, data: { key: string; value: string; scope?: string; agentId?: string }) =>
-    request<AIMemoryEntry>(http.post(`/workspaces/${workspaceId}/ai/memory`, data)),
+  set: (
+    workspaceId: string,
+    data: { key: string; value: string; scope?: string; agentId?: string },
+  ) =>
+    request<AIMemoryEntry>(
+      http.post(`/workspaces/${workspaceId}/ai/memory`, data),
+    ),
 
   delete: (workspaceId: string, key: string) =>
-    request<void>(http.delete(`/workspaces/${workspaceId}/ai/memory`, { params: { key } })),
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/ai/memory`, { params: { key } }),
+    ),
 
   forgetAgent: (workspaceId: string, agentId: string) =>
-    request<{ count: number }>(http.delete(`/workspaces/${workspaceId}/ai/memory/agents/${encodeURIComponent(agentId)}`)),
+    request<{ count: number }>(
+      http.delete(
+        `/workspaces/${workspaceId}/ai/memory/agents/${encodeURIComponent(agentId)}`,
+      ),
+    ),
 };
 
 export const mcpApi = {
   listConnections: (workspaceId: string) =>
-    request<MCPConnection[]>(http.get(`/workspaces/${workspaceId}/mcp-connections`)),
+    request<MCPConnection[]>(
+      http.get(`/workspaces/${workspaceId}/mcp-connections`),
+    ),
 
   createConnection: (workspaceId: string, data: CreateMCPConnectionInput) =>
-    request<MCPConnection>(http.post(`/workspaces/${workspaceId}/mcp-connections`, data)),
+    request<MCPConnection>(
+      http.post(`/workspaces/${workspaceId}/mcp-connections`, data),
+    ),
 
   deleteConnection: (workspaceId: string, id: string) =>
-    request<void>(http.delete(`/workspaces/${workspaceId}/mcp-connections/${id}`)),
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/mcp-connections/${id}`),
+    ),
 
   syncTools: (workspaceId: string, id: string) =>
-    request<MCPConnection>(http.post(`/workspaces/${workspaceId}/mcp-connections/${id}/sync`)),
+    request<MCPConnection>(
+      http.post(`/workspaces/${workspaceId}/mcp-connections/${id}/sync`),
+    ),
 };
 
 export const aiFeedbackApi = {
   submit: (workspaceId: string, data: AIFeedbackPayload) =>
-    request<{ id: string }>(http.post(`/workspaces/${workspaceId}/ai-feedback`, data)),
+    request<{ id: string }>(
+      http.post(`/workspaces/${workspaceId}/ai-feedback`, data),
+    ),
 };
 
 export const migrationsApi = {
@@ -5929,7 +6590,9 @@ export const migrationsApi = {
     ),
 
   list: (workspaceId: string) =>
-    request<MigrationSessionDto[]>(http.get(`/workspaces/${workspaceId}/migrations`)),
+    request<MigrationSessionDto[]>(
+      http.get(`/workspaces/${workspaceId}/migrations`),
+    ),
 
   getCapabilities: (workspaceId: string, integrationId?: string) =>
     request<MigrationCapabilityReport>(
@@ -5945,12 +6608,21 @@ export const migrationsApi = {
 
   getReadiness: (workspaceId: string, migrationId: string) =>
     request<MigrationReadinessReport>(
-      http.get(`/workspaces/${workspaceId}/migrations/${migrationId}/readiness`),
+      http.get(
+        `/workspaces/${workspaceId}/migrations/${migrationId}/readiness`,
+      ),
     ),
 
-  updateScope: (workspaceId: string, migrationId: string, scope: MigrationScope) =>
+  updateScope: (
+    workspaceId: string,
+    migrationId: string,
+    scope: MigrationScope,
+  ) =>
     request<MigrationSessionDto>(
-      http.patch(`/workspaces/${workspaceId}/migrations/${migrationId}/scope`, scope),
+      http.patch(
+        `/workspaces/${workspaceId}/migrations/${migrationId}/scope`,
+        scope,
+      ),
     ),
 
   getPreview: (workspaceId: string, migrationId: string) =>
@@ -5964,7 +6636,10 @@ export const migrationsApi = {
     resolutions: MigrationConflictResolutionInput,
   ) =>
     request<{ success: boolean }>(
-      http.post(`/workspaces/${workspaceId}/migrations/${migrationId}/conflicts`, resolutions),
+      http.post(
+        `/workspaces/${workspaceId}/migrations/${migrationId}/conflicts`,
+        resolutions,
+      ),
     ),
 
   start: (workspaceId: string, migrationId: string) =>
@@ -6019,33 +6694,77 @@ export const migrationsApi = {
 
 /** Operator-only (SUPERADMIN) transactional email console. */
 export const emailTemplatesApi = {
-  list: (params: { category?: string; status?: string; search?: string; workspaceId?: string } = {}) =>
-    request<EmailTemplateDefinition[]>(http.get('/admin/mail/templates', { params })),
+  list: (
+    params: {
+      category?: string;
+      status?: string;
+      search?: string;
+      workspaceId?: string;
+    } = {},
+  ) =>
+    request<EmailTemplateDefinition[]>(
+      http.get('/admin/mail/templates', { params }),
+    ),
 
   get: (key: string, workspaceId?: string) =>
-    request<EmailTemplateDefinition>(http.get(`/admin/mail/templates/${key}`, { params: { workspaceId } })),
+    request<EmailTemplateDefinition>(
+      http.get(`/admin/mail/templates/${key}`, { params: { workspaceId } }),
+    ),
 
-  update: (key: string, data: Partial<EmailTemplateDefinition> & { workspaceId?: string | null }) =>
-    request<EmailTemplateDefinition>(http.put(`/admin/mail/templates/${key}`, data)),
+  update: (
+    key: string,
+    data: Partial<EmailTemplateDefinition> & { workspaceId?: string | null },
+  ) =>
+    request<EmailTemplateDefinition>(
+      http.put(`/admin/mail/templates/${key}`, data),
+    ),
 
-  preview: (key: string, body: { data?: Record<string, unknown>; workspaceId?: string | null; customHtml?: string; customSubject?: string }) =>
-    request<RenderedTemplateResult>(http.post(`/admin/mail/templates/${key}/preview`, body)),
+  preview: (
+    key: string,
+    body: {
+      data?: Record<string, unknown>;
+      workspaceId?: string | null;
+      customHtml?: string;
+      customSubject?: string;
+    },
+  ) =>
+    request<RenderedTemplateResult>(
+      http.post(`/admin/mail/templates/${key}/preview`, body),
+    ),
 
-  test: (key: string, body: { recipient: string; data?: Record<string, unknown>; workspaceId?: string | null }) =>
-    request<EmailSendResult>(http.post(`/admin/mail/templates/${key}/test`, body)),
+  test: (
+    key: string,
+    body: {
+      recipient: string;
+      data?: Record<string, unknown>;
+      workspaceId?: string | null;
+    },
+  ) =>
+    request<EmailSendResult>(
+      http.post(`/admin/mail/templates/${key}/test`, body),
+    ),
 
   reset: (key: string, workspaceId?: string | null) =>
     request<EmailTemplateDefinition | { message: string }>(
-      http.post(`/admin/mail/templates/${key}/reset`, {}, { params: { workspaceId: workspaceId ?? undefined } }),
+      http.post(
+        `/admin/mail/templates/${key}/reset`,
+        {},
+        { params: { workspaceId: workspaceId ?? undefined } },
+      ),
     ),
 
-  providers: () => request<EmailProvidersOverview>(http.get('/admin/mail/providers')),
+  providers: () =>
+    request<EmailProvidersOverview>(http.get('/admin/mail/providers')),
 
   verifyProvider: (provider: string) =>
-    request<{ name: string; verified: boolean; message: string }>(http.post(`/admin/mail/providers/${provider}/verify`)),
+    request<{ name: string; verified: boolean; message: string }>(
+      http.post(`/admin/mail/providers/${provider}/verify`),
+    ),
 
   events: () =>
-    request<Array<{ eventName: string; templateKey: string; description: string }>>(http.get('/admin/mail/events')),
+    request<
+      Array<{ eventName: string; templateKey: string; description: string }>
+    >(http.get('/admin/mail/events')),
 };
 
 export const widgetsApi = {
@@ -6082,143 +6801,253 @@ export const widgetsApi = {
       http.post(`/workspaces/${workspaceId}/agent-studio/widgets`, data),
     ),
 
-  update: (workspaceId: string, widgetId: string, data: Record<string, unknown>) =>
+  update: (
+    workspaceId: string,
+    widgetId: string,
+    data: Record<string, unknown>,
+  ) =>
     request<WidgetDefinition>(
-      http.put(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}`, data),
+      http.put(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}`,
+        data,
+      ),
     ),
 
   delete: (workspaceId: string, widgetId: string) =>
     request<WidgetDefinition>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/archive`),
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/archive`,
+      ),
     ),
 
   duplicate: (workspaceId: string, widgetId: string) =>
     request<WidgetDefinition>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/duplicate`),
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/duplicate`,
+      ),
     ),
 
   archive: (workspaceId: string, widgetId: string) =>
     request<WidgetDefinition>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/archive`),
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/archive`,
+      ),
     ),
 
   restore: (workspaceId: string, widgetId: string) =>
     request<WidgetDefinition>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/restore`),
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/restore`,
+      ),
     ),
 
-  publish: (workspaceId: string, widgetId: string, data?: { changeSummary?: string }) =>
+  publish: (
+    workspaceId: string,
+    widgetId: string,
+    data?: { changeSummary?: string },
+  ) =>
     request<WidgetDefinition>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/publish`, data || {}),
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/publish`,
+        data || {},
+      ),
     ),
 
   rollback: (workspaceId: string, widgetId: string, versionNumber: number) =>
     request<WidgetDefinition>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/rollback`, { versionNumber }),
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/rollback`,
+        { versionNumber },
+      ),
     ),
 
-  rollbackVersion: (workspaceId: string, widgetId: string, versionNumber: number) =>
+  rollbackVersion: (
+    workspaceId: string,
+    widgetId: string,
+    versionNumber: number,
+  ) =>
     request<WidgetDefinition>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/rollback`, { versionNumber }),
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/rollback`,
+        { versionNumber },
+      ),
     ),
 
-  preview: (workspaceId: string, widgetId: string, sampleData?: Record<string, unknown>) =>
-    request<{ definition: WidgetDefinition; previewData: Record<string, unknown> }>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/preview`, { sampleData }),
+  preview: (
+    workspaceId: string,
+    widgetId: string,
+    sampleData?: Record<string, unknown>,
+  ) =>
+    request<{
+      definition: WidgetDefinition;
+      previewData: Record<string, unknown>;
+    }>(
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/preview`,
+        { sampleData },
+      ),
     ),
 
-  execute: (workspaceId: string, widgetId: string, data: Record<string, unknown>) =>
-    request<{ status: 'SUCCESS' | 'FAILED'; output: unknown; latencyMs: number }>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/execute`, data),
+  execute: (
+    workspaceId: string,
+    widgetId: string,
+    data: Record<string, unknown>,
+  ) =>
+    request<{
+      status: 'SUCCESS' | 'FAILED';
+      output: unknown;
+      latencyMs: number;
+    }>(
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/execute`,
+        data,
+      ),
     ),
 
-  executeAction: (workspaceId: string, widgetId: string, data: Record<string, unknown>) =>
-    request<{ status: 'SUCCESS' | 'FAILED'; output: unknown; latencyMs: number }>(
-      http.post(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/execute`, {
-        executionType: 'ACTION',
-        inputPayload: data.payload || data,
-        actionId: data.action || 'custom_action',
-      }),
+  executeAction: (
+    workspaceId: string,
+    widgetId: string,
+    data: Record<string, unknown>,
+  ) =>
+    request<{
+      status: 'SUCCESS' | 'FAILED';
+      output: unknown;
+      latencyMs: number;
+    }>(
+      http.post(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/execute`,
+        {
+          executionType: 'ACTION',
+          inputPayload: data.payload || data,
+          actionId: data.action || 'custom_action',
+        },
+      ),
     ),
 
   getVersions: (workspaceId: string, widgetId: string) =>
     request<WidgetVersion[]>(
-      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/versions`),
+      http.get(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/versions`,
+      ),
     ),
 
   listVersions: (workspaceId: string, widgetId: string) =>
     request<WidgetVersion[]>(
-      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/versions`),
+      http.get(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/versions`,
+      ),
     ),
 
   getExecutions: (workspaceId: string, widgetId: string) =>
     request<WidgetExecutionRecord[]>(
-      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/executions`),
+      http.get(
+        `/workspaces/${workspaceId}/agent-studio/widgets/${widgetId}/executions`,
+      ),
     ),
 
   listExecutions: (workspaceId: string, params?: { limit?: number }) =>
     request<WidgetExecutionRecord[]>(
-      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/executions`, { params }),
+      http.get(`/workspaces/${workspaceId}/agent-studio/widgets/executions`, {
+        params,
+      }),
     ),
 };
-
-
-
-
 
 export const enterpriseIdentityApi = {
   getConfig: (workspaceId: string) =>
     request<EnterpriseSSOConfigDto>(
-      http.get('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity'),
+      http.get(
+        '/workspaces/' +
+          encodeURIComponent(workspaceId) +
+          '/enterprise/identity',
+      ),
     ),
 
   saveConfig: (workspaceId: string, data: SaveSSOConfigInput) =>
     request<EnterpriseSSOConfigDto>(
-      http.put('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity', data),
+      http.put(
+        '/workspaces/' +
+          encodeURIComponent(workspaceId) +
+          '/enterprise/identity',
+        data,
+      ),
     ),
 
   testConnection: (workspaceId: string) =>
     request<SSOConnectionTestResult>(
-      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/test-connection'),
+      http.post(
+        '/workspaces/' +
+          encodeURIComponent(workspaceId) +
+          '/enterprise/identity/test-connection',
+      ),
     ),
 
   verifyDomain: (workspaceId: string, domain: string) =>
     request<DomainVerificationDto>(
-      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/domains/verify', { domain }),
+      http.post(
+        '/workspaces/' +
+          encodeURIComponent(workspaceId) +
+          '/enterprise/identity/domains/verify',
+        { domain },
+      ),
     ),
 
   rotateScimToken: (workspaceId: string) =>
     request<RotateScimTokenResponse>(
-      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/scim/token/rotate'),
+      http.post(
+        '/workspaces/' +
+          encodeURIComponent(workspaceId) +
+          '/enterprise/identity/scim/token/rotate',
+      ),
     ),
 
   generateRecoveryCode: (workspaceId: string) =>
     request<GenerateRecoveryCodeResponse>(
-      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/recovery-code'),
+      http.post(
+        '/workspaces/' +
+          encodeURIComponent(workspaceId) +
+          '/enterprise/identity/recovery-code',
+      ),
     ),
 
   listGroupRoleMappings: (workspaceId: string) =>
     request<SSOGroupRoleMappingDto[]>(
-      http.get('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/group-mappings'),
+      http.get(
+        '/workspaces/' +
+          encodeURIComponent(workspaceId) +
+          '/enterprise/identity/group-mappings',
+      ),
     ),
 
-  saveGroupRoleMapping: (workspaceId: string, data: SaveGroupRoleMappingInput) =>
+  saveGroupRoleMapping: (
+    workspaceId: string,
+    data: SaveGroupRoleMappingInput,
+  ) =>
     request<SSOGroupRoleMappingDto>(
-      http.post('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/group-mappings', data),
+      http.post(
+        '/workspaces/' +
+          encodeURIComponent(workspaceId) +
+          '/enterprise/identity/group-mappings',
+        data,
+      ),
     ),
 
   deleteGroupRoleMapping: (workspaceId: string, mappingId: string) =>
     request<{ success: boolean }>(
-      http.delete('/workspaces/' + encodeURIComponent(workspaceId) + '/enterprise/identity/group-mappings/' + encodeURIComponent(mappingId)),
+      http.delete(
+        '/workspaces/' +
+          encodeURIComponent(workspaceId) +
+          '/enterprise/identity/group-mappings/' +
+          encodeURIComponent(mappingId),
+      ),
     ),
 
   lookupSSO: (email: string) =>
-    request<SSOLookupResponse>(
-      http.post('/auth/sso/lookup', { email }),
-    ),
+    request<SSOLookupResponse>(http.post('/auth/sso/lookup', { email })),
 
-  recoveryLogin: (data: { email: string; recoveryCode: string; workspaceSlug?: string }) =>
-    request<AuthResponse>(
-      http.post('/auth/sso/recovery', data),
-    ),
+  recoveryLogin: (data: {
+    email: string;
+    recoveryCode: string;
+    workspaceSlug?: string;
+  }) => request<AuthResponse>(http.post('/auth/sso/recovery', data)),
 };

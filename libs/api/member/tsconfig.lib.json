@@ -38,6 +38,9 @@
     },
     {
       "path": "../mail/tsconfig.lib.json"
+    },
+    {
+      "path": "../notifications/tsconfig.lib.json"
     }
   ]
 }

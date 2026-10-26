@@ -134,8 +134,17 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     visible: true,
     order: 4,
     group: 'workspace',
-    description: 'Workspace members, roles, and presence',
-    keywords: ['members', 'directory', 'people', 'team', 'users'],
+    description: 'Employee directory, birthdays, and work anniversaries',
+    keywords: [
+      'members',
+      'directory',
+      'people',
+      'team',
+      'users',
+      'birthday',
+      'anniversary',
+      'employees',
+    ],
   },
 
   // --- Work Group ---
@@ -182,7 +191,8 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     visible: true,
     order: 2,
     group: 'ai',
-    description: 'Unified automation center for event-driven, AI-powered and scheduled workflows',
+    description:
+      'Unified automation center for event-driven, AI-powered and scheduled workflows',
     keywords: [
       'automations',
       'workflows',
@@ -206,7 +216,19 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     visible: true,
     order: 5,
     group: 'workspace',
-    description: 'Discover and install apps and agents, and connect integrations',
-    keywords: ['marketplace', 'apps', 'agents', 'directory', 'install', 'integrations', 'integration hub', 'github', 'slack', 'gmail'],
+    description:
+      'Discover and install apps and agents, and connect integrations',
+    keywords: [
+      'marketplace',
+      'apps',
+      'agents',
+      'directory',
+      'install',
+      'integrations',
+      'integration hub',
+      'github',
+      'slack',
+      'gmail',
+    ],
   },
 ];

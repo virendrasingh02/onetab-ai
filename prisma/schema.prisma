@@ -102,6 +102,7 @@ model User {
   huddleParticipations      HuddleParticipant[]         @relation("HuddleParticipant")
   workspaceThemePreferences WorkspaceThemePreference[]
   workspaceMemberPrefs      WorkspaceMemberPreference[]
+  employeeProfiles          EmployeeProfile[]
   organizedMeetings         Meeting[]                   @relation("MeetingOrganizer")
   meetingParticipations     MeetingParticipant[]
   meetingNotes              MeetingNote[]
@@ -386,6 +387,8 @@ model Workspace {
   workItemActivities        WorkItemActivity[]
   uploads                   Upload[]
   workDocuments             WorkDocument[]
+  employeeProfiles          EmployeeProfile[]
+  peopleEventDispatches     PeopleEventDispatch[]
   members                   WorkspaceMember[]
   notifications             Notification[]
   settings                  WorkspaceSettings?
@@ -527,6 +530,57 @@ model WorkspaceMemberPreference {
   @@unique([workspaceId, userId])
   @@index([userId])
   @@map("workspace_member_preferences")
+}
+
+/// Per-workspace employee record: the profile fields beyond `User`, the
+/// HR-managed employment dates, and the owner's privacy + celebration choices.
+/// Birthday is stored as month/day (+ optional year) rather than a timestamp so
+/// no timezone can shift it. `department`, `team`, `joiningDate` and `leftAt`
+/// are HR-managed (MANAGE_MEMBERS); everything else is employee-editable.
+/// `privacy` / `celebrationPrefs` are validated JSON — see `@org/types` people.
+model EmployeeProfile {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  userId           String
+  preferredName    String?
+  phone            String?
+  department       String?
+  team             String?
+  skills           String[]  @default([])
+  interests        String[]  @default([])
+  /// `[{ label, url }]`, http(s) only.
+  links            Json      @default("[]")
+  birthMonth       Int?
+  birthDay         Int?
+  birthYear        Int?
+  /// Official employment start. Calendar date, no time component.
+  joiningDate      DateTime? @db.Date
+  leftAt           DateTime? @db.Date
+  privacy          Json      @default("{}")
+  celebrationPrefs Json      @default("{}")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@index([workspaceId, department])
+  @@index([workspaceId, birthMonth])
+  @@map("employee_profiles")
+}
+
+/// Idempotency ledger for celebration + profile-reminder notifications. The
+/// primary key is a deterministic event key, so a retried or overlapping cron
+/// run can insert it at most once and therefore notify at most once.
+model PeopleEventDispatch {
+  key         String    @id
+  workspaceId String
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@map("people_event_dispatches")
 }
 
 model Channel {

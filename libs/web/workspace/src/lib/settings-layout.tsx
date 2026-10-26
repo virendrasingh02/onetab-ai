@@ -107,64 +107,216 @@ const NAV_GROUPS: NavGroup[] = [
     id: 'account',
     title: 'Account',
     items: [
-      { id: 'profile', label: 'Profile', icon: User, keywords: 'name avatar bio timezone status details' },
-      { id: 'language', label: 'Language & Region', icon: Globe, keywords: 'locale translation date time format' },
-      { id: 'notifications', label: 'Notifications', icon: Bell, keywords: 'push digest email mute alerts' },
-      { id: 'security', label: 'Account Security', icon: ShieldCheck, keywords: 'password 2fa totp passkey sessions' },
-      { id: 'downloads', label: 'Apps & Downloads', icon: Download, badge: 'APP', keywords: 'desktop mobile install' },
+      {
+        id: 'profile',
+        label: 'Profile',
+        icon: User,
+        keywords:
+          'name avatar bio timezone status details work birthday anniversary skills phone privacy celebrations employee reminders',
+      },
+      {
+        id: 'language',
+        label: 'Language & Region',
+        icon: Globe,
+        keywords: 'locale translation date time format',
+      },
+      {
+        id: 'notifications',
+        label: 'Notifications',
+        icon: Bell,
+        keywords: 'push digest email mute alerts',
+      },
+      {
+        id: 'security',
+        label: 'Account Security',
+        icon: ShieldCheck,
+        keywords: 'password 2fa totp passkey sessions',
+      },
+      {
+        id: 'downloads',
+        label: 'Apps & Downloads',
+        icon: Download,
+        badge: 'APP',
+        keywords: 'desktop mobile install',
+      },
     ],
   },
   {
     id: 'workspace',
     title: 'Workspace',
     items: [
-      { id: 'general', label: 'General Settings', icon: Building2, keywords: 'name slug url logo' },
-      { id: 'appearance', label: 'Appearance & Preferences', icon: Palette, keywords: 'theme dark light font density branding accent' },
-      { id: 'members', label: 'Members', icon: Users, keywords: 'people roles admins directory' },
-      { id: 'invitations', label: 'Invitations & Access', icon: Mail, keywords: 'invite invitations shareable link join pending resend revoke access email' },
-      { id: 'permissions', label: 'Permissions & Policies', icon: Shield, keywords: 'policies permissions roles invite create channels apps files who can' },
-      { id: 'enterprise-identity', label: 'Enterprise SSO & SCIM', icon: ShieldCheck, minRole: WorkspaceRole.ADMIN, feature: 'sso_saml', keywords: 'sso saml oidc scim provisioning entra okta identity directory' },
-      { id: 'audit-log', label: 'Audit Log', icon: History, minRole: WorkspaceRole.ADMIN, feature: 'audit_logs', keywords: 'audit security activity history log records' },
-      { id: 'import-export', label: 'Import & Export', icon: UploadCloud, keywords: 'migrate backup data slack' },
-      { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, minRole: WorkspaceRole.OWNER, keywords: 'delete archive transfer' },
+      {
+        id: 'general',
+        label: 'General Settings',
+        icon: Building2,
+        keywords: 'name slug url logo',
+      },
+      {
+        id: 'appearance',
+        label: 'Appearance & Preferences',
+        icon: Palette,
+        keywords: 'theme dark light font density branding accent',
+      },
+      {
+        id: 'members',
+        label: 'Members',
+        icon: Users,
+        keywords: 'people roles admins directory',
+      },
+      {
+        id: 'invitations',
+        label: 'Invitations & Access',
+        icon: Mail,
+        keywords:
+          'invite invitations shareable link join pending resend revoke access email',
+      },
+      {
+        id: 'permissions',
+        label: 'Permissions & Policies',
+        icon: Shield,
+        keywords:
+          'policies permissions roles invite create channels apps files who can',
+      },
+      {
+        id: 'enterprise-identity',
+        label: 'Enterprise SSO & SCIM',
+        icon: ShieldCheck,
+        minRole: WorkspaceRole.ADMIN,
+        feature: 'sso_saml',
+        keywords:
+          'sso saml oidc scim provisioning entra okta identity directory',
+      },
+      {
+        id: 'audit-log',
+        label: 'Audit Log',
+        icon: History,
+        minRole: WorkspaceRole.ADMIN,
+        feature: 'audit_logs',
+        keywords: 'audit security activity history log records',
+      },
+      {
+        id: 'import-export',
+        label: 'Import & Export',
+        icon: UploadCloud,
+        keywords: 'migrate backup data slack',
+      },
+      {
+        id: 'danger',
+        label: 'Danger Zone',
+        icon: AlertTriangle,
+        minRole: WorkspaceRole.OWNER,
+        keywords: 'delete archive transfer',
+      },
     ],
   },
   {
     id: 'collaboration',
     title: 'Collaboration',
     items: [
-      { id: 'channels', label: 'Channels & DMs', icon: MessageSquare, keywords: 'chat rooms private public encrypted' },
-      { id: 'chat', label: 'Chat & Messaging', icon: MessageSquare, keywords: 'composer read receipts typing' },
-      { id: 'schedule', label: 'Schedule & Meetings', icon: Calendar, keywords: 'calendar huddle recording google' },
+      {
+        id: 'channels',
+        label: 'Channels & DMs',
+        icon: MessageSquare,
+        keywords: 'chat rooms private public encrypted',
+      },
+      {
+        id: 'chat',
+        label: 'Chat & Messaging',
+        icon: MessageSquare,
+        keywords: 'composer read receipts typing',
+      },
+      {
+        id: 'schedule',
+        label: 'Schedule & Meetings',
+        icon: Calendar,
+        keywords: 'calendar huddle recording google',
+      },
     ],
   },
   {
     id: 'productivity',
     title: 'Productivity',
     items: [
-      { id: 'kanban-tasks', label: 'Tasks & Kanban', icon: Kanban, keywords: 'board cards projects columns' },
-      { id: 'documents', label: 'Notes & Documents', icon: FileCode, keywords: 'docs autosave grammar wiki' },
-      { id: 'files', label: 'Files & Storage', icon: FolderArchive, keywords: 'uploads retention video quality' },
+      {
+        id: 'kanban-tasks',
+        label: 'Tasks & Kanban',
+        icon: Kanban,
+        keywords: 'board cards projects columns',
+      },
+      {
+        id: 'documents',
+        label: 'Notes & Documents',
+        icon: FileCode,
+        keywords: 'docs autosave grammar wiki',
+      },
+      {
+        id: 'files',
+        label: 'Files & Storage',
+        icon: FolderArchive,
+        keywords: 'uploads retention video quality',
+      },
     ],
   },
   {
     id: 'ai-automation',
     title: 'AI & Automation',
     items: [
-      { id: 'ai-providers', label: 'AI Providers & Keys', icon: Key, keywords: 'openai anthropic api key' },
-      { id: 'ai-persona', label: 'AI Models & Persona', icon: Sparkles, keywords: 'model prompt temperature context' },
-      { id: 'enterprise-custom-llm', label: 'Custom LLM (Enterprise)', icon: Cpu, minRole: WorkspaceRole.ADMIN, feature: 'custom_llm', keywords: 'self-hosted endpoint' },
-      { id: 'agent-marketplace', label: 'Agent Marketplace', icon: Bot, keywords: 'agents install bots' },
-      { id: 'automations', label: 'Workflow Automations', icon: Workflow, keywords: 'triggers webhooks runs retries' },
+      {
+        id: 'ai-providers',
+        label: 'AI Providers & Keys',
+        icon: Key,
+        keywords: 'openai anthropic api key',
+      },
+      {
+        id: 'ai-persona',
+        label: 'AI Models & Persona',
+        icon: Sparkles,
+        keywords: 'model prompt temperature context',
+      },
+      {
+        id: 'enterprise-custom-llm',
+        label: 'Custom LLM (Enterprise)',
+        icon: Cpu,
+        minRole: WorkspaceRole.ADMIN,
+        feature: 'custom_llm',
+        keywords: 'self-hosted endpoint',
+      },
+      {
+        id: 'agent-marketplace',
+        label: 'Agent Marketplace',
+        icon: Bot,
+        keywords: 'agents install bots',
+      },
+      {
+        id: 'automations',
+        label: 'Workflow Automations',
+        icon: Workflow,
+        keywords: 'triggers webhooks runs retries',
+      },
     ],
   },
   {
     id: 'plan-data',
     title: 'Plan & Data',
     items: [
-      { id: 'billing', label: 'Plans & Billing', icon: CreditCard, keywords: 'subscription invoice upgrade seats' },
-      { id: 'analytics', label: 'Company Analytics & Usage', icon: BarChart3, keywords: 'usage metrics reports' },
-      { id: 'integrations', label: 'Integration Hub', icon: Plug, keywords: 'connect apps github linear jira' },
+      {
+        id: 'billing',
+        label: 'Plans & Billing',
+        icon: CreditCard,
+        keywords: 'subscription invoice upgrade seats',
+      },
+      {
+        id: 'analytics',
+        label: 'Company Analytics & Usage',
+        icon: BarChart3,
+        keywords: 'usage metrics reports',
+      },
+      {
+        id: 'integrations',
+        label: 'Integration Hub',
+        icon: Plug,
+        keywords: 'connect apps github linear jira',
+      },
     ],
   },
 ];
@@ -174,7 +326,10 @@ const NAV_GROUPS: NavGroup[] = [
  * from the same queries the panels use, so the badges can never disagree with
  * the page they lead to and opening a panel finds a warm cache.
  */
-function useSettingsNavLive(workspaceId: string | undefined, role: WorkspaceRole | undefined) {
+function useSettingsNavLive(
+  workspaceId: string | undefined,
+  role: WorkspaceRole | undefined,
+) {
   const isAdmin = !!role && hasWorkspaceRole(role, WorkspaceRole.ADMIN);
   const entitlements = usePlanEntitlements(workspaceId);
 
@@ -202,7 +357,9 @@ function useSettingsNavLive(workspaceId: string | undefined, role: WorkspaceRole
     enabled: !!workspaceId,
     staleTime: 30_000,
   });
-  const connected = integrations.data?.filter((i) => i.status === 'CONNECTED').length;
+  const connected = integrations.data?.filter(
+    (i) => i.status === 'CONNECTED',
+  ).length;
   const broken = integrations.data?.filter(
     (i) => i.status === 'ERROR' || i.status === 'EXPIRED',
   ).length;
@@ -260,9 +417,8 @@ export function SettingsLayout({
   const { workspace, workspaceId } = useCurrentWorkspace();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(
-    readCollapsed,
-  );
+  const [collapsed, setCollapsed] =
+    useState<Record<string, boolean>>(readCollapsed);
 
   const backUrl = workspaceSlug ? `/w/${workspaceSlug}` : '/';
 
@@ -298,7 +454,9 @@ export function SettingsLayout({
         if (entry.save) await entry.save();
       }
     } catch {
-      toast.error('Could not save your changes — check the highlighted fields.');
+      toast.error(
+        'Could not save your changes — check the highlighted fields.',
+      );
       setSaving(false);
       return;
     }
@@ -357,7 +515,8 @@ export function SettingsLayout({
           .filter(
             (item) =>
               !item.minRole ||
-              (!!workspace?.role && hasWorkspaceRole(workspace.role, item.minRole)) ||
+              (!!workspace?.role &&
+                hasWorkspaceRole(workspace.role, item.minRole)) ||
               item.id === activeTab,
           )
           .map((item): NavItem => {
@@ -375,14 +534,24 @@ export function SettingsLayout({
             }
             if (item.id === 'integrations') {
               if (live.brokenIntegrations)
-                return { ...item, badge: `${live.brokenIntegrations} need attention` };
+                return {
+                  ...item,
+                  badge: `${live.brokenIntegrations} need attention`,
+                };
               if (live.connectedIntegrations)
-                return { ...item, badge: `${live.connectedIntegrations} connected` };
+                return {
+                  ...item,
+                  badge: `${live.connectedIntegrations} connected`,
+                };
             }
             if (item.id === 'billing' && live.planLoaded) {
               return { ...item, badge: live.planName };
             }
-            if (item.feature && live.planLoaded && !live.hasFeature(item.feature)) {
+            if (
+              item.feature &&
+              live.planLoaded &&
+              !live.hasFeature(item.feature)
+            ) {
               return { ...item, badge: 'Upgrade', locked: true };
             }
             return item;
@@ -457,7 +626,7 @@ export function SettingsLayout({
             {workspace?.name ? (
               <Badge
                 variant="neutral"
-                className="sm:inline-flex font-medium hidden text-xs text-foreground/80"
+                className="sm:inline-flex font-medium text-xs hidden text-foreground/80"
               >
                 {workspace.name}
               </Badge>
@@ -499,14 +668,14 @@ export function SettingsLayout({
                   leadingIcon={
                     <Search className="size-3.5 text-muted-foreground" />
                   }
-                  className="h-8 text-xs rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground pr-7"
+                  className="h-8 text-xs pr-7 rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
                     aria-label="Clear search"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
+                    className="right-2 p-0.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     <X className="size-3.5" />
                   </button>
@@ -515,10 +684,10 @@ export function SettingsLayout({
             </div>
 
             {/* Native Scrollable Nav Items */}
-            <div className="min-h-0 py-1 px-3 flex-1 overflow-y-auto overflow-x-hidden space-y-3 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+            <div className="min-h-0 py-1 px-3 space-y-3 flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] overflow-x-hidden overflow-y-auto">
               {groupsToRender.length === 0 ? (
                 <div className="px-2.5 py-10 text-center">
-                  <Search className="size-5 mx-auto mb-2 text-muted-foreground/60" />
+                  <Search className="size-5 mb-2 mx-auto text-muted-foreground/60" />
                   <p className="text-xs text-muted-foreground">
                     No settings match “{searchQuery}”.
                   </p>
@@ -535,9 +704,9 @@ export function SettingsLayout({
                         aria-expanded={!isCollapsed}
                         className="group/hdr px-2.5 py-1 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-accent/40"
                       >
-                        <span className="gap-1.5 flex items-center font-bold tracking-wider text-[10.5px] text-muted-foreground uppercase">
+                        <span className="gap-1.5 font-bold tracking-wider flex items-center text-[10.5px] text-muted-foreground uppercase">
                           {group.title}
-                          <span className="font-semibold tabular-nums text-[10px] text-muted-foreground/60 normal-case">
+                          <span className="font-semibold text-[10px] text-muted-foreground/60 normal-case tabular-nums">
                             {items.length}
                           </span>
                         </span>
@@ -569,7 +738,7 @@ export function SettingsLayout({
                                 }
                                 aria-current={isActive ? 'page' : undefined}
                                 className={cn(
-                                  'px-2.5 py-1.5 font-medium flex w-full items-center justify-between rounded-xl text-left text-[13px] transition-all cursor-pointer',
+                                  'px-2.5 py-1.5 font-medium flex w-full cursor-pointer items-center justify-between rounded-xl text-left text-[13px] transition-all',
                                   isActive
                                     ? 'font-semibold shadow-2xs bg-accent text-foreground'
                                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
@@ -614,7 +783,7 @@ export function SettingsLayout({
           </aside>
 
           {/* Main Settings Content Area (Native Scrolling) */}
-          <main className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-surface-inset/20 p-6 md:p-10 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+          <main className="min-h-0 p-6 md:p-10 flex flex-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] flex-col overflow-x-hidden overflow-y-auto bg-surface-inset/20">
             <div className="max-w-4xl space-y-8 mx-auto w-full">{children}</div>
           </main>
         </div>
@@ -634,8 +803,9 @@ export function SettingsLayout({
           <AlertDialogHeader>
             <AlertDialogTitle>Leave without saving?</AlertDialogTitle>
             <AlertDialogDescription>
-              You&apos;ve changed settings in this section that haven&apos;t been
-              saved yet. Save them now, discard them, or stay and keep editing.
+              You&apos;ve changed settings in this section that haven&apos;t
+              been saved yet. Save them now, discard them, or stay and keep
+              editing.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

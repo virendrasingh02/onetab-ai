@@ -60,7 +60,11 @@ export {
   type WorkspacePolicy,
 } from './lib/workspace-policies.js';
 
-export { outputSchemaFields, out as outputSchema, type OutputField } from './lib/output-schema.js';
+export {
+  outputSchemaFields,
+  out as outputSchema,
+  type OutputField,
+} from './lib/output-schema.js';
 
 export {
   WORKSPACE_TOOL_MODES,
@@ -88,7 +92,6 @@ export {
   type ResolvePolicyGatedSettingParams,
 } from './lib/feature-settings.js';
 
-
 export type {
   Channel,
   ChannelBookmark,
@@ -98,7 +101,6 @@ export type {
   ProjectCoworkerView,
   ScheduledMessageView,
   ScheduledMessageStatus,
-
   ChannelMember,
   ChannelPin,
   ChannelSummary,
@@ -143,10 +145,7 @@ export type {
 } from './lib/entities.js';
 
 export { EMAIL_EVENT_KEY } from './lib/email.js';
-export type {
-  ChannelEmailSettingsView,
-  EmailEventHint,
-} from './lib/email.js';
+export type { ChannelEmailSettingsView, EmailEventHint } from './lib/email.js';
 
 export {
   HUDDLE_MAX_RECONNECT_ATTEMPTS,
@@ -295,7 +294,6 @@ export type {
   MetricDefinition,
 } from './lib/admin.js';
 
-
 export { isAIEntityType } from './lib/automation.js';
 
 export type {
@@ -347,8 +345,14 @@ export {
   resolveCoworkerCollaborators,
   BUSINESS_COWORKER_KEYS,
 } from './lib/coworker-templates.js';
-export type { CoworkerTemplate, CoworkerTemplateKey } from './lib/coworker-templates.js';
-export { buildRosterConnectors, workflowCoworkerIds } from './lib/coworker-roster.js';
+export type {
+  CoworkerTemplate,
+  CoworkerTemplateKey,
+} from './lib/coworker-templates.js';
+export {
+  buildRosterConnectors,
+  workflowCoworkerIds,
+} from './lib/coworker-roster.js';
 export type {
   CoworkerRoster,
   CoworkerRosterEntry,
@@ -470,7 +474,6 @@ export type {
   AIChatUsage,
   AIInferenceUsage,
   AIVisionResponse,
-
   ModelResolutionResult,
   PromptTemplate,
   ProviderConnectionTestResult,
@@ -514,7 +517,6 @@ export type {
 } from './lib/sync.js';
 
 export * from './lib/ai-studio.js';
-
 
 export {
   AGENT_GRAPH_NODE_KINDS,
@@ -588,3 +590,6 @@ export * from './lib/migration.js';
 export * from './lib/email-templates.js';
 export * from './lib/widget-system.js';
 export * from './lib/agent-deployment.js';
+
+/* Employee profile & engagement: privacy, dates, anniversaries, completion. */
+export * from './lib/people.js';

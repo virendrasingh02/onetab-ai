@@ -38,7 +38,6 @@ export {
   channelAppsApi,
   scheduledMessagesApi,
   channelApi,
-
   channelEmailApi,
   coworkersApi,
   enterpriseApi,
@@ -53,6 +52,7 @@ export {
   marketplaceApi,
   matrixApi,
   memberApi,
+  peopleApi,
   notificationApi,
   remindersApi,
   promptTemplateApi,
@@ -95,7 +95,6 @@ export {
   type UpdateUploadParams,
   type UploadContextParams,
 } from './lib/endpoints.js';
-
 
 export {
   consumeHandoffToken,
