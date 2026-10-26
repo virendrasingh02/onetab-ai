@@ -333,6 +333,23 @@ export const FORWARDED_CONTENT_KEY = 'org.onetab.forwarded';
 /** Content flag on a thread reply that is also shown in the channel timeline. */
 export const ALSO_SEND_TO_CHANNEL_KEY = 'org.onetab.also_send_to_channel';
 
+/** Content key listing `{ user_id, label }` for each person @mentioned. */
+export const MENTIONS_KEY = 'org.onetab.mentions';
+
+function readMentionRefs(
+  content: Record<string, unknown>,
+): { userId: string; label: string }[] | undefined {
+  const raw = content[MENTIONS_KEY];
+  if (!Array.isArray(raw)) return undefined;
+  const refs = raw.flatMap((entry) => {
+    const e = entry as { user_id?: unknown; label?: unknown } | null;
+    return typeof e?.user_id === 'string' && typeof e.label === 'string'
+      ? [{ userId: e.user_id, label: e.label }]
+      : [];
+  });
+  return refs.length ? refs : undefined;
+}
+
 /**
  * Content key tagging each file of a multi-file upload with `{ id, index,
  * count }` — one event per file still, but grouped back into one message.
@@ -581,6 +598,7 @@ export function toMessage(
       (content as Record<string, unknown>)[ALSO_SEND_TO_CHANNEL_KEY] === true
         ? true
         : undefined,
+    mentions: readMentionRefs(content as Record<string, unknown>),
     // A thread reply's `m.in_reply_to` is only the spec's fallback pointer at
     // the thread's latest message — not a reply the author chose.
     replyToId: relation?.is_falling_back

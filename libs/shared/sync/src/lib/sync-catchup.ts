@@ -1,5 +1,6 @@
 import { queryKeys, syncApi } from '@org/api-client';
 import type { SyncChangesDigest } from '@org/types';
+import { syncServerTime } from '@org/utils';
 import type { QueryClient } from '@tanstack/react-query';
 import { classifyError } from './retry-policy.js';
 import { syncMetrics } from './sync-metrics.js';
@@ -76,6 +77,7 @@ export async function runCatchup(
 
   const applied = applyDigest(workspaceId, digest, deps.queryClient);
   writeCursor(workspaceId, digest.serverTime);
+  syncServerTime(Date.parse(digest.serverTime));
   syncMetrics.recordCatchup(
     (typeof performance !== 'undefined' ? performance.now() : Date.now()) -
       started,

@@ -100,142 +100,41 @@ export {
 
 /**
  * Mentions that address a group rather than a person. They lead the `@` menu
- * because they are the ones people reach for by name rather than by face.
+ * because they are the ones people reach for by name rather than by face. The
+ * counts come from the live rosters, so the subtitle says who actually gets
+ * pinged.
  */
-export const GROUP_MENTIONS: MentionCandidate[] = [
-  {
-    id: 'here',
-    name: 'here',
-    kind: 'group',
-    subtitle: 'Notify active members in this channel',
-  },
-  {
-    id: 'channel',
-    name: 'channel',
-    kind: 'group',
-    subtitle: 'Notify every member of this channel',
-  },
-  {
-    id: 'everyone',
-    name: 'everyone',
-    kind: 'group',
-    subtitle: 'Notify everyone in this workspace',
-  },
-];
-
-export const DEFAULT_AI_AGENT_MENTIONS: MentionCandidate[] = [
-  {
-    id: 'agent-reviewer-sentinel',
-    name: 'Code Reviewer & Security Sentinel',
-    subtitle: 'Code Reviewer AI — Automated PR & diff inspection',
-    kind: 'agent',
-    badge: 'AI AGENT',
-  },
-  {
-    id: 'agent-copilot',
-    name: 'copilot',
-    subtitle: 'Onetab Copilot — Channel AI Assistant & Q&A',
-    kind: 'agent',
-    badge: 'AI AGENT',
-  },
-  {
-    id: 'agent-codereview',
-    name: 'codereview',
-    subtitle: 'Code Reviewer AI — Automated PR & diff inspection',
-    kind: 'agent',
-    badge: 'AI AGENT',
-  },
-  {
-    id: 'agent-triage',
-    name: 'triage',
-    subtitle: 'Incident & Bug Triage — SRE error responder',
-    kind: 'agent',
-    badge: 'AI AGENT',
-  },
-  {
-    id: 'agent-standup',
-    name: 'standup',
-    subtitle: 'Daily Standup Bot — Async recaps & blocker tracking',
-    kind: 'agent',
-    badge: 'AI AGENT',
-  },
-  {
-    id: 'agent-docs',
-    name: 'docs',
-    subtitle: 'Docs & Knowledge AI — Markdown & wiki synthesizer',
-    kind: 'agent',
-    badge: 'AI AGENT',
-  },
-  {
-    id: 'agent-data',
-    name: 'data',
-    subtitle: 'SQL & Data Analyst — Metric queries & visualizations',
-    kind: 'agent',
-    badge: 'AI AGENT',
-  },
-];
-
-export const DEFAULT_COWORKER_MENTIONS: MentionCandidate[] = [
-  {
-    id: 'coworker-scheduler',
-    name: 'Scheduler',
-    subtitle: 'AI Coworker — Scheduling, reminders & workflows',
-    kind: 'coworker',
-    badge: 'AI COWORKER',
-  },
-  {
-    id: 'coworker-tracker',
-    name: 'Tracker',
-    subtitle: 'AI Coworker — Monitoring tasks, projects & metrics',
-    kind: 'coworker',
-    badge: 'AI COWORKER',
-  },
-];
-
-export const DEFAULT_APP_MENTIONS: MentionCandidate[] = [
-  {
-    id: 'app-github',
-    name: 'github-app',
-    subtitle: 'GitHub — Pull requests, reviews & CI workflows',
-    kind: 'app',
-    badge: 'APP',
-  },
-  {
-    id: 'app-linear',
-    name: 'linear-bot',
-    subtitle: 'Linear — Issue tracker & cycle progress',
-    kind: 'app',
-    badge: 'APP',
-  },
-  {
-    id: 'app-sentry',
-    name: 'sentry-bot',
-    subtitle: 'Sentry — Realtime uncaught exception alerts',
-    kind: 'app',
-    badge: 'APP',
-  },
-  {
-    id: 'app-jira',
-    name: 'jira-bot',
-    subtitle: 'Jira Software — Sprint backlog & status updates',
-    kind: 'app',
-    badge: 'APP',
-  },
-  {
-    id: 'app-figma',
-    name: 'figma-bot',
-    subtitle: 'Figma — Design updates & frame comments',
-    kind: 'app',
-    badge: 'APP',
-  },
-  {
-    id: 'app-gdrive',
-    name: 'gdrive-bot',
-    subtitle: 'Google Drive — Document attachments & sync',
-    kind: 'app',
-    badge: 'APP',
-  },
-];
+export function buildGroupMentions(counts: {
+  channel?: number;
+  workspace?: number;
+}): MentionCandidate[] {
+  const people = (n: number | undefined, scope: string) =>
+    n && n > 0 ? `${n} ${n === 1 ? 'person' : 'people'} ${scope}` : undefined;
+  return [
+    {
+      id: 'here',
+      name: 'here',
+      kind: 'group',
+      subtitle: 'Notify active members in this channel',
+    },
+    {
+      id: 'channel',
+      name: 'channel',
+      kind: 'group',
+      subtitle:
+        people(counts.channel, 'in this channel') ??
+        'Notify every member of this channel',
+    },
+    {
+      id: 'everyone',
+      name: 'everyone',
+      kind: 'group',
+      subtitle:
+        people(counts.workspace, 'in this workspace') ??
+        'Notify everyone in this workspace',
+    },
+  ];
+}
 
 /** An upload staged in the composer, not sent yet. */
 interface StagedAttachment {
@@ -1087,7 +986,12 @@ export function Composer({
             )
           : true;
 
-    const groups = allowGroups ? GROUP_MENTIONS : [];
+    const groups = allowGroups
+      ? buildGroupMentions({
+          channel: members.length,
+          workspace: workspaceMembers?.length || members.length,
+        })
+      : [];
 
     // Room rosters carry Matrix ids, the workspace list platform ids — compare
     // on one spelling or everyone already here is listed twice, the second
@@ -1123,9 +1027,9 @@ export function Composer({
       ...groups,
       ...people,
       ...otherWorkspacePeople,
-      ...(agentMentions ?? DEFAULT_AI_AGENT_MENTIONS),
-      ...(coworkerMentions ?? DEFAULT_COWORKER_MENTIONS),
-      ...(appMentions ?? DEFAULT_APP_MENTIONS),
+      ...(agentMentions ?? []),
+      ...(coworkerMentions ?? []),
+      ...(appMentions ?? []),
     ];
   }, [
     members,

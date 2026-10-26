@@ -1,10 +1,12 @@
 import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { CodeBlock, useRightPanelStore, type RightPanelProfile } from '@org/ui';
+import { toPlatformUserId } from '@org/types';
 import { cn } from '@org/utils';
 import { CheckSquare, ChevronDown, ChevronUp, ChevronsUpDown, Link2, Square } from 'lucide-react';
 import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react';
 
 import { compactBlankLineCount } from './blank-lines.js';
+import { useMentionAliases } from './mention-aliases.js';
 
 /**
  * Renders the markdown a message body carries.
@@ -103,6 +105,12 @@ function isWordCharacter(character: string | undefined): boolean {
 type InlineOptions = {
   mentionNames: string[];
   onMentionClick?: (mention: string) => void;
+  /**
+   * Maps a typed `@handle` to the person's current display name (no `@`), so a
+   * chip written as `@Virendra` renders as `@Virendra Singh` and opens the
+   * right profile. Undefined when the handle matches nobody on the roster.
+   */
+  resolveMention?: (handle: string) => string | undefined;
   /** Rendering a link's label: nested links/mentions/tags stay plain text. */
   inLink?: boolean;
 };
@@ -305,11 +313,13 @@ function renderInline(
         const nextChar = rest[name.length];
         return !isWordCharacter(nextChar);
       });
-      const mention = known ? `@${rest.slice(0, known.length)}` : token;
+      const typed = known ? `@${rest.slice(0, known.length)}` : token;
       if (known) {
-        lastIndex = match.index + mention.length;
+        lastIndex = match.index + typed.length;
         pattern.lastIndex = lastIndex;
       }
+      const resolved = options.resolveMention?.(typed.slice(1));
+      const mention = resolved ? `@${resolved}` : typed;
 
       const isGroupMention = GROUP_MENTIONS.has(mention.toLowerCase());
       nodes.push(
@@ -641,6 +651,11 @@ export interface MarkdownMessageProps {
   className?: string;
   onMentionClick?: (mention: string) => void;
   mentionProfiles?: Record<string, RightPanelProfile>;
+  /**
+   * People the author mentioned, by id (`label` = text typed after the `@`).
+   * Lets a chip follow the person's current name even after a rename.
+   */
+  mentionRefs?: { userId: string; label: string }[];
 }
 
 export function MarkdownMessage({
@@ -649,8 +664,10 @@ export function MarkdownMessage({
   className,
   onMentionClick,
   mentionProfiles,
+  mentionRefs,
 }: MarkdownMessageProps) {
   const openProfile = useRightPanelStore((s) => s.openProfile);
+  const aliases = useMentionAliases();
 
   const handleMentionClick = useCallback(
     (rawMention: string) => {
@@ -686,6 +703,8 @@ export function MarkdownMessage({
     const rawNames = [
       ...DEFAULT_FALLBACK_MENTIONS,
       ...(mentionNames ?? []),
+      // Former names, so a multi-word `@Old Name` stays one chip.
+      ...aliases.map((a) => a.alias),
     ];
     const cleaned = Array.from(
       new Set(
@@ -697,11 +716,54 @@ export function MarkdownMessage({
     );
     // Longest first, so "@Ana Ruiz" wins over a colleague simply called "Ana".
     cleaned.sort((a, b) => b.length - a.length);
+
+    // Live roster people (not agents/apps), so a short handle follows renames
+    // and the full current name instead of freezing the typed text.
+    const people = Object.values(mentionProfiles ?? {})
+      .filter((p) => p.entityKind === 'user' && p.name)
+      .map((p) => p.name.trim());
+    const byId = new Map<string, string>();
+    for (const p of Object.values(mentionProfiles ?? {})) {
+      if (p.entityKind === 'user' && p.name) {
+        byId.set(toPlatformUserId(p.userId), p.name.trim());
+      }
+    }
+    const refByLabel = new Map<string, string>();
+    for (const ref of mentionRefs ?? []) {
+      refByLabel.set(ref.label.trim().toLowerCase(), toPlatformUserId(ref.userId));
+    }
+    const aliasToId = new Map<string, string>();
+    for (const a of aliases) {
+      aliasToId.set(a.alias.trim().toLowerCase(), toPlatformUserId(a.userId));
+    }
+    const resolveMention = people.length
+      ? (handle: string): string | undefined => {
+          const h = handle.trim().toLowerCase();
+          if (!h) return undefined;
+          // The author's pick is an id, so it survives the person's renames.
+          const refId = refByLabel.get(h);
+          const current = refId ? byId.get(refId) : undefined;
+          if (current) return current;
+          // A name this person used to go by (renamed since the message).
+          const aliasId = aliasToId.get(h);
+          const fromAlias = aliasId ? byId.get(aliasId) : undefined;
+          if (fromAlias) return fromAlias;
+          const exact = people.find((n) => n.toLowerCase() === h);
+          if (exact) return exact;
+          // `@Virendra` → "Virendra Singh", only when exactly one person fits.
+          const partial = Array.from(
+            new Set(people.filter((n) => n.toLowerCase().startsWith(`${h} `))),
+          );
+          return partial.length === 1 ? partial[0] : undefined;
+        }
+      : undefined;
+
     return {
       mentionNames: cleaned,
       onMentionClick: handleMentionClick,
+      resolveMention,
     };
-  }, [mentionNames, handleMentionClick]);
+  }, [mentionNames, mentionProfiles, mentionRefs, aliases, handleMentionClick]);
 
   return (
     <div

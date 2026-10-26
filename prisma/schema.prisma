@@ -83,6 +83,7 @@ model User {
   uploads                   Upload[]
   workDocuments             WorkDocument[]
   workspaceMembers          WorkspaceMember[]
+  nameAliases               UserNameAlias[]
   ownedWorkspaces           Workspace[]                 @relation("WorkspaceOwner")
   integrations              ExternalIntegration[]
   leadProjects              Project[]                   @relation("ProjectLead")
@@ -4886,4 +4887,23 @@ model AgentApiKey {
   @@index([workspaceId, isActive])
   @@index([keyHash])
   @@map("agent_api_keys")
+}
+
+/// Every name a person has been shown under. Chat messages store `@Name` as
+/// text, so after a rename an old mention still has to find its person; the
+/// renderer resolves `@<alias>` through this table to the current name.
+model UserNameAlias {
+  id        String   @id @default(cuid())
+  userId    String
+  /// The name as it was displayed.
+  alias     String
+  /// Lower-cased, trimmed `alias` — the lookup key and uniqueness guard.
+  aliasKey  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, aliasKey])
+  @@index([aliasKey])
+  @@map("user_name_aliases")
 }

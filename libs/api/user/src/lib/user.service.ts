@@ -192,6 +192,73 @@ export class UserService {
     return toPublicUser(user);
   }
 
+  /**
+   * Stores every name `before` showed that `after` no longer does.
+   * Names are matched case-insensitively, as a mention typed in another case
+   * should still find its person.
+   */
+  private async rememberNameAliases(
+    userId: string,
+    before: { name: string; displayName: string | null },
+    after: { name: string; displayName: string | null },
+  ): Promise<void> {
+    const keyOf = (n: string) => n.trim().toLowerCase();
+    const current = new Set(
+      [after.name, after.displayName].filter(Boolean).map((n) => keyOf(n as string)),
+    );
+    const old = [before.displayName, before.name]
+      .filter((n): n is string => !!n?.trim())
+      .filter((n) => !current.has(keyOf(n)));
+    for (const alias of new Set(old)) {
+      await this.prisma.userNameAlias.upsert({
+        where: { userId_aliasKey: { userId, aliasKey: keyOf(alias) } },
+        create: { userId, alias: alias.trim(), aliasKey: keyOf(alias) },
+        update: {},
+      });
+    }
+  }
+
+  /**
+   * Past names of the workspace's members, for resolving old `@mentions`.
+   * A name now used by someone else is dropped so it never points at the wrong
+   * person.
+   */
+  async listNameAliases(
+    workspaceId: string,
+  ): Promise<{ userId: string; matrixUserId: string | null; alias: string }[]> {
+    const rows = await this.prisma.userNameAlias.findMany({
+      where: { user: { workspaceMembers: { some: { workspaceId } } } },
+      select: {
+        alias: true,
+        aliasKey: true,
+        user: { select: { id: true, matrixUserId: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 2000,
+    });
+    if (!rows.length) return [];
+    const members = await this.prisma.workspaceMember.findMany({
+      where: { workspaceId },
+      select: { user: { select: { id: true, name: true, displayName: true } } },
+    });
+    const owner = new Map<string, string>();
+    for (const { user } of members) {
+      for (const n of [user.name, user.displayName]) {
+        if (n) owner.set(n.trim().toLowerCase(), user.id);
+      }
+    }
+    return rows
+      .filter((r) => {
+        const holder = owner.get(r.aliasKey);
+        return !holder || holder === r.user.id;
+      })
+      .map((r) => ({
+        userId: r.user.id,
+        matrixUserId: r.user.matrixUserId,
+        alias: r.alias,
+      }));
+  }
+
   async updateProfile(
     userId: string,
     input: UpdateProfileInput,
@@ -263,6 +330,11 @@ export class UserService {
           : {}),
       },
     });
+
+    // Remember the names this person stops using, so `@Old Name` in messages
+    // written before the rename still resolves to them. Best effort: a profile
+    // save must not fail on the history write.
+    void this.rememberNameAliases(userId, before, user).catch(() => undefined);
 
     // Keep the user's Matrix profile in step, so their name and photo look the
     // same in chat as everywhere else. Only when something the profile shows

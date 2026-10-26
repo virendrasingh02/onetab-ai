@@ -6,10 +6,12 @@ import { useUserPresenceMap } from '@org/realtime';
 import {
   type ChannelSummary,
   type ComposerContext,
+  type ComposerMessageMeta,
   getSystemEventCapabilities,
   type RoomMember,
   type WorkspaceMember,
 } from '@org/types';
+import { toMentionRefs } from './mention-refs.js';
 import {
   Badge,
   Button,
@@ -1322,13 +1324,17 @@ function NewDirectMessage({
   ]);
 
   const handleSend = useCallback(
-    async (body: string) => {
+    async (body: string, meta?: ComposerMessageMeta) => {
       if (!client || !canDispatch) return;
       setIsStarting(true);
       try {
         const target = await resolveTarget();
         if (!target) return;
-        if (body.trim()) await client.sendMessage(target.roomId, body);
+        if (body.trim()) {
+          await client.sendMessage(target.roomId, body, {
+            mentions: toMentionRefs(meta?.mentions),
+          });
+        }
         navigate(target.href, { replace: true });
       } catch (err) {
         toast.error(

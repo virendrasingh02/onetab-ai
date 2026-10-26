@@ -221,6 +221,11 @@ export interface Message {
    * #channel"): it shows in the main timeline as well as in its thread.
    */
   alsoSentToChannel?: boolean;
+  /**
+   * People the author @mentioned, by id. `label` is the text typed after the
+   * `@`, so a renderer can swap it for the person's *current* name.
+   */
+  mentions?: { userId: string; label: string }[];
   /** Set when this message is an inline reply. */
   replyToId?: EventId;
   /** Present for locally echoed messages that have not been acknowledged. */

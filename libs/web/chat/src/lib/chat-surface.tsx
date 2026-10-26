@@ -23,15 +23,13 @@ import {
   PendingUploadMessage,
   PinnedBanner,
   PinnedPanel,
+  MentionAliasesProvider,
   ReactorDirectoryProvider,
   ThreadListPanel,
   ThreadPanel,
   TypingIndicator,
   UnreadMentionsPill,
   useMentionNotices,
-  DEFAULT_AI_AGENT_MENTIONS,
-  DEFAULT_COWORKER_MENTIONS,
-  DEFAULT_APP_MENTIONS,
   insertIntoComposer,
   quoteMarkdown,
   toReplyPreview,
@@ -48,6 +46,8 @@ import type {
   Thread,
 } from '@org/matrix-client';
 import { toPlatformUserId, type ComposerContext } from '@org/types';
+import { toMentionRefs } from './mention-refs.js';
+import { useNameAliases } from './use-name-aliases.js';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useComposerControl } from './use-composer-control.js';
 import { useSlashCommands } from './use-slash-commands.js';
@@ -333,9 +333,18 @@ export interface ChatSurfaceProps {
   onSend: (
     body: string,
     threadRootId?: string,
-    options?: { alsoSendToChannel?: boolean; replyToId?: string },
+    options?: {
+      alsoSendToChannel?: boolean;
+      replyToId?: string;
+      /** People @mentioned (ids), so the message can follow later renames. */
+      mentions?: { userId: string; label: string }[];
+    },
   ) => void | string | undefined | Promise<void | string | undefined>;
-  onEdit?: (eventId: string, body: string) => void | Promise<void>;
+  onEdit?: (
+    eventId: string,
+    body: string,
+    mentions?: { userId: string; label: string }[],
+  ) => void | Promise<void>;
   /** `groupedIds` is every file of a grouped multi-file upload, head included. */
   onDelete?: (eventId: string, groupedIds?: string[]) => void | Promise<void>;
   /** Holds `WorkspacePermission.MODERATE_MESSAGES` — may delete another member's message. */
@@ -1152,15 +1161,6 @@ export function ChatSurface({
     for (const app of threadControl.appMentions ?? []) {
       if (app.name) names.add(app.name.trim());
     }
-    for (const a of DEFAULT_AI_AGENT_MENTIONS) {
-      if (a.name) names.add(a.name.trim());
-    }
-    for (const c of DEFAULT_COWORKER_MENTIONS) {
-      if (c.name) names.add(c.name.trim());
-    }
-    for (const app of DEFAULT_APP_MENTIONS) {
-      if (app.name) names.add(app.name.trim());
-    }
 
     return Array.from(names);
   }, [
@@ -1173,6 +1173,9 @@ export function ChatSurface({
     threadControl.coworkerMentions,
     threadControl.appMentions,
   ]);
+
+  // Former names, so `@Old Name` in older messages follows a rename.
+  const nameAliases = useNameAliases(workspaceId);
 
   const mentionProfiles = useMemo<Record<string, RightPanelProfile>>(() => {
     const profiles: Record<string, RightPanelProfile> = {};
@@ -1202,38 +1205,6 @@ export function ChatSurface({
       }
     }
 
-    for (const a of DEFAULT_AI_AGENT_MENTIONS) {
-      if (a.name) {
-        profiles[a.name.trim().toLowerCase()] = {
-          userId: `agent-${a.id}`,
-          entityId: a.id,
-          name: a.name,
-          avatarUrl: a.avatarUrl,
-          entityKind: 'agent',
-        };
-      }
-    }
-    for (const c of DEFAULT_COWORKER_MENTIONS) {
-      if (c.name) {
-        profiles[c.name.trim().toLowerCase()] = {
-          userId: `coworker-${c.id}`,
-          entityId: c.id,
-          name: c.name,
-          avatarUrl: c.avatarUrl,
-          entityKind: 'coworker',
-        };
-      }
-    }
-    for (const app of DEFAULT_APP_MENTIONS) {
-      if (app.name) {
-        profiles[app.name.trim().toLowerCase()] = {
-          userId: `app-${app.id}`,
-          entityId: app.id,
-          name: app.name,
-          entityKind: 'app',
-        };
-      }
-    }
 
     for (const a of [
       ...(mainControl.agentMentions ?? []),
@@ -1493,8 +1464,8 @@ export function ChatSurface({
                 enterToSend={chat?.enterToSend ?? true}
                 members={editorMentionCandidates}
                 onCancel={() => setEditing(null)}
-                onSave={async (body) => {
-                  await onEdit(message.id, body);
+                onSave={async (body, mentions) => {
+                  await onEdit(message.id, body, toMentionRefs(mentions));
                   setEditing(null);
                 }}
               />
@@ -1939,6 +1910,7 @@ export function ChatSurface({
   );
 
   return (
+    <MentionAliasesProvider aliases={nameAliases}>
     <ReactorDirectoryProvider resolve={resolveReactor} myUserId={myUserId}>
     <ChatLayout
       banner={banner}
@@ -2194,7 +2166,10 @@ export function ChatSurface({
                         const anchorId = await onSend(
                           body,
                           threadRoot.id,
-                          broadcast ? { alsoSendToChannel: true } : undefined,
+                          {
+                            ...(broadcast ? { alsoSendToChannel: true } : {}),
+                            mentions: toMentionRefs(meta?.mentions),
+                          },
                         );
                         threadControl.raiseMentionNotice(meta?.mentions, {
                           ...noticePlacement,
@@ -2368,7 +2343,10 @@ export function ChatSurface({
               const anchorId = await onSend(
                 body,
                 undefined,
-                replyToId ? { replyToId } : undefined,
+                {
+                  ...(replyToId ? { replyToId } : {}),
+                  mentions: toMentionRefs(meta?.mentions),
+                },
               );
               mainControl.raiseMentionNotice(meta?.mentions, {
                 ...noticePlacement,
@@ -2393,5 +2371,6 @@ export function ChatSurface({
       ) : null}
     </ChatLayout>
     </ReactorDirectoryProvider>
+    </MentionAliasesProvider>
   );
 }

@@ -188,6 +188,11 @@ export function RightPanel({
             onStartVideoCall={(targetUserId: string) => {
               navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=video`);
             }}
+            profileLink={
+              person
+                ? `${window.location.origin}/w/${workspaceSlug}/dms/${person.userId}`
+                : undefined
+            }
           />
         </EmployeeInfoBridge>
       </PanelFrame>

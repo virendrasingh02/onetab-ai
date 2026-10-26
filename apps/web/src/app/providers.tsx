@@ -2,6 +2,7 @@ import {
   agentsApi,
   ApiError,
   coworkersApi,
+  http,
   gifsApi,
   memberApi,
   resolveMediaUrl,
@@ -42,6 +43,7 @@ import {
 } from '@org/chat-ui';
 import { toPlatformUserId } from '@org/types';
 import { SyncProvider } from '@org/sync';
+import { syncServerTime } from '@org/utils';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import {
   MutationCache,
@@ -56,6 +58,14 @@ import { Provider } from 'react-redux';
 import { useActiveWorkspaceId } from './use-active-workspace-id';
 import { usePreferencesSync } from './preferences-sync';
 import { useWorkspaceAppearanceSync } from './workspace-appearance-sync';
+
+// Every API response carries the server's `Date`, so the server-aligned clock
+// that message times are measured against stays fresh without a dedicated call.
+http.interceptors.response.use((response) => {
+  const serverDate = Date.parse(String(response.headers?.['date'] ?? ''));
+  if (!Number.isNaN(serverDate)) syncServerTime(serverDate);
+  return response;
+});
 
 function AppToaster() {
   const { notifications } = useNotificationDisplayPreferences();

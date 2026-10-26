@@ -15,6 +15,7 @@ import {
 } from '@org/ui';
 import { useAiEntity } from './cards/agent-avatar-context.js';
 import { cn } from '@org/utils';
+import { MessageTime } from './message-time.js';
 import { countEmojiOnly } from './emoji-only.js';
 import { EntityKindBadge } from './entity-kind-badge.js';
 import {
@@ -1173,16 +1174,10 @@ export function ChatBubble({
               <span className="inline-flex items-center">{effectiveBadge}</span>
             ) : null}
 
-            <Hint label={formatFullTimestamp(message.timestamp)}>
-              <time
-                dateTime={new Date(message.timestamp).toISOString()}
-                className="font-medium cursor-pointer text-xs text-muted-foreground hover:underline"
-              >
-                {Date.now() - message.timestamp < 60_000
-                  ? 'Just now'
-                  : formatShortTimestamp(message.timestamp)}
-              </time>
-            </Hint>
+            <MessageTime
+              timestamp={message.timestamp}
+              className="font-medium cursor-pointer text-xs text-muted-foreground hover:underline"
+            />
 
             {showSending ? <SendingIndicator className="self-center" /> : null}
 
@@ -1267,6 +1262,7 @@ export function ChatBubble({
                 mentionNames={mentionNames}
                 onMentionClick={onMentionClick}
                 mentionProfiles={mentionProfiles}
+                mentionRefs={message.mentions}
               />
             ) : null}
             {message.isEdited && !editSlot ? (

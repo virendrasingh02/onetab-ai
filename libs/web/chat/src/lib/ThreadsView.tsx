@@ -5,12 +5,10 @@ import {
   AttachmentGrid,
   AttachmentRenderer,
   Composer,
-  DEFAULT_AI_AGENT_MENTIONS,
-  DEFAULT_COWORKER_MENTIONS,
-  DEFAULT_APP_MENTIONS,
   MessageRenderer,
   PendingUploadMessage,
   useMentionNotices,
+  MentionAliasesProvider,
 } from '@org/chat-ui';
 import type { ComposerContext } from '@org/types';
 import type { Message, RoomKind, RoomMember } from '@org/matrix-client';
@@ -70,6 +68,8 @@ import {
 import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
 import { useRoomActions, useRoomSummary } from './use-chat.js';
 import { useThreadConversation } from './use-thread-conversation.js';
+import { toMentionRefs } from './mention-refs.js';
+import { useNameAliases } from './use-name-aliases.js';
 import { useReadReceiptsEnabled } from './use-read-receipts-enabled.js';
 import { formatRoomMemberSummary } from './thread-roster.js';
 
@@ -379,15 +379,6 @@ function ThreadDetail({
     for (const app of composerControl.appMentions ?? []) {
       if (app.name) names.add(app.name.trim());
     }
-    for (const a of DEFAULT_AI_AGENT_MENTIONS) {
-      if (a.name) names.add(a.name.trim());
-    }
-    for (const c of DEFAULT_COWORKER_MENTIONS) {
-      if (c.name) names.add(c.name.trim());
-    }
-    for (const app of DEFAULT_APP_MENTIONS) {
-      if (app.name) names.add(app.name.trim());
-    }
     return Array.from(names);
   }, [
     mentionNames,
@@ -507,10 +498,10 @@ function ThreadDetail({
         <Composer
           onSend={async (body, meta) => {
             if (editing) {
-              await actions.edit(editing.id, body);
+              await actions.edit(editing.id, body, toMentionRefs(meta?.mentions));
               setEditing(null);
             } else {
-              const anchorId = await send(body);
+              const anchorId = await send(body, toMentionRefs(meta?.mentions));
               composerControl.raiseMentionNotice(meta?.mentions, {
                 threadRootId: thread.id,
                 anchorId,
@@ -962,6 +953,16 @@ function ThreadList({
  * live reply box, so following up never means leaving this page.
  */
 export function ThreadsView() {
+  const { workspaceId } = useCurrentWorkspace();
+  const aliases = useNameAliases(workspaceId);
+  return (
+    <MentionAliasesProvider aliases={aliases}>
+      <ThreadsViewContent />
+    </MentionAliasesProvider>
+  );
+}
+
+function ThreadsViewContent() {
   const [tab, setTab] = useState('all');
   const [openIds, setOpenIds] = useState<ReadonlySet<string>>(
     () => new Set<string>(),

@@ -13,7 +13,10 @@ export interface ThreadConversation {
    * Post a reply into the thread. Resolves once the echo is on the timeline,
    * to the send's transaction id.
    */
-  send: (body: string) => Promise<string | undefined>;
+  send: (
+    body: string,
+    mentions?: { userId: string; label: string }[],
+  ) => Promise<string | undefined>;
   /** Catch the thread's read marker up to its latest reply. */
   markRead: () => void;
   /** Re-read the thread from the client (used after a send). */
@@ -83,13 +86,17 @@ export function useThreadConversation(
   }, [client, roomId, rootId, enabled, load]);
 
   const send = useCallback(
-    async (body: string): Promise<string | undefined> => {
+    async (
+      body: string,
+      mentions?: { userId: string; label: string }[],
+    ): Promise<string | undefined> => {
       const trimmed = body.trim();
       if (!client || !roomId || !rootId || !trimmed) return undefined;
       setIsSending(true);
       try {
         const transactionId = await client.sendMessage(roomId, trimmed, {
           threadRootId: rootId,
+          mentions,
         });
         await load();
         return transactionId;

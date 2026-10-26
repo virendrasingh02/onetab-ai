@@ -10,6 +10,13 @@ export {
 } from './lib/format.js';
 
 export {
+  getServerClockOffset,
+  serverNow,
+  subscribeServerClock,
+  syncServerTime,
+} from './lib/server-clock.js';
+
+export {
   describeTimezone,
   formatDateInZone,
   formatTimeInZone,

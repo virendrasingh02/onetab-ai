@@ -8,6 +8,7 @@ import {
   PRESENCE_LABELS,
   PresenceDot,
   ScrollArea,
+  toast,
   toPresenceStatus,
   UserAvatar,
   UserCover,
@@ -17,6 +18,7 @@ import { cn } from '@org/utils';
 import {
   Calendar,
   Crown,
+  Link2,
   Mail,
   MessageSquare,
   Phone,
@@ -336,6 +338,7 @@ export function UserProfileRightPanel({
   onSendDirectMessage,
   onStartCall,
   onStartVideoCall,
+  profileLink,
 }: {
   userId: string;
   name: string;
@@ -353,6 +356,8 @@ export function UserProfileRightPanel({
   onSendDirectMessage?: (userId: string) => void;
   onStartCall?: (userId: string) => void;
   onStartVideoCall?: (userId: string) => void;
+  /** Shareable link to this person's conversation; adds a Link action. */
+  profileLink?: string;
 }) {
   const handle = `@${userId.replace(/^@/, '').split(':')[0]}`;
   const isBotOrAgent = userId.startsWith('agent-') || userId.startsWith('app-');
@@ -396,17 +401,18 @@ export function UserProfileRightPanel({
           <Button
             size="sm"
             onClick={() => onSendDirectMessage?.(userId)}
-            className="text-xs font-bold px-3 py-2 gap-1.5 flex-1 min-w-[100px] rounded-xl bg-foreground text-background shadow-md hover:bg-foreground/85"
+            className="h-8 text-xs font-semibold px-3 gap-1.5 flex-1 min-w-[100px] rounded-md bg-foreground text-background shadow-xs hover:bg-foreground/85"
           >
             <MessageSquare className="size-3.5" />
             <span>Message</span>
           </Button>
 
           {!isBotOrAgent && (
-            <>
+            // Same joined-segment treatment as the conversation header's call control.
+            <div className="inline-flex h-8 items-center overflow-hidden rounded-md border border-border bg-background shadow-xs transition-colors hover:border-foreground/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/40">
               <Button
+                variant="ghost"
                 size="sm"
-                variant="outline"
                 onClick={() => {
                   if (onStartCall) {
                     onStartCall(userId);
@@ -414,17 +420,17 @@ export function UserProfileRightPanel({
                     onSendDirectMessage?.(userId);
                   }
                 }}
-                className="text-xs font-semibold px-2.5 py-2 gap-1 rounded-xl border-border bg-surface shadow-xs hover:bg-accent"
-                title="Start Voice Call"
-                aria-label="Start Voice Call"
+                className="h-full gap-1.5 rounded-none px-3 text-xs font-medium focus-visible:ring-0"
+                title="Start voice call"
+                aria-label="Start voice call"
               >
                 <Phone className="size-3.5" />
                 <span>Call</span>
               </Button>
-
+              <span aria-hidden className="h-4 w-px bg-border" />
               <Button
+                variant="ghost"
                 size="sm"
-                variant="outline"
                 onClick={() => {
                   if (onStartVideoCall) {
                     onStartVideoCall(userId);
@@ -434,14 +440,35 @@ export function UserProfileRightPanel({
                     onSendDirectMessage?.(userId);
                   }
                 }}
-                className="text-xs font-semibold px-2.5 py-2 gap-1 rounded-xl border-border bg-surface shadow-xs hover:bg-accent"
-                title="Start Video Call"
-                aria-label="Start Video Call"
+                className="h-full gap-1.5 rounded-none px-3 text-xs font-medium focus-visible:ring-0"
+                title="Start video call"
+                aria-label="Start video call"
               >
                 <Video className="size-3.5" />
                 <span>Video</span>
               </Button>
-            </>
+              {profileLink ? (
+                <>
+                  <span aria-hidden className="h-4 w-px bg-border" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(profileLink).then(
+                        () => toast.success('Link copied'),
+                        () => toast.error('Could not copy the link.'),
+                      );
+                    }}
+                    className="h-full gap-1.5 rounded-none px-3 text-xs font-medium focus-visible:ring-0"
+                    title="Copy link"
+                    aria-label="Copy link"
+                  >
+                    <Link2 className="size-3.5" />
+                    <span>Link</span>
+                  </Button>
+                </>
+              ) : null}
+            </div>
           )}
         </div>
 

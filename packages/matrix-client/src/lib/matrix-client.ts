@@ -26,6 +26,7 @@ import { toMatrixError, withRetry } from './errors.js';
 import {
   collectUnreadMentions,
   ALSO_SEND_TO_CHANNEL_KEY,
+  MENTIONS_KEY,
   ATTACHMENT_BATCH_KEY,
   FORWARDED_CONTENT_KEY,
   forwardFallbackBody,
@@ -170,6 +171,8 @@ export interface MatrixClientOptions {
   enableEncryption?: boolean;
   /** Events fetched on the first sync per room. */
   initialSyncLimit?: number;
+  /** Clock for optimistic local echoes; pass a server-aligned one so they match what the server will stamp. */
+  now?: () => number;
 }
 
 export interface LoginCredentials {
@@ -216,6 +219,7 @@ export class OneTabMatrixClient {
       homeserverUrl: options.homeserverUrl,
       enableEncryption: options.enableEncryption ?? true,
       initialSyncLimit: options.initialSyncLimit ?? 30,
+      now: options.now ?? Date.now,
     };
     this.calls.on((call) => this.emit({ type: 'call.updated', call }));
   }
@@ -1331,16 +1335,39 @@ export class OneTabMatrixClient {
       html?: string;
       /** With `threadRootId`: also show this reply in the channel timeline. */
       alsoSendToChannel?: boolean;
+      /** People @mentioned; `label` is the text typed after the `@`. */
+      mentions?: { userId: string; label: string }[];
     } = {},
   ): Promise<string> {
-    const { alsoSendToChannel, ...rest } = options;
+    const { alsoSendToChannel, mentions, ...rest } = options;
+    const mentionContent = mentions?.length
+      ? {
+          // `m.mentions` is for Matrix ids only; platform ids ride in ours.
+          'm.mentions': {
+            user_ids: [
+              ...new Set(
+                mentions.map((m) => m.userId).filter((id) => id.startsWith('@')),
+              ),
+            ],
+          },
+          [MENTIONS_KEY]: mentions.map((m) => ({
+            user_id: m.userId,
+            label: m.label,
+          })),
+        }
+      : undefined;
+    const mentionEcho = mentions?.length ? { mentions } : undefined;
     if (!alsoSendToChannel || !options.threadRootId) {
-      return this.sendTextEvent(roomId, body, rest);
+      return this.sendTextEvent(roomId, body, {
+        ...rest,
+        extraContent: mentionContent,
+        echo: mentionEcho,
+      });
     }
     return this.sendTextEvent(roomId, body, {
       ...rest,
-      extraContent: { [ALSO_SEND_TO_CHANNEL_KEY]: true },
-      echo: { alsoSentToChannel: true },
+      extraContent: { ...mentionContent, [ALSO_SEND_TO_CHANNEL_KEY]: true },
+      echo: { ...mentionEcho, alsoSentToChannel: true },
     });
   }
 
@@ -1464,7 +1491,7 @@ export class OneTabMatrixClient {
       kind: 'text',
       body,
       formattedBody: options.html,
-      timestamp: Date.now(),
+      timestamp: this.options.now(),
       reactions: [],
       isEdited: false,
       isRedacted: false,
@@ -1565,7 +1592,7 @@ export class OneTabMatrixClient {
       id: newTxnId,
       transactionId: newTxnId,
       sendState: 'sending',
-      timestamp: Date.now(),
+      timestamp: this.options.now(),
     };
     this.pendingEchoes.set(newTxnId, retriedMessage);
     this.emit({
@@ -1577,6 +1604,23 @@ export class OneTabMatrixClient {
     const content: Record<string, unknown> = {
       ...(retriedMessage.alsoSentToChannel
         ? { [ALSO_SEND_TO_CHANNEL_KEY]: true }
+        : {}),
+      ...(retriedMessage.mentions?.length
+        ? {
+            'm.mentions': {
+              user_ids: [
+                ...new Set(
+                  retriedMessage.mentions
+                    .map((m) => m.userId)
+                    .filter((id) => id.startsWith('@')),
+                ),
+              ],
+            },
+            [MENTIONS_KEY]: retriedMessage.mentions.map((m) => ({
+              user_id: m.userId,
+              label: m.label,
+            })),
+          }
         : {}),
       msgtype: 'm.text',
       body: retriedMessage.body,
@@ -1636,6 +1680,7 @@ export class OneTabMatrixClient {
     roomId: RoomId,
     eventId: EventId,
     newBody: string,
+    mentions?: { userId: string; label: string }[],
   ): Promise<void> {
     const sdk = this.require();
 
@@ -1659,6 +1704,33 @@ export class OneTabMatrixClient {
           [FORWARDED_CONTENT_KEY]: { ...forwarded, comment: newBody.trim() },
         }
       : { msgtype: 'm.text', body: newBody };
+
+    // A replacement replaces the content, so keep the original's mention ids
+    // for every person the edited text still names.
+    const body = newBody.toLowerCase();
+    const previous = (original?.[MENTIONS_KEY] ?? []) as {
+      user_id?: unknown;
+      label?: unknown;
+    }[];
+    const keptMentions = [
+      ...previous,
+      // Mentions picked while editing.
+      ...(mentions ?? []).map((m) => ({ user_id: m.userId, label: m.label })),
+    ].filter(
+      (m, i, all) =>
+        typeof m?.user_id === 'string' &&
+        typeof m.label === 'string' &&
+        body.includes(`@${m.label.toLowerCase()}`) &&
+        all.findIndex((o) => o.user_id === m.user_id && o.label === m.label) === i,
+    );
+    if (keptMentions.length) {
+      newContent[MENTIONS_KEY] = keptMentions;
+      newContent['m.mentions'] = {
+        user_ids: keptMentions
+          .map((m) => m.user_id as string)
+          .filter((id) => id.startsWith('@')),
+      };
+    }
 
     await withRetry(() =>
       sdk.sendMessage(roomId, {

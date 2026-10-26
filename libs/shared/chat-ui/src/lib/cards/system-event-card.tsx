@@ -6,11 +6,11 @@ import type {
 import {
   ActionDropdownMenu,
   type EntityAction,
-  Hint,
   UserAvatar,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { MessageTime } from '../message-time.js';
 import { EntityKindBadge } from '../entity-kind-badge.js';
 import {
   Archive,
@@ -38,8 +38,6 @@ import {
   ReactionPicker,
   TOOLBAR_BTN,
   TOOLBAR_ICON,
-  formatFullTimestamp,
-  formatShortTimestamp,
 } from '../chat-bubble.js';
 import { ReactionBar } from '../reaction-bar.js';
 
@@ -383,14 +381,10 @@ export function SystemEventAction({
  * timeline row (brief §9, §21 `<SystemEventTimestamp>`). */
 export function SystemEventTimestamp({ timestamp }: { timestamp: number }) {
   return (
-    <Hint label={formatFullTimestamp(timestamp)}>
-      <time
-        dateTime={new Date(timestamp).toISOString()}
-        className="shrink-0 cursor-default text-xs font-medium text-muted-foreground"
-      >
-        {Date.now() - timestamp < 60_000 ? 'Just now' : formatShortTimestamp(timestamp)}
-      </time>
-    </Hint>
+    <MessageTime
+      timestamp={timestamp}
+      className="shrink-0 cursor-default text-xs font-medium text-muted-foreground"
+    />
   );
 }
 

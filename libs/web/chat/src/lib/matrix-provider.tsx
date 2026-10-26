@@ -6,6 +6,7 @@ import {
   type MatrixClientEvent,
   type OneTabMatrixClient,
 } from '@org/matrix-client';
+import { serverNow } from '@org/utils';
 import {
   createContext,
   use,
@@ -199,6 +200,7 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
           // The deployment decides: a homeserver that cannot hand out
           // device-bound sessions cannot do end-to-end encryption either.
           enableEncryption: config.encryption,
+          now: serverNow,
         });
         instance = created;
 

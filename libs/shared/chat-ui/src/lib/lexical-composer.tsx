@@ -1190,7 +1190,6 @@ function MentionsPlugin({
                   seed={option.candidate.id}
                   src={option.candidate.avatarUrl}
                   size="xs"
-                  indicator={false}
                   className="size-6 font-bold shrink-0"
                 />
               )}

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MarkdownMessage } from './markdown-message.js';
+import { MentionAliasesProvider } from './mention-aliases.js';
 
 describe('MarkdownMessage', () => {
   it('renders every heading level at the message size', () => {
@@ -161,5 +162,64 @@ describe('MarkdownMessage', () => {
     expect(mentionChip).toBeInTheDocument();
     fireEvent.click(mentionChip!);
     expect(onMentionClick).toHaveBeenCalledWith('@Virendra Singh');
+  });
+
+  it('renders a short handle as the member\'s current full name', () => {
+    const onMentionClick = vi.fn();
+    const { container } = render(
+      <MarkdownMessage
+        text={'@Virendra Hi'}
+        mentionProfiles={{
+          'virendra singh': { userId: 'u1', name: 'Virendra Singh', entityKind: 'user' },
+        }}
+        onMentionClick={onMentionClick}
+      />,
+    );
+
+    const chip = container.querySelector('span[data-mention]');
+    expect(chip).toHaveTextContent('@Virendra Singh');
+    fireEvent.click(chip!);
+    expect(onMentionClick).toHaveBeenCalledWith('@Virendra Singh');
+  });
+
+  it('follows a rename when the message carries the mentioned user id', () => {
+    const { container } = render(
+      <MarkdownMessage
+        text={'@Old Name Hi'}
+        mentionNames={['Old Name']}
+        mentionRefs={[{ userId: '@onetab_u1:hs', label: 'Old Name' }]}
+        mentionProfiles={{
+          'new name': { userId: 'u1', name: 'New Name', entityKind: 'user' },
+        }}
+      />,
+    );
+    expect(container.querySelector('span[data-mention]')).toHaveTextContent('@New Name');
+  });
+
+  it('resolves a former name from the alias history (old messages, no ids)', () => {
+    const { container } = render(
+      <MentionAliasesProvider aliases={[{ userId: 'u1', alias: 'Old Name' }]}>
+        <MarkdownMessage
+          text={'@Old Name Hi'}
+          mentionProfiles={{
+            'new name': { userId: '@onetab_u1:hs', name: 'New Name', entityKind: 'user' },
+          }}
+        />
+      </MentionAliasesProvider>,
+    );
+    expect(container.querySelector('span[data-mention]')).toHaveTextContent('@New Name');
+  });
+
+  it('leaves an ambiguous handle as typed', () => {
+    const { container } = render(
+      <MarkdownMessage
+        text={'@Ana Hi'}
+        mentionProfiles={{
+          'ana ruiz': { userId: 'u1', name: 'Ana Ruiz', entityKind: 'user' },
+          'ana lee': { userId: 'u2', name: 'Ana Lee', entityKind: 'user' },
+        }}
+      />,
+    );
+    expect(container.querySelector('span[data-mention]')).toHaveTextContent('@Ana');
   });
 });

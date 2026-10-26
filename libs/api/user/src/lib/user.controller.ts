@@ -246,6 +246,12 @@ export class UserController {
 export class WorkspaceUserController {
   constructor(private readonly users: UserService) {}
 
+  /** Names members used to go by — resolves `@Old Name` in older messages. */
+  @Get('aliases')
+  aliases(@WorkspaceId() workspaceId: string) {
+    return this.users.listNameAliases(workspaceId);
+  }
+
   @Get('search')
   search(
     @WorkspaceId() workspaceId: string,

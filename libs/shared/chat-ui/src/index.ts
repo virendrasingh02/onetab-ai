@@ -15,6 +15,11 @@ export {
   type ChatBubbleProps,
 } from './lib/chat-bubble.js';
 export {
+  MentionAliasesProvider,
+  useMentionAliases,
+  type MentionAlias,
+} from './lib/mention-aliases.js';
+export {
   ReactionBar,
   ReactorDirectoryProvider,
   describeReactors,
@@ -57,10 +62,7 @@ export {
 
 export {
   Composer,
-  GROUP_MENTIONS,
-  DEFAULT_AI_AGENT_MENTIONS,
-  DEFAULT_COWORKER_MENTIONS,
-  DEFAULT_APP_MENTIONS,
+  buildGroupMentions,
   type ComposerProps,
 } from './lib/composer.js';
 export type {

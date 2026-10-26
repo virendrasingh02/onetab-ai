@@ -596,13 +596,18 @@ export function useRoomActions(roomId: RoomId | undefined) {
     async (
       body: string,
       threadRootId?: string,
-      options?: { alsoSendToChannel?: boolean; replyToId?: string },
+      options?: {
+        alsoSendToChannel?: boolean;
+        replyToId?: string;
+        mentions?: { userId: string; label: string }[];
+      },
     ): Promise<string | undefined> => {
       if (!client || !roomId) return undefined;
       return client.sendMessage(roomId, body, {
         threadRootId,
         replyToId: options?.replyToId,
         alsoSendToChannel: options?.alsoSendToChannel,
+        mentions: options?.mentions,
       });
     },
     [client, roomId],
@@ -617,9 +622,13 @@ export function useRoomActions(roomId: RoomId | undefined) {
   );
 
   const edit = useCallback(
-    async (eventId: string, body: string) => {
+    async (
+      eventId: string,
+      body: string,
+      mentions?: { userId: string; label: string }[],
+    ) => {
       if (!client || !roomId) return;
-      await client.editMessage(roomId, eventId, body);
+      await client.editMessage(roomId, eventId, body, mentions);
     },
     [client, roomId],
   );

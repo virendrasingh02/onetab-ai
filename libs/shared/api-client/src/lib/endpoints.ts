@@ -1299,6 +1299,12 @@ export const memberApi = {
         params: { q: query },
       }),
     ),
+
+  /** Names members used to go by, so old `@mentions` still find them. */
+  aliases: (workspaceId: string) =>
+    request<{ userId: string; matrixUserId: string | null; alias: string }[]>(
+      http.get(`/workspaces/${workspaceId}/users/aliases`),
+    ),
 };
 
 export const peopleApi = {
