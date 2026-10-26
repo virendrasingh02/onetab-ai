@@ -518,11 +518,20 @@ function UploadRow({
         isDeleting && 'opacity-50',
       )}
     >
-      <button
-        type="button"
+      {/* A div, not a <button>: the source badge inside is itself a button. */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => primary(item, index)}
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            primary(item, index);
+          }
+        }}
         aria-label={`${onOpenDetails ? 'Details for' : 'Preview'} ${item.filename}`}
-        className="gap-3 min-w-0 flex flex-1 items-center text-left focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none rounded-md"
+        className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none rounded-md"
       >
         <FileTypeBadge
           mimeType={item.mimeType}
@@ -572,7 +581,7 @@ function UploadRow({
             ) : null}
           </div>
         </div>
-      </button>
+      </div>
 
       <div className="gap-2 sm:gap-3 flex shrink-0 items-center">
         <UserAvatar
