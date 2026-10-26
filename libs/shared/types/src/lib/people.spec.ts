@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   canSeeWith,
+  describeDaysUntil,
+  upcomingCelebrations,
   computeProfileCompletion,
   isValidMonthDay,
   nextAnniversary,
@@ -160,5 +162,28 @@ describe('computeProfileCompletion', () => {
     const a = computeProfileCompletion({ name: 'A' });
     const b = computeProfileCompletion({ name: 'A', phone: '1' });
     expect(b.percent).toBeGreaterThan(a.percent);
+  });
+});
+
+describe('upcomingCelebrations', () => {
+  const today = ymd('2026-10-26');
+  it('finds the next birthday and anniversary, soonest first', () => {
+    const out = upcomingCelebrations(
+      { birthday: { month: 10, day: 30 }, joiningDate: '2021-10-28' },
+      today,
+    );
+    expect(out.map((c) => [c.kind, c.daysUntil, c.years])).toEqual([
+      ['ANNIVERSARY', 2, 5],
+      ['BIRTHDAY', 4, null],
+    ]);
+    expect(out[0].isMilestone).toBe(true);
+  });
+  it('respects the window and people who left', () => {
+    expect(upcomingCelebrations({ birthday: { month: 12, day: 1 } }, today, 7)).toEqual([]);
+    expect(upcomingCelebrations({ birthday: { month: 10, day: 26 }, hasLeft: true }, today)).toEqual([]);
+    expect(upcomingCelebrations({ birthday: { month: 10, day: 26 } }, today)[0].daysUntil).toBe(0);
+  });
+  it('describes distances', () => {
+    expect([0, 1, 5].map(describeDaysUntil)).toEqual(['today', 'tomorrow', 'in 5 days']);
   });
 });

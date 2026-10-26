@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { AgentProfileRightPanel } from '@org/web-agents';
 import { CoworkerProfileRightPanel } from '@org/web-coworkers';
 import { AppProfileRightPanel } from '@org/web-integrations';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import { EmployeeInfoBridge, useCurrentWorkspace } from '@org/web-workspace';
 import { AssistantPanel } from './assistant-panel.js';
 import { UniversalContextPanel } from './context-panel/universal-context-panel.js';
 
@@ -166,28 +166,30 @@ export function RightPanel({
         title={person ? person.name : 'Your profile'}
         onClose={onClose}
       >
-        <UserProfileRightPanel
-          userId={person?.userId ?? currentUser.id}
-          name={person?.name ?? currentUser.displayName ?? currentUser.name}
-          avatarUrl={person?.avatarUrl ?? currentUser.avatarUrl ?? undefined}
-          title={person?.title ?? currentUser.title ?? undefined}
-          role={person?.role}
-          powerLevel={person?.powerLevel}
-          email={person?.email ?? currentUser.email}
-          joinedAt={person?.joinedAt ?? currentUser.createdAt}
-          bio={person?.bio ?? currentUser.bio ?? undefined}
-          timezone={person?.timezone ?? currentUser.timezone}
-          status={person?.status ?? 'online'}
-          statusEmoji={person?.statusEmoji ?? currentUser.statusEmoji}
-          statusText={person?.statusText ?? currentUser.statusText}
-          onSendDirectMessage={openDirectMessage}
-          onStartCall={(targetUserId: string) => {
-            navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=voice`);
-          }}
-          onStartVideoCall={(targetUserId: string) => {
-            navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=video`);
-          }}
-        />
+        <EmployeeInfoBridge workspaceId={workspaceId}>
+          <UserProfileRightPanel
+            userId={person?.userId ?? currentUser.id}
+            name={person?.name ?? currentUser.displayName ?? currentUser.name}
+            avatarUrl={person?.avatarUrl ?? currentUser.avatarUrl ?? undefined}
+            title={person?.title ?? currentUser.title ?? undefined}
+            role={person?.role}
+            powerLevel={person?.powerLevel}
+            email={person?.email ?? currentUser.email}
+            joinedAt={person?.joinedAt ?? currentUser.createdAt}
+            bio={person?.bio ?? currentUser.bio ?? undefined}
+            timezone={person?.timezone ?? currentUser.timezone}
+            status={person?.status ?? 'online'}
+            statusEmoji={person?.statusEmoji ?? currentUser.statusEmoji}
+            statusText={person?.statusText ?? currentUser.statusText}
+            onSendDirectMessage={openDirectMessage}
+            onStartCall={(targetUserId: string) => {
+              navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=voice`);
+            }}
+            onStartVideoCall={(targetUserId: string) => {
+              navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=video`);
+            }}
+          />
+        </EmployeeInfoBridge>
       </PanelFrame>
     );
   }

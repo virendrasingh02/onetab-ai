@@ -19,13 +19,11 @@ import {
 } from '@org/api-common';
 import { WorkspacePermission, type WorkspaceRole } from '@org/types';
 import {
-  celebrationsQuerySchema,
   employeeDirectoryQuerySchema,
   updateCelebrationPrefsSchema,
   updateEmployeePrivacySchema,
   updateEmployeeProfileSchema,
   updateEmploymentSchema,
-  type CelebrationsQuery,
   type EmployeeDirectoryQuery,
   type UpdateCelebrationPrefsInput,
   type UpdateEmployeePrivacyInput,
@@ -35,7 +33,7 @@ import {
 import { PeopleService } from './people.service.js';
 
 /**
- * Employee profiles, directory and celebrations. Every route is scoped to the
+ * Employee profiles and directory. Every route is scoped to the
  * `:workspaceId` the guard has verified the caller belongs to; privacy is
  * applied in `PeopleService`, not here.
  */
@@ -52,16 +50,6 @@ export class PeopleController {
     @Query(zodBody(employeeDirectoryQuerySchema)) query: EmployeeDirectoryQuery,
   ) {
     return this.people.directory(workspaceId, { userId, role }, query);
-  }
-
-  @Get('celebrations')
-  celebrations(
-    @WorkspaceId() workspaceId: string,
-    @CurrentUser('id') userId: string,
-    @WorkspaceMemberRole() role: WorkspaceRole,
-    @Query(zodBody(celebrationsQuerySchema)) query: CelebrationsQuery,
-  ) {
-    return this.people.celebrations(workspaceId, { userId, role }, query);
   }
 
   @Get(':userId')

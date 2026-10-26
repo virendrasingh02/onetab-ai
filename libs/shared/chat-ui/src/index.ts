@@ -49,6 +49,11 @@ export {
   type MemberProfileResolver,
   type MemberWorkspaceRole,
 } from './lib/member-profile-context.js';
+export {
+  EmployeeInfoProvider,
+  useEmployeeInfoSource,
+  type EmployeeInfoSource,
+} from './lib/employee-info-context.js';
 
 export {
   Composer,

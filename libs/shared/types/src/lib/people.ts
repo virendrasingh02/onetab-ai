@@ -435,18 +435,58 @@ export interface EmployeeProfileView extends EmployeeCard {
   };
 }
 
-export interface CelebrationEntry {
+/** A birthday or work anniversary coming up for one person, as one viewer sees it. */
+export interface UpcomingCelebration {
   kind: 'BIRTHDAY' | 'ANNIVERSARY';
-  userId: string;
-  name: string;
-  avatarUrl: string | null;
-  jobTitle: string | null;
-  /** Next occurrence, `YYYY-MM-DD`. */
-  date: string;
+  date: YMD;
   daysUntil: number;
   /** Anniversary number; null for birthdays. */
   years: number | null;
   isMilestone: boolean;
+}
+
+/**
+ * The next birthday and work anniversary of an employee card, within
+ * `withinDays` of `today`. Works off the card itself, so it can only ever
+ * surface what the API already let this viewer see.
+ */
+export function upcomingCelebrations(
+  card: {
+    birthday?: { month: number; day: number } | null;
+    joiningDate?: string | null;
+    hasLeft?: boolean;
+  },
+  today: YMD,
+  withinDays = 366,
+): UpcomingCelebration[] {
+  if (card.hasLeft) return [];
+  const out: UpcomingCelebration[] = [];
+  if (card.birthday) {
+    const date = nextOccurrence(card.birthday.month, card.birthday.day, today);
+    const daysUntil = diffDays(today, date);
+    if (daysUntil <= withinDays) {
+      out.push({ kind: 'BIRTHDAY', date, daysUntil, years: null, isMilestone: false });
+    }
+  }
+  const joined = card.joiningDate ? parseYMD(card.joiningDate) : null;
+  if (joined) {
+    const a = nextAnniversary(joined, today);
+    if (a.daysUntil <= withinDays) {
+      out.push({
+        kind: 'ANNIVERSARY',
+        date: a.date,
+        daysUntil: a.daysUntil,
+        years: a.years,
+        isMilestone: a.isMilestone,
+      });
+    }
+  }
+  return out.sort((x, y) => x.daysUntil - y.daysUntil);
+}
+
+/** "today", "tomorrow", "in 5 days". */
+export function describeDaysUntil(days: number): string {
+  return days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
 }
 
 export interface EmployeeDirectoryPage {

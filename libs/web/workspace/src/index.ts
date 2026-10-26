@@ -97,3 +97,12 @@ export {
   type NavigationMemory,
   type NavigationMemoryState,
 } from './lib/navigation-memory.store.js';
+
+/* People: employee hooks, the profile-rail bridge and the HR employment dialog (shared by the shell and `@org/web-members`). */
+export { EmployeeInfoBridge } from './lib/people/employee-info-bridge.js';
+export {
+  useEmployeeDirectory,
+  useEmployeeProfile,
+  usePeopleMutations,
+} from './lib/people/use-people.js';
+export { MONTHS, errorMessage, formatDate } from './lib/people/people-utils.js';

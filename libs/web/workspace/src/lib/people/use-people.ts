@@ -26,20 +26,6 @@ export function useEmployeeDirectory(
   });
 }
 
-export function useCelebrations(
-  workspaceId: string | undefined,
-  from: string,
-  days: number,
-) {
-  return useQuery({
-    queryKey: queryKeys.people.celebrations(workspaceId ?? '', from, days),
-    queryFn: () =>
-      peopleApi.celebrations(workspaceId as string, { from, days }),
-    enabled: !!workspaceId,
-    placeholderData: keepPreviousData,
-  });
-}
-
 export function useEmployeeProfile(
   workspaceId: string | undefined,
   userId: string | undefined,

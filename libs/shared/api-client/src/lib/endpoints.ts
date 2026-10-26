@@ -1,5 +1,4 @@
 import type {
-  CelebrationEntry,
   CelebrationPrefs,
   EmployeeDirectoryPage,
   EmployeePrivacy,
@@ -1308,14 +1307,6 @@ export const peopleApi = {
       http.get(`/workspaces/${workspaceId}/people/directory`, {
         params: query,
       }),
-    ),
-
-  celebrations: (
-    workspaceId: string,
-    params: { from?: string; days?: number },
-  ) =>
-    request<CelebrationEntry[]>(
-      http.get(`/workspaces/${workspaceId}/people/celebrations`, { params }),
     ),
 
   profile: (workspaceId: string, userId: string) =>

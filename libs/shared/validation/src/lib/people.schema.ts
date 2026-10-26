@@ -176,11 +176,3 @@ export const employeeDirectoryQuerySchema = z.object({
 export type EmployeeDirectoryQuery = z.infer<
   typeof employeeDirectoryQuerySchema
 >;
-
-export const celebrationsQuerySchema = z.object({
-  /** Window start, `YYYY-MM-DD`; defaults to the viewer's today. */
-  from: isoDate.optional(),
-  /** Window length in days. */
-  days: z.coerce.number().int().min(1).max(366).default(60),
-});
-export type CelebrationsQuery = z.infer<typeof celebrationsQuerySchema>;

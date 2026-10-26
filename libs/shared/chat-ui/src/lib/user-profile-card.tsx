@@ -27,6 +27,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { EmployeeInfoSection } from './employee-info-section.js';
 import {
   MEMBER_ROLE_LABELS,
   useMemberProfile,
@@ -279,18 +280,8 @@ export function UserProfileCard({
 
           <hr className="my-3 border-border" />
 
-          {/* Bio & Details */}
+          {/* Local time (the full profile, with the bio, opens in the right rail). */}
           <div className="space-y-2 text-xs">
-            {resolvedBio ? (
-              <div>
-                <p className="font-bold tracking-wider text-2xs text-muted-foreground uppercase">
-                  About Me
-                </p>
-                <p className="mt-0.5 leading-relaxed line-clamp-2 text-foreground">
-                  {resolvedBio}
-                </p>
-              </div>
-            ) : null}
 
             {/* Local time — just the clock and the time, nothing else. */}
             <div className="gap-1.5 flex items-center text-muted-foreground">
@@ -569,6 +560,9 @@ export function UserProfileRightPanel({
             </div>
           </div>
         </div>
+
+        {/* Employee details the viewer is allowed to see (when the app provides them). */}
+        {!isBotOrAgent && <EmployeeInfoSection userId={userId} />}
         </div>
       </ScrollArea>
     </div>

@@ -25,13 +25,18 @@ import {
 } from '@org/ui';
 import type { UpdateCelebrationPrefsInput } from '@org/validation';
 import { isValidPhone } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import {
+  MONTHS,
+  errorMessage,
+  formatDate,
+  useCurrentWorkspace,
+  useEmployeeProfile,
+  usePeopleMutations,
+} from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, Circle, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MONTHS, errorMessage, formatDate } from '../people-utils.js';
-import { useEmployeeProfile, usePeopleMutations } from '../use-people.js';
 
 /** Completion items stored on the account profile (Settings → Profile). */
 const ACCOUNT_FIELD_KEYS = new Set([
@@ -55,6 +60,25 @@ const VISIBILITY_OPTIONS: { value: PeopleVisibility; label: string }[] = [
   { value: 'TEAM', label: 'My team' },
   { value: 'WORKSPACE', label: 'Everyone in the workspace' },
 ];
+
+const isHttpUrl = (v: string) => {
+  try {
+    const { protocol } = new URL(v.trim());
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+/** Row-level problem with a professional link, or undefined when fine / blank. */
+const linkError = (l: { label: string; url: string }) => {
+  const label = l.label.trim();
+  const url = l.url.trim();
+  if (!label && !url) return undefined;
+  if (!label) return 'Add a label';
+  if (!url) return 'Add a URL';
+  return isHttpUrl(url) ? undefined : 'Use a full http(s) link';
+};
 
 const scrollTo = (id: string) =>
   document
@@ -249,6 +273,7 @@ function TagField({
             maxLength={40}
             placeholder={placeholder}
             onChange={(e) => setDraft(e.target.value)}
+            onBlur={add}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ',') {
                 e.preventDefault();
@@ -307,14 +332,21 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
       data.links ?? [],
     ]);
 
+  const phoneInvalid = !!phone && !isValidPhone(phone);
+  const linksInvalid = links.some((l) => linkError(l));
+
   const submit = () =>
+    !phoneInvalid &&
+    !linksInvalid &&
     updateProfile.mutate(
       {
         preferredName: preferredName.trim() || null,
         phone: phone.trim() || null,
         skills,
         interests,
-        links: links.filter((l) => l.label.trim() && l.url.trim()),
+        links: links
+          .filter((l) => l.label.trim() && l.url.trim())
+          .map((l) => ({ label: l.label.trim(), url: l.url.trim() })),
       },
       {
         onSuccess: () => toast.success('Work profile saved'),
@@ -353,7 +385,7 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
               optional
               hint="Include the country code."
               error={
-                phone && !isValidPhone(phone)
+                phoneInvalid
                   ? 'Enter a valid phone number for the selected country.'
                   : undefined
               }
@@ -361,7 +393,7 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
               <PhoneInput
                 value={phone}
                 onChange={setPhone}
-                invalid={!!phone && !isValidPhone(phone)}
+                invalid={phoneInvalid}
               />
             </Field>
           </div>
@@ -384,42 +416,49 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
           >
             <div className="gap-2 flex flex-col">
               {links.map((l, i) => (
-                <div key={i} className="gap-2 flex">
-                  <Input
-                    aria-label="Link label"
-                    className="w-36"
-                    placeholder="Label"
-                    value={l.label}
-                    maxLength={40}
-                    onChange={(e) =>
-                      setLinks(
-                        links.map((x, j) =>
-                          j === i ? { ...x, label: e.target.value } : x,
-                        ),
-                      )
-                    }
-                  />
-                  <Input
-                    aria-label="Link URL"
-                    placeholder="https://…"
-                    value={l.url}
-                    maxLength={500}
-                    onChange={(e) =>
-                      setLinks(
-                        links.map((x, j) =>
-                          j === i ? { ...x, url: e.target.value } : x,
-                        ),
-                      )
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    aria-label="Remove link"
-                    onClick={() => setLinks(links.filter((_, j) => j !== i))}
-                  >
-                    ×
-                  </Button>
+                <div key={i} className="gap-1 flex flex-col">
+                  <div className="gap-2 flex">
+                    <Input
+                      aria-label="Link label"
+                      className="w-36"
+                      placeholder="Label"
+                      value={l.label}
+                      maxLength={40}
+                      onChange={(e) =>
+                        setLinks(
+                          links.map((x, j) =>
+                            j === i ? { ...x, label: e.target.value } : x,
+                          ),
+                        )
+                      }
+                    />
+                    <Input
+                      aria-label="Link URL"
+                      placeholder="https://…"
+                      value={l.url}
+                      maxLength={500}
+                      onChange={(e) =>
+                        setLinks(
+                          links.map((x, j) =>
+                            j === i ? { ...x, url: e.target.value } : x,
+                          ),
+                        )
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      aria-label="Remove link"
+                      onClick={() => setLinks(links.filter((_, j) => j !== i))}
+                    >
+                      ×
+                    </Button>
+                  </div>
+                  {linkError(l) && (
+                    <p role="alert" className="text-xs text-destructive-text">
+                      {linkError(l)}
+                    </p>
+                  )}
                 </div>
               ))}
               {links.length < 10 && (
@@ -437,7 +476,7 @@ function ContactSection({ data }: { data: EmployeeProfileView }) {
           </Field>
           <SaveRow
             pending={updateProfile.isPending}
-            dirty={dirty && !(phone && !isValidPhone(phone))}
+            dirty={dirty && !phoneInvalid && !linksInvalid}
           />
         </SettingsCard>
       </form>
@@ -488,21 +527,59 @@ function PrivacySection({ data }: { data: EmployeeProfileView }) {
   const [privacy, setPrivacy] = useState<EmployeePrivacy>(initialPrivacy);
   const [prefs, setPrefs] = useState<CelebrationPrefs>(initialPrefs);
 
+  const birthdayChanged =
+    JSON.stringify([month, day, year]) !==
+    JSON.stringify([
+      data.birthday ? String(data.birthday.month) : '',
+      data.birthday ? String(data.birthday.day) : '',
+      data.birthday?.year ? String(data.birthday.year) : '',
+    ]);
+  const privacyChanged =
+    JSON.stringify(privacy) !== JSON.stringify(initialPrivacy);
+  const prefsChanged = JSON.stringify(prefs) !== JSON.stringify(initialPrefs);
+  const dirty = birthdayChanged || privacyChanged || prefsChanged;
+
+  // 2024 is a leap year, so 29 Feb stays allowed.
+  const maxDay = month ? new Date(2024, Number(month), 0).getDate() : 31;
+  const dayError =
+    month && !day
+      ? 'Add the day, or set the month to "Not set".'
+      : day && !month
+        ? 'Choose a month.'
+        : day &&
+            (!Number.isInteger(Number(day)) ||
+              Number(day) < 1 ||
+              Number(day) > maxDay)
+          ? `Enter a day between 1 and ${maxDay}.`
+          : undefined;
+  const yearError =
+    year && !month
+      ? 'Set a birthday first.'
+      : year &&
+          (!Number.isInteger(Number(year)) ||
+            Number(year) < 1900 ||
+            Number(year) > new Date().getFullYear())
+        ? 'Enter a valid year.'
+        : undefined;
+  const invalid = !!dayError || !!yearError;
+
   const save = useMutation({
     mutationFn: async () => {
-      await updateProfile.mutateAsync(
-        month && day
-          ? {
-              birthMonth: Number(month),
-              birthDay: Number(day),
-              birthYear: year ? Number(year) : null,
-            }
-          : { birthMonth: null },
-      );
-      await updatePrivacy.mutateAsync(privacy);
-      await updateCelebrations.mutateAsync(
-        prefs as UpdateCelebrationPrefsInput,
-      );
+      if (birthdayChanged)
+        await updateProfile.mutateAsync(
+          month && day
+            ? {
+                birthMonth: Number(month),
+                birthDay: Number(day),
+                birthYear: year ? Number(year) : null,
+              }
+            : { birthMonth: null },
+        );
+      if (privacyChanged) await updatePrivacy.mutateAsync(privacy);
+      if (prefsChanged)
+        await updateCelebrations.mutateAsync(
+          prefs as UpdateCelebrationPrefsInput,
+        );
     },
     onSuccess: () => toast.success('Privacy & notification settings saved'),
     onError: (err) => toast.error(errorMessage(err, 'Could not save settings')),
@@ -525,7 +602,7 @@ function PrivacySection({ data }: { data: EmployeeProfileView }) {
       className="space-y-8"
       onSubmit={(e) => {
         e.preventDefault();
-        save.mutate();
+        if (dirty && !invalid) save.mutate();
       }}
     >
       <SettingsGroup
@@ -546,7 +623,7 @@ function PrivacySection({ data }: { data: EmployeeProfileView }) {
                 ]}
               />
             </Field>
-            <Field label="Day" optional>
+            <Field label="Day" optional error={dayError}>
               <Input
                 type="number"
                 min={1}
@@ -555,7 +632,7 @@ function PrivacySection({ data }: { data: EmployeeProfileView }) {
                 onChange={(e) => setDay(e.target.value)}
               />
             </Field>
-            <Field label="Year" optional>
+            <Field label="Year" optional error={yearError}>
               <Input
                 type="number"
                 min={1900}
@@ -682,7 +759,7 @@ function PrivacySection({ data }: { data: EmployeeProfileView }) {
 
       <SaveRow
         pending={save.isPending}
-        dirty
+        dirty={dirty && !invalid}
         label="Save privacy & notifications"
       />
     </form>

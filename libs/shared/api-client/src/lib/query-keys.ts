@@ -100,8 +100,6 @@ export const queryKeys = {
     all: (workspaceId: string) => ['people', workspaceId] as const,
     directory: (workspaceId: string, filters: unknown) =>
       ['people', workspaceId, 'directory', filters] as const,
-    celebrations: (workspaceId: string, from: string, days: number) =>
-      ['people', workspaceId, 'celebrations', from, days] as const,
     profile: (workspaceId: string, userId: string) =>
       ['people', workspaceId, 'profile', userId] as const,
   },

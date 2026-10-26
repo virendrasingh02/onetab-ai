@@ -505,37 +505,4 @@ describe('PeopleService', () => {
       expect(ada.birthday).toBeUndefined();
     });
   });
-
-  it('celebrations only include birthdays the viewer may see', async () => {
-    prisma.workspaceMember.findMany.mockResolvedValue([
-      member('u1', 'Ada'),
-      member('u2', 'Bob'),
-      member('u3', 'Cy'),
-    ]);
-    const base = {
-      team: null,
-      skills: [],
-      leftAt: null,
-      birthMonth: 10,
-      birthDay: 28,
-      joiningDate: null,
-    };
-    prisma.employeeProfile.findMany.mockResolvedValue([
-      { ...base, userId: 'u1', privacy: { birthday: 'WORKSPACE' } },
-      { ...base, userId: 'u2', privacy: { birthday: 'PRIVATE' } },
-      { ...base, userId: 'u3', privacy: { birthday: 'PRIVATE' } },
-    ]);
-    const out = await svc.celebrations(
-      'ws',
-      { userId: 'u3', role: WorkspaceRole.ADMIN },
-      { days: 30, from: '2026-10-26' },
-    );
-    // Admin still cannot see Bob's private birthday; Cy sees their own.
-    expect(out.map((e) => e.userId).sort()).toEqual(['u1', 'u3']);
-    expect(out[0]).toMatchObject({
-      kind: 'BIRTHDAY',
-      date: '2026-10-28',
-      daysUntil: 2,
-    });
-  });
 });

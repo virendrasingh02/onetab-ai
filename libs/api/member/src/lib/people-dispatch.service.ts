@@ -183,7 +183,7 @@ export class PeopleDispatchService {
         kind: 'SYSTEM',
         title: item.title,
         body: item.body,
-        deepLink: 'directory?tab=celebrations',
+        deepLink: `directory?person=${item.subjectId}`,
         resourceType:
           item.kind === 'BIRTHDAY'
             ? 'celebration.birthday'

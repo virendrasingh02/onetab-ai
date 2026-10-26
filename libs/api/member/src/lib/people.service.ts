@@ -7,29 +7,17 @@ import { PrismaService } from '@org/database';
 import { WorkspaceAuditService } from '@org/api-workspace';
 import {
   WorkspacePermission,
-  addDays,
   computeProfileCompletion,
-  formatYMD,
   isValidMonthDay,
-  nextAnniversary,
-  nextOccurrence,
-  diffDays,
   normalizeCelebrationPrefs,
   normalizePrivacy,
-  parseYMD,
   roleHasPermission,
-  sameTeam,
-  todayInZone,
-  canSeeWith,
-  type CelebrationEntry,
   type EmployeeCard,
   type EmployeeDirectoryPage,
   type EmployeeProfileView,
   type WorkspaceRole,
-  type YMD,
 } from '@org/types';
 import type {
-  CelebrationsQuery,
   EmployeeDirectoryQuery,
   UpdateCelebrationPrefsInput,
   UpdateEmployeePrivacyInput,
@@ -416,77 +404,6 @@ export class PeopleService {
       pageSize: q.pageSize,
       facets,
     };
-  }
-
-  // --- celebrations ------------------------------------------------------------
-
-  async celebrations(
-    workspaceId: string,
-    viewer: PeopleViewer,
-    q: CelebrationsQuery,
-    now: Date = new Date(),
-  ): Promise<CelebrationEntry[]> {
-    const rows = await this.roster(workspaceId);
-    const me = rows.find((r) => r.user.id === viewer.userId);
-    const viewerTeam = me?.profile?.team ?? null;
-    const isHr = this.isHr(viewer.role);
-    const from: YMD =
-      (q.from ? parseYMD(q.from) : null) ??
-      todayInZone(now, me?.user.timezone || 'UTC');
-    const end = addDays(from, q.days - 1);
-    const out: CelebrationEntry[] = [];
-
-    for (const r of rows) {
-      const p = r.profile;
-      if (!p || p.leftAt) continue;
-      const isSelf = r.user.id === viewer.userId;
-      const rel = { isSelf, sameTeam: sameTeam(viewerTeam, p.team) };
-      const privacy = normalizePrivacy(p.privacy);
-      const base = {
-        userId: r.user.id,
-        name: r.user.displayName?.trim() || r.user.name,
-        avatarUrl: r.user.avatarUrl,
-        jobTitle: r.user.jobTitle,
-      };
-
-      if (
-        p.birthMonth != null &&
-        p.birthDay != null &&
-        canSeeWith(privacy.birthday, rel)
-      ) {
-        const date = nextOccurrence(p.birthMonth, p.birthDay, from);
-        if (diffDays(date, end) >= 0) {
-          out.push({
-            ...base,
-            kind: 'BIRTHDAY',
-            date: formatYMD(date),
-            daysUntil: diffDays(from, date),
-            years: null,
-            isMilestone: false,
-          });
-        }
-      }
-
-      if (p.joiningDate && (isHr || canSeeWith(privacy.anniversary, rel))) {
-        const joined = parseYMD(p.joiningDate.toISOString().slice(0, 10));
-        if (joined) {
-          const a = nextAnniversary(joined, from);
-          if (diffDays(a.date, end) >= 0) {
-            out.push({
-              ...base,
-              kind: 'ANNIVERSARY',
-              date: formatYMD(a.date),
-              daysUntil: a.daysUntil,
-              years: a.years,
-              isMilestone: a.isMilestone,
-            });
-          }
-        }
-      }
-    }
-    return out.sort(
-      (a, b) => a.daysUntil - b.daysUntil || a.name.localeCompare(b.name),
-    );
   }
 }
 

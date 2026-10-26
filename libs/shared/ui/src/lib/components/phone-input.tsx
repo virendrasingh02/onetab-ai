@@ -82,6 +82,7 @@ export function PhoneInput({
       <Combobox
         aria-label="Country"
         className="w-44 shrink-0"
+        clearable={false}
         popoverWidth={300}
         searchPlaceholder="Search country or code…"
         options={options}

@@ -72,9 +72,6 @@ const MembersPage = lazy(() =>
 const PeoplePage = lazy(() =>
   import('@org/web-members').then((m) => ({ default: m.PeoplePage })),
 );
-const EmployeeProfilePage = lazy(() =>
-  import('@org/web-members').then((m) => ({ default: m.EmployeeProfilePage })),
-);
 const InvitationsPage = lazy(() =>
   import('@org/web-invitations').then((m) => ({ default: m.InvitationsPage })),
 );
@@ -415,9 +412,8 @@ const workspaceChildRoutes = (
     <Route path="channels" element={<BrowseChannelsPage />} />
     <Route path="channels/new" element={<CreateChannelPage />} />
     <Route path="members" element={<MembersPage />} />
-    {/* People: employee directory, celebrations and profiles. `members` stays the role / AI-coworker admin page. */}
+    {/* People: employee directory and celebrations; profiles open in the right rail. `members` stays the role / AI-coworker admin page. */}
     <Route path="directory" element={<PeoplePage />} />
-    <Route path="directory/:userId" element={<EmployeeProfilePage />} />
     <Route path="inbox" element={<InboxView />} />
     <Route path="schedule" element={<ScheduleView />} />
     <Route path="tasks" element={<AsanaProjectManager />} />
