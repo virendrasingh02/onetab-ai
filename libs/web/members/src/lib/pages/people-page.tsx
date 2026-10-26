@@ -22,7 +22,7 @@ import {
   useEmployeeDirectory,
   useEmployeeProfile,
 } from '@org/web-workspace';
-import { Cake, MapPin, PartyPopper, Search, Users } from 'lucide-react';
+import { Cake, PartyPopper, Search, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -278,7 +278,6 @@ function CelebrationBadge({ employee }: { employee: EmployeeCard }) {
 }
 
 function EmployeeCardButton({ employee, onOpen }: { employee: EmployeeCard; onOpen: () => void }) {
-  const sub = [employee.jobTitle, employee.team ?? employee.department].filter(Boolean).join(' · ');
   return (
     <button
       type="button"
@@ -291,24 +290,6 @@ function EmployeeCardButton({ employee, onOpen }: { employee: EmployeeCard; onOp
           <span className="truncate text-sm font-medium text-foreground">{employee.name}</span>
           {employee.isSelf && <Badge variant="primary">You</Badge>}
         </span>
-        {sub && <span className="block truncate text-xs text-muted-foreground">{sub}</span>}
-        {employee.location && (
-          <span className="mt-1 gap-1 flex items-center text-xs text-muted-foreground">
-            <MapPin className="size-3" aria-hidden /> {employee.location}
-          </span>
-        )}
-        {employee.skills.length > 0 && (
-          <span className="mt-2 gap-1 flex flex-wrap">
-            {employee.skills.slice(0, 3).map((s) => (
-              <Badge key={s} variant="neutral" className="px-1.5 py-0 text-[11px]">
-                {s}
-              </Badge>
-            ))}
-            {employee.skills.length > 3 && (
-              <span className="text-[11px] text-muted-foreground">+{employee.skills.length - 3}</span>
-            )}
-          </span>
-        )}
         <span className="block">
           <CelebrationBadge employee={employee} />
         </span>
